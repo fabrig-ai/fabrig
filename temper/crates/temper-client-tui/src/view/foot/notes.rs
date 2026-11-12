@@ -1,4 +1,4 @@
-//! Notes following a body's entries (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
+//! Notes following a body's entries (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md).
 use super::{Words, look, text};
 use crate::{
     Tui, limits,

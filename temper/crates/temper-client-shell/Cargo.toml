@@ -12,7 +12,6 @@ name = "temper_client_shell"
 path = "src/lib.rs"
 
 [dependencies]
-temper-version.workspace = true
 temper-shell.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-shell-cli.workspace = true

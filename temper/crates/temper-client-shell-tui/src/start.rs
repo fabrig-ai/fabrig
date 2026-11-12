@@ -69,6 +69,12 @@ pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
     Ok(base.join("temper/tui"))
 }
 
+/// Whether the captured environment requests recording (temper/docs/design/cli/README.md, 8).
+#[must_use]
+pub fn recording(environment: &[EnvironmentEntry]) -> bool {
+    temper_shell::environment::INTERNAL_RECORD.value(environment).is_some()
+}
+
 #[must_use]
 pub fn kept(bytes: &[u8]) -> Option<SocketAddr> {
     address(bytes).ok()
@@ -284,15 +290,16 @@ fn start(
             skein_shell::close_startup_fd(signals);
             Refused::Directory(format!("{}: cannot open sign-in parent: errno {number}", directory.display()))
         })?;
-        #[cfg(feature = "record")]
-        let record = Some(skein_shell::open_root(parent).map_err(|number| {
-            skein_shell::close_startup_fd(files);
-            skein_shell::close_startup_fd(root);
-            skein_shell::close_startup_fd(signals);
-            Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
-        })?);
-        #[cfg(not(feature = "record"))]
-        let record = None;
+        let record = if recording(environment) {
+            Some(skein_shell::open_root(parent).map_err(|number| {
+                skein_shell::close_startup_fd(files);
+                skein_shell::close_startup_fd(root);
+                skein_shell::close_startup_fd(signals);
+                Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
+            })?)
+        } else {
+            None
+        };
         let front = front.map(|front| front.settings(environment, working)).transpose().inspect_err(|_| {
             for fd in record.into_iter().chain([files, root, signals]) {
                 skein_shell::close_startup_fd(fd);

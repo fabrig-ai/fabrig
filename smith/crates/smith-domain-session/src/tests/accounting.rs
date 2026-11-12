@@ -336,6 +336,16 @@ fn cache_write_pricing_combines_all_four_rates_and_rounds_once_at_u64() {
     };
     assert_eq!(rates.price(usage), Some(2), "11/7 rounds once; reasoning is already output");
     assert_eq!(Prices { cache_write: None, ..rates }.price(usage), Some(2));
+    // Opus 5.5's stock rates, in thousandths of a dollar per million tokens.
+    let opus = Prices { input: 4_000, cached: 200, cache_write: Some(5_000), output: 20_000, unit: 1_000_000 };
+    let usage = Usage {
+        input_tokens: Some(101),
+        cache_read_tokens: Some(1001),
+        cache_write_tokens: Some(201),
+        output_tokens: Some(320),
+        reasoning_tokens: Some(0),
+    };
+    assert_eq!(opus.price(usage), Some(9), "8,009,200 / 1,000,000 rounds once, not each token kind");
     let rates = Prices { input: 0, cached: 0, cache_write: Some(u64::MAX), output: 0, unit: 1 };
     assert_eq!(rates.price(Usage { cache_write_tokens: Some(1), ..Usage::ZERO }), Some(u64::MAX));
     assert_eq!(rates.price(Usage { cache_write_tokens: Some(2), ..Usage::ZERO }), None);

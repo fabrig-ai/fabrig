@@ -34,13 +34,6 @@ pub struct Forge {
 }
 
 /// Frozen outside records, retaining values rather than reply rights.
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "bounded observation slots retain inline domain replies; shared::bound counts each full slot"
-    )
-)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Observation {
     Connection {
@@ -57,7 +50,7 @@ pub enum Observation {
         user: u64,
         repository: Box<[u8]>,
         op: api::Op,
-        result: Result<api::Answer, api::Error>,
+        result: Box<Result<api::Answer, api::Error>>,
     },
     Delivery {
         post: Option<forgejo::delivery::Post>,

@@ -16,9 +16,14 @@ test = false
 name = "suite"
 path = "tests/suite/main.rs"
 
+[[test]]
+name = "process"
+path = "tests/process.rs"
+
 [dependencies]
 temper-client-shell.workspace = true
 skein-fail-stop.workspace = true
+temper-version.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

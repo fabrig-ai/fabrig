@@ -1,4 +1,4 @@
-//! What the checkout asks of io (domain/worker.md, 9): git and file
+//! What the checkout asks of io (domain/worker/README.md, 8): git and file
 //! operations on the worker's disk. The protocol layer runs each as one
 //! fixed sequence of contained git invocations and file operations, and parses what it says
 //! into one terminal ([`Done`]); the domain never parses.
@@ -215,7 +215,7 @@ pub enum Fault {
 }
 
 impl Fault {
-    /// Closed fault words for operator diagnostics (temper/docs/design/domain/worker.md, 4.4).
+    /// Closed fault words for operator diagnostics (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {

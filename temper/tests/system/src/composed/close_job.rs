@@ -1,4 +1,4 @@
-//! A close change's job through both roots (temper/docs/design/domain/worker.md, 4.4;
+//! A close change's job through both roots (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 4.2).
 use super::{Duration, Script, Token, World, call, engine, host, link, tasks, worker};
 use jig_domain_link::JobBound;
@@ -96,6 +96,7 @@ fn config(seed: u64) -> engine::Config {
             .insert(
                 1,
                 engine::ProjectLanding {
+                    landing_attempts: engine::LANDING_ATTEMPTS,
                     check_timeout: None,
                     by: engine::Way::Queue,
                     close_job: command,
@@ -270,7 +271,8 @@ impl World {
         assert_eq!(job.deadline, Duration::from_secs(600));
         story.job = Some(job.run.raw());
         let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
-        let limits = temper_service::worker_settings::payload_limits(&own).expect("worker payload limits");
+        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
+            .expect("worker payload limits");
         self.worker_events.push_back(link::job(job, workspace, &limits));
     }
 

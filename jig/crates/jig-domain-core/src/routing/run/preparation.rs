@@ -176,6 +176,7 @@ pub(crate) fn workspace_prepared(
                 session_end = tasks::session_end(
                     session,
                     tasks::SessionWake {
+                        talk: tasks::talk_state(row.talk, row.session, env.wall),
                         at: env.wall,
                         span: tasks::quiet_span(model.cache_life_ms),
                         bytes: transcript.bytes,
@@ -217,26 +218,30 @@ pub(crate) fn workspace_prepared(
     }
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
+    let mut policy = allowance.choice.policy;
     let mut sources = List::with_capacity(tasks::MODELS.checked_add(1).expect("main source"));
     let mut models = List::with_capacity(tasks::MODELS.checked_add(1).expect("main model"));
-    models.push(&allowance.choice.policy.model).expect("main model");
-    for model in &allowance.choice.policy.alternatives {
+    models.push(&mut policy.model).expect("main model");
+    for model in &mut policy.alternatives {
         models.push(model).expect("retained alternatives");
     }
-    for model in &models {
+    for model in models.into_boxed() {
         let provider = core.provider(model).expect("selected model provider");
         let mut grant = None;
         for binding in &allowance.choice.accounts {
-            if binding.provider == provider
-                && core.accounts.source(binding.source).expect("selected source").kind
-                    != jig_domain_accounts::Kind::None
-            {
-                grant = Some(binding.source);
+            if binding.provider == provider {
+                let kind = core.accounts.source(binding.source).expect("selected source").kind;
+                model.endpoint = core.settings.model_endpoint(model, kind).expect("checked model way");
+                if kind != jig_domain_accounts::Kind::Program {
+                    model.program = None;
+                }
+                if kind != jig_domain_accounts::Kind::None {
+                    grant = Some(binding.source);
+                }
             }
         }
         sources.push(grant).expect("one grant per retained model");
     }
-    let mut policy = allowance.choice.policy;
     policy.instructions = instructions;
     policy.resume = resume;
     let run = RunCharter {
@@ -298,7 +303,7 @@ fn answered_calls(core: &Core, task: u64, attempt: u64, limit: u32) -> Box<[crat
     answered.into_boxed()
 }
 
-fn start_messages(inbox: Box<[tasks::Word]>, most: u32, offered: tasks::Reasons) -> Box<[tasks::Word]> {
+pub(crate) fn start_messages(inbox: Box<[tasks::Word]>, most: u32, offered: tasks::Reasons) -> Box<[tasks::Word]> {
     let mut messages = List::with_capacity(most);
     for word in inbox {
         if !tasks::offered(&word, offered) {
@@ -440,6 +445,25 @@ pub(crate) fn plan_brief(
             required: true,
         })
         .expect("task brief room");
+    if wanted.room() > 0
+        && let Some(text) = crate::read_brief_part(
+            core,
+            text_limits,
+            task,
+            crate::BriefPart::Waiting { carried: env.limits.tasks.run_inbox },
+        )
+        && !text.is_empty()
+    {
+        wanted
+            .push(brief::Planned::Core {
+                kind: brief::Core::Waiting,
+                text,
+                limit: env.limits.brief.read_bytes,
+                priority: 0,
+                required: false,
+            })
+            .expect("waiting follows the required task section");
+    }
     if !super::now::plan(core, &env.limits, work, task, &mut wanted) {
         return out;
     }

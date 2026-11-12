@@ -1,6 +1,9 @@
 # contract: status
 
-2026-11-09. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3: the refusal *live tasks*, absent from the contract's `Refusal`, the client wire and jig's words [in flight: change 628].
+- **Not yet:** 4: a deleted project's read answers unknown, not gone [in flight: change 629].
 
 Section 3 has no known gap in a program declaration's name-taken
 refusal: the accounts child and core carry it through the existing
@@ -69,14 +72,9 @@ both proposers with and without a running-work choice.
   `reads.rs`, `read_response`, answers the read `Malformed`. No test
   reads such a turn.
 
-- **Departs:** 3: from `ui-goal-asks-2`'s request for a replaced
-  proposal to answer decided first: automatic task replacement retains
-  no decision and answers `Unknown`. The answer of 2026-11-07 retained
-  that refusal and declined an archive or a new decider because this is
-  a ctl edge outside the happy path and spend binds. Section 9 keeps
-  the retention choice open.
+- **Departs:** 3: the replaced-proposal answer remains `requests.status.md`, 2.
 
-- **Not yet:**  `Hold`; `Move` of a live task as its new requester; `Succeed` (neither `contract::Ask` nor the client wire's v19 schema has them).  the accounts document's aggregate `settled` counts only the party's pending sign-ins, not the program checks they asked, and lists no host whose answer is pending (`jig/crates/jig-domain-core/src/documents/accounts.rs`).  creating's executors list charters and procedures, not persons or roles (`CreateBounds`); a result's texts are not checked as UTF-8 where the tasks child admits a result; a project's document offers `RemoveProject` to no one, its owners included (`jig/crates/jig-domain-core/src/acts/objects.rs`, `admit`, refuses `Act::RemoveProject` not offered; `documents/offers.rs` leaves it out of a project's acts).  the `holds{project}` read. 4: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it. 5.4: an application's streams.
+- **Not yet:**  the missing task acts remain `requests.status.md`, 2.  the account settlement facts remain `documents.status.md`, 1.  the creating executor list remains `documents.status.md`, 3; the result UTF-8 check remains `requests.status.md`, 2; the project-removal offer remains `requests.status.md`, 2.   the holds read remains `documents.status.md`, 6. 4: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it. 5.4: an application's streams.
 
 Section 2's browser-approved sign-in is present on the client wire and
 in the clients' component. Only a take with the secret makes the ordinary

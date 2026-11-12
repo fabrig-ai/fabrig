@@ -282,7 +282,7 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
     assert_eq!(stand.worker.engine.len(), 1);
     let received = peer.received;
     let mut service = super::worker::alone_service();
-    service.worker = Some(stand.worker);
+    service.worker = stand.worker;
     for seconds in 1..=20 {
         let now = fixtures::NOW.saturating_add(Duration::from_secs(seconds));
         peer.now = now;
@@ -290,7 +290,7 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
         // Settle demanded headers and bodies on this second's clock. The
         // backlog stays at the watermark throughout every service pass.
         for _ in 0_u8..32 {
-            let worker = service.worker.as_mut().unwrap();
+            let worker = &mut service.worker;
             // The concrete peer takes the socket requests before the service
             // publishes them to its separate IO machine.
             peer.turn(worker);
@@ -302,8 +302,8 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
             }
             assert!(worker.notes().is_empty(), "the worker's linked link gives no loss fact");
         }
-        crate::iterate(&mut service, now, Wall::EPOCH);
-        load(service.worker.as_mut().unwrap(), WATERMARK);
+        crate::worker_alone::iterate(&mut service, now, Wall::EPOCH);
+        load(&mut service.worker, WATERMARK);
     }
     assert!(peer.received > received, "the idle worker's pings reach the engine");
 }
@@ -334,7 +334,7 @@ fn a_new_wire_record_past_the_entrance_faults_the_link() {
         if let Some(note) = stand.worker.notes().pop() {
             assert_eq!(
                 note,
-                crate::Note::Lost {
+                crate::worker_alone::Note::Lost {
                     worker: b"worker-a".as_slice().into(),
                     address: Box::new(([127, 0, 0, 1], 7100).into()),
                     why: link::Loss::Fault,
@@ -358,13 +358,13 @@ fn the_link_is_read_while_its_last_output_waits() {
     engine.open(&mut stand.worker);
     while stand.worker.notes().pop().is_some() {}
     stand.worker.engine.push(root::Event::Lost);
-    // Reading never waits for the root (temper/docs/design/domain/worker.md, 3.1).
+    // Reading never waits for the root (temper/docs/design/domain/worker/README.md, 3.1).
     let mut service = super::worker::alone_service();
-    service.worker = Some(stand.worker);
+    service.worker = stand.worker;
     let owner = engine.owner;
-    service.told.push(io::Event::Closed { owner });
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    let waiting = service.told.len();
+    service.process.told().push(io::Event::Closed { owner });
+    crate::worker_alone::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    let waiting = service.process.told().len();
     assert_eq!(waiting, 0, "socket input is routed while the last engine record waits");
 }
 

@@ -66,11 +66,14 @@ pub(super) fn part_inputs(commit: Commit, key: p::Key, tests: Option<&[p::TestId
 pub(super) fn report_read(d: &Domain, row: &TierRow, env: &Env<Limits>) -> Option<api::Read> {
     let report = row.flight.as_ref()?.report.as_ref()?;
     let tier = configured(d, row)?;
+    artifact_read(report.id, tier.artifact, tier.format, env)
+}
+pub(crate) fn artifact_read(run: u64, name: Box<[u8]>, format: p::Format, env: &Env<Limits>) -> Option<api::Read> {
     let limits = &env.limits.tiers;
     // Lines allow CRLF; XML allows a six-byte entity per id byte, the case
     // attributes and failure tag, declaration and suite wrapper. Larger reports
     // are cut by the read and judged Many, including reports with extra logs.
-    let bytes = match tier.format {
+    let bytes = match format {
         p::Format::Lines => {
             u64::from(limits.test_id_bytes).checked_add(2)?.checked_mul(u64::from(limits.failing_tests))?
         }
@@ -81,8 +84,8 @@ pub(super) fn report_read(d: &Domain, row: &TierRow, env: &Env<Limits>) -> Optio
             .checked_add(128)?,
     };
     Some(api::Read::Artifact {
-        run: report.id,
-        name: tier.artifact,
+        run,
+        name,
         max_bytes: u32::try_from(bytes.min(u64::from(env.limits.client.answer_bytes))).ok()?.max(1),
     })
 }
@@ -92,10 +95,17 @@ pub(super) fn reported(
     row: &TierRow,
     answer: Result<api::Answer, api::Error>,
 ) -> p::Outcome {
+    report_answer(configured(d, row).expect("configured tier").format, env, answer)
+}
+pub(crate) fn report_answer(
+    format: p::Format,
+    env: &Env<Limits>,
+    answer: Result<api::Answer, api::Error>,
+) -> p::Outcome {
     match answer {
         Ok(api::Answer::File { truncated: true, .. }) => p::Outcome::Failed(p::Failures::Many),
         Ok(api::Answer::File { bytes, .. }) => p::failed(Some(p::report(
-            configured(d, row).expect("configured tier").format,
+            format,
             &bytes,
             &p::Limits { failing_tests: env.limits.tiers.failing_tests, test_id_bytes: env.limits.tiers.test_id_bytes },
         ))),

@@ -336,6 +336,7 @@ pub fn config(seed: u64) -> engine::Config {
             },
             settings: jig_domain_core::Settings {
                 endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 1,

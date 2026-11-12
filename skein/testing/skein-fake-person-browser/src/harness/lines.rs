@@ -19,6 +19,26 @@ pub fn printed(output: &[u8], printed: &Printed<'_>) -> Vec<Opened> {
         })
         .collect()
 }
+/// Inserts a raw query parameter string before the fragment, joining an existing
+/// nonempty query with `&`. An empty parameter string leaves the address unchanged.
+#[must_use]
+pub fn with_query(address: &[u8], query: &[u8]) -> Box<[u8]> {
+    if query.is_empty() {
+        return address.into();
+    }
+    let fragment = address.iter().position(|byte| *byte == b'#').unwrap_or(address.len());
+    let (before, after) = address.split_at(fragment);
+    let mut out = before.to_vec();
+    if !before.contains(&b'?') {
+        out.push(b'?');
+    } else if !before.ends_with(b"?") && !before.ends_with(b"&") {
+        out.push(b'&');
+    }
+    out.extend_from_slice(query);
+    out.extend_from_slice(after);
+    out.into()
+}
+
 pub(crate) fn restart(args: &[OsString], address: &str, peers: &[(Box<[u8]>, String)]) -> Vec<Box<[u8]>> {
     args.iter().map(|arg| substitute(arg.as_bytes(), Some(address), peers)).collect()
 }
@@ -66,7 +86,22 @@ pub(crate) fn opening(lines: &[Opened], names: Names, index: usize) -> Option<&O
 
 #[cfg(test)]
 mod tests {
-    use super::substitute;
+    use super::{substitute, with_query};
+
+    #[test]
+    fn page_query_joins_before_the_fragment_without_changing_other_bytes() {
+        for (address, expected) in [
+            (b"/welcome".as_slice(), b"/welcome?one=1&two=2".as_slice()),
+            (b"/welcome?at=model#part", b"/welcome?at=model&one=1&two=2#part"),
+            (b"/welcome?#part", b"/welcome?one=1&two=2#part"),
+            (b"/welcome?at=model&#", b"/welcome?at=model&one=1&two=2#"),
+            (b"http://127.0.0.1:9/#?", b"http://127.0.0.1:9/?one=1&two=2#?"),
+        ] {
+            assert_eq!(with_query(address, b"one=1&two=2").as_ref(), expected);
+            assert_eq!(with_query(address, b"").as_ref(), address);
+        }
+    }
+
     #[test]
     fn repeated_peer_and_server_placeholders_preserve_other_bytes() {
         let peers = vec![(b"neighbor".as_slice().into(), "127.0.0.1:8".into())];

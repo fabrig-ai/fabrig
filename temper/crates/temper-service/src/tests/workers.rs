@@ -764,7 +764,7 @@ fn refusal_notes_resume_after_the_operator_sink_drains() {
     assert_eq!((task, attempt), (run.task, run.attempt));
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: jobs receive the run path's repository records.
+/// temper/docs/design/domain/worker/jobs.md: jobs receive the run path's repository records.
 #[test]
 fn a_jobs_forge_workspace_becomes_worker_items() {
     let mut service = fixtures::started();
@@ -801,7 +801,7 @@ fn a_jobs_forge_workspace_becomes_worker_items() {
     assert!(item.save().is_none());
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: a job without repositories has no items part.
+/// temper/docs/design/domain/worker/jobs.md: a job without repositories has no items part.
 #[test]
 fn a_job_without_a_forge_workspace_sends_no_part() {
     let mut service = fixtures::started();
@@ -845,7 +845,7 @@ fn diagnostic_answer(
     })
 }
 
-/// temper/docs/design/domain/worker.md, 4.3: a failed answer reaches the operator once.
+/// temper/docs/design/domain/worker/README.md, 4.3: a failed answer reaches the operator once.
 #[test]
 fn failed_answer_detail_reaches_operator_once() {
     for full in [false, true] {
@@ -861,7 +861,7 @@ fn failed_answer_detail_reaches_operator_once() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.3: refusal evidence survives pressure, once.
+/// temper/docs/design/domain/worker/README.md, 4.3: refusal evidence survives pressure, once.
 #[test]
 fn refused_answer_reason_reaches_operator_once() {
     for reason in [

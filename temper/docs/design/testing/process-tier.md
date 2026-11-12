@@ -85,6 +85,22 @@
   other paths of a box's first run
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
+- **A box restarted with a newer build** (`../protocol/setup/box.md`, 1;
+  `../draft/landed-qa.md`, 10), one story on `temper box
+  --fake-backends` with its owned Forgejo: the box started from a `bin/`
+  of its own, holding copies of `temper-box` and `fake-claude` and a
+  bundle's directory; a repository adopted and a task made; the box
+  stopped, exit 0, nothing left; each file of `bin/` replaced by a new
+  copy, the bundle's page given a mark; the box started again on the same
+  directories. ctl signs in with its new link and reads the forge, the
+  repository and the task as they were; every process of the box's tree,
+  read once the link is printed and again while a run started after the
+  restart is live, runs a file of the new `bin/`, by device and inode,
+  but the owned Forgejo and its runner, which run the files their
+  configuration names (box.md, 1), compared with those; none runs an old
+  or a deleted file; the served page holds the mark. It needs the
+  binaries' files and the processes, so it is this profile's.
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper-box versions`' lines; `temper-box
   upgrade --check` over a stopped deployment's copy, saying the restores
@@ -223,7 +239,7 @@
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
 - **The throwaway Forgejo** is the one in skein's `testing/fakes/forge.md`,
-  section 6, never an existing Forgejo: temper's `tools/git-transcripts`
+  section 6, never an existing Forgejo: temper's `temper-git-transcripts`
   records real git against it (../protocol/git.md, section 9). temper's
   users give it the binaries `TEMPER_TEST_FORGEJO` and
   `TEMPER_TEST_FORGEJO_RUNNER` name, and refuse to run without

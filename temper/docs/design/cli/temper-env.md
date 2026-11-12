@@ -71,3 +71,12 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 - **Absent:** Use https://fabrig.ai (port 443).
 - Loopback HTTPS origin for a test's temper-box download.
 - **Notes:** Only https://127.0.0.1:PORT, https://[::1]:PORT or https://localhost:PORT, with nothing after the port.
+
+### `TEMPER_INTERNAL_RECORD`
+
+- **Set:** internal
+- **Reads**
+- **Form:** VALUE
+- **Absent:** Record nothing.
+- Record the TUI into its directory.
+- **Notes:** Any nonempty value enables recording; an empty value is unset.

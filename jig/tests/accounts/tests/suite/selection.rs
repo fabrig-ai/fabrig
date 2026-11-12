@@ -46,7 +46,16 @@ fn choose(
     proofs: &[Coverage],
     host: &[HostSource],
 ) -> Selection {
-    world.domain.select(Use::Party(OWNER), PROVIDER, None, preferred, excluded, proofs, host, world.now)
+    world.domain.select(
+        Use::Party(OWNER),
+        PROVIDER,
+        jig_domain_accounts::Ways { program: false, direct: true },
+        preferred,
+        excluded,
+        proofs,
+        host,
+        world.now,
+    )
 }
 fn ranked(own_holder: Holder, own_place: u32) -> World {
     ranked_with_other(own_holder, own_place, Holder::Party(OWNER))
@@ -111,7 +120,16 @@ fn a_preferred_account_waits_while_fresh_selection_can_continue() {
         Selection::Chosen { account: OTHER, source: OTHER_SOURCE }
     );
     assert_eq!(
-        world.domain.select(Use::Party(OWNER), 99, None, Some(OWN), None, &PROOFS, &[], world.now),
+        world.domain.select(
+            Use::Party(OWNER),
+            99,
+            jig_domain_accounts::Ways { program: false, direct: true },
+            Some(OWN),
+            None,
+            &PROOFS,
+            &[],
+            world.now
+        ),
         Selection::NoAccount
     );
 }
@@ -178,7 +196,7 @@ fn a_program_endpoint_chooses_only_program_sources() {
         world.domain.select(
             Use::Party(OWNER),
             PROVIDER,
-            Some(b"claude_code"),
+            jig_domain_accounts::Ways { program: true, direct: false },
             Some(OWN),
             None,
             &PROOFS,
@@ -322,7 +340,16 @@ fn a_changed_main_provider_allows_fresh_account_choice() {
     grant(&mut world, FIRST);
     grant(&mut world, DEPLOYMENT_SOURCE);
     assert_eq!(
-        world.domain.select(Use::Party(OWNER), NEW_PROVIDER, None, Some(OWN), None, &PROOFS, &[], world.now),
+        world.domain.select(
+            Use::Party(OWNER),
+            NEW_PROVIDER,
+            jig_domain_accounts::Ways { program: false, direct: true },
+            Some(OWN),
+            None,
+            &PROOFS,
+            &[],
+            world.now
+        ),
         Selection::Chosen { account: DEPLOYMENT, source: DEPLOYMENT_SOURCE }
     );
 }
@@ -361,7 +388,7 @@ fn only_host_local_program_unavailability_passes_to_the_next_program_source() {
         world.domain.select(
             Use::Party(OWNER),
             PROVIDER,
-            Some(b"claude_code"),
+            jig_domain_accounts::Ways { program: true, direct: false },
             Some(OWN),
             None,
             &PROOFS,
@@ -375,4 +402,30 @@ fn only_host_local_program_unavailability_passes_to_the_next_program_source() {
         choose(&world),
         Selection::Wait { account: OWN, source: Some(FIRST), why: WaitWhy::Source(State::Limited { until: None }) }
     );
+}
+
+#[test]
+fn either_way_uses_source_order_and_only_host_local_fallback() {
+    let mut world = two_sources(Kind::Program, None);
+    let ways = jig_domain_accounts::Ways { program: true, direct: true };
+    let select = |world: &World, host: &[HostSource]| {
+        world.domain.select(Use::Party(OWNER), PROVIDER, ways, Some(OWN), None, &PROOFS, host, world.now)
+    };
+    assert_eq!(
+        select(&world, &[HostSource { source: FIRST, usable: true }]),
+        Selection::Chosen { account: OWN, source: FIRST }
+    );
+    assert_eq!(
+        select(&world, &[HostSource { source: FIRST, usable: false }]),
+        Selection::Chosen { account: OWN, source: SECOND }
+    );
+    world.step(Event::Limited { account: FIRST, reset: None });
+    assert_eq!(
+        select(&world, &[HostSource { source: FIRST, usable: false }]),
+        Selection::Wait { account: OWN, source: Some(FIRST), why: WaitWhy::Source(State::Limited { until: None }) }
+    );
+    let mut world = fixture(vec![account(OWN, PROVIDER, Holder::Party(OWNER), b""), source(OWN, SECOND, 0, Kind::Key)]);
+    grant(&mut world, SECOND);
+    assert_eq!(world.domain.candidates(Use::Party(OWNER), PROVIDER, ways, None, None, &PROOFS).as_slice(), [OWN]);
+    assert_eq!(select(&world, &[]), Selection::Chosen { account: OWN, source: SECOND });
 }

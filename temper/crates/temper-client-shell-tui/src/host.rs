@@ -102,6 +102,8 @@ pub struct Settings {
     reason = "closing, browsing, address persistence and local sign-in are independent host facts"
 )]
 pub struct Host {
+    #[cfg(test)]
+    events: Vec<core::mem::Discriminant<Event>>,
     root: root::Domain,
     state: Option<tui::Tui>,
     view: tui::View,
@@ -146,6 +148,8 @@ impl Host {
             temper_client_shell_terminal::limits::view(&limits.native).expect("native view capacities are checked");
         let words = tui::words::Words::english(words, &limits.native.client).expect("TUI words are checked");
         Host {
+            #[cfg(test)]
+            events: Vec::new(),
             root: root::new(&limits.native.client, seed),
             state: None,
             view: tui::View::new(&limits.view, words),
@@ -370,6 +374,7 @@ impl Host {
                 night: false,
             },
         });
+        self.step(Event::Launchpad);
         if start.front {
             self.need_local(true, duties);
         } else if self.credential.is_none() {
@@ -465,6 +470,8 @@ impl Host {
     }
 
     fn step(&mut self, event: Event) {
+        #[cfg(test)]
+        self.events.push(core::mem::discriminant(&event));
         root::step(&mut self.root, &self.env, event, &mut self.out);
     }
 

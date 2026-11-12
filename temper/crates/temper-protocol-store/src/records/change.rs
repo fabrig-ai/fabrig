@@ -36,6 +36,7 @@ fn encode_gate_kind(value: d::GateKind) -> w::GateKind {
         d::GateKind::Agent => w::GateKind::Agent,
         d::GateKind::Person => w::GateKind::Person,
         d::GateKind::Check => w::GateKind::Check,
+        d::GateKind::Follow => w::GateKind::Follow,
     }
 }
 fn decode_gate_kind(value: w::GateKind) -> d::GateKind {
@@ -43,6 +44,7 @@ fn decode_gate_kind(value: w::GateKind) -> d::GateKind {
         w::GateKind::Agent => d::GateKind::Agent,
         w::GateKind::Person => d::GateKind::Person,
         w::GateKind::Check => d::GateKind::Check,
+        w::GateKind::Follow => d::GateKind::Follow,
     }
 }
 fn encode_hold(value: d::Hold) -> w::ChangeHold {
@@ -410,8 +412,14 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
     }
 }
 
-fn encode_change_state(state: &d::State) -> w::ChangeState {
+// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches.md, 2).
+fn encode_change_state(state: &d::State, ended_held: Option<d::Hold>) -> w::ChangeState {
     let mut holds = List::with_capacity(8);
+    if *state == d::State::Ended
+        && let Some(why) = ended_held
+    {
+        holds.push(encode_hold(why)).expect("one ending hold");
+    }
     let mut current = state;
     for _ in 0..=8_u32 {
         let d::State::Held { was, why } = current else {
@@ -422,13 +430,18 @@ fn encode_change_state(state: &d::State) -> w::ChangeState {
     }
     w::ChangeState::new(&w::CEILINGS, w::ChangeStateParts { live: encode_live(current), holds }).expect(FITS)
 }
-fn decode_change_state(value: w::ChangeState) -> d::State {
+fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
     let w::ChangeStateParts { live, holds } = value.into_parts();
     let mut state = decode_live(live);
+    if state == d::State::Ended
+        && let [why] = holds.as_slice()
+    {
+        return (state, Some(decode_hold(why.clone())));
+    }
     for why in holds.into_boxed().into_iter().rev() {
         state = d::State::Held { was: Box::new(state), why: decode_hold(why) };
     }
-    state
+    (state, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
     let d::Gate { number, kind, blocking, freshness, eager } = value;
@@ -523,13 +536,14 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released,
         way,
         landing,
+        ended_held,
     } = value;
     w::Change::new(
         &w::CEILINGS,
         w::ChangeParts {
             early: encode_early(early),
             task: *task,
-            state: encode_change_state(state),
+            state: encode_change_state(state, *ended_held),
             gates: encode_gates(gates),
             clean: encode_commits(clean),
             repairs: *repairs,
@@ -575,10 +589,12 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         way,
         landing,
     } = value.into_parts();
+    let (state, ended_held) = decode_change_state(state);
     d::Change {
         early: decode_early(early),
         task,
-        state: decode_change_state(state),
+        state,
+        ended_held,
         gates: decode_gates(gates),
         clean: decode_commits(clean),
         repairs,
@@ -609,6 +625,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
 )]
 pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     let top::ChangeRow {
+        signed,
         task,
         repository,
         branch,
@@ -633,13 +650,14 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         review_charter,
         producing_llm,
         review_llm,
-        foreman_charter,
         questions,
         result,
         effect_account,
         producer_failure,
         report,
         repairs,
+        follows,
+        follow_check,
         catch_up,
         close,
         merge_result,
@@ -651,6 +669,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     w::ChangeRow::new(
         &w::CEILINGS,
         w::ChangeRowParts {
+            signed: super::landing_log::encode_signed(signed),
             result: encode_result(result),
             task: *task,
             repository: names::encode_repository(*repository),
@@ -697,11 +716,24 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             review_charter: *review_charter,
             producing_llm: encode_llm(producing_llm.as_ref()),
             review_llm: encode_llm(review_llm.as_ref()),
-            foreman_charter: *foreman_charter,
             questions: encode_questions(questions),
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             repairs: *repairs,
+            follows: match follows {
+                Some(value) => Some(
+                    w::ChangeFollows::new(
+                        &w::CEILINGS,
+                        w::ChangeFollowsParts { follow: value.follow, commits: encode_commits(&value.commits) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            follow_check: match follow_check {
+                Some(check) => Some(encode_check(check)),
+                None => None,
+            },
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
@@ -724,8 +756,9 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     .expect(FITS)
 }
 #[expect(clippy::too_many_lines, reason = "the durable change account translates each row field in place")]
-pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
+pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, super::Undecodable> {
     let w::ChangeRowParts {
+        signed,
         task,
         repository,
         branch,
@@ -750,13 +783,14 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         review_charter,
         producing_llm,
         review_llm,
-        foreman_charter,
         questions,
         result,
         effect_account,
         producer_failure,
         report,
         repairs,
+        follows,
+        follow_check,
         catch_up,
         close,
         merge_result,
@@ -765,7 +799,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         repair_tasks,
         resolution_tasks,
     } = value.into_parts();
-    top::ChangeRow {
+    Ok(top::ChangeRow {
+        signed: super::landing_log::decode_signed(signed),
         goal,
         ending: decode_ending(ending),
         repair_tasks: repair_tasks.into_boxed(),
@@ -810,11 +845,21 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         review_charter,
         producing_llm: decode_llm(producing_llm),
         review_llm: decode_llm(review_llm),
-        foreman_charter,
-        questions: decode_questions(questions),
+        questions: decode_questions(questions)?,
         producer_failure,
         report,
         repairs,
+        follows: match follows {
+            Some(value) => {
+                let w::ChangeFollowsParts { follow, commits } = value.into_parts();
+                Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
+            }
+            None => None,
+        },
+        follow_check: match follow_check {
+            Some(check) => Some(decode_check(check)),
+            None => None,
+        },
         catch_up,
         close,
         merge_result,
@@ -825,7 +870,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
             }
             None => None,
         },
-    }
+    })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
@@ -995,9 +1040,6 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
     for question in &value.open {
         let stands = match &question.stands {
             d::Stands::Taken => w::Stands::Taken,
-            d::Stands::Foreman { task } => {
-                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: *task }).expect(FITS))
-            }
             d::Stands::Asked => w::Stands::Asked,
             d::Stands::Held { answer } => {
                 w::Stands::Held(w::Held::new(&w::CEILINGS, w::HeldParts { answer: answer.clone() }).expect(FITS))
@@ -1023,7 +1065,6 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
         w::QuestionsParts {
             route: match value.route {
                 d::Route::None => w::Route::None,
-                d::Route::Foreman => w::Route::Foreman,
                 d::Route::Up => w::Route::Up,
             },
             taken: value.taken,
@@ -1033,28 +1074,28 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
     .expect(FITS)
 }
 
-fn decode_questions(value: w::Questions) -> d::Questions {
+fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
     let w::QuestionsParts { route, taken, open } = value.into_parts();
     let mut questions = List::with_capacity(open.len());
     for question in open.into_boxed() {
         let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
         let stands = match stands {
             w::Stands::Taken => d::Stands::Taken,
-            w::Stands::Foreman(value) => d::Stands::Foreman { task: value.into_parts().task },
+            w::Stands::Retired => return Err(super::Undecodable::Malformed),
             w::Stands::Asked => d::Stands::Asked,
             w::Stands::Held(value) => d::Stands::Held { answer: value.into_parts().answer },
         };
         questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
     }
-    d::Questions {
+    Ok(d::Questions {
         route: match route {
+            w::Route::Retired => return Err(super::Undecodable::Malformed),
             w::Route::None => d::Route::None,
-            w::Route::Foreman => d::Route::Foreman,
             w::Route::Up => d::Route::Up,
         },
         taken,
         open: questions.into_boxed(),
-    }
+    })
 }
 
 fn encode_ending(ending: Option<&top::Ending>) -> Option<w::ChangeEnding> {
@@ -1074,4 +1115,43 @@ fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
         w::ChangeEnding::Cancelled => top::Ending::Cancelled,
         w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.into_parts().line },
     })
+}
+
+fn encode_check(check: &top::FollowCheck) -> w::FollowCheckProgress {
+    w::FollowCheckProgress::new(
+        &w::CEILINGS,
+        w::FollowCheckProgressParts {
+            follow: check.follow,
+            source: check.source,
+            head: check.head,
+            definition: check.definition.clone(),
+            key: check.key,
+            flight: match &check.flight {
+                Some(flight) => Some(super::tiers::encode_flight(flight)),
+                None => None,
+            },
+            page: check.page,
+            faults: check.faults,
+            held: check.held.clone(),
+        },
+    )
+    .expect(FITS)
+}
+fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
+    let w::FollowCheckProgressParts { follow, source, head, definition, key, flight, page, faults, held } =
+        check.into_parts();
+    top::FollowCheck {
+        follow,
+        source,
+        head,
+        definition,
+        key,
+        flight: match flight {
+            Some(flight) => Some(super::tiers::decode_flight(flight)),
+            None => None,
+        },
+        page,
+        faults,
+        held,
+    }
 }

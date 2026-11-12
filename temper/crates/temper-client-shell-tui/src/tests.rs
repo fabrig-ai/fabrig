@@ -1175,23 +1175,21 @@ fn project_bytes(project: &w::MeProject) -> Box<[u8]> {
 }
 
 pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
-    duties
-        .asked
-        .iter()
-        .rev()
-        .find_map(|request| {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
-                if open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
-                        == *subject
-                {
-                    return Some(open.watch());
-                }
+    maybe_watch(duties, subject).unwrap_or_else(|| panic!("requested watch {subject:?}: {:?}", duties.asked))
+}
+fn maybe_watch(duties: &Duties, subject: &w::Subject) -> Option<u64> {
+    duties.asked.iter().rev().find_map(|request| {
+        if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+            if open.subject().owner() == &w::Owner::Jig
+                && w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject")
+                    == *subject
+            {
+                return Some(open.watch());
             }
-            None
-        })
-        .unwrap_or_else(|| panic!("requested watch {subject:?}: {:?}", duties.asked))
+        }
+        None
+    })
 }
 
 fn delivery(host: &mut Host, watch: u64, value: &w::DeliveryValue) -> Duties {
@@ -1353,13 +1351,11 @@ fn goal_host() -> Host {
             let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
             duties.asked.extend(admit(&mut host, arrived).asked);
         }
-        if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some()) {
+        if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some())
+            && host.root.pages().left_off().is_some_and(|reads| reads.goals(host.root.client()).is_some())
+        {
             break;
         }
-        let due = root::next_deadline(&host.root).expect("goal watch retry");
-        host.clocks(due, Wall::EPOCH);
-        let again = host.report(Report::Due);
-        duties.asked.extend(admit(&mut host, again).asked);
     }
     host.frame();
     host
@@ -1747,8 +1743,10 @@ fn reply_host_draft(draft: bool) -> Host {
     template.encode(&mut writer).unwrap();
     project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
     me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap())]);
-    delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    let duties = delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    admit(&mut host, duties);
     let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
+    let duties = admit_watches(&mut host, duties);
     let task_watch =
         watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
     let activity = read_exchange(&duties, "activity");
@@ -1790,6 +1788,7 @@ fn reply_host_draft(draft: bool) -> Host {
     task.acts = pieces(&[writer.finish()]);
     let duties =
         delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let duties = admit_watches(&mut host, duties);
     if draft {
         let read = read_exchange(&duties, "notes");
         let page = pane_document();
@@ -2428,7 +2427,13 @@ fn the_launchpad_takes_its_own_words() {
         }
         typed(&mut host, b"/change Add a CSV export");
         let duties = give(&mut host, Event::Send);
+        let mut duties = admit(&mut host, duties);
         if !missing_template {
+            if sent_ask(&duties).is_empty() {
+                host.clocks(host.env.now.saturating_add(host.env.limits.client.domain.requests.first), host.env.wall);
+                let more = host.report(Report::Due);
+                duties.asked.extend(admit(&mut host, more).asked);
+            }
             let asks = sent_ask(&duties);
             let [(exchange, _)] = asks.as_slice() else { panic!("one change start: {asks:?}") };
             let answer = w::Final::Refused(
@@ -3011,25 +3016,6 @@ fn waiting_at(chat: bool) -> Host {
         &watches,
         &w::Subject::Inbox(w::SubjectInbox::new(&w::CEILINGS, w::SubjectInboxParts { window }).expect("inbox subject")),
     );
-    let mut inbox = records::owner_inbox_record().into_parts();
-    inbox.party = 7;
-    let duties =
-        delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("inbox")));
-    let query = read_exchange(&duties, "inbox");
-    if !chat {
-        let updates = read_exchange(&duties, "updates");
-        read_reply(
-            &mut host,
-            updates,
-            &w::ReadValue::Inbox(
-                w::InboxPage::new(
-                    &w::CEILINGS,
-                    w::InboxPageParts { selection: None, cut: false, rows: Box::default(), before: None, after: None },
-                )
-                .expect("empty updates"),
-            ),
-        );
-    }
     let entry = w::InboxEntry::new(
         &w::CEILINGS,
         w::InboxEntryParts {
@@ -3050,12 +3036,29 @@ fn waiting_at(chat: bool) -> Host {
     .expect("entry");
     let mut writer = Writer::new(usize::try_from(entry.measure()).expect("entry size"));
     entry.encode(&mut writer).expect("entry fits");
-    let page = w::InboxPage::new(
-        &w::CEILINGS,
-        w::InboxPageParts { selection: None, cut: false, rows: pieces(&[writer.finish()]), before: None, after: None },
-    )
-    .expect("inbox page");
-    let duties = read_reply(&mut host, query, &w::ReadValue::Inbox(page));
+    let entries = pieces(&[writer.finish()]);
+    let mut inbox = records::owner_inbox_record().into_parts();
+    inbox.party = 7;
+    if !chat {
+        inbox.needs = entries.clone();
+        inbox.cached_needs = 1;
+        inbox.updates = Box::default();
+    }
+    let duties =
+        delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("inbox")));
+    let duties = admit_watches(&mut host, duties);
+    let duties = if chat {
+        let query = read_exchange(&duties, "inbox");
+        let page = w::InboxPage::new(
+            &w::CEILINGS,
+            w::InboxPageParts { selection: None, cut: false, rows: entries, before: None, after: None },
+        )
+        .expect("inbox page");
+        let duties = read_reply(&mut host, query, &w::ReadValue::Inbox(page));
+        admit_watches(&mut host, duties)
+    } else {
+        duties
+    };
     let query = read_exchange(&duties, "question");
     let mut question = records::read_wire_question().into_parts();
     question.words = w::DocumentText::new(
@@ -3076,6 +3079,24 @@ fn waiting_at(chat: bool) -> Host {
     question.acts = pieces(&[writer.finish()]);
     read_reply(&mut host, query, &w::ReadValue::Question(w::Question::new(&w::CEILINGS, question).expect("question")));
     host
+}
+
+// Watch terminals free credit for the fixture's reads, whose values it supplies separately.
+fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
+    let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
+    while let Some(request) = pending.pop_front() {
+        if matches!(
+            &request,
+            Request::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. }
+                | Request::Save { .. }
+                | Request::Erase { .. }
+        ) && let Some(report) = background_reply(&request)
+        {
+            pending.extend(host.report(report).asked);
+        }
+        duties.asked.push(request);
+    }
+    duties
 }
 
 fn admit(host: &mut Host, mut duties: Duties) -> Duties {
@@ -3459,6 +3480,39 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
         let again = host.report(Report::Due);
         duties.asked.extend(admit(&mut host, again).asked);
     }
+    let w::Subject::Tasks(subject) = subject else { panic!("chat tasks subject") };
+    let mut subject = subject.into_parts();
+    let mut query = subject.query.into_parts();
+    query.project = None;
+    subject.query = w::TaskQuery::new(&w::CEILINGS, query).expect("across query");
+    let subject = w::Subject::Tasks(w::SubjectTasks::new(&w::CEILINGS, subject).expect("across subject"));
+    for _ in 0..host.env.limits.client.domain.watches {
+        if maybe_watch(&duties, &subject).is_some() {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("across chat watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
+    let across = watch(&duties, &subject);
+    let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks.clone()));
+    duties.asked.extend(admit(&mut host, arrived).asked);
+    let window = host.root.pages().inbox().expect("launchpad inbox").window;
+    let inbox_watch = watch(
+        &duties,
+        &w::Subject::Inbox(w::SubjectInbox::new(&w::CEILINGS, w::SubjectInboxParts { window }).expect("inbox subject")),
+    );
+    let mut inbox = records::owner_inbox_record().into_parts();
+    inbox.needs = Box::default();
+    inbox.updates = Box::default();
+    inbox.cached_needs = 0;
+    let arrived = delivery(
+        &mut host,
+        inbox_watch,
+        &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("empty inbox")),
+    );
+    duties.asked.extend(admit(&mut host, arrived).asked);
     if brief {
         deliver_brief(&mut host, &mut duties);
     }
@@ -3695,4 +3749,63 @@ fn pane_events() {
     host.report(Report::Resize(Size { columns: 80, rows: 24 }));
     host.frame();
     assert!(host.focus.follow, "resizing back follows the conversation");
+}
+
+#[test]
+fn start_gives_the_look_then_launchpad_once_but_a_theme_only_gives_the_look() {
+    use core::mem::discriminant;
+    let mut host = host();
+    start(&mut host, None);
+    let look = terminal::Look { terminal: true, ..terminal::Look::default() };
+    assert_eq!(
+        host.events.get(..3),
+        Some(
+            [
+                discriminant(&root::Event::Start {
+                    address: Address::Inbox { filter: root::address::Filter::ALL },
+                    kept: List::with_capacity(0),
+                    with: None,
+                }),
+                discriminant(&root::Event::LookKept { look }),
+                discriminant(&root::Event::Launchpad),
+            ]
+            .as_slice()
+        )
+    );
+    assert_eq!(host.events.iter().filter(|event| **event == discriminant(&root::Event::Launchpad)).count(), 1);
+    host.events.clear();
+    host.keep_theme(temper_client_tui::theme::ThemeChoice::Light, &mut Duties::default());
+    assert_eq!(host.events, [discriminant(&root::Event::LookKept { look })]);
+}
+
+#[test]
+fn chats_one_and_enter_open_the_newer_chat_of_shop() {
+    let mut tasks = home_tasks(false).into_parts();
+    let mut reader = Reader::new(&tasks.rows);
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("task piece") {
+        let mut row = w::TaskLine::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("task line").into_parts();
+        if row.last_activity == 2 {
+            row.project = 5;
+        }
+        let row = w::TaskLine::new(&w::CEILINGS, row).expect("project's row");
+        let mut writer = Writer::new(usize::try_from(row.measure()).expect("row size"));
+        row.encode(&mut writer).expect("row fits");
+        rows.push(writer.finish());
+    }
+    tasks.rows = pieces(&rows);
+    let tasks = w::Tasks::new(&w::CEILINGS, tasks).expect("two projects' chats");
+    for numbered in [false, true] {
+        let mut host = home_with_brief(&tasks, false);
+        if numbered {
+            typed(&mut host, b"/chats 1");
+        } else {
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            host.frame();
+            assert_eq!(host.state().left_off(), Some(NEWEST));
+        }
+        host.report(Report::Key(Key::Enter));
+        assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
+    }
 }

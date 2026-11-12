@@ -1,6 +1,17 @@
 //! Shared variables read by temper (temper/docs/design/cli/README.md, 8).
 use skein_shell::{Set, Variable, Way};
 
+/// The compile-time commit variable (temper/docs/design/cli/README.md, 8).
+pub const INTERNAL_COMMIT: Variable = Variable {
+    name: "TEMPER_INTERNAL_COMMIT",
+    set: Set::Internal,
+    form: "COMMIT",
+    way: Way::Reads,
+    line: "The build's commit and tracked-file dirty mark.",
+    absent: "The build script supplies unknown when git identity is unavailable.",
+    notes: "Read at compile time from temper-version's build script alone; not a runtime override.",
+};
+
 pub const INTERNAL_DUMP_LLM: Variable = Variable {
     name: "TEMPER_INTERNAL_DUMP_LLM",
     set: Set::Internal,
@@ -9,6 +20,16 @@ pub const INTERNAL_DUMP_LLM: Variable = Variable {
     line: "Directory for agents' model request dumps.",
     absent: "Do not dump model requests.",
     notes: "The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.",
+};
+
+pub const INTERNAL_RECORD: Variable = Variable {
+    name: "TEMPER_INTERNAL_RECORD",
+    set: Set::Internal,
+    form: "VALUE",
+    way: Way::Reads,
+    line: "Record the TUI into its directory.",
+    absent: "Record nothing.",
+    notes: "Any nonempty value enables recording; an empty value is unset.",
 };
 
 pub const PATH: Variable = Variable {

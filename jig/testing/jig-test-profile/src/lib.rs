@@ -365,6 +365,7 @@ pub fn config(seed: u64) -> root::Config {
             connectors: Box::new([1, 2]),
             settings: core::Settings {
                 endpoints: Box::new([core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 3,

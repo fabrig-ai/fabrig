@@ -1,5 +1,11 @@
 # The TUI
 
+- `pages/README.md`: the TUI's state, shared words, foot and commands.
+- `pages/sign-in.md`: signing in and renewing from the engine's link.
+- `pages/launchpad.md`: the launchpad, its rows and walking what needs you.
+- `pages/chat.md`: a chat's conversation and its question.
+- `pages/design-session.md`: the draft pane, reply choices and starting a goal.
+
 ## 1. The TUI: `temper [ADDRESS]`
 
 The TUI (`../../draft/tui.md`) is a person's full-screen terminal client:
@@ -9,7 +15,7 @@ Its first pass (`../../draft/tui.md`, section 4) signs in from the local
 engine's link file, with a pasted link or the browser's approval as
 fallback (`../README.md`, 4.1); once signed in it draws, live, a launchpad, the commands
 of the browser's chat terminal and a chat read as that terminal reads
-it (`pages.md`). `temper-box open` stays the tests' line client
+it (`pages/README.md`). `temper-box open` stays the tests' line client
 (`../line.md`, 9).
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
@@ -27,7 +33,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   port fell back to another is named by its address.
 - **The link is never an argument,** as `temper ctl`'s isn't
   (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
-  (`pages.md`), and refuses it as ADDRESS.
+  (`pages/README.md`), and refuses it as ADDRESS.
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
@@ -87,7 +93,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
     until that wall time in nanoseconds, as the sign-in's answer said
     (jig's `client/domain/client/watches.md`, 2); or `HOST:PORT signed-out`,
     its sign-in there ended before that time, so that only a person's act
-    signs it in there again (`pages.md`, *Expired is not signed out*). It is
+    signs it in there again (`pages/sign-in.md`, 2, *Expired is not signed out*). It is
     `temper-client-tui`'s `Note`, printed by `Note::print` and read by
     `Note::read`. The binary reads it once at start, at most 64 bytes: a
     line for another address than the TUI's, or one absent, unreadable
@@ -99,13 +105,13 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 - **One sign-in at a time:** the token is the engine's it was made at.
   Started at another address, the TUI offers it there, the engine
   there refuses it, and the TUI erases it and asks for that engine's
-  link (`pages.md`).
+  link (`pages/README.md`).
 - **The engine's link, kept at rest.** While the printed link is
   enabled (`../README.md`, section 4), the running engine, `temper-box serve` alone or under
   `temper box`, keeps its live local link, a one-time secret of its own
   beside the printed link's (jig's `protocol/client/sign-in.md`, *The
   local link*), with the address, in a private file, so that a TUI on
-  the same machine signs in with nothing to paste (`pages.md`). The file never
+  the same machine signs in with nothing to paste (`pages/README.md`). The file never
   holds the printed link's secret: a TUI's sign-in spends the file's
   link alone, and the printed link stays live for the person's browser,
   never touched, printed again or spent by a TUI. The file's secret is
@@ -144,11 +150,11 @@ it (`pages.md`). `temper-box open` stays the tests' line client
     not private reads as none. The binary reads it once at start, for
     bare `temper`'s address (1) and, whatever the address, for
     whether the TUI is on a box; the run reads it at each duty `local`
-    (3), for the sign-in (`pages.md`).
+    (3), for the sign-in (`pages/README.md`).
   - *On a box:* the file read at start holds a link, as
     `jig-client-protocol-http`'s `printed` reads it, whose `HOST:PORT`
     is the TUI's address: the engine there is this machine's temper box,
-    and the TUI names its place "box" (`pages.md`, *The rule above the box*).
+    and the TUI names its place "box" (`pages/chat.md`, 1, *The rule above the box*).
     The binary keeps the answer alone, `run::Settings.boxed`, and drops
     the secret. `temper-box serve` run alone writes the same file and reads
     as a box too: the file does not tell them apart. With no file, or a
@@ -160,7 +166,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
     one file, written by the engine that holds the listener. A restart
     forgets links, and a spent link is dead (jig's `protocol/client/sign-in.md`
     ): a link that another engine answers, or that none
-    answers, signs nothing in, and the TUI falls back (`pages.md`).
+    answers, signs nothing in, and the TUI falls back (`pages/README.md`).
   - *The risk, accepted by the user, 2026-11-07:* a live owner link,
     one-time and live at most 2 hours, at rest and readable by any
     process running as the person, the box's own agents among them.
@@ -182,7 +188,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   nothing else of it.
 - **It holds** temper's client root, `temper-client-domain`'s `Domain`,
   linked, as `temper-box open`'s native client holds it (`../line.md`, 2); the TUI's
-  state and view (`pages.md`); the focus; and the frame. It holds no io, no
+  state and view (`pages/README.md`); the focus; and the frame. It holds no io, no
   file, no clock and no randomness of its own: what it does is a
   function of its reports, its clocks and its seed.
 
@@ -242,16 +248,16 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   after them the TUI's `theme` record to save, when the person took a
   theme (`theme.md`, *The theme chosen*); the
   credential to keep, or none to erase it; the note to write, when the
-  sign-in's standing changes (`pages.md`); the address signed in to, once, the
+  sign-in's standing changes (`pages/README.md`); the address signed in to, once, the
   first time the link is live with a party; the engine's link file to
-  read, each time the TUI signs in from it (`pages.md`); an address for a
+  read, each time the TUI signs in from it (`pages/README.md`); an address for a
   browser to open, once for each approval asked (`../README.md`, 4.1); and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
 - **The note:** after each report, once the link is live with a party,
   an expiry it names (`link().expires`, jig's `client/domain/client/watches.md`,
   2) that differs from the note's `Until` is a duty to note `Until`
-  it. A sign-in judged ended (`pages.md`) is a duty to note `SignedOut`, once.
+  it. A sign-in judged ended (`pages/README.md`) is a duty to note `SignedOut`, once.
 - **The credential:** after each report the host reads it from
   `jig-client`'s `link()`, through the root. One that differs from the
   one kept is a duty to keep it, before the launchpad is drawn on it;
@@ -262,7 +268,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
 - **A key** goes through skein's key reader (skein's `ui/screen.md`,
   6.2) on the tree and the focus the last frame laid, so that a key
   acts on what the person saw: an act on a node becomes the TUI's event
-  through its view, if the view names one (`pages.md`); the focus moved draws
+  through its view, if the view names one (`pages/README.md`); the focus moved draws
   again; Ctrl+C closes. Escape, which no node of the TUI's names, makes
   the event the view says while it draws a list, `Dismiss` on a
   command's list and `Aside` on the chat's question, or while it draws a
@@ -271,7 +277,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   view (`temper_client_tui::arrow`, with `Arrow::Up` or `Arrow::Down`):
   while it draws the launchpad's left-off chats with the box empty and
   no list under it, they make its `LeftOff` event and skein's key reader
-  is not asked (`pages.md`, *Where you left off*); otherwise they go to the
+  is not asked (`pages/launchpad.md`, 4); otherwise they go to the
   key reader as any key. `Host::event_of` gives the event a key
   would make, without giving it.
 - **The frame:** `Host::frame` lays the view's tree with skein's
@@ -287,7 +293,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
     projects in `me`'s order, after the report in which the link is live
     with `me` read and naming a project while the root is still at its
     start's address; until then, and while `me` names none, the root
-    stays there and the TUI draws the launchpad with no project (`pages.md`),
+    stays there and the TUI draws the launchpad with no project (`pages/launchpad.md`, 7),
     or in front of a box the welcome (`box.md`);
   - *where the root asks:* a `Request::Show` or a replacing one, a chat
     started, a chat chosen from `/chats`, is followed at once as `Went`
@@ -312,26 +318,30 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   a chat's question read while it waits on the person. After each
   report, a theme of the root's look other than the one drawn is the
   theme drawn from then on (`theme.md`).
-- **The TUI's events** and what the host does with each, by screen (`pages.md`):
+- **The launchpad's reads:** right after that first `LookKept` the host
+  gives the root `Event::Launchpad`, once, so that the root's Home
+  reads across the person's projects (`pages/launchpad.md`, 2). No other shell
+  gives it.
+- **The TUI's events** and what the host does with each, by screen (`pages/README.md`; `pages/launchpad.md`):
 
   | Event | Does |
   |---|---|
-  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages.md`, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
+  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
   | `SignIn` | signing in's Enter, as before |
-  | `Send` | the box's Enter (`pages.md`, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages.md`, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages.md`, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
+  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
-  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages.md`) |
-  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages.md`) |
+  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
+  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
-  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages.md`, *Where you left off*) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages.md`, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (`pages.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
   | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
-  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages.md`) |
-  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages.md`, *Walking what needs you*): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
+  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
+  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
   `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS` and
-  `/chats N` before the root's commands (`pages.md`, *The TUI's own
+  `/chats N` before the root's commands (`pages/README.md`, 2, *The TUI's own
   commands*), and, with the walk's question set aside, answers it in
   the box's words as a chat's question's are, then marks it shown.
   `Duties.open`, which opens the approval's tab, carries a page's
@@ -342,7 +352,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   in a recording, and typing marks none
   (`journeys.md`, 3.3). Words typed on the launchpad, and leaving
   it, clear the selection.
-- **The notice's time:** the TUI's notice (`pages.md`, *The notice*) stands
+- **The notice's time:** the TUI's notice (`pages/README.md`, 1, *The notice*) stands
   `limits::NOTICE`, 6 seconds, from the report that gave it, a newer
   one replacing it and its time. The host keeps its end, which
   `Host::deadline` counts among the times it gives, the soonest first;
@@ -356,7 +366,8 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   and the notice's time are
   the host's own steps on the root and the TUI's state, and closing is
   the duty `close` it has; the `theme` record crosses to the run as a
-  `Save` among `asked` (`theme.md`, *The theme chosen*), and nothing else new
+  `Save` among `asked` (`theme.md`, *The theme chosen*), the root is given
+  `Event::Launchpad` once (*The launchpad's reads*), and nothing else new
   crosses.
 - **Shaped for the recording now:** a recording is the start's facts,
   then turn by turn the clocks, each report with its duties, each key
@@ -411,7 +422,7 @@ it (`pages.md`). `temper-box open` stays the tests' line client
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
 - **Time and the seed** are skein-shell's, as `temper-box open`'s (`../line.md`, 2).
-- **Closing:** `/quit` (or `/exit`, `pages.md`, *`/quit`*), Ctrl+C anywhere,
+- **Closing:** `/quit` (or `/exit`, `pages/README.md`, 2, *`/quit`*), Ctrl+C anywhere,
   the input's
   end, SIGINT or SIGTERM; in front of a box, the end of the box's lines
   too, and `/quit` and Ctrl+C ask first while work runs (`box.md`). The TUI
@@ -439,19 +450,16 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 
 ## 5. Open questions
 
-- **The TUI's later passes** (`README.md`, 1 to 3 and `pages.md` and `theme.md` and `README.md`, 4 and `../README.md`, 4.1): beyond the
+- **The TUI's later passes** (`README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4 and `../README.md`, 4.1): beyond the
   launchpad as drawn, its commands, the walk of what needs the person
-  and a chat, a design session among them (`pages.md`): talking with a role, `/talk`, `/tell` and the launchpad's team
+  and a chat, a design session among them (`pages/README.md`): talking with a role, `/talk`, `/tell` and the launchpad's team
   lines, T3's (`../../draft/surfaces.md`, 11.1, 11.3 and 11.4); a need
   from elsewhere on a chat, the line above its box; the web's hand-off,
   a page's terminal command to copy; and choosing a project from a
   checkout (`../../draft/tui.md`, sections 2 and 3). Default: refine each
   on the recorded frames before designing it.
-- **The launchpad's and a chat's later parts** (`pages.md`): the brief, *Where
-  you left off* and Needs you across the person's projects, once the
-  root reads Home across them (`../../draft/surfaces.md`, 3); a newest goal
-  of the person's that Home's goals read, by priority, does not hold,
-  which needs a read of the person's goals by activity; a run opened to its
+- **The launchpad's and a chat's later parts** (`pages/README.md`; `pages/launchpad.md`, 8,
+  holds the launchpad's own): a run opened to its
   rows; earlier pages read as the conversation's head nears, and "Latest
   ↓", once skein's screen reports a log's edge (skein's `ui/screen.md`,
   section 10); a card at the call that made it, and its acts, Accept
@@ -462,16 +470,16 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 - **The TUI's command-line flags** (1 and 2): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
-- **On a box, told by the box** (2, *On a box*; `pages.md`, *The rule
+- **On a box, told by the box** (2, *On a box*; `pages/chat.md`, 1, *The rule
   above the box*): in front, the box tells the TUI it is one (`box.md`, *The
   place*); bare `temper` reads the engine's link file, which names an
   engine of this machine, so `temper-box serve` run alone reads as a box
   too, where the user's request of 2026-11-08 names "box" for a temper
   box. Default: the file, for bare `temper`. Owner: temper/tui.
-- **The TUI's design location:** `README.md`, sections 1 to 3 and `pages.md` and `theme.md` and `README.md`, section 4 and `../README.md`, section 4.1 stay
+- **The TUI's design location:** `README.md`, sections 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, section 4 and `../README.md`, section 4.1 stay
   here; moving them under `client/tui/`, as `../../README.md`, section 6
   assigns them, is a later cleanup that must preserve their citations.
-- **The TUI after landing** (`README.md`, 1 to 3 and `pages.md` and `theme.md` and `README.md`, 4): on a fresh box, start bare
+- **The TUI after landing** (`README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4): on a fresh box, start bare
   `temper` in another terminal before opening the printed link and read
   the launchpad with nothing pasted, then open the printed link in the
   browser and see it sign in, with no fresh link printed (2); check
@@ -513,7 +521,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   after an accent "❯", `/theme`'s list with "dark: your terminal doesn't
   say" and the choice starting the next run, `/quit` and `/exit`, and a
   notice standing 6 seconds on the quiet line, in a narrow window too
-  (`pages.md` and `theme.md`). Left open: the question counts the TUI's project's
+  (`pages/README.md` and `theme.md`). Left open: the question counts the TUI's project's
   chats alone, not work in other projects; two steps restarting at once
   show the one last said; a box over SSH is the person's tunnel, with
   no front of its own. Default: so, until the user asks otherwise on a
@@ -525,19 +533,19 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 - **The TUI's focus in reverse video** (`theme.md`): the mark and the accent
   show the focus. Default: so; reverse video is the fallback if the
   frames show they can't, a look request's to ask.
-- **A sign-out made in the TUI** (`pages.md`): the first pass has none, so its
+- **A sign-out made in the TUI** (`pages/README.md`): the first pass has none, so its
   note's `SignedOut` comes from a sign-in ended elsewhere. Default: a
   later sign-out of the TUI's writes the same note.
 - **An engine at the same address that never made the TUI's sign-in**
-  (`pages.md`): read as a sign-in ended, so the TUI waits for a person's act
+  (`pages/README.md`): read as a sign-in ended, so the TUI waits for a person's act
   there. Default: so, the safe side, until a deployment's own name
   tells engines apart.
-- **Expiry and revocation at the same time** (`pages.md`): the engine answers
+- **Expiry and revocation at the same time** (`pages/README.md`): the engine answers
   both as signed out. The note's last minute is treated as expiry, so a
   revocation in that interval can renew automatically; an absent or
   unreadable note also permits a local try. Distinguishing these ends
   reliably needs an engine answer that names the reason. Default: the
   note and its minute's slack, with this limit kept explicit.
-- **The TUI while offline** (`pages.md`): the launchpad and a chat keep what
+- **The TUI while offline** (`pages/README.md`): the launchpad and a chat keep what
   they last read while the state says "Offline". Default: so, its words
   refined on the recording.

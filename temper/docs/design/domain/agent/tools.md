@@ -380,13 +380,13 @@
   the engine answers a call it has seen before from its record, and smith
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
-- **An answer fits what the agent takes** (`../worker.md`, 4.3):
+- **An answer fits what the agent takes** (`../worker/README.md`, 4.3):
   rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
   the tool name and the receiving agent's reply bound, the root's
   `Domain::reply_bound` for the call's key (`../routing.md`, 2): the
   `agent.limits.bodies.host_reply_text` the run's worker names in its
   hello, from its agent's `agent.json` `profile.declared.tool_payload`
-  (`../worker.md`, section 6); where it names none, the local agent's.
+  (`../worker/README.md`, section 5); where it names none, the local agent's.
   Raising `core.call_answer_bytes` alone cannot overcome a smaller agent
   allowance. Where neither names one, the configured core allowance stands.
   A `see` answer is rendered within the local agent's bound alone
@@ -608,14 +608,13 @@ delegate from what it knows:
   checked as the rest of the batch is: its landing branch by the change's
   grants on the repository, its dependencies by jig's batch.
 - **`questions`:** how the change takes its agents' questions (../forge/change/questions.md,
-  1): `"none"`, a change that asks no one (`agents.md`, 2); `"foreman"`, each
-  question settled first by a foreman of its own; `"up"`, each passed
-  straight to the requester, a designer's change's way; left out, the
+  1): `"none"`, a change that asks no one (`agents.md`, 2); `"up"`, each
+  passed straight to the requester; left out, the
   project's setting (`../../protocol/configuration/settings.md`, 2, kind 6), whose
-  default is `"none"`. Any other value is refused, naming it. A change
-  taking `"foreman"` is given one more task per question of its bound
-  (`forge.change_policy.questions`, `../../protocol/configuration/limits.md`
-  ), beside the tasks above, for its foremen.
+  default is `"none"`. Any other value is refused, naming it, `"foreman"`
+  among them, alone and in a batch's member alike: that route is retired
+  (`../../draft/stock-charters.md`, 3), and the schema offers `"none"` and
+  `"up"` alone.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
   these as they are.
@@ -726,3 +725,65 @@ description. The root decides a chat's `goal` without
 `agree` as before: a goal made for a plain change still makes its
 change, and the change lands, at a goal's run more than the chat's own
 `change` would take.
+
+## 3. Open questions
+
+- **Proposal-form diagnostics** (`tools.md`): `settings` reads name the kind
+  and its missing member; `propose_settings` keeps the shared settings-file
+  parser's errors. Default: those words, until a proposal needs the same
+  kind-specific guidance. Both tools' schemas name the numbered kinds.
+
+- **A charter where the process has no local agent.** The engine does not
+  know its remote worker's charter allowance, so it fits a charter
+  to the smaller of `hub.charter_bytes` and smith's 65,536 (`tools.md`), and a
+  remote worker that takes more, the reference's 127,480 among them,
+  receives its brief cut at 65,536. The worker's hello on jig's link, which
+  names its reply bound (`tools.md`), could carry the allowance beside it, or the
+  engine's document could name it in `hosts.workers`, and the request
+  `landing-behind-main` of 2026-11-08 asks it be sized as that bound is.
+  Default: the smaller of the two defaults.
+
+- **A collaborator's login in `read_collaborators`** (`tools.md`). Default: ids,
+  with `read_permission` naming each.
+
+- **`read_permission`'s login held to the settings family** (`tools.md`). It
+  reaches every run with the forge reads, as the forge's own answer about
+  a user of a repository that run may already read; holding it would be a
+  condition in `temper-engine-domain`'s render. Default: every such run.
+
+- **Which host tools a charter offers.** jig's charter carries the host
+  families its charter's `tools` names and its task's authority holds
+  (jig's `domain/engine/executors.md`, 1), each stock charter's named in
+  `../../protocol/configuration/stock.md`; temper's declares by them the
+  `settings` and delegate families alone, an asking charter its own tools
+  alone, and every other host tool in every other charter (`tools.md`), and the
+  authority refuses what it does not allow. Whether to declare only what the
+  charter names for the other families too, which the host part's budget (`tools.md`)
+  may force, and how a brief teaches an LLM when to delegate a task rather
+  than a sub-agent. `withdraw`, offered to a chat and refused by its
+  authority, since policy 1 gives no decide family
+  (`../../protocol/configuration/stock.md`), is one such tool.
+
+- **Who may name a plan's members of `change`:** the control family
+  says it (`tools.md`, 1), since a plan's maker amends, cancels and releases what
+  it makes. A family of its own would let a policy grant control without
+  plans, or plans without control.
+
+- **A cancel's grace:** jig's `cancel` takes one, if the run gives it
+  (jig's `domain/engine/executors.md`, 3); temper's takes none.
+
+- **A change produced by a job of any kind.** `producer` names a
+  charter, and `merge` the merge job, a catch-up's producer (`tools.md`, 1):
+  every producer a reference change needs
+  (`../../draft/reference-code-production.md`, section 3). Default: no
+  other job kind produces a change; a project whose tooling makes
+  changes with no model would name its kind as a member of `change`.
+
+- **A real chat choosing `change`** (`tools.md`): the owned-forge
+  landing story requires the chat's own successful `change`, rather than
+  a goal's change. Observe whether `goal`'s declaration steers a plain
+  repository change there, and whether the branch-read guidance gives a
+  real run its next read. Default: declarations and bounded refusal
+  guidance, without a new admission restriction; the existing live story
+  runs after landing (`../../testing/live-tier.md`). A scripted call establishes
+  neither model choice nor recovery.

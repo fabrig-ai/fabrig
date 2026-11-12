@@ -2,6 +2,7 @@
 mod store;
 use std::{net::SocketAddr, path::Path};
 use temper_protocol_records::{self as codec, Item};
+use temper_protocol_records_forge as forge_records;
 
 /// A fake GitHub App: the layer's App and the records temper keeps for it.
 #[derive(Clone, Copy, Debug)]
@@ -23,7 +24,7 @@ pub fn records(app: &App, forge: u16, accepted: &[u64], origin: SocketAddr) -> B
     accepted.sort_unstable();
     accepted.dedup();
     let accepted: Vec<u8> = accepted.iter().flat_map(|id| id.to_le_bytes()).collect();
-    let origin = codec::Origin {
+    let origin = forge_records::Origin {
         kind: skein_forge_connection::settings::Kind::GitHub,
         api: origin.to_string().into_boxed_str(),
     }
@@ -73,16 +74,19 @@ mod tests {
         seed(scratch.path(), &records).expect("fixture records are durable");
         let loaded = store::run(scratch.path(), &[], true).expect("load durable fixture records");
         assert_eq!(loaded.len(), 6);
-        let mut rows = codec::Rows::new();
+        let mut rows = forge_records::Rows::new();
         for (number, bytes) in &loaded {
             assert!(records.iter().any(|row| row == &(*number, bytes.clone())));
             rows.push(*number, skein_lib::Secret::new(bytes.clone()), 4096);
         }
         let rows = rows.forge(17).expect("fixture forge records");
         assert_eq!(rows.get(Item::AppKey).expect("fixture app key"), skein_fake_forge_github::keys::KEYS[0]);
-        let start = codec::access(
+        let start = forge_records::access(
             skein_forge_connection::settings::Kind::GitHub,
-            &codec::Origin { kind: skein_forge_connection::settings::Kind::GitHub, api: origin.to_string().into() },
+            &forge_records::Origin {
+                kind: skein_forge_connection::settings::Kind::GitHub,
+                api: origin.to_string().into(),
+            },
             rows,
             &skein_forge_setup::item::Bounds { token_bytes: 512, name_bytes: 256, key_bytes: 4096, installations: 8 },
             false,

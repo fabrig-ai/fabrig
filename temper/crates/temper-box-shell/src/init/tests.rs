@@ -196,7 +196,7 @@ fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, writ
         &application["clients"]["listener"]["socket"],
         &application["machine"]["owned"]["listen"]["socket"],
         &application["machine"]["fake"]["listen"]["socket"],
-        &agent["endpoints"][2]["address"],
+        &agent["endpoints"][3]["address"],
         &application["webhooks"]["listener"]["socket"],
     ]
     .map(|value| value.as_str().expect("address").parse::<std::net::SocketAddr>().expect("socket"));
@@ -212,7 +212,7 @@ fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, writ
     }
     let llm = serde_json::json!({"socket": addresses[3].to_string()});
     assert_eq!(application["demo"]["llm"]["listen"], llm, "{row}");
-    assert_eq!(document["engine"]["llm"]["endpoints"][2]["address"], llm, "{row}");
+    assert_eq!(document["engine"]["llm"]["endpoints"][3]["address"], llm, "{row}");
     assert_eq!(written.listeners.len(), ports.len(), "{row}: five held descriptors");
     for (fd, port) in &written.listeners {
         let address = skein_shell::listener_at(*fd).expect("held descriptor is listening");
@@ -226,10 +226,12 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
     let config = path(&dirs.config);
     // The generated route is asserted above; metadata preflight needs no public DNS
     // or machine trust bundle (as in tests/support/owned.rs's local_agent).
-    document["endpoints"][0]["address"] = "127.0.0.1:443".into();
-    document["endpoints"][0]["trust_der"] = serde_json::json!(config.join("root.der"));
-    document["endpoints"][1]["address"] = "127.0.0.1:443".into();
-    document["endpoints"][1]["trust_der"] = serde_json::json!(config.join("root.der"));
+    for endpoint in document["endpoints"].as_array_mut().expect("endpoints") {
+        if endpoint["transport"] == "tls" {
+            endpoint["address"] = "127.0.0.1:443".into();
+            endpoint["trust_der"] = serde_json::json!(config.join("root.der"));
+        }
+    }
     fs::write(config.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
     let checked = config.join("agent-check.json");
     fs::write(&checked, serde_json::to_vec(&document).expect("agent JSON")).expect("metadata fixture");

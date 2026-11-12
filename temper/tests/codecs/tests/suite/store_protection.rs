@@ -79,7 +79,7 @@ fn protection_bounds_accept_the_limit_and_refuse_one_past() {
                 if extra == 0 {
                     assert_eq!(decoded, Ok(row), "{field} at limit");
                 } else {
-                    assert_eq!(decoded, Err(Undecodable), "{field} one past");
+                    assert_eq!(decoded, Err(Undecodable::Malformed), "{field} one past");
                 }
             }
         }

@@ -167,12 +167,12 @@ impl Config {
 }
 
 // The most held of this world's stories, all binaries counting:
-// 926,508 bytes at jig 4cd5d46966, in
-// fuzzy_snapshot::standing_task_every_snapshot_matches_complete_fresh_state.
+// 1,200,873 bytes with standing sessions and talks, in
+// fuzzy::snapshot::standing_task_every_snapshot_matches_complete_fresh_state (seed 87).
 // A ceiling, a quarter above, rounded up to two significant digits
 // (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
-const CONFORMANCE_HEAP_CEILING: u64 = 1_200_000;
+const CONFORMANCE_HEAP_CEILING: u64 = 1_600_000;
 
 /// The testing engine; the trait is implemented only in ordinary world code.
 #[derive(Debug)]

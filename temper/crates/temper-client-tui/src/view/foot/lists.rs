@@ -1,4 +1,4 @@
-//! The first standing list (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
+//! The first standing list (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
 use crate::{Own, Scheme, Tui, WalkStep, theme::ThemeChoice, view::front, words::Word};
 use alloc::boxed::Box;
@@ -30,6 +30,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     if let Some(confirmation) = shared::confirmation(root) {
         return Some(Options {
             style: look::OPTION,
+            why: None,
             head: Some(copy_of(confirmation.head)),
             name: copy_of(confirmation.head),
             items: Box::new([
@@ -72,6 +73,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
         }
         return Some(Options {
             style: look::OPTION,
+            why: None,
             head: Some(copy_of(shared::list_head(listing))),
             name: copy_of(shared::list_head(listing)),
             items: items.into_boxed(),
@@ -121,6 +123,7 @@ pub(crate) fn reply(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> 
         .expect("else fits memory");
     Some(Options {
         style: look::OPTION,
+        why: None,
         head: None,
         name: words.say(Word::Reply, &[]),
         items: items.into_boxed(),
@@ -162,6 +165,7 @@ fn goal(root: &Domain, start: &temper_client_domain::pages::start_goal::StartGoa
         .expect("cancel fits memory");
     Options {
         style: look::OPTION,
+        why: None,
         name: head.clone(),
         head: Some(head),
         items: items.into_boxed(),
@@ -200,6 +204,7 @@ fn theme(tui: &Tui, words: &Words) -> Options {
     }
     Options {
         style: look::OPTION,
+        why: None,
         head: Some(words.say(Word::ThemeHead, &[])),
         name: words.say(Word::ThemeHead, &[]),
         items: items.into_boxed(),
@@ -229,6 +234,7 @@ fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Opt
     } else {
         Some(Options {
             style: look::COMMAND,
+            why: None,
             head: None,
             name: words.say(Word::Commands, &[]),
             items: items.into_boxed(),
@@ -307,7 +313,7 @@ pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
             continue;
         }
         let (name, address) = match prompt.act {
-            shared::NeedAct::Answer(question) => return Some(question_options(question, words, true)),
+            shared::NeedAct::Answer(question) => return Some(question_options(question, words, true, prompt.why)),
             shared::NeedAct::Review { words, address } => (words, address),
             shared::NeedAct::Web => {
                 let path =
@@ -327,6 +333,7 @@ pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
         next(&mut items, prompt.object, words);
         return Some(Options {
             style: look::OPTION,
+            why: prompt.why,
             name: prompt.line.words.clone(),
             head: Some(prompt.line.words),
             items: items.into_boxed(),
@@ -367,9 +374,9 @@ pub(crate) fn question_list(
     if Some(question.object) == aside {
         return None;
     }
-    Some(question_options(question, words, false))
+    Some(question_options(question, words, false, None))
 }
-fn question_options(question: shared::Question, words: &Words, walking: bool) -> Options {
+fn question_options(question: shared::Question, words: &Words, walking: bool, why: Option<Box<[u8]>>) -> Options {
     let mut items = List::with_capacity(
         u32::try_from(question.choices.len()).expect("parsed choices fit").checked_add(2).expect("else and next fit"),
     );
@@ -417,6 +424,7 @@ fn question_options(question: shared::Question, words: &Words, walking: bool) ->
     }
     Options {
         style: look::OPTION,
+        why,
         name: question.head.clone(),
         head: Some(question.head),
         items: items.into_boxed(),
@@ -428,6 +436,9 @@ pub(super) fn draw(b: &mut Builder, list: &Options, binds: &mut Binds) {
     b.region(look::LIST);
     if let Some(head) = &list.head {
         text(b, Role::Text, head, Some(look::LIST_HEAD));
+    }
+    if let Some(why) = &list.why {
+        text(b, Role::Text, why, Some(look::WHY));
     }
     b.open(Role::Menu);
     b.name(&list.name);

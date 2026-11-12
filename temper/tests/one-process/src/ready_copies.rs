@@ -271,10 +271,7 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
 fn steps() -> Box<[Step<Address>]> {
     let see = |role, name: &[u8]| Step::See { find: Find::exactly_named(role, name), within: fixtures::PERSON_WAIT };
     let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
-    let mut steps = fixtures::account_steps().into_vec();
-    // The welcome advances when the account becomes usable.
-    steps.pop();
-    steps.extend([
+    Box::new([
         Step::Go { address: Address::Welcome { step: Welcome::Forge { forge: Some(Choice::Owned) } } },
         see(Role::Choice, b"Copies of public repositories"),
         press(Role::Choice, b"Copies of public repositories"),
@@ -289,8 +286,7 @@ fn steps() -> Box<[Step<Address>]> {
         see(Role::Button, b"Create your project"),
         press(Role::Button, b"Create your project"),
         Step::See { find: Find::text(b"are in Widget"), within: fixtures::PERSON_WAIT },
-    ]);
-    steps.into()
+    ])
 }
 
 #[derive(Debug, Default)]
@@ -387,12 +383,23 @@ impl skein_world::Referee<Proc> for Judge {
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input = link;
             caller.commands.push_back(sign_in);
+            // Prepare before the page's startup watches fill the exchange edge: a key is sent once.
+            caller.commands.push_back(Command::new(&[
+                b"account",
+                b"add-key",
+                b"1",
+                b"/setup/llm.key",
+                b"--deployment",
+                b"--key",
+                b"ready-account",
+            ]));
+            caller.commands.push_back(Command::new(&[b"account", b"list", b"--until", b"usable"]));
             self.handed = true;
         }
         for answer in &caller.answers {
             assert_eq!(answer.exit, Exit::Code(0), "ctl: {}", String::from_utf8_lossy(&answer.error));
         }
-        if self.handed && caller.answers.len() == 1 && !self.browsing {
+        if self.handed && caller.answers.len() == 3 && !self.browsing {
             for proc in procs.iter_mut() {
                 if let Proc::Other(Native::Person(HarnessProcess::Client(person))) = proc {
                     person.saved();
@@ -432,7 +439,7 @@ impl skein_world::Referee<Proc> for Judge {
                 caller.commands.push_back(Command::new(&[b"project", b"show", b"1", b"--json"]));
                 self.checking = Some(());
             }
-            let [_, forges, project] = caller.answers.as_slice() else { return };
+            let [_, _, _, forges, project] = caller.answers.as_slice() else { return };
             let forges = copy::json(forges);
             let [forge] = forges["forges"].as_array().expect("forge rows").as_slice() else {
                 panic!("one connected forge")
@@ -504,6 +511,7 @@ pub fn run() -> Outcome {
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let mut disk = temper_playground::machine::fresh();
+    temper_playground::machine::setup(&mut disk);
     let parent = disk.reopen_root(2);
     let caller = disk.reopen_root(2);
     let native = disk.reopen_root(2);

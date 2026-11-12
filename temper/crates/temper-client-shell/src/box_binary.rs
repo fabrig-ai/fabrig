@@ -19,7 +19,7 @@ pub const BOX: Command = Command {
     arguments: &[Argument { shown: "ARGUMENT...", line: "Arguments for temper-box, passed on unchanged." }],
     settings: &[&directories::SETTINGS],
     switches: &[],
-    variables: &[],
+    variables: &[&environment::INTERNAL_RECORD],
     notes: "Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. In a terminal, runs the TUI in front of the box. Without a terminal, or with --echo steps, runs the box in this process's place.",
 };
 
@@ -97,6 +97,8 @@ struct Inputs {
     cache: PathBuf,
     site: Origin,
     trust: skein_shell::Trust,
+    version: String,
+    commit: String,
 }
 impl Inputs {
     fn new(cache: PathBuf, captured: &Capture) -> Result<Self, (u8, String)> {
@@ -105,6 +107,8 @@ impl Inputs {
         Ok(Self {
             beside,
             cache,
+            version: captured.version.clone(),
+            commit: captured.commit.clone(),
             site: site(&captured.environment)?,
             trust: skein_shell::Trust::Machine {
                 ssl_cert_file: environment::SSL_CERT_FILE.value(&captured.environment).map(|value| path(value).into()),
@@ -117,8 +121,8 @@ impl Inputs {
             cache: &self.cache,
             site: &self.site,
             trust: &self.trust,
-            version: temper_version::VERSION,
-            commit: temper_version::COMMIT,
+            version: &self.version,
+            commit: &self.commit,
         }
     }
 }

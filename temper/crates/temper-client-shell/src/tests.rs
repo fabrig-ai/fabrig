@@ -48,3 +48,16 @@ fn the_tui_refusals_explain_the_terminal_and_sign_in() {
     assert_eq!(terminal_refusal(CLIENT.binary, false), "temper: no command; temper --help lists them\n");
     assert_eq!(terminal_refusal(CLIENT.binary, true), Refused::NotATerminal.line(CLIENT.binary));
 }
+#[test]
+fn tui_recording_variable_is_internal_and_read() {
+    for reach in [skein_shell::Reach::Words(&[]), skein_shell::Reach::Words(&["box"])] {
+        let tui = CLIENT.commands.iter().find(|command| command.reach == reach).expect("a client TUI command");
+        let record = tui
+            .variables
+            .iter()
+            .find(|variable| variable.name == "TEMPER_INTERNAL_RECORD")
+            .expect("TUI commands must declare the recording variable");
+        assert_eq!(record.set, skein_shell::Set::Internal, "recording variable is internal");
+        assert_eq!(record.way, skein_shell::Way::Reads, "recording variable is read");
+    }
+}

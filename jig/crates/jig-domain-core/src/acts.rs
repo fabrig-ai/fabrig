@@ -26,6 +26,8 @@ pub enum Act {
     RemoveProject,
     /// Write to an agent.
     Message,
+    Talk,
+    Leave,
     /// Answer a question or person task.
     Answer,
     /// Take a role task.
@@ -95,6 +97,8 @@ impl Act {
             Self::Release => Some(Decision::Release),
             Self::LeaveHeld => Some(Decision::LeaveHeld),
             Self::RemoveProject
+            | Self::Talk
+            | Self::Leave
             | Self::Message
             | Self::Answer
             | Self::Take

@@ -77,20 +77,22 @@ card*), and `see ways` says no headline (`../../domain/agent/ask-temper.status.m
 1). The stock holds no tier, so it has no tier's words
 (`../../draft/stock-ways.md`, section 9).
 
-`stock.md` has stock charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 and
+`stock.md` has stock charters 1, 2, 4, 5, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`
 are absent. Charter 12's `drafter.txt` is the words temper/ui handed,
 byte for byte, its sha256 and length pinned by a focused test.
-Charter 5's file matches the supplied first edition, with shared
-instructions and four ordered parts; it runs fresh with zero waiting.
+Charters 5 and 2 are assembled from the stock's set of charter files,
+`temper/docs/charters/stock/`, charter 5 with four ordered parts; it
+runs fresh with zero waiting.
 Template 4 names its own goal branch and uses the deployment's result
-bound. The rules and policy 1 hold asking, tools 3,975, and fifteen
+bound. The rules and policy 1 hold asking, tools 4,007, and fifteen
 executor kinds, including charters 5 and 12, role 0 and merge job 3; the
 reference's widening (`reference.md`) takes charter 12 out, so that its delegation
 fills the box's sixteen places. The stock
 floor measures resolved charters with their parts and catalogue models;
-charter 5 needs 13,123 bytes at init's catalogue. The standard brief is
-353,072 bytes, the owner's approved allowance for that charter's room.
+charter 5 needs 26,744 bytes at init's catalogue, within
+`root.journal.run_bytes` 65,536. The standard brief follows the room
+that charter leaves, by the owner's approved rule.
 `ask.txt` carries Remembering and, of Showing, its first step alone. The
 stock first-request check holds 16,384 bytes on both request shapes.
 Existing project policies remain copies and require an owner's accepted
@@ -241,7 +243,6 @@ checkout workspaces and git operations. All three supplied box documents
 agree. Agent-process resident memory is deferred in `README.md`, section 9; the
 start's fit checks do not establish laptop memory use.
 
-
 `stock.md` has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
 projectless task and the client's remaining trial gaps are
@@ -275,8 +276,11 @@ or in the terminal refusal naming the item and rejected way.
   as its link's limits are not valid (`temper-service/src/worker_settings.rs`,
   `prepare`), naming neither `io.output` nor the frame it must hold;
   the start checks no such bound of their own (`startup/checks.rs`).
-- **Design departs:** `stock.md`, from the request `ui-walk-large` of 2026-11-06, decided by its plan's cut: the room outside the pool is one chat's 24K, where the request has the status agent's small allowance, because a run's spend stays spent, so K would pay for one brief in a period and 24K for at least twenty-four.
-- **Design departs:** `stock.md`, from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (`reference.md`), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says, but for the settings and delegate families', which charter 9 doesn't name (`../../domain/agent/tools.md`).
-- **Design departs:** `stock.md`, from the request `first-goal-fixes` of 2026-11-05, decided by its plan's cut: `documents.text_bytes` is 512 in `temper-box init`'s documents, where the request has 8,192 (`../setup/README.status.md`).
-- **Design departs:** `reference.md`, from the request `ui-settings` of 2026-11-05, decided by its plan's cut: the reference's kind 7 is a file of its own, `docs/examples/reference/project.json`, with `way` 4, the reference's goal, where the request has `settings.json` set all four and says no way, because `settings.json` is applied before the case's project exists, and jig refuses a project's item then.
-- **Departs:** 6: a kept GitHub forge whose record holds the base `https://github.com/` keeps remotes `https://github.com//OWNER/NAME.git`, where `engine.md` has a remotes' base end in no `/`: `temper-service/src/system.rs`'s `GITHUB_REMOTE` gives new forges a base with none, but a kept forge keeps the place its record holds (`README.md`, section 6), `temper-service/src/translate.rs`, `repository_item`, joins the base as it stands and nothing rewrites a record, so such a forge has them until it is removed and connected again (`README.md`, section 9). 1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for (the page itself is `../../client/forge/deployment.status.md`).  the rules and policy 1 also delegate to procedures 3 and 4, which `stock.md` does not name, for a reason the code does not record (`temper-service/src/stock.rs`).
+- **Design departs:** `stock.md`, the chat-room reserve departure remains `stock.status.md` (Design departs, ui-walk-large).
+
+- **Design departs:** `stock.md`, the status-agent numbering and authority departure remains `stock.status.md` (Design departs, ui-home-status).
+
+- **Design departs:** `stock.md`, the init document-text departure remains `../setup/README.status.md` (`init.md`, 1).
+- **Design departs:** `reference.md`, the project-settings file departure remains `reference.status.md` (Design departs, ui-settings).
+
+- **Departs:** 6: the kept-GitHub remote departure remains `engine.status.md` (Departs, the whole document). 1: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).  the unnamed stock procedures remain `stock.status.md` (Departs, the whole document).

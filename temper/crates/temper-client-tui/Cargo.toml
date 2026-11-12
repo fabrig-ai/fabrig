@@ -17,7 +17,9 @@ temper-client-protocol-wire.workspace = true
 temper-client-view.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 temper-test-env.workspace = true
+temper-protocol-reaches.workspace = true
 jig-client-test-records.workspace = true
 jig-client-protocol-link.workspace = true
 jig-client-protocol-wire.workspace = true

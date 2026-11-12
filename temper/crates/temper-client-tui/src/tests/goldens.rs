@@ -1,4 +1,4 @@
-//! The TUI's screens and paints (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/theme.md;
+//! The TUI's screens and paints (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md;
 //! skein/docs/design/ui/screen.md, sections 4 and 5).
 //!
 //! Frames pin the view trees and theme contracts; `SKEIN_CODEGEN_WRITE=1` rewrites them.
@@ -109,8 +109,9 @@ pub(crate) fn check(rows: &[Golden<'_>]) {
         render(tree, &theme(*scheme, *background), *size, &mut focus, &mut frame);
         let printed = frame.print();
         if temper_test_env::rewrite() {
-            let path =
-                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/golden").join(format!("{name}.txt"));
+            let path = skein_scratch::paths::tree()
+                .join("crates/temper-client-tui/src/tests/golden")
+                .join(format!("{name}.txt"));
             std::fs::write(path, &printed).expect("write the TUI golden");
             continue;
         }

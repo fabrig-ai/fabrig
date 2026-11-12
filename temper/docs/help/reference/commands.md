@@ -404,9 +404,9 @@ As temper-engine internal forge-child, above.
 
 ### temper-box fake llm
 
-`temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`
 
-`temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 
 Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document. Internal: it may change without notice.
 

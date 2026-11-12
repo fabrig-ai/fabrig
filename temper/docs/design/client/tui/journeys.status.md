@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+
+
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
   pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
@@ -36,7 +38,7 @@ count, and the walk's prompt, to the launchpad after the answer. The
 latter two draw the chat's title, its number and `127.0.0.1:PORT` in
 the rule above the box, and their first marks come before Home's facts
 answer, so the launchpad's framed header is empty there
-(`pages.md`). None has a band, since the pseudo-terminal
+(`pages/README.md`). None has a band, since the pseudo-terminal
 leaves the background unanswered. `launchpad-chat`
 catches no growing answer; it establishes no streamed-frame look. No
 journey draws a brief, a goal's row or a sign-off's or money's need,

@@ -200,6 +200,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
     status_rows(rng, bounds);
     away_rows(rng, bounds);
+    draft_row(rng, bounds);
     setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
@@ -394,7 +395,12 @@ fn setting_row(rng: &mut Rng, bounds: &Bounds) {
     let value = if rng.below(2) == 0 {
         s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
     } else {
+        let mut sets = skein_lib::List::with_capacity(6);
+        for _ in 0..rng.below(7) {
+            sets.push(u8::try_from(rng.below(256)).expect("u8 draw")).expect("bounded sets");
+        }
         s::Value::Rule(s::LandingRule {
+            sets: sets.into_boxed(),
             pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
             enforce: rng.below(2) == 0,
             ci: rng.below(2) == 0,
@@ -443,6 +449,7 @@ fn verification_row(
             branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
             changes: Box::new([forge::LoggedChange {
+                signed: Box::new([]),
                 task: rng.next_u64(),
                 pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
                 title: temper_codecs_world::drawn(rng, 256).into_boxed_slice(),
@@ -552,4 +559,24 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
         row_and_key(&forge::Stored::Decided(row), rng, bounds);
     }
+}
+
+fn draft_row(rng: &mut Rng, bounds: &Bounds) {
+    let row = forge::Stored::LandedDraft(forge::LandedDraft {
+        repository: skein_forge::api::Repository {
+            forge: u16::try_from(rng.below(65_536)).expect("u16"),
+            repository: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+        },
+        path: format!("docs/{}.md", rng.next_u64()).into_bytes().into(),
+        project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+        branch: temper_codecs_world::drawn(rng, 1024).into(),
+        commit: std::array::from_fn(|_| u8::try_from(rng.below(256)).expect("one byte")),
+        title: temper_codecs_world::drawn(rng, 200).into(),
+        writer: rng.next_u64(),
+        at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        chat: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+        goal: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+        ready: rng.below(2) == 0,
+    });
+    row_and_key(&row, rng, bounds);
 }

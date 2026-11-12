@@ -25,6 +25,19 @@ fn an_address_is_an_engine_on_loopback_and_never_a_link() {
 }
 
 #[test]
+fn recording_requires_a_nonempty_captured_variable() {
+    for (entries, expected) in [
+        (vec![], false),
+        (vec![("TEMPER_INTERNAL_RECORD", "")], false),
+        (vec![("TEMPER_INTERNAL_RECORD", "1")], true),
+        (vec![("TEMPER_INTERNAL_RECORD", "no")], true),
+        (vec![("OTHER", "1")], false),
+    ] {
+        assert_eq!(tui::recording(&environment(&entries)), expected, "{entries:?}");
+    }
+}
+
+#[test]
 fn the_directory_is_the_state_directorys() {
     for (entries, expected) in [
         (vec![("XDG_STATE_HOME", "/s"), ("HOME", "/h")], Some("/s/temper/tui")),

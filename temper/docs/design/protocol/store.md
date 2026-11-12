@@ -80,7 +80,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 | 9 | `Landed` | `Landed(Commit)` | a merge temper made, and its task | `landings` |
 | 10 | `Entry` | `Entry(u64)`: the entry's number | an unsettled outbox entry, held or not, and whether the forge's merge queue holds its merge (`queued`, skein's `forge/client.md`, 7.7) | `entries` |
 | 11 | `Client` | `Client(client::Key)`: `Live(Resource)` or `Repository(Repository)` | the client's working set: a live resource's row, or a repository's listing mark | the client's `resources` and `repositories` |
-| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held for dependencies with its words (`../domain/forge/change/questions.md`, 1) | `changes` |
+| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held for dependencies with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
 | 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
@@ -88,7 +88,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 | 17 | reserved | none | no row: the byte is never reused | none |
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
 | 19 | reserved | none | no row, as 17 | none |
-| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2, 3, 6, 7, 8, 9, 10 or 11), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine/settings.md`, 6), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration/settings.md, 2), a `LandingRule`, the forge's charter's number, a project's questions' route, a `ProjectWays`, a `ProjectClasses`, a `CharterWords`, a `ProjectWords` or a `TemplateGoal`, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine/settings.md`, 10). Written in jig's decisions as jig's `domain/engine/settings.md`, 5 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, each project's questions, ways, classes and words, each charter's words and each template's work, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
+| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2, 3, 6, 7, 8, 9, 10, 11 or 12), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine/settings.md`, 6), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration/settings.md, 2), a `LandingRule`, the forge's charter's number, a project's questions' route, a `ProjectWays`, a `ProjectClasses`, a `CharterWords`, a `ProjectWords`, a `TemplateGoal` or a `Follow`, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine/settings.md`, 10). Written in jig's decisions as jig's `domain/engine/settings.md`, 5 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, each project's questions, ways, classes and words, each charter's words and each template's work, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
 | 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (jig's `protocol/store/opening.md`, 3, "Effects in flight"; `../domain/root.md`, 8.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (`store.md`, section 3), so a start that refuses to patch over it names each write from its key alone | `entries` |
 | 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel/README.md`, 5.2). | `named_calls` |
 
@@ -134,7 +134,8 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   commit, a landing's tier verdicts, the failures blamed on it and what
   repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, a ring of its last
   `landings_kept` landings, each its commit, branch and time, its changes,
-  each with its task, pull request and title (at most 256 bytes), its
+  each with its task, pull request and title (at most 256 bytes) and its
+  sign-offs, `signed`, at most 8, as the `Change` row keeps them, its
   trailers and its verdicts, erased with its repository; 31 `Finding`, 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
@@ -161,6 +162,22 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   A named call's `CallPayload` gains `decided`, `CallDecided`: the taken
   option's words, or none for ask, and its `Reach`, or none where it was
   answered ask unjudged (`../domain/forge/attention.md`, 5).
+- **A project's landed drafts,** after the closer's family, 40, a
+  family and a record variant of their own appended after the last, so
+  that every row kept before them still decodes as it was written:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 41 | `LandedDraft` | `LandedDraft { repository, path }`: the forge's number, the repository's, then the path's bytes | a draft landed in the repository that its writer says is ready: `project`, `branch`, `commit`, `title` at most 200 bytes, `writer`, `at`, `chat` or none, `goal` or none, `ready` (`../domain/forge/drafts.md`, 1). Written by `SetDraft` (`../client/forge/records.md`); a new row at the bound erases the project's oldest unlisted row in its decision; erased with its project and with its forge | 64 times `judge_projects` |
+- **A project's follows,** after them, at the next free byte:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 42 | `Follow` | `Follow { project, follow }`: the project, then the follow's number | a follow's record (`../domain/forge/follows.md`, section 9): its source repository and branch, its cursor, its task, whether it is stopped and why, its queue's entries, its skips and its parity. Written in the decisions that accept its setting, queue a landing, take an owner's act, make or end a follow change and record its check's verdict; erased with its setting's removal or its project's | `forge.follows` per project, times `forge.judge_projects`; each queue within `forge.follow_queue` |
+
+  The `Change` family's row keeps a follow change's `follows`, its
+  follow's number and the commits it follows (`../domain/forge/follows.md`,
+  section 4), as it keeps `repairs`; family 20 keeps kind 12's values.
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/forge/family.md`).
@@ -371,6 +388,24 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
 - **Every row the predicate admits.** `Range::contains` admits every
   forge key and no core key; a test checks the interval against it on
   generated keys of both (section 6).
+- **A row this build cannot read refuses the start, by name.** A row of
+  temper's families that does not decode with this build's codecs, or
+  whose record's key is not its row's (section 3), stops the restart
+  before the root hears of it, and serve's start is refused as a store
+  that refuses to open is: its words on serve's stderr after `temper
+  serve: `, then exit 1, with nothing more read. The words:
+
+  ```text
+  temper serve: The store in DIR holds a NAME record, family N, that this build cannot read, and the start stopped there. Start the build that wrote it again, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of DIR together, and start again: nothing is deleted, and the next start makes a new, empty store.
+  ```
+
+  DIR is the deployment's directory, as the other refusals name it,
+  NAME the family's variant in section 2 and N its number. Before the
+  first release a stored format changes in place (section 4), so this
+  is how a newer build meets an older store's rows, and how QA knows a
+  copy to make again (`../draft/landed-qa.md`, 5). It is jig's row that
+  does not decode, which stops the engine (jig's
+  `protocol/store/loads.md`, 1), said by name.
 - **Nothing else is read:** no load, get or party's read of temper's
   families follows the restart.
 - **A row of `Making` restored** comes back waiting if it was making,

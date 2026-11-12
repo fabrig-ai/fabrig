@@ -69,6 +69,7 @@ impl Census {
                 | jig_domain_people::Key::SignIn(_)
                 | jig_domain_people::Key::Roles(_)
                 | jig_domain_people::Key::Deletion(_)
+                | jig_domain_people::Key::Deleted(_)
                 | jig_domain_people::Key::Public(_)
                 | jig_domain_people::Key::Policy(_)
                 | jig_domain_people::Key::Answer(_)

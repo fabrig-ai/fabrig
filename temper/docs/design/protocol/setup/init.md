@@ -256,7 +256,7 @@ runs it (`box.md`).
   (../configuration/stock.md).
 - **Its `application.limits`** are temper's `standard` with
   `checkout.workspaces` and `git_component.operations` 4, the least the
-  worker's slots take (`../../domain/worker.md`, section 6);
+  worker's slots take (`../../domain/worker/README.md`, section 5);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`
@@ -369,7 +369,7 @@ playground and no Forgejo on this machine.
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (../configuration/README.md, section 4): the owned example's endpoints with their limits and its profile (1), and, with `--box`, the scripted provider's endpoint and limits (3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (`owned.md`, 6), and its programs directory, `programs` in the data directory; and its endpoint and limits (3), whether or not `claude` is on `PATH` |
+  | `agent.json` | configuration | 0o644 | smith's agent configuration (../configuration/README.md, section 4): the owned example's endpoints with their limits and its profile (1), and, with `--box`, the scripted provider's endpoint and limits (3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (`owned.md`, 6), and its programs directory, `programs` in the data directory; and Anthropic's two endpoints and their limits, `anthropic` naming the program and `anthropic-api` naming none (3), whether or not `claude` is on `PATH` |
   | `temper.json` | configuration | 0o644 | the default document (3) |
 
 - **What it finds,** each written absolute:
@@ -465,8 +465,9 @@ playground and no Forgejo on this machine.
   passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
-  Anthropic provider, its program, endpoint and model in both documents
-  either way, the program's `path` the `claude` found or `"fetched"`;
+  Anthropic provider, its sources, its program, both its endpoints and
+  its model in both documents either way, the program's `path` the
+  `claude` found or `"fetched"`;
   a second init while the first holds its five listeners, on separate
   directories, writes disjoint ports and matching listener, remote
   and scripted LLM addresses in both documents; `clients.bundle` always
@@ -534,11 +535,17 @@ override.
   (`../../client/pages/README.md`): `signed_in_plan` false, `manage_usage`
   `https://claude.ai/settings/usage`, its models Anthropic's of that table,
   through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
-  and its one source Claude Code's program, `claude_code`; one
-  endpoint, `anthropic`, naming that program, Anthropic's dialect, 2, at
-  `api.anthropic.com:443` on TLS, with OpenAI's bounds; its models'
-  prices are that table's, figures a subscription bills
-  to nobody; the agent's configuration declares them too (2), and the
+  or directly on a key; its sources Claude Code's program and keys,
+  `{"programs": ["claude_code"], "keys": true}`; two endpoints, both
+  Anthropic's dialect, 2, at `api.anthropic.com:443` on TLS, with
+  OpenAI's bounds: `anthropic`, number 2, naming that program, the
+  provider's `endpoint`, which its models take, and `anthropic-api`,
+  number 4, naming none, the provider's `direct`, which its keys take
+  (jig's `protocol/configuration.md`, section 3; jig's
+  `domain/accounts.md`, 3.4); its models' prices are that table's,
+  counted alike on either way, though a subscription's runs bill
+  nobody; the agent's configuration declares both endpoints under the
+  same names, with `claude` on `PATH` or without it (2), and the
   `standard` profile's `documents.lines`, 16, holds the offer's three
   lines, so that no override is written; and 3, `demo`, the scripted
   provider, the playground's (`playground.md`): one endpoint,
@@ -638,3 +645,51 @@ override.
   dormant until the person sets up an owned Forgejo: its fetch, its
   preparation, Forgejo's web and the runner's daemon; the engine takes
   the handover and reconciles (`owned.md`, 5).
+
+## 4. Open questions
+
+- **A start holding the engine's documents to temper's clients** (`init.md`, 1):
+  no start compares `documents.text_bytes` with what the web and terminal
+  clients receive, so a deployment past 512 starts, and those clients
+  refuse a document whose text is longer. A test holds `temper-box init`'s
+  documents to them; a deployment's own override is held by nothing.
+
+- **The deployment's own UX:** what `temper-box init` alone writes and says
+  beyond `init.md`, 2, and how a server is set up. For now it is the cheapest
+  bare deployment.
+
+- **Flags of their own** (`--welcome`, `--playground`), when a
+  deployment wants some of the box's parts and not others (`init.md`, 2).
+
+- **Four agents on a laptop** (`init.md`, 1, 3): measure their combined resident
+  memory, including any program an agent launches, after landing. The
+  box-and-serve figures in `README.status.md` exclude agent processes and
+  do not size four of them. Each agent declares 2 GiB, carried unenforced;
+  the start checks slots and their related limits, without comparing that
+  declaration with laptop memory. The default is four slots, reversible
+  by the person; workspace disk use depends on the repositories cached
+  in the four workspaces. The process, browser and live checks follow
+  landing (`../../testing/README.md`, section 7).
+
+- **Discovering models per account** (`init.md`, 3): provider-list reads and their
+  retained names are the catalogue's lists step
+  (`../../draft/model-catalogue.md`, sections 5 and 7). Default: the binary's
+  stock and model settings added by name through Settings, Models or
+  Ask temper; neither generated configuration document holds models.
+
+- **The LLM providers out of the document,** each a design of its own;
+  the scripted provider, the playground's (`playground.md`), may become the binary's
+  stock first, its endpoint the fake LLM's port, the machine's.
+
+- **Good defaults for a person's real work:** landing rules and the
+  memory bound. Default: `init.md`, 3's, refined once a first run works; the
+  charters and limits are sized for a project of fabrig's scale
+  (../configuration/stock.md).
+
+- **A task's text past what the clients receive** (`init.md`, 1). A client reads a
+  spec in pieces of `documents.text_bytes`, 512, where the request
+  `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
+  terminal clients' `text` raised (jig's `client/domain/contract/README.md`, 4).
+  Default: 512. The user's to choose, with no answer yet. A run's `read_task`
+  is outside it where its worker or its process's local agent names a reply
+  bound, reading in that room (`../../domain/routing.md`, 2).

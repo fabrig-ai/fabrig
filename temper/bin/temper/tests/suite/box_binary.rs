@@ -8,7 +8,6 @@ use std::{
     },
     process::{Command, Stdio},
 };
-use temper_client_shell::CLIENT;
 
 #[test]
 fn the_client_finds_its_sibling_and_execs_it_with_unchanged_arguments_and_descriptors() {
@@ -17,7 +16,7 @@ fn the_client_finds_its_sibling_and_execs_it_with_unchanged_arguments_and_descri
     let client = root.join("temper");
     fs::copy(skein_scratch::paths::binary("temper"), &client).expect("copy client");
     let box_file = root.join("temper-box");
-    let identity = CLIENT.version_line().replacen("temper ", "temper-box ", 1);
+    let identity = format!("{}\n", temper_version::line("temper-box"));
     fs::write(&box_file, format!("#!/bin/sh\nif [ \"$1\" = --version ]; then printf '{identity}'; exit 0; fi\nprintf 'pid=%s env=%s\\n' \"$$\" \"$BOX_TEST\"\nprintf '<%s>\\n' \"$@\"\nIFS= read -r input\nprintf 'stdin=%s\\n' \"$input\"\nprintf 'box diagnostic\\n' >&2\nexit 23\n")).expect("script");
     fs::set_permissions(&box_file, fs::Permissions::from_mode(0o755)).expect("executable sibling");
     let configure = |command: &mut Command| {

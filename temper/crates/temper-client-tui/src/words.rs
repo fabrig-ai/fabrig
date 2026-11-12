@@ -1,4 +1,4 @@
-//! The TUI's phrases beside the view's (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's phrases beside the view's (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
 use crate::look;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -162,8 +162,9 @@ pub enum Word {
     BoxExited,
     BoxKilled,
     BoxEndNote,
+    Asked,
 }
-pub(crate) const ALL: [Word; 152] = [
+pub(crate) const ALL: [Word; 153] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -316,6 +317,7 @@ pub(crate) const ALL: [Word; 152] = [
     Word::BoxExited,
     Word::BoxKilled,
     Word::BoxEndNote,
+    Word::Asked,
 ];
 
 #[derive(Clone, Copy)]
@@ -531,6 +533,7 @@ impl Word {
             Self::BoxExited => 152,
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
+            Self::Asked => 155,
         }
     }
     const fn id(self) -> PhraseId {
@@ -553,6 +556,7 @@ impl Word {
             Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
             Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
             Self::PaneGoal => (&[b"/goal starts a goal from the draft"], &[]),
+            Self::Asked => (&[b"asked ", b""], &[Slot::Span]),
             Self::PaneLinkedGoal => (&[b"goal ", b" \xc2\xb7 /open opens it"], &[Slot::Title]),
 
             Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),

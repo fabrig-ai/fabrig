@@ -354,6 +354,10 @@ pub struct Naming {
 /// What outlives a deleted project (jig/docs/design/domain/people/acts.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Outlives {
+    /// Number-only deletion mark.
+    Deleted,
+    /// An owner's successful removal answer, until ordinary answer retention.
+    RemovalAnswer,
     /// A closed period's ledger: the project's spend in the period's totals.
     Spend,
     /// An account whose only use was the project: it pays for no one and its
