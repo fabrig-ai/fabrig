@@ -21,6 +21,7 @@ const BOUNDS: Bounds = Bounds {
     segment_bytes: 32,
     templates: 4,
     follows: 2,
+    dependencies: 4,
     follow_paths: 2,
     name_bytes: 32,
 };

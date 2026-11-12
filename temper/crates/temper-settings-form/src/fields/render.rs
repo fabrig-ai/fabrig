@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"A settings file is a `file`, below; each section is one shape of JSON object, and each bullet one of its members, with its type, its bound and what it does. Read a value with `settings show`, given its kind and number, edit it, and set it whole. A bound here is what ctl sends; the deployment may still refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend is in the deployment's units, those of its models' prices. Hex is bytes in lower-case hexadecimal: `666f726765` is `forge`.";
+pub const INTRO: &[u8] = b"Each section is a JSON object shape; each bullet a member, its type, bound and effect on work. A settings file is `file`. Read `settings show KIND N`, edit, and set the whole value. Ctl sends these bounds; the deployment may refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {

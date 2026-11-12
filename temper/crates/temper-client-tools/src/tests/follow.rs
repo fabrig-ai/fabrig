@@ -152,7 +152,7 @@ fn panel(rows: &[w::FollowView]) -> w::FollowsPanel {
     for row in rows {
         follows.push(row.clone()).unwrap();
     }
-    w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project: 2, follows }).unwrap()
+    w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project: 2, follows, dependencies: List::with_capacity(0) }).unwrap()
 }
 fn read(panel: &w::FollowsPanel, show: bool, json: bool) -> jig::Printed {
     let mut root = f::signed_in(f::PARTY);

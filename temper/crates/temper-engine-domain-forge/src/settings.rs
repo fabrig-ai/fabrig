@@ -21,6 +21,8 @@ pub enum Kind {
     TemplateGoal,
     /// A project's follow (temper/docs/design/domain/forge/follows.md, 2).
     Follow,
+    /// A project dependency (temper/docs/design/domain/forge/dependencies.md, 2).
+    Dependency,
 }
 
 impl Kind {
@@ -37,6 +39,7 @@ impl Kind {
             Self::ProjectWords => 10,
             Self::TemplateGoal => 11,
             Self::Follow => 12,
+            Self::Dependency => 13,
         }
     }
 
@@ -53,6 +56,7 @@ impl Kind {
             10 => Some(Self::ProjectWords),
             11 => Some(Self::TemplateGoal),
             12 => Some(Self::Follow),
+            13 => Some(Self::Dependency),
             _ => None,
         }
     }
@@ -178,6 +182,12 @@ pub struct FollowCheck {
 mod follow;
 pub use follow::{follow_from, follow_record, producer_charter};
 
+/// A dependency on another project (temper/docs/design/domain/forge/dependencies.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Dependency {
+    pub project: u32,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Rule(LandingRule),
@@ -192,6 +202,7 @@ pub enum Value {
     /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     Goal(TemplateGoal),
     Follow(Follow),
+    Dependency(Dependency),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -315,6 +326,7 @@ pub struct Bounds {
     /// Template numbers (temper/docs/design/protocol/configuration/settings.md, 2).
     pub templates: u32,
     pub follows: u32,
+    pub dependencies: u32,
     pub follow_paths: u32,
     pub name_bytes: u32,
 }
@@ -417,6 +429,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectWays
         | Kind::ProjectClasses
         | Kind::ProjectWords
+        | Kind::Dependency
         | Kind::Follow
             if item.scope == 0 =>
         {
@@ -431,6 +444,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::CharterWords
         | Kind::ProjectWords
         | Kind::TemplateGoal
+        | Kind::Dependency
         | Kind::Follow => {}
     }
     let numbers = match kind {
@@ -440,6 +454,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords => 1,
         Kind::TemplateGoal => bounds.templates,
         Kind::Follow => bounds.follows,
+        Kind::Dependency => bounds.dependencies,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -448,7 +463,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
             Some(
-                Value::Follow(_)
+                Value::Dependency(_) | Value::Follow(_)
                 | Value::Charter(_)
                 | Value::Goal(_)
                 | Value::Questions(_)
@@ -464,7 +479,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -479,7 +494,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::Questions(_)) | None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
@@ -498,7 +513,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 },
                 None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -513,7 +528,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::Ways(_)) | None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
@@ -535,7 +550,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
@@ -557,7 +572,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
@@ -568,12 +583,21 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 ) => Err(Refusal::Value),
             };
         }
+        Kind::Dependency => {
+            return match &item.value {
+                Some(Value::Dependency(value)) if value.project != 0 => Ok(()),
+                None => Ok(()),
+                Some(Value::Dependency(_) | Value::Follow(_) | Value::Rule(_) | Value::Charter(_)
+                    | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::CharterWords(_)
+                    | Value::ProjectWords(_) | Value::Goal(_)) => Err(Refusal::Value),
+            };
+        }
         Kind::Follow => {
             return match &item.value {
                 Some(Value::Follow(value)) => follow::judge(value, bounds),
                 None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_) | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -588,7 +612,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::Goal(_)) | None => Ok(()),
                 Some(
-                    Value::Follow(_)
+                    Value::Dependency(_) | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -698,6 +722,7 @@ pub fn rows(l: &Limits) -> Option<u32> {
     let values = rules
         .checked_add(2)?
         .checked_add(l.judge_projects.checked_mul(2)?)?
-        .checked_add(l.judge_projects.checked_mul(l.follows)?)?;
+        .checked_add(l.judge_projects.checked_mul(l.follows)?)?
+        .checked_add(l.judge_projects.checked_mul(l.dependencies)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
 }

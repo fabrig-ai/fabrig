@@ -134,7 +134,7 @@ pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as Landi
 pub use verification::LandingRed;
 pub use views::{
     APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, FollowLagEntry, FollowView,
-    FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, changes_subject,
+    DependencyView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, changes_subject,
     follows_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
@@ -503,7 +503,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             settings::Edit::Set(settings::SizedValue {
                 value:
-                    settings::Value::Charter(_)
+                    settings::Value::Dependency(_) | settings::Value::Charter(_)
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
                     | settings::Value::Goal(_),

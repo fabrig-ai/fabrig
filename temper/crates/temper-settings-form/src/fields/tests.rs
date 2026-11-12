@@ -311,6 +311,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-classes"
                         && kind != b"project-words"
                         && kind != b"follow"
+                        && kind != b"dependency"
                     {
                         continue;
                     }

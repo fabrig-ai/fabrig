@@ -149,6 +149,11 @@ pub(crate) const GROUPS: &[Group] = &[
                 next: "settings · revisions · help settings-fields",
             },
             Address {
+                form: "settings dependency N",
+                line: "A dependency of this project, whole, at the newest revision; no stock default.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
                 form: "settings follow N",
                 line: "A follow of this project, whole, at the newest revision; no stock default.",
                 next: "settings · revisions · help settings-fields",

@@ -8,6 +8,7 @@ use temper_engine_domain_forge::settings;
 
 use crate::{Domain, Limits, Work};
 mod follows;
+mod dependencies;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask) {
@@ -74,6 +75,9 @@ fn restore(
     let mut refused = false;
     for (item, answer) in items.iter().zip(answers.iter()) {
         let mut answer = match *answer {
+            settings::Judged::Refuse(why) if item.kind == 13 => {
+                connector::Judged::Refuse { why: dependencies::words(item.number, &[why.words()]) }
+            }
             settings::Judged::Refuse(why) if item.kind == 12 => {
                 connector::Judged::Refuse { why: follows::words(item.number, &[why.words()]) }
             }
@@ -88,7 +92,7 @@ fn restore(
             let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit: edit.clone() };
             let why = match way_refusal(domain, None, &asked) {
                 Some(_) => Some(settings::Refusal::Way.words().into()),
-                None => follows::refusal(domain, &asked),
+                None => follows::refusal(domain, &asked).or(dependencies::refusal(domain, &asked)),
             };
             if let Some(why) = why {
                 answer = connector::Judged::Refuse { why };
@@ -134,6 +138,9 @@ fn judge(
     let answers = domain.forge.judge_settings(bounds, core::slice::from_ref(&asked));
     let answer = *answers.first().expect("one forge judgement per item");
     match answer {
+        settings::Judged::Refuse(why) if asked.kind == 13 => {
+            connector::Judged::Refuse { why: dependencies::words(asked.number, &[why.words()]) }
+        }
         settings::Judged::Refuse(why) if asked.kind == 12 => {
             connector::Judged::Refuse { why: follows::words(asked.number, &[why.words()]) }
         }
@@ -142,6 +149,7 @@ fn judge(
             match way_refusal(domain, Some(owner), &asked)
                 .or(approval_refusal(domain, &asked))
                 .or(follows::refusal(domain, &asked))
+                .or(dependencies::refusal(domain, &asked))
             {
                 Some(why) => connector::Judged::Refuse { why },
                 None => judgement(answer),
@@ -157,7 +165,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
     };
     let ways = match value {
         settings::Value::Ways(ways) => ways,
-        settings::Value::Follow(_)
+        settings::Value::Dependency(_) | settings::Value::Follow(_)
         | settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Goal(_)
@@ -216,7 +224,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
     };
     let rule = match value {
         settings::Value::Rule(rule) => rule,
-        settings::Value::Follow(_)
+        settings::Value::Dependency(_) | settings::Value::Follow(_)
         | settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Classes(_)
@@ -342,6 +350,7 @@ fn bounds(limits: &Limits) -> settings::Bounds {
         charters: limits.tasks.charters,
         templates: limits.templates,
         follows: limits.forge.follows,
+        dependencies: limits.forge.dependencies,
         follow_paths: limits.forge.follow_paths,
         name_bytes: limits.forge.name_bytes,
     }
@@ -479,7 +488,7 @@ fn read_refusal(
                         crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
-                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10 || *kind == 12)
+                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10 || *kind == 12 || *kind == 13)
                                 && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,

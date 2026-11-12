@@ -12,6 +12,13 @@ pub fn follows_subject(project: u32) -> u64 {
 pub struct FollowsView {
     pub project: u32,
     pub follows: Box<[FollowView]>,
+    pub dependencies: Box<[DependencyView]>,
+}
+/// A dependency beside the follows (temper/docs/design/domain/forge/dependencies.md, 2 and 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DependencyView {
+    pub number: u32,
+    pub project: u32,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FollowView {
@@ -43,10 +50,22 @@ fn name(owner: &[u8], name: &[u8]) -> Box<[u8]> {
 }
 impl Domain {
     pub(super) fn follows_view(&self, project: u32, limits: &Limits) -> Option<FollowsView> {
+        let mut dependencies = List::with_capacity(limits.dependencies);
+        for (number, value) in self.dependencies(project) {
+            dependencies.push(DependencyView { number, project: value.project }).ok()?;
+        }
+        // Dependencies need no repository facts (temper/docs/design/domain/forge/dependencies.md, 4).
+        let follows = self.follow_views(project, limits, !dependencies.is_empty())?;
+        Some(FollowsView { project, follows, dependencies: dependencies.into_boxed() })
+    }
+
+    fn follow_views(&self, project: u32, limits: &Limits, with_dependencies: bool) -> Option<Box<[FollowView]>> {
         let mut follows = List::with_capacity(limits.follows);
         for (number, setting) in self.follows(project) {
-            let source = self.repository(setting.source.repository)?;
-            let target = self.repository(setting.target.repository)?;
+            let (Some(source), Some(target)) = (self.repository(setting.source.repository), self.repository(setting.target.repository)) else {
+                if with_dependencies { continue; }
+                return None;
+            };
             let row = self.follow_row(project, number);
             let mut entries = List::with_capacity(limits.follow_queue);
             if let Some(row) = row {
@@ -93,11 +112,11 @@ impl Domain {
                 })
                 .ok()?;
         }
-        Some(FollowsView { project, follows: follows.into_boxed() })
+        Some(follows.into_boxed())
     }
 }
 pub(super) fn owned_bytes(view: &FollowsView) -> usize {
-    let mut size = size_of_val(view.follows.as_ref());
+    let mut size = size_of_val(view.follows.as_ref()).saturating_add(size_of_val(view.dependencies.as_ref()));
     for follow in &view.follows {
         size = size
             .saturating_add(follow.source.len())
