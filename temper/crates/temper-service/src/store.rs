@@ -2,6 +2,7 @@
 //! jig's protocol/store/README.md, 8).
 mod ranges;
 pub mod route;
+mod unreadable;
 use jig_protocol_store as protocol;
 use protocol::host::{Hosted, Lane, NotReady, check_read_page, max_whole};
 use route::Up;
@@ -9,6 +10,7 @@ use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use unreadable::UnreadableRow;
 /// The wires this engine speaks to its workers (jig's protocol/store/records.md,
 /// 3; temper's protocol/README.md, 7).
 pub const WIRES: [protocol::Wire; 4] = [

@@ -2,7 +2,7 @@
 use crate::again::{self, Paths};
 use crate::{
     EnvironmentEntry, TABLE,
-    table::{ADD, AGAIN, CAUTION, CHROMIUM, REPRINT, TARGET},
+    table::{ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET},
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use skein_shell::Front;
@@ -36,7 +36,18 @@ pub fn main() -> ExitCode {
             return ExitCode::from(2);
         }
         Front::Run { command, rest } => {
-            if *command == ADD {
+            if *command == RECIPE_WALK || *command == RECIPE_HASH || *command == RECIPE_LIST {
+                let mode = if *command == RECIPE_WALK {
+                    crate::recipe::Mode::Walk
+                } else if *command == RECIPE_HASH {
+                    crate::recipe::Mode::Hash
+                } else {
+                    crate::recipe::Mode::List
+                };
+                return session_exit(crate::recipe::run(mode, rest, &environment));
+            } else if *command == DRIVE {
+                return drive(rest, &environment);
+            } else if *command == ADD {
                 let rest: Vec<_> = rest.iter().map(|word| OsStr::from_bytes(word).to_os_string()).collect();
                 add_arguments(&rest)
             } else if *command == AGAIN {
@@ -60,6 +71,27 @@ pub fn main() -> ExitCode {
         Ok(true) => ExitCode::FAILURE,
         Err(why) => fail(&why),
     }
+}
+
+fn drive(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> ExitCode {
+    let exit = match crate::drive::Options::parse(arguments) {
+        Ok(options) => match crate::drive::Session::start(options, environment) {
+            Ok(session) => session.stdio(),
+            Err(exit) => exit,
+        },
+        Err(why) => crate::drive::Exit::own(why),
+    };
+    session_exit(exit)
+}
+
+fn session_exit(exit: crate::drive::Exit) -> ExitCode {
+    for line in exit.shown {
+        println!("{line}");
+    }
+    if let Some(error) = exit.error {
+        eprintln!("{error}");
+    }
+    ExitCode::from(exit.status)
 }
 
 fn usage(command: &skein_shell::Command, why: &str) -> ! {
