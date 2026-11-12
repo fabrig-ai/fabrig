@@ -22,7 +22,8 @@ smith-domain-session.workspace = true
 smith-host-domain.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
-smith-host-protocol = { workspace = true, features = ["fixture"] }
+smith-host-protocol.workspace = true
+smith-host-protocol-fixtures.workspace = true
 smith-agent-world.workspace = true
 smith-agent-process-world.workspace = true
 smith-host-world.workspace = true

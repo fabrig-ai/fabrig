@@ -19,7 +19,7 @@ fn admitted_at_watermark() -> Service {
     for _ in 0..service.shell.capacity() {
         service.shell.push(local::Request::Credential { account: 99 });
     }
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     service.local_event(local::Event::Line { text: b"admitted".as_slice().into() });
     service
 }
@@ -121,7 +121,7 @@ fn a_service_with_held_inline_facts() -> Service {
     local::resume(&mut service.local, &env, &mut service.local_requests);
     while service.local_requests.pop().is_some() {}
     for event in [
-        local::fixture::loaded(),
+        smith_local_domain_fixtures::loaded(),
         local::Event::Line { text: b"hello".as_slice().into() },
         local::Event::Credential {
             form: Form::Credential(Scheme::Bearer),

@@ -109,7 +109,7 @@ impl PrivateWorld {
 }
 
 fn turn() -> smith_domain::Turn {
-    let mut turn = smith_local_domain::fixture::turn();
+    let mut turn = smith_local_domain_fixtures::turn();
     turn.dialect = 3;
     turn
 }
