@@ -4457,6 +4457,7 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
     for concerned in [false, true] {
         let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
         let repository = adopted(1);
+        domain.forge.restore_begin(env.wall);
         forge::step(
             &mut domain.forge,
             &env.with(env.limits.forge),

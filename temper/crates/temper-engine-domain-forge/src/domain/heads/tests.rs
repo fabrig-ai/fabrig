@@ -59,6 +59,7 @@ fn watch(d: &mut Domain, env: &Env<Limits>) {
         },
         &mut Queue::uncapped(),
     );
+    assert!(d.client.cached(&resource(BRANCH)).is_some());
 }
 
 fn hold(d: &mut Domain, writer: Option<Writer>) {
@@ -76,8 +77,19 @@ fn refused(out: &Queue<Request>, task: Option<u64>, branch: &[u8]) {
         }
     }
     assert_eq!(count, 1);
-    assert!(!out.iter().any(|r| matches!(r, Request::Save { record: Stored::BranchHead(_), .. })));
-    assert!(!out.iter().any(|r| matches!(r, Request::Erase { key: Key::BranchHead(_), .. })));
+    for request in out {
+        assert!(!matches!(request, Request::Save { record: Stored::BranchHead(_), .. }));
+        assert!(!matches!(request, Request::Erase { key: Key::BranchHead(_), .. }));
+    }
+}
+
+fn assert_saved(out: &Queue<Request>, record: Stored, read_afresh: Option<Name>) {
+    let expected = Request::Save { record, release: None, read_afresh };
+    let mut saved = false;
+    for request in out {
+        saved |= *request == expected;
+    }
+    assert!(saved, "missing {expected:?} in {out:?}");
 }
 
 #[test]
@@ -100,12 +112,9 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
         assert_eq!(d.branch_head(&name(BRANCH)), None);
         let saved = d.hold(&name(BRANCH)).unwrap();
         assert_eq!(saved.writer, None);
-        assert!(out.iter().any(|r| *r
-            == Request::Save { record: Stored::Hold(saved.clone()), release: None, read_afresh: Some(name(BRANCH)) }));
+        assert_saved(&out, Stored::Hold(saved.clone()), Some(name(BRANCH)));
         assert_eq!(d.change(TASK).unwrap().change.last_head, Some(TIP));
-        assert!(out.iter().any(
-            |r| matches!(r, Request::Save { record: Stored::Change(row), .. } if row.change.last_head == Some(TIP))
-        ));
+        assert_saved(&out, Stored::Change(Box::new(d.change(TASK).unwrap().clone())), None);
         assert!(d.procedure_wakes.contains_key(&TASK));
         assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
         assert_eq!(d.heads.len(), 2);
@@ -118,8 +127,10 @@ fn replacement_at_capacity_is_saved_without_refusal() {
     let mut out = Queue::uncapped();
     branch_changed(&mut d, &env, resource(b"main"), TIP, &mut out);
     assert_eq!(d.branch_head(&name(b"main")), Some(TIP));
-    assert!(!out.iter().any(|r| matches!(r, Request::HeadRefused { .. })));
-    assert!(out.iter().any(|r| matches!(r, Request::Save { record: Stored::BranchHead(row), .. } if row.name == name(b"main") && row.commit == TIP)));
+    for request in &out {
+        assert!(!matches!(request, Request::HeadRefused { .. }));
+    }
+    assert_saved(&out, Stored::BranchHead(d.heads.get(&name(b"main")).unwrap().clone()), None);
     assert_eq!(d.heads.len(), 2);
 }
 
@@ -139,7 +150,7 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
     refused(&out, Some(TASK), BRANCH);
     assert_eq!(row.drift, None);
     assert_eq!(d.hold(&name(BRANCH)).unwrap().drift, None);
-    assert!(out.iter().any(|r| matches!(r, Request::Save { record: Stored::Hold(row), .. } if row.drift.is_none())));
+    assert_saved(&out, Stored::Hold(d.hold(&name(BRANCH)).unwrap().clone()), Some(name(BRANCH)));
     assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
 }
 
@@ -194,7 +205,9 @@ fn lost_read_at_capacity_still_completes_the_report() {
     assert_eq!(d.change(TASK).unwrap().change.last_head, Some(TIP));
     assert_eq!(d.client.cached(&resource(BRANCH)).unwrap().tip, Some(TIP));
     assert!(d.lost.is_empty());
-    assert!(!out.iter().any(|r| matches!(r, Request::LostReadFailed { .. })));
+    for request in &out {
+        assert!(!matches!(request, Request::LostReadFailed { .. }));
+    }
 }
 
 #[test]
