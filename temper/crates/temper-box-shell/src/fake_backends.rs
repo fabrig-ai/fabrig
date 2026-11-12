@@ -449,7 +449,9 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
             }
         }
     }
-    let agent = temper_worker_shell::agent::preflight(named)?;
+    let agent = temper_worker_shell::agent::preflight_worker(
+        named.worker.as_ref().ok_or("workers: standalone takes one worker")?,
+    )?;
     for program in agent.programs {
         if !contained(&dirs.data, &program.directory) {
             return Err("agent.programs.directory: must stay under effective data".into());
