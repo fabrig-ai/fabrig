@@ -1,6 +1,9 @@
 # journeys: status
 
-2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
+
+- **Not yet:** 3.1: the recorder on by `internal-record` on any origin or by the `temper-record` meta [in flight: change 1797]
+- **Not yet:** 3.1: no sign-in in the file, `journey::saved`, and the recording's bound [in flight: change 1798]
 
 
 

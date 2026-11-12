@@ -1,6 +1,10 @@
 # browser: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2.1: `internal-record` honoured on any origin, the other two settings loopback's, and the page's `temper-record` meta read at start [in flight: change 1797]
+- **Not yet:** 2.1: `limits::RECORDING_BYTES` [in flight: change 1798]
+- **Not yet:** 2.2: the page's `temper-record` meta, made at start with `--record` [in flight: change 1799]
 
 
 
