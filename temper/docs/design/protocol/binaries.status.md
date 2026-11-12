@@ -2,8 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** the whole document: `temper-box upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/table.rs`).
-- **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses [in flight: change 353] A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 8.1).  the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`).  the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
+- **Not yet:** the whole document: `temper-box upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/table.rs`) [in flight: change 709]
+- **Not yet:** `temper-box upgrade --check`'s decode of every record before its plan, and its `record not decodable` line [in flight: change 863]
+- **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses [in flight: change 353] A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 8.1).  the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`).
 - **Departs:** the whole document: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper-box forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge/engine.status.md`, 8).  `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded.  the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
 
 Section 2's `temper-engine` is present, with 1's rules: its
@@ -33,7 +34,7 @@ own build alone, as 1 accepts.
 
 - **Not yet:** 2: `temper-engine upgrade --check` and `--back`: jig's
   rehearsal and going back (jig's `protocol/store/opening.md`, 5) are not
-  built, so neither binary's table has the row.
+  built, so neither binary's table has the row [in flight: change 709]
 
 `binaries.md`'s deployment client, `temper-client`, is present: its table
 of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,

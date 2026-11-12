@@ -162,6 +162,7 @@ name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-codegen",
  "skein-scratch",
  "skein-shell",
  "syn 2.0.119",
@@ -1852,12 +1853,14 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
+ "skein-codegen",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
+ "skein-scratch",
  "skein-tls",
 ]
 
@@ -2024,11 +2027,13 @@ dependencies = [
  "jig-test-patches-jig",
  "jig-test-patches-smith",
  "skein-codec",
+ "skein-codegen",
  "skein-fake-machine",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-oauth",
+ "skein-scratch",
  "skein-sim",
  "smith-transcript",
 ]
@@ -3593,9 +3598,11 @@ name = "skein-oauth"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-json",
  "skein-lib",
  "skein-rows",
+ "skein-scratch",
  "skein-tls",
 ]
 
@@ -4846,7 +4853,9 @@ name = "smith-transcript"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -6182,10 +6191,12 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "skein-codec",
+ "skein-codegen",
  "skein-forge",
  "skein-forge-connection",
  "skein-forge-setup",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -6198,10 +6209,12 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-store",
  "skein-codec",
+ "skein-codegen",
  "skein-forge",
  "skein-forge-client",
  "skein-kv",
  "skein-lib",
+ "skein-scratch",
  "skein-world",
  "temper-client-protocol-wire",
  "temper-engine-domain",

@@ -44,10 +44,10 @@
 - **The owner's crate** includes `patches/mod.rs` as a module of its
   library (`#[path = "../patches/mod.rs"] pub mod patches;`), and
   depends on skein-codec, and on skein-codegen in its tests.
-- **The baseline is the first release** (`README.md`, section 5). A crate with no
+- **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
-  is refused unless given `--baseline`, which its owner passes at that
-  release: the guard is the crate's files, and the command knows no
+  is refused unless given `--baseline`, which its owner passes once, at
+  its baseline: the guard is the crate's files, and the command knows no
   release. That first run keeps each family's current text as its first
   kept version and writes no patch. A family new to a crate past its
   baseline, or whose kept texts are all the branch's, is kept afresh in
@@ -76,8 +76,8 @@ text at version `c`:
    when `K` is frozen and a change other than a rename or a declaration
    dropped is none needed: a frozen text cannot take a declaration, a
    variant or a bound that records of its version may now hold. `K` is
-   frozen when a landed patch names its version, from the first release
-   on, since no version moves before it. This is the user's rule, and
+   frozen when a landed patch names its version, from the family's
+   baseline on, since no version moves before it. This is the user's rule, and
    temper's `draft/upgrades.md`, 4.3, follows it. The alternative, a
    frozen text refreshed where every landed
    patch naming it still plans and keeps its goldens, would serve a

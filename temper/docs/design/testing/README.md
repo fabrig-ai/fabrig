@@ -272,14 +272,12 @@ terminal client, the captures and the faults.
     project, a person and an account; a goal's change landed; a chat
     paused and a task mid-run on the in-process worker; a forge write
     left uncertain by a fault; then a settled stop, and a start of the
-    same build handed fixture patch sets (jig's
-    `jig-test-patches-smith`, its mark `fresh-windows`, and a fixture
-    owner of temper's whose family the store does not hold;
-    `temper-service`'s store takes them by its test seam, as jig's
-    `Store::with_patch_sets`): patched in a copy, restored before the
-    switch, switched, its wires committed, and on. Before every real
-    patch set is empty (the first release), these are the only patches
-    there are; no fixture names a family of temper's or jig's;
+    same build handed the fixture sets (`../protocol/baseline.md`, 8:
+    the real sets, temper's extended by a patch that changes no family
+    and carries `fresh-windows`; `temper-service`'s `Service::patch_sets`
+    hands them): patched in a copy, every live window closed, restored
+    before the switch, switched, its wires committed, and on. No
+    fixture names a family it changes;
   - the same start rehearsed first (jig's `protocol/store/opening.md`, 5),
     reporting each patch and the restores whole and leaving the
     directory as it was, then made; and a start failed by the world
@@ -287,7 +285,7 @@ terminal client, the captures and the faults.
     (`Store::back`), the build before it opening the generation as it
     was;
   - the stop unsettled instead, the service killed with the forge write
-    in flight: the upgrade's start patches (no fixture changes temper's
+    in flight: the upgrade's start patches (the fixture patch changes no
     family), and the new build recovers the write as after any stop,
     made once;
   - power lost at a drawn moment of that start, from the copy to the
@@ -307,16 +305,16 @@ terminal client, the captures and the faults.
   every number given above every number kept; the mid-run task's next
   attempt fresh, with the closed window's tail; the paused chat resumed.
 
-  The world's seams for it: `temper-service`'s store takes patch sets
-  by a test seam; a fault the world injects between `Switched` and the
-  wires' commit; the fake forge's ledger outliving a restart. Of the
-  draft's section 13, the faults below the store (a full disk, a short
-  write, a failed sync, a malformed or refused record, a limit too
-  small, an effect in flight in a patched family) are jig's store
-  world's (jig's `protocol/store/README.md`, section 9); the golden stores of
-  each release and the engine alone (its workers kept across the
-  engine's upgrade) wait for a first release, whose binary makes the
-  one and whose wires can differ for the other.
+  The world's seams for it: `Service::patch_sets`; a fault the world
+  injects between `Switched` and the wires' commit; the fake forge's
+  ledger outliving a restart. Of the draft's section 13, the faults
+  below the store (a full disk, a short write, a failed sync, a
+  malformed or refused record, a limit too small, an effect in flight
+  in a patched family) are jig's store world's (jig's
+  `protocol/store/README.md`, section 9); the baseline's golden store
+  is `../protocol/baseline.md`, 6's, kept here; the engine alone (its
+  workers kept across the engine's upgrade) waits for wires that can
+  differ.
 - **Faults:** kills and power loss at drawn submissions; the fake
   forge's and the fake LLM's faults, drawn from the seed; the forge's
   refusals and failures as the fake git program prints them. Joined

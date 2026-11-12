@@ -737,8 +737,7 @@ alone, and many of ctl's tools (`client/README.md`,
 `client/forge/README.md`, `client/ctl/README.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand,
 and whose native replay of that walk's log differs now and then for a
-cause not yet found (`playground.md`), upgrades'
-commands and the baseline (`protocol/README.md`), and the release
+cause not yet found (`playground.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
 Publication help and ctl's completed answer say that chat words may show
@@ -1171,6 +1170,7 @@ Design documents:
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/documentation.md`](protocol/documentation.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
+- [`protocol/baseline.md`](protocol/baseline.status.md)
 - [`client/README.md`](client/README.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/web/README.md`](client/web/README.status.md)

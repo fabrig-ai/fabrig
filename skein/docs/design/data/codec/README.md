@@ -35,8 +35,8 @@ records kept in files or stores.
   other, so what decodes encodes back to the same bytes.
 - **Versioned.** A schema is one version of a family, and a family has
   one current version. A record kept beyond a channel carries its
-  version. A reader reads the current version and refuses another. The
-  baseline is the first release (section 5): until it, no version moves
+  version. A reader reads the current version and refuses another. A
+  family's baseline is its owner's (section 5): until it, no version moves
   and nothing is translated; from it on, kept versions are read as
   generic values and patched to the current one (`patches.md`).
 - **Read at run time too.** `skein-codec` reads a schema's text as step
@@ -238,12 +238,16 @@ reserved for fields.
 
 ## 5. Versions
 
-- **The baseline is the first release.** Until it, a family's version
+- **A family's baseline:** for the families a temper deployment stores,
+  the store temper's `main` wrote at `bc23255eb7` (temper's
+  `protocol/baseline.md`; the user, 2026-11-11); for every other family
+  a build stores, sends or embeds, the first release. Until it, a family's version
   keeps its number: a change a reader would notice changes the schema,
   its generated code and its golden bytes in place. A record an older
   build kept is then not told apart by its version, so nothing is kept
   across builds that change its family: a store from an older build is
-  started afresh. Versions move at a release, not at a landing.
+  started afresh. From it, a version moves in the landing whose patch
+  moves it (`command.md`, 2).
 - **From the baseline on, any change a reader would notice is a new
   version:** a new schema, whose generated code replaces the old. There
   is one version at a time, and no promise of stability to anyone

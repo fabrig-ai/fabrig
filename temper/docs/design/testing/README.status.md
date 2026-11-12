@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -123,6 +123,8 @@ that proof remains with the after-landing runs (11).
     real loop for one line would test a copy of the process, not the
     process.
 
+- **Not yet:** 2.5: the story through an upgrade, its referee, the unsettled stop and power lost during the upgrade's start: no story of the one-process world starts under patch sets [in flight: change 708]
+- **Not yet:** 2.5: the same start rehearsed first, and a start failed after `Switched` gone back from: no rehearsal or going back in temper [in flight: change 709]
 - **Not yet:** `process-tier.md`, *Two drivers' offline proofs*: no pass in profile
   `process-temper` is on record for B0's two
   (`bin/temper-box/tests/proof_live.rs`) or for `managed_ready_client`'s
