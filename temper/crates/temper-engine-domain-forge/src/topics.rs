@@ -57,7 +57,7 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Qu
         {
             match &subscriber.topic {
                 Topic::Landings { repository: home, .. } if *home == repository => wanted = true,
-                Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+                Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
             }
         }
     }
@@ -238,7 +238,7 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
         }
         match &subscriber.topic {
             Topic::Landings { repository, branch } if row.repository == *repository && row.base == *branch => {}
-            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => continue,
+            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => continue,
         }
         let cached = match d.goal_files.get(task) {
             Some(cached) if Some(cached.head) == row.change.last_head => cached.paths.as_ref(),

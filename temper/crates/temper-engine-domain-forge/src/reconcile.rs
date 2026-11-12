@@ -39,6 +39,7 @@ pub enum RecordKind {
     Looked,
     Away,
     Decided,
+    Finding,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -184,6 +185,7 @@ impl Reconciliation {
             }
             Stored::Subscription(row) => {
                 let repository = match row.topic {
+                    Topic::Findings { .. } => return self.task(RecordKind::Subscription, row.task, None),
                     Topic::Landings { repository, .. }
                     | Topic::Ci { repository, .. }
                     | Topic::Pull { repository, .. }
@@ -260,6 +262,7 @@ impl Reconciliation {
             | Stored::ProjectFacts(_)
             | Stored::Away(_)
             | Stored::Decided(_)
+            | Stored::Finding(_)
             | Stored::Looked(_)
             | Stored::Dismissed { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
@@ -373,6 +376,7 @@ impl Domain {
             | RecordKind::ProjectFacts
             | RecordKind::Away
             | RecordKind::Decided
+            | RecordKind::Finding
             | RecordKind::Looked
             | RecordKind::Dismissed
             | RecordKind::Setting
