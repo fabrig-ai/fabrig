@@ -2184,6 +2184,8 @@ pub enum Request {
     /// File a red of no goal's in the decision keeping its verdict.
     FileRedFinding {
         task: u64,
+        /// The landing's first kept follow, numbered within the finding's project.
+        follow: Option<u32>,
         finding: crate::FileFinding,
     },
     TierDecision {
