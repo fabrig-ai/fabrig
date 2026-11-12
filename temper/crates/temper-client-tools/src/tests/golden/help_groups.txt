@@ -98,9 +98,12 @@ temper ctl DIR task message TASK TEXT --key KEY
 
 `project make NAME --key KEY` makes a project; `project show` reads it,
 `project fund` sets spend and `project amend` changes visibility.
-`project remove PROJECT --key KEY` removes your own project, a fresh
-store's default among them, with no confirmation. PROJECT is its number
-or name from `me` (temper help project).
+`project delete PROJECT --key KEY` deletes your own project, a fresh
+store's default among them, with no confirmation. End its live tasks first;
+a refusal names their roots. PROJECT is a number, sent even after it leaves
+`me`, or a name from `me`; an unknown name sends nothing. The same number
+and key get the first answer after deletion too. `project show` then says
+`project 3 was deleted`, exit 2 (temper help project).
 
 **Waits.** A read of one subject waits when given `--since DIGEST`,
 the digest a read of it printed, or `--until CONDITION`, or both:
@@ -200,5 +203,5 @@ account  LLM accounts: read them, connect one, manage its keys and sources, move
 model  Models: read those your party may use
 settings  The settings: read them, change them, or propose a change to their owners
 revision  Settings revisions: read one or the history, move running work to the newest
-project  Projects: make or remove one, read periods and pools, set spend and visibility
+project  Projects: make or delete one, read periods and pools, set spend and visibility
 playground  The playground: start it, or end it and set up temper
