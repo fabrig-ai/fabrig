@@ -59,6 +59,7 @@ smith-protocol-llm.workspace = true
 smith-domain.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
+skein-oauth-accounts.workspace = true
 skein-http.workspace = true
 skein-push.workspace = true
 skein-fake-push.workspace = true
@@ -72,6 +73,7 @@ skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-heap.workspace = true
 jig-test-store-files.workspace = true
 

@@ -271,7 +271,10 @@ generation `A` to `A + 1`:
    goes on over the copy, still open, as 1's step 7 goes on over an
    active generation (the run proofs' cuts, which cut the shared
    transcripts to the copy's committed lengths, `A`'s, since patching
-   writes no frame; the installation's identifier), and answers
+   writes no frame; the installation's identifier). The model catalogue
+   overlay (`records.md`) is read by the binary's serving codec here,
+   after all pending patches; the initial open that plans those patches
+   does not decode model settings through that codec. The open answers
    `Opened` with `pending`: a patched generation awaits its switch. The
    root's restart restores from it as from any store, and asks for the
    switch (`Request::Switch`) once its restores are whole

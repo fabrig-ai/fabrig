@@ -11,7 +11,7 @@ fn rooted() -> Harness {
     let mut configured = setup();
     configured.tree =
         files(&[(b"z.txt", b"last"), (b"docs/a.md", b"a"), (b"docs/nest/b.md", b"b"), (b"a.txt", b"first")]);
-    Harness::with(CALM, configured)
+    Harness::with(calm(), configured)
 }
 #[test]
 fn a_root_tree_lists_files_and_directories_in_name_order() {
@@ -60,10 +60,10 @@ fn equal_directories_have_equal_ids_across_commits() {
     configured.id = 3;
     configured.name = copy_of(b"ai/other");
     configured.tree = files(&[(b"same/b.md", b"b")]);
-    let first = crate::repository(&mut h.domain, &CALM, configured);
+    let first = crate::repository(&mut h.domain, &calm(), configured);
     let Answer::GitTree { entries, .. } = h
         .domain
-        .inspect(&CALM, b"ai/other", &Read::GitTree { object: TreeOf::Commit(first), page: 1, limit: 2 })
+        .inspect(&calm(), b"ai/other", &Read::GitTree { object: TreeOf::Commit(first), page: 1, limit: 2 })
         .unwrap()
     else {
         unreachable!("tree")
@@ -94,7 +94,7 @@ fn a_tree_is_paged_with_truncated() {
 fn directories_compare_with_a_trailing_slash() {
     let mut configured = setup();
     configured.tree = files(&[(b"tests/unit.rs", b"unit"), (b"tests.rs", b"module")]);
-    let h = Harness::with(CALM, configured);
+    let h = Harness::with(calm(), configured);
     let (entries, more) = tree(&h, TreeOf::Commit(FIRST), 1, 2);
     assert_eq!(&*entries[0].name, b"tests.rs");
     assert_eq!((&*entries[1].name, entries[1].kind), (b"tests".as_slice(), TreeEntryKind::Tree));

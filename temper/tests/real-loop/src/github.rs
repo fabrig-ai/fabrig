@@ -279,7 +279,7 @@ pub(crate) struct State {
 }
 impl State {
     pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
-        let mut config = temper_worker_checkout_world::hosted::CONFIG;
+        let mut config = temper_worker_checkout_world::hosted::config();
         // These smoke repositories have two small files each. The GitHub
         // layer pads every API response to its admitted wire capacity, so
         // do not inherit the checkout sweep's 256 files of 64 KiB each.
