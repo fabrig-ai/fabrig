@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-11. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-12. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
@@ -31,6 +31,7 @@ a table (`temper/docs/design/cli/README.md`), alongside the six tools and
 fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
 are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
+- **Not yet:** 6.3: *The terminal lent to a child*, `Kept::set_kept` and `Kept::set_raw` [in flight: change 1927].
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
