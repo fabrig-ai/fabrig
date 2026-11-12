@@ -174,7 +174,7 @@ fn scenario_application_hooks_share_keys_commits_retention_and_restart() {
         )
         .expect("same digest");
     engine.read_application(at(1), REQUESTER_SIGN_IN, Token::new(4), 7, PROJECT, &0).expect("own read");
-    assert!(engine.poll(at(9_999_999)).is_empty());
+    assert_eq!(engine.poll(at(9_999_999)).len(), 0);
     engine.taken(Token::new(1));
     let up = engine.poll(at(10_000_000));
     assert_eq!(engine.commits().len(), 1);
@@ -311,7 +311,7 @@ fn scenario_application_hooks_share_keys_commits_retention_and_restart() {
         .act_application(at(21_000_003), Wall::EPOCH, 7, PROJECT, OwnApplication { document: next.clone() }, vec![])
         .expect("own story");
     engine.read_application(at(21_000_003), REQUESTER_SIGN_IN, Token::new(11), 7, PROJECT, &0).expect("story read");
-    assert!(engine.poll(at(31_000_002)).is_empty());
+    assert_eq!(engine.poll(at(31_000_002)).len(), 0);
     assert_eq!(engine.poll(at(31_000_003)), vec![Up::ApplicationRead { token: Token::new(11), terminal: Ok(next) }]);
 }
 fn scenario_hook_limits_visibility_conflicts_and_expired_retention() {
@@ -430,7 +430,7 @@ fn scenario_deployment_parts_dynamic_rules_and_scheduling() {
     engine.script(rule.clone()).expect("world scripts actual words");
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     assert_eq!(engine.pending_commits().next().expect("staged ledger").durable, None);
-    assert!(engine.commits().is_empty());
+    assert_eq!((engine.commits()).len(), 0);
     let first = engine.poll(at(10_000_000));
     let mut invalid = rule.clone();
     invalid.answer = Answer::Refused { refusal: Refusal::NotOffered, at: None };
@@ -472,7 +472,7 @@ fn scenario_deployment_parts_dynamic_rules_and_scheduling() {
     engine.fault(Time::ZERO, Fault::Slow { span: Duration::from_secs(5) });
     engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Me).expect("slow frame");
     for seconds in 1..5 {
-        assert!(engine.poll(at(seconds * 1_000_000_000)).is_empty());
+        assert_eq!(engine.poll(at(seconds * 1_000_000_000)).len(), 0);
     }
     assert_eq!(
         engine.due.iter().filter(|due| matches!(due.up, Up::Watch { event: WatchEvent::Alive, .. })).count(),
@@ -520,7 +520,7 @@ fn scenario_application_jig_requests_cannot_bypass_admission() {
         assert_eq!(engine.application(), &own(), "staged own state rolls back with a refused jig act");
         assert_eq!(engine.truth().results_seen.get(&REQUESTER), None, "earlier admitted jig act rolls back too");
         assert_eq!(engine.truth().frames.get(&REQUESTER).expect("frame").updates.value, 3);
-        assert!(engine.poll(at(9_999_999)).is_empty());
+        assert_eq!(engine.poll(at(9_999_999)).len(), 0);
         assert_eq!(
             engine.poll(at(10_000_000)),
             vec![Up::ApplicationAnswer {
@@ -529,8 +529,8 @@ fn scenario_application_jig_requests_cannot_bypass_admission() {
                 answer: Some(Err(expected.clone()))
             }]
         );
-        assert!(engine.commits()[0].changes.is_empty());
-        assert!(engine.commits()[0].application.as_ref().expect("hook ledger").requests.is_empty());
+        assert_eq!(engine.commits()[0].changes.len(), 0);
+        assert_eq!(engine.commits()[0].application.as_ref().expect("hook ledger").requests.len(), 0);
         engine
             .send_application(
                 at(10_000_001),
@@ -594,7 +594,7 @@ fn scenario_application_values_are_bounded_before_retention() {
     );
     assert_eq!(engine.application(), &own());
     assert_eq!(engine.pending_commits().count(), 0);
-    assert!(engine.poll(at(10_000_000)).is_empty());
+    assert_eq!(engine.poll(at(10_000_000)).len(), 0);
     engine
         .send_application(
             at(10_000_000),
@@ -629,9 +629,9 @@ fn scenario_application_watches_coalesce_and_end_truthfully() {
     gone.document.words = text(b"gone");
     engine.act_application(at(10_000_000), Wall::EPOCH, 7, PROJECT, gone, vec![]).expect("subject ends");
     engine.taken(Token::new(1));
-    assert!(engine.poll(at(19_999_999)).is_empty());
+    assert_eq!(engine.poll(at(19_999_999)).len(), 0);
     assert_eq!(engine.poll(at(20_000_000)), vec![Up::Ended { token: Token::new(1), why: WatchEnd::SubjectEnded }]);
-    assert!(engine.poll(at(20_000_000)).is_empty());
+    assert_eq!(engine.poll(at(20_000_000)).len(), 0);
     engine.open_application(at(20_000_000), REQUESTER_SIGN_IN, Token::new(2), 7, PROJECT, 0).expect("absent subject");
     assert_eq!(engine.poll(at(20_000_000)), vec![Up::Ended { token: Token::new(2), why: WatchEnd::Unknown }]);
 }

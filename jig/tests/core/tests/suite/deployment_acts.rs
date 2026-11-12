@@ -239,7 +239,7 @@ fn restart_cut(durable: bool) {
     world.cut = Some(cut);
     act(&mut world, KEY, close(chat, PROJECT, None));
     assert_eq!(world.reached_cut, Some(cut));
-    assert!(world.act_answers.is_empty());
+    assert_eq!(world.act_answers.len(), 0);
     let mut config = configuration(1805).0;
     if durable {
         config.core.grants = Box::new([]);

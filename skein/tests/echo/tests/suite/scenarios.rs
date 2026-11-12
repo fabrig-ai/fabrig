@@ -219,7 +219,7 @@ fn a_seed_replays_to_the_same_echo_digest_at_its_end() {
         assert!(digests.procs[0].is_some(), "the echo gives its domain's digest");
         (outcome.trace.iter().map(|entry| format!("{entry:?}")).collect(), digests)
     });
-    assert!(!trace.is_empty());
+    assert_ne!(trace.len(), 0);
 }
 
 #[test]

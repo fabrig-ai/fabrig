@@ -353,11 +353,15 @@ tests nothing (`../release.md`, 5.1).
   (`cargo check --workspace --exclude 'hearth*' --all-targets --keep-going`),
   then the one story below. Each check runs whatever an earlier one
   gave, so that one run shows every failure.
-- **What it installs:** Rust 1.95, the workspace's `rust-version`, and
-  `cargo-nextest`, each download checked by its SHA-256.
+- **What it installs:** the toolchain the repository's
+  `rust-toolchain.toml` pins (`skein/docs/foundation/programming-model.md`,
+  10.1), by rustup reading the file in the checkout, with no version
+  written in the workflow; and `cargo-nextest`, its download checked by
+  its SHA-256.
 - **The runner is small:** line tables only for debug information, no
-  incremental build, `TEMPER_INTERNAL_BUNDLE=none`, the registry and the
-  dependencies' build cached by the lock, and each run reports its disk.
+  incremental build, `TEMPER_INTERNAL_BUNDLE=none`, the registry cached
+  by the lock and the dependencies' build by the lock and the
+  toolchain's file, and each run reports its disk.
 - **A failure reads without a login:** the repository is public, and
   each failing check annotates its run with its failing tests or errors
   and the end of its output, which the public API gives.

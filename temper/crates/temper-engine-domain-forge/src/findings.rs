@@ -384,7 +384,6 @@ impl Domain {
     pub fn finding(&self, project: u32, number: u32) -> Option<&Finding> {
         self.finding_rows().get(&(project, number))
     }
-    #[must_use]
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
         self.finding_rows().range((project, 0)..=(project, u32::MAX))
     }

@@ -895,7 +895,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 Next::Step(PrepareStep::Fetch { repository: 0 })
             }
             Done::Looked { holds: false } => Next::Step(PrepareStep::Make),
-            Done::Failed { fault: _ } | Done::FailedWithOutput { fault: _, .. } => Next::Failed(Failure::Transient),
+            Done::Failed { fault: _ } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Succeeded
             | Done::Fetched { .. }
             | Done::Committed { .. }
@@ -909,7 +909,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         },
         PrepareStep::Make => match done {
             Done::Succeeded => Next::Step(PrepareStep::Clone { repository: 0 }),
-            Done::Failed { fault: _ } | Done::FailedWithOutput { fault: _, .. } => Next::Failed(Failure::Transient),
+            Done::Failed { fault: _ } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Fetched { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -1118,7 +1118,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                     Next::Ready
                 }
             }
-            Done::Failed { fault: _ } | Done::FailedWithOutput { fault: _, .. } => Next::Failed(Failure::Transient),
+            Done::Failed { fault: _ } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Fetched { .. }
             | Done::Committed { .. }
             | Done::Unchanged

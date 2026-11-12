@@ -168,8 +168,8 @@ fn history_edge(provider: skein_llm::Provider) {
             completion.usage,
         );
         world.close();
-        assert!(connection.close().is_empty());
-        assert!(connection.settle().is_empty());
+        assert_eq!(connection.close().len(), 0);
+        assert_eq!(connection.settle().len(), 0);
     }
 }
 

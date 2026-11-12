@@ -354,7 +354,7 @@ fn each_line_is_within_its_bound() {
         assert!(!shape.paths.is_empty(), "{}", shape.name);
         assert!(seen.insert(shape.name), "duplicate shape: {}", shape.name);
         let names: Vec<_> = members::names(shape.name).collect();
-        assert!(!names.is_empty());
+        assert_ne!(names.len(), 0);
         let unique: BTreeSet<_> = names.iter().collect();
         assert_eq!(unique.len(), names.len(), "duplicate member in {}", shape.name);
     }

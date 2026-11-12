@@ -344,7 +344,7 @@ impl World {
     pub fn settled(&self) {
         self.lower.assert_settled();
         assert!(self.bindings.is_empty());
-        assert!(self.pending_machine.is_empty());
+        assert_eq!(self.pending_machine.len(), 0);
         assert_eq!(self.agent.hosted(), 0);
         for seen in self.seen.values() {
             assert!(seen.gone.is_some());

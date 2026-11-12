@@ -610,7 +610,7 @@ fn old_acknowledged_name_history_is_a_parent_namespace_promise() {
     // Bounded host metadata rejects current watermark/outstanding reuse, but
     // deliberately does not claim complete history for older opaque names.
     message(&mut world, 30, 1);
-    assert!(world.seen.refused_messages.is_empty());
+    assert_eq!(world.seen.refused_messages.len(), 0);
     world.sent();
     finish(&mut world);
 }
@@ -905,9 +905,9 @@ fn an_answered_agent_is_signalled_only_past_its_exit_grace() {
     world.live();
     last(&mut world, RunResult::Parked, 0, 0);
     world.at(5);
-    assert!(world.seen.signals.is_empty());
+    assert_eq!(world.seen.signals.len(), 0);
     world.at(44);
-    assert!(world.seen.signals.is_empty());
+    assert_eq!(world.seen.signals.len(), 0);
     world.at(45);
     assert_eq!(world.seen.signals, [Signal::Terminate]);
     world.cleanup(Some(smith_host_domain::Exit::Signal(15)));
@@ -944,7 +944,7 @@ fn stop_and_answer_during_wall_or_draining_preserve_original_shutdown_deadline()
     world.at(24);
     last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
     world.at(25);
-    assert!(world.seen.signals.is_empty());
+    assert_eq!(world.seen.signals.len(), 0);
     world.clean_end();
     let mut world = World::new(44, limits());
     world.live();
@@ -1369,12 +1369,12 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
         );
         world.at(second);
         assert_eq!(world.seen.fault, None);
-        assert!(world.seen.signals.is_empty());
+        assert_eq!(world.seen.signals.len(), 0);
     }
     assert_eq!(world.seen.told, 3);
     world.at(20);
     assert_eq!(world.seen.fault, None);
-    assert!(world.seen.signals.is_empty());
+    assert_eq!(world.seen.signals.len(), 0);
     match world.seen.down.last().expect("wall Cancel") {
         Down::Cancel => {}
         Down::Start { .. }

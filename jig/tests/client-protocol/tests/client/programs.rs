@@ -80,5 +80,5 @@ fn a_public_declaration_replays_under_its_retained_name() {
 fn program_declarations_carry_no_secret() {
     let mut story = Story::program_sources(fixtures::SEED);
     declared(&mut story);
-    assert!(story.carried().is_empty());
+    assert_eq!(story.carried().len(), 0);
 }

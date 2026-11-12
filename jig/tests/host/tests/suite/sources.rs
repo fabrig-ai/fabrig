@@ -93,7 +93,7 @@ fn sources_one_past_capacity_fault_the_link() {
 fn replacement_installs_added_names_while_a_check_is_busy() {
     let (mut world, old) = World::checking(&[b"a", b"b"]);
     world.sources(&[b"b", b"c"]);
-    assert!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"c") })).is_empty());
+    assert_eq!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"c") })).len(), 0);
     let b = command(&world.checked(old, LoginState::Usable), b"b", Operation::Check);
     let c = command(&world.checked(b, LoginState::NotSignedIn), b"c", Operation::Check);
     snapshot(&world.checked(c, LoginState::NotSignedIn)[0], &[b"b", b"c"]);
@@ -128,7 +128,7 @@ fn replacement_answers_unknown_only_for_a_removed_queued_sign_out() {
 fn overlapping_explicit_checks_coalesce_into_one_fresh_check() {
     let (mut world, a) = World::checking(&[b"a"]);
     for _ in 0..2 {
-        assert!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty());
+        assert_eq!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(), 0);
     }
     let fresh = command(&world.checked(a, LoginState::NotSignedIn), b"a", Operation::Check);
     let answer = world.checked(fresh, LoginState::NotSignedIn);
@@ -217,18 +217,19 @@ fn a_lost_sign_out_is_settled_without_replaying_its_reply_on_redial() {
         b"a",
         Operation::SignOut,
     );
-    assert!(world.step(host::Event::SourceLost).is_empty());
-    assert!(world.sources(&[b"a"]).is_empty());
-    assert!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty());
+    assert_eq!(world.step(host::Event::SourceLost).len(), 0);
+    assert_eq!(world.sources(&[b"a"]).len(), 0);
+    assert_eq!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(), 0);
     let next = world
         .step(host::Event::SourceAnswered { owner: sign_out, answer: Answer::SignedOut(SignOutResult::SignedOut) });
     let check = command(&next, b"a", Operation::Check);
-    assert!(check != sign_out);
+    assert_ne!(check, sign_out);
     snapshot(&world.checked(check, LoginState::NotSignedIn)[0], &[b"a"]);
-    assert!(
+    assert_eq!(
         world
             .step(host::Event::SourceAnswered { owner: sign_out, answer: Answer::SignedOut(SignOutResult::SignedOut) })
-            .is_empty()
+            .len(),
+        0
     );
 }
 #[test]
@@ -252,9 +253,9 @@ fn source_updates_during_shutdown_leave_the_link_open_for_run_acknowledgements()
     world.step(host::Event::CancelAll { reason: host::Reason::Shutdown });
     assert!(world.sources(&[]).is_empty(), "a late list must not fault the draining link");
     assert!(world.sources(&[b"b"]).is_empty(), "shutdown admits no replacement source work");
-    assert!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty());
+    assert_eq!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(), 0);
     assert!(!world.host.sources_settled(), "the admitted check still owns its command");
-    assert!(world.checked(check, LoginState::Usable).is_empty());
+    assert_eq!(world.checked(check, LoginState::Usable).len(), 0);
     assert!(world.host.sources_settled());
     assert_eq!(world.host.next_deadline(), None);
 }
@@ -365,8 +366,9 @@ fn list_reads_share_the_source_queue_without_taking_slots() {
                 match case {
                     "full" => assert_eq!(world.step(listed(1)), [list_answer(1)]),
                     "check after read" => {
-                        assert!(
-                            world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty()
+                        assert_eq!(
+                            world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(),
+                            0
                         );
                         let outputs = world.step(listed(1));
                         assert_eq!(outputs[0], list_answer(1));
@@ -384,7 +386,7 @@ fn list_reads_share_the_source_queue_without_taking_slots() {
                         }
                     }
                     "overflow" => {
-                        assert!(world.step(read(2)).is_empty());
+                        assert_eq!(world.step(read(2)).len(), 0);
                         assert_eq!(
                             world.step(read(3)),
                             [host::Request::Up(host::LinkUp::ListRead {
@@ -407,7 +409,7 @@ fn list_reads_share_the_source_queue_without_taking_slots() {
                                 host::Request::CancelRead { read: 1 },
                             ]
                         );
-                        assert!(world.step(listed(1)).is_empty());
+                        assert_eq!(world.step(listed(1)).len(), 0);
                         assert!(world.host.sources_settled());
                     }
                     _ => unreachable!("table case"),

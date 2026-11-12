@@ -725,7 +725,7 @@ fn connected_github_with_two_installations() -> skein_forge_kit::joint::Joint {
         world.time(world.now().saturating_add(Duration::from_nanos(100_000)));
     }
     assert_eq!(world.connected, 1);
-    assert!(world.stopped.is_empty());
+    assert_eq!(world.stopped.len(), 0);
     assert_eq!(world.git_tokens.len(), 2);
     world
 }
@@ -751,7 +751,7 @@ fn github_git_tokens_of_every_accepted_installation_come_before_connected() {
         assert_eq!(*forge, fixtures::FORGE);
         assert_eq!(account.id, account_id);
         assert_eq!(account.login.as_ref(), login);
-        assert!(!token.expose().is_empty());
+        assert_ne!(token.expose(), []);
         assert!(*expires > world.env.wall);
     }
     let [Event::GitToken { token: first, .. }, Event::GitToken { token: second, .. }] = world.git_tokens.as_slice()
@@ -795,14 +795,14 @@ fn github_git_tokens_renew_before_they_expire() {
         assert_eq!(account.login.as_ref(), login);
         assert_eq!(renewed_account.id, account.id);
         assert_eq!(renewed_account.login, account.login);
-        assert!(!token.expose().is_empty());
-        assert!(!next.expose().is_empty());
+        assert_ne!(token.expose(), []);
+        assert_ne!(next.expose(), []);
         assert!(next.expose() != token.expose(), "renewal mints a different token");
         assert!(later > expires, "renewal extends the token's life");
         assert!(world.env.wall < *expires, "renewal completes before the first token expires");
     }
     assert_eq!(world.connected, 1);
-    assert!(world.stopped.is_empty());
+    assert_eq!(world.stopped.len(), 0);
 }
 
 #[test]

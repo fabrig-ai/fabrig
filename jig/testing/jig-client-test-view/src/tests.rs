@@ -412,7 +412,7 @@ fn a_family_page_holding_jig_cards_holding_parts_fits_and_diffs_to_nothing() {
     let rows = family_document(&mut root, 2);
     load_cards(&mut root, rows);
     let mut view = view();
-    assert!(!patches(&mut view, &root).is_empty());
+    assert_ne!(patches(&mut view, &root).len(), 0);
     assert!(contains(&view, b"Task 9"));
     assert!(contains(&view, b"Judged state: 13"));
     assert!(contains(&view, b"Holder policy"));
@@ -427,7 +427,7 @@ fn a_family_page_holding_jig_cards_holding_parts_fits_and_diffs_to_nothing() {
             .count(),
         4
     );
-    assert!(patches(&mut view, &root).is_empty());
+    assert_eq!(patches(&mut view, &root).len(), 0);
 }
 #[test]
 fn the_drawing_has_a_named_readable_fallback_and_bounded_owner_bytes() {
@@ -578,7 +578,7 @@ fn a_family_entrance_refusal_shows_its_budget_and_keeps_the_object_present() {
     assert!(!contains(&view, b"Gone"));
     assert!(root.first().object(id).is_some());
     assert!(view.tree().len() <= view.limits().tree.nodes);
-    assert!(patches(&mut view, &root).is_empty());
+    assert_eq!(patches(&mut view, &root).len(), 0);
 }
 
 #[test]
@@ -709,7 +709,7 @@ fn complete_application_object_uses_its_own_zero_value_form_and_exact_terminal_f
     assert!(contains(&view, b"Value: 0"));
     assert_eq!(root.first().object(id).unwrap().card, first::Card::Done { answer });
     assert!(view.tree().len() <= view.limits().tree.nodes);
-    assert!(patches(&mut view, &root).is_empty());
+    assert_eq!(patches(&mut view, &root).len(), 0);
 }
 
 #[test]

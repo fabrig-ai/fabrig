@@ -71,10 +71,7 @@ impl View {
                 duration_ms: completed.duration_ms,
             },
             Event::Notice(value) => Self::Notice(notice(value)),
-            Event::RunCompleted(completed) => match &completed.failure {
-                Some(failure) => Self::Failure(Box::new(answer_failure(failure))),
-                None => return None,
-            },
+            Event::RunCompleted(completed) => Self::Failure(Box::new(answer_failure(completed.failure.as_ref()?))),
             Event::Budget(budget) => Self::Budget {
                 turns: budget.turns.clone(),
                 spend: budget.spend.clone(),

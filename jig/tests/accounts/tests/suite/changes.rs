@@ -114,7 +114,7 @@ fn a_key_is_granted_generation_one_and_a_replaced_key_the_next() {
     );
     grant(&mut world, source, 2);
     assert_eq!(world.domain.grant(account, world.now).expect("replacement").generation, 2);
-    assert!(world.step(Event::Component(FromComponent::Expiring { account: source, generation: 2 })).is_empty());
+    assert_eq!(world.step(Event::Component(FromComponent::Expiring { account: source, generation: 2 })).len(), 0);
     assert!(!world.domain.source(source).expect("source").expiring);
 }
 #[test]
@@ -224,7 +224,7 @@ fn removing_an_account_answers_when_each_sign_out_has() {
             answer: Answer::Removed { confirmed: false, failed_hosts: Box::new([]) }
         }]
     );
-    assert!(world.step(Event::SignedOut { source: 11, confirmed: true }).is_empty());
+    assert_eq!(world.step(Event::SignedOut { source: 11, confirmed: true }).len(), 0);
 }
 #[test]
 fn a_removed_accounts_number_is_never_given_again() {
@@ -362,7 +362,7 @@ fn removing_an_account_erases_its_facts_in_the_same_decision() {
             assert!(out.contains(&Request::Erase { key: Key::Account { number: HELD_ACCOUNT } }));
             assert_eq!(out.contains(&Request::Erase { key: Key::Facts { account: HELD_ACCOUNT } }), facts);
             assert_eq!(out.len(), if facts { 5 } else { 4 });
-            assert!(world.domain.account_facts(HELD_ACCOUNT).is_empty());
+            assert_eq!((world.domain.account_facts(HELD_ACCOUNT)).len(), 0);
         }
     }
 }

@@ -119,7 +119,7 @@ fn fake_forgejo_hook_create_stores_url_events_active_and_secret() {
     assert_eq!(row.url, spec.url);
     assert_eq!(row.events, spec.events);
     assert_eq!(row.active, spec.active);
-    assert!(row.secret == spec.secret);
+    assert_eq!(row.secret, spec.secret);
     assert_eq!(
         h.decoded(&request).document,
         Document::Hook(skein_forge::forgejo::document::Hook {
@@ -190,8 +190,8 @@ fn fake_forgejo_hook_edit_and_delete_leave_the_others() {
     assert_eq!(hook.url, changed.url);
     assert!(!hook.active);
     assert!(hook.events.is_empty());
-    assert!(hook.secret == spec().secret);
-    assert!(hook.secret != changed.secret);
+    assert_eq!(hook.secret, spec().secret);
+    assert_ne!(hook.secret, changed.secret);
     assert_eq!(h.service.setup().repository_hooks(REPOSITORY).nth(1).unwrap().url, spec().url);
     for at in [repo(), other(), Repo { owner: boxed(b"alice"), ..repo() }] {
         let id = if at == repo() { 99 } else { 1 };

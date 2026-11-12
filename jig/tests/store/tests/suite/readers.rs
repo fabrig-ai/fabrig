@@ -181,7 +181,7 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
         assert_eq!(restored.items.len(), skein_lib::length::usize_of(PAGE_ROWS));
         peaks.push(measured.peak());
     }
-    for pair in peaks.chunks_exact(2) {
+    for pair in peaks.as_chunks::<2>().0 {
         assert_eq!(&peaks[..2], pair, "page memory does not grow with the inventory");
     }
 }

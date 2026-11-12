@@ -99,7 +99,7 @@ fn amendment_release_keeps_opaque_reason_delta_and_independent_revisions_in_one_
             Some(Revision { value: 3 })
         )
     );
-    assert!(domain.fields().get(Purpose::Reason).unwrap().text.bytes().is_empty());
+    assert_eq!((domain.fields().get(Purpose::Reason).unwrap().text.bytes()).len(), 0);
     assert_eq!(domain.fields().get(Purpose::Reason).unwrap().writes, 1);
 }
 
@@ -130,7 +130,7 @@ fn a_late_amendment_answer_preserves_another_forms_supplied_reason_until_page_sw
         Event::Act { action: Act::Go { address: crate::state::address::Address::Inbox { project: None } } },
     );
     assert!(domain.confirmation().is_none());
-    assert!(domain.fields().get(Purpose::Reason).unwrap().text.bytes().is_empty());
+    assert_eq!((domain.fields().get(Purpose::Reason).unwrap().text.bytes()).len(), 0);
     assert_eq!(domain.fields().get(Purpose::Reason).unwrap().writes, writes.checked_add(1).unwrap());
 }
 

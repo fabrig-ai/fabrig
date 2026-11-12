@@ -84,7 +84,7 @@ fn a_window_reset_retains_only_a_deferred_yield() {
         stopping.intend(intent);
         stopping.begin(Action::Close, Some(Time::from_nanos(10)));
         stopping.reset();
-        assert!(stopping.intent() == retained);
+        assert_eq!(stopping.intent(), retained);
         assert!(!stopping.waiting());
         assert_eq!(stopping.next_deadline(), None);
     }

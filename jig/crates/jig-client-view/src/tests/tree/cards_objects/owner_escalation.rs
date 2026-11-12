@@ -473,7 +473,7 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
             })
             .collect();
         if refused {
-            assert!(decoded.is_empty());
+            assert_eq!(decoded.len(), 0);
             goldens.check(&tree);
         } else {
             assert_eq!(decoded, row.acts.iter().map(|offer| offer.act).collect::<Vec<_>>());

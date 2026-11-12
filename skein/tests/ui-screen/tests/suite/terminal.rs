@@ -271,14 +271,14 @@ fn frames_within_the_interval_keep_only_the_newest() {
     p.drive(Time::from_nanos(100));
     p.terminal.draw(&frame(SIZE, SIZE, 'C'));
     p.drive(Time::from_nanos(200));
-    assert!(p.drain().is_empty());
+    assert_eq!(p.drain().len(), 0);
     assert_eq!(p.terminal.next_deadline(), Some(SECOND));
     assert!(!p.terminal.work_pending(p.now));
     assert!(p.terminal.work_pending(SECOND));
     p.drive(SECOND);
     assert_eq!(p.drain(), DIFF_C);
     p.drive(THIRD);
-    assert!(p.drain().is_empty());
+    assert_eq!(p.drain().len(), 0);
     assert_eq!(p.terminal.next_deadline(), None);
     p.finish();
 }

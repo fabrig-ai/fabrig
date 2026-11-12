@@ -479,7 +479,7 @@ mod tab_tests {
     fn a_tab_refusal_has_no_duty_yet() {
         let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let duties = host.report(Report::TabRefused);
-        assert!(duties.tab.is_empty());
+        assert_eq!(duties.tab.len(), 0);
         assert!(duties.asked.is_empty());
         assert_eq!(duties.writes, 0);
         assert!(duties.navigate.is_none());

@@ -541,10 +541,9 @@ fn transient(client: &jig_client::Client, page: &Readout) -> bool {
 }
 fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
     let bytes = match page {
-        Readout::Family { family, record } if *family == wire::FORGE => match record {
-            Some(record) => wire::decode_setting_answer(record, &wire_limits(&limits)?)?.into_parts().value,
-            None => return None,
-        },
+        Readout::Family { family, record } if *family == wire::FORGE => {
+            wire::decode_setting_answer(record.as_ref()?, &wire_limits(&limits)?)?.into_parts().value
+        }
         Readout::Family { .. } | Readout::Jig(_) | Readout::NotServed { .. } | Readout::Limit => return None,
     };
     let Some(bytes) = bytes else {

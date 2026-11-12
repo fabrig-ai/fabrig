@@ -319,7 +319,7 @@ fn tree_branches_count_prefix_slashes_against_authority_segments() {
     ] {
         let mut repository = adopted(1);
         repository.prefix = prefix.into();
-        for marker in [b'c', b'r', b's'] {
+        for marker in *b"crs" {
             for attempt in [None, Some(3)] {
                 let branch = super::tree_branch(&repository, 1, marker, 2, attempt, BRANCH_BYTES).expect("tree branch");
                 let what = super::branch_what(&branch, BRANCH_BYTES).expect("branch parts");

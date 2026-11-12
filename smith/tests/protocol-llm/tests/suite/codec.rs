@@ -94,8 +94,8 @@ fn run_client(prompt: llm::Prompt, configuration: &Configuration, owner: u64) ->
     assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Idle);
     assert!(wire.observed.contains(&Observed::Reusable));
     assert!(wire.close().is_empty(), "closing a won terminal never adds another root terminal");
-    assert!(wire.settle().is_empty());
-    assert!(wire.settle().is_empty());
+    assert_eq!(wire.settle().len(), 0);
+    assert_eq!(wire.settle().len(), 0);
     assert_eq!(wire.observed.iter().filter(|observed| **observed == Observed::Closed).count(), 1);
     (wire, terminal)
 }
@@ -358,14 +358,14 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
             scripts(),
         )
         .expect("ordinary concrete result is representable before any wire start");
-        assert!(positive.peer.queries.is_empty());
-        assert!(positive.close().is_empty());
+        assert_eq!(positive.peer.queries.len(), 0);
+        assert_eq!(positive.close().len(), 0);
         let observed = positive.settle();
         let [Event::Below(smith_domain::Below::Cancelled { owner })] = observed.as_slice() else {
             panic!("observed accepted prepared Client closes once");
         };
         assert_eq!(*owner, Token::new(19));
-        assert!(positive.settle().is_empty());
+        assert_eq!(positive.settle().len(), 0);
         let opaque = skein_llm::Replay {
             provider: configuration.endpoint.provider,
             value: skein_llm::Json::from_bytes(
@@ -564,9 +564,9 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         assert_eq!(input.as_ref(), b"{}");
         assert!(matches!(call, llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }));
         assert_eq!(call.owned_bytes(), Some(floor));
-        assert!(wire.close().is_empty());
-        assert!(wire.settle().is_empty());
-        assert!(wire.settle().is_empty());
+        assert_eq!(wire.close().len(), 0);
+        assert_eq!(wire.settle().len(), 0);
+        assert_eq!(wire.settle().len(), 0);
     }
 }
 

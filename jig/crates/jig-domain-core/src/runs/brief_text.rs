@@ -759,7 +759,7 @@ mod tests {
             text_bytes: 0,
             text_kept: 0,
         };
-        for byte in [b'a', b'b', b'c'] {
+        for byte in *b"abc" {
             transcript.append_text(Some(Box::from(&[byte; 40][..])), 128);
         }
         let BriefRead::Got(parts) = tail_read(&transcript, 90) else { panic!("read tail") };

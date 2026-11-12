@@ -518,7 +518,7 @@ fn a_store_page_refusal_stops_with_its_cause_and_phase() {
     crate::step(&mut host.domain, &host.env, Event::StartDone(Phase::LoadCore));
     host.drive();
     assert!(host.stopped);
-    assert!(host.commits.is_empty());
+    assert_eq!(host.commits.len(), 0);
     assert!(host.domain.journal.commit().is_none());
     let mut out = Queue::uncapped();
     crate::release(&mut host.domain, &host.env, &mut out);

@@ -171,7 +171,7 @@ fn a_fresh_window_that_fails_its_check_fails_naming_the_window() {
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 1;
     world.open(start);
-    assert!(world.prompts.is_empty());
+    assert_eq!(world.prompts.len(), 0);
     assert!(matches!(
         world.end,
         Some(session::End::Failed { failure: llm::Failure::Limit { which: llm::Limit::Window, bound: 1 }, .. })
@@ -340,7 +340,7 @@ fn a_fresh_window_at_its_history_bound_fails_naming_history() {
     let mut world = Scripted::new(4715);
     world.env.limits.history_messages = 2;
     world.open(opening(None, world.env.limits.spend));
-    assert!(world.prompts.is_empty());
+    assert_eq!(world.prompts.len(), 0);
     assert_eq!(
         world.end,
         Some(session::End::Failed {
@@ -361,7 +361,7 @@ fn a_childs_final_answer_at_its_message_bound_names_that_bound() {
     start.spec.final_turn =
         Some(session::FinalTurn { note: bytes(b"answer now"), allowance: skein_lib::Duration::from_secs(1) });
     world.open(start);
-    assert!(world.prompts.is_empty());
+    assert_eq!(world.prompts.len(), 0);
     assert_eq!(
         world.end,
         Some(session::End::Failed {

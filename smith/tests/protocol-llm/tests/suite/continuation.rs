@@ -613,7 +613,7 @@ fn response_unknown_and_unsent_failures_preserve_full_evidence() {
         }
         assert!(peer.tick(false));
     }
-    assert!(!peer.sent.is_empty());
+    assert_ne!(peer.sent.len(), 0);
     assert_eq!(peer.source_at, 0, "no response bytes precede observed transport loss");
     assert_eq!(peer.terminals(), 0);
     peer.transport_failed();

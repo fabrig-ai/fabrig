@@ -406,7 +406,7 @@ fn signing_the_same_claims_twice_gives_equal_bytes() {
         openid::token(openid, &limits(), b"client", &account, Some(b"sign-in-nonce"), Wall::EPOCH).expect("token");
     let second =
         openid::token(openid, &limits(), b"client", &account, Some(b"sign-in-nonce"), Wall::EPOCH).expect("token");
-    assert!(first == second);
+    assert_eq!(first, second);
 }
 #[test]
 fn the_id_token_names_each_claim() {
@@ -521,7 +521,7 @@ fn a_scripted_id_token_is_answered_unchanged() {
     let mut issuer = issuer(openid_terms(None));
     issuer.queue(token_plan(Some(b"scripted.id.token"))).expect("plan");
     let body = exchange(&mut issuer);
-    assert!(member(&body, b"id_token", 0).as_deref() == Some(b"scripted.id.token"));
+    assert_eq!(member(&body, b"id_token", 0).as_deref(), Some(b"scripted.id.token".as_slice()));
 }
 
 fn account(subject: &[u8], verified: bool) -> Account {

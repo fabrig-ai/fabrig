@@ -3864,7 +3864,7 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
         !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
         "outcome committed before Drained"
     );
-    assert!(world.unsettled.is_empty());
+    assert_eq!(world.unsettled.len(), 0);
     assert!(flights::rows(&world).is_empty(), "a settled stop leaves no flight");
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
@@ -4024,7 +4024,7 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
         !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
         "the proved outcome is durable before Drained"
     );
-    assert!(world.unsettled.is_empty());
+    assert_eq!(world.unsettled.len(), 0);
     assert_eq!(world.merges, 1);
     world.restart(true, true);
     world.close();

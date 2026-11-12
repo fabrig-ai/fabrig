@@ -155,7 +155,7 @@ impl Process {
             Event::Closed { owner } => {
                 if owner == OWNER {
                     assert_eq!(self.lifecycle, Lifecycle::Exited, "one child terminal follows exit");
-                    assert!(self.pipe_closed == u32::try_from(self.pipes.len()).expect("two pipes"));
+                    assert_eq!(self.pipe_closed, u32::try_from(self.pipes.len()).expect("two pipes"));
                     self.lifecycle = Lifecycle::Closed;
                 } else {
                     assert!(self.pipes.contains(&owner));

@@ -73,7 +73,7 @@ fn requester_ending_restores_without_rejudging_earlier_authority() {
         cold.domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
 
         let out = cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) });
-        assert!(out.is_empty());
+        assert_eq!(out.len(), 0);
         assert_eq!(cold.domain.task(1).unwrap().requester, requester);
     }
 }

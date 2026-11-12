@@ -1221,7 +1221,7 @@ fn capture(
                     domain.content.push(crate::Content::Text { owner, completion: name, text: text.clone() });
                 }
             }
-            crate::llm::Said::ToolCall { id, name: tool, input, call: _, .. } => {
+            crate::llm::Said::ToolCall { id, name: tool, input, .. } => {
                 let bytes = crate::facts::bytes(id)
                     .saturating_add(crate::facts::bytes(tool))
                     .saturating_add(crate::facts::bytes(input));

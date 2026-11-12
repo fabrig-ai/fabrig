@@ -182,7 +182,7 @@ fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_lo
                 assert_eq!(change.instructions.is_some(), supplied);
                 assert_eq!(change.dependencies.is_some(), supplied);
                 if let Some(instructions) = &change.instructions {
-                    assert!(instructions.bytes().is_empty());
+                    assert_eq!((instructions.bytes()).len(), 0);
                     assert_eq!(instructions.cut, text_cut);
                 }
                 assert_eq!(change.cut, dependency_cut);

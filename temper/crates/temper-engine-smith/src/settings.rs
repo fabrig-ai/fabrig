@@ -108,7 +108,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
             .or(Err(Problem::Range(b"kind")))?;
-        SettingsRead::Setting { setting: core_setting(setting), revision: revision.unwrap_or(0) }
+        let setting = core_setting(setting);
+        SettingsRead::Setting { setting, revision: revision.unwrap_or(0) }
     } else if let Some(number) = revision {
         SettingsRead::Revision { number }
     } else {

@@ -315,7 +315,7 @@ pub(super) fn connected(service: &crate::Service, user: u64, tokens: &Tokens, ge
     );
     let (number, access) = engine.forge.starts.iter().last().unwrap();
     assert_eq!((*number, access.user), (1, user));
-    assert!(access.credential == skein_forge::credential::Credential::Token(tokens.api.clone()));
+    assert_eq!(access.credential, skein_forge::credential::Credential::Token(tokens.api.clone()));
     assert!(access.webhook_secret.is_none(), "a kept secret needs a configured listener");
     let (found, value) = engine.values.identities.newest(1).unwrap();
     assert_eq!(found, generation);

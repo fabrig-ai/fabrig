@@ -79,10 +79,8 @@ pub(crate) fn fail(what: &str) -> ! {
 pub fn crypto_seed(seed: u64) -> skein_lib::Secret {
     let mut random = skein_lib::Rng::new(seed);
     let mut bytes = [0_u8; 32];
-    for chunk in bytes.chunks_exact_mut(8) {
-        for (slot, byte) in chunk.iter_mut().zip(random.next_u64().to_le_bytes()) {
-            *slot = byte;
-        }
+    for chunk in bytes.as_chunks_mut::<8>().0 {
+        *chunk = random.next_u64().to_le_bytes();
     }
     skein_lib::Secret::new(skein_lib::bytes::copy_of(&bytes))
 }

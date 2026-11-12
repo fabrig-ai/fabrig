@@ -596,7 +596,7 @@ fn completing(emitted: Box<[Request]>) -> (Token, Prompt) {
     let Ok(one) = Box::<[Request; 1]>::try_from(emitted) else {
         panic!("expected one request");
     };
-    let [Request::Lower(crate::Lower::Complete { owner, prompt, deadlines, grant: _, .. })] = *one else {
+    let [Request::Lower(crate::Lower::Complete { owner, prompt, deadlines, .. })] = *one else {
         panic!("expected a call to an LLM");
     };
     assert_eq!(deadlines.head, Duration::from_secs(60));
@@ -952,8 +952,7 @@ fn a_change_lands_through_the_worker_and_the_run_answers_with_it() {
         "the answer and the close wait"
     );
     let emitted = h.next();
-    let [Request::Answer { to: _, answer: run::Answer::Accepted { outcome, spent: _, .. }, read: _, detail: _ }] =
-        &*emitted
+    let [Request::Answer { to: _, answer: run::Answer::Accepted { outcome, .. }, read: _, detail: _ }] = &*emitted
     else {
         panic!("expected the run accepted, got {emitted:?}");
     };
@@ -1172,9 +1171,7 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
     assert!(!h.domain.is_due(h.env.now));
     assert!(h.next().is_empty(), "the close finds main closing already");
     let emitted = h.step(Event::Below(crate::Below::Cancelled { owner: main }));
-    let [Request::Answer { to: _, answer: run::Answer::Failed { failure, spent: _, .. }, read: _, detail: _ }] =
-        &*emitted
-    else {
+    let [Request::Answer { to: _, answer: run::Answer::Failed { failure, .. }, read: _, detail: _ }] = &*emitted else {
         panic!("expected the run failed, got {emitted:?}");
     };
     assert_eq!(

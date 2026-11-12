@@ -12,7 +12,7 @@ fn every_night_commit_recovers_one_conditional_scale() {
         let world = night(17, Cut::AfterCommit(commit));
         assert_eq!(world.outcome().crashes, vec![commit], "cut {commit}");
         assert!(!world.outcome().stopped, "cut {commit}: {}", world.trace.join("\n"));
-        assert!(world.peers.assignments.is_empty());
+        assert_eq!(world.peers.assignments.len(), 0);
         assert_eq!(
             world
                 .systems

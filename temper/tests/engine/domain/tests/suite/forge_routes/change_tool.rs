@@ -178,7 +178,7 @@ fn a_control_changes_choices_are_validated_before_delegation() {
             matches!(&answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == expected),
             "{input:?}: {answer:?}"
         );
-        assert!(world.call_errors.is_empty());
+        assert_eq!(world.call_errors.len(), 0);
         assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
         assert_eq!(
             world
@@ -203,7 +203,7 @@ fn a_control_changes_producer_llm_is_admitted_and_saved() {
         br#"{"words":"Small fix","producer":1,"llm":{"producer":{"main":{"model":"scripted"}}}}"#,
     );
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("configured choices admitted: {answer:?}") };
-    assert!(world.call_errors.is_empty());
+    assert_eq!(world.call_errors.len(), 0);
     let row = stored_change(&world, made[0].task);
     assert_eq!(row.producing_charter, 1);
     assert_eq!(

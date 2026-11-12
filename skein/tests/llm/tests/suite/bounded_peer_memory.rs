@@ -390,7 +390,7 @@ fn exact_query_observation_capacity_copies_the_whole_query_and_one_less_copies_n
     );
     negative.seen.clear();
     negative.settle();
-    assert!(negative.seen.is_empty());
+    assert_eq!(negative.seen.len(), 0);
     assert_eq!(negative.service.calls(), 0, "refused observation still settles its real route");
     assert_eq!(negative.machine.waiting(), client::Waiting::Nothing);
 }
@@ -442,9 +442,9 @@ fn exact_head_observation_capacity_retains_actual_fields_and_one_less_retains_no
             negative.run();
         }));
         assert!(refused.is_err(), "one byte below actual head ownership refuses retention");
-        assert!(negative.heads.is_empty());
+        assert_eq!(negative.heads.len(), 0);
         assert!(negative.queries.is_empty(), "the script never received the request");
-        assert!(negative.responses.is_empty());
+        assert_eq!(negative.responses.len(), 0);
         negative.request(client::Request::Close);
         negative.seen.clear();
         negative.settle();

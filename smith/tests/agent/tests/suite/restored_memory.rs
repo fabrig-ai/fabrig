@@ -1048,7 +1048,7 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
         counted.discover();
         counted.cycle(cycles);
         assert_eq!(counted.calls, 0, "one-over valid history starts no provider or owned tool");
-        assert!(counted.records.is_empty());
+        assert_eq!(counted.records.len(), 0);
         assert!(matches!(
             counted.answer,
             Some(run::Answer::Failed {

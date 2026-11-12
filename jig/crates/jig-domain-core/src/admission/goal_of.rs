@@ -34,10 +34,7 @@ impl Core {
                 return Some(current.number);
             }
             match current.requester {
-                tasks::Party::Task(parent) => match self.tasks.task(parent) {
-                    Some(above) => current = above,
-                    None => return None,
-                },
+                tasks::Party::Task(parent) => current = self.tasks.task(parent)?,
                 tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return None,
             }
         }

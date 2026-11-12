@@ -42,7 +42,7 @@ fn digest(text: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut out = [0; 32];
-    for (pair, byte) in text.chunks_exact(2).zip(out.iter_mut()) {
+    for (pair, byte) in text.as_chunks::<2>().0.iter().zip(out.iter_mut()) {
         let mut value = 0_u8;
         for digit in pair {
             let n = match digit {

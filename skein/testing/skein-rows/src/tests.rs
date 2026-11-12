@@ -68,9 +68,8 @@ fn a_failure_names_each_failing_row_with_its_message() {
         check([("string", true), ("opaque", false)], |string| {
             if string {
                 panic_any(String::from("owned message"));
-            } else {
-                panic_any(7_u8);
             }
+            panic_any(7_u8);
         });
     });
     assert_eq!(message, "2 of 2 rows failed\nstring: owned message\nopaque: <no message>");

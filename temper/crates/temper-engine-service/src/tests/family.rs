@@ -3791,7 +3791,6 @@ fn the_worst_small_ways_document_fits_its_decision() {
     decision
         .deliver(&limits.root.journal, root::Delivery::Ways { watcher: WATCHER, document: Box::new(document) })
         .unwrap();
-    let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
     assert!(
         bytes.len() <= usize::try_from(delivery_bytes).unwrap(),
         "WaysPanel: {} encoded bytes; decision allowance: {delivery_bytes}",

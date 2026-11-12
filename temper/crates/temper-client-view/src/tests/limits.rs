@@ -187,7 +187,7 @@ fn draw_words(
 fn a_window_full_of_long_words_builds() {
     let domain = long_limits();
     let bound = domain.client.domain.long_text;
-    for byte in [b'x', b'\n'] {
+    for byte in *b"x\n" {
         let bytes = repeated(byte, bound);
         let line = word_line(1, &bytes, bound);
         let count = u32::try_from(domain.client.domain.document_bytes / line.weight()).unwrap();

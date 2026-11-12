@@ -177,7 +177,7 @@ fn source_rehearsal(format: &[u8], expected: &str) {
     assert_eq!(code, 1, "{report}");
     assert!(report.contains(expected), "{report}");
     assert!(report.contains("the copy keeps no wires"), "{report}");
-    assert!(patches.is_empty());
+    assert_eq!(patches.len(), 0);
     assert_eq!(image(&mut disk), before, "every source path and byte unchanged");
     let scratch = disk.reopen_root(1);
     assert!(disk.list(scratch, 32, 4096).expect("scratch list").is_empty(), "scratch emptied");

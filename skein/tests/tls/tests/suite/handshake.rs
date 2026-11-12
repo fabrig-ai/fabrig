@@ -196,7 +196,7 @@ fn closes_before_and_during_the_handshake_send_nothing() {
     // The demand for the hello's room withdrawn, nothing sent.
     assert_eq!(running.down(Request::Close), vec![Event::Closed]);
     assert_eq!(running.wire.demand, None);
-    assert!(running.wire.sends.is_empty());
+    assert_eq!(running.wire.sends.len(), 0);
 }
 
 /// A client ready, whose server sent three bytes and `close_notify`, and

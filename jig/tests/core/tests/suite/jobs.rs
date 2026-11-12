@@ -271,9 +271,9 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
     assert!(proof(&world, task).accounts.is_empty());
     assert_eq!(proof(&world, task).window, None);
     assert_eq!(proof(&world, task).conversation, proof(&world, task).attempt);
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     world.job_hello(Token::new(8), 1, Box::new([bound(9)]));
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     world.job_hello(Token::new(9), 2, Box::new([bound(7)]));
     assert_eq!(world.jobs.len(), 1);
     let (channel, assignment) = &world.jobs[0];
@@ -407,7 +407,7 @@ fn a_restart_adopts_a_claimed_job_its_worker_still_lists() {
     let attempt = world.jobs[0].1.attempt.raw();
     restart(&mut world, 911);
     hello_hosting(&mut world, task, attempt);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     assert_eq!(proof(&world, task).attempt, attempt);
     world.answer_job(Token::new(9), Token::new(task), Token::new(attempt), finished());
     assert!(matches!(ended(&world, task).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));

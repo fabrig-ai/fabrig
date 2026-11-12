@@ -69,7 +69,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
     ));
     assert_eq!(d.after_landing(5), Some(other));
     assert_eq!(d.after_landing(6), Some(other));
-    assert!(d.landing.gates(5, REPO).is_empty());
+    assert_eq!((d.landing.gates(5, REPO)).len(), 0);
 }
 
 /// Merge commands belong to configured projects (temper/docs/design/protocol/configuration/engine.md).

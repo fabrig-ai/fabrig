@@ -768,12 +768,12 @@ fn a_single_family_has_no_family_bound() {
             .expect("second record source");
         let package = package(&scratch);
         let tree = module_tree(&package.directory, &package.root);
-        assert!(tree.failures.is_empty());
+        assert_eq!(tree.failures, Vec::<String>::new());
         assert_eq!(reached(&tree, &scratch), expected(&[("src/lib.rs", 1)]));
         let size = measure(&package);
         assert_eq!(size.library, 1);
         assert_eq!(size.families.values().copied().collect::<Vec<_>>(), [5]);
-        assert!(findings(&[size], 1, 1, &[]).is_empty());
+        assert_eq!(findings(&[size], 1, 1, &[]), Vec::<String>::new());
     }
 }
 
@@ -785,7 +785,7 @@ fn bounds_and_exceptions_only_shrink_and_report_every_finding() {
         families: BTreeMap::from([("people".to_owned(), 4), ("tasks".to_owned(), 4)]),
         failures: vec![],
     };
-    assert!(findings(&[size], 10, 4, &[]).is_empty());
+    assert_eq!(findings(&[size], 10, 4, &[]), Vec::<String>::new());
     size = Size {
         name: "demo".to_owned(),
         library: 12,
@@ -813,14 +813,14 @@ fn bounds_and_exceptions_only_shrink_and_report_every_finding() {
         families: BTreeMap::from([("people".to_owned(), 6), ("tasks".to_owned(), 4)]),
         failures: vec![],
     };
-    assert!(
+    assert_eq!(
         findings(
             &[size],
             10,
             4,
             &[Exception { what: "demo", until: "split" }, Exception { what: "demo people", until: "G2" }]
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
     let size = Size {
         name: "demo".to_owned(),

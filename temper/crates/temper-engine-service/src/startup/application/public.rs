@@ -22,10 +22,9 @@ impl Origin {
     pub(super) fn parse(input: &[u8]) -> Option<Self> {
         let (scheme, authority) = if let Some(rest) = input.strip_prefix(b"https://") {
             (Scheme::Https, rest)
-        } else if let Some(rest) = input.strip_prefix(b"http://") {
-            (Scheme::Http, rest)
         } else {
-            return None;
+            let rest = input.strip_prefix(b"http://")?;
+            (Scheme::Http, rest)
         };
         let authority = core::str::from_utf8(authority).ok()?;
         let (host, written_port) = if authority.starts_with('[') {

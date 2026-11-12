@@ -235,8 +235,7 @@ impl Hooked {
     fn verified(&mut self, env: &Env<Limits>, word: &[u8], mut body: Body) -> State {
         let digest = body.mac.finish();
         let mut signature = [0; 64];
-        for (digits, byte) in signature.chunks_exact_mut(2).zip(digest) {
-            let [high, low] = digits else { unreachable!("hexadecimal pair") };
+        for ([high, low], byte) in signature.as_chunks_mut::<2>().0.iter_mut().zip(digest) {
             *high = hex_digit(byte / 16);
             *low = hex_digit(byte);
         }

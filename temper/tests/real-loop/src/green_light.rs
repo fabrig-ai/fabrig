@@ -433,5 +433,5 @@ fn check_landing(ran: &Ran) {
     assert_eq!(document(ran, REVIEWED)["chip"]["phase"], "ended");
     assert!(document(ran, REVIEWED).to_string().contains("Approve."));
     assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
-    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+    assert_eq!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").len(), 0);
 }

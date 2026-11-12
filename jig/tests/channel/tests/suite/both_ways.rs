@@ -77,8 +77,8 @@ fn a_login_routes_the_same_claude_model_through_the_program() {
     assert_eq!(run.assignments[0].grant, Grant::Login);
     assert!(run.observations.iter().any(|row| row.arguments.first().is_some_and(|arg| arg == "-p")), "{run:?}");
     assert_eq!(run.request_heads, 0, "the peer sees no request, including a model list");
-    assert!(run.requests.is_empty());
-    assert!(run.credentials.is_empty());
+    assert_eq!(run.requests.len(), 0);
+    assert_eq!(run.credentials.len(), 0);
     assert_eq!(run.assignments[0].model, b"fake");
     answered(&run);
 }

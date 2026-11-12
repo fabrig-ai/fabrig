@@ -108,7 +108,7 @@ fn an_amendment_while_gathering_drops_every_section_gathered() {
     assert_eq!(asked.len(), 2);
     let abandoned = world.step(GatherEvent::Abandon { brief: Token::new(1) });
     let done = world.settle(abandoned);
-    assert!(done.is_empty());
+    assert_eq!(done.len(), 0);
     assert!(world.closed(Token::new(2)) && world.closed(Token::new(3)));
 }
 
@@ -234,7 +234,7 @@ fn a_full_table_or_a_busy_brief_refuses_for_capacity() {
             }]
         );
         let abandoned = world.step(GatherEvent::Abandon { brief: Token::new(1) });
-        assert!(world.settle(abandoned).is_empty());
+        assert_eq!(world.settle(abandoned).len(), 0);
         assert!(world.closed(Token::new(2)));
     }
 }
@@ -382,7 +382,7 @@ fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
         LIMITS.brief_bytes,
     );
     assert_eq!(asked.len(), 2);
-    assert!(world.settle(asked).is_empty());
+    assert_eq!(world.settle(asked).len(), 0);
     let now = Time::ZERO.saturating_add(Duration::from_secs(11));
     let expired = world.fire(now);
     assert_eq!(

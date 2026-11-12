@@ -82,7 +82,7 @@ fn past_the_engine_away_bound_the_attempt_is_interrupted_and_resumes_without_a_t
     assert_eq!(cluster.tries(first.task()), jig_domain_tasks::Tries::NONE, "contact costs no try");
     assert_ne!(first.attempt(), second.attempt());
     assert_eq!(first.identity(), second.identity(), "the new attempt keeps the first conversation");
-    assert!(first.transcript().is_empty());
+    assert_eq!((first.transcript()).len(), 0);
     assert_eq!(calls::occurrences(second.transcript(), BEFORE), 1, "the assignment carries the committed first turn");
     let queries: Vec<_> =
         cluster

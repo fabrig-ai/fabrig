@@ -372,10 +372,6 @@ fn the_first_environment_entry_counts_even_when_empty_or_relative() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "skein's round: checks that shell capture returns the process arguments and environment as bytes"
-)]
 fn the_process_arguments_and_environment_are_read_as_bytes() {
     let _arguments = arguments();
     let environment = environment();

@@ -427,7 +427,7 @@ fn refused_start() {
         let before = snapshot(&dir);
         let output = command.output().expect("refused fake");
         assert_eq!(output.status.code(), Some(1));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         let location = row.path.map_or_else(String::new, |path| format!("{}: ", dir.join(path).display()));
         let expected = format!("temper fake {}: {location}{}\n", row.kind, row.reason);
         assert_eq!(String::from_utf8(output.stderr).expect("UTF-8 refusal"), expected, "{}", row.name);
@@ -522,7 +522,7 @@ fn refused_deployment_start(root: &Path) {
         let before = snapshot(&dir);
         let output = command.output().expect("refused fake");
         assert_eq!(output.status.code(), Some(if own_document { 2 } else { 1 }), "{name}");
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         let file = if observations { "observations" } else { "playground-1/admin_token" };
         let location = if names_file { format!("{}: ", dir.join(file).display()) } else { String::new() };
         assert_eq!(
@@ -689,7 +689,7 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
         }
         let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
         assert_eq!(output.status.code(), Some(1));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         let stderr = String::from_utf8(output.stderr).expect("stderr");
         assert_eq!(stderr.lines().count(), 1, "{stderr}");
         assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
@@ -1525,7 +1525,7 @@ fn llm_refuses_a_hold_without_control() {
     let output = command("llm", &doc).output().expect("run fake");
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(output.stderr, b"temper fake llm: control: required when a piece has a hold\n");
-    assert!(output.stdout.is_empty());
+    assert_eq!((output.stdout).len(), 0);
     assert!(!scratch.path().join("key").exists(), "refusal creates no outputs");
     scratch.remove();
 }

@@ -319,7 +319,7 @@ fn the_reference_arm_is_the_codex_arm_whatever_the_names() {
         }
         let summary = crate::summarise(&results, "sample", "small", crate::Design::Interleaved, 17, None, None)
             .expect("Codex reference");
-        assert!(!summary.comparisons.is_empty());
+        assert_ne!(summary.comparisons.len(), 0);
         assert!(summary.comparisons.iter().all(|row| row.reference == codex && row.candidate == smith));
     }
 }
@@ -350,7 +350,7 @@ fn a_suite_without_codex_compares_against_its_named_reference() {
     let summary =
         crate::summarise(&results, "sample", "small", crate::Design::Interleaved, 17, None, suite.reference.as_deref())
             .expect("named reference");
-    assert!(!summary.comparisons.is_empty());
+    assert_ne!(summary.comparisons.len(), 0);
     assert!(summary.comparisons.iter().all(|row| row.reference == "smith" && row.candidate == "codex"));
 }
 

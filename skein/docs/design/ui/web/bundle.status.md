@@ -1,6 +1,6 @@
 # bundle: status
 
-2026-11-11. Where the tree's code lags or departs from [bundle.md](bundle.md).
+2026-11-12. Where the tree's code lags or departs from [bundle.md](bundle.md).
 
 - **Departs:** 2: `Cargo.toml` builds `flate2`, `miniz_oxide`, `crc32fast` and
   `adler2` at `opt-level` 3 in development, as it does the bundler, because the tiers

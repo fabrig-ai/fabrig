@@ -117,7 +117,7 @@ fn a_kept_forgejo_at_its_redirect_gets_its_meta_and_the_page_a_new_etag() {
     assert_eq!(status, 200, "the old tag no longer revalidates");
     assert_ne!(fixtures::header(&headers, b"etag"), Some(tag));
     assert_eq!(fixtures::bundle::body(&after), page(FIRST_META).as_ref());
-    assert!(notes(&mut service).is_empty());
+    assert_eq!(notes(&mut service).len(), 0);
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn an_owned_forge_takes_the_machines_public_and_says_owned() {
         fixtures::bundle::body(&reply),
         page(b"<meta name=\"temper-forge-sign-in\" content=\"1 forgejo https://git.example.com owned\">").as_ref()
     );
-    assert!(notes(&mut service).is_empty());
+    assert_eq!(notes(&mut service).len(), 0);
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn a_full_note_queue_holds_the_reason_until_it_can_be_named() {
     crate::forge::records::advance(service.engine.as_mut().unwrap());
     assert_eq!(notes(&mut service), [(1, b"forgejo".as_slice().into(), Unserved::NotKept)]);
     crate::forge::records::advance(service.engine.as_mut().unwrap());
-    assert!(notes(&mut service).is_empty());
+    assert_eq!(notes(&mut service).len(), 0);
 }
 
 /// A byte peer that can pause between page chunks, without running the root.
@@ -551,7 +551,7 @@ fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_numb
         fixtures::bundle::body(&reply),
         page(b"<meta name=\"temper-forge-sign-in\" content=\"9 forgejo https://git.example.com owned\">").as_ref()
     );
-    assert!(notes(&mut service).is_empty());
+    assert_eq!(notes(&mut service).len(), 0);
 }
 #[test]
 fn a_source_added_after_started_turns_the_box_forges_links_back_on() {

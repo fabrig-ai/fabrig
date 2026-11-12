@@ -8,8 +8,8 @@ fn prepare_uses_the_owned_machine_without_a_group_file() {
     fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
     let output = support::owned::prepare(scratch.path(), 1);
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
-    assert!(output.stdout.is_empty());
-    assert!(output.stderr.is_empty());
+    assert_eq!((output.stdout).len(), 0);
+    assert_eq!((output.stderr).len(), 0);
     assert!(scratch.path().join("forge-1/forgejo/app.ini").is_file());
     assert!(!scratch.path().join("box").exists());
     scratch.remove();
@@ -362,8 +362,8 @@ fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
         }
         let output = support::owned::prepare(scratch.path(), 1);
         assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
-        assert!(output.stdout.is_empty());
-        assert!(output.stderr.is_empty());
+        assert_eq!((output.stdout).len(), 0);
+        assert_eq!((output.stderr).len(), 0);
         assert_eq!(fs::metadata(&directory).expect("directory").permissions().mode() & 0o777, 0o700);
         assert_eq!(fs::read_dir(&directory).expect("directory").count(), 1);
         let bytes = fs::read(&token).expect("token");
@@ -557,7 +557,7 @@ fn forge_sign_in_refuses_without_openssl_a_named_forge_or_a_provider() {
         let output =
             forge_sign_in::command(directory).env("PATH", directory.join("no-programs")).output().expect("refusal");
         assert_eq!(output.status.code(), Some(1));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         assert!(
             String::from_utf8_lossy(&output.stderr).contains(expected),
             "{}",
@@ -604,7 +604,7 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
         )
         .as_ref()
     );
-    assert!(output.stderr.is_empty());
+    assert_eq!((output.stderr).len(), 0);
     scratch.remove();
 }
 
@@ -641,7 +641,7 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     let repeated = forge_sign_in::command(directory).output().expect("repeat sign-in command");
     forge_sign_in::success(&repeated);
     assert_eq!(repeated.stdout, output.stdout);
-    assert!(repeated.stderr.is_empty());
+    assert_eq!((repeated.stderr).len(), 0);
     assert!(fs::read(directory.join("forgejo.secret")).expect("same scratch secret") == secret);
     scratch.remove();
 }
@@ -774,7 +774,7 @@ fn a_refused_update_leaves_prepare_succeeding_with_one_line() {
     let output = support::owned::prepare(directory, 1);
     support::forge_sign_in::success(&output);
     assert_eq!(output.stderr, b"forge source: discovery address not updated: refused second line \n");
-    assert!(output.stdout.is_empty());
+    assert_eq!((output.stdout).len(), 0);
     scratch.remove();
 }
 
@@ -810,7 +810,7 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
         assert_eq!(line.lines().count(), 1, "{command}, spawn={spawn}: {line}");
         assert!(line.starts_with("forge source: discovery address not updated: "));
         assert!(line.contains(if spawn { "spawn:" } else { "source deadline expired" }), "{line}");
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         scratch.remove();
     }
 }

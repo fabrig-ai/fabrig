@@ -261,7 +261,7 @@ fn commit(value: &Value, member: &'static [u8]) -> Result<api::Commit, Problem> 
         return Err(Problem::Range(identifier));
     }
     let mut commit = [0_u8; 32];
-    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+    for (pair, cell) in text.as_chunks::<2>().0.iter().zip(&mut commit) {
         let high = high_hex(*pair.first().expect("hex pair"), identifier)?;
         let low = high_hex(*pair.get(1).expect("hex pair"), identifier)?;
         *cell = high.saturating_mul(16).saturating_add(low);
