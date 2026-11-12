@@ -182,6 +182,7 @@ An application that mixes the last two has both.
 | `jig-protocol-accounts` | translation, table | engine | the accounts child's vocabulary to skein's accounts driver's and back, and the values lent, tokens and keys with their scheme (`llm.md`, section 5) |
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
 | `jig-protocol-store` | component, codecs | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store (`store/README.md`) |
+| `jig-protocol-store-people`, `jig-protocol-store-tasks`, `jig-protocol-store-core`, `jig-protocol-store-settings`, `jig-protocol-store-families` | codecs | engine | the store's families' generated record code, below `jig-protocol-store`, which keeps their schemas, patches and golden bytes and translates them (below) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client/wire.md`, section 1) |
 | `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client/openid.md`); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client/wire.md`, 2.2) |
 | `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client/default-http.md`; `browser/README.md`, 12.2), and the server part an application builds its listener on (`service.md`, 11.4) |
@@ -189,6 +190,35 @@ An application that mixes the last two has both.
 | `jig-client-protocol-http` | mapping | client | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 (`client/default-http.md`, 4) |
 | `jig-protocol-transcript` | decoding | engine, client | turns' bytes into the client's vocabulary (`../client/domain/client/conversations.md`) |
 | `jig-client-shell-web`, `jig-client-shell-native` | shells' parts, a shell | client | jig's browser parts over skein's `skein-ui-web`: the client's adapter over skein's fetch, the printed link's sign-in, jig's look (`browser/README.md`, 5.1); and the native shell over skein's HTTP client, with `jig-client-protocol-http` (`client/README.md`, section 9) |
+
+**The store's codec crates.** `jig-protocol-store`'s families' generated
+record code sits in codec crates below it, which depend on skein-lib and
+skein-codec alone (skein's `data/codec/README.md`, section 2), so that
+they compile beside the core's crates rather than after them:
+
+| Codec crate | Families |
+|---|---|
+| `jig-protocol-store-people` | `people` |
+| `jig-protocol-store-tasks` | `tasks` |
+| `jig-protocol-store-core` | `core` |
+| `jig-protocol-store-settings` | `settings` |
+| `jig-protocol-store-families` | `accounts`, `component`, `notes`, `secrets` |
+
+- **`people` and `tasks`** pass the 20,000 lines a shared family may
+  hold (`tools/crates/design.md`, 3.1). **`core` and `settings`**, of
+  middling size, take a crate each too, so that a change to one
+  recompiles it alone. The four small ones share one.
+- **Each module keeps its versioned name,** `people_v15`, at its codec
+  crate's root, and `jig-protocol-store` re-exports it at its own, so
+  that `jig_protocol_store::people_v15` names it as before. A caller may
+  name either path.
+- **The store keeps the rest:** the schemas, kept texts and patches
+  (skein's `data/codec/command.md`, 1), the layouts' glue
+  (`src/generated/layouts.rs`), the golden bytes, the families' bounds
+  from the domain's limits (`store/README.md`, section 8) and the
+  translations. The drift test, `jig/tests/codec-families.rs`'s
+  inventory, names each family's codec crate for its code, and the store
+  for the rest.
 
 Beside them, smith's components, by the agent capability:
 `smith-protocol-llm`, over skein's `skein-llm-connection`, in a process
