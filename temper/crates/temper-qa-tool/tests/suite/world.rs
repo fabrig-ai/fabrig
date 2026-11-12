@@ -1,7 +1,9 @@
 //! A git DAG, command-writing agents, and a clock moved only by the test (qa/README.md, 6).
+use sha2::{Digest, Sha256};
 use skein_scratch::Scratch;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
+    fmt::Write,
     fs,
     path::{Path, PathBuf},
 };
@@ -169,6 +171,11 @@ pub enum Agent {
     Never,
     IgnoreTerm,
     Unstarted,
+    Pass,
+    Fail,
+    Note,
+    Gone,
+    Blocked,
 }
 struct Process {
     command: ProcessCommand,
@@ -184,6 +191,11 @@ pub struct Agents {
     pub signals: Vec<(u64, Signal)>,
     processes: BTreeMap<u64, Process>,
 }
+impl Agents {
+    pub fn finish(&mut self, number: u64, agent: Agent) {
+        self.processes.get_mut(&number).expect("running process").agent = agent;
+    }
+}
 impl Processes for Agents {
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal> {
         self.commands.push(command.clone());
@@ -192,7 +204,16 @@ impl Processes for Agents {
         let agent = if notify { Agent::Empty } else { self.next.pop_front().unwrap_or(Agent::Never) };
         match agent {
             Agent::Unstarted => return Err(Refusal("agent not found".into())),
-            Agent::None | Agent::Case | Agent::Empty | Agent::Never | Agent::IgnoreTerm => (),
+            Agent::None
+            | Agent::Case
+            | Agent::Empty
+            | Agent::Never
+            | Agent::IgnoreTerm
+            | Agent::Pass
+            | Agent::Fail
+            | Agent::Note
+            | Agent::Gone
+            | Agent::Blocked => (),
         }
         let number = u64::try_from(self.commands.len()).expect("process number");
         if notify {
@@ -213,7 +234,14 @@ impl Processes for Agents {
         match process.agent {
             Agent::Never | Agent::IgnoreTerm => return Ok(None),
             Agent::Unstarted => unreachable!("not started"),
-            Agent::None | Agent::Case | Agent::Empty => (),
+            Agent::None
+            | Agent::Case
+            | Agent::Empty
+            | Agent::Pass
+            | Agent::Fail
+            | Agent::Note
+            | Agent::Gone
+            | Agent::Blocked => (),
         }
         let env = |key: &str| {
             process
@@ -233,6 +261,45 @@ impl Processes for Agents {
                 Agent::Case => {
                     ledger.add_case(number, &super::case(), 0)?;
                 }
+                Agent::Pass | Agent::Blocked => {
+                    let pass = ledger.pass_command_session(number)?.pass.expect("pass");
+                    let cases: Vec<_> = ledger
+                        .cases
+                        .iter()
+                        .filter(|case| case.pass == Some(pass) && case.state == temper_qa_tool::CaseState::Assigned)
+                        .map(|case| case.number)
+                        .collect();
+                    for case in cases {
+                        let result = if matches!(process.agent, Agent::Pass) { "passed" } else { "blocked" };
+                        ledger.record_outcome(number, case, result, "agent's outcome", &[], 0)?;
+                    }
+                }
+                Agent::Fail => {
+                    let pass = ledger.pass_command_session(number)?.pass.expect("pass");
+                    let case = ledger
+                        .cases
+                        .iter()
+                        .find(|case| case.pass == Some(pass) && case.state == temper_qa_tool::CaseState::Assigned)
+                        .expect("assigned case")
+                        .number;
+                    let finding = ledger.record_finding(number, &super::passes::finding(case), &[], "product", 0)?;
+                    ledger.record_outcome(number, case, "failed", "no goal", &[finding.number], 0)?;
+                }
+                Agent::Note => {
+                    ledger.record_note(number, "off the path", 0)?;
+                }
+                Agent::Gone => {
+                    let pass = ledger.pass_command_session(number)?.pass.expect("pass");
+                    let findings: Vec<_> = ledger
+                        .findings
+                        .iter()
+                        .filter(|finding| finding.pass == pass && finding.state == temper_qa_tool::FindingState::Open)
+                        .map(|finding| finding.number)
+                        .collect();
+                    for finding in findings {
+                        ledger.record_check(number, finding, "gone", "fixed", 0)?;
+                    }
+                }
                 Agent::Empty => (),
                 Agent::Never | Agent::IgnoreTerm | Agent::Unstarted => unreachable!("not ending"),
             }
@@ -248,10 +315,32 @@ impl Processes for Agents {
         match (process.agent, signal) {
             (Agent::IgnoreTerm, Signal::Term) => (),
             (
-                Agent::None | Agent::Case | Agent::Empty | Agent::Never | Agent::IgnoreTerm | Agent::Unstarted,
+                Agent::None
+                | Agent::Case
+                | Agent::Empty
+                | Agent::Never
+                | Agent::IgnoreTerm
+                | Agent::Unstarted
+                | Agent::Pass
+                | Agent::Fail
+                | Agent::Note
+                | Agent::Gone
+                | Agent::Blocked,
                 Signal::Kill,
             )
-            | (Agent::None | Agent::Case | Agent::Empty | Agent::Never | Agent::Unstarted, Signal::Term) => {
+            | (
+                Agent::None
+                | Agent::Case
+                | Agent::Empty
+                | Agent::Never
+                | Agent::Unstarted
+                | Agent::Pass
+                | Agent::Fail
+                | Agent::Note
+                | Agent::Gone
+                | Agent::Blocked,
+                Signal::Term,
+            ) => {
                 process.ended = true;
             }
         }
@@ -289,6 +378,29 @@ impl World {
     }
     pub fn ledger(&self) -> Ledger {
         self.home.read(|ledger| Ok(ledger.clone())).expect("read")
+    }
+    pub fn installable_build(&self, commit: u64) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = self.build(commit);
+        let mut manifest = format!("commit {}\n", id(commit));
+        for (path, bytes) in [
+            ("bin/temper-box", b"box".as_slice()),
+            ("bin/fake-claude", b"fake".as_slice()),
+            ("bin/temper-client", b"client".as_slice()),
+            ("bin/temper-client-journeys", b"journeys".as_slice()),
+            ("bundle/index.html", b"index".as_slice()),
+            ("bundle/assets/app.js", b"javascript".as_slice()),
+        ] {
+            let full = directory.join(path);
+            fs::create_dir_all(full.parent().expect("parent")).expect("build directory");
+            fs::write(&full, bytes).expect("build file");
+            if path.starts_with("bin/") {
+                fs::set_permissions(&full, fs::Permissions::from_mode(0o751)).expect("executable");
+            }
+            writeln!(manifest, "{:x}  {path}", Sha256::digest(bytes)).expect("string");
+        }
+        fs::write(directory.join("manifest"), manifest).expect("manifest");
+        directory
     }
     pub fn build(&self, commit: u64) -> PathBuf {
         let directory = self.home.builds.join(id(commit));
