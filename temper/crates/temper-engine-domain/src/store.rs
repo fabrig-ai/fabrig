@@ -1080,7 +1080,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
                 temper_engine_domain_forge::Topic::Landings { branch, .. } => skein_lib::len_u64(branch.len()),
                 temper_engine_domain_forge::Topic::Ci { .. }
                 | temper_engine_domain_forge::Topic::Pull { .. }
-                | temper_engine_domain_forge::Topic::Participation { .. } => 0,
+                | temper_engine_domain_forge::Topic::Participation { .. } | temper_engine_domain_forge::Topic::Findings { .. } => 0,
             };
             bytes
                 .checked_add(skein_lib::len_u64(cause.len()))?

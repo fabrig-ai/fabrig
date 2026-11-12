@@ -868,6 +868,8 @@ pub fn answer(
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
+        // Findings acquire their client wire in the following change.
+        Some(root::ApplicationAnswer::FileFinding(_) | root::ApplicationAnswer::HandFinding(_) | root::ApplicationAnswer::TriageFinding(_)) => return None,
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
             forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
             forge::OverturnAnswer::Already => w::Outcome::OverturnRefused(
@@ -1479,6 +1481,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Findings(_) => None,
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -1855,6 +1858,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::Finding(_) => None,
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(

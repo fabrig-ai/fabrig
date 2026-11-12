@@ -496,7 +496,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::LandingLog(row) => landing_log::row_bytes(row),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
-            for field in [&row.area, &row.why, &row.reason] { if let Some(field) = field { bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?; } }
+            for field in [&row.area, &row.why, &row.reason].into_iter().flatten() { bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?; }
             Some(bytes)
         }
         Stored::Decided(row) => {

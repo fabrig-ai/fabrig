@@ -612,6 +612,9 @@ pub enum Application {
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
+    FileFinding(forge::FileFinding),
+    HandFinding(forge::HandFinding),
+    TriageFinding(forge::TriageFinding),
 }
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
@@ -631,6 +634,9 @@ pub enum ApplicationAnswer {
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
     Overturn(forge::OverturnAnswer),
+    FileFinding(forge::FileFindingAnswer),
+    HandFinding(forge::HandFindingAnswer),
+    TriageFinding(forge::TriageFindingAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
@@ -646,6 +652,7 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    Finding { project: u32, number: u32 },
     /// A view block, read in the project's scope (temper/docs/design/client/forge/records.md).
     View {
         project: u32,
@@ -672,6 +679,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),

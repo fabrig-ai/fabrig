@@ -46,12 +46,18 @@ pub enum HandFindingAnswer { Handed, Refused(FindingRefusal) }
 pub enum TriageFindingAnswer { Triaged, Refused(FindingRefusal) }
 /// The three-step rule; standing comes from the root's snapshot of the core.
 #[must_use]
-pub fn owner(area: Option<&[u8]>, areas: &ProjectAreas, triager: Option<AreaOwner>, stands: &impl Fn(AreaOwner) -> Option<Holder>) -> Holder {
+pub fn owner(area: Option<&[u8]>, areas: &ProjectAreas, triager: Option<AreaOwner>, stands: &[(AreaOwner, Holder)]) -> Holder {
     for row in &areas.areas {
-        if area == Some(row.name.as_ref()) && let Some(holder) = stands(row.owner) { return holder; }
+        if area == Some(row.name.as_ref()) && let Some(holder) = standing(row.owner, stands) { return holder; }
     }
-    if let Some(triager) = triager && let Some(holder) = stands(triager) { return holder; }
+    if let Some(triager) = triager && let Some(holder) = standing(triager, stands) { return holder; }
     Holder::Role(0)
+}
+#[must_use]
+pub fn standing(owner: AreaOwner, stands: &[(AreaOwner, Holder)]) -> Option<Holder> {
+    if let AreaOwner::Role(role) = owner { return Some(Holder::Role(role)); }
+    for (candidate, holder) in stands { if *candidate == owner { return Some(*holder); } }
+    None
 }
 /// Filters are part of the subject identity; each write marks every filter.
 #[must_use]
@@ -93,6 +99,29 @@ impl Finding {
         FindingRow { number: self.number, kind: self.kind, severity: self.severity, area: self.area.clone(), state: self.state, title: self.title.clone(), holder, at: self.at, why: self.why.clone() }
     }
 }
+impl FindingRefusal {
+    /// Human refusal with the request's address and, for `NoArea`, its asked name.
+    #[must_use]
+    pub fn words(&self, project: u32, number: u32, area: &[u8]) -> Box<[u8]> {
+        use skein_lib::Decimal;
+        let mut out = List::uncapped();
+        match self {
+            Self::NoArea(names) => {
+                append(&mut out, b"no area "); append(&mut out, area); append(&mut out, b" in project "); append(&mut out, Decimal::of(u64::from(project)).as_bytes()); append(&mut out, b"; its areas: ");
+                for (at, name) in names.iter().enumerate() { if at != 0 { append(&mut out, b", "); } append(&mut out, name); }
+            }
+            Self::Full(new) => { append(&mut out, b"the project's findings are full: "); append(&mut out, Decimal::of(u64::from(*new)).as_bytes()); append(&mut out, b" new"); }
+            Self::NotYours(holder) => {
+                append(&mut out, b"finding "); append(&mut out, Decimal::of(u64::from(project)).as_bytes()); append(&mut out, b"/"); append(&mut out, Decimal::of(u64::from(number)).as_bytes()); append(&mut out, b" is not yours: its owner is ");
+                let (kind, number): (&[u8], u64) = match holder { Holder::Task(n) => (b"task ", *n), Holder::Party(n) => (b"party ", *n), Holder::Role(n) => (b"role ", u64::from(*n)) };
+                append(&mut out, kind); append(&mut out, Decimal::of(number).as_bytes());
+            }
+            Self::NoFinding => append(&mut out, b"no finding"), Self::NoGoal => append(&mut out, b"not a live goal of the project"), Self::Ended => append(&mut out, b"finding is already routed or dropped"), Self::Words(field) => append(&mut out, field),
+        }
+        out.into_boxed()
+    }
+}
+fn append(out: &mut List<u8>, words: &[u8]) { for &byte in words { out.push(byte).expect("bounded finding refusal"); } }
 /// A judged write is committed after the root admits the receiving subscription.
 #[derive(Hash, Debug)]
 pub struct FindingWrite { pub row: Finding, pub erase: Option<u32> }
@@ -109,8 +138,9 @@ impl Domain {
     }
     #[must_use]
     pub fn finding(&self, project: u32, number: u32) -> Option<&Finding> { self.findings.get(&(project, number)) }
-    pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = &Finding> {
-        self.findings.range((project, 0)..=(project, u32::MAX)).map(|(_, row)| row)
+    #[must_use]
+    pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
+        self.findings.range((project, 0)..=(project, u32::MAX))
     }
     fn finding_area(&self, project: u32, name: &[u8]) -> Result<(), FindingRefusal> {
         let areas = self.project_areas(project);
@@ -126,7 +156,7 @@ impl Domain {
         if !body_fits(&call.body) { return Err(FindingRefusal::Words(b"body".as_slice().into())); }
         if let Some(area) = &call.area { self.finding_area(call.project, area)?; }
         let mut highest = 0_u32; let mut count = 0_u32; let mut new = 0_u32; let mut oldest = None;
-        for row in self.findings(call.project) {
+        for (_, row) in self.findings(call.project) {
             highest = row.number; count = count.saturating_add(1);
             if row.state == FindingState::New { new = new.saturating_add(1); }
             if row.state.ended() {
@@ -177,7 +207,8 @@ impl Domain {
 pub fn body_fits(body: &[u8]) -> bool { body.len() <= 4096 && core::str::from_utf8(body).is_ok() }
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut numbers = List::with_capacity(d.findings.len());
-    for row in d.findings(project) { numbers.push(row.number).expect("bounded findings"); }
+    for (_, row) in d.findings(project) { numbers.push(row.number).expect("bounded findings"); }
+    if numbers.is_empty() { return; }
     for number in numbers.into_boxed() { d.findings.remove(&(project, number)); out.push(Request::Erase { key: Key::Finding { project, number } }); }
     mark_findings(project, out);
 }

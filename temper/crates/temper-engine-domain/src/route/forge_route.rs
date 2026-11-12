@@ -550,6 +550,7 @@ fn red_logs(out: &mut List<u8>, logs: &[forge::JobLog]) {
 
 fn topic_name(topic: &forge::Topic, limits: &forge::Limits) -> Option<forge::Name> {
     let (repository, what) = match topic {
+        forge::Topic::Findings { .. } => return None,
         forge::Topic::Landings { repository, branch } => {
             let mut parts = List::with_capacity(limits.name_bytes);
             let mut start = 0;
@@ -878,6 +879,7 @@ pub(crate) fn subscribe_named_call(
         return;
     };
     match &mut topic {
+        forge::Topic::Findings { .. } => return,
         forge::Topic::Landings { repository, .. }
         | forge::Topic::Ci { repository, .. }
         | forge::Topic::Pull { repository, .. }
@@ -897,6 +899,7 @@ fn subscription_problem(
         return Some(problem);
     }
     let repository = match &subscriber.topic {
+        forge::Topic::Findings { .. } => return None,
         forge::Topic::Landings { repository, .. }
         | forge::Topic::Ci { repository, .. }
         | forge::Topic::Pull { repository, .. }
@@ -1545,7 +1548,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
                     return;
                 }
             }
-            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
+            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } | forge::Topic::Findings { .. } => {}
         },
         tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => {}
     }
@@ -1673,7 +1676,7 @@ fn goal_members(
         match topic {
             forge::Topic::Landings { .. } if *topic != change_topic => continue,
             forge::Topic::Landings { .. } => {}
-            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => continue,
+            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } | forge::Topic::Findings { .. } => continue,
         }
         let mut hinted = false;
         let mut present = false;

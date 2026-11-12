@@ -30,6 +30,9 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
         connector::Ask::KeepSettings { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            for item in &asked {
+                if item.kind == 12 || item.kind == 13 { temper_engine_domain_forge::findings::mark_findings(item.scope, &mut out); }
+            }
             let projects = domain.core.projects.clone();
             for &project in &projects {
                 let mut affected = false;
@@ -424,6 +427,7 @@ pub(super) fn read(
             crate::ForgeRead::Setting { .. }
             | crate::ForgeRead::RevisionSetting { .. }
             | crate::ForgeRead::ProposalItems { .. }
+            | crate::ForgeRead::Finding { .. }
             | crate::ForgeRead::ProgramEnvironment => {}
         }
     }
@@ -432,6 +436,7 @@ pub(super) fn read(
         None => {
             let answer = match query {
                 crate::ForgeRead::View { .. } => unreachable!("view reads have their own answer"),
+                crate::ForgeRead::Finding { project, number } => crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number)),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
@@ -466,7 +471,7 @@ fn read_refusal(
         Some(party) => {
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
-                    crate::ForgeRead::View { project, .. } => domain.core.people.role(party, *project).is_some(),
+                    crate::ForgeRead::View { project, .. } | crate::ForgeRead::Finding { project, .. } => domain.core.people.role(party, *project).is_some(),
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
@@ -476,7 +481,7 @@ fn read_refusal(
                 },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
-                        crate::ForgeRead::View { project: requested, .. } => *requested == project,
+                        crate::ForgeRead::View { project: requested, .. } | crate::ForgeRead::Finding { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2

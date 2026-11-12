@@ -52,7 +52,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
-        | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
+        | Application::Overturn { project, .. }
+        | Application::FileFinding(forge::FileFinding { project, .. })
+        | Application::HandFinding(forge::HandFinding { project, .. })
+        | Application::TriageFinding(forge::TriageFinding { project, .. }) => people::ApplicationScope::Project(*project),
     };
     let carried = match &request {
         Application::Try { .. } => {
@@ -73,7 +76,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
-        | Application::Overturn { .. } => carried,
+        | Application::Overturn { .. }
+        | Application::FileFinding(_) | Application::HandFinding(_) | Application::TriageFinding(_) => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -102,11 +106,30 @@ pub(super) fn admitted(
     role: Option<people::Role>,
     person: u64,
     env: &skein_lib::Env<crate::Limits>,
+    decision: &mut crate::Decision,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::FileFinding(call) => {
+            let answer = super::findings::file_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::FileFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::HandFinding(call) => {
+            let answer = super::findings::hand_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::HandFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::TriageFinding(call) => {
+            let answer = super::findings::triage_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::TriageFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
         Application::Try { account, again } => {
             sweep_answers(domain, env);
             let answer = super::trials::asked(domain, env, person, account, again);
@@ -195,6 +218,9 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Looked(answer)) => Some(ApplicationAnswer::Looked(answer)),
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
+        Some(forge::Answered::FileFinding(answer)) => Some(ApplicationAnswer::FileFinding(answer)),
+        Some(forge::Answered::HandFinding(answer)) => Some(ApplicationAnswer::HandFinding(answer)),
+        Some(forge::Answered::TriageFinding(answer)) => Some(ApplicationAnswer::TriageFinding(answer)),
         None => None,
     }
 }

@@ -174,6 +174,11 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 away: false,
             },
         }),
+        RecordKind::Finding => Stored::Finding(Finding {
+            project: 1, number: u32::try_from(n).expect("fixture number"), kind: FindingKind::Qa, severity: Severity::Low,
+            area: None, state: FindingState::New, title: b"finding".as_slice().into(), body: Box::default(),
+            filer: Filer::Party(1), at: Wall::EPOCH, why: None, hander: None, goal: None, reason: None,
+        }),
         RecordKind::Client => panic!("no own table"),
     }
 }
