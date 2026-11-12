@@ -146,7 +146,14 @@ fn prepare_given(
     let engine = settings(bytes, directories, given);
     let Runtimes { roots, github } = runtimes(binary, &named.machine)?;
     let user = skein_shell::effective_user();
-    let Inputs { files, google, bundle } = before_root(&mut named.files, &mut named.asked_files, named.sign_in.as_ref(), named.bundle.as_deref(), named.bundle_limits, user)?;
+    let Inputs { files, google, bundle } = before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        user,
+    )?;
     let accounts = accounts(&engine)?;
     let seeds = seeds(None, None)?;
     let mut service = service::startup::with_setup_given(
@@ -273,7 +280,14 @@ pub struct Inputs {
     pub google: service::clients::fetch::Runtime,
     pub bundle: Option<service::clients::bundle::Bundle>,
 }
-pub fn before_root(required: &mut Box<[config::File]>, asked: &mut Box<[config::File]>, sign_in: Option<&service::startup::SignIn>, configured_bundle: Option<&[u8]>, bundle_limits: service::limits::Clients, user: u32) -> Result<Inputs, String> {
+pub fn before_root(
+    required: &mut Box<[config::File]>,
+    asked: &mut Box<[config::File]>,
+    sign_in: Option<&service::startup::SignIn>,
+    configured_bundle: Option<&[u8]>,
+    bundle_limits: service::limits::Clients,
+    user: u32,
+) -> Result<Inputs, String> {
     let required = core::mem::take(required);
     let asked = core::mem::take(asked);
     let files = read_files_with_asked(required, asked, user)?;

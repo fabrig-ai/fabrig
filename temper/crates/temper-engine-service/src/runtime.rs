@@ -1,7 +1,7 @@
 //! The engine component seam (temper/docs/design/protocol/services.md, 4).
-use crate::{accounts, clients, engine, limits, settings, store, values, workers, AccountsRuntime};
-use crate::{End, Stop, ForgeRuntime, forge, forges, route::box_link};
-use crate::system::{start_problem, accounts_driver, core_config, machine_config, deployment_owned, playground_config};
+use crate::system::{accounts_driver, core_config, deployment_owned, machine_config, playground_config, start_problem};
+use crate::{AccountsRuntime, accounts, clients, engine, limits, settings, store, values, workers};
+use crate::{End, ForgeRuntime, Stop, forge, forges, route::box_link};
 use alloc::boxed::Box;
 use jig_protocol_config::{Problems, What};
 use skein_io::{self as io, kernel::Fd};
@@ -111,7 +111,8 @@ impl engine::Engine {
         run: Token,
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
-        { let engine = &mut *self;
+        {
+            let engine = &mut *self;
             if engine.clients.owns_playground_read(run) {
                 engine.clients.playground_read_answer(run, answer);
             } else {
@@ -123,7 +124,8 @@ impl engine::Engine {
         crate::setup::lifecycle::take_removal(self)
     }
     pub fn handover_removed(&mut self, forge: u16, run: Token, result: Result<(), i32>) {
-        { let engine = &mut *self;
+        {
+            let engine = &mut *self;
             crate::setup::lifecycle::removed(engine, forge, run, result);
         }
     }
@@ -131,21 +133,19 @@ impl engine::Engine {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.setup.page(forge, state, now)
     }
-    pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> { self.store.adopt(root, effective_user) }
+    pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
+        self.store.adopt(root, effective_user)
+    }
     pub fn adopt_bundle(&mut self, bundle: clients::bundle::Bundle) {
         self.clients.adopt_bundle(bundle);
     }
     #[must_use]
     pub fn unsettled(&self) -> &[temper_engine_domain::Unsettled] {
-        if let Some(drain) = &self.drain
-        {
-            drain.unsettled.as_slice()
-        } else {
-            &[]
-        }
+        if let Some(drain) = &self.drain { drain.unsettled.as_slice() } else { &[] }
     }
     pub fn configure_google_endpoints(&mut self, runtime: clients::fetch::Runtime) {
-        { let engine = &mut *self;
+        {
+            let engine = &mut *self;
             engine.clients.google_endpoints(runtime.endpoints);
         }
     }
@@ -153,7 +153,8 @@ impl engine::Engine {
 impl engine::Engine {
     /// Machine inputs loaded once by the shell (temper/docs/design/protocol/configuration/engine.md).
     pub fn configure_forge_runtime(&mut self, github: ForgeRuntime, roots: skein_tls::Config) {
-        { let engine = &mut *self;
+        {
+            let engine = &mut *self;
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
             engine.forge.github = Some(github);
             engine.forge.roots = Some(roots);
@@ -211,54 +212,53 @@ impl engine::Engine {
     pub fn route(&mut self, process: &mut temper_service_core::process::Process) {
         let engine = self;
 
-            for _ in 0..engine.store.submitted.len() {
-                if process.room() == 0 {
+        for _ in 0..engine.store.submitted.len() {
+            if process.room() == 0 {
+                break;
+            }
+            process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
+        }
+        if engine.store.opened || engine.end.is_some() {
+            for _ in 0..engine.setup.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
                     break;
                 }
-                process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
+                let request = engine.setup.io.pop().expect("setup IO requests");
+                process.down(crate::setup::tag(request));
             }
-            if engine.store.opened || engine.end.is_some() {
-                for _ in 0..engine.setup.io.len() {
-                    if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
-                        break;
-                    }
-                    let request = engine.setup.io.pop().expect("setup IO requests");
-                    process.down(crate::setup::tag(request));
+            for _ in 0..engine.forge.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
                 }
-                for _ in 0..engine.forge.io.len() {
-                    if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
-                        break;
-                    }
-                    let request = engine.forge.io.pop().expect("forge io requests");
-                    process.down(forge::tag(request));
-                }
-                for _ in 0..engine.clients.io.len() {
-                    if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
-                        break;
-                    }
-                    let request = engine.clients.io.pop().expect("client io requests");
-                    process.down(request);
-                }
-                for _ in 0..engine.workers.host.io.len() {
-                    if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
-                        break;
-                    }
-                    let request = engine.workers.host.io.pop().expect("worker io requests");
-                    process.down(request);
-                }
+                let request = engine.forge.io.pop().expect("forge io requests");
+                process.down(forge::tag(request));
             }
-            if (engine.store.opened || engine.end.is_some())
-                && let Some(accounts) = &mut engine.accounts
-            {
-                for _ in 0..accounts.io.len() {
-                    if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
-                        break;
-                    }
-                    let request = accounts::tag(accounts.io.pop().expect("account io requests"));
-                    process.down(request);
+            for _ in 0..engine.clients.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
                 }
+                let request = engine.clients.io.pop().expect("client io requests");
+                process.down(request);
             }
-        
+            for _ in 0..engine.workers.host.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
+                }
+                let request = engine.workers.host.io.pop().expect("worker io requests");
+                process.down(request);
+            }
+        }
+        if (engine.store.opened || engine.end.is_some())
+            && let Some(accounts) = &mut engine.accounts
+        {
+            for _ in 0..accounts.io.len() {
+                if process.room() < io::MAX_OUT_DOWN.submissions || !process.io().takes() {
+                    break;
+                }
+                let request = accounts::tag(accounts.io.pop().expect("account io requests"));
+                process.down(request);
+            }
+        }
     }
     pub fn up(&mut self, now: Time, event: io::Event) {
         let engine = self;
@@ -278,110 +278,177 @@ impl engine::Engine {
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
         let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
-            if let Some(owner) = owner
-                && crate::tokens::prefix(owner) == 11
-            {
-                engine.setup.up(event);
-            } else if let Some(owner) = owner
-                && crate::tokens::prefix(owner) == 5
-            {
-                engine.forge.up(event);
-            } else if let Some(owner) = owner
-                && clients::owns(owner)
-            {
-                if !engine.clients.up(event) && engine.end.is_none() {
-                    engine.end = Some(End::Stopped(Stop::Listener {
-                        listener: crate::Listening::Clients,
-                        address: Some(engine.clients.address),
-                        error,
-                    }));
-                }
-            } else if let Some(owner) = owner
-                && accounts::owns(owner)
-            {
-                if let Some(accounts) = &mut engine.accounts {
-                    accounts.up(accounts::untag(event));
-                }
-            } else if !engine.workers.up(now, event, &mut engine.events) && engine.end.is_none() {
-                let address = engine.workers.host.listener_address(owner);
-                engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
-                engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
+        if let Some(owner) = owner
+            && crate::tokens::prefix(owner) == 11
+        {
+            engine.setup.up(event);
+        } else if let Some(owner) = owner
+            && crate::tokens::prefix(owner) == 5
+        {
+            engine.forge.up(event);
+        } else if let Some(owner) = owner
+            && clients::owns(owner)
+        {
+            if !engine.clients.up(event) && engine.end.is_none() {
+                engine.end = Some(End::Stopped(Stop::Listener {
+                    listener: crate::Listening::Clients,
+                    address: Some(engine.clients.address),
+                    error,
+                }));
             }
-            engine.drain_worker_notes();
-            for (listener, addr) in [
-                (crate::Listening::Clients, engine.clients.listening.take()),
-                (crate::Listening::Workers, engine.workers.host.listening.take()),
-            ] {
-                if let Some(addr) = addr {
-                    engine
-                        .listening
-                        .try_push(crate::Note::Listening { listener, addr })
-                        .expect("one note per listener bind");
-                }
+        } else if let Some(owner) = owner
+            && accounts::owns(owner)
+        {
+            if let Some(accounts) = &mut engine.accounts {
+                accounts.up(accounts::untag(event));
             }
+        } else if !engine.workers.up(now, event, &mut engine.events) && engine.end.is_none() {
+            let address = engine.workers.host.listener_address(owner);
+            engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
+            engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
+        }
+        engine.drain_worker_notes();
+        for (listener, addr) in [
+            (crate::Listening::Clients, engine.clients.listening.take()),
+            (crate::Listening::Workers, engine.workers.host.listening.take()),
+        ] {
+            if let Some(addr) = addr {
+                engine
+                    .listening
+                    .try_push(crate::Note::Listening { listener, addr })
+                    .expect("one note per listener bind");
+            }
+        }
     }
     #[must_use]
     pub fn wait_state(&self) -> crate::diagnostics::WaitEngine {
         use crate::diagnostics::{WaitEngine, WaitOwner};
         let engine = self;
-WaitEngine {
-                    restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.host.mark_durable(),
-                    store_closed: engine.store.closed(),
-                    clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
-                    workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
-                    setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },
-                    setup_above: engine.setup.above.len(),
-                    forge: WaitOwner { closed: engine.forge.closed, io: engine.forge.io.len() },
-                    forge_above: engine.forge.above.len(),
-                    accounts: match &engine.accounts {
-                        Some(accounts) => Some(accounts::wait_state(accounts, engine.env.now)),
-                        None => None,
-                    },
-                }
+        WaitEngine {
+            restart: engine.domain.start_phase(),
+            mark_durable: engine.store.host.mark_durable(),
+            store_closed: engine.store.closed(),
+            clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
+            workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
+            setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },
+            setup_above: engine.setup.above.len(),
+            forge: WaitOwner { closed: engine.forge.closed, io: engine.forge.io.len() },
+            forge_above: engine.forge.above.len(),
+            accounts: match &engine.accounts {
+                Some(accounts) => Some(accounts::wait_state(accounts, engine.env.now)),
+                None => None,
+            },
+        }
     }
 
     #[must_use]
-    pub fn end(&self) -> Option<&End> { self.end.as_ref() }
-    #[must_use]
-    pub fn domain(&self) -> &temper_engine_domain::Domain { &self.domain }
-    pub fn shutdown(&mut self) { crate::stop::shutdown(self); }
-    pub fn agents_ended(&mut self, ended: bool) { if let Some(drain) = &mut self.drain { drain.agents_ended = ended; } }
-    #[must_use]
-    pub fn draining(&self) -> bool { match &self.drain { Some(drain) => drain.closing, None => false } }
-    #[must_use]
-    pub fn ready_for_worker(&self) -> bool { self.store.opened && self.workers.host.opened() && self.clients.opened() }
-    #[must_use]
-    pub fn stopping(&self) -> bool { self.drain.is_some() || self.end.is_some() }
-    pub fn complete(&mut self, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
-        if store::owns(complete.op) { self.store.complete(complete); Ok(()) } else { Err(complete) }
+    pub fn end(&self) -> Option<&End> {
+        self.end.as_ref()
     }
-    pub fn notes(&mut self) -> &mut Queue<crate::Note> { &mut self.notes }
-    pub fn listening(&mut self) -> &mut Queue<crate::Note> { &mut self.listening }
     #[must_use]
-    pub fn notes_room(&self) -> u32 { self.notes.room() }
+    pub fn domain(&self) -> &temper_engine_domain::Domain {
+        &self.domain
+    }
+    pub fn shutdown(&mut self) {
+        crate::stop::shutdown(self);
+    }
+    pub fn agents_ended(&mut self, ended: bool) {
+        if let Some(drain) = &mut self.drain {
+            drain.agents_ended = ended;
+        }
+    }
     #[must_use]
-    pub fn notes_capacity(&self) -> u32 { self.notes.capacity() }
+    pub fn draining(&self) -> bool {
+        match &self.drain {
+            Some(drain) => drain.closing,
+            None => false,
+        }
+    }
+    #[must_use]
+    pub fn ready_for_worker(&self) -> bool {
+        self.store.opened && self.workers.host.opened() && self.clients.opened()
+    }
+    #[must_use]
+    pub fn stopping(&self) -> bool {
+        self.drain.is_some() || self.end.is_some()
+    }
+    pub fn complete(&mut self, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        if store::owns(complete.op) {
+            self.store.complete(complete);
+            Ok(())
+        } else {
+            Err(complete)
+        }
+    }
+    pub fn notes(&mut self) -> &mut Queue<crate::Note> {
+        &mut self.notes
+    }
+    pub fn listening(&mut self) -> &mut Queue<crate::Note> {
+        &mut self.listening
+    }
+    #[must_use]
+    pub fn notes_room(&self) -> u32 {
+        self.notes.room()
+    }
+    #[must_use]
+    pub fn notes_capacity(&self) -> u32 {
+        self.notes.capacity()
+    }
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.setup.closed && self.setup.io.is_empty() && self.setup.above.is_empty()
-            && self.forge.closed && self.forge.io.is_empty() && self.forge.above.is_empty()
-            && self.store.closed() && self.workers.host.closed() && self.workers.notes.is_empty()
-            && self.clients.closed && self.clients.io.is_empty()
-            && match &self.accounts { Some(accounts) => accounts.idle(), None => true }
+        self.setup.closed
+            && self.setup.io.is_empty()
+            && self.setup.above.is_empty()
+            && self.forge.closed
+            && self.forge.io.is_empty()
+            && self.forge.above.is_empty()
+            && self.store.closed()
+            && self.workers.host.closed()
+            && self.workers.notes.is_empty()
+            && self.clients.closed
+            && self.clients.io.is_empty()
+            && match &self.accounts {
+                Some(accounts) => accounts.idle(),
+                None => true,
+            }
     }
     pub fn take_links(&mut self, links: &mut Queue<Box<[u8]>>, local_links: &mut Queue<Box<[u8]>>) {
         if self.clients.starting.is_none() {
-            for _ in 0..self.clients.links.len() { if links.room() == 0 { break; } links.push(self.clients.links.pop().expect("printed sign-in links")); }
-            for _ in 0..self.clients.local_links.len() { if local_links.room() == 0 { break; } local_links.push(self.clients.local_links.pop().expect("local sign-in links")); }
+            for _ in 0..self.clients.links.len() {
+                if links.room() == 0 {
+                    break;
+                }
+                links.push(self.clients.links.pop().expect("printed sign-in links"));
+            }
+            for _ in 0..self.clients.local_links.len() {
+                if local_links.room() == 0 {
+                    break;
+                }
+                local_links.push(self.clients.local_links.pop().expect("local sign-in links"));
+            }
         }
     }
-    pub fn box_link(&mut self, bytes: u32, adopted: bool) { self.box_link = box_link::Link::new(bytes, adopted); }
-    pub fn box_read(&mut self, bytes: &[u8]) { let mut out = Queue::with_capacity(3); self.box_link.read(bytes, &mut out); box_link::drain(self, &mut out); }
-    pub fn box_closed(&mut self) { let mut out = Queue::with_capacity(3); self.box_link.closed(&mut out); box_link::drain(self, &mut out); }
+    pub fn box_link(&mut self, bytes: u32, adopted: bool) {
+        self.box_link = box_link::Link::new(bytes, adopted);
+    }
+    pub fn box_read(&mut self, bytes: &[u8]) {
+        let mut out = Queue::with_capacity(3);
+        self.box_link.read(bytes, &mut out);
+        box_link::drain(self, &mut out);
+    }
+    pub fn box_closed(&mut self) {
+        let mut out = Queue::with_capacity(3);
+        self.box_link.closed(&mut out);
+        box_link::drain(self, &mut out);
+    }
     #[must_use]
-    pub fn box_writing(&self) -> bool { self.box_link.write.is_some() }
-    pub fn box_write(&mut self) -> Option<Box<[u8]>> { self.box_link.write.take() }
-    pub fn setup_state(&mut self, number: u16, state: temper_engine_domain_forge::Connection) { crate::setup::lifecycle::state(self, number, state); }
-
+    pub fn box_writing(&self) -> bool {
+        self.box_link.write.is_some()
+    }
+    pub fn box_write(&mut self) -> Option<Box<[u8]>> {
+        self.box_link.write.take()
+    }
+    pub fn setup_state(&mut self, number: u16, state: temper_engine_domain_forge::Connection) {
+        crate::setup::lifecycle::state(self, number, state);
+    }
 }

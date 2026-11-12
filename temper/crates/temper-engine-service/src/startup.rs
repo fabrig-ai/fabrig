@@ -5,9 +5,6 @@ mod reference;
 pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
 
-
-
-
 mod checkout;
 
 pub mod checks;
@@ -116,7 +113,6 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
     redirect_ports(&redirects, port, Listener::Webhooks, problems);
 }
 
-
 /// The files and directories the binary reads and opens before startup.
 #[derive(Debug)]
 pub struct Named {
@@ -149,10 +145,7 @@ pub struct StoreLimits {
     pub forge: temper_engine_domain_forge::Limits,
 }
 /// Derive the store's opening limits without reading named files or checking runtime facts.
-pub fn store_limits(
-    document: &[u8],
-    directories: &config::Directories,
- ) -> Result<StoreLimits, Problems> {
+pub fn store_limits(document: &[u8], directories: &config::Directories) -> Result<StoreLimits, Problems> {
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits, parsed.engine.memory)?;
@@ -282,8 +275,6 @@ fn parse_with(
 ) -> Result<Parsed, Problems> {
     load_with(input, directories, true, given)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))
 }
-
-
 
 // Readers need the typed document alone. Startup also checks cross-part and
 // raw-path constraints here, preserving the order of its accumulated problems.
@@ -431,7 +422,7 @@ fn load_document(
                 problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
             }
         }
-        
+
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
     if check_start && let Some(engine) = &engine {
@@ -573,7 +564,6 @@ pub fn named_with(
         deployment: parsed.engine.deployment.directory,
         llm: parsed.engine.llm,
         projects: parsed.engine.projects,
-
     })
 }
 pub fn named(document: &[u8], directories: &config::Directories) -> Result<Named, Problems> {
@@ -611,7 +601,6 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
-    
     checked_start(document, directories, files, Some(agent), seeds, forges, setup)?;
     Ok(())
 }
@@ -700,8 +689,6 @@ pub(crate) fn checked_start_with(
         return Err(problems);
     }
     let not_set_up = List::with_capacity(0);
-    
-    
 
     let mut engine = settings::Engine {
         host_reply_bytes: match &declaration {
@@ -808,8 +795,3 @@ pub fn prepare_forges(
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }
 }
-
-
-
-
-

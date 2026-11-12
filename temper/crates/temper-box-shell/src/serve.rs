@@ -3,9 +3,7 @@ use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::fs::FileTypeExt;
-use temper_engine_shell::{
-    serve::{self as engine, printed},
-};
+use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
 use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{Directories, EnvironmentEntry};
@@ -71,7 +69,14 @@ fn prepare_with_limits(
     let engine::Runtimes { roots, github } = engine::runtimes(binary, &named.machine)?;
     let user = skein_shell::effective_user();
     let agent = named.worker.as_ref().map(agent::preflight_worker).transpose()?;
-    let engine::Inputs { files, google, bundle } = engine::before_root(&mut named.files, &mut named.asked_files, named.sign_in.as_ref(), named.bundle.as_deref(), named.bundle_limits, user)?;
+    let engine::Inputs { files, google, bundle } = engine::before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        user,
+    )?;
     let runtime = named.worker.as_ref().map(|worker| worker::root(&worker.root, user, owned)).transpose()?;
     let program_login = if named.worker.is_some() {
         program_login::line(directories, &printed::running_word(environment), skein_shell::HOME.value(environment))

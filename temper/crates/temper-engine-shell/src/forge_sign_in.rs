@@ -9,9 +9,9 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt},
     path::{Path, PathBuf},
 };
+use temper_engine_service::startup::Named;
 use temper_forge_setup::sign_in;
 use temper_forge_setup_shell::process as host;
-use temper_engine_service::startup::Named;
 use temper_service_shell::jig_directories;
 
 /// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).

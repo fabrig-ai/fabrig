@@ -38,11 +38,10 @@ fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
     Ok(())
 }
 
-
-
-
 fn accepted(path: &str, engine: bool) -> bool {
-    if path.starts_with("workers") || path.starts_with("application.workers[") { return false; }
+    if path.starts_with("workers") || path.starts_with("application.workers[") {
+        return false;
+    }
     if engine {
         for stored in [
             "engine.charters",

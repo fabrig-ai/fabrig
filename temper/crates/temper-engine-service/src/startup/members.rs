@@ -4,8 +4,6 @@ use skein_lib::List;
 use temper_forge_setup::machine;
 pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 
-
-
 /// Every application shape, including the machine decoder’s own rows.
 pub(super) static SHAPES: [Shape; 32] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
@@ -925,6 +923,29 @@ pub const ADDRESS_PATHS: &[&str] = &[
 ];
 
 #[must_use]
-pub fn shapes() -> List<Shape> { let mut shapes = List::with_capacity(u32::try_from(SHAPES.len()).expect("bounded shapes")); for shape in &SHAPES { if shape.name != "application-worker" { shapes.push(*shape).expect("engine shapes"); } } shapes }
+pub fn shapes() -> List<Shape> {
+    let mut shapes = List::with_capacity(u32::try_from(SHAPES.len()).expect("bounded shapes"));
+    for shape in &SHAPES {
+        if shape.name != "application-worker" {
+            shapes.push(*shape).expect("engine shapes");
+        }
+    }
+    shapes
+}
 #[must_use]
-pub fn members() -> List<Member> { let mut members = List::with_capacity(u32::try_from(MEMBERS.len()).expect("bounded members")); for row in &MEMBERS { if row.shape == "application-worker" { continue; } let mut row = *row; if row.name == "workers" && (row.shape == "document" || row.shape == "application") { row.kind = "empty list"; row.bound = ""; row.line = "An engine alone runs no local worker."; } members.push(row).expect("engine members"); } members }
+pub fn members() -> List<Member> {
+    let mut members = List::with_capacity(u32::try_from(MEMBERS.len()).expect("bounded members"));
+    for row in &MEMBERS {
+        if row.shape == "application-worker" {
+            continue;
+        }
+        let mut row = *row;
+        if row.name == "workers" && (row.shape == "document" || row.shape == "application") {
+            row.kind = "empty list";
+            row.bound = "";
+            row.line = "An engine alone runs no local worker.";
+        }
+        members.push(row).expect("engine members");
+    }
+    members
+}

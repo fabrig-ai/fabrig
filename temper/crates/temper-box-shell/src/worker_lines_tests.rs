@@ -32,8 +32,6 @@ fn worker_job_words_equal_the_joined_words() {
     assert_eq!(worker_note_words(BINARY, worker), note_line(BINARY, joined));
 }
 
-
-
 #[test]
 fn worker_start_problem_words_and_exit_equal_the_joined_ending() {
     let mut problems = jig_protocol_config::Problems::empty();
@@ -44,7 +42,10 @@ fn worker_start_problem_words_and_exit_equal_the_joined_ending() {
     let directories = directories();
     let actual = worker_ending_words(BINARY, Some(&worker), false, &directories, b"");
     assert_eq!(actual, ending_with_binary(BINARY, Some(&joined), false, &directories, b"", &[]));
-    assert_eq!(ending_with_binary("temper-box", Some(&joined), false, &directories, b"", &[]), ("temper-box serve: git: invalid form\ntemper-box serve: limits: past its bound\n".into(), 1));
+    assert_eq!(
+        ending_with_binary("temper-box", Some(&joined), false, &directories, b"", &[]),
+        ("temper-box serve: git: invalid form\ntemper-box serve: limits: past its bound\n".into(), 1)
+    );
     assert_eq!(
         actual,
         ("temper-worker serve: git: invalid form\ntemper-worker serve: limits: past its bound\n".into(), 1)
@@ -54,14 +55,19 @@ fn worker_start_problem_words_and_exit_equal_the_joined_ending() {
 fn worker_drained_words_and_exit_equal_the_joined_ending() {
     let directories = directories();
     let actual = worker_ending_words(BINARY, Some(&worker::End::Drained), false, &directories, b"");
-    assert_eq!(actual, ending_with_binary(BINARY, Some(&End::Worker(worker::End::Drained)), false, &directories, b"", &[]));
+    assert_eq!(
+        actual,
+        ending_with_binary(BINARY, Some(&End::Worker(worker::End::Drained)), false, &directories, b"", &[])
+    );
     assert_eq!(actual, (String::new(), 0));
 }
 #[test]
 fn worker_output_failure_words_and_exit_equal_the_joined_ending() {
     let directories = directories();
     let actual = worker_ending_words(BINARY, Some(&worker::End::Drained), true, &directories, b"");
-    assert_eq!(actual, ending_with_binary(BINARY, Some(&End::Worker(worker::End::Drained)), true, &directories, b"", &[]));
+    assert_eq!(
+        actual,
+        ending_with_binary(BINARY, Some(&End::Worker(worker::End::Drained)), true, &directories, b"", &[])
+    );
     assert_eq!(actual, (String::new(), 1));
 }
-

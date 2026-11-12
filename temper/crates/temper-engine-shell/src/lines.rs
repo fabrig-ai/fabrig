@@ -30,7 +30,10 @@ pub fn remove_handover(remove: &temper_engine_service::HandoverRemoval) -> Resul
 /// The composition's listening note, with the client-listen boundary kept beside its words.
 pub fn listening_line(service: &mut temper_engine_service::Service, binary: &str) -> Option<(String, bool)> {
     let note = service.listening().pop()?;
-    let clients = matches!(&note, temper_engine_service::Note::Listening { listener: temper_engine_service::Listening::Clients, .. });
+    let clients = matches!(
+        &note,
+        temper_engine_service::Note::Listening { listener: temper_engine_service::Listening::Clients, .. }
+    );
     Some((note_line(binary, note), clients))
 }
 pub fn next_note_line(service: &mut temper_engine_service::Service, binary: &str) -> Option<String> {
@@ -317,7 +320,6 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
-
         temper_engine_service::Note::WorkerLost { worker, channel, why } => {
             format!(
                 "{binary} serve: worker lost worker={} channel={}: {}\n",
@@ -476,8 +478,6 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
     }
 }
 
-
-
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {
     use std::fmt::Write as _;
     let from = detail.len().saturating_sub(4096);
@@ -615,8 +615,6 @@ fn engine_worker_loss(why: temper_engine_service::EngineWorkerLoss) -> String {
         Loss::Stopping => "stopping".into(),
     }
 }
-
-
 
 fn refusal(reason: temper_engine_service::Refusal) -> String {
     use temper_engine_service::WorkerRefusalReason as Reason;

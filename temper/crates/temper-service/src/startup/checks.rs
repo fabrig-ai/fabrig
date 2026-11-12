@@ -1,16 +1,16 @@
 //! The standalone start's paired checks (protocol/services.md, 6).
+use super::worker::checks::bounded;
+pub use super::worker::worker;
 use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
-use temper_engine_domain as domain;
 use jig_protocol_config::{self as config, Path};
 use skein_io::Addr;
+use temper_engine_domain as domain;
+pub use temper_engine_service::startup::checks::*;
 use temper_protocol_worker_wire as payload;
 use temper_service_core::agent::Declaration;
-pub use temper_engine_service::startup::checks::*;
 pub(super) use temper_service_core::startup::{against, at, call_answer, own, short};
-use super::worker::checks::bounded;
-pub use super::worker::worker;
 fn in_process(address: &config::Address) -> bool {
     match address {
         config::Address::Addr(Addr::InProcess(name)) => name.as_bytes() == b"workers",
@@ -176,17 +176,14 @@ pub fn channel(
         Some(worker) => bounded(worker, false, problems),
         None => None,
     };
-    
+
     let mut sizes = [None, None];
     for (index, side) in [engine, worker].iter().enumerate() {
         if let Some(side) = side {
-            
             {
                 let prefix: &[u8] = if index == 0 { b"engine" } else { b"workers" };
                 *sizes.get_mut(index).expect("two sides") = super::worker::checks::largest(side, prefix, problems);
             }
-            
-            
         }
     }
     if let [Some(engine), Some(worker)] = sizes
@@ -201,7 +198,9 @@ pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings
         problems.push(worker_limit(b"accounts.token"), What::Against { other: b"engine.limits accounts.token" });
     }
     let bodies = &agent.limits.bodies;
-    if u32::try_from(temper_service_core::values::SOURCE_NAME_BYTES).expect("bounded source name") > bodies.program_value_name {
+    if u32::try_from(temper_service_core::values::SOURCE_NAME_BYTES).expect("bounded source name")
+        > bodies.program_value_name
+    {
         problems.push(
             at(0, Path::root().member(b"workers")).member(b"agent").member(b"configuration"),
             What::Against { other: b"the agent's program_value_name" },
@@ -401,4 +400,6 @@ pub fn limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mu
     super::worker::git_limits(&limits::worker(limits), git, problems);
     temper_engine_service::startup::checks::limits(limits, git, problems);
 }
-pub fn webhooks(members: &super::application::Members, problems: &mut Problems) { webhook_parts(&members.clients, members.webhooks.as_ref(), problems); }
+pub fn webhooks(members: &super::application::Members, problems: &mut Problems) {
+    webhook_parts(&members.clients, members.webhooks.as_ref(), problems);
+}

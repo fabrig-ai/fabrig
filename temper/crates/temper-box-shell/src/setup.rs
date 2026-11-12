@@ -101,4 +101,9 @@ fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limi
     if problems.is_empty() { Ok(limits) } else { Err(problems.join("\n")) }
 }
 
-fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> u32 { jig_protocol_config::read::Object::new(document, at).expect("checked object").member(document, name).expect("checked member") }
+fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
+    jig_protocol_config::read::Object::new(document, at)
+        .expect("checked object")
+        .member(document, name)
+        .expect("checked member")
+}

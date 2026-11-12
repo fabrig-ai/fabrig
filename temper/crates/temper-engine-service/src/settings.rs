@@ -123,11 +123,7 @@ pub struct Engine {
     pub limits: super::limits::Limits,
 }
 
-
 pub use temper_service_core::agent::Declaration as Agent;
-
-
-
 
 /// Checked Google registration; the client secret is private startup input.
 #[derive(Debug)]

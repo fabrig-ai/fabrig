@@ -5,7 +5,6 @@ use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
 
-
 pub(crate) use temper_service_core::values::{grant_bytes, token_credential_bytes};
 
 /// A configured key can exceed the OAuth token bound. The worker has no

@@ -1082,7 +1082,6 @@ fn check_answer_diagnostic(ending: host::Ending, spent: u64, full: bool) {
     }
 }
 
-
 #[test]
 fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
     use jig_protocol_engine_workers::{Loss, host::Output};

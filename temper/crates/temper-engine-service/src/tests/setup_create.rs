@@ -261,8 +261,7 @@ fn configured(forge: &Forge) -> crate::Service {
     let mut store = fixtures::records_store();
     keep_access(&mut store, forge);
     let endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
-    let mut service =
-        fixtures::configured_prepared(config, &fixtures::seeds(), None, endpoints, Some(256)).unwrap();
+    let mut service = fixtures::configured_prepared(config, &fixtures::seeds(), None, endpoints, Some(256)).unwrap();
     fixtures::replace_store(&mut service, store);
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;

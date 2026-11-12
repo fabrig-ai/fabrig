@@ -4,7 +4,7 @@ mod reference;
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
 pub use names::{NAMES, Name, Unit, find};
-pub use reference::{engine_reference_with, engine_reference, reference};
+pub use reference::{engine_reference, engine_reference_with, reference};
 use skein_lib::{Duration, List};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;

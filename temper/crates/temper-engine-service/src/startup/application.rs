@@ -157,7 +157,6 @@ pub struct Identity {
 #[derive(Debug)]
 pub struct Worker {
     pub root: Box<[u8]>,
-    
 }
 fn configured_limits(
     document: &Document,
@@ -265,12 +264,7 @@ fn workers(
                 }
                 if let Some(root) = joined(directories, config::Directory::Data, &root, &path.member(b"root"), problems)
                 {
-                    workers
-                        .push(Worker {
-                            root,
-                            
-                        })
-                        .expect("bounded workers");
+                    workers.push(Worker { root }).expect("bounded workers");
                 }
             }
         }
@@ -390,7 +384,9 @@ pub fn parse(
 }
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
 #[must_use]
-pub fn files(members: &Members) -> Box<[config::File]> { named_files(members.sign_in.as_ref(), &members.limits) }
+pub fn files(members: &Members) -> Box<[config::File]> {
+    named_files(members.sign_in.as_ref(), &members.limits)
+}
 #[must_use]
 pub fn named_files(sign_in: Option<&sign_in::SignIn>, limits: &limits::Limits) -> Box<[config::File]> {
     let mut files = List::with_capacity(
@@ -441,8 +437,16 @@ fn joined(
     }
 }
 
-pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> { resolve_parts(members.sign_in.as_ref(), members.webhooks.as_ref(), &members.limits, files, problems) }
-pub fn resolve_parts(sign_in: Option<&sign_in::SignIn>, webhooks: Option<&Webhooks>, limits: &limits::Limits, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
+pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
+    resolve_parts(members.sign_in.as_ref(), members.webhooks.as_ref(), &members.limits, files, problems)
+}
+pub fn resolve_parts(
+    sign_in: Option<&sign_in::SignIn>,
+    webhooks: Option<&Webhooks>,
+    limits: &limits::Limits,
+    files: &settings::Files,
+    problems: &mut Problems,
+) -> Option<Resolved> {
     let sign_in = match sign_in {
         Some(sign_in) => sign_in::resolve(sign_in, limits.sign_in, files, problems),
         None => None,

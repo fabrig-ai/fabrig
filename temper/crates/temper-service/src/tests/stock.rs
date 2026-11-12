@@ -1,7 +1,10 @@
-#![expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "ordinary step tests generate documents and compare embedded instruction bytes")]
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary step tests generate documents and compare embedded instruction bytes"
+)]
 use super::fixtures;
 use jig_protocol_config as config;
-
 
 /// Replace one engine override, keeping every other generated entry.
 pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
@@ -23,8 +26,6 @@ pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
     fixtures::with(document, b"engine.limits.overrides", overrides.as_bytes())
 }
 
-
-
 #[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
@@ -34,7 +35,10 @@ fn the_stock_passes_jigs_one_check() {
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
         let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-        assert_eq!(defaults.charters[0].policy.instructions.as_ref(), include_bytes!("../../../temper-engine-service/src/stock/chat.txt"));
+        assert_eq!(
+            defaults.charters[0].policy.instructions.as_ref(),
+            include_bytes!("../../../temper-engine-service/src/stock/chat.txt")
+        );
         assert_eq!(
             defaults.charters[1].policy.instructions.as_ref(),
             temper_charter_set::implementer(&crate::stock::charter_set()).as_ref()
@@ -50,8 +54,6 @@ fn the_stock_passes_jigs_one_check() {
         );
     }
 }
-
-
 
 #[test]
 fn each_floor_refuses_one_below_the_stocks_need() {
@@ -144,8 +146,6 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
 }
 
-
-
 #[test]
 fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = without_projects();
@@ -167,8 +167,6 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     .expect("a world sizes its own runs");
 }
 
-
-
 #[test]
 fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let document = limited(&without_projects(), b"core.policy_bytes", 100);
@@ -181,7 +179,6 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
         b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n"
     );
 }
-
 
 #[test]
 fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
@@ -201,8 +198,6 @@ fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
     }
 }
 
-
-
 #[test]
 fn an_inline_seed_policy_is_refused_naming_its_path() {
     let document = fixtures::with(&generated(), b"engine.projects", fixtures::INLINE_PROJECTS);
@@ -214,8 +209,6 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
     );
 }
 
-
-
 #[test]
 fn stock_startup_requires_a_model_before_building_its_charters() {
     let mut document = generated();
@@ -225,8 +218,6 @@ fn stock_startup_requires_a_model_before_building_its_charters() {
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.providers: past its bound\n");
 }
-
-
 
 #[test]
 fn a_worlds_own_defaults_cannot_restore_document_members() {
@@ -256,8 +247,6 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
     }
 }
 
-
-
 #[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
@@ -284,8 +273,6 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     assert_eq!(engine.projects[0].policy.period_spend, 41);
     assert_eq!(engine.rules.maximum_run_spend, 2);
 }
-
-
 
 #[test]
 fn startup_gives_the_stock_ways_or_the_worlds_own() {
@@ -321,8 +308,6 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
     }
 }
 
-
-
 #[test]
 fn a_documents_models_are_refused_at_their_paths() {
     let init: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
@@ -353,8 +338,6 @@ fn a_documents_models_are_refused_at_their_paths() {
         b"engine.llm.providers[0].endpoint: missing\nengine.llm.providers[0].keep: unknown reference\n"
     );
 }
-
-
 
 #[test]
 fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {

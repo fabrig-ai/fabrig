@@ -109,5 +109,20 @@ pub const SERVED: Served<Service> = Served {
     },
 };
 
-fn listening(service: &mut service::Service, binary: &str) -> Option<(String, bool)> { let note = service.listening().pop()?; let clients = matches!(&note, service::Note::Engine(service::EngineNote::Listening { listener: service::Listening::Clients, .. })); Some((note_line(binary, note), clients)) }
-fn ending(service: &service::Service, binary: &str, failed: bool, directories: &temper_shell::directories::Directories, store: &[u8]) -> (String, u8) { crate::lines::ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled()) }
+fn listening(service: &mut service::Service, binary: &str) -> Option<(String, bool)> {
+    let note = service.listening().pop()?;
+    let clients = matches!(
+        &note,
+        service::Note::Engine(service::EngineNote::Listening { listener: service::Listening::Clients, .. })
+    );
+    Some((note_line(binary, note), clients))
+}
+fn ending(
+    service: &service::Service,
+    binary: &str,
+    failed: bool,
+    directories: &temper_shell::directories::Directories,
+    store: &[u8],
+) -> (String, u8) {
+    crate::lines::ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled())
+}

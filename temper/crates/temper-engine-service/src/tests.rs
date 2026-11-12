@@ -18,19 +18,15 @@ mod stop;
 
 mod tools;
 
-
 mod workers;
 
 mod clients;
 mod clients_unwatch;
 
-
-
 mod box_link;
 
 mod family;
 mod reference_landing;
-
 
 mod system;
 
@@ -49,13 +45,5 @@ mod provider;
 
 mod ask_bound;
 mod stock;
-
-
-
-
-
-
-
-
 
 mod start_shapes;

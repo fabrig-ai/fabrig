@@ -55,8 +55,11 @@ impl Engine {
         }
     }
     #[must_use]
-    pub fn pending_with_notes(&self, now: Time, held: u32) -> diagnostics::Engine { let mut pending = self.pending(now); pending.work_pending = self.work_pending_with_notes(now, held); pending }
-
+    pub fn pending_with_notes(&self, now: Time, held: u32) -> diagnostics::Engine {
+        let mut pending = self.pending(now);
+        pending.work_pending = self.work_pending_with_notes(now, held);
+        pending
+    }
 }
 
 fn event_tag(event: &root::Event) -> EngineEvent {

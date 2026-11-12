@@ -237,4 +237,3 @@ pub fn github_identity(
     )?;
     Ok(wire::identity(&value))
 }
-

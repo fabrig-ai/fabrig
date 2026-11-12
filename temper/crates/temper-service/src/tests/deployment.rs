@@ -5,8 +5,6 @@ use jig_protocol_engine_clients as kit;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const REPLY: skein_lib::ReplyTo = skein_lib::ReplyTo::new(skein_lib::Token::new(19));
 
-
-
 #[test]
 fn the_deployment_command_is_published_only_by_a_standalone_start() {
     for (standalone, under_box) in [(true, false), (true, true), (false, false)] {

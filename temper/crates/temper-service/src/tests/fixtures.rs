@@ -1,6 +1,6 @@
 use crate::{limits, settings};
 use jig_domain_link::{Bounds, EndpointBound};
-use skein_lib::{Secret, Token, Time};
+use skein_lib::{Secret, Time, Token};
 use temper_protocol_records_forge as forge_records;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
@@ -493,7 +493,11 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     }
 }
 
-#[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary fixture code renders the shipped agent profile")]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    reason = "ordinary fixture code renders the shipped agent profile"
+)]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
     let bytes = include_str!("../../../temper-init/template/agent.json")
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
@@ -604,7 +608,9 @@ pub use system::{Kernel, hello, one_process, until_hosting};
 mod startup;
 pub use startup::*;
 pub use temper_worker_service_fixtures::agent;
-pub use worker::{AGENT_JSON, NOW, TEMPER, assignment as worker_assignment, chat_assignment, one_repository, spawn, worker};
+pub use worker::{
+    AGENT_JSON, NOW, TEMPER, assignment as worker_assignment, chat_assignment, one_repository, spawn, worker,
+};
 
 pub fn store_limits() -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
     let settings = engine();
@@ -684,13 +690,10 @@ pub fn mark_store(store: &mut crate::store::Store) {
         return;
     }
     commit(store, 1, Box::new([temper_engine_domain::Write::Wires]));
-    let Some(jig_protocol_store::Event::Committed { .. }) = store.events().pop() else {
-        panic!("fixture start mark")
-    };
+    let Some(jig_protocol_store::Event::Committed { .. }) = store.events().pop() else { panic!("fixture start mark") };
 }
 
 fn open_seeded(store: &mut crate::store::Store) {
-    
     store.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
@@ -845,8 +848,7 @@ fn start_configured_worker(
         }
         record.place.api.host = b"forge.example".as_slice().into();
         record.place.api.port = if source.number == 1 { 3000 } else { 3001 };
-        if let Some(skein_io::Addr::Ip(address)) = service.engine.as_ref().unwrap().forge_endpoint(source.number)
-        {
+        if let Some(skein_io::Addr::Ip(address)) = service.engine.as_ref().unwrap().forge_endpoint(source.number) {
             service.engine_component().resolve_name(record.place.api.host.clone(), address.ip());
         }
         keep_forge(&mut service, record);
@@ -895,7 +897,6 @@ impl ForgeSeed {
         })
     }
 }
-
 
 #[derive(Debug)]
 pub struct ConfiguredEngine {
@@ -967,33 +968,95 @@ pub fn values_with_identity(number: u32, token: &[u8]) -> crate::values::Values 
     values
 }
 
-pub fn memory_store_for(root: &temper_engine_domain::Limits, profile: &jig_protocol_store::Limits, models: &[jig_domain_core::Model]) -> crate::store::Store {
+pub fn memory_store_for(
+    root: &temper_engine_domain::Limits,
+    profile: &jig_protocol_store::Limits,
+    models: &[jig_domain_core::Model],
+) -> crate::store::Store {
     use jig_protocol_store::host::{Hosted, NotReady};
     let limits = crate::store::limits(root, &root.forge, profile).unwrap();
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
     let mut host = Hosted::new(&limits, application, models, 7, NotReady::InPass);
-    host.component = jig_protocol_store::Store::over(&limits, application, models, jig_protocol_store::Stores { store: skein_kv::Store::memory(&limits.store), secrets: skein_kv::Store::memory(&limits.secrets) });
+    host.component = jig_protocol_store::Store::over(
+        &limits,
+        application,
+        models,
+        jig_protocol_store::Stores {
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
+        },
+    );
     assert!(host.component.wires(&crate::store::WIRES));
-    host.ask(jig_protocol_store::Request::Open { owner: OWNER, root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) }, installation: seeds().installation });
-    let Some(jig_protocol_store::Event::Opened { installation, pending, .. }) = host.above.pop() else { panic!("store opened") };
-    crate::store::Store::new(root, &limits, models, seeds().installation).on_opened(host.component, installation, pending)
+    host.ask(jig_protocol_store::Request::Open {
+        owner: OWNER,
+        root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
+        installation: seeds().installation,
+    });
+    let Some(jig_protocol_store::Event::Opened { installation, pending, .. }) = host.above.pop() else {
+        panic!("store opened")
+    };
+    crate::store::Store::new(root, &limits, models, seeds().installation).on_opened(
+        host.component,
+        installation,
+        pending,
+    )
 }
-pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) { service.engine_component().restore_forge(record); }
+pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
+    service.engine_component().restore_forge(record);
+}
 fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed: &ForgeSeed) {
     use temper_protocol_records as records;
     let engine = service.engine_component();
-    if !engine.store().opened() { return; }
+    if !engine.store().opened() {
+        return;
+    }
     let api = engine.forge_address(forge).expect("fixture forge record");
     let origin = forge_records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
-    let original = if engine.store().mark_durable() { None } else { let component = engine.store().exchange_component(seed.empty()); let mut maps = component.into_stores(); open_seeded(engine.store()); mark_store(engine.store()); exchange_secrets(engine.store(), &mut maps.secrets, seed); Some(maps) };
-    for (item, bytes) in [(records::Item::Origin, origin.as_ref()), (records::Item::User, 42_u64.to_le_bytes().as_slice()), (records::Item::ApiToken, token), (records::Item::GitToken, FORGE_GIT_TOKEN)] {
-        let number = records::number(forge, item); let value = Secret::new(records::encode(item, bytes).unwrap().into_boxed_slice()); engine.remember_record(number, value.clone(), limits::profile(limits::Profile::Small).records.value_bytes); assert!(engine.store().secrets(Token::new(999), application_request(number, value)).is_none()); assert!(engine.store().events().pop().is_some());
+    let original = if engine.store().mark_durable() {
+        None
+    } else {
+        let component = engine.store().exchange_component(seed.empty());
+        let mut maps = component.into_stores();
+        open_seeded(engine.store());
+        mark_store(engine.store());
+        exchange_secrets(engine.store(), &mut maps.secrets, seed);
+        Some(maps)
+    };
+    for (item, bytes) in [
+        (records::Item::Origin, origin.as_ref()),
+        (records::Item::User, 42_u64.to_le_bytes().as_slice()),
+        (records::Item::ApiToken, token),
+        (records::Item::GitToken, FORGE_GIT_TOKEN),
+    ] {
+        let number = records::number(forge, item);
+        let value = Secret::new(records::encode(item, bytes).unwrap().into_boxed_slice());
+        engine.remember_record(number, value.clone(), limits::profile(limits::Profile::Small).records.value_bytes);
+        assert!(engine.store().secrets(Token::new(999), application_request(number, value)).is_none());
+        assert!(engine.store().events().pop().is_some());
     }
-    if let Some(mut maps) = original { exchange_secrets(engine.store(), &mut maps.secrets, seed); drop(engine.store().exchange_component(seed.component(maps))); open_seeded(engine.store()); }
+    if let Some(mut maps) = original {
+        exchange_secrets(engine.store(), &mut maps.secrets, seed);
+        drop(engine.store().exchange_component(seed.component(maps)));
+        open_seeded(engine.store());
+    }
 }
 pub fn ready() -> crate::Service {
     let mut service = started();
-    for _ in 0_u16..256 { crate::iterate(&mut service, Time::from_nanos(1), skein_lib::Wall::from_nanos(1)); Kernel::new().answer(&mut service); if !service.work_pending(Time::from_nanos(1)) { break; } }
-    assert!(service.engine_domain().unwrap().ready()); assert_eq!(service.end(), None); service
+    for _ in 0_u16..256 {
+        crate::iterate(&mut service, Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
+        Kernel::new().answer(&mut service);
+        if !service.work_pending(Time::from_nanos(1)) {
+            break;
+        }
+    }
+    assert!(service.engine_domain().unwrap().ready());
+    assert_eq!(service.end(), None);
+    service
 }
-pub fn unopened_store() -> crate::store::Store { let settings = engine(); let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap(); let profile = crate::store::limits(&root, &root.forge, &settings.jig.limits.store).unwrap(); let models = jig_protocol_config::core(&settings.jig, [7;16], 7).settings.models; crate::store::Store::new(&root, &profile, &models, seeds().installation) }
+pub fn unopened_store() -> crate::store::Store {
+    let settings = engine();
+    let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
+    let profile = crate::store::limits(&root, &root.forge, &settings.jig.limits.store).unwrap();
+    let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
+    crate::store::Store::new(&root, &profile, &models, seeds().installation)
+}

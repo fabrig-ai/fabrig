@@ -2,13 +2,6 @@ use super::fixtures;
 use crate::End;
 use skein_lib::{Time, Token, Wall};
 
-
-
-
-
-
-
-
 #[test]
 fn a_socket_workers_bind_announces_its_bound_address_once() {
     let mut service = fixtures::started();
@@ -59,7 +52,6 @@ fn a_clients_bind_announces_the_servers_bound_address_once() {
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(service.listening().is_empty());
 }
-
 
 #[test]
 fn a_new_client_after_idle_gets_its_whole_stall_period() {

@@ -317,5 +317,3 @@ pub fn lines(problems: &Problems) -> Box<[u8]> {
     assert_eq!(render(problems, &mut writer, false), length, "diagnostic passes measure identically");
     writer.finish()
 }
-
-

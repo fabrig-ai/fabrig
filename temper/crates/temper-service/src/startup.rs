@@ -12,7 +12,6 @@ pub use worker::WorkerPart;
 #[path = "tests/startup_calls.rs"]
 mod calls_tests;
 
-
 mod checkout {
     use super::{Problems, settings};
     use crate::limits;
@@ -38,9 +37,9 @@ use alloc::boxed::Box;
 pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
-pub use temper_engine_service::startup::{engine, engine_with};
-use temper_engine_service::startup::{engine_limits, checked_store, prepare_forges};
 use jig_protocol_config::{self as config, Path, Segment, read};
+use temper_engine_service::startup::{checked_store, engine_limits, prepare_forges};
+pub use temper_engine_service::startup::{engine, engine_with};
 
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
@@ -173,9 +172,6 @@ pub fn store_limits(
     let store = checked_store(&root, &parsed.engine.limits.store, None)?;
     Ok(StoreLimits { store, forge: root.forge })
 }
-
-
-
 
 fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
     if memory_bytes == 0 {
@@ -379,7 +375,7 @@ fn load_document(
                 problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
             }
         }
-        
+
         if let Some(at) = application_at
             && let Err(found) = worker::application(document, at, directories)
         {
@@ -584,7 +580,6 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
-    
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
         if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
@@ -680,10 +675,10 @@ pub(crate) fn checked_start_with(
         return Err(problems);
     }
     let not_set_up = List::with_capacity(0);
-    
+
     let worker =
         checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
-    
+
     let mut engine = settings::Engine {
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
@@ -807,7 +802,7 @@ pub fn with_setup_given(
     let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
-    
+
     let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
     {
         Ok(worker) => worker,
@@ -824,7 +819,11 @@ pub fn with_setup_given(
                 }));
             }
             for number in &not_set_up {
-                service.engine.as_mut().expect("engine startup").setup_state(*number, temper_engine_domain_forge::Connection::NotSetUp);
+                service
+                    .engine
+                    .as_mut()
+                    .expect("engine startup")
+                    .setup_state(*number, temper_engine_domain_forge::Connection::NotSetUp);
             }
             Ok(service)
         }
@@ -861,9 +860,6 @@ pub fn with_setup(
     )
 }
 
-
-
-
 fn checked_worker(
     workers: Box<[config::Worker]>,
     own: Box<[application::Worker]>,
@@ -890,7 +886,6 @@ fn checked_worker(
         Ok(None)
     }
 }
-
 
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
     match worker::worker_part(input, directories) {

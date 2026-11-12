@@ -189,10 +189,20 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
     }
 }
 /// Every forge identity number fits the engine's accounts table.
-pub fn credentials(engine: &config::Engine, forges: u32, problems: &mut Problems) { if forges > engine.limits.core.accounts.credentials { problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials)); } }
+pub fn credentials(engine: &config::Engine, forges: u32, problems: &mut Problems) {
+    if forges > engine.limits.core.accounts.credentials {
+        problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials));
+    }
+}
 /// Check the optional listener and the secret paths that require it.
-pub fn webhooks(members: &super::application::Members, problems: &mut Problems) { webhook_parts(&members.clients, members.webhooks.as_ref(), problems); }
-pub fn webhook_parts(clients: &super::application::Clients, webhooks: Option<&super::application::Webhooks>, problems: &mut Problems) {
+pub fn webhooks(members: &super::application::Members, problems: &mut Problems) {
+    webhook_parts(&members.clients, members.webhooks.as_ref(), problems);
+}
+pub fn webhook_parts(
+    clients: &super::application::Clients,
+    webhooks: Option<&super::application::Webhooks>,
+    problems: &mut Problems,
+) {
     let path = Path::root().member(b"application");
     if let Some(webhooks) = webhooks {
         match &webhooks.listener {
@@ -211,13 +221,7 @@ pub fn webhook_parts(clients: &super::application::Clients, webhooks: Option<&su
     }
 }
 /// Every git rule is checked independently, so one start reports them all.
-pub fn limits(
-    limits: &limits::Limits,
-    
-     _: &limits::GitComponent,
-    problems: &mut Problems,
-) {
-
+pub fn limits(limits: &limits::Limits, _: &limits::GitComponent, problems: &mut Problems) {
     let sign_in = limits.sign_in;
     for (name, value) in [
         (b"sign_in.members".as_slice(), sign_in.members),
@@ -351,17 +355,15 @@ pub fn channel(
         Some(worker) => bounded(worker, false, problems),
         None => None,
     };
-    
+
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let mut sizes = [None, None];
     for (index, side) in [engine, worker].iter().enumerate() {
         if let Some(side) = side {
-            
-            
             {
                 *sizes.get_mut(index).expect("two sides") = payload::largest(side);
             }
-            
+
             if let Some(largest) = *sizes.get(index).expect("two sides") {
                 for (name, bytes, bound) in [
                     (b"workspace_items".as_slice(), largest.items, ceilings.workspace_items),
@@ -387,9 +389,6 @@ pub fn channel(
         against(problems, b"checkout.repositories", b"the worker's checkout capacity and checkout.name_bytes");
     }
 }
-
-
-
 
 /// The resume window as jig's hub counts it, excluding answered calls
 /// (jig's `domain/hosts/README.md`; hosted.rs, `conversation_fits`).
@@ -763,7 +762,11 @@ fn charter_index(engine: &config::Engine, number: u32) -> usize {
 /// One io holds engine links, the worker's link, and four entities per child.
 /// The document's engine start uses the service's socket policy.
 #[must_use]
-pub fn engine_io(engine: &skein_io::Limits) -> skein_io::Limits { let mut io = *engine; io.sockets = limits::SOCKETS; io }
+pub fn engine_io(engine: &skein_io::Limits) -> skein_io::Limits {
+    let mut io = *engine;
+    io.sockets = limits::SOCKETS;
+    io
+}
 /// Compare port numbers, also across IPv4/IPv6. Absent or ephemeral listeners reserve none.
 pub fn redirect_ports(
     redirects: &[super::RedirectPort],

@@ -358,10 +358,14 @@ impl Engine {
         )
     }
     #[must_use]
-    pub fn work_pending(&self, now: Time) -> bool { self.pending_with_room(now, self.notes.room()) }
+    pub fn work_pending(&self, now: Time) -> bool {
+        self.pending_with_room(now, self.notes.room())
+    }
     /// Read readiness using the notes still held by the joined drain.
     #[must_use]
-    pub fn work_pending_with_notes(&self, now: Time, held: u32) -> bool { self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len())) }
+    pub fn work_pending_with_notes(&self, now: Time, held: u32) -> bool {
+        self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len()))
+    }
     fn pending_with_room(&self, now: Time, notes_room: u32) -> bool {
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
@@ -968,10 +972,13 @@ fn forge_stopped(engine: &mut Engine, forge: u16, why: skein_forge_connection::S
     }
 }
 
-
 impl Engine {
-    pub fn clock(&mut self, now: Time, wall: Wall) { clock(self, now, wall); }
-    pub fn iterate(&mut self, now: Time, wall: Wall) { iterate(self, now, wall); }
+    pub fn clock(&mut self, now: Time, wall: Wall) {
+        clock(self, now, wall);
+    }
+    pub fn iterate(&mut self, now: Time, wall: Wall) {
+        iterate(self, now, wall);
+    }
 }
 
 #[cfg(test)]
@@ -1011,5 +1018,4 @@ mod release_tests {
         engine.held_notes(0);
         assert!(engine.work_pending(now));
     }
-
 }

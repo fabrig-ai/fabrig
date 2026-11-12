@@ -1058,8 +1058,6 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
     }
 }
 
-
-
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");

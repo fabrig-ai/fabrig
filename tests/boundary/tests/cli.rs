@@ -65,8 +65,7 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench smith-bench", until: "smith's round" },
     Exception { what: "smith-bench test-peer", until: "smith's round" },
 ];
-const FEATURE_EXCEPTIONS: &[Exception] = &[
-];
+const FEATURE_EXCEPTIONS: &[Exception] = &[];
 
 /// The findings no exception names, and the exceptions that name no
 /// finding, as one failure message; `None` when both are empty.

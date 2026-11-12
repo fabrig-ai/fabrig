@@ -32,7 +32,6 @@ pub fn demo_application() -> Box<[u8]> {
         .into_boxed_slice()
 }
 
-
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)

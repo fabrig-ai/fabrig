@@ -93,8 +93,16 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
             break;
         }
     }
-    let Some(End::Worker(crate::worker_alone::End::Stopped(crate::worker_alone::Stop::Start(problems)))) = stand.service.end() else { panic!("git refuses the start") };
-    assert_eq!(stand.service.engine.as_ref().unwrap().end(), Some(&EngineEnd::Drained), "worker failure does not replace the engine end");
+    let Some(End::Worker(crate::worker_alone::End::Stopped(crate::worker_alone::Stop::Start(problems)))) =
+        stand.service.end()
+    else {
+        panic!("git refuses the start")
+    };
+    assert_eq!(
+        stand.service.engine.as_ref().unwrap().end(),
+        Some(&EngineEnd::Drained),
+        "worker failure does not replace the engine end"
+    );
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(
         problems.problems.get(0).unwrap().path,
@@ -106,8 +114,6 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
     );
     assert!(stand.service.is_empty());
 }
-
-
 
 #[test]
 fn standalone_announces_clients_without_announcing_in_process_workers() {
@@ -124,8 +130,6 @@ fn standalone_announces_clients_without_announcing_in_process_workers() {
     stand.turn();
     assert!(stand.service.listening().is_empty());
 }
-
-
 
 #[test]
 fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
@@ -158,7 +162,10 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
                 break;
             }
         }
-        assert_eq!(stand.service.end(), Some(if abort { &End::Engine(EngineEnd::Aborted) } else { &End::Engine(EngineEnd::Drained) }));
+        assert_eq!(
+            stand.service.end(),
+            Some(if abort { &End::Engine(EngineEnd::Aborted) } else { &End::Engine(EngineEnd::Drained) })
+        );
         assert!(stand.service.is_empty());
         assert!(stand.kernel.box_read_cancelled, "close cancelled io's pending read");
         for note in stand.service.notes().iter() {
@@ -178,8 +185,6 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
         }
     }
 }
-
-
 
 #[test]
 fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
@@ -255,12 +260,12 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     );
     assert_eq!(
         stand.service.notes().pop(),
-        Some(crate::Note::Engine(crate::EngineNote::BoxLink { line: b"box link: dropped started for forge 9, not asked".as_slice().into() }))
+        Some(crate::Note::Engine(crate::EngineNote::BoxLink {
+            line: b"box link: dropped started for forge 9, not asked".as_slice().into()
+        }))
     );
     assert!(stand.service.notes().is_empty());
 }
-
-
 
 #[test]
 fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
@@ -331,9 +336,6 @@ fn scripted_box() -> fixtures::system::SystemStand {
     stand
 }
 
-
-
-
 // Allow root continuations and memory-store handoffs, then output credit and IO.
 fn turns(stand: &mut fixtures::system::SystemStand) {
     const TURNS: u8 = 64;
@@ -341,8 +343,6 @@ fn turns(stand: &mut fixtures::system::SystemStand) {
         stand.turn();
     }
 }
-
-
 
 // The system story uses the actual clients component: an HTTP family request
 // crosses the core's key admission, and FromApplication::Answered returns its bytes.
@@ -421,9 +421,7 @@ fn box_setup(
     client.pump(engine, true);
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     let mut reader = Reader::new(client.received().get(at..).unwrap());
-    let j::KeyedAnswer::FinalAnswer(answer) =
-        j::KeyedAnswer::decode(engine.client_wire(), &mut reader).unwrap()
-    else {
+    let j::KeyedAnswer::FinalAnswer(answer) = j::KeyedAnswer::decode(engine.client_wire(), &mut reader).unwrap() else {
         panic!("one terminal family answer")
     };
     assert!(reader.is_empty());
@@ -435,16 +433,13 @@ fn box_setup(
     );
     assert_eq!(
         *answer.owner(),
-        j::Owner::Family(
-            j::Family::new(engine.client_wire(), j::FamilyParts { number: wire::FORGE }).unwrap()
-        )
+        j::Owner::Family(j::Family::new(engine.client_wire(), j::FamilyParts { number: wire::FORGE }).unwrap())
     );
     let mut reader = Reader::new(answer.record());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
     answer.into_parts().outcome
 }
-
 
 #[test]
 fn clients_claim_a_listener_adopted_before_the_first_down() {
@@ -496,8 +491,6 @@ fn clients_claim_a_listener_adopted_before_the_first_down() {
     assert_eq!(closed, 1);
 }
 
-
-
 #[test]
 fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     use skein_io::kernel::{Complete, Done, Fd, Op};
@@ -542,11 +535,12 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     let Some(crate::Note::Engine(crate::EngineNote::BoxLink { .. })) = service.notes().pop() else {
         panic!("the box owner receives its line");
     };
-    assert_eq!(service.listening().pop(), Some(crate::Note::Engine(crate::EngineNote::Listening { listener: crate::Listening::Clients, addr })));
+    assert_eq!(
+        service.listening().pop(),
+        Some(crate::Note::Engine(crate::EngineNote::Listening { listener: crate::Listening::Clients, addr }))
+    );
     assert!(service.process.told().is_empty());
 }
-
-
 
 #[test]
 fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
@@ -576,7 +570,9 @@ fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
     let store = service.engine_component().store();
     *store.submissions() = Queue::with_capacity(capacity);
     for index in 0..capacity {
-        store.submissions().push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
+        store
+            .submissions()
+            .push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
     }
     while service.submissions().room() > 0 {
         service.submissions().push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(92) } });

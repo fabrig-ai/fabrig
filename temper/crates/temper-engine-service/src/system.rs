@@ -1,8 +1,5 @@
 //! An engine alone on one process (temper/docs/design/protocol/services.md, 4).
-use crate::{
-    AccountsRuntime, End, accounts, clients, engine, settings, store,
-
-};
+use crate::{AccountsRuntime, End, accounts, clients, engine, settings, store};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
 use skein_io::{
@@ -28,9 +25,17 @@ impl Service {
     /// Payload-free closure and queue state at the shell's wait boundary.
     #[must_use]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
-        crate::diagnostics::Wait { engine: match &self.engine { Some(engine) => Some(engine.wait_state()), None => None },
-            held_listeners: self.held_listeners.len(), listener_closes: self.listeners_closing,
-            signals_closing: self.process.signals_closing(), operations: self.process.has_operations(), submissions: self.process.submission_count() }
+        crate::diagnostics::Wait {
+            engine: match &self.engine {
+                Some(engine) => Some(engine.wait_state()),
+                None => None,
+            },
+            held_listeners: self.held_listeners.len(),
+            listener_closes: self.listeners_closing,
+            signals_closing: self.process.signals_closing(),
+            operations: self.process.has_operations(),
+            submissions: self.process.submission_count(),
+        }
     }
 
     /// Check the real ring's empty, unbounded wait shape without another iteration.
@@ -79,16 +84,26 @@ impl Service {
         Self::prepared(settings, seeds, accounts, forges, io_limits, None, None)
     }
     pub(crate) fn prepared(
-        settings: settings::Engine, seeds: &settings::Seeds, accounts: Option<AccountsRuntime>,
-        forges: skein_forge_connection::Settings, io_limits: io::Limits, box_line_bytes: Option<u32>, program_login: Option<Box<[u8]>>,
+        settings: settings::Engine,
+        seeds: &settings::Seeds,
+        accounts: Option<AccountsRuntime>,
+        forges: skein_forge_connection::Settings,
+        io_limits: io::Limits,
+        box_line_bytes: Option<u32>,
+        program_login: Option<Box<[u8]>>,
     ) -> Result<Self, Problems> {
         let sockets = io_limits.sockets;
         let notes = settings.limits.sign_in.pending;
         let engine = engine::Engine::prepared(settings, seeds, accounts, forges, box_line_bytes, program_login)?;
         let operations = startup_operations(&io_limits).ok_or(start_problem(b"limits", What::Bound))?;
-        Ok(Self { engine: Some(engine), process: temper_service_core::process::Process::new(io_limits, operations, operations),
-            held_listeners: List::with_capacity(sockets), listeners_closing: 0,
-            links: Queue::with_capacity(notes), local_links: Queue::with_capacity(notes) })
+        Ok(Self {
+            engine: Some(engine),
+            process: temper_service_core::process::Process::new(io_limits, operations, operations),
+            held_listeners: List::with_capacity(sockets),
+            listeners_closing: 0,
+            links: Queue::with_capacity(notes),
+            local_links: Queue::with_capacity(notes),
+        })
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = self.engine.as_mut()?;
@@ -137,12 +152,16 @@ impl Service {
     }
     /// Earliest deadline of the root and its children.
     #[must_use]
-    pub fn next_policy_deadline(&self) -> Option<Time> { self.engine.as_ref()?.next_deadline() }
+    pub fn next_policy_deadline(&self) -> Option<Time> {
+        self.engine.as_ref()?.next_deadline()
+    }
     /// Whether an iteration has work on the supplied clock.
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        (match &self.engine { Some(engine) => engine.work_pending(now), None => false })
-            || self.process.work_pending(now)
+        (match &self.engine {
+            Some(engine) => engine.work_pending(now),
+            None => false,
+        }) || self.process.work_pending(now)
             || self.end().is_some() && self.listeners_closing < self.held_listeners.len()
             || self.end().is_some() && self.process.signals_pending()
     }
@@ -150,15 +169,29 @@ impl Service {
     /// Only diagnostics callers pay for walking and copying the pending event tags.
     #[must_use]
     pub fn pending(&self, now: Time) -> crate::diagnostics::Pending {
-        crate::diagnostics::Pending { work_pending: self.work_pending(now),
-            io_ready: self.process.io().is_ready(), io_due: self.process.io().is_due(now),
-            completions: self.process.completion_count(), told: self.process.told_count(), raw_submissions: self.process.raw_submission_count(),
-            ended: self.end().is_some(), signals: self.process.has_signals(), signals_closing: self.process.signals_closing(),
-            engine: match &self.engine { Some(engine) => Some(engine.pending(now)), None => None } }
+        crate::diagnostics::Pending {
+            work_pending: self.work_pending(now),
+            io_ready: self.process.io().is_ready(),
+            io_due: self.process.io().is_due(now),
+            completions: self.process.completion_count(),
+            told: self.process.told_count(),
+            raw_submissions: self.process.raw_submission_count(),
+            ended: self.end().is_some(),
+            signals: self.process.has_signals(),
+            signals_closing: self.process.signals_closing(),
+            engine: match &self.engine {
+                Some(engine) => Some(engine.pending(now)),
+                None => None,
+            },
+        }
     }
 
     /// A first call drains; another aborts, keeping a failure's reason.
-    pub fn shutdown(&mut self) { if let Some(engine) = &mut self.engine { engine.shutdown(); } }
+    pub fn shutdown(&mut self) {
+        if let Some(engine) = &mut self.engine {
+            engine.shutdown();
+        }
+    }
     /// How this service ended, once it has.
     #[must_use]
     pub fn end(&self) -> Option<&End> {
@@ -215,7 +248,9 @@ impl Service {
         &mut self.engine.as_mut().expect("joined service has an engine").listening
     }
     /// Operator diagnostics, taken by the binary.
-    pub fn notes(&mut self) -> &mut Queue<crate::Note> { &mut self.engine.as_mut().expect("engine service").notes }
+    pub fn notes(&mut self) -> &mut Queue<crate::Note> {
+        &mut self.engine.as_mut().expect("engine service").notes
+    }
     /// Root, component and I/O deadlines on the injected clock.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -228,15 +263,26 @@ impl Service {
     }
     /// Every owned child has closed and every queue and kernel route is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.end().is_some() && match &self.engine { Some(engine) => engine.is_empty(), None => true } && self.process.is_empty() }
-    fn route_components(&mut self) { if let Some(engine) = &mut self.engine { engine.route(&mut self.process); } }
+    pub fn is_empty(&self) -> bool {
+        self.end().is_some()
+            && match &self.engine {
+                Some(engine) => engine.is_empty(),
+                None => true,
+            }
+            && self.process.is_empty()
+    }
+    fn route_components(&mut self) {
+        if let Some(engine) = &mut self.engine {
+            engine.route(&mut self.process);
+        }
+    }
     /// Format only the roots for a world's secrets check.
     pub fn fmt_roots(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut roots = formatter.debug_list();
         if let Some(engine) = &self.engine {
             roots.entry(&engine.domain);
         }
-        
+
         roots.finish()
     }
 
@@ -244,7 +290,12 @@ impl Service {
     pub(crate) fn complete_staged(&mut self, complete: Complete) -> Complete {
         self.process.complete(complete)
     }
-    fn complete(&mut self, complete: Complete) { match self.engine.as_mut().expect("engine completion").complete(complete) { Ok(()) => {}, Err(complete) => self.process.up(complete) } }
+    fn complete(&mut self, complete: Complete) {
+        match self.engine.as_mut().expect("engine completion").complete(complete) {
+            Ok(()) => {}
+            Err(complete) => self.process.up(complete),
+        }
+    }
 }
 /// Core settings with the application's private tools (domain/agent/ask-temper.md, 4).
 pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
@@ -310,7 +361,11 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
         Stage::Route => {
             route_events(service);
         }
-        Stage::Engine => { if let Some(engine) = &mut service.engine { engine.iterate(now, wall); } }
+        Stage::Engine => {
+            if let Some(engine) = &mut service.engine {
+                engine.iterate(now, wall);
+            }
+        }
         Stage::Worker => {}
         Stage::Out => {
             close_sources(service);
@@ -318,7 +373,9 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                 engine.abort_if_ended();
             }
             service.route_components();
-            if let Some(engine) = &mut service.engine { engine.take_links(&mut service.links, &mut service.local_links); }
+            if let Some(engine) = &mut service.engine {
+                engine.take_links(&mut service.links, &mut service.local_links);
+            }
             service.process.publish();
         }
     }
@@ -381,7 +438,9 @@ fn route_events(service: &mut Service) {
             // component's owner receives that terminal through the normal route.
             continue;
         }
-        if let Some(engine) = &mut service.engine { engine.up(service.process.env().now, event); }
+        if let Some(engine) = &mut service.engine {
+            engine.up(service.process.env().now, event);
+        }
     }
 }
 
@@ -389,11 +448,6 @@ fn route_events(service: &mut Service) {
 pub fn startup_operations(io: &io::Limits) -> Option<u32> {
     temper_service_core::process::Process::operations_for(io, 0)?.checked_add(store::KERNEL_HANDOFF_ENTRIES)
 }
-
-
-
-
-
 
 impl Service {
     /// Start-time endpoints only; the browser and the issuer never choose a socket.
@@ -491,18 +545,21 @@ fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_d
     }
 }
 
-
-
-
-
-
 impl Service {
-    pub fn engine_component(&mut self) -> &mut engine::Engine { self.engine.as_mut().expect("engine service") }
-    pub fn configure_forge_runtime(&mut self, github: crate::ForgeRuntime, roots: skein_tls::Config) { self.engine_component().configure_forge_runtime(github, roots); }
+    pub fn engine_component(&mut self) -> &mut engine::Engine {
+        self.engine.as_mut().expect("engine service")
+    }
+    pub fn configure_forge_runtime(&mut self, github: crate::ForgeRuntime, roots: skein_tls::Config) {
+        self.engine_component().configure_forge_runtime(github, roots);
+    }
     #[must_use]
     #[expect(clippy::type_complexity, reason = "startup resolution returns numbered host and port tuples")]
-    pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> { self.engine.as_ref().expect("engine service").unresolved() }
-    pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) { self.engine_component().resolved(forge, address); }
+    pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> {
+        self.engine.as_ref().expect("engine service").unresolved()
+    }
+    pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
+        self.engine_component().resolved(forge, address);
+    }
 }
 
 #[cfg(test)]
@@ -528,5 +585,4 @@ mod box_tests {
         });
         assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
     }
-
 }

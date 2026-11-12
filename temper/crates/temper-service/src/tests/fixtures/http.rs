@@ -1,7 +1,7 @@
-use temper_engine_service::Engine;
 use jig_client_protocol_wire::v19 as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
+use temper_engine_service::Engine;
 const REQUEST_AT: Time = Time::from_nanos(1);
 const REQUEST_WALL: Wall = Wall::from_nanos(1);
 pub const SOCKET: Token = Token::new(100);
@@ -76,9 +76,6 @@ impl Peer {
         Self { wire, socket, owner: None, closed: 0, body_demand: false }
     }
 
-
-
-
     pub fn pump(&mut self, engine: &mut Engine, decide: bool) {
         self.pump_at(engine, decide, REQUEST_AT, REQUEST_WALL);
     }
@@ -143,20 +140,13 @@ impl Peer {
         }
     }
 
-
-
-
-
     pub fn received(&self) -> &[u8] {
         &self.wire.received
     }
     pub fn sign_in_answer(&self, engine: &Engine) -> wire::SignInAnswer {
         let at = skein_lib::bytes::find(&self.wire.received, b"\r\n\r\n").unwrap().checked_add(4).unwrap();
-        wire::SignInAnswer::decode(
-            engine.client_wire(),
-            &mut Reader::new(self.wire.received.get(at..).unwrap()),
-        )
-        .unwrap()
+        wire::SignInAnswer::decode(engine.client_wire(), &mut Reader::new(self.wire.received.get(at..).unwrap()))
+            .unwrap()
     }
     pub fn streaming(&self) -> bool {
         skein_lib::bytes::find(&self.wire.received, b"text/event-stream").is_some()
@@ -169,11 +159,9 @@ pub fn link_body(engine: &Engine, link: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();
     let secret = base64::decode(Alphabet::Url, link.get(at..).unwrap(), 32).unwrap();
-    let record = wire::LinkSignIn::new(
-        engine.client_wire(),
-        wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) },
-    )
-    .unwrap();
+    let record =
+        wire::LinkSignIn::new(engine.client_wire(), wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+            .unwrap();
     let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut bytes).unwrap();
     bytes.finish()

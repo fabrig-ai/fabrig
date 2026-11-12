@@ -63,7 +63,6 @@ pub enum EngineEvent {
     Stop,
 }
 
-
 /// Closure and queue ownership beside the shell's unbounded wait decision.
 #[derive(Debug)]
 pub struct Wait {
@@ -105,7 +104,3 @@ pub struct WaitAccounts {
     pub io: u32,
     pub empty: bool,
 }
-
-
-
-

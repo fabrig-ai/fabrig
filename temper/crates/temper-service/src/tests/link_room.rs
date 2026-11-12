@@ -508,7 +508,8 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
 
 fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
     let charter =
-        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding().endpoints).unwrap();
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding().endpoints)
+            .unwrap();
     assert!(charter.owned_bytes().unwrap() <= workers.encoding().charter_bytes);
     assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding().charter_bytes);
     assert_eq!(charter.instructions, assignment.run.policy.instructions);

@@ -346,13 +346,18 @@ impl ServiceHost {
     }
     fn finish_bootstrap(&mut self) {
         let Some(service) = &mut self.service else { return };
-        if !self.signals_adopted && service.end().is_some_and(|end| *end != crate::End::Engine(temper_service::EngineEnd::Drained)) {
+        if !self.signals_adopted
+            && service.end().is_some_and(|end| *end != crate::End::Engine(temper_service::EngineEnd::Drained))
+        {
             // A failed bootstrap will not reopen: close its retained signal
             // reader through the ended service's ordinary io lifecycle.
             service.adopt_signals(self.signals).expect("failed bootstrap signal pipe");
             self.signals_adopted = true;
         }
-        if !self.records_seeded && service.is_empty() && service.end() == Some(&crate::End::Engine(temper_service::EngineEnd::Drained)) {
+        if !self.records_seeded
+            && service.is_empty()
+            && service.end() == Some(&crate::End::Engine(temper_service::EngineEnd::Drained))
+        {
             self.service = None;
             fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
             self.records_seeded = true;
@@ -611,11 +616,17 @@ impl Host for ServiceHost {
                         temper_service::Listening::Clients => {}
                     }
                 }
-                self.linked += usize::from(matches!(note, temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })));
+                self.linked += usize::from(matches!(
+                    note,
+                    temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
+                ));
                 self.notes.push(note);
             }
             while let Some(note) = service.take_note() {
-                self.linked += usize::from(matches!(note, temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })));
+                self.linked += usize::from(matches!(
+                    note,
+                    temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
+                ));
                 self.notes.push(note);
             }
             while let Some(link) = service.take_link() {

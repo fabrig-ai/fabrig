@@ -1,7 +1,7 @@
 //! The setup owner checks its document before commands read any files.
 use jig_protocol_config as config;
-use temper_forge_setup::{check::Checked, problem};
 use temper_engine_service::startup::Named;
+use temper_forge_setup::{check::Checked, problem};
 
 #[derive(Debug)]
 pub struct Deployment {
@@ -47,7 +47,12 @@ pub fn check_with(
         (machine.fake.as_ref().map(|fake| fake.listen), temper_engine_service::startup::Listener::Fake(0)),
     ] {
         if let Some(listen) = listen {
-            temper_engine_service::startup::redirect_ports(&named.redirects, Some(listen.port()), listener, &mut problems);
+            temper_engine_service::startup::redirect_ports(
+                &named.redirects,
+                Some(listen.port()),
+                listener,
+                &mut problems,
+            );
             if listeners.contains(&listen) {
                 return Err("application.machine: listener must be unique".into());
             }

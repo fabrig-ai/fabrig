@@ -2,16 +2,10 @@ use crate::startup::{Problems, Shape, lines, unserved};
 use jig_protocol_config::Path;
 use skein_lib::List;
 
-
-
 #[test]
 fn the_engine_service_refuses_the_other_document_shapes() {
     let mut failures = List::with_capacity(3);
-    for (shape, refused) in [
-        (Shape::Standalone, true),
-        (Shape::WorkerAlone, true),
-        (Shape::EngineAlone, false),
-    ] {
+    for (shape, refused) in [(Shape::Standalone, true), (Shape::WorkerAlone, true), (Shape::EngineAlone, false)] {
         let found = unserved(shape);
         if found.is_some() != refused {
             failures.push(shape).unwrap();

@@ -1,6 +1,5 @@
 //! Read-only, payload-free snapshots, constructed only when explicitly requested.
 
-
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each flag names a separate service readiness term")]
 pub struct Pending {
@@ -19,9 +18,8 @@ pub struct Pending {
     pub worker: Option<Worker>,
 }
 
-pub use temper_engine_service::diagnostics::{Engine, EngineEvent, WaitEngine, WaitOwner, WaitAccounts};
+pub use temper_engine_service::diagnostics::{Engine, EngineEvent, WaitAccounts, WaitEngine, WaitOwner};
 pub use temper_worker_service::diagnostics::{LinkEvent, Worker, WorkerEvent};
-
 
 /// Closure and queue ownership beside the shell's unbounded wait decision.
 #[derive(Debug)]
@@ -54,7 +52,6 @@ impl From<temper_worker_service::diagnostics::Pending> for Pending {
         }
     }
 }
-
 
 impl From<temper_worker_service::diagnostics::Wait> for Wait {
     fn from(value: temper_worker_service::diagnostics::Wait) -> Self {

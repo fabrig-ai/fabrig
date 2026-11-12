@@ -46,7 +46,6 @@ pub const ENGINE: &[u8] = br#"{
 
 // Jig's inline input is retained only to exercise policy decoding and typed guards.
 
-
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
     let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
@@ -676,8 +675,6 @@ pub mod http;
 mod server;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};
 
-
-
 pub fn turn(service: &mut crate::Service) {
     crate::iterate(service, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
     clients::kernel(service);
@@ -1071,10 +1068,7 @@ pub fn claimed_chat() -> (crate::Service, temper_engine_domain::Assignment) {
     (service, run)
 }
 
-
-
-
-pub use temper_worker_service_fixtures::{agent, AGENT_JSON, worker_agent};
+pub use temper_worker_service_fixtures::{AGENT_JSON, agent, worker_agent};
 
 pub fn clients() -> crate::clients::Clients {
     let engine = engine();
@@ -1091,10 +1085,7 @@ pub fn clients() -> crate::clients::Clients {
     .unwrap()
 }
 mod startup;
-pub use startup::{
-    APPLICATION, Json, demo_service, document,
-    value, with,
-};
+pub use startup::{APPLICATION, Json, demo_service, document, value, with};
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime

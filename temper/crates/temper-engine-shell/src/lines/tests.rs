@@ -96,7 +96,10 @@ fn other_endings_keep_their_exit_behavior() {
     problems.push(jig_protocol_config::Path::root().member(b"deployment"), jig_protocol_config::What::Refers);
     for (end, output_failed, expected, code) in [
         (
-            Some(End::Stopped(Stop::RestorePage { range: temper_engine_service::RestoreRangeKind::Census, failure: None })),
+            Some(End::Stopped(Stop::RestorePage {
+                range: temper_engine_service::RestoreRangeKind::Census,
+                failure: None,
+            })),
             false,
             "temper serve: restore census: store load failed\n",
             1,
@@ -523,8 +526,10 @@ fn a_drained_end_prints_each_unsettled_write() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
-    let unfinished =
-        [temper_engine_service::Unsettled { entry: 17, task: 3 }, temper_engine_service::Unsettled { entry: 22, task: 9 }];
+    let unfinished = [
+        temper_engine_service::Unsettled { entry: 17, task: 3 },
+        temper_engine_service::Unsettled { entry: 22, task: 9 },
+    ];
     assert_eq!(ending_with_binary("temper", Some(&End::Drained), false, &directories, b"/data/store", &unfinished), (
         "temper serve: stopped before task 3's forge write 17 settled; the next start settles it\ntemper serve: stopped before task 9's forge write 22 settled; the next start settles it\n".into(), 0
     ));
@@ -827,7 +832,14 @@ fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
         assert_eq!(
             note_line(
                 "temper",
-                temper_engine_service::Note::BriefReadRefused { task: 7, section: b"pull", stage, reason, heads, error }
+                temper_engine_service::Note::BriefReadRefused {
+                    task: 7,
+                    section: b"pull",
+                    stage,
+                    reason,
+                    heads,
+                    error
+                }
             ),
             expected
         );
@@ -913,7 +925,12 @@ fn failed_run_stderr_keeps_a_bounded_tail() {
 
 #[cfg(test)]
 fn refused_run_note(reason: jig_domain_host::Refusal) -> temper_engine_service::Note {
-    temper_engine_service::Note::RunRefused(temper_engine_service::RunRefusalDiagnostic { task: 3, run: 7, attempt: 2, reason })
+    temper_engine_service::Note::RunRefused(temper_engine_service::RunRefusalDiagnostic {
+        task: 3,
+        run: 7,
+        attempt: 2,
+        reason,
+    })
 }
 
 #[test]
@@ -971,7 +988,13 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     detail: why.clone().into(),
                 }
             };
-            let note = temper_engine_service::Note::JobAnswered(JobDiagnostic { task: 3, run: 7, attempt: 2, kind: 3, ending });
+            let note = temper_engine_service::Note::JobAnswered(JobDiagnostic {
+                task: 3,
+                run: 7,
+                attempt: 2,
+                kind: 3,
+                ending,
+            });
             assert_eq!(note_line("temper", note), format!("{prefix}{expected}\n"));
         }
     }

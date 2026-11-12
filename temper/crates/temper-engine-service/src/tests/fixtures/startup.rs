@@ -36,7 +36,28 @@ pub fn demo_document() -> Box<[u8]> {
         .into_bytes()
         .into_boxed_slice()
 }
-pub fn demo_service() -> crate::Service { let document = demo_document(); let document = with(&document, b"workers", b"[]"); let document = with(&document, b"application.workers", b"[]"); let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#); crate::startup::with_setup_given(&document, &jig_protocol_config::Directories::working(), &files(), &super::seeds(), None, super::forge_runtime(), None, &crate::stock::Given::Own { jig: crate::stock::with_models(Box::new([super::small_model()]),32), forge: Box::default(), ways: crate::stock::ways() }, Box::new([])).unwrap() }
+pub fn demo_service() -> crate::Service {
+    let document = demo_document();
+    let document = with(&document, b"workers", b"[]");
+    let document = with(&document, b"application.workers", b"[]");
+    let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
+    crate::startup::with_setup_given(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        &files(),
+        &super::seeds(),
+        None,
+        super::forge_runtime(),
+        None,
+        &crate::stock::Given::Own {
+            jig: crate::stock::with_models(Box::new([super::small_model()]), 32),
+            forge: Box::default(),
+            ways: crate::stock::ways(),
+        },
+        Box::new([]),
+    )
+    .unwrap()
+}
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)
@@ -241,6 +262,3 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
     }
     start.unwrap()..end.unwrap_or(input.len())
 }
-
-
-
