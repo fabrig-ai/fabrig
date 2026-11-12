@@ -292,7 +292,9 @@ No store; starting, ending and smith's payloads are jig's (jig's
 - **Agents run as the agent's program:** the worker's `agent` member
   (configuration/README.md, section 4), with the arguments it gives, its
   environment holding no credential: the box's `temper-box internal agent
-  AGENT.json`, or a deployment's `temper-agent AGENT.json` (`binaries.md`, 3).
+  AGENT.json`, or a deployment's `temper-agent AGENT.json` (`binaries.md`, 3),
+  each spawned from the copies the worker pinned at its start, the
+  program's and AGENT.json's (`../domain/worker/README.md`, section 5).
 - **A model list's launch** (smith's `protocol/agent.md`, 6.1) runs the
   same program, its arguments by the run's form, and smith's host half
   puts `--list` before them: `internal agent AGENT.json` lists as
@@ -322,9 +324,17 @@ No store; starting, ending and smith's payloads are jig's (jig's
   channel reasons, separate from jig's application reasons at 256 and
   above. Existing worker diagnostic tests check those matches; the
   wire and `Closed` facts keep their values.
-- **Starting:** configuration, the components, the worker's root
-  directory opened, then the link dialled at once (jig's
+- **Starting:** configuration, the worker's root directory opened, the
+  agent pinned in it (`../domain/worker/README.md`, section 5), the
+  components, then the link dialled at once (jig's
   `protocol/service.md`, section 6).
+- **Under a service manager,** as a deployment runs its workers
+  (`temper help server`), the worker's unit kills its whole control
+  group when it stops or its process dies, systemd's
+  `KillMode=control-group`, so no agent, program or command of the
+  worker's outlives it, and its next start finds nothing of its previous
+  life still writing in its workspaces
+  (`../domain/worker/README.md`, section 5).
 
 ## 6. One process
 

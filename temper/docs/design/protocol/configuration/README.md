@@ -339,9 +339,14 @@ longer to start raises it.
   written, with no model list (../README.md, section 5). They are absolute
   because the worker spawns the agent with its arguments as written
   (jig's `protocol/configuration.md`, section 9).
-- **Read twice:** by `temper-box serve` at start, for smith's host limits,
-  the channel's limits and the agent's bounds, as jig's reference binary
-  reads it; and by each agent process as it starts.
+- **Read once, pinned:** by the worker's start, `temper-box serve` or
+  `temper-worker serve`, for smith's host limits, the channel's limits
+  and the agent's bounds, as jig's reference binary reads it; the start
+  then pins those same bytes, with the program, in its root
+  (`../../domain/worker/README.md`, section 5), and each agent process
+  reads the pinned copy as it starts. Editing the file, or replacing the
+  program, changes what the worker's next start pins, never a running
+  worker's agents.
 - **It holds no credential:** an agent's grants come over smith's
   channel (../credentials.md, section 3).
 - **A model's reasoning allowance,** its `reasoning_item` (smith's

@@ -458,6 +458,38 @@ process has exited and its tree is empty. temper's choices:
 - **temper's binary is the agent:** the box's `temper-box internal agent`,
   or a deployment's `temper-agent` (`../../protocol/binaries.md`, 3, and `../../protocol/README.md`, 5
   ), smith's agent shell. temper builds no code into it.
+- **Pinned at the worker's start,** so an agent is always its worker's
+  build and smith's channel never spans two (`../../draft/redeploys.md`,
+  4.4). As it starts, before its loop, the worker reads the agent's
+  configuration once, checks it and takes its bounds from it
+  (`../../protocol/configuration/README.md`, section 4), then writes
+  those same bytes, and a copy of the program its `agent` member names,
+  into `agent/` under its root directory (`../../protocol/git.md`,
+  section 2), afresh at each start, the previous copies removed first.
+  The program's copy keeps its file name and is executable by the
+  worker's user alone; the configuration's is private. Every run's agent
+  and every model list's launch spawns the copy until the worker exits:
+  the program is the copy's path, and each argument equal to the
+  configured configuration's path names the copy's instead, so the box's
+  `internal agent AGENT.json` and a deployment's `AGENT.json` both read
+  the pinned file. A redeploy that replaces the program or edits the
+  configuration changes what the next start pins, never a running
+  worker's agents. What the configuration names in turn, a program
+  source's executable and directory, trust files, a trace's path, stays
+  where it is: those are the host's, not the build's. A start that
+  cannot pin, the program unreadable or the root full, is refused,
+  naming the file.
+- **An agent goes with its worker** (`../../draft/redeploys.md`, 4.4).
+  A worker's stop ends within its stop bound, every agent's process
+  group killed at it at the latest (section 2). A worker that dies
+  closes its agents' pipes, and each agent, hearing its channel end,
+  cancels its run, ending its commands' groups, then exits (smith's
+  `domain/host.md`, section 4). What an agent still running would leave,
+  a wedged one or a command outside its groups, a deployment's service
+  manager ends with the worker's control group
+  (`../../protocol/README.md`, section 5); a tree contained by io, proved
+  empty, is smith's to give (smith's `domain/host.md`, section 4, whose
+  status records it).
 - **No credentials in its environment.** The tokens its LLM calls use
   come as grants on its channel (`../../protocol/credentials.md`,
   section 3); git's never reach it.
