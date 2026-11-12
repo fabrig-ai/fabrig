@@ -424,8 +424,8 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
-aho-corasick = { version = "1.1.5", default-features = false, features = ["std"] }
-syn = { version = "2", features = ["full", "visit"] }
+aho-corasick = { version = "1.1.5", default-features = false, features = ["std", "perf-literal"] }
+syn = { version = "2", features = ["full", "visit", "extra-traits", "visit-mut"] }
 skein-fork = { path = "skein/testing/skein-fork" }
 skein-rows = { path = "skein/testing/skein-rows" }
 flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"] }
@@ -571,7 +571,7 @@ regex = { version = "1" }
 serde_path_to_error = { version = "0.1" }
 tempfile = { version = "3" }
 toml = { version = "0.9" }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "alloc"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 jig-client-shell-web = { path = "jig/crates/jig-client-shell-web" }
