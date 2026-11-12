@@ -2057,7 +2057,7 @@ fn the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered() {
     let menu = &nodes[at..at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap()];
     let items: Vec<_> =
         menu.iter().filter(|n| n.role == Role::MenuItem).map(|n| (n.id, n.name.clone().unwrap())).collect();
-    assert_eq!(items.len(), 3);
+    assert_eq!(items.len(), 4);
     for ((id, name), (expected, act)) in items.into_iter().zip([
         (b"Accounts".as_slice(), pages::Act::Go { address: Address::Accounts }),
         (b"What temper remembers about you", pages::Act::Go { address: Address::Remembered }),

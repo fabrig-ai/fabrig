@@ -182,7 +182,7 @@ impl Clients {
                 field(&mut headers, b"ETag", &self.bundle.as_ref().expect("revalidated bundle").etag);
             }
             Answer::Worker | Answer::Manifest | Answer::NoBundle => {
-                field(&mut headers, b"Cache-Control", policy::PAGE_CACHE)
+                field(&mut headers, b"Cache-Control", policy::PAGE_CACHE);
             }
             Answer::NotFound | Answer::NotAllowed | Answer::Busy => {}
         }
