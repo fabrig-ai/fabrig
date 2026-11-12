@@ -5341,7 +5341,9 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
-            forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
+            forge::Request::StatusRun { project, words, signers } => {
+                status_route::start_status_run(domain, env, project, words, &signers);
+            }
             forge::Request::TierRun { repository, tier, number, tip } => {
                 start_tier_run(domain, env, repository, tier, number, tip);
             }

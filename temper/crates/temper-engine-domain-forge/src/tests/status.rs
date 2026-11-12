@@ -365,7 +365,7 @@ fn a_repository_removed_counts_no_landing() {
 
 fn asks_run(out: Queue<Request>) -> Option<Box<[u8]>> {
     for request in rows(out) {
-        if let Request::StatusRun { project, words } = request {
+        if let Request::StatusRun { project, words, .. } = request {
             assert_eq!(project, PROJECT);
             return Some(words);
         }
@@ -544,6 +544,92 @@ fn a_restored_run_is_still_in_flight() {
     status_heard(&mut d, TIER_TASK, Some(b"Restored report"));
     assert_eq!(view(&d, PARTY).brief.unwrap().sentence.as_ref(), b"Restored report");
 }
+fn signed(person: u64) -> SignOff {
+    SignOff { person, head: HEAD, at: BEFORE }
+}
+fn signed_landing(task: u64, at: Wall, people: &[u64]) -> LoggedLanding {
+    let mut signers = List::uncapped();
+    for person in people {
+        signers.push(signed(*person)).unwrap();
+    }
+    LoggedLanding {
+        commit: HEAD,
+        branch: b"main".as_slice().into(),
+        at,
+        changes: Box::new([LoggedChange {
+            task,
+            pull: None,
+            title: b"Small fix".as_slice().into(),
+            signed: signers.into_boxed(),
+        }]),
+    }
+}
+fn run_words_and_signers(d: &mut Domain) -> (Box<[u8]>, Box<[u64]>) {
+    for request in rows(look(d, PARTY, after(7200))) {
+        if let Request::StatusRun { words, signers, .. } = request {
+            return (words, signers);
+        }
+    }
+    panic!("status run requested")
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "this boundary test reads the status specification as UTF-8")]
+fn its_words_say_who_signed_each_landing() {
+    for (people, suffix) in [
+        ([].as_slice(), ""),
+        ([4_u64].as_slice(), " (signed by person 4)"),
+        ([4, 7].as_slice(), " (signed by person 4 and person 7)"),
+        ([4, 7, 9].as_slice(), " (signed by person 4, person 7 and person 9)"),
+    ] {
+        let mut d = restored();
+        restore(
+            &mut d,
+            &env(),
+            Stored::LandingLog(LandingLog {
+                repository: REPO,
+                landings: Box::new([signed_landing(1, after(1), people)]),
+            }),
+        );
+        let (words, signers) = run_words_and_signers(&mut d);
+        let words = core::str::from_utf8(&words).unwrap();
+        assert_eq!(words.lines().last().unwrap(), alloc::format!("- Small fix{suffix}"));
+        assert_eq!(signers.as_ref(), people);
+    }
+}
+#[test]
+fn its_signers_are_distinct_in_the_order_the_visible_titles_name_them() {
+    let mut d = restored();
+    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 1));
+    let mut landings = List::uncapped();
+    for n in 0..23 {
+        let people = if n == 22 {
+            [7, 4]
+        } else if n == 21 {
+            [4, 9]
+        } else if n >= 3 {
+            [9, 7]
+        } else {
+            [8, 8]
+        };
+        landings.push(signed_landing(n, after(n), &people)).unwrap();
+    }
+    let mut restore_env = env();
+    restore_env.limits.landings_kept = 24;
+    restore(&mut d, &restore_env, Stored::LandingLog(LandingLog { repository: REPO, landings: landings.into_boxed() }));
+    let mut other = configured_domain(&[]).repositories.get(&REPO).unwrap().clone();
+    other.project = PROJECT + 1;
+    let other_repository = skein_forge::api::Repository { forge: REPO.forge, repository: REPO.repository + 1 };
+    d.repositories.insert(other_repository, other).unwrap();
+    d.landing_logs
+        .insert(
+            other_repository,
+            LandingLog { repository: other_repository, landings: Box::new([signed_landing(100, after(100), &[10])]) },
+        )
+        .unwrap();
+    let (_, signers) = run_words_and_signers(&mut d);
+    assert_eq!(signers.as_ref(), [7, 4, 9]);
+}
+
 #[test]
 #[expect(clippy::disallowed_methods, reason = "this boundary test reads the status specification as UTF-8")]
 fn its_words_say_what_landed_since_the_brief() {
