@@ -169,6 +169,7 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
 }
 
 #[test]
+#[ignore = "story A's kept log is recorded by hand, not per landing (2026-11-12): record it, then run this"]
 #[expect(clippy::result_large_err, reason = "the replay wrapper preserves the complete mismatch diagnostic")]
 fn story_a_start_makes_its_project_and_adopts_widget() {
     // The native page's inputs through Try the playground, before its reply.
