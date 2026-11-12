@@ -197,7 +197,7 @@ fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, to
                     return true;
                 }
             }
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
         }
     }
     false

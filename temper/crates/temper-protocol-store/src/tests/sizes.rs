@@ -254,3 +254,18 @@ fn largest_forge_record_fits_the_application_ceiling() {
         * (u64::try_from(size_of::<Box<[u8]>>()).unwrap() + u64::from(limits.copy_intent_addresses_item));
     assert_eq!(forge::stored_bytes(&row), Some(payload));
 }
+
+#[test]
+fn a_full_finding_reaches_its_bound_without_growing_the_application_row() {
+    let row = forge::Stored::Finding(fixtures::finding());
+    let encoded = records::encode(&row);
+    let limits = records::limits(&fixtures::LIMITS).unwrap();
+    let bound = crate::v11::Finding::encoded_bound(&limits).unwrap();
+    assert_eq!(encoded.len(), usize::try_from(bound).unwrap() + 3, "Row version and Value tag frame the finding");
+    assert!(bound < u64::from(APPLICATION_ROW_BYTES));
+    let full = crate::v11::Row::decode(&limits, &mut skein_lib::Reader::new(&encoded)).unwrap();
+    let crate::v11::Value::Finding(finding) = full.into_parts().value else { panic!("finding value") };
+    let mut parts = finding.into_parts();
+    parts.body = Box::new([b'b'; 4097]);
+    crate::v11::Finding::new(&crate::v11::CEILINGS, parts).unwrap_err();
+}

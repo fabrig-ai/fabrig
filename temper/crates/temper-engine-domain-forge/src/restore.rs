@@ -301,6 +301,15 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.aways.capacity(),
             d.aways.contains_key(&(row.party, row.project)),
         ),
+        Stored::Finding(row) => {
+            let replacing = d.finding_rows().contains_key(&(row.project, row.number));
+            let mut held = 0_u32;
+            for _ in d.finding_rows().range((row.project, 0)..=(row.project, u32::MAX)) {
+                held = held.saturating_add(1);
+            }
+            room(K::Finding, Rows(K::Finding), held, l.findings_per_project, replacing)?;
+            room(K::Finding, Rows(K::Finding), d.finding_rows().len(), l.findings(), replacing)
+        }
         Stored::Decided(row) => {
             let replacing = d.decisions.contains_key(&(row.project, row.number));
             let mut held = 0_u32;

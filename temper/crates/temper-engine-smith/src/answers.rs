@@ -1369,6 +1369,10 @@ fn subscription_refusal(
 fn subscription_topic(text: &mut Text, topic: &temper_engine_domain_forge::Topic) -> Result<(), Problem> {
     use temper_engine_domain_forge::Topic;
     let repository = match topic {
+        Topic::Findings { project } => {
+            text.add(b"findings project ")?;
+            return text.number(u64::from(*project));
+        }
         Topic::Landings { repository, branch } => {
             text.add(b"landings branch ")?;
             text.add(branch)?;
@@ -1383,7 +1387,7 @@ fn subscription_topic(text: &mut Text, topic: &temper_engine_domain_forge::Topic
             text.add(match topic {
                 Topic::Pull { .. } => b"pull ",
                 Topic::Participation { .. } => b"participation ",
-                Topic::Landings { .. } | Topic::Ci { .. } => unreachable!("numbered topic"),
+                Topic::Landings { .. } | Topic::Ci { .. } | Topic::Findings { .. } => unreachable!("numbered topic"),
             })?;
             text.number(*number)?;
             *repository

@@ -213,6 +213,7 @@ pub(super) fn queues(
             | Document::Status(_)
             | Document::Aways(_)
             | Document::Decisions(_)
+            | Document::Findings(_)
             | Document::Dismissals(_),
         )
         | None => None,
