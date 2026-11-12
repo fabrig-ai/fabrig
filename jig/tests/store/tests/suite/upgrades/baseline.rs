@@ -79,7 +79,11 @@ fn baseline_fixture_sets() -> PatchSets {
     let first: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[0]).into_boxed_str());
     let (_, blocks) = jig_protocol_store::patches::PATCHES[1].split_once("\n\n").expect("real overlay blocks");
     let second: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[1]).into_boxed_str());
-    let texts = Box::leak(vec![first, second, jig_protocol_store::patches::PATCHES[2]].into_boxed_slice());
+    // The fixture has no third patch: its header names the fixture's owner, as the
+    // planner reads each patch's owner against its set's name.
+    let (_, blocks) = jig_protocol_store::patches::PATCHES[2].split_once("\n\n").expect("real retry blocks");
+    let third: &'static str = Box::leak(format!("patch 1\nowner {} 3\n\n{blocks}", jig.name).into_boxed_str());
+    let texts = Box::leak(vec![first, second, third].into_boxed_slice());
     PatchSets {
         sets: Box::leak(Box::new([
             jig_protocol_store::SKEIN_PATCH_SET,
@@ -202,7 +206,7 @@ fn baseline_store_is_patched_from_zero_and_opens() {
     assert_eq!(world.active(), b"2\n");
     assert_eq!(
         world.patched().iter().map(|(owner, patch, _)| (*owner, *patch)).collect::<Vec<_>>(),
-        [(Owner::Application, 1), (Owner::Jig, 1), (Owner::Application, 2), (Owner::Jig, 2),]
+        [(Owner::Application, 1), (Owner::Jig, 1), (Owner::Application, 2), (Owner::Jig, 2), (Owner::Jig, 3)]
     );
     records.check(&mut world, 2, &"baseline patched from zero");
     let manifest = world.contents().remove(b"generations/2/manifest".as_slice()).flatten().expect("patched manifest");
