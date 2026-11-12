@@ -78,7 +78,7 @@ are keyed by the test's process names, including `visitor` and `git`.
 | Shared forge before start | 6,981 | not separately measured at start |
 
 Measured 2026-11-12 (`date -u +%F`), on a builder, from the stock-charter
-source at commit `a351fa06a39e09d10e11548b0d52337526f5ac37`. The focused
+source at commit `a983a9a0aff2d8d51333bd917164fedeefe61e35`. The focused
 `story_as_world_at_its_first_step_and_start` test binds every figure in this
 table to `figure + figure / 4`, with the same set of figures and margin.
 All figures came from one run of that test, with its regression comparisons
@@ -87,7 +87,7 @@ suspended for measurement and then restored against this table. Start takes
 
 | Process | First step held | First step peak | Start held | Start peak |
 |---|---:|---:|---:|---:|
-| 0: service (engine + worker) | 206,864 | 340,803 | 341,071 | 449,921 |
+| 0: service (engine + worker) | 206,908 | 340,891 | 341,137 | 450,031 |
 | 1: fake LLM | 27,449 | 27,449 | 28,185 | 28,185 |
 | 2: fake forge HTTP | 30,130 | 30,130 | 30,871 | 30,915 |
 | 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
@@ -95,14 +95,14 @@ suspended for measurement and then restored against this table. Start takes
 
 | Outside the processes | First step retained | Start retained |
 |---|---:|---:|
-| Fake disk | 9,393 | 216,572 |
+| Fake disk | 9,393 | 216,638 |
 | Shared forge before start | 7,061 | not separately measured at start |
 
-The stock's five files contain 31,608 bytes. Their assembled instructions,
-including the parts' joining blank lines, hold 33,163 bytes across the goal
+The stock's five files contain 31,630 bytes. Their assembled instructions,
+including the parts' joining blank lines, hold 33,185 bytes across the goal
 and implementer charters, up from 11,451 bytes. Service held growth is
-62,147 bytes at the first step and 101,925 bytes at start, much more than the
-21,712-byte text growth: this points to multiple owned copies of the text,
+62,191 bytes at the first step and 101,991 bytes at start, much more than the
+21,734-byte text growth: this points to multiple owned copies of the text,
 not one copy. These snapshots do not attribute each allocation to a copy.
 
 The following one-process observation is the unbound 2026-11-08 measurement;
