@@ -55,19 +55,30 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, follow
     };
     let executor = tasks::Executor::Procedure { connector: domain.config.forge_connector, code: super::FOLLOW_CODE };
     let spec = tasks::Spec {
-        job: None, asks: false, words: words.into_boxed(), parameters: Box::new([]), inputs: Box::new([]),
+        job: None,
+        asks: false,
+        words: words.into_boxed(),
+        parameters: Box::new([]),
+        inputs: Box::new([]),
     };
     let contract = tasks::Contract::Report { words: env.limits.tasks.result_bytes };
     row.task = Some(seed.number());
     match setting.owner {
         forge::settings::FollowOwner::Person(_) => {
             domain.work.push(Work::Core(jig_domain_core::Event::ConnectorRepair {
-                seed: Box::new(seed), executor, spec, contract, holdings: Box::new([]),
+                seed: Box::new(seed),
+                executor,
+                spec,
+                contract,
+                holdings: Box::new([]),
             }));
             domain.work.push(Work::Forge(forge::Event::Follow { row }));
         }
         forge::settings::FollowOwner::Task(owner) => {
-            let Some(context) = domain.core.tasks.delegation(owner) else { return };
+            let Some(context) = domain.core.tasks.delegation(owner) else {
+                stop(domain, row, owner, b"lifetime task capacity or unavailable owner");
+                return;
+            };
             match seed.delegate(owner, &context, domain.config.forge_connector, super::FOLLOW_CODE, spec, contract) {
                 Ok(event) => {
                     domain.work.push(Work::Forge(forge::Event::Follow { row }));
@@ -88,19 +99,25 @@ fn stop(domain: &mut Domain, mut row: forge::FollowRow, owner: u64, why: &[u8]) 
     domain.work.push(Work::Forge(forge::Event::Follow { row }));
 }
 fn refusal(why: tasks::Refusal) -> &'static [u8] {
-    if why == tasks::Refusal::Funding { b"insufficient spend" }
-    else if why == tasks::Refusal::Depth { b"delegation depth" }
-    else if why == tasks::Refusal::Tree { b"lifetime task capacity" }
-    else { b"task admission refused" }
+    if why == tasks::Refusal::Funding {
+        b"insufficient spend"
+    } else if why == tasks::Refusal::Depth {
+        b"delegation depth"
+    } else if why == tasks::Refusal::Tree {
+        b"lifetime task capacity"
+    } else {
+        b"task admission refused"
+    }
 }
 pub(crate) fn make_refused(domain: &mut Domain, task: u64, why: tasks::Refusal) -> bool {
-    if domain.core.tasks.task(task).is_some() { return false; }
+    if domain.core.tasks.task(task).is_some() {
+        return false;
+    }
     let Some(row) = domain.forge.follow_task(task).cloned() else { return false };
     let Some(setting) = domain.forge.follow(row.project, row.follow) else { return false };
     let forge::settings::FollowOwner::Task(owner) = setting.owner else { return false };
     stop(domain, row, owner, refusal(why));
     true
-
 }
 fn branch<'a>(named: &'a [u8], repository: &'a forge::Repository) -> &'a [u8] {
     if named.is_empty() { &repository.settings.default_branch } else { named }
@@ -139,7 +156,9 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     };
     let mut count = 0_u32;
     for entry in &row.queue {
-        if let forge::FollowState::Ended(_) = entry.state { break; }
+        if let forge::FollowState::Ended(_) = entry.state {
+            break;
+        }
         if entry.change.is_none() {
             count = count.saturating_add(1);
         }
@@ -152,7 +171,9 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     let spend = super::change_batch_spend(&delegation, count.max(1)).unwrap_or(0);
     let mut previous = None;
     for entry in &row.queue {
-        if let forge::FollowState::Ended(_) = entry.state { break; }
+        if let forge::FollowState::Ended(_) = entry.state {
+            break;
+        }
         if entry.change.is_none() && batch.room() > 0 {
             let Some(mut member) = delegate(domain, env, &delegation, &row, entry, &setting, spend, count.max(1))
             else {
@@ -210,7 +231,9 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     }
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     let mut credits = List::uncapped();
-    for credit in &domain.core.tasks.task(task).expect("live follow").questions { credits.push(credit.number).expect("live credits"); }
+    for credit in &domain.core.tasks.task(task).expect("live follow").questions {
+        credits.push(credit.number).expect("live credits");
+    }
     let credits = credits.into_boxed();
     domain
         .follow_steps
@@ -233,7 +256,9 @@ pub(crate) fn remake_tail(domain: &Domain, row: &mut forge::FollowRow, from: usi
                 cancels.push(StepCancel { task, reason: reason.into_boxed(), grace: None }).expect("follow queue");
             }
             entry.change = None;
-            if !matches_owner_hold(&entry.state) { entry.state = forge::FollowState::NotMade; }
+            if !matches_owner_hold(&entry.state) {
+                entry.state = forge::FollowState::NotMade;
+            }
             entry.remake = false;
         }
     }
@@ -409,18 +434,34 @@ fn take_questions(domain: &Domain, task: u64, row: &mut forge::FollowRow) {
     row.questions = questions.into_boxed();
 }
 fn matches_person(owner: forge::settings::FollowOwner) -> bool {
-    match owner { forge::settings::FollowOwner::Person(_) => true, forge::settings::FollowOwner::Task(_) => false }
+    match owner {
+        forge::settings::FollowOwner::Person(_) => true,
+        forge::settings::FollowOwner::Task(_) => false,
+    }
 }
-fn relay(domain: &Domain, env: &Env<Limits>, task: u64, row: &mut forge::FollowRow, decision: &mut ProcedureStep) -> (Box<[u64]>, bool) {
+fn relay(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    row: &mut forge::FollowRow,
+    decision: &mut ProcedureStep,
+) -> (Box<[u64]>, bool) {
     let mut asked = List::uncapped();
     let mut more = false;
     let Some(record) = domain.core.tasks.task(task) else { return (asked.into_boxed(), more) };
     let tasks::Party::Task(owner) = record.requester else { return (asked.into_boxed(), more) };
     let mut messages = List::with_capacity(env.limits.tasks.batch);
-    for message in core::mem::replace(&mut decision.messages, Box::new([])) { messages.push(message).expect("message room"); }
+    for message in core::mem::replace(&mut decision.messages, Box::new([])) {
+        messages.push(message).expect("message room");
+    }
     for question in &row.questions {
-        if question.relayed.is_some() { continue; }
-        if messages.room() == 0 { more = true; continue; }
+        if question.relayed.is_some() {
+            continue;
+        }
+        if messages.room() == 0 {
+            more = true;
+            continue;
+        }
         let mut words = List::uncapped();
         append(&mut words, b"Follow ");
         append(&mut words, &super::decimal(u64::from(row.follow)));
@@ -430,9 +471,17 @@ fn relay(domain: &Domain, env: &Env<Limits>, task: u64, row: &mut forge::FollowR
         append(&mut words, &super::decimal(question.number));
         append(&mut words, b"):\n\n");
         append(&mut words, &question.words);
-        messages.push(StepMessage { target: owner, kind: tasks::MessageKind::Question,
-            words: forge::text::fit(words.as_slice(), skein_lib::usize_of(env.limits.tasks.message_bytes), "…".as_bytes()),
-        }).expect("relay room");
+        messages
+            .push(StepMessage {
+                target: owner,
+                kind: tasks::MessageKind::Question,
+                words: forge::text::fit(
+                    words.as_slice(),
+                    skein_lib::usize_of(env.limits.tasks.message_bytes),
+                    "…".as_bytes(),
+                ),
+            })
+            .expect("relay room");
         asked.push(question.number).expect("admitted questions");
     }
     decision.messages = messages.into_boxed();
@@ -549,15 +598,21 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
     let record = domain.core.tasks.task(task).expect("admitted follow step");
     let mut credits = List::uncapped();
     for credit in &record.questions {
-        if !pending.credits.contains(&credit.number) { credits.push(credit.number).expect("admitted credits"); }
+        if !pending.credits.contains(&credit.number) {
+            credits.push(credit.number).expect("admitted credits");
+        }
     }
     assert_eq!(pending.asked.len(), skein_lib::usize_of(credits.len()), "each admitted relay has one credit");
     for (source, admitted) in pending.asked.iter().zip(credits.as_slice()) {
         for question in &mut pending.row.questions {
-            if question.number == *source { question.relayed = Some(*admitted); }
+            if question.number == *source {
+                question.relayed = Some(*admitted);
+            }
         }
     }
-    if pending.more { domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task })); }
+    if pending.more {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+    }
     for entry in &pending.row.queue {
         if let Some(task) = entry.change
             && let Some(record) = domain.core.tasks.task(task)
@@ -633,7 +688,9 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
     } else if let tasks::Party::Task(parent) = task.requester
         && let Some(mut row) = domain.forge.follow_task(parent).cloned()
     {
-        if row.stopped.is_some() { return; }
+        if row.stopped.is_some() {
+            return;
+        }
         for ((task, _), _) in &domain.follow_steps {
             if *task == parent {
                 return;

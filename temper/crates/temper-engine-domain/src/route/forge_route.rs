@@ -5325,12 +5325,7 @@ pub(crate) fn outputs(
                 domain.work.push(Work::Tasks(tasks::Event::Cancel {
                     reply_to: ReplyTo::new(Token::new(task)),
                     by: tasks::Party::Deployment { project },
-                    operation: tasks::Cancel {
-                        task,
-                        reason,
-                        grace: None,
-                        message: None,
-                    },
+                    operation: tasks::Cancel { task, reason, grace: None, message: None },
                 }));
             }
             forge::Request::TierRun { repository, tier, number, tip } => {

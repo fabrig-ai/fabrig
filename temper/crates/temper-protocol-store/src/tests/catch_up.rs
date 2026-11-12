@@ -2,7 +2,7 @@
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::bytes;
 
-fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+pub(super) fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
         versions: 6,
@@ -45,7 +45,7 @@ fn baseline_golden(name: &str) -> Box<[u8]> {
     kept_golden(0, name)
 }
 
-fn kept_golden(version: usize, name: &str) -> Box<[u8]> {
+pub(super) fn kept_golden(version: usize, name: &str) -> Box<[u8]> {
     let schema = skein_codegen::parse(crate::patches::kept::temper_store::TEXTS[version]).expect("old schema");
     for golden in skein_codegen::generate(&schema).goldens {
         if golden.name == name {

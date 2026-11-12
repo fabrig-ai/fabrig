@@ -221,12 +221,19 @@ pub fn followed(d: &mut Domain, project: u32, follow: u32, afters: &[Commit], ou
     row.queue = queue.into_boxed();
     save(row, out);
 }
-pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, before: Option<crate::settings::FollowOwner>, out: &mut Queue<Request>) {
+pub(crate) fn keep(
+    d: &mut Domain,
+    project: u32,
+    follow: u32,
+    before: Option<crate::settings::FollowOwner>,
+    out: &mut Queue<Request>,
+) {
     let key = (project, follow);
     if let Some(setting) = d.follow(project, follow).cloned() {
         if let Some(row) = d.follow_rows.get_mut(&key) {
             let changed = match (before, setting.owner) {
-                (Some(crate::settings::FollowOwner::Person(_)), crate::settings::FollowOwner::Person(_)) | (None, crate::settings::FollowOwner::Person(_) | crate::settings::FollowOwner::Task(_)) => false,
+                (Some(crate::settings::FollowOwner::Person(_)), crate::settings::FollowOwner::Person(_))
+                | (None, crate::settings::FollowOwner::Person(_) | crate::settings::FollowOwner::Task(_)) => false,
                 (Some(owner), next) => owner != next,
             };
             if changed {
@@ -294,7 +301,8 @@ pub fn remaking(row: &mut FollowRow) {
             break;
         }
         entry.change = None;
-        if let FollowState::HeldByOwner(_) = entry.state {} else {
+        if let FollowState::HeldByOwner(_) = entry.state {
+        } else {
             entry.state = FollowState::NotMade;
         }
         entry.remake = false;

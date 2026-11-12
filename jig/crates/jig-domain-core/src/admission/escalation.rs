@@ -94,6 +94,34 @@ fn job_requester(core: &Core, context: &tasks::EscalationContext, parent: u64) -
     }
 }
 
+/// A standing agent's requester ends it, but it still decides its delegates' holds.
+fn standing_requester(core: &Core, task: u64) -> bool {
+    let Some(row) = core.tasks.task(task) else { return false };
+    if row.flags.ended_by != tasks::EndedBy::Standing || !row.waiting_on.is_empty() {
+        return false;
+    }
+    for credit in &row.questions {
+        if credit.asked == row.requester {
+            return false;
+        }
+    }
+    match (row.executor, &row.phase) {
+        (tasks::Executor::Agent { .. }, tasks::Phase::Waiting | tasks::Phase::Active(_)) => true,
+        (
+            tasks::Executor::Agent { .. },
+            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_),
+        )
+        | (
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. },
+            tasks::Phase::Waiting
+            | tasks::Phase::Active(_)
+            | tasks::Phase::Held { .. }
+            | tasks::Phase::Closing(_)
+            | tasks::Phase::Ended(_),
+        ) => false,
+    }
+}
+
 fn recipient_after(
     core: &Core,
     limits: &Limits,
@@ -122,7 +150,7 @@ fn recipient_after(
                     return fallback(core, context.project);
                 };
                 if passed
-                    && (holder.deciding || job_requester(core, context, parent))
+                    && (holder.deciding || standing_requester(core, parent) || job_requester(core, context, parent))
                     && holder.project == context.project
                     && authority::covers(
                         &core.authority,
