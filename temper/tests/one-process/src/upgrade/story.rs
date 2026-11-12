@@ -1,4 +1,6 @@
 //! History through a fresh-window start (temper/docs/design/testing/README.md, 2.5).
+mod image;
+mod cuts;
 use super::{FIXTURE_SETS, maps::Maps};
 use crate::{ctl, fixtures, golden, referee, stories, world::{self, HarnessProcess, Person, ServiceObserver, Story}};
 use jig_domain_core::{CoreRecord, Record};
@@ -18,6 +20,7 @@ impl Harness for Upgrade {
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds { fixtures::seeds() }
     fn agent_seed(_: u64) -> u64 { fixtures::SEED }
+    fn provider(_: u64) -> skein_fake_peers::llm::Peer { provider() }
     fn files() -> temper_service::settings::Files { fixtures::files() }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         let temper_service::stock::Given::Own {mut jig, forge, ways} = temper_playground::documents::given(document) else { panic!("world defaults") };
@@ -32,6 +35,7 @@ impl Harness for Upgrade {
     }
 }
 #[derive(Default)]
+#[expect(clippy::struct_excessive_bools, reason = "independent upgrade, history, fault and effect observations")]
 struct State {
     upgrade: bool,
     before: Option<Maps>,
@@ -41,24 +45,42 @@ struct State {
     armed: bool,
     faulted: bool,
     write_at: Option<u32>,
-    old_wires: u64,
     disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     task: u64,
     attempt: u64,
     tokens: Vec<(skein_lib::Secret, u64)>,
     users: Vec<(u64, Box<[u8]>)>,
     kept_answer: Vec<u8>,
+    points: cuts::Points,
+    epoch: u32,
+    epoch_floor: Option<u64>,
+    transport: Option<temper_fake_git_hosted::Typed>,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
-struct Observer { inner: ServiceObserver }
+struct Observer { inner: ServiceObserver, cuts: cuts::Capture }
 impl Observe for Observer {
     fn started(root: Fd, inherited: &skein_world::Inherited) -> Self {
-        STATE.with(|s| s.borrow_mut().starts += 1);
+        STATE.with(|s| {
+            let mut s = s.borrow_mut();
+            s.starts += 1;
+            s.epoch += 1;
+            if s.epoch > 1 {
+                STORE.with(|store| {
+                    let store = store.borrow();
+                    let mut store = store.as_ref().expect("store").borrow_mut();
+                    store.recovering();
+                    store.agent_records.clear();
+                });
+                s.epoch_floor = None;
+                s.checked = false;
+            }
+        });
         let mut inner = ServiceObserver::started(root, inherited);
         inner.wire.keep_starts();
-        Self { inner }
+        Self { inner, cuts: cuts::Capture::new(root) }
     }
     fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
+        STATE.with(|s| self.cuts.complete(&complete,self.inner.submitted,&mut s.borrow_mut().points));
         self.inner.complete(complete, service)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: Wall) -> bool {
@@ -67,9 +89,16 @@ impl Observe for Observer {
             let mut state = state.borrow_mut();
             if state.upgrade && !state.checked {
                 let wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().wires);
-                if wires.is_some_and(|n| n > state.old_wires) {
+                if state.epoch_floor.is_none() {
+                    state.epoch_floor = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().restored.as_ref().and_then(|rows| rows.values().find_map(|r| match r {
+                        temper_engine_domain::Record::Core(Record::Core(CoreRecord::Deployment(header))) => Some(header.commits),
+                        _ => None,
+                    })));
+                }
+                if wires.is_some_and(|n| n > state.epoch_floor.unwrap_or(u64::MAX)) {
                     let after = Maps::read(&mut state.disk.as_ref().expect("disk").borrow_mut());
                     history(state.before.as_ref().expect("stop snapshot"), &after);
+                    state.points.wires.get_or_insert(self.inner.submitted);
                     state.checked = true;
                 }
             }
@@ -166,6 +195,7 @@ struct Judge {
     client_started: bool,
     ledger: Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>,
     finished: bool,
+    epoch: u32,
 }
 impl Judge {
     fn stop_peers(&mut self, procs: &mut [Proc]) {
@@ -187,6 +217,8 @@ impl Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _: Time, procs: &mut [Proc]) {
+        let epoch = STATE.with(|s| s.borrow().epoch);
+        if epoch != self.epoch { self.epoch=epoch; self.client_started=false; self.stopped=false; self.finished=false; self.released=false; }
         let (first, others) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
         if !self.upgrade && let Some(link) = service.service.links().pop() {
@@ -237,7 +269,7 @@ impl skein_world::Referee<Proc> for Judge {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
                     for answer in &caller.answers { assert_eq!(answer.exit,skein_io::kernel::Exit::Code(0),"ctl: {}",String::from_utf8_lossy(&answer.error)); }
                     if self.upgrade { STATE.with(|s| assert_eq!(caller.answers[0].output,s.borrow().kept_answer,"replayed key is answered from its record")); }
-                    else { STATE.with(|s| s.borrow_mut().kept_answer = caller.answers[0].output.clone()); }
+                    else { STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&caller.answers[0].output)); }
                 }
             }
             if self.upgrade { continued(&self.store.borrow()); }
@@ -277,7 +309,15 @@ impl skein_world::Referee<Proc> for Judge {
 }
 
 /// The service stops settled, then starts with the mark-only fixture sets.
-pub fn settled() {
+pub fn settled() { run(None); }
+
+/// A fixed completed operation during the copy-to-wires interval.
+pub fn power_loss(point: usize) { run(Some(Selection::Fixed(point))); }
+/// A seed draws one service submission across the whole upgrade start.
+pub fn drawn_power_loss(seed: u64) { run(Some(Selection::Drawn(seed))); }
+enum Selection { Fixed(usize), Drawn(u64) }
+
+fn run(selection: Option<Selection>) {
     STATE.with(|s| *s.borrow_mut() = State::default());
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
@@ -287,7 +327,7 @@ pub fn settled() {
     temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
     let store = Rc::new(RefCell::new(referee::Store::new()));
     let ledger = Rc::new(RefCell::new(Vec::new()));
-    let disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, false);
+    let disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, false,None);
     assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
     let mut disk = disk;
     let before = Maps::read(&mut disk);
@@ -295,42 +335,73 @@ pub fn settled() {
         let mut s = s.borrow_mut();
         s.before = Some(before);
         s.upgrade = true;
-        s.old_wires = store.borrow().applied;
+        s.points = cuts::Points::default();
     });
     store.borrow_mut().recovering();
-    let _disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, true);
+    if let Some(selection) = selection {
+        let image = image::Image::read(&mut disk);
+        let _calibration = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,None);
+        let before = STATE.with(|s| {
+            let s = s.borrow();
+            let points = s.points.fixed();
+            assert!(points.windows(2).all(|pair| pair[0] <= pair[1]),"copy, patch, switch, wires in order: {points:?}");
+            match selection {
+                Selection::Fixed(index) => points[index],
+                Selection::Drawn(seed) => {let mut draw=skein_lib::Rng::new(seed); points[0] + u32::try_from(draw.below(u64::from(points[3]-points[0]+1))).expect("bounded cut")},
+            }
+        });
+        eprintln!("upgrade power cut before service submission {before}");
+        store.borrow_mut().recovering();
+        store.borrow_mut().agent_records.clear();
+        let disk = image.restore(&mut store.borrow_mut());
+        STATE.with(|s| {let mut s=s.borrow_mut(); s.checked=false; s.points=cuts::Points::default();});
+        let _disk = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,Some(before));
+        assert_eq!(STATE.with(|s| s.borrow().epoch),2,"power loss restarted the service");
+    } else {
+        let _disk = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,None);
+    }
     assert!(STATE.with(|s| s.borrow().checked), "history checked before the root acts");
     assert_eq!(ledger.borrow().iter().filter(|o| matches!(o, skein_fake_forge_domain::Observation::Opened {title,..} if title.as_ref() == b"Upgrade once")).count(), 1, "uncertain write made once across starts");
     world::lower_store(None);
     STORE.with(|s| *s.borrow_mut() = None);
 }
 
-fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &temper_fake_git_hosted::Typed, store: &Rc<RefCell<referee::Store>>, ledger: &Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>, upgrade: bool) -> skein_fake_machine::Machine {
+fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &temper_fake_git_hosted::Typed, store: &Rc<RefCell<referee::Store>>, ledger: &Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>, upgrade: bool, cut: Option<u32>) -> skein_fake_machine::Machine {
     world::lower_store(Some(store.clone()));
     STORE.with(|s| *s.borrow_mut() = Some(store.clone()));
     let mut disk = disk;
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let client = (!upgrade).then(|| disk.reopen_root(2));
-    let caller_root = disk.reopen_root(2);
+
     let machine = Machine::new(disk);
-    STATE.with(|s| s.borrow_mut().disk = Some(machine.0.clone()));
+    STATE.with(|s| {
+        let mut s = s.borrow_mut();
+        s.disk = Some(machine.0.clone());
+        s.epoch = 0;
+        s.epoch_floor = None;
+        s.transport = Some(transport.clone());
+    });
     let document = serde_json::from_slice(configuration).expect("configuration");
     let params = programs::Parameters { deployment: configuration.into(), seed: fixtures::SEED, links: Links::Keep, forge: transport.clone(), route: temper_playground::story::route(&document), disk: machine.0.clone() };
     let mut outcome = programs::with(params, || {
-        let mut world = skein_world::World::new_controlled(fixtures::SEED, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(), transport: transport.clone(), upgrade, stopped:false, released:false, client_started:false, ledger:ledger.clone(), finished:false }).with_machine(machine);
+        let mut world = skein_world::World::new_controlled(fixtures::SEED, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(), transport: transport.clone(), upgrade, stopped:false, released:false, client_started:false, ledger:ledger.clone(), finished:false, epoch:0 }).with_machine(machine);
         for (program, roots) in programs::programs::<Upgrade>() { world.host_roots(program, roots); }
         world.host_roots(ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn,inherited))))), ctl::roots);
         world.spawn_restartable(programs::service_roots(), programs::service::<Upgrade>);
-        world.spawn_root(skein_sim::Handle::new(caller_root.raw()), |root| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted(root)))));
+        world.spawn_restartable(vec![skein_world::StartupRoot { name:b"private".as_slice().into(),path:b"client".as_slice().into() }],|inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))));
         if !upgrade {
             world.spawn_root(skein_sim::Handle::new(client.expect("first client").raw()), |root| Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::welcome(root, golden::person_steps()).with_account_after(7),None)))));
         }
-        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(provider(), None))));
-        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge_peer(transport),None))));
+        world.spawn_restartable(vec![], programs::llm::<Upgrade>);
+        world.spawn_restartable(vec![], |inherited| {
+            let transport = STATE.with(|s| s.borrow().transport.as_ref().expect("forge").clone());
+            programs::fake_forge(forge_peer(&transport),inherited)
+        });
+        if let Some(before) = cut { world.cut(0,before,skein_world::Cut::PowerLoss); }
         world.run()
     });
     for proc in &mut outcome.procs {
-        if let Proc::Forge(peer) = proc {
+        if !upgrade && let Proc::Forge(peer) = proc {
             STATE.with(|s| {
                 let mut s = s.borrow_mut();
                 s.tokens = peer.setup_mut().issued().iter().map(|t| (t.secret.clone(), t.user)).collect();
