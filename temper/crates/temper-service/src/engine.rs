@@ -133,7 +133,7 @@ impl Engine {
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
-        store.routes.patch_context.executors = config.core.defaults.rules.ceiling.delegation.kinds.clone();
+        store.routes.patch_context.executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
             Err(problem) => {

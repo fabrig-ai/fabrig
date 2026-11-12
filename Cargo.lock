@@ -162,6 +162,7 @@ name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-codec",
  "skein-codegen",
  "skein-scratch",
  "skein-shell",

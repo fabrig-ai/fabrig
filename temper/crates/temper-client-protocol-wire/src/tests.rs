@@ -2,6 +2,7 @@
 mod drafts;
 mod fixtures;
 mod source;
+mod versions;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
