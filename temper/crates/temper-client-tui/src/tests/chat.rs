@@ -120,6 +120,10 @@ fn cancelled_task() -> c::Task {
 }
 #[expect(clippy::struct_excessive_bools, reason = "fixture flags independently supply chat, prompt and document facts")]
 struct Input {
+    proposal: bool,
+    talk: bool,
+    now: bool,
+    weekly: bool,
     task: Option<Box<c::Task>>,
     rows: Box<[c::DecodedActivityLine]>,
     writing: Option<&'static [u8]>,
@@ -138,6 +142,10 @@ struct Input {
 impl Input {
     fn empty() -> Self {
         Self {
+            proposal: false,
+            talk: false,
+            now: false,
+            weekly: true,
             task: None,
             rows: Box::default(),
             writing: None,
@@ -184,7 +192,7 @@ fn root(input: &Input) -> Domain {
     let mut opened = chat_event(
         &mut root,
         Event::Start {
-            address: Address::Chat { task: TASK },
+            address: if input.talk { Address::Talk { project: 1, task: TASK } } else { Address::Chat { task: TASK } },
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
@@ -279,6 +287,37 @@ fn root(input: &Input) -> Domain {
     let mut activity_answered = false;
     while let Some(request) = out.pop() {
         let up = match request {
+            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } } } if input.proposal => {
+                let mut proposal = jig_client_protocol_link::translate::objects::proposal(jig_client_test_records::pending_proposal_record(), &link()).unwrap();
+                proposal.project = 1;
+                proposal.reason = c::DocumentText::complete(text(b"Use plain conditions"));
+                proposal.acts = List::from_boxed(Box::new([c::Offered { act: c::ActKind::Accept, admission: c::Admission::Allowed, effect: None }]));
+                Some(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(Box::new(proposal)))) })
+            }
+            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } } } } if input.talk => {
+                let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
+                if let w::Watch::Findings(_) = watching.watch() {
+                    let holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: TASK }).unwrap());
+                    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: TASK }).unwrap());
+                    let areas = List::from_boxed(Box::new([w::AreaRow::new(&w::CEILINGS, w::AreaRowParts { name: b"vsr-rs".as_slice().into(), words: b"The port".as_slice().into(), owner: owner.clone(), holder: Some(holder.clone()) }).unwrap()]));
+                    let value = w::Findings::new(&w::CEILINGS, w::FindingsParts { project: 1, rows: List::with_capacity(0), areas, triager: if input.weekly { None } else { Some(owner) }, holder, cut: false }).unwrap();
+                    Some(jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::findings(&value) } })
+                } else { None }
+            }
+            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Project { .. }) } } } if input.talk => {
+                let mut project = super::launchpad::team::project();
+                if input.weekly {
+                    project.current_period = Some(c::PoolLedger { source: c::Funder::Period { project: 1, period: 1 }, parent: None, numbers: c::Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 }, left: 100, began: Some(Wall::EPOCH), next: Some(Wall::from_nanos(604_800_000_000_000)), closed: false });
+                }
+                Some(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(project)))) })
+            }
+            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) } } } if input.talk && input.now => {
+                let mut page = super::launchpad::team::now(scope);
+                let note = page.rows.get_mut(0).unwrap();
+                note.body = c::DocumentText::complete(text(b"two landings behind; porting the witness catch-up check, waiting on the handoff fix"));
+                note.changed = Some(Wall::from_nanos(418 * 60_000_000_000));
+                Some(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(page)))) })
+            }
             d::Request::Unlinked {
                 request:
                     UnlinkedRequest::Down {
@@ -539,6 +578,31 @@ pub(super) fn reply_root(case: &str) -> Domain {
         asking: case == "writing draft",
         ..Input::empty()
     })
+}
+
+pub(super) const ROLE_CHOICES: &[u8] = "That's a rule for every port. Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes();
+pub(super) fn talk_root(case: &str) -> Domain {
+    let mut role = task();
+    role.chip.title = c::DocumentText::complete(text(b"Porter"));
+    role.budget.numbers.spent = 49;
+    role.budget.numbers.budget = 60;
+    role.talk = if case == "closed" { None } else { Some(c::Talk { party: 73, opened: Wall::EPOCH, last: Wall::EPOCH }) };
+    if case == "proposal" { role.proposals = List::from_boxed(Box::new([c::ProposalKey { proposer: c::Proposer::Party(11), number: 13 }])); }
+    let mut rows = List::uncapped();
+    rows.push(words(c::Requester::Person(73), b"Earlier activity is private to an earlier talk")).unwrap();
+    if case != "unknown cost" {
+        rows.push(line(2, c::Activity::TalkOpened { party: 73 })).unwrap();
+    }
+    let mut said = words(c::Requester::Person(73), b"Fine. From now on, port likely() and unlikely() as plain conditions.");
+    said.source.position = 3;
+    rows.push(said).unwrap();
+    let mut reply = turn(&[c::Block::Text(text(ROLE_CHOICES))]);
+    reply.source.position = 4;
+    rows.push(reply).unwrap();
+    for (position, spent) in [(5, 30), (6, 12)] {
+        rows.push(line(position, c::Activity::RunEnded { attempt: ATTEMPT, spent, end: c::RunEnd::Parked })).unwrap();
+    }
+    root(&Input { proposal: case == "proposal", talk: true, now: case != "no Now", weekly: case != "period", task: Some(Box::new(role)), rows: rows.into_boxed(), ..Input::empty() })
 }
 
 fn view() -> crate::View {

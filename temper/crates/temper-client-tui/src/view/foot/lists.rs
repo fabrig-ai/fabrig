@@ -182,7 +182,8 @@ fn talk(root: &Domain, words: &Words) -> Options {
     if let Some(project) = project {
         name = super::project_name(root, Some(project)).unwrap_or_default();
         let areas = temper_client_domain::pages::team::areas(root, project);
-        for role in &temper_client_domain::pages::team::shown_at(root, project, skein_lib::Wall::EPOCH).facts().roles {
+        let shown = temper_client_domain::pages::team::shown_at(root, project, skein_lib::Wall::EPOCH);
+        if let Some(facts) = shown.facts() { for role in &facts.roles {
             let held = crate::view::talk::areas(areas.as_ref(), role.task);
             items.push(OptionItem {
                 name: role.name.clone(),
@@ -191,6 +192,7 @@ fn talk(root: &Domain, words: &Words) -> Options {
                 event: Event::Act { act: Act::Go { address: Address::Talk { project, task: role.task } } },
             }).expect("roles fit memory");
         }
+    }
     }
     let head = words.say(Word::TalkHead, &[Hole::Name(name)]);
     Options { style: look::OPTION, why: None, name: head.clone(), head: Some(head), items: items.into_boxed(), escape: Event::Dismiss }
@@ -201,7 +203,10 @@ pub(crate) fn proposal(root: &Domain, tui: &Tui, words: &Words) -> Option<Option
     for card in &chat.cards {
         if tui.proposal_aside(&card.object) || card.key.is_some() { continue; }
         let Some(jig_client::contract::ReadValue::Proposal(proposal)) = &card.page else { continue };
-        if jig_client::facts::offer(proposal.acts.as_slice(), jig_client::contract::ActKind::Accept).is_none() { continue; }
+        match jig_client::facts::offer(proposal.acts.as_slice(), jig_client::contract::ActKind::Accept) {
+            Some(jig_client::contract::Admission::Allowed | jig_client::contract::Admission::Bounded { .. }) => {},
+            Some(jig_client::contract::Admission::Refused(_) | jig_client::contract::Admission::Proposed { .. }) | None => continue,
+        }
         let Some(head) = shared::proposal_line(card, words.view()) else { continue };
         let object = card.object;
         return Some(Options {

@@ -588,26 +588,6 @@ impl Word {
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
             Self::Asked => 155,
-            Self::TalkCommand => (&[b"A role, about its area"], &[]),
-            Self::TalkStart => (&[b"a role, about its area"], &[]),
-            Self::TalkHead => (&[b"Talk with a role on ", b""], &[Slot::Title]),
-            Self::TalkingWith => (&[b"talking with "], &[]),
-            Self::RoleNumber => (&[b"role T", b""], &[Slot::Number]),
-            Self::StandingRole => (&[b" \xc2\xb7 a standing role"], &[]),
-            Self::Owns => (&[b" \xc2\xb7 owns "], &[]),
-            Self::TriagerOf => (&[b" \xc2\xb7 ", b"'s triager"], &[Slot::Title]),
-            Self::ThisWeek => (&[b" \xc2\xb7 this week ", b" of ", b""], &[Slot::Number, Slot::Number]),
-            Self::ThisPeriod => (&[b" \xc2\xb7 this period ", b" of ", b""], &[Slot::Number, Slot::Number]),
-            Self::ItsNow => (&[b"Its Now: "], &[]),
-            Self::ItsNowAt => (&[b"Its Now, ", b": "], &[Slot::Clock]),
-            Self::TalkReply => (&[b"Reply, or Esc to leave. ", b" writes its Now when you go."], &[Slot::Title]),
-            Self::TalkTo => (&[b"Talk to ", b", or Esc to go back."], &[Slot::Title]),
-            Self::AcceptIt => (&[b"Accept it"], &[]),
-            Self::NotNow => (&[b"Not now"], &[]),
-            Self::SessionMinutes => (&[b"this session ", b" min"], &[Slot::Number]),
-            Self::LeftAfter => (&[b"Left ", b" after ", b" min"], &[Slot::Title, Slot::Number]),
-            Self::LeftNow => (&[b". It writes its Now."], &[]),
-            Self::NoRole => (&[b"No role on ", b" is named ", b" \xc2\xb7 /talk lists them"], &[Slot::Title, Slot::Title]),
             Self::TeamHead => 156,
             Self::You => 157,
             Self::Triage => 158,
@@ -644,6 +624,26 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::TalkCommand => (&[b"A role, about its area"], &[]),
+            Self::TalkStart => (&[b"a role, about its area"], &[]),
+            Self::TalkHead => (&[b"Talk with a role on ", b""], &[Slot::Title]),
+            Self::TalkingWith => (&[b"talking with "], &[]),
+            Self::RoleNumber => (&[b"role T", b""], &[Slot::Number]),
+            Self::StandingRole => (&[b" \xc2\xb7 a standing role"], &[]),
+            Self::Owns => (&[b" \xc2\xb7 owns "], &[]),
+            Self::TriagerOf => (&[b" \xc2\xb7 ", b"'s triager"], &[Slot::Title]),
+            Self::ThisWeek => (&[b" \xc2\xb7 this week ", b" of ", b""], &[Slot::Number, Slot::Number]),
+            Self::ThisPeriod => (&[b" \xc2\xb7 this period ", b" of ", b""], &[Slot::Number, Slot::Number]),
+            Self::ItsNow => (&[b"Its Now: "], &[]),
+            Self::ItsNowAt => (&[b"Its Now, ", b": "], &[Slot::Clock]),
+            Self::TalkReply => (&[b"Reply, or Esc to leave. ", b" writes its Now when you go."], &[Slot::Title]),
+            Self::TalkTo => (&[b"Talk to ", b", or Esc to go back."], &[Slot::Title]),
+            Self::AcceptIt => (&[b"Accept it"], &[]),
+            Self::NotNow => (&[b"Not now"], &[]),
+            Self::SessionMinutes => (&[b"this session ", b" min"], &[Slot::Number]),
+            Self::LeftAfter => (&[b"Left ", b" after ", b" min"], &[Slot::Title, Slot::Number]),
+            Self::LeftNow => (&[b". It writes its Now."], &[]),
+            Self::NoRole => (&[b"No role on ", b" is named ", b" \xc2\xb7 /talk lists them"], &[Slot::Title, Slot::Title]),
             Self::TeamHead => (&[b"Team on ", b""], &[Slot::Title]),
             Self::You => (&[b"You"], &[]),
             Self::Triage => (&[b"triage"], &[]),
@@ -934,7 +934,10 @@ impl Words {
                 }
                 skein_lib::bytes::concat(&[&line, &self.say(Word::LeftNow, &[])])
             }
-            crate::Notice::NoRole { project, words } => self.say(Word::NoRole, &[Hole::Name(project.clone()), Hole::Name(words.clone())]),
+            crate::Notice::NoRole { project, words } => {
+                let bounded = skein_lib::bytes::utf8_prefix(words, usize::try_from(self.notice_bytes).expect("notice hole fits memory"));
+                self.say(Word::NoRole, &[Hole::Name(project.clone()), Hole::Name(copy_of(bounded))])
+            }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
             crate::Notice::Filed { number, project } => {
                 self.say(Word::FiledNotice, &[Hole::Number(u64::from(*number)), Hole::Name(copy_of(project))])

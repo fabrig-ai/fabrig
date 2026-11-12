@@ -17,7 +17,7 @@ pub(crate) struct Head {
     pub columns: u16,
 }
 pub(crate) fn available(root: &Domain, project: u32) -> bool {
-    !team::shown_at(root, project, Wall::EPOCH).facts().roles.is_empty()
+    match team::shown_at(root, project, Wall::EPOCH).facts() { Some(facts) => !facts.roles.is_empty(), None => false }
 }
 pub(crate) fn name(talk: &Talking, words: &Words) -> Box<[u8]> {
     match talk.name() {
@@ -69,7 +69,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words) -> Option<Head> {
         }
         None => None,
     };
-    Some(Head { project, name, address: crate::place(tui.address(), tui.front()), line, now, columns: tui.columns() })
+    Some(Head { project, name, address: copy_of(tui.address()), line, now, columns: tui.columns() })
 }
 pub(crate) fn session(talk: &Talking, words: &Words, wall: Wall) -> Option<Box<[u8]>> {
     let open = talk.open()?;

@@ -1,6 +1,6 @@
 //! The launchpad's states and hand-written frames (temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/tui/theme.md).
 #[path = "launchpad/team.rs"]
-mod team;
+pub(super) mod team;
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,
@@ -1447,7 +1447,7 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
         Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
     );
     for (name, page, expected) in [
-        ("brief and need", SurfacePage::Home { brief: true, needs: true }, Own::ALL.as_slice()),
+        ("brief and need", SurfacePage::Home { brief: true, needs: true }, &[Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme][..]),
         (
             "neither",
             SurfacePage::Home { brief: false, needs: false },

@@ -510,6 +510,7 @@ impl Host {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exhaustive dispatch binds each TUI event to its host acts")]
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
             tui::Event::Own { command } => self.own(command, duties),
@@ -840,7 +841,7 @@ impl Host {
             let words: Box<[u8]> = words.into();
             let project = self.root.pages().project().expect("launchpad project");
             let team = root::pages::team::shown_at(&self.root, project, self.env.wall);
-            if let Some(role) = team.facts().roles.iter().find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words))) {
+            if let Some(role) = team.facts().into_iter().flat_map(|facts| facts.roles.iter()).find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words))) {
                 self.act(Act::Go { address: Address::Talk { project, task: role.task } });
                 self.tell(Told::Cleared);
             } else {

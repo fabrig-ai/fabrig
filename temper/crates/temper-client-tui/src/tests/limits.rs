@@ -362,7 +362,7 @@ fn the_trees_fit_their_limits() {
     reason = "the boundary fixture builds maximum wire paths and collects the admitted views"
 )]
 fn chat_views() -> crate::view::chat::Chat {
-            head: None,    use crate::view::{
+    use crate::view::{
         chat::{Chat, Entry, Piece},
         foot,
         printed::Printed,

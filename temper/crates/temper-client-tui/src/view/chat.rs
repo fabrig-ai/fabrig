@@ -187,6 +187,7 @@ pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Bin
     }
     b.open(Role::Log);
     b.end_request(part.to_end);
+    if part.head.is_some() { text(b, Role::Paragraph, b"", None); }
     b.open(Role::List);
     b.style(look::SPACED);
     for item in &part.entries {
