@@ -24,7 +24,7 @@ fn stage() -> (Scratch, Home, PathBuf) {
     let scratch = Scratch::new("qa-drive-build");
     fs::write(
         scratch.path().join("qa.json"),
-        br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low"}}"#,
+        br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#,
     )
     .expect("config");
     let home = Home::open(scratch.path()).expect("home");

@@ -50,6 +50,35 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Arguments:** `NAME`: A recipe name not among the build's setups; a pass-added recipe may be replaced.; `FILE`: A JSON object with after, lines, readme and optional scripts; - reads stdin.
 - **Notes:** The drive session must be closed. A failed proof removes the recipe. Exits are pass setup's.
 
+### `temper-qa pass outcome`
+
+- **Set:** internal
+- **Forms:** `CASE RESULT NOTES [--finding N]...`
+- Record a case's outcome at once; the session's last outcome is the one its end reads.
+- **Arguments:** `CASE`: A case assigned to the session's pass.; `RESULT`: passed, failed or blocked.; `NOTES`: One argument, nonempty for blocked, saying why.; `[--finding N]...`: A finding of this case; repeat for each finding. A failed case names at least one.
+
+### `temper-qa pass finding`
+
+- **Set:** internal
+- **Forms:** `FILE`
+- Record a finding, copying its evidence and linking it to a matching open finding.
+- **Arguments:** `FILE`: A finding JSON file, or - to read stdin.
+- **Notes:** Evidence: at most 16 regular files, each at most 16 MiB, with distinct file names. An absent area takes the surface's configured area, else owner.
+
+### `temper-qa pass check`
+
+- **Set:** internal
+- **Forms:** `FINDING RESULT NOTES`
+- Check an open finding of the pass in a resumed session.
+- **Arguments:** `FINDING`: An open finding of the session's pass.; `RESULT`: holds or gone.; `NOTES`: One argument with the check's notes, possibly empty.
+
+### `temper-qa pass note`
+
+- **Set:** internal
+- **Forms:** `WORDS`
+- Record what the pass noticed off the green path.
+- **Arguments:** `WORDS`: One nonempty argument.
+
 ### `temper-qa show`
 
 - **Set:** internal
