@@ -226,7 +226,7 @@ fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
     world.store.patch_sets(AFTER);
     world.adopt();
     let mut yielded = false;
-    for _ in 0..1000 {
+    for _ in 0_u32..1000 {
         world.step();
         if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
             let hosted = Hosted { component: world.store, drivers: world.host, above: Queue::uncapped(), secrets: Queue::uncapped(), sources: Queue::uncapped(), env: fixtures::env(), not_ready: NotReady::Above, closing: false };
@@ -239,6 +239,8 @@ fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
     }
     assert!(yielded, "the marked patch exercises a yielded pass: {:?}", world.above);
     world.settle();
-    assert!(world.above.iter().any(|event| matches!(event, Event::Opened {pending:true,..})), "copy opens before the switch");
+    let mut opened=false;
+    for event in &world.above { if let Event::Opened {pending:true,..}=event {opened=true;} }
+    assert!(opened,"copy opens before the switch");
     world.close();
 }

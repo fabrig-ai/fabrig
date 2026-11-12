@@ -320,13 +320,15 @@ mod tests {
         let mut events=Queue::with_capacity(1);
         let mut below=Queue::uncapped();
         channel.from_below(skein_channel::LowerEvent::Read(skein_lib::stream::Up::End),&mut events,&mut below);
-        assert!(matches!(events.pop(),Some(Heard::Ended {..})));
+        let Some(Heard::Ended {..})=events.pop() else {panic!("channel end");};
         assert!(channel.has_work(),"written calls still owe terminals after the channel ended");
         channel.fire(&mut events,&mut below);
-        assert!(matches!(events.pop(),Some(Heard::Event {event}) if *event == smith_domain::Event::HostReturned {relay,reply:run::HostReply::Unanswered(run::Unanswered::Lost)}));
+        let Some(Heard::Event {event})=events.pop() else {panic!("lost host relay");};
+        assert_eq!(*event,smith_domain::Event::HostReturned {relay,reply:run::HostReply::Unanswered(run::Unanswered::Lost)});
         assert!(channel.has_work());
         channel.fire(&mut events,&mut below);
-        assert!(matches!(events.pop(),Some(Heard::DeliveryUnsent {owner}) if owner == Token::new(6)));
+        let Some(Heard::DeliveryUnsent {owner})=events.pop() else {panic!("lost delivery");};
+        assert_eq!(owner,Token::new(6));
         assert!(!channel.has_work());
         channel.fire(&mut events,&mut below);
         assert!(events.is_empty(),"one terminal per call, never a duplicate");
