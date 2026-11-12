@@ -217,6 +217,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "project-classes", "shop"],
     &["settings", "show", "template-goal", "4"],
     &["settings", "show", "follow", "1", "--project", "shop"],
+    &["settings", "show", "dependency", "1", "--project", "shop"],
     &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
@@ -878,7 +879,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 104;
+pub(super) const TOOL_FORMS: u32 = 105;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

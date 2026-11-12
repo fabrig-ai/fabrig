@@ -1,9 +1,7 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 2: kind 12, a project's follows, its `Follow` value, codecs,
-  settings-file form, judgement and read permissions [in flight: change 98].
 
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
