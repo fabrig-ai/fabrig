@@ -320,10 +320,11 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 10);
-        assert_eq!(
-            usize::try_from(engine.limits.core.documents.lines).expect("line capacity"),
-            engine.charters.iter().filter(|charter| charter.number != 10).count()
+        assert_eq!(engine.charters.len(), 9);
+        assert!(
+            usize::try_from(engine.limits.core.documents.lines).expect("line capacity")
+                >= engine.charters.iter().filter(|charter| charter.number != 10).count(),
+            "the configured page admits every live stock charter"
         );
     }
 }

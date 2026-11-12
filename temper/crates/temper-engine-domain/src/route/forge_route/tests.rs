@@ -3427,7 +3427,7 @@ fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
             None,
             forge_change::Route::Up,
         ),
-        ([b"3:".as_slice(), &[b'c'; 64]].concat(), Box::<[_]>::from([[0xcc; 32]]), Some(1), forge_change::Route::Up),
+        ([b"3:".as_slice(), &[b'c'; 64]].concat(), Box::<[_]>::from([[0xcc; 32]]), Some(2), forge_change::Route::Up),
     ] {
         let (accepted, mut work) = follows_start(&text, route);
         assert!(accepted, "{text:?}");

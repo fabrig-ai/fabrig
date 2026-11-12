@@ -266,7 +266,7 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 83\n"));
+    assert!(report.text().ends_with("failed: 1 of 77\n"));
     let json = report.json();
     let verdict =
         json["verdicts"].as_array().expect("verdicts").iter().find(|v| v["id"] == "goal-rule.ci").expect("CI verdict");

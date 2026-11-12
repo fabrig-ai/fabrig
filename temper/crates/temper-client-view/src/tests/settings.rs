@@ -725,7 +725,7 @@ fn the_value_asked_shows_while_out() {
                 .as_slice()
                 .contains(&State::Disabled)
         );
-        let id = find(view.tree(), Role::Option, b"Answered by the goal, kept in its decisions");
+        let id = find(view.tree(), Role::Option, b"Not asked: each agent decides alone");
         assert_eq!(crate::act(&mut view, id, Act::Press), None);
     }
 }
