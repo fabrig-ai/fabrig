@@ -5430,6 +5430,19 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
+    if kind == HoleKind::Name
+        && [
+            Word::FindingFrom,
+            Word::FindingFacts,
+            Word::FindingHanded,
+            Word::FindingNotYours,
+            Word::FindingNoAreaRefused,
+        ]
+        .contains(&word)
+    {
+        // A refusal names sixteen 32-byte areas, separated by comma-space.
+        return Ok(joined.max(542));
+    }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
 }
 fn english_language(

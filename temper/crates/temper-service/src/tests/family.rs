@@ -4463,7 +4463,9 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
                 holder: wire_holder,
                 at: 91,
                 why: Some(b"owns boot".as_slice().into()),
-                hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 42 }).unwrap())),
+                hander: Some(w::Filer::Task(
+                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 42 }).unwrap(),
+                )),
             },
         )
         .unwrap(),

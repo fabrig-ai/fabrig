@@ -107,8 +107,8 @@ pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 20; // Holds four projects' decided watches.
-    limits.client.domain.handles = 22; // Holds four projects' decided watches.
+    limits.client.domain.watches = 25; // Four findings subjects and one live-goals menu.
+    limits.client.domain.handles = 27; // Four findings subjects and one live-goals menu.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -207,9 +207,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 19, // Holds four projects' decided watches.
+                handles: 24, // Four findings subjects and one live-goals menu.
                 // Closing page watches overlap the session watches.
-                watches: 18, // Holds four projects' decided watches.
+                watches: 23, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

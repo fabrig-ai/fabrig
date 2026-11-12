@@ -274,7 +274,10 @@ impl Session {
                 count = count.checked_add(1).expect("approval rows fit");
             }
         }
-        Count { count: count.checked_add(self.findings.count(Some(project))).expect("needs fit"), cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(Some(project)) }
+        Count {
+            count: count.checked_add(self.findings.count(Some(project))).expect("needs fit"),
+            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(Some(project)),
+        }
     }
     /// The rail's count across projects, each need once, with all approvals.
     #[must_use]
@@ -293,7 +296,10 @@ impl Session {
         for _row in approvals.rows() {
             count = count.checked_add(1).expect("approval rows fit");
         }
-        Count { count: count.checked_add(self.findings.count(None)).expect("needs fit"), cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(None) }
+        Count {
+            count: count.checked_add(self.findings.count(None)).expect("needs fit"),
+            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(None),
+        }
     }
     #[must_use]
     pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]> {

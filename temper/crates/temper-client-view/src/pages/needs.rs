@@ -134,7 +134,10 @@ fn flow(
     let total = lines.len().checked_add(open.len()).expect("bounded session and inbox");
     let at = lines.len().checked_add(1).expect("bounded session");
     let head = w.say(
-        if *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0 || root.pages().needs().findings().cut(inbox.filter.project) {
+        if *inbox.cut.first().expect("needs cut")
+            || root.forge().approvals().more() != 0
+            || root.pages().needs().findings().cut(inbox.filter.project)
+        {
             Word::NeedsProgressCut
         } else {
             Word::NeedsProgress
@@ -154,7 +157,9 @@ fn flow(
     intro(b, root, w, open.len(), times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
-    let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0 || root.pages().needs().findings().cut(inbox.filter.project);
+    let cut = *inbox.cut.first().expect("needs cut")
+        || root.forge().approvals().more() != 0
+        || root.pages().needs().findings().cut(inbox.filter.project);
     let heading = w.say(
         if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount },
         &[Hole::Number(u64::try_from(open.len()).expect("bounded needs"))],
@@ -173,16 +178,32 @@ fn flow(
     for other in &open {
         if other.same(need) {
             match other {
-                temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => card_main(b, root, w, bindings, times, card, rows),
-                temper_client_domain::pages::findings::Need::Existing(needs::Need::Approval(row)) => approval(b, root, row, w, bindings, times, sign_in),
-                temper_client_domain::pages::findings::Need::Finding(card) => super::findings::main(b, root, card, w, bindings, times),
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => {
+                    card_main(b, root, w, bindings, times, card, rows);
+                }
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Approval(row)) => {
+                    approval(b, root, row, w, bindings, times, sign_in);
+                }
+                temper_client_domain::pages::findings::Need::Finding(card) => {
+                    super::findings::main(b, root, card, w, bindings, times);
+                }
             }
         } else {
             b.open(Role::Button);
             b.style(look::NEED_ROW);
             b.bind(bindings.insert(other.open()));
             from_all(b, root, *other, w, bindings, times);
-            ask::text(b, Role::Text, &match other { temper_client_domain::pages::findings::Need::Existing(need) => crate::shared::need_line(need, w).words, temper_client_domain::pages::findings::Need::Finding(card) => card.row.title().into() }, look::ASK_QUESTION);
+            ask::text(
+                b,
+                Role::Text,
+                &match other {
+                    temper_client_domain::pages::findings::Need::Existing(need) => {
+                        crate::shared::need_line(need, w).words
+                    }
+                    temper_client_domain::pages::findings::Need::Finding(card) => card.row.title().into(),
+                },
+                look::ASK_QUESTION,
+            );
             b.close();
         }
     }
@@ -401,7 +422,9 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib
         }
         None => w.say(Word::NeedsAcross, &[]),
     };
-    let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0 || root.pages().needs().findings().cut(inbox.filter.project);
+    let cut = *inbox.cut.first().expect("needs cut")
+        || root.forge().approvals().more() != 0
+        || root.pages().needs().findings().cut(inbox.filter.project);
     let sentence = super::home::needs_sentence(
         w,
         temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },
@@ -633,7 +656,14 @@ fn keep_button(
     b.close();
 }
 
-fn from_all(b: &mut Builder, root: &Domain, need: temper_client_domain::pages::findings::Need<'_>, w: &Words, bindings: &mut Bindings, times: &mut Times) {
+fn from_all(
+    b: &mut Builder,
+    root: &Domain,
+    need: temper_client_domain::pages::findings::Need<'_>,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
     match need {
         temper_client_domain::pages::findings::Need::Existing(need) => from(b, root, need, w, bindings, times, false),
         temper_client_domain::pages::findings::Need::Finding(card) => super::findings::from(b, root, card, w, times),

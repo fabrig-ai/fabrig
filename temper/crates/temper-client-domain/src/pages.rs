@@ -42,8 +42,8 @@ pub mod choice;
 pub mod composer;
 pub mod connect_model;
 pub mod decided;
-pub mod findings;
 pub mod delegation;
+pub mod findings;
 pub mod goal;
 pub mod goals;
 pub mod home;
@@ -1283,7 +1283,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
             open.failed = Some(outcome.clone());
         }
     }
-    if pages.needs.findings.told(&told, client, env.limits.forge) { return true; }
+    if pages.needs.findings.told(&told, client, env.limits.forge) {
+        return true;
+    }
     if pages.decided.told(&told, client, env.limits.forge, out) {
         return true;
     }
@@ -2257,7 +2259,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Models(_)
         | Act::StopAsking(_)
         | Act::Needs(_)
-            | Act::Finding(_)
+        | Act::Finding(_)
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst

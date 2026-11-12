@@ -280,6 +280,8 @@ pub(super) fn read_answer(value: Option<forge::FindingAnswer>, limits: &w::Limit
 fn filer(value: forge::Filer, limits: &w::Limits) -> Option<w::Filer> {
     Some(match value {
         forge::Filer::Task(number) => w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
-        forge::Filer::Party(number) => w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?),
+        forge::Filer::Party(number) => {
+            w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?)
+        }
     })
 }

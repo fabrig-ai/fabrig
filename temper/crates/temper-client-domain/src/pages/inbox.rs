@@ -136,7 +136,10 @@ impl Inbox {
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
         if self.filter.kind == Some(Kind::Finding) {
-            self.replace(out); self.answered = [true, false]; self.cut = [false; 2]; return;
+            self.replace(out);
+            self.answered = [true, false];
+            self.cut = [false; 2];
+            return;
         }
         if self.filter.project.is_some() || self.filter.goal.is_some() {
             for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {

@@ -265,6 +265,11 @@ needs-approval-no-account
 needs-decided
 needs-decided-project
 needs-done
+needs-finding
+needs-finding-drop
+needs-finding-hand
+needs-finding-refused
+needs-finding-route
 needs-funds
 needs-held
 needs-last
