@@ -46,6 +46,29 @@ fn an_empty_endpoint_list_names_the_missing_field() {
 }
 
 #[test]
+fn four_endpoints_are_admitted_and_a_fifth_names_the_field() {
+    for count in [4_u32, 5] {
+        let mut document = shaped_document();
+        let endpoint = document["endpoints"][0].clone();
+        document["endpoints"] = (1..=count)
+            .map(|number| {
+                let mut endpoint = endpoint.clone();
+                endpoint["number"] = number.into();
+                endpoint["name"] = format!("endpoint-{number}").into();
+                endpoint
+            })
+            .collect();
+        let configured = parse_value(&document);
+        if count == 4 {
+            let configured = configured.expect("four endpoint declarations fit the standard profile");
+            assert_eq!(configured.declarations.endpoints.len(), 4);
+        } else {
+            assert_eq!(configured.err().as_deref(), Some("too many endpoints"));
+        }
+    }
+}
+
+#[test]
 fn shared_environment_validation_names_the_invalid_or_repeated_position() {
     for (name, value) in [("", "v"), ("A=B", "v"), ("A\0B", "v"), ("A", "v\0")] {
         let mut document = document();

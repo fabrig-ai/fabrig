@@ -69,10 +69,10 @@ pub struct Documents {
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
 // Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
-// Anthropic endpoint and provider endpoint (2), bundle (1), worker (2),
+// Anthropic endpoint and provider endpoint (2), its direct way removed (3), bundle (1), worker (2),
 // capacity overrides (3). Sign-in and OpenAI may remove four TLS members each.
-// The agent's OpenAI endpoint (6), Anthropic endpoint (1) and adapter (1) fit too.
-const EDITS: u32 = 1 + 6 + 2 + 2 + 1 + 2 + 3 + 2 * 4;
+// The agent's OpenAI endpoint (6), Anthropic endpoints (2) and adapter (1) fit too.
+const EDITS: u32 = 1 + 6 + 2 + 2 + 3 + 1 + 2 + 3 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]

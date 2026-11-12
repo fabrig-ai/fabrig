@@ -69,15 +69,15 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 
 Shape: `llm`. Paths: `engine.llm`. The endpoints and providers, with document models when defaults are not passed.
 
-- `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
+- `endpoints`: list of endpoint; required; init writes list (4 entries). Declares the endpoints serving the configured models.
 - `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
 
 Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its transport.
 
-- `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint for configured models to refer to.
-- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the endpoint's number, unique among endpoints.
+- `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "anthropic-api" | "demo". Names the endpoint for configured models to refer to.
+- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 4 | 3. Gives the endpoint's number, unique among endpoints.
 - `dialect`: integer, 2 or 3; required; init writes 3 | 2. Chooses the endpoint's model protocol dialect.
 - `provider`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint's provider for the model protocol.
 - `program`: text, 32 bytes; optional; init writes "claude_code". Names a program offered by every provider whose models use this endpoint.
@@ -112,7 +112,7 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, its add
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
 - `endpoint`: text, 4096 bytes; a configured endpoint name; required; init writes "openai" | "anthropic" | "demo". Names the endpoint its added models take.
-- `direct`: text, 4096 bytes; program-free endpoint of the same dialect; requires program endpoint and sign-in or key; optional; init leaves it out. Names the direct endpoint its sign-ins, keys and list reads take.
+- `direct`: text, 4096 bytes; program-free endpoint of the same dialect; requires program endpoint and sign-in or key; optional; init writes "anthropic-api". Names the direct endpoint its sign-ins, keys and list reads take.
 - `keep`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires endpoint; optional; init writes ["gpt-*"] | ["claude-*"]. Keeps list names matching any whole-name pattern; absent disables reading the list.
 - `drop`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires keep; optional; init writes ["*audio*","*image*","*realtime*","*search*","*transcribe*","*tts*","*-20??-??-??"] | ["*-20??????"]. Excludes list names matching any whole-name pattern, even when kept.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
