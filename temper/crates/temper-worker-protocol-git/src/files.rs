@@ -269,6 +269,7 @@ impl Scan {
             } else {
                 Next::End(git::Done::Conflicted {
                     files: core::mem::replace(&mut self.marked, List::with_capacity(0)).into_boxed(),
+                    cut: false,
                 })
             });
         };

@@ -1850,3 +1850,77 @@ fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
     }
     assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
 }
+
+#[test]
+fn landing_gates_read_an_optional_boolean_base_at_its_path() {
+    for (member, expected) in [
+        ("", Some(false)),
+        (r#", "base":true"#, Some(true)),
+        (r#", "base":false"#, Some(false)),
+        (r#", "base":"true""#, None),
+    ] {
+        let projects = format!(
+            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
+        );
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        if let Some(expected) = expected {
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().repositories[0].gates[0].base, expected);
+        } else {
+            assert!(members.is_none());
+            assert_eq!(
+                lines(&problems).as_ref(),
+                b"application.landing.projects[0].gates[0].gates[0].base: wrong value kind\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn landing_gate_bounds_read_defaults_and_refuse_out_of_range_at_the_member() {
+    for (setting, timeout, retries) in [
+        ("", 3_600_000, 2),
+        (r#""gate_timeout_ms":60000,"gate_retries":0,"#, 60_000, 0),
+        (r#""gate_timeout_ms":86400000,"gate_retries":255,"#, 86_400_000, 255),
+    ] {
+        let projects = tier_projects("[]", setting);
+        assert_landing_projects_start(&projects);
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.unwrap();
+        let landing = members.landings.get(&1).unwrap();
+        assert_eq!(landing.gate_timeout, skein_lib::Duration::from_millis(timeout));
+        assert_eq!(landing.gate_retries, retries);
+    }
+    for (value, why) in [
+        ("59999", "past its bound"),
+        ("86400001", "past its bound"),
+        ("-1", "past its bound"),
+        (r#""60000""#, "wrong value kind"),
+    ] {
+        let projects = tier_projects("[]", &format!(r#""gate_timeout_ms":{value},"#));
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].gate_timeout_ms: {why}\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn landing_gate_retries_refuse_non_u8_values_at_the_member() {
+    for (value, why) in [("256", "past its bound"), ("-1", "past its bound"), (r#""2""#, "wrong value kind")] {
+        let projects = tier_projects("[]", &format!(r#""gate_retries":{value},"#));
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].gate_retries: {why}\n").as_bytes()
+        );
+    }
+}

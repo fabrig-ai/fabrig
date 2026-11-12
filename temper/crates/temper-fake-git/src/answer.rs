@@ -2,7 +2,7 @@
 use crate::{Checked, Transport, id::id};
 use skein_fake_checkout::{
     Checkout,
-    git::{self, Created, Fault, Pushed, Tree, Want, What},
+    git::{self, Fault, Pushed, Tree, Want, What},
     in_git,
 };
 use temper_worker_domain_checkout::git::Commit;
@@ -150,7 +150,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             source,
             &temper_worker_protocol_git::invocation::store_reference(*workspace, *into),
         ),
-        Command::Create { remote, branch, commit } => create(checked, transport, remote, branch, commit),
+        Command::Create { remote, branch, commit } => create(checked, checkout, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = path(at, b".git/index.lock");
             if checkout.exists(&lock) {
@@ -228,6 +228,44 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             let commit = transport.commit_tree(parent, merging.map(count), snapshot, &checked.message);
             checkout.write(&object(at, commit), b"");
             Answer::success([id(commit).as_slice(), b"\n"].concat())
+        }
+        Command::MergeBases { head, upstream } => {
+            if !git::object_present(checkout, at, count(*head)) || !git::object_present(checkout, at, count(*upstream))
+            {
+                return Answer::local_failure();
+            }
+            let ours = ancestors(transport, count(*head));
+            let theirs = ancestors(transport, count(*upstream));
+            let shared: Vec<_> = ours.intersection(&theirs).copied().collect();
+            let bases: Vec<_> = shared
+                .iter()
+                .filter(|candidate| {
+                    !shared.iter().any(|other| candidate != &other && transport.is_ancestor(**candidate, *other))
+                })
+                .copied()
+                .collect();
+            let mut bytes = Vec::new();
+            for base in bases {
+                bytes.extend(id(base));
+                bytes.push(b'\n');
+            }
+            Answer { exit: u8::from(bytes.is_empty()), stdout: bytes, stderr: Vec::new() }
+        }
+        Command::BringsList { bases, base } => {
+            if !git::object_present(checkout, at, count(*base))
+                || bases.iter().any(|id| !git::object_present(checkout, at, count(*id)))
+            {
+                return Answer::local_failure();
+            }
+            let excluded = ancestors(transport, count(*base));
+            for tip in bases {
+                for commit in ancestors(transport, count(*tip)) {
+                    if !excluded.contains(&commit) {
+                        return Answer::success([id(commit).as_slice(), b"\n"].concat());
+                    }
+                }
+            }
+            Answer::success(Vec::new())
         }
         Command::IsAncestor { expected, commit } => {
             let mut out = Answer::success(Vec::new());
@@ -417,13 +455,22 @@ fn fetch(
     }
 }
 
-fn create(checked: &Checked, transport: &mut impl Transport, remote: &[u8], branch: &[u8], commit: &Commit) -> Answer {
+fn create(
+    checked: &Checked,
+    checkout: &Checkout,
+    transport: &mut impl Transport,
+    remote: &[u8],
+    branch: &[u8],
+    commit: &Commit,
+) -> Answer {
     let commit = count(*commit);
-    let old = transport.branch(remote, branch);
-    match git::create(transport, remote, branch, commit) {
-        Ok(Created::Created) => pushed(remote, branch, commit, b'*', "[new branch]", 0),
-        Ok(Created::Exists) if old == Some(commit) => pushed(remote, branch, commit, b'=', "[up to date]", 0),
-        Ok(Created::Exists) => pushed(remote, branch, commit, b'!', "[rejected] (stale info)", 1),
+    if !git::object_present(checkout, &checked.at, commit) {
+        return Answer::local_failure();
+    }
+    match transport.push_new(remote, branch, commit) {
+        Ok(None) => pushed(remote, branch, commit, b'*', "[new branch]", 0),
+        Ok(Some(old)) if old == commit => pushed(remote, branch, commit, b'=', "[up to date]", 0),
+        Ok(Some(_)) => pushed(remote, branch, commit, b'!', "[rejected] (stale info)", 1),
         Err(Fault::Refused) if checked.credential.is_some() && transport.authenticated() => {
             pushed(remote, branch, commit, b'!', "[remote rejected] (pre-receive hook declined)", 1)
         }
@@ -473,4 +520,17 @@ fn push(
         }
         Err(fault) => failed(remote, fault),
     }
+}
+
+fn ancestors(transport: &mut impl Transport, tip: u64) -> std::collections::BTreeSet<u64> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut pending = vec![tip];
+    while let Some(commit) = pending.pop() {
+        if !seen.insert(commit) {
+            continue;
+        }
+        pending.extend(transport.parent(commit));
+        pending.extend(transport.merge_parent(commit));
+    }
+    seen
 }

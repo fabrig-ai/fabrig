@@ -24,6 +24,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                base: false,
             }]),
             tiers: Box::new([tier.clone()]),
         },
@@ -38,20 +39,34 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         bound: Duration::from_millis(123_456),
     };
     assert_eq!(d.after_landing(5), None);
-    assert!(d.project_landing(5, Way::Turn, repositories.clone(), after));
+    let settings = policy::Project { gate_retries: 7, gate_timeout: Duration::from_secs(90) };
+    assert!(d.project_landing(5, Way::Turn, repositories.clone(), settings, after));
+    assert_eq!(d.landing.projects.get(&5).expect("configured project").5, settings);
     let other = AfterLanding {
         verdict: Settings { retries: 0, suspects: Suspects::Bisect },
         bound: Duration::from_millis(456_789),
     };
-    assert!(d.project_landing(6, Way::Queue, Box::new([]), other));
-    let (way, kept, _, _, _) = d.landing.projects.get(&5).expect("configured project");
+    assert!(d.project_landing(
+        6,
+        Way::Queue,
+        Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
+        other
+    ));
+    let (way, kept, _, _, _, _) = d.landing.projects.get(&5).expect("configured project");
     assert_eq!(*way, Way::Turn);
     assert_eq!(kept.as_ref(), repositories.as_ref());
     assert_eq!(d.landing.gates(5, REPO), repositories[0].gates.as_ref());
     assert_eq!(d.after_landing(5), Some(after));
     assert_eq!(d.after_landing(6), Some(other));
     assert_eq!(d.after_landing(7), None);
-    assert!(d.project_landing(5, Way::Queue, Box::new([]), other));
+    assert!(d.project_landing(
+        5,
+        Way::Queue,
+        Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
+        other
+    ));
     assert_eq!(d.after_landing(5), Some(other));
     assert_eq!(d.after_landing(6), Some(other));
     assert!(d.landing.gates(5, REPO).is_empty());
@@ -76,13 +91,31 @@ fn a_projects_merge_job_is_kept_per_project() {
         assert_eq!(d.merge_job(PROJECT), None);
         assert!(!d.project_merge_job(PROJECT, COMMAND.into()));
         assert!(d.landing.projects.is_empty());
-        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
-        assert!(d.project_landing(OTHER, way, Box::new([]), after));
+        assert!(d.project_landing(
+            PROJECT,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
+        assert!(d.project_landing(
+            OTHER,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
         assert!(d.project_merge_job(PROJECT, COMMAND.into()));
         assert_eq!(d.merge_job(PROJECT), Some(COMMAND));
         assert_eq!(d.merge_job(OTHER), None);
-        assert!(!d.project_landing(UNCONFIGURED, way, Box::new([]), after));
+        assert!(!d.project_landing(
+            UNCONFIGURED,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert!(!d.project_merge_job(UNCONFIGURED, COMMAND.into()));
         assert_eq!(d.merge_job(UNCONFIGURED), None);
         assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
@@ -91,7 +124,13 @@ fn a_projects_merge_job_is_kept_per_project() {
         assert_eq!(d.merge_job(OTHER), Some(OTHER_COMMAND));
         assert!(d.project_merge_job(PROJECT, OTHER_COMMAND.into()));
         assert_eq!(d.merge_job(PROJECT), Some(OTHER_COMMAND));
-        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
+        assert!(d.project_landing(
+            PROJECT,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert_eq!(d.merge_job(PROJECT), None);
         assert_eq!(d.merge_job(OTHER), Some(OTHER_COMMAND));
     }
@@ -116,13 +155,31 @@ fn a_projects_close_job_is_kept_per_project() {
         assert_eq!(d.close_job(PROJECT), None);
         assert!(!d.project_close_job(PROJECT, COMMAND.into()));
         assert!(d.landing.projects.is_empty());
-        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
-        assert!(d.project_landing(OTHER, way, Box::new([]), after));
+        assert!(d.project_landing(
+            PROJECT,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
+        assert!(d.project_landing(
+            OTHER,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
         assert!(d.project_close_job(PROJECT, COMMAND.into()));
         assert_eq!(d.close_job(PROJECT), Some(COMMAND));
         assert_eq!(d.close_job(OTHER), None);
-        assert!(!d.project_landing(UNCONFIGURED, way, Box::new([]), after));
+        assert!(!d.project_landing(
+            UNCONFIGURED,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert!(!d.project_close_job(UNCONFIGURED, COMMAND.into()));
         assert_eq!(d.close_job(UNCONFIGURED), None);
         assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
@@ -131,7 +188,13 @@ fn a_projects_close_job_is_kept_per_project() {
         assert_eq!(d.close_job(OTHER), Some(OTHER_COMMAND));
         assert!(d.project_close_job(PROJECT, OTHER_COMMAND.into()));
         assert_eq!(d.close_job(PROJECT), Some(OTHER_COMMAND));
-        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
+        assert!(d.project_landing(
+            PROJECT,
+            way,
+            Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
+            after
+        ));
         assert_eq!(d.close_job(PROJECT), None);
         assert_eq!(d.close_job(OTHER), Some(OTHER_COMMAND));
     }
@@ -172,9 +235,11 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
                         workflow: Box::from(b"gate.yml".as_slice()),
                         ignored: Box::new([]),
                         blocking: true,
+                        base: false,
                     }]),
                     tiers: tiers.into_boxed(),
                 }]),
+                temper_engine_domain_forge_landing::Project::DEFAULT,
                 after
             ),
             expected
@@ -208,6 +273,7 @@ fn landing_fixture() -> Domain {
         5,
         temper_engine_domain_forge_change::Way::Turn,
         Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
@@ -220,7 +286,15 @@ fn landing_fixture() -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
-        landing: policy::Landing { task, project: 5, phase, members: Box::new([]), preparation: 0, stale_proofs: 0 },
+        landing: policy::Landing {
+            task,
+            project: 5,
+            phase,
+            members: Box::new([]),
+            preparation: 0,
+            stale_proofs: 0,
+            branch: Box::from(b"main".as_slice()),
+        },
         asks: Box::new([]),
         entries: Box::new([]),
     }
@@ -232,7 +306,7 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 3]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[999]), Err(LandingRefusal::Repository));
-    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Repository));
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
     for task in 100..108 {
         d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("room");
@@ -613,6 +687,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             5,
             temper_engine_domain_forge_change::Way::Turn,
             Box::new([]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
             AfterLanding {
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
@@ -781,45 +856,57 @@ fn across_fixture() -> Domain {
 }
 
 #[test]
-fn a_dependency_closure_is_upstream_first_and_stops_at_the_turn() {
+fn a_dependency_closure_is_upstream_first_and_stops_at_a_formed_landing() {
     let mut d = across_fixture();
     let graph = [ChangeDependencies { change: fixtures::CHANGE, pending: Box::new([OTHER_CHANGE]) }];
     assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
     assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE, fixtures::CHANGE]);
+    let mut third = d.changes.get(&fixtures::CHANGE).expect("change").clone();
+    third.task = 53;
+    third.change.task = 53;
+    d.changes.insert(53, third).expect("third change");
+    let graph = [
+        ChangeDependencies { change: fixtures::CHANGE, pending: Box::new([OTHER_CHANGE]) },
+        ChangeDependencies { change: OTHER_CHANGE, pending: Box::new([53]) },
+    ];
+    assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [53, OTHER_CHANGE, fixtures::CHANGE]);
+    assert_eq!(d.landing_admits(5, &[53, fixtures::CHANGE]), Err(LandingRefusal::Members));
+    let words = d.unit_words(&[53, fixtures::CHANGE]);
+    assert_eq!(words.as_ref(), b"unit of 2 changes: C53, C51: several changes in one repository land with the merge queue's batches (temper/docs/design/draft/merge-queue.md, 4)");
     member_landing(&mut d);
-    d.landing.rows.get_mut(&61).expect("landing").landing.phase = policy::Phase::Turn { at: env().wall };
-    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [OTHER_CHANGE]);
+    assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [53, OTHER_CHANGE]);
 }
 
 #[test]
-fn an_upstream_join_and_a_member_leaving_remap_the_live_effects() {
+fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     let mut d = across_fixture();
     member_landing(&mut d);
-    let mut member = d.landing(61).expect("landing").landing.members[0].clone();
+    let mut member = d.landing(61).expect("formed landing").landing.members[0].clone();
     member.change = OTHER_CHANGE;
     member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
     d.landing.rows.get_mut(&61).expect("landing").entries =
         Box::new([LandingEntry { entry: 91, member: 0, gate: 0, operation: Operation::Dispatch }]);
     d.landing.results.insert((61, 0, 0, 1), policy::Status::Pending).expect("result room");
-    d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, key)).expect("key room");
-    d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, key)).expect("other landing key room");
+    d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, None, key)).expect("key room");
+    d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");
     d.landing.results.insert((61, 0, 0, 5), policy::Status::Passed).expect("merge result room");
+    let before = d.landing(61).expect("formed landing").clone();
     outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
-    let row = d.landing(61).expect("joined landing");
-    assert_eq!(row.landing.members[0].change, OTHER_CHANGE);
-    assert_eq!(row.entries[0].member, 1);
-    assert_eq!(d.landing.results.get(&(61, 1, 0, 1)), Some(&policy::Status::Pending));
-    assert_eq!(d.landing.keys.get(&(61, 1, 0)), Some(&(fixtures::HEAD, key)));
-    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, key)));
-    assert_eq!(d.landing.results.get(&(61, 1, 0, 5)), Some(&policy::Status::Passed));
+    outputs(&mut d, Event::OrderLanding { task: 61, changes: Box::new([OTHER_CHANGE, fixtures::CHANGE]) });
+    assert_eq!(d.landing(61), Some(&before));
+    assert_eq!(d.change(OTHER_CHANGE).expect("waiting change").change.landing, None);
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, None, key)));
+    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, None, key)));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
     outputs(&mut d, Event::SettleEffects { task: OTHER_CHANGE, root: OTHER_CHANGE, ending: ReleaseEnding::Cancelled });
     let row = d.landing(61).expect("remaining landing");
     assert_eq!(row.landing.members[0].change, fixtures::CHANGE);
     assert_eq!(row.entries[0].member, 0);
     assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
-    assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, key)));
-    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, key)));
+    assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, None, key)));
+    assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, None, key)));
     assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
 }
 
@@ -852,6 +939,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
                         description: Box::default(),
                     }]),
                 }]),
+                temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
                     verdict: Settings { retries: 2, suspects: Suspects::Bisect },
                     bound: Duration::from_secs(7200),
@@ -968,8 +1056,10 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                     workflow: b"gate.yml".as_slice().into(),
                     ignored: Box::new([b"dir/skip".as_slice().into()]),
                     blocking: true,
+                    base: false,
                 }])
             }]),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
             after
         ));
         member_landing_with_gates(
@@ -1052,5 +1142,176 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
             }
         }
         assert!(refused, "filtered key must name {member}");
+    }
+}
+
+#[test]
+fn waiting_train_order_uses_priority_age_ready_time_and_task() {
+    use temper_engine_domain_forge_change as c;
+    let mut d = landing_fixture();
+    let template = d.change(fixtures::CHANGE).expect("change").clone();
+    for (older_priority, later_priority, older, later, now, expected) in [
+        (9_i32, 0_i32, 100, 101, 102, OTHER_CHANGE),
+        (9_i32, 0_i32, 100, 131, 131, fixtures::CHANGE),
+        (0_i32, 0_i32, 100, 101, 102, fixtures::CHANGE),
+        (0_i32, 0_i32, 100, 100, 102, fixtures::CHANGE),
+    ] {
+        for (task, priority, since) in
+            [(fixtures::CHANGE, older_priority, older), (OTHER_CHANGE, later_priority, later)]
+        {
+            let mut row = template.clone();
+            row.task = task;
+            row.change.task = task;
+            row.priority = priority;
+            row.change.way = c::Way::Turn;
+            row.change.state =
+                c::State::Ready { head: fixtures::HEAD, ready_since: Wall::from_nanos(since * 1_000_000_000) };
+            row.change.ready_since = Some(Wall::from_nanos(since * 1_000_000_000));
+            d.changes.insert(task, row).expect("room");
+        }
+        let now = Wall::from_nanos(now * 1_000_000_000);
+        assert_eq!(d.first_waiting(REPO, b"main", &[], now), Some(expected));
+        let other = if expected == fixtures::CHANGE { OTHER_CHANGE } else { fixtures::CHANGE };
+        assert_eq!(d.first_waiting(REPO, b"main", &[expected], now), Some(other), "kept tasks are not candidates");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test builds independent hexadecimal input expectations")]
+fn dispatch_inputs_add_only_an_opted_in_base_at_the_forges_commit_width() {
+    use skein_forge::api::Input;
+    let key = [0xab; 32];
+    for width in [20, 32] {
+        let mut candidate = [0; 32];
+        candidate[..width].fill(0xcd);
+        let mut base = [0; 32];
+        base[..width].fill(0xef);
+        let expected = [
+            Input { name: b"temper_commit".as_slice().into(), value: b"cd".repeat(width).into_boxed_slice() },
+            Input { name: b"temper_key".as_slice().into(), value: b"ab".repeat(32).into_boxed_slice() },
+        ];
+        assert_eq!(landing::inputs(candidate, key, None).as_ref(), &expected);
+        let mut expected = expected.to_vec();
+        expected.push(Input { name: b"temper_base".as_slice().into(), value: b"ef".repeat(width).into_boxed_slice() });
+        let inputs = landing::inputs(candidate, key, Some(base));
+        assert_eq!(inputs.as_ref(), expected.as_slice());
+        assert!(inputs.len() <= skein_forge::api::INPUTS);
+    }
+}
+
+#[test]
+fn a_train_is_held_from_forming_through_a_hold_until_its_landing_ends() {
+    let mut d = landing_fixture();
+    member_landing(&mut d);
+    for (phase, free) in [
+        (policy::Phase::Waiting, false),
+        (policy::Phase::Preparing, false),
+        (policy::Phase::Proving, false),
+        (policy::Phase::Proved { at: env().wall }, false),
+        (policy::Phase::Turn { at: env().wall }, false),
+        (
+            policy::Phase::Held {
+                was: Box::new(policy::Phase::Preparing),
+                why: policy::Hold::Faults { member: 0, gate: 0 },
+            },
+            false,
+        ),
+        (policy::Phase::Landed, true),
+        (policy::Phase::Cancelled, true),
+    ] {
+        d.landing.rows.get_mut(&61).expect("landing").landing.phase = phase;
+        assert_eq!(d.train_free(REPO, b"main"), free);
+        assert!(d.train_free(REPO, b"temper/g1"));
+        assert!(d.train_free(OTHER_REPOSITORY, b"main"));
+    }
+}
+
+#[test]
+fn a_landing_uses_its_projects_gate_retry_setting() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    const KEY: policy::Key = [7; 32];
+    for retries in [0, 3] {
+        let mut d = landing_fixture();
+        fixtures::connect(&mut d);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+            change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        let after = d.after_landing(5).expect("configured project");
+        assert!(d.project_landing(
+            5,
+            change::Way::Turn,
+            Box::new([RepositoryGates {
+                repository: REPO,
+                gates: Box::new([policy::Gate {
+                    name: b"gate".as_slice().into(),
+                    workflow: b"gate.yml".as_slice().into(),
+                    ignored: Box::new([]),
+                    blocking: true,
+                    base: false
+                }]),
+                tiers: Box::new([]),
+            }]),
+            policy::Project { gate_retries: retries, ..policy::Project::DEFAULT },
+            after
+        ));
+        member_landing_with_gates(
+            &mut d,
+            Box::new([policy::GateProof {
+                proof: policy::Proof::Dispatched { key: KEY, try_: 1 },
+                posted: policy::Posted::Pending,
+                faults: 0,
+            }]),
+        );
+        let row = d.landing.rows.get_mut(&61).expect("landing");
+        row.landing.phase = policy::Phase::Proving;
+        let member = &mut row.landing.members[0];
+        member.head = Some(fixtures::HEAD);
+        member.base = Some(fixtures::BASE);
+        member.candidate = Some(fixtures::HEAD);
+        d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, KEY)).expect("main key");
+        let mut flight = runs::follow();
+        flight.outcome = Some(policy::Verdict::Fault(policy::Fault::Lost));
+        d.landing
+            .flights
+            .insert(
+                ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY },
+                flight,
+            )
+            .expect("flight");
+        outputs(
+            &mut d,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+        );
+        let mut decision = None;
+        for _ in 0..5_u32 {
+            let (call, op) = fixtures::next_call(&mut d);
+            let answer = match op {
+                Op::Read(Read::Branch { branch }) => {
+                    Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+                }
+                Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+                Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+                Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                Op::Read(_) | Op::Write(_) => panic!("unexpected gather read {op:?}"),
+            };
+            for request in fixtures::answer(&mut d, call, Ok(answer)) {
+                if let Request::LandingDecision { decision: choice, .. } = request {
+                    decision = Some(choice);
+                }
+            }
+        }
+        let expected = if retries == 0 {
+            policy::Decision::Hold(policy::Hold::Faults { member: 0, gate: 0 })
+        } else {
+            policy::Decision::Retry { member: 0, gate: 0, key: KEY, try_: 2 }
+        };
+        assert_eq!(decision, Some(expected));
     }
 }

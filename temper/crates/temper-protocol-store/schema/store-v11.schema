@@ -60,7 +60,8 @@ record PostReview { number: u64 key: bytes 1048576 verdict: Verdict body: bytes 
 record Edit { number: u64 title: option bytes 1048576 body: option bytes 1048576 }
 record SetReviewers { number: u64 reviewers: list 65536 u64 }
 record JobAttempt { head: fixed 32 run: u64 job: u64 attempt: u32 }
-enum MergeHow { style, fast_forward_only }
+record RecordedMerge { commit: fixed 32 }
+enum MergeHow { style, fast_forward_only, recorded: RecordedMerge }
 enum UpdateStyle { merge, rebase }
 record MergeWrite { number: u64 head: fixed 32 how: MergeHow }
 record UpdateWrite { number: u64 style: UpdateStyle }
@@ -259,7 +260,7 @@ enum GateProofState { unkeyed, keyed: GateKey, dispatched: DispatchedKey, passed
 enum GatePosted { nothing, pending, verdict }
 record GateProof { proof: GateProofState posted: GatePosted faults: u32 }
 record LandingMember { change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 }
-record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 }
+record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk }

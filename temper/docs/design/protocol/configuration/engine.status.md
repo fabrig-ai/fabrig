@@ -2,6 +2,12 @@
 
 2026-11-11. Where the tree's code lags or departs from [engine.md](engine.md).
 
+- **Not yet:** the `gates` entry's `base`, and *The gates' bound*,
+  `gate_timeout_ms` (`temper-service/src/startup/application/landing.rs`)
+  [in flight: change 825].
+- **Not yet:** *The trains' way of combining*, `combine`
+  [in flight: change 830].
+
 - **Not yet:** the project's landing settings, *The delivery checks' bound*: the project's landing settings have no `check_timeout_ms` (`temper-service/src/startup/application/landing.rs`), so every run's checks have the agent's `check_timeout` [in flight: change 74].
 
 - **Not yet:**  the reference status-agent gap remains `reference.status.md` (Not yet, the whole document). the whole document: the turn's project settings (`prepare`, `key`, `home_revision`, `prepare_timeout`, `pins`, `pins_follow_main`, `dependencies_join`): nothing reads them. the whole document: the GitHub port-zero check remains `../forge/engine.status.md`, 1; `sign_in.forges`' check once the forge's records load (`../openid-provider.status.md`, 7).  the elsewhere-forge git-program gap remains `directories.status.md`, 1. `settings.md`, 2, 5 step 2: the landing and gate setting kinds remain `settings.status.md`, 2 and 5.  the charter's host-tool families remain `../../domain/agent/tools.status.md` (Not yet, the whole document).  the foreman-charter setting remains `settings.status.md`, 2.  the coordinator's repository-note scope remains `stock.status.md` (Not yet, the whole document).  the reference's CI and tier workflows remain `reference.status.md` (Not yet, the whole document).  the reference project-settings walk remains `reference.status.md` (Not yet, the whole document).

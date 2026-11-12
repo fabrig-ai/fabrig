@@ -345,6 +345,7 @@ fn copied_default(answer: &Answer) -> Option<&[u8]> {
         | Answer::Done
         | Answer::Cloned { .. }
         | Answer::Pushed(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => None,
     }
 }

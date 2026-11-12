@@ -33,8 +33,11 @@ pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 mod landing_route;
+pub(crate) use landing_route::form_landings;
+#[cfg(test)]
+use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
-use landing_route::{describe_landing_effect, landing_decision, start_landing};
+use landing_route::{describe_landing_effect, landing_decision};
 mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
@@ -46,6 +49,7 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
 mod merge;
+pub(crate) mod prepare;
 
 #[cfg(test)]
 mod tests;
@@ -2044,6 +2048,7 @@ pub(crate) fn workspace_repository(
     save: Box<[u8]>,
 ) -> Option<ForgeRepository> {
     let start = match item.start {
+        forge::items::Start::Commit(commit) => ForgeStart::Commit(commit),
         forge::items::Start::Base(branch) => ForgeStart::Base(branch),
         forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
         forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
@@ -2757,7 +2762,6 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
-    landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
     let released_questions = match (domain.forge.change(task), domain.core.tasks.task(task)) {
         (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
@@ -4538,7 +4542,7 @@ fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     }
 }
 
-fn ready_change(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool {
+fn ready_change(domain: &mut Domain, _env: &Env<Limits>, task: u64) -> bool {
     let row = domain.forge.change(task).expect("ready change");
     let again = row.change.way == forge_change::Way::Queue;
     let landing = match domain.forge.change(task) {
@@ -4547,8 +4551,6 @@ fn ready_change(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool {
     };
     if let Some(landing) = landing {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: landing }));
-    } else {
-        start_landing(domain, env, task);
     }
     again
 }
@@ -4563,9 +4565,7 @@ fn wait_change_decision(
     if row.change.way == forge_change::Way::Turn
         && let forge_change::State::Ready { .. } = row.change.state
     {
-        if row.change.landing.is_none() {
-            start_landing(domain, env, task);
-        }
+        // Forming is judged once this decision's queued work has settled.
     } else {
         domain.forge.wait_change(&super::environment_forge(env), task, until);
     }

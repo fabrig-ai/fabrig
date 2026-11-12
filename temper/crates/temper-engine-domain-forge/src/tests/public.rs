@@ -353,6 +353,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                         workflow: Box::from(b"gate.yml".as_slice()),
                         ignored: Box::new([]),
                         blocking: true,
+                        base: false,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -365,6 +366,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 },
                 None,
                 None,
+                policy::Project::DEFAULT,
             ),
         )
         .expect("project");
@@ -380,6 +382,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     members: Box::new([member(CHANGE), member(SECOND)]),
                     preparation: 2,
                     stale_proofs: 3,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None, None]),
                 entries: Box::new([]),
@@ -755,6 +758,7 @@ fn maximal_proofs(d: &mut Domain) {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                base: false,
             })
             .expect("gate");
         d.landing
@@ -835,6 +839,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         members: members.clone(),
                         preparation: u16::MAX,
                         stale_proofs: u32::MAX,
+                        branch: Box::from(b"main".as_slice()),
                     },
                     asks: Box::new([None; 8]),
                     entries: Box::new([]),

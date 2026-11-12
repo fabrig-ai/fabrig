@@ -123,6 +123,7 @@ impl World {
             | git::Op::CheckOut { at, .. }
             | git::Op::Look { at, .. }
             | git::Op::DiffPaths { at, .. }
+            | git::Op::Brings { at, .. }
             | git::Op::IsAncestor { at, .. }
             | git::Op::Merge { at, .. }
             | git::Op::Commit { at, .. }

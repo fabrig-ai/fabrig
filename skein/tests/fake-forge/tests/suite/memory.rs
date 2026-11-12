@@ -365,6 +365,7 @@ fn outcome(result: Result<Answer, Error>) -> Result<Option<u64>, Error> {
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => Ok(None),
     }
 }

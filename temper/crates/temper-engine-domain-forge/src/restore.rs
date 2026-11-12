@@ -168,6 +168,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             )
         }
         Stored::Landing(row) => {
+            field(K::Landing, RestoreSet::NameBytes, count(row.landing.branch.len()), u64::from(l.name_bytes))?;
             field(
                 K::Landing,
                 RestoreSet::LandingMembers,

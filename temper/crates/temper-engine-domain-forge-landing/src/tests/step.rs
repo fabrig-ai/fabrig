@@ -10,7 +10,7 @@ const MAIN: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const KEY: [u8; 32] = [4; 32];
 const LIMITS: Limits = Limits { members: 4, gates: 4, poll: Duration::from_secs(5) };
-const PROJECT: Project = Project { gate_retries: 2 };
+const PROJECT: Project = Project::DEFAULT;
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
@@ -21,6 +21,7 @@ fn landing_of_one() -> Landing {
         phase: Phase::Waiting,
         preparation: 0,
         stale_proofs: 0,
+        branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
             change: 8,
             repository: Repository { forge: 1, repository: 2 },
@@ -54,7 +55,6 @@ fn facts() -> Facts {
             }]),
         }]),
         turn_free: false,
-        first: false,
         released: false,
     }
 }
@@ -220,7 +220,6 @@ fn a_main_that_moves_during_proof_is_checked_in_the_turn() {
     assert_eq!(proved.decision, Decision::Proved);
     assert_eq!(proved.landing.members[0].base, Some(MAIN));
     f.turn_free = true;
-    f.first = true;
     let owned = decide(&proved.landing, &f);
     assert_eq!(owned.landing.phase, Phase::Turn { at: at(10) });
     let stale = decide(&owned.landing, &f);
@@ -290,14 +289,13 @@ fn every_blocking_gate_passed_proves_the_landing() {
     assert_eq!(next.landing.phase, Phase::Proved { at: at(10) });
 }
 #[test]
-fn a_proved_landing_takes_a_free_turn_only_when_first() {
+fn a_proved_landing_takes_its_own_trains_turn() {
     let landing = Landing { phase: Phase::Proved { at: at(4) }, ..keyed() };
-    for (free, first) in [(false, false), (false, true), (true, false), (true, true)] {
+    for free in [false, true] {
         let mut f = facts();
         f.turn_free = free;
-        f.first = first;
         let next = decide(&landing, &f);
-        if free && first {
+        if free {
             assert_eq!(next.landing.phase, Phase::Turn { at: at(4) });
             assert_eq!(next.decision, Decision::None);
         } else {
@@ -485,7 +483,6 @@ fn a_landed_member_stays_landed_when_the_next_goes_stale() {
     let proved = decide(&posted.landing, &f);
     assert_eq!(proved.decision, Decision::Proved);
     f.turn_free = true;
-    f.first = true;
     let turn = decide(&proved.landing, &f);
     let merge = decide(&turn.landing, &f);
     assert_eq!(merge.decision, Decision::Merge { member: 1, candidate: NEW });
@@ -521,7 +518,6 @@ fn a_cancelled_member_leaves_and_the_rest_lands() {
     let prepared = decide(&left.landing, &f);
     let proved = decide(&prepared.landing, &f);
     f.turn_free = true;
-    f.first = true;
     let owned = decide(&proved.landing, &f);
     f.members[0].merged = Some(HEAD);
     assert_eq!(decide(&owned.landing, &f).decision, Decision::Finish);

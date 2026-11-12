@@ -574,7 +574,10 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
         world.tick();
         if stale_downstream
             && !moved
-            && landing_rows(world).iter().any(|row| matches!(row.landing.phase, forge_top::LandingPhase::Turn { .. }))
+            && landing_rows(world).iter().any(|row| {
+                row.landing.members.iter().any(|member| member.change == b)
+                    && matches!(row.landing.phase, forge_top::LandingPhase::Turn { .. })
+            })
         {
             fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"race", b"moved during proof", 2)
                 .expect("downstream main moved before turn merge");
@@ -614,10 +617,16 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
         })
         .collect();
     assert_eq!(moved, stale_downstream, "changes={changes:?}");
+    if task_row(world, b).is_some_and(|row| row.dependencies.contains(&a)) {
+        assert_eq!(ends, [a, b], "jig orders dependent task results");
+    }
+    ends.sort_unstable();
+    let mut expected = [a, b];
+    expected.sort_unstable();
     assert_eq!(
         ends,
-        [a, b],
-        "upstream ends first; changes={changes:?}; landings={:?}; writes={:?}",
+        expected,
+        "changes={changes:?}; landings={:?}; writes={:?}",
         landing_rows(world),
         world.repository_writes
     );
@@ -625,31 +634,40 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
 
 fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usize) {
     let rows = landing_rows(world);
-    assert_eq!(rows.len(), 1, "one landing throughout");
-    let row = rows[0];
-    assert_eq!(row.landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
-    let candidates = row.landing.members.iter().map(|member| member.landed.expect("member landed")).collect::<Vec<_>>();
-    let task = row.landing.task;
-    let mut expected = String::new();
-    for (repository, candidate) in [(b"org/lib".as_slice(), candidates[0]), (b"org/repo".as_slice(), candidates[1])] {
+    assert_eq!(rows.len(), 2, "one sealed landing per repository");
+    let candidates = [a, b].map(|change| {
+        let row = rows.iter().find(|row| row.landing.members[0].change == change).expect("member's landing");
+        assert_eq!(row.landing.members.len(), 1);
+        row.landing.members[0].landed.expect("member landed")
+    });
+    for (change, repository, candidate) in
+        [(a, b"org/lib".as_slice(), candidates[0]), (b, b"org/repo".as_slice(), candidates[1])]
+    {
         let raw::Answer::Commit(main) =
             world.external_at(repository, 1, raw::Op::Git(raw::Git::Fetch { want: raw::Want::Default }))
         else {
             panic!("landed main")
         };
         assert_eq!(translate::commit(main), candidate);
+        let mut expected = String::new();
         write!(&mut expected, "{} ", std::str::from_utf8(repository).expect("repository name")).expect("report");
         for byte in &candidate[..20] {
             write!(&mut expected, "{byte:02x}").expect("commit hex");
         }
         expected.push('\n');
+        let task = landing_rows(world)
+            .iter()
+            .find(|row| row.landing.members[0].change == change)
+            .expect("landing")
+            .landing
+            .task;
+        let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
+            &task_row(world, task).expect("landing task").phase
+        else {
+            panic!("landing done")
+        };
+        assert_eq!(words.as_ref(), expected.as_bytes());
     }
-    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
-        &task_row(world, task).expect("landing task").phase
-    else {
-        panic!("landing done")
-    };
-    assert_eq!(words.as_ref(), expected.as_bytes());
     for (repository, expected) in [(LIB, 1), (forge_world::REPO, downstream_rebases)] {
         assert_eq!(
             world
@@ -669,7 +687,7 @@ fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usi
             expected
         );
     }
-    let merges = world
+    let mut merges = world
         .repository_writes
         .iter()
         .filter_map(|(repository, write)| match write {
@@ -677,19 +695,38 @@ fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usi
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(merges, [(LIB, candidates[0]), (forge_world::REPO, candidates[1])]);
+    merges.sort_unstable();
+    let mut expected = [(LIB, candidates[0]), (forge_world::REPO, candidates[1])];
+    expected.sort_unstable();
+    assert_eq!(merges, expected);
 }
 
 #[test]
-fn dependent_changes_in_two_repositories_land_in_one_turn() {
+fn dependent_changes_in_two_repositories_are_refused_as_a_unit() {
     let (mut world, a, b) = dependent_pair(false);
-    land_pair(&mut world, a, b, false);
-    assert_pair_result(&mut world, a, b, 1);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if matches!(task_row(&world, a).expect("change").phase, tasks::Phase::Held { .. }) {
+            break;
+        }
+    }
+    assert!(landing_rows(&world).is_empty());
+    let tasks::Phase::Held { source: Some(source), .. } = &task_row(&world, a).expect("held first change").phase else {
+        panic!("unit refused")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("refusal account") };
+    let words = std::str::from_utf8(words).expect("words");
+    assert!(words.starts_with("unit of 2 changes:"));
+    assert!(words.contains(&format!("C{a}")) && words.contains(&format!("C{b}")));
+    assert!(words.contains("temper/docs/design/draft/merge-queue.md, 13"));
+    assert!(!world.repository_writes.iter().any(|(_, write)| matches!(write, api::Write::Merge { .. })));
 }
 
 #[test]
-fn a_turn_that_lands_the_upstream_alone_lands_the_downstream_after() {
-    let (mut world, a, b) = dependent_pair(false);
+fn a_stale_train_reprepares_without_repeating_the_other_trains_merge() {
+    let Pair { mut world, a, b, producer_a, producer_b, .. } = pushed_pair(false);
+    finish_producer(&mut world, &producer_a, LIB);
+    finish_producer(&mut world, &producer_b, forge_world::REPO);
     land_pair(&mut world, a, b, true);
     assert_pair_result(&mut world, a, b, 2);
 }
@@ -709,7 +746,7 @@ fn dependent_changes_in_one_repository_land_in_two_landings() {
 }
 
 #[test]
-fn a_dependency_amendment_joins_a_landing_already_proving() {
+fn a_dependency_amendment_leaves_a_proving_landing_sealed() {
     let Pair { mut world, chat, a, b, producer_a, producer_b } = pushed_pair(false);
     finish_producer(&mut world, &producer_a, LIB);
     for _ in 0..PAIR_TICKS {
@@ -724,22 +761,16 @@ fn a_dependency_amendment_joins_a_landing_already_proving() {
     }
     let initial = landing_rows(&world)[0].landing.task;
     add_dependency(&mut world, &chat, a, b);
-    for _ in 0..PAIR_TICKS {
-        world.tick();
-        if landing_rows(&world)[0].landing.members.len() == 2 {
-            break;
-        }
-    }
     assert_eq!(landing_rows(&world)[0].landing.task, initial);
-    assert_eq!(landing_rows(&world)[0].landing.members.len(), 2, "joined before the producer ends");
-    assert_eq!(landing_rows(&world)[0].landing.phase, forge_top::LandingPhase::Waiting);
+    assert_eq!(landing_rows(&world)[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a]);
+    assert_ne!(landing_rows(&world)[0].landing.phase, forge_top::LandingPhase::Waiting);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
     land_pair(&mut world, a, b, false);
     assert_pair_result(&mut world, a, b, 1);
 }
 
 #[test]
-fn a_dependency_between_two_live_landings_keeps_the_later_waiting_until_the_first_lands() {
+fn a_dependency_between_two_formed_trains_does_not_keep_either_turn() {
     let Pair { mut world, chat, a, b, producer_a, producer_b } =
         pushed_pair_with_library_gate(false, Some(Duration::from_secs(120)));
     finish_producer(&mut world, &producer_a, LIB);
@@ -754,7 +785,7 @@ fn a_dependency_between_two_live_landings_keeps_the_later_waiting_until_the_firs
     let ids = landing_rows(&world).iter().map(|row| row.landing.task).collect::<Vec<_>>();
     assert!(landing_rows(&world).iter().all(|row| row.landing.members.len() == 1));
     add_dependency(&mut world, &chat, a, b);
-    let mut proved_while_waiting = false;
+    let mut turned_before_upstream = false;
     for _ in 0..PAIR_TICKS {
         world.tick();
         let rows = landing_rows(&world);
@@ -763,37 +794,34 @@ fn a_dependency_between_two_live_landings_keeps_the_later_waiting_until_the_firs
         let upstream = rows.iter().find(|row| row.landing.members[0].change == a).expect("upstream landing");
         let downstream = rows.iter().find(|row| row.landing.members[0].change == b).expect("downstream landing");
         let upstream_read_back = upstream.landing.members[0].landed.is_some();
-        if !upstream_read_back {
+        if !upstream_read_back
+            && (matches!(downstream.landing.phase, forge_top::LandingPhase::Turn { .. })
+                || downstream.landing.members[0].landed.is_some())
+        {
+            turned_before_upstream = true;
             assert!(
-                !world
+                world
                     .repository_writes
                     .iter()
-                    .any(|(repo, write)| *repo == forge_world::REPO && matches!(write, api::Write::Merge { .. })),
-                "dependent merge waits for upstream readback"
+                    .any(|(repo, write)| *repo == forge_world::REPO && matches!(write, api::Write::Dispatch { .. }))
             );
-            assert!(!matches!(downstream.landing.phase, forge_top::LandingPhase::Turn { .. }));
-            if matches!(downstream.landing.phase, forge_top::LandingPhase::Proved { .. }) {
-                proved_while_waiting = true;
-                assert!(world.repository_writes.iter().any(|(repo, write)|
-                    *repo == forge_world::REPO && matches!(write, api::Write::Dispatch { .. })));
-            }
         }
         if ended(&world, a) && ended(&world, b) {
             break;
         }
     }
-    assert!(proved_while_waiting, "dependent proves before upstream lands: {:?}", landing_rows(&world));
+    assert!(turned_before_upstream, "each train has its own turn: {:?}", landing_rows(&world));
     assert!(ended(&world, a) && ended(&world, b));
     let merges = world
         .repository_writes
         .iter()
         .filter_map(|(repo, write)| if matches!(write, api::Write::Merge { .. }) { Some(*repo) } else { None })
         .collect::<Vec<_>>();
-    assert_eq!(merges, [LIB, forge_world::REPO]);
+    assert_eq!(merges, [forge_world::REPO, LIB]);
 }
 
 #[test]
-fn a_change_created_with_a_dependency_joins_before_production() {
+fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     let (mut world, chat) = turn_chat();
     let (a, producer_a) = make_change(&mut world, &chat, 95, b"org/lib");
     push_change(&mut world, &producer_a, b"org/lib");
@@ -843,11 +871,11 @@ fn a_change_created_with_a_dependency_joins_before_production() {
     let b = made[0].task;
     for _ in 0..PAIR_TICKS {
         world.tick();
-        if landing_rows(&world)[0].landing.members.len() == 2 {
+        if world.assigned.iter().any(|producer| producer.task != producer_a.task && producer.task != chat.task) {
             break;
         }
     }
     assert_eq!(landing_rows(&world).len(), 1);
-    assert_eq!(landing_rows(&world)[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
-    assert!(!ended(&world, b), "joined while production is outstanding");
+    assert_eq!(landing_rows(&world)[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a]);
+    assert!(!ended(&world, b), "new change is still producing, outside the sealed landing");
 }

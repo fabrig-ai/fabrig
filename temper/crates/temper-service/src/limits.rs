@@ -622,6 +622,28 @@ pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
 pub(crate) const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 
+/// The prepare job's bounds (temper/docs/design/domain/worker/jobs.md).
+#[must_use]
+pub fn prepare_bound() -> JobBound {
+    JobBound {
+        kind: JobKind(temper_engine_domain_forge::PREPARE_KIND),
+        spec: 16_384,
+        result: 4_096,
+        deadline: Duration::from_secs(600),
+    }
+}
+/// Declare prepare only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker/jobs.md).
+#[must_use]
+pub fn prepare_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
+    let bound = prepare_bound();
+    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+        Box::new([bound])
+    } else {
+        Box::new([])
+    }
+}
+
 /// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const MERGE_KIND: u32 = 3;
 pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
@@ -677,9 +699,9 @@ pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 /// The engine's declared kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
-    let mut jobs = List::with_capacity(2);
-    for bound in merge_jobs(jig).iter().chain(close_jobs(jig).iter()) {
-        jobs.push(*bound).expect("two built job kinds");
+    let mut jobs = List::with_capacity(3);
+    for bound in prepare_jobs(jig).iter().chain(merge_jobs(jig).iter()).chain(close_jobs(jig).iter()) {
+        jobs.push(*bound).expect("three built job kinds");
     }
     jobs.into_boxed()
 }
@@ -689,6 +711,11 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 #[must_use]
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
     Box::new([
+        temper_worker_domain::tooling::Kind {
+            bound: prepare_bound(),
+            verb: b"prepare".as_slice().into(),
+            delivers: true,
+        },
         temper_worker_domain::tooling::Kind { bound: merge_bound(), verb: b"merge".as_slice().into(), delivers: true },
         temper_worker_domain::tooling::Kind { bound: close_bound(), verb: b"close".as_slice().into(), delivers: true },
     ])

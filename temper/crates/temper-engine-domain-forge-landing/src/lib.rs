@@ -2,10 +2,9 @@
 //!
 //! This crate keeps nothing. The connector top owns each landing, receipts,
 //! keys in flight and effects. A step returns one decision and the state to
-//! commit with it. Keys, run verdicts and turn order are pure functions too.
+//! commit with it. Keys and run verdicts are pure functions too.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
-#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 
 extern crate alloc;
 
@@ -14,7 +13,6 @@ mod domain;
 mod key;
 #[cfg(test)]
 mod tests;
-mod turn;
 mod verdict;
 
 pub use boundary::{
@@ -23,5 +21,4 @@ pub use boundary::{
 };
 pub use domain::{join, leave, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, key};
-pub use turn::{Proved, first};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};

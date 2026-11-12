@@ -1,5 +1,7 @@
 //! The job capability beside smith and the checkout: routing and translation
-//! only (temper/docs/design/domain/worker/jobs.md).
+//! and temper's own one-member prepare (temper/docs/design/domain/worker/jobs.md).
+
+mod prepare;
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
@@ -13,6 +15,8 @@ use crate::{Domain, Limits, Request, route, tooling, wire};
 #[derive(Debug)]
 pub(crate) struct Spec {
     title: Box<[u8]>,
+    own: Option<Box<prepare::Request>>,
+    result: Option<(Box<[u8]>, u8)>,
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
 
@@ -61,6 +65,19 @@ pub(crate) fn assign(
     if let Err(why) = checked {
         return refuse(domain, run, attempt, why, env, out);
     }
+    let own = match &spec {
+        Ok(spec) if job.kind == JobKind(1) && spec.command.is_empty() => {
+            let Some(request) = prepare::decode(&spec.request) else {
+                return refuse(domain, run, attempt, b"prepare request", env, out);
+            };
+            if !prepare::check(&request, &items, &env.limits) {
+                return refuse(domain, run, attempt, b"prepare items", env, out);
+            }
+            Some(Box::new(request))
+        }
+        Ok(_) if job.kind == JobKind(1) => return refuse(domain, run, attempt, b"prepare command", env, out),
+        Ok(_) | Err(wire::Undecodable) => None,
+    };
     if domain.job_specs.len() == domain.job_specs.capacity() || workspace::stage_job(domain, &mut job, items).is_none()
     {
         refused(domain, run, attempt, host::JobRefusal::Busy, out);
@@ -73,7 +90,7 @@ pub(crate) fn assign(
     let title = commit_title(job.kind, request);
     let prior = domain
         .job_specs
-        .insert((run, attempt), Spec { title, value: Some(spec) })
+        .insert((run, attempt), Spec { title, own, result: None, value: Some(spec) })
         .expect("one staged spec per hosted slot and the entering assignment");
     assert!(prior.is_none(), "wire retries were dropped");
     route::host_step(domain, env, host::Event::Down(host::LinkDown::AssignJob { job }));
@@ -108,6 +125,11 @@ pub(crate) fn run(
 ) {
     let hosting = domain.host.hosting(owner).expect("the hub starts an admitted job");
     let spec = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("an admitted job has a staged spec");
+    let own = spec.own.is_some();
+    let result = spec.result.take();
+    if own && result.is_none() {
+        return start_refused(domain, env, owner, b"prepare result");
+    }
     let spec = spec.value.take().expect("a job starts once");
     let spec = match spec {
         Ok(spec) => spec,
@@ -133,6 +155,9 @@ pub(crate) fn run(
             directory: path.finish(),
         },
     );
+    if let Some((result, code)) = result {
+        step(domain, env, tooling::Event::Prepared { owner, result, code });
+    }
 }
 
 fn start_refused(domain: &mut Domain, env: &Env<Limits>, owner: Token, why: &[u8]) {
@@ -148,6 +173,7 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, event: tooling::Event
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, owner: Token, event: tooling::Event) {
     let inner = match &event {
         tooling::Event::Run { owner, .. }
+        | tooling::Event::Prepared { owner, .. }
         | tooling::Event::Stop { owner }
         | tooling::Event::Written { owner, .. }
         | tooling::Event::Spawned { owner }
@@ -157,7 +183,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, owner: Token, event:
     };
     if owner == inner && domain.jobs.contains_key(&owner) {
         match event {
-            tooling::Event::Run { .. } | tooling::Event::Stop { .. } => {}
+            tooling::Event::Run { .. } | tooling::Event::Prepared { .. } | tooling::Event::Stop { .. } => {}
             event @ (tooling::Event::Written { .. }
             | tooling::Event::Spawned { .. }
             | tooling::Event::Exited { .. }
@@ -379,4 +405,21 @@ fn job_reason(answer: &host::JobEnding) -> Box<[u8]> {
         host::JobEnding::Finished { .. } => unreachable!("finished jobs have no operator failure line"),
     };
     Box::from(why)
+}
+
+/// The own request supplies the checkout's one-member combine, after item admission.
+pub(crate) fn checkout_spec(domain: &Domain, owner: Token, spec: &mut crate::checkout::Spec) {
+    let Some(hosting) = domain.host.hosting(owner) else { return };
+    let Some(job) = domain.job_specs.get(&(hosting.run, hosting.attempt)) else { return };
+    if let Some(request) = &job.own {
+        spec.repositories.first_mut().expect("own prepare has one repository").start = prepare::start(request);
+    }
+}
+
+pub(crate) fn candidate(domain: &mut Domain, owner: Token, outcome: &crate::checkout::Candidate) {
+    let hosting = domain.host.hosting(owner).expect("a job prepared a candidate");
+    let job = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("own request lives through preparation");
+    let request = job.own.as_ref().expect("a candidate belongs to temper's prepare");
+    job.result =
+        Some(prepare::result(request.member, outcome, 4_096).expect("an empty conflict result fits the prepare bound"));
 }

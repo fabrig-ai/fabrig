@@ -171,6 +171,20 @@ impl World {
             None,
         )
     }
+    #[must_use]
+    pub fn trains() -> World {
+        Self::configured(
+            11,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            8,
+            true,
+            None,
+        )
+    }
     pub fn project_landing(
         &mut self,
         project: u32,
@@ -181,6 +195,7 @@ impl World {
             project,
             way,
             gates.clone(),
+            temper_engine_domain_forge_landing::Project::DEFAULT,
             top::AfterLanding {
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
@@ -928,6 +943,7 @@ impl World {
                 *project,
                 *way,
                 gates.clone(),
+                temper_engine_domain_forge_landing::Project::DEFAULT,
                 top::AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,

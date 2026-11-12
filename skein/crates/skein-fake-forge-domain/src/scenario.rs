@@ -130,6 +130,12 @@ pub fn settings(domain: &mut Domain, repository: &[u8], settings: crate::api::Se
         crate::store::Styles { merge: settings.merge, rebase: settings.rebase, squash: settings.squash };
 }
 
+/// Sets the repository's manual merge settings, both off by default.
+pub fn manual_merges(domain: &mut Domain, repository: &[u8], settings: crate::api::ManualMerges) {
+    let id = domain.id(repository);
+    domain.repositories.get_mut(id).expect("a repository of the forge").manual_merges = settings;
+}
+
 /// Makes `repository` reachable by git, or not.
 pub fn set_reachable(domain: &mut Domain, repository: &[u8], reachable: bool) {
     let id = domain.id(repository);

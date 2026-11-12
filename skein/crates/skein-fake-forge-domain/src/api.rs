@@ -435,6 +435,9 @@ pub enum Git {
     /// Creates `branch` at `commit`, which the repository has, only if it is
     /// nowhere. Answered by [`Answer::Branch`].
     Create { branch: Box<[u8]>, commit: u64 },
+    /// Uploads a store commit and creates the branch only if absent.
+    /// Answered by `PushNew`, carrying the existing head when not created.
+    PushNew { branch: Box<[u8]>, commit: u64 },
 }
 
 /// What a fetch asks for.
@@ -563,6 +566,10 @@ pub enum Answer {
     },
     Pushed(Pushed),
     Branch(Created),
+    /// `Git::PushNew`: None created it; Some is the branch's unchanged head.
+    PushNew {
+        existing: Option<u64>,
+    },
 }
 
 /// Why a call failed.
@@ -634,6 +641,7 @@ pub use crate::actions::{Conclusion, Failing, Job, Run, RunEvent, RunState, Step
 pub enum MergeHow {
     Style,
     FastForwardOnly,
+    Recorded { commit: u64 },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UpdateStyle {
@@ -852,6 +860,16 @@ pub struct Settings {
     pub merge: bool,
     pub rebase: bool,
     pub squash: bool,
+}
+
+/// Manual merge settings, off unless a world enables them (testing/fakes/forge.md, 2.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ManualMerges {
+    pub allow_manual_merge: bool,
+    pub autodetect_manual_merge: bool,
+}
+impl ManualMerges {
+    pub const OFF: Self = Self { allow_manual_merge: false, autodetect_manual_merge: false };
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

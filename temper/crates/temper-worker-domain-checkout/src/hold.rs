@@ -100,6 +100,7 @@
 //! one place ([`tell`]), and what the new state implies (a closed hold is
 //! retired, and its workspace idle again) in another ([`follow`]).
 
+mod candidate;
 mod design;
 
 use alloc::boxed::Box;
@@ -138,6 +139,7 @@ struct Holding {
     conflicts: List<Conflicts>,
     /// What this prepare fetched, never a previous hold's observations.
     fetched: List<Fetched>,
+    candidate: Option<crate::Candidate>,
 }
 
 #[derive(Debug)]
@@ -186,6 +188,10 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
+    Candidate {
+        repository: u32,
+        step: candidate::Step,
+    },
     Store {
         repository: u32,
         look: bool,
@@ -379,7 +385,16 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     domain.facts.push(Fact::Held { client, cached });
     let tips = List::with_capacity(count(repositories.len()));
     let conflicts = List::with_capacity(count(repositories.len()));
-    let holding = Holding { client, workspace, stores, repositories, tips, conflicts, fetched: List::uncapped() };
+    let holding = Holding {
+        client,
+        workspace,
+        stores,
+        repositories,
+        tips,
+        conflicts,
+        fetched: List::uncapped(),
+        candidate: None,
+    };
     let hold = Hold { holding, state: State::Closed };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
@@ -537,6 +552,7 @@ fn ending(done: &Done) -> Ending {
         Done::Paths { files } => Ending::Paths { files: count(files.len()) },
         Done::Looked { holds } => Ending::Looked { holds: *holds },
         Done::IsAncestor { contains } => Ending::IsAncestor { contains: *contains },
+        Done::Brings { brings } => Ending::Brings { brings: *brings },
         Done::Succeeded => Ending::Succeeded,
         Done::Fetched { commit } => Ending::Fetched { commit: *commit },
         Done::Committed { commit } => Ending::Committed { commit: *commit },
@@ -544,13 +560,14 @@ fn ending(done: &Done) -> Ending {
         Done::Exists => Ending::Exists,
         Done::Rejected => Ending::Rejected,
         Done::Merged => Ending::Merged,
-        Done::Conflicted { files } => Ending::Conflicted { files: count(files.len()) },
+        Done::Conflicted { files, .. } => Ending::Conflicted { files: count(files.len()) },
         Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Ending::Failed { fault: *fault },
     }
 }
 
 fn preparation(prepared: &Prepared) -> Preparation {
     match prepared {
+        Prepared::Candidate { workspace, .. } => Preparation::Ready { workspace: *workspace, conflicts: 0 },
         Prepared::Ready { workspace, conflicts } => {
             let mut paths = 0_u64;
             for conflict in conflicts {
@@ -598,9 +615,9 @@ fn bounded_done(done: Done, limits: &Limits) -> Done {
                 Done::Failed { fault: Fault::Broken }
             }
         }
-        Done::Conflicted { files } => {
+        Done::Conflicted { files, cut } => {
             if paths_fit(&files, limits) {
-                Done::Conflicted { files }
+                Done::Conflicted { files, cut }
             } else {
                 Done::Failed { fault: Fault::Broken }
             }
@@ -612,6 +629,7 @@ fn bounded_done(done: Done, limits: &Limits) -> Done {
         | Done::Exists
         | Done::Rejected
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Failed { .. }
@@ -642,6 +660,9 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     reason = "the preparation transition table handles every terminal workspace outcome together"
 )]
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
+    if let PrepareStep::Candidate { repository, step } = step {
+        return candidate::after(holding, repository, step, done);
+    }
     match &done {
         Done::Fetched { commit } => remember_fetch(holding, step, *commit),
         Done::Succeeded
@@ -653,12 +674,14 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => {}
     }
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
+        PrepareStep::Candidate { .. } => unreachable!("candidate preparation was dispatched before the fetch memo"),
         PrepareStep::Store { repository, look } => match done {
             Done::Succeeded => {
                 cache.made(borrowed(holding, repository).store);
@@ -667,6 +690,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -693,6 +717,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a look with its own terminals"),
@@ -707,6 +732,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -727,6 +753,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -749,6 +776,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -765,6 +793,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -781,6 +810,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -800,6 +830,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -815,6 +846,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Succeeded
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -832,6 +864,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Fetched { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -846,6 +879,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Fetched { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -866,6 +900,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Succeeded
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -906,6 +941,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {
@@ -942,6 +978,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a fetch with its own terminals"),
@@ -952,6 +989,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             Done::Fetched { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
             | Done::Unchanged
@@ -970,6 +1008,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
@@ -982,7 +1021,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
                 }
                 None => after_merged(repository, last),
             },
-            Done::Conflicted { files } => {
+            Done::Conflicted { files, .. } => {
                 if head.is_some() {
                     return Next::Failed(Failure::Conflicted { repository, head: theirs });
                 }
@@ -998,6 +1037,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Exists
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Rejected => unreachable!("io ends a merge with its own terminals"),
         },
@@ -1020,6 +1060,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
         },
         PrepareStep::CompareHead { repository, head } => match done {
@@ -1039,6 +1080,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
         },
         PrepareStep::CommitHead { repository, head } => match done {
@@ -1057,6 +1099,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
         },
@@ -1077,6 +1120,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
         },
@@ -1090,6 +1134,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
@@ -1104,11 +1149,13 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Rejected
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
-        PrepareStep::Store { .. }
+        PrepareStep::Candidate { .. }
+        | PrepareStep::Store { .. }
         | PrepareStep::Look { .. }
         | PrepareStep::Make
         | PrepareStep::Clone { .. }
@@ -1143,7 +1190,11 @@ fn checked_out_merge(holding: &mut Holding, repository: u32, ours: Commit, base:
             }
             Some(base)
         }
-        Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Prepare { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. } => {
             unreachable!("only merge starts check out here")
         }
     };
@@ -1158,6 +1209,7 @@ fn start_want(start: &Start) -> Want {
         | Start::Merge { branch, .. }
         | Start::Merged { branch, .. } => Want::Branch { branch: copy_of(branch) },
         Start::Commit { commit } => Want::Commit { commit: *commit },
+        Start::Prepare { request } => Want::Commit { commit: request.base },
     }
 }
 
@@ -1176,7 +1228,8 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
             Want::Branch { branch: copy_of(pin_branch(nth(holding, repository)).expect("writable landing")) },
         ),
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
-        PrepareStep::Store { .. }
+        PrepareStep::Candidate { .. }
+        | PrepareStep::Store { .. }
         | PrepareStep::Look { .. }
         | PrepareStep::Make
         | PrepareStep::Clone { .. }
@@ -1232,10 +1285,14 @@ fn fetch_base(holding: &Holding, repository: u32, ours: Commit, base: Commit, he
 /// Pin writable items after their start; a producer merge keeps its contained-resume path.
 fn fetched_start(holding: &Holding, repository: u32, ours: Commit) -> Next {
     let spec = nth(holding, repository);
+    if let Start::Prepare { .. } = spec.start {
+        return candidate::first(repository);
+    }
     let merge = match spec.start {
         Start::Merge { .. } => true,
         Start::Base { .. }
         | Start::Branch { .. }
+        | Start::Prepare { .. }
         | Start::Commit { .. }
         | Start::Saved { .. }
         | Start::Merged { .. } => false,
@@ -1257,7 +1314,11 @@ fn after_start(holding: &Holding, repository: u32, ours: Commit, pin: Option<Com
             fetch_base(holding, repository, ours, *heads.first().expect("admitted heads are nonempty"), Some(0))
         }
         Start::Saved { .. } if spec.push.is_some() => fetch_push(holding, repository, ours),
-        Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Prepare { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. } => {
             let landing = if landing_branch(spec).is_some() { pin } else { None };
             Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing, pushed: Some(ours) })
         }
@@ -1279,7 +1340,7 @@ fn after_replaced_pin(holding: &Holding, repository: u32, ours: Commit, pushed: 
             fetch_base(holding, repository, ours, *heads.first().expect("admitted heads are nonempty"), Some(0))
         }
         Start::Saved { .. } => Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing: None, pushed }),
-        Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } => {
+        Start::Base { .. } | Start::Branch { .. } | Start::Prepare { .. } | Start::Commit { .. } => {
             Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing: None, pushed: Some(ours) })
         }
     }
@@ -1379,12 +1440,21 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => {
             return Box::new([]);
         }
     };
     let step: &[u8] = match step {
+        PrepareStep::Candidate { step, .. } => match step {
+            candidate::Step::Head => b"fetch member",
+            candidate::Step::Upstream => b"fetch upstream",
+            candidate::Step::Checkout => b"check out base",
+            candidate::Step::Merge => b"merge member",
+            candidate::Step::Brings => b"compare upstream",
+            candidate::Step::Commit { .. } => b"commit candidate",
+        },
         PrepareStep::Store { .. } => b"store",
         PrepareStep::Look { .. } => b"look",
         PrepareStep::Make => b"make",
@@ -1444,8 +1514,10 @@ fn prepare_next(
             Next::Ready => {
                 holding.fetched = List::uncapped();
                 let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0));
-                let prepared =
-                    Prepared::Ready { workspace: holding.workspace.token(), conflicts: conflicts.into_boxed() };
+                let prepared = match holding.candidate.take() {
+                    Some(outcome) => Prepared::Candidate { workspace: holding.workspace.token(), outcome },
+                    None => Prepared::Ready { workspace: holding.workspace.token(), conflicts: conflicts.into_boxed() },
+                };
                 out.push(Request::Prepared { client, prepared });
                 State::Ready
             }
@@ -1476,6 +1548,7 @@ fn prepare_step(
 ) -> State {
     let workspace = holding.workspace.token();
     let op = match step {
+        PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),
         PrepareStep::Look { repository } => {
             let repository = nth(holding, repository);
             Op::Look { at: place(workspace, repository), remote: copy_of(&repository.remote) }
@@ -1535,6 +1608,7 @@ fn prepare_step(
             let branch = match &repository.start {
                 Start::Base { branch } => copy_of(branch),
                 Start::Branch { .. }
+                | Start::Prepare { .. }
                 | Start::Commit { .. }
                 | Start::Saved { .. }
                 | Start::Merge { .. }
@@ -1684,6 +1758,10 @@ fn push_from(
             push.landings.push(Landing::DesignUnchecked).expect("room for each repository's landing");
             continue;
         }
+        if let Start::Prepare { .. } = spec.start {
+            let commit = tips(holding, repository).head;
+            return push_commit(holding, id, push, repository, commit, env, out);
+        }
         let at = place(holding.workspace.token(), spec);
         let parent = tips(holding, repository).head;
         let title = copy_of(&push.message.title);
@@ -1808,6 +1886,7 @@ fn pushed(
                 | Done::Merged
                 | Done::Paths { .. }
                 | Done::Looked { .. }
+                | Done::Brings { .. }
                 | Done::Conflicted { .. } => unreachable!("an ancestry query has its own terminals"),
             };
             (repository, landing)
@@ -1867,6 +1946,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Res
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => {
             unreachable!("io ends a commit with its own terminals")
@@ -1928,7 +2008,12 @@ fn push_commit(
         To::Branches | To::Unchecked => tips(holding, repository).expected,
         To::Saved => None,
     };
-    io(id, Op::Push { at, remote, commit, branch, expected, identity, account }, env, out);
+    let op = if let Start::Prepare { .. } = spec.start {
+        Op::Create { at, remote, commit, branch, identity, account }
+    } else {
+        Op::Push { at, remote, commit, branch, expected, identity, account }
+    };
+    io(id, op, env, out);
     State::Pushing { push, step: PushStep::Push { repository }, asked: Asked::Nothing }
 }
 
@@ -1942,7 +2027,7 @@ fn push_commit(
 fn pushed_to(holding: &mut Holding, to: &To, repository: u32, done: Done) -> Result<Landing, Done> {
     match done {
         Done::Succeeded => Ok(land(holding, to, repository)),
-        Done::Rejected => Ok(Landing::Moved),
+        Done::Rejected | Done::Exists => Ok(Landing::Moved),
         failure @ (Done::Failed { fault: Fault::TimedOut | Fault::Broken | Fault::Unreachable | Fault::Cancelled }
         | Done::FailedWithOutput {
             fault: Fault::TimedOut | Fault::Broken | Fault::Unreachable | Fault::Cancelled,
@@ -1953,9 +2038,9 @@ fn pushed_to(holding: &mut Holding, to: &To, repository: u32, done: Done) -> Res
         Done::Fetched { .. }
         | Done::Committed { .. }
         | Done::Unchanged
-        | Done::Exists
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => {
@@ -2013,6 +2098,7 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => {
@@ -2110,6 +2196,7 @@ const fn damages(done: &Done) -> bool {
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => false,
@@ -2129,7 +2216,7 @@ const fn failure(repository: u32, fault: Fault) -> Failure {
 /// What a failed invocation said, retaining its diagnostic output.
 fn failed_landing(done: Done) -> Landing {
     match done {
-        Done::Conflicted { files } => Landing::Conflicted { files },
+        Done::Conflicted { files, .. } => Landing::Conflicted { files },
         Done::Failed { fault } => Landing::Explained { fault, diagnostic: crate::git::PushDiagnostic::empty() },
         Done::FailedWithOutput { fault, diagnostic } => Landing::Explained { fault, diagnostic },
         Done::Succeeded
@@ -2140,6 +2227,7 @@ fn failed_landing(done: Done) -> Landing {
         | Done::Rejected
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => unreachable!("only a failed invocation is explained"),
     }
@@ -2181,6 +2269,17 @@ fn fits(spec: &Spec, limits: &Limits) -> bool {
     for (place, repository) in spec.repositories.iter().enumerate() {
         let start = match &repository.start {
             Start::Base { branch } | Start::Branch { branch } | Start::Saved { branch } => named(branch, limits),
+            Start::Prepare { request } => {
+                limits.conflicts > 0
+                    && limits.path_bytes > 0
+                    && repositories == 1
+                    && repository.push.is_some()
+                    && repository.save.is_none()
+                    && repository.expected.is_none()
+                    && repository.landing.is_none()
+                    && message_fits(&request.message, limits)
+                    && message_fits(&request.squash_message, limits)
+            }
             Start::Commit { .. } => true,
             Start::Merged { branch, heads } => {
                 named(branch, limits)
@@ -2261,6 +2360,7 @@ fn landing_branch(repository: &Repository) -> Option<&[u8]> {
         },
         Start::Base { .. }
         | Start::Saved { .. }
+        | Start::Prepare { .. }
         | Start::Commit { .. }
         | Start::Merge { .. }
         | Start::Merged { .. } => None,
@@ -2274,6 +2374,7 @@ fn creates_base(holding: &Holding, repository: u32) -> bool {
     let base = match spec.start {
         Start::Base { .. } => true,
         Start::Branch { .. }
+        | Start::Prepare { .. }
         | Start::Commit { .. }
         | Start::Saved { .. }
         | Start::Merge { .. }

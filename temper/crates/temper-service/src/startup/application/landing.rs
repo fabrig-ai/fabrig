@@ -371,9 +371,20 @@ fn repository_checks(
             let Some(mut object) = read::object(document, *at, "gate-check", &path, problems) else { continue };
             let check = check(&mut object, document, &path, limits, problems);
             let blocking = read::boolean(&mut object, document, b"blocking", &path, problems);
+            let base = match object.member(document, b"base") {
+                Some(at) => match config::read::boolean(document, at) {
+                    Ok(value) => Some(value),
+                    Err(what) => {
+                        problems.push(path.member(b"base"), What::Jig(what));
+                        None
+                    }
+                },
+                None => Some(false),
+            };
             read::finish(object, document, &path, problems);
             if let Some(check) = check
                 && let Some(blocking) = blocking
+                && let Some(base) = base
             {
                 for previous in &gates {
                     let previous: &engine::GateCheck = previous;
@@ -387,6 +398,7 @@ fn repository_checks(
                         workflow: check.workflow,
                         ignored: check.ignored,
                         blocking,
+                        base,
                     })
                     .expect("bounded gates");
             }
@@ -447,6 +459,13 @@ fn project_landing(
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
     let check_timeout = optional_check_timeout(object, document, path, problems);
+    let gate_retries = optional_integer(object, document, b"gate_retries", 2, u64::from(u8::MAX), path, problems);
+    let gate_timeout = optional_integer(object, document, b"gate_timeout_ms", 3_600_000, 86_400_000, path, problems);
+    if let Some(value) = gate_timeout
+        && value < 60_000
+    {
+        problems.push(path.member(b"gate_timeout_ms"), What::Jig(config::What::Bound));
+    }
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
@@ -476,6 +495,8 @@ fn project_landing(
     }
     Some(engine::ProjectLanding {
         check_timeout,
+        gate_retries: u8::try_from(gate_retries?).expect("bounded gate retries"),
+        gate_timeout: skein_lib::Duration::from_millis(gate_timeout?),
         by,
         close_job,
         merge_job,

@@ -192,6 +192,14 @@ impl Remote for Typed {
             api::Created::Exists => Created::Exists,
         })
     }
+    fn push_new(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
+        let api::Answer::PushNew { existing } =
+            self.call(remote, api::Git::PushNew { branch: branch.into(), commit })?
+        else {
+            panic!("push-new answer");
+        };
+        Ok(existing)
+    }
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let api::Answer::Pushed(pushed) =
             self.call(remote, api::Git::Push { branch: branch.into(), commit, expected })?

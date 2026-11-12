@@ -367,6 +367,7 @@ pub enum Request {
         at: Repo,
         number: u64,
         style: crate::forgejo::document::MergeStyle,
+        /// `MergeCommitID` for `ManuallyMerged`, otherwise `head_commit_id`.
         head: crate::forgejo::id::ObjectId,
     },
     Update {

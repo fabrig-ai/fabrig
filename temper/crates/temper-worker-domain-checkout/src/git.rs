@@ -91,6 +91,8 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
+    /// Whether head and upstream share a commit absent from base (protocol/git.md, 4.9).
+    Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
     /// rename detection. Ends Paths with the first non-Markdown name in git's
     /// order, or none. Each path is bounded; the file count is not.
@@ -170,12 +172,15 @@ pub enum Done {
     Looked { holds: bool },
     /// The standalone local ancestry query.
     IsAncestor { contains: bool },
+    /// The local upstream contribution query.
+    Brings { brings: bool },
     /// Merge has no unresolved paths; the next explicit merge commit still
     /// records both parents. No commit was made by the merge operation.
     Merged,
     /// Merge left conflicts, or a merge commit refused remaining markers.
-    /// Paths are bounded by the checkout's conflict/path limits.
-    Conflicted { files: Box<[Box<[u8]>]> },
+    /// Paths are bounded by the checkout's conflict/path limits; cut records
+    /// a retained prefix rather than the whole listing.
+    Conflicted { files: Box<[Box<[u8]>]>, cut: bool },
     /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
     /// `Fetch`: what was asked for is at `commit`, now in the repository.
@@ -252,6 +257,7 @@ pub enum Kind {
     CheckOut,
     Merge,
     IsAncestor,
+    Brings,
     DiffPaths,
     Commit,
     Push,
@@ -271,6 +277,7 @@ impl Op {
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
             Op::IsAncestor { .. } => Kind::IsAncestor,
+            Op::Brings { .. } => Kind::Brings,
             Op::DiffPaths { .. } => Kind::DiffPaths,
             Op::Commit { .. } => Kind::Commit,
             Op::Push { .. } => Kind::Push,
@@ -286,6 +293,7 @@ impl Op {
             Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
             | Op::Make { .. }

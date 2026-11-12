@@ -22,7 +22,8 @@ pub fn turn_world() -> World {
                 name: Box::from(b"gate".as_slice()),
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([Box::from(b"docs".as_slice())]),
-                blocking: true
+                blocking: true,
+                base: false,
             }])
         }])
     ));
@@ -55,6 +56,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             }]),
             preparation: 0,
             stale_proofs: 0,
+            branch: change.base.clone(),
         },
         asks: Box::new([None]),
         entries: Box::new([]),
@@ -134,4 +136,68 @@ pub fn documentation_landing(world: &mut World, change: u64, landing: u64, branc
     row.landing.task = landing;
     world.event(top::Event::Landing { row });
     drive_landing(world, landing);
+}
+
+/// The world's scripted deployment: only task creation and hold control are faked;
+/// train eligibility, queue order, admission and unit closure are the forge's.
+#[derive(Default)]
+pub struct Trains {
+    pub dependencies: Vec<top::ChangeDependencies>,
+    pub held: Vec<(u64, Box<[u8]>)>,
+    next: u64,
+}
+impl Trains {
+    pub fn judge(&mut self, world: &mut World) {
+        for (repository, branch) in world.top.waiting_trains() {
+            loop {
+                let held: Vec<_> = self.held.iter().map(|(task, _)| *task).collect();
+                let Some(task) = world.top.first_waiting(repository, &branch, &held, world.wall()) else { break };
+                let unit = world.top.joined_changes(PROJECT, task, &self.dependencies);
+                if unit.len() > 1 {
+                    self.held.push((task, world.top.unit_words(&unit)));
+                    continue;
+                }
+                self.next = self.next.max(LANDING);
+                let mut row = landing_row(world.change(task));
+                row.landing.task = self.next;
+                self.next += 1;
+                world.event(top::Event::Landing { row });
+            }
+        }
+    }
+    pub fn ready(&mut self, world: &mut World, task: u64, branch: &[u8]) {
+        ready_change(world, task, branch);
+        self.judge(world);
+    }
+    pub fn land(&mut self, world: &mut World, task: u64) {
+        drive_landing(world, task);
+        self.judge(world);
+    }
+    pub fn restart(&mut self, world: &mut World) {
+        world.restart();
+        world.run_for(1);
+        self.judge(world);
+    }
+    pub fn release(&mut self, world: &mut World, task: u64) {
+        self.held.retain(|(held, _)| *held != task);
+        self.judge(world);
+    }
+}
+
+/// A change into a goal's branch, still proved and merged by its landing.
+pub fn ready_on(world: &mut World, task: u64, branch: &[u8], base: &[u8]) {
+    world.produce_on(branch, base);
+    let pull = world.open_pull(branch, base);
+    let head = crate::translate::commit(world.branch(branch));
+    let mut row = changes::change_row();
+    row.task = task;
+    row.branch = Box::from(branch);
+    row.base = Box::from(base);
+    row.change.task = task;
+    row.change.way = change::Way::Turn;
+    row.change.state = change::State::Ready { head, ready_since: world.wall() };
+    row.change.ready_since = Some(world.wall());
+    row.change.last_head = Some(head);
+    row.pull = Some(pull);
+    world.event(top::Event::Change { row });
 }

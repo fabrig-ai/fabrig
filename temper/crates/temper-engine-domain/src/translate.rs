@@ -46,6 +46,7 @@ pub struct Config {
 #[derive(Hash, Debug)]
 pub(crate) struct RootConfig {
     pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
+    pub(crate) prepare_kind: Option<JobBound>,
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) close_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
@@ -62,6 +63,8 @@ pub struct LandingRules {
 /// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
+    pub gate_retries: u8,
+    pub gate_timeout: skein_lib::Duration,
     pub check_timeout: Option<skein_lib::Duration>,
     pub by: Way,
     pub merge_job: Option<Box<[u8]>>,
@@ -82,6 +85,7 @@ pub struct RepositoryChecks {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateCheck {
+    pub base: bool,
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
     pub ignored: Box<[Box<[u8]>]>,
@@ -117,6 +121,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                     workflow: gate.workflow.clone(),
                     ignored: gate.ignored.clone(),
                     blocking: gate.blocking,
+                    base: gate.base,
                 })
                 .expect("counted gates");
         }
@@ -153,6 +158,10 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             Way::Turn => temper_engine_domain_forge_change::Way::Turn,
         },
         repositories.into_boxed(),
+        temper_engine_domain_forge_landing::Project {
+            gate_retries: u32::from(landing.gate_retries),
+            gate_timeout: landing.gate_timeout,
+        },
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: u32::from(landing.after.tier_retries),

@@ -362,6 +362,14 @@ impl Remote for Forge {
         Ok(created_of(created))
     }
 
+    fn push_new(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
+        let Answer::PushNew { existing } = self.call(remote, WORKER, Git::PushNew { branch: branch.into(), commit })?
+        else {
+            panic!("push-new answer");
+        };
+        Ok(existing)
+    }
+
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let op = Git::Push { branch: branch.into(), commit, expected };
         let Answer::Pushed(pushed) = self.call(remote, WORKER, op)? else {

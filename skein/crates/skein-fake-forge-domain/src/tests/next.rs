@@ -315,6 +315,103 @@ fn a_fast_forward_merge_of_a_head_behind_its_base_is_a_conflict() {
     assert_eq!(h.domain.room().commits, room);
 }
 #[test]
+fn a_recorded_merge_requires_permission_and_ancestry_and_moves_nothing() {
+    use crate::api::{ManualMerges, MergeHow};
+    let mut h = Harness::new(CALM);
+    let head = h.commit(FIRST, &[(b"README", b"work")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    let number = opened(&mut h, b"work");
+    let base = h.commit(FIRST, &[(b"ci", b"base")]);
+    h.push(ENGINE, MAIN, base).unwrap();
+    let record = |commit| write(Write::Merge { number, head, how: MergeHow::Recorded { commit } });
+    assert_eq!(h.call(ENGINE, record(FIRST)), Err(Error::Refused), "manual records default off");
+    crate::manual_merges(&mut h.domain, REPOSITORY, ManualMerges { allow_manual_merge: true, ..ManualMerges::OFF });
+    assert_eq!(h.call(ENGINE, record(head)), Err(Error::Refused), "the base lacks the head");
+    assert_eq!(h.pull(number).state, State::Open);
+    let room = h.domain.room().commits;
+    for _ in 0_u32..2 {
+        assert_eq!(h.call(ENGINE, record(FIRST)), Ok(Answer::Merged(FIRST)));
+    }
+    assert_eq!(h.branch(MAIN), Some(base));
+    assert_eq!(h.branch(b"work"), Some(head));
+    let pull = h.pull(number);
+    assert_eq!((pull.state, pull.merged, pull.commit), (State::Closed, Some(FIRST), head));
+    assert_eq!(h.domain.room().commits, room);
+}
+
+#[test]
+fn a_push_detects_the_first_merge_on_the_heads_ancestry_path_or_a_fast_forward() {
+    use crate::api::ManualMerges;
+    for enabled in [false, true] {
+        for merged in [false, true] {
+            let mut h = Harness::new(CALM);
+            crate::manual_merges(
+                &mut h.domain,
+                REPOSITORY,
+                ManualMerges { autodetect_manual_merge: enabled, ..ManualMerges::OFF },
+            );
+            let head = h.commit(FIRST, &[(b"README", b"work")]);
+            h.push(ENGINE, b"work", head).unwrap();
+            let number = opened(&mut h, b"work");
+            let (tip, expected) = if merged {
+                let merge =
+                    crate::merge_commit(&mut h.domain, &CALM, FIRST, head, files(&[(b"README", b"work")]), b"merge")
+                        .unwrap();
+                let later = crate::merge_commit(
+                    &mut h.domain,
+                    &CALM,
+                    merge,
+                    FIRST,
+                    files(&[(b"README", b"work")]),
+                    b"later merge",
+                )
+                .unwrap();
+                (h.commit(later, &[(b"ci", b"tip")]), merge)
+            } else {
+                (h.commit(head, &[(b"ci", b"tip")]), head)
+            };
+            h.push(ENGINE, MAIN, tip).unwrap();
+            let pull = h.pull(number);
+            assert_eq!(pull.merged, if enabled { Some(expected) } else { None });
+            assert_eq!(pull.state, if enabled { State::Closed } else { State::Open });
+            assert_eq!(pull.commit, head);
+            assert_eq!(h.branch(MAIN), Some(tip));
+            assert_eq!(h.branch(b"work"), Some(head));
+        }
+    }
+}
+
+#[test]
+fn another_pulls_fast_forward_detects_a_manual_merge() {
+    use crate::api::{ManualMerges, MergeHow};
+    for enabled in [false, true] {
+        let mut h = Harness::new(CALM);
+        crate::manual_merges(
+            &mut h.domain,
+            REPOSITORY,
+            ManualMerges { autodetect_manual_merge: enabled, ..ManualMerges::OFF },
+        );
+        h.ok(ENGINE, create(b"one", b"", &[]));
+        h.ok(ENGINE, create(b"two", b"", &[]));
+        let head = h.commit(FIRST, &[(b"README", b"work")]);
+        h.push(ENGINE, b"work", head).unwrap();
+        assert_eq!(opened(&mut h, b"work"), 3);
+        let merge =
+            crate::merge_commit(&mut h.domain, &CALM, FIRST, head, files(&[(b"README", b"work")]), b"merge").unwrap();
+        h.push(ENGINE, b"land", merge).unwrap();
+        assert_eq!(opened(&mut h, b"land"), 4);
+        assert_eq!(
+            h.call(ENGINE, write(Write::Merge { number: 4, head: merge, how: MergeHow::FastForwardOnly })),
+            Ok(Answer::Merged(merge))
+        );
+        let pull = h.pull(3);
+        assert_eq!((pull.commit, pull.merged), (head, if enabled { Some(merge) } else { None }));
+        assert_eq!(pull.state, if enabled { State::Closed } else { State::Open });
+        assert_eq!(h.branch(MAIN), Some(merge));
+    }
+}
+
+#[test]
 fn an_update_by_rebase_replays_the_branch_onto_the_base() {
     let mut h = Harness::new(CALM);
     let one =

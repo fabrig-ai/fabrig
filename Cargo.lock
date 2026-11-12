@@ -5531,6 +5531,7 @@ dependencies = [
  "jig-protocol-config",
  "skein-forge",
  "skein-forge-client",
+ "skein-json",
  "skein-lib",
  "skein-world",
  "temper-client-protocol-wire",
@@ -6563,6 +6564,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "skein-json",
  "skein-lib",
  "smith-domain-run",
  "smith-domain-session",

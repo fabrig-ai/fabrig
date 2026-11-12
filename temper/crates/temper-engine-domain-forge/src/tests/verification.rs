@@ -275,6 +275,7 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
         PROJECT,
         change::Way::Queue,
         Box::new([RepositoryGates { repository: REPO, gates: Box::new([]), tiers: tiers.into_boxed() }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding { verdict: policy::Settings { retries: 2, suspects: policy::Suspects::Bisect }, bound: BOUND }
     ));
     d

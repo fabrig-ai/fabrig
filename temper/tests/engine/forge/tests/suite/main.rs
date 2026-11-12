@@ -13,11 +13,13 @@ mod replay;
 mod settle;
 mod simulation;
 mod tiers;
+mod trains;
 mod update_lost;
 mod writer;
 
 mod fuzzy {
     mod branch_patterns;
+    mod gate_keys;
     mod simulation;
 }
 

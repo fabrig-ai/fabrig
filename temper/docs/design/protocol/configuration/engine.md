@@ -113,9 +113,11 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
   milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
   absent: how long a gate's run may be in flight before it holds its
-  landing (`../../domain/landing.md`, 7.1). One past its bounds refuses
+  landing (`../../domain/landing.md`, 7.1); and `gate_retries`, a u8, 2
+  when absent: how many times a runner's fault is dispatched again per
+  key (`../../domain/landing.md`, 7.4). One past its bounds refuses
   the start at its member,
-  `application.landing.projects[i].gate_timeout_ms`.
+  `application.landing.projects[i].gate_timeout_ms` or `.gate_retries`.
 - **The merge job's command,** beside `by`, by either way: `merge_job`,
   a relative path of at most 4,096 bytes, without `..`, in each
   repository the merge job merges, none when absent: the project's merge

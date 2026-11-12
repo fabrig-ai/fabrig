@@ -175,6 +175,7 @@ fn write_op(write: &client::Write) -> forge::Write {
             how: match how {
                 client::MergeHow::Style => forge::MergeHow::Style,
                 client::MergeHow::FastForwardOnly => forge::MergeHow::FastForwardOnly,
+                client::MergeHow::Recorded { commit } => forge::MergeHow::Recorded { commit: number(*commit) },
             },
         },
         client::Write::Update { number, style } => forge::Write::Update {
@@ -404,6 +405,7 @@ pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::
         | forge::Answer::Jobs(_)
         | forge::Answer::Comments(_)
         | forge::Answer::Pulls(_)
+        | forge::Answer::PushNew { .. }
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
     }
 }

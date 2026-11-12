@@ -45,6 +45,7 @@ impl Outcome {
                         git::Done::Failed { fault } | git::Done::FailedWithOutput { fault, .. } => Some(*fault),
                         git::Done::Looked { .. }
                         | git::Done::Paths { .. }
+                        | git::Done::Brings { .. }
                         | git::Done::IsAncestor { .. }
                         | git::Done::Merged
                         | git::Done::Conflicted { .. }
