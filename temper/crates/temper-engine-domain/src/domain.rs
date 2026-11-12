@@ -77,6 +77,7 @@ pub struct Domain {
     pub(crate) start_stop: Option<StartStop>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
+    pub(crate) rehearsal: Option<bool>,
     pub(crate) startup_fill: Option<u64>,
     pub(crate) sweep_rows: Queue<crate::Record>,
     pub(crate) sweep_page: bool,
@@ -329,6 +330,17 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
+    /// Restore as at a start, ending before the switch (domain/root.md, 8.1).
+    pub fn rehearse(&mut self) {
+        assert!(self.start_wall.is_none(), "rehearsal set before restart");
+        self.rehearsal = Some(false);
+    }
+    /// The rehearsal reached the switch without asking for it.
+    #[must_use]
+    pub fn rehearsed(&self) -> bool {
+        self.rehearsal == Some(true)
+    }
+
     /// Allocate the root and fixed child room from shell-supplied configuration and validated
     /// cross-child limits. Checks bounded authority/bootstrap configuration; issues no request.
     /// Startup pages/account setup begin only on `Event::Restart`.
@@ -501,6 +513,7 @@ impl Domain {
         );
         assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
+            rehearsal: None,
             host_part: config.host_part,
             revision: 0,
             held_bytes: 0,

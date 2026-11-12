@@ -690,8 +690,8 @@ pub(super) fn run_propose_reason(
     use std::fmt::Write as _;
     let (config, mut limits) = run_configuration();
     // The fake transport carries names up to its schema ceiling; admission is the core's.
-    limits.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
-    limits.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
+    limits.core.authority.segments = jig_protocol_store::settings_v2::CEILINGS.document_name;
+    limits.core.authority.segment_bytes = jig_protocol_store::settings_v2::CEILINGS.segment_bytes;
     let models = settings::model_names(&config.core.settings.models);
     let bytes = jig_protocol_store::codec::settings::encode(
         &settings::Record::Proposal {

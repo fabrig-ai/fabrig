@@ -12,6 +12,10 @@ pub mod github_logs;
 mod google_runtime;
 pub mod printed;
 const CONFIG_BYTES: u32 = 1_048_576;
+/// Agent preflight supplied by the binary that holds a worker, for rehearsal only.
+pub trait WorkerHalf {
+    fn preflight(&self, named: &service::startup::Named) -> Result<service::settings::Agent, String>;
+}
 /// Words needed by program-login on this deployment (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn program_environment(

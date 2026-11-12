@@ -17,4 +17,6 @@ skein-tls.workspace = true
 workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
+skein-scratch.workspace = true
 skein-rows.workspace = true
