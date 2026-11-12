@@ -1,6 +1,9 @@
 # look: status
 
-2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-12. Where the tree's code lags or departs from [look.md](look.md).
+
+- **Not yet:** the whole document: *The welcome's look*: the bar's end only while offline, temper box's line under the Welcome step's cards, and Model's and Ready's "Open Forgejo ↗" at its line's indent, muted [in flight: change 1991].
+- **Not yet:** the whole document: *A chat's status line* and *A chat's document*'s empty pane acts: `temper.css` has no `.temper-status-line`, `.temper-doc-acts` or `.temper-doc-write-up` rules, and the bar's status keeps `.state-needs` [in flight: change 2000].
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
