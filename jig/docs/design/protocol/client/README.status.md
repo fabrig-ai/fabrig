@@ -15,7 +15,7 @@ watch ending.
   The plan chose bounded memory rather than a stored history; its direction
   to use the current terminal's link still holds.
 
-- **Not yet:** 10, *A watch's opening and closing wait for credit*: `jig-client-protocol-link` ends an opening that finds every exchange in flight busy, and drops a closing. [in flight: change 842]
+- **Not yet:** 10, *A watch's opening and closing wait for credit*: `jig-client-protocol-link` ends an opening that finds every exchange in flight busy, and drops a closing. [in flight: change 997]
 - **Not yet:** 4: a turn read answered gone past its transcript's horizon: no retention drops a transcript (`../store/README.md`, 6.1). 11: the protocol world's stories over an in-process transport: `jig/tests/client-protocol` runs them through native HTTP bytes alone.
 - **Departs:** 8, *Never taken, nothing made*: a take admitted before
   expiry remains reserved until the core answers, even past the approval's
