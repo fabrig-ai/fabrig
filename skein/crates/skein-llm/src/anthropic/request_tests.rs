@@ -122,19 +122,38 @@ fn effort_is_explicit_and_unsupported_fields_are_rejected() {
         assert!(bytes::find(&wire, output_config).is_some(), "effort is preserved in output_config");
     }
     let mut prompt = prompt(Role::User, text(b"hello"));
-    prompt.reasoning_effort = Some(bytes::copy_of(b"off"));
-    let wire = encode_request(&prompt, 4096, &LIMITS).expect("thinking disabled");
-    assert!(bytes::find(&wire, br#""thinking":{"type":"disabled"}"#).is_some(), "off disables thinking");
-    assert_eq!(bytes::find(&wire, b"output_config"), None);
-    prompt.reasoning_effort = Some(bytes::copy_of(b"unknown"));
-    assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Unsupported));
+    for effort in [b"off".as_slice(), b"none", b"unknown"] {
+        prompt.reasoning_effort = Some(bytes::copy_of(effort));
+        assert_eq!(encode_request(&prompt, 4096, &LIMITS), Err(Error::Unsupported));
+        assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Unsupported));
+    }
     prompt.reasoning_effort = None;
     let without_affinity = encode_request(&prompt, 4096, &LIMITS).expect("plain request");
+    assert_eq!(bytes::find(&without_affinity, b"thinking"), None);
+    assert_eq!(bytes::find(&without_affinity, b"output_config"), None);
     prompt.affinity = Some(crate::Affinity { key: [0x42; 16], thread: 19 });
     assert_eq!(encode_request(&prompt, 4096, &LIMITS).expect("accepted affinity"), without_affinity);
     prompt.affinity = None;
     prompt.max_output_tokens = Some(0);
     assert_eq!(measure_request(&prompt, 4096, &LIMITS), Err(Error::Invalid));
+}
+
+#[test]
+fn appending_a_turn_preserves_signed_and_redacted_thinking_byte_for_byte_in_order() {
+    let thinking = br#"{"type":"thinking","thinking":"consider","signature":"signed"},{"type":"redacted_thinking","data":"redacted"}"#;
+    let mut prompt = prompt(Role::Assistant, text(b"answer"));
+    prompt.messages[0].content = Box::new([
+        reasoning(br#"{"type":"thinking","thinking":"consider","signature":"signed"}"#),
+        reasoning(br#"{"type":"redacted_thinking","data":"redacted"}"#),
+        text(b"answer"),
+    ]);
+    let first = encode_request(&prompt, 4096, &LIMITS).expect("first request");
+    let start = bytes::find(&first, thinking).expect("first request holds thinking in order");
+    let original = &first[start..start + thinking.len()];
+    prompt.messages =
+        Box::new([prompt.messages[0].clone(), Message { role: Role::User, content: Box::new([text(b"continue")]) }]);
+    let second = encode_request(&prompt, 4096, &LIMITS).expect("appended request");
+    assert!(bytes::find(&second, original).is_some(), "earlier thinking stays whole and in order");
 }
 
 #[test]
@@ -323,6 +342,68 @@ fn peer_request_admits_native_core_before_corrupted_controls() {
         assert_ne!(wire.as_bytes(), good.as_bytes(), "negative actually changes native core");
         let value = Json::from_bytes(wire.as_bytes(), &LIMITS.document()).expect("corruption retains JSON syntax");
         assert!(super::decode_request(&value, &LIMITS).is_err(), "native core corruption {old} rejected");
+    }
+}
+
+fn peer_refuses_member(member: &str) {
+    let good = r#"{"model":"model","stream":true,"max_tokens":32,"messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}"#;
+    let value = Json::from_bytes(good.as_bytes(), &LIMITS.document()).expect("native JSON");
+    super::decode_request(&value, &LIMITS).expect("native core admitted");
+    let wire = good.replace("\"stream\":true", member);
+    let bad = Json::from_bytes(wire.as_bytes(), &LIMITS.document()).expect("forbidden member retains JSON syntax");
+    assert_eq!(super::decode_request(&bad, &LIMITS), Err(openai::DecodeError::Malformed));
+}
+
+#[test]
+fn peer_refuses_disabled_thinking() {
+    peer_refuses_member(r#""stream":true,"thinking":{"type":"disabled"}"#);
+}
+
+#[test]
+fn peer_refuses_temperature() {
+    peer_refuses_member(r#""stream":true,"temperature":0"#);
+}
+
+#[test]
+fn peer_refuses_top_p() {
+    peer_refuses_member(r#""stream":true,"top_p":null"#);
+}
+
+#[test]
+fn peer_refuses_top_k() {
+    peer_refuses_member(r#""stream":true,"top_k":1"#);
+}
+
+#[test]
+fn requests_never_send_sampling_or_forced_tool_choice() {
+    for calls_per_response in [1, 2] {
+        for choice in [
+            crate::ToolChoice::Auto,
+            crate::ToolChoice::None,
+            crate::ToolChoice::Only(Box::new([bytes::copy_of(b"read")])),
+        ] {
+            for effort in [None, Some(bytes::copy_of(b"high"))] {
+                let limits = openai::Limits { calls_per_response, ..LIMITS };
+                let mut prompt = prompt(Role::User, text(b"hello"));
+                prompt.tools = Box::new([Tool {
+                    name: bytes::copy_of(b"read"),
+                    description: Box::new([]),
+                    schema: Json::from_bytes(b"{}", &limits.document()).expect("tool schema"),
+                }]);
+                prompt.choice = choice.clone();
+                prompt.reasoning_effort = effort;
+                let wire = encode_request(&prompt, 4096, &limits).expect("native request");
+                for forbidden in [
+                    b"\"temperature\"".as_slice(),
+                    b"\"top_p\"",
+                    b"\"top_k\"",
+                    br#""tool_choice":{"type":"any""#,
+                    br#""tool_choice":{"type":"tool""#,
+                ] {
+                    assert!(bytes::find(&wire, forbidden).is_none(), "no sampling or forced tool choice");
+                }
+            }
+        }
     }
 }
 
