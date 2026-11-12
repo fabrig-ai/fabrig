@@ -611,7 +611,7 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
         }
     }
     for follow in keys.into_boxed() {
-        keep(d, project, follow, out);
+        keep(d, project, follow, None, out);
     }
 }
 pub(crate) fn deadline(d: &Domain) -> Option<Time> {

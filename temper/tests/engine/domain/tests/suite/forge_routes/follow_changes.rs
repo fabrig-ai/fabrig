@@ -1,6 +1,8 @@
 //! The standing follow and its target-project work, on the independent fake forge.
 #[path = "follow_changes/proof.rs"]
 pub(crate) mod proof;
+#[path = "follow_changes/role.rs"]
+pub(crate) mod role;
 use super::*;
 use forge_top::{FollowRow, FollowState, settings as s};
 use jig_domain_core::settings as cs;

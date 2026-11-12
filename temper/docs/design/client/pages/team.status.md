@@ -5,4 +5,5 @@
 - **Not yet:** 1: `Team { project, role }` and `?role=N`; the roles' watch on every project page and Team in the rail for a standing role; Standing roles, a row each; a role's card, its head with Pause and Resume, and its Now; the gallery's `team-role` and `night-team-role` [in flight: change 754].
 - **Not yet:** 1: a role's card's rules, its charter's "Asked to" read from the `charter N` view, and what wakes it, a row for each of its subscriptions with its class, in `team-role` and `night-team-role` [in flight: change 764].
 - **Not yet:** 1: a role's card's sessions this week, read from its activity, in `team-role` and `night-team-role` [in flight: change 771].
+- **Not yet:** 1, *Follows*: the project's `follows` watch on Team, a follow's line on its owner's row or box, and a role's card's follows with their lag's entries, in `team-role` and `night-team-role` [in flight: change 2007].
 

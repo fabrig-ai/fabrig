@@ -68,7 +68,7 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, follow
         }
         forge::settings::FollowOwner::Task(owner) => {
             let Some(context) = domain.core.tasks.delegation(owner) else { return };
-            match seed.delegate(&context, domain.config.forge_connector, super::FOLLOW_CODE, spec, contract) {
+            match seed.delegate(owner, &context, domain.config.forge_connector, super::FOLLOW_CODE, spec, contract) {
                 Ok(event) => {
                     domain.work.push(Work::Forge(forge::Event::Follow { row }));
                     domain.work.push(Work::Tasks(event));
@@ -94,6 +94,7 @@ fn refusal(why: tasks::Refusal) -> &'static [u8] {
     else { b"task admission refused" }
 }
 pub(crate) fn make_refused(domain: &mut Domain, task: u64, why: tasks::Refusal) -> bool {
+    if domain.core.tasks.task(task).is_some() { return false; }
     let Some(row) = domain.forge.follow_task(task).cloned() else { return false };
     let Some(setting) = domain.forge.follow(row.project, row.follow) else { return false };
     let forge::settings::FollowOwner::Task(owner) = setting.owner else { return false };
@@ -110,6 +111,7 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     let Some(mut row) = domain.forge.follow_task(task).cloned() else { return };
     refresh(domain, &mut row);
     take_questions(domain, task, &mut row);
+    let Some(setting) = domain.forge.follow(row.project, row.follow).cloned() else { return };
     let act = row.pending.clone();
     let mut decision = ProcedureStep::new(StepEnd::Wait);
     let mut made = List::with_capacity(env.limits.tasks.batch);
@@ -120,7 +122,6 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
         super::holds::hold(domain, task, b"the follow cannot apply its owner act within the specification bound");
         return;
     }
-    let Some(setting) = domain.forge.follow(row.project, row.follow).cloned() else { return };
     let Some(delegation) = domain.core.tasks.delegation(task) else { return };
     // A remake is one batch, including the tail. No held task is released.
     let mut remake = None;
@@ -232,7 +233,7 @@ pub(crate) fn remake_tail(domain: &Domain, row: &mut forge::FollowRow, from: usi
                 cancels.push(StepCancel { task, reason: reason.into_boxed(), grace: None }).expect("follow queue");
             }
             entry.change = None;
-            entry.state = forge::FollowState::NotMade;
+            if !matches_owner_hold(&entry.state) { entry.state = forge::FollowState::NotMade; }
             entry.remake = false;
         }
     }
@@ -550,6 +551,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, first: Option<u64>
     for credit in &record.questions {
         if !pending.credits.contains(&credit.number) { credits.push(credit.number).expect("admitted credits"); }
     }
+    assert_eq!(pending.asked.len(), skein_lib::usize_of(credits.len()), "each admitted relay has one credit");
     for (source, admitted) in pending.asked.iter().zip(credits.as_slice()) {
         for question in &mut pending.row.questions {
             if question.number == *source { question.relayed = Some(*admitted); }
