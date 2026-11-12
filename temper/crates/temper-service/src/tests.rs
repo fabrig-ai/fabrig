@@ -36,6 +36,13 @@ mod box_link;
 mod checks;
 mod family;
 mod reference_landing;
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the shared test helper decodes the embedded reference fixture"
+)]
+#[path = "../../../testing/reference_settings.rs"]
+mod reference_settings;
 mod root_checks;
 mod startup;
 mod system;

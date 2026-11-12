@@ -163,6 +163,9 @@ fn configure_reference_authority_allows_coordinator_tools() {
             .collect();
     }
     widen_reference(&mut configured.roles[0].authority, &required);
+    assert_eq!(rules.ceiling.delegation.kinds.len(), 15);
+    assert_eq!(configured.ceiling.delegation.kinds.len(), 15);
+    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 13);
     for (old, new) in [
         (&stock.rules.ceiling, &rules.ceiling),
         (&policy.ceiling, &configured.ceiling),
@@ -189,19 +192,15 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
     use jig_domain_authority::{Executor, Scopes, Tools};
     assert_eq!(new.tools, Tools(4031));
     assert_eq!(new.notes, Scopes(3));
+    for retired in [6, 7, 8, 12, 13] {
+        assert!(!new.delegation.kinds.contains(&Executor::Charter(retired)));
+    }
     let mut restored = new.clone();
     restored.tools = old.tools;
     restored.notes = old.notes;
     restored.delegation.kinds = old.delegation.kinds.clone();
     assert_eq!(&restored, old, "budgets, grants and other authority fields survive");
-    for executor in [
-        Executor::Charter(5),
-        Executor::Charter(7),
-        Executor::Charter(8),
-        Executor::Procedure(6),
-        Executor::Job(4),
-        Executor::Role(0),
-    ] {
+    for executor in [Executor::Charter(5), Executor::Procedure(6), Executor::Job(4), Executor::Role(0)] {
         assert!(new.delegation.kinds.contains(&executor));
     }
 }

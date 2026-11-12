@@ -610,16 +610,19 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(own[name].as_u64(), Some(value), "application {name}");
     }
+    let parsed = super::stock::engine(&serde_json::to_vec(&document).expect("reference document"));
+    let defaults = crate::stock::with_models(parsed.llm.models.clone(), parsed.limits.core.tasks.result_bytes);
+    for number in [5, 2] {
+        let charter = super::reference_settings::charter(&defaults, number);
+        assert_eq!(u64::from(charter.policy.model.output), output);
+        for model in &charter.policy.alternatives {
+            assert_eq!(u64::from(model.output), output);
+        }
+    }
     let settings: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/settings.json")).unwrap();
     for item in settings["items"].as_array().unwrap() {
         match item["setting"]["kind"].as_str().unwrap() {
-            "charter" => {
-                assert_eq!(item["set"]["model"]["output"].as_u64(), Some(output));
-                for model in item["set"]["alternatives"].as_array().unwrap() {
-                    assert_eq!(model["output"].as_u64(), Some(output));
-                }
-            }
             "template" if item["setting"]["number"] == 4_u32 => {
                 assert_eq!(item["set"]["contract"]["report"]["words"].as_u64(), Some(payload - 2));
             }

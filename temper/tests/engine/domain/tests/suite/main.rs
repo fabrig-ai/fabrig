@@ -1,6 +1,8 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+#[path = "../../../../../testing/reference_settings.rs"]
+mod reference_settings;
 #[path = "../fixtures/stock.rs"]
 mod stock;
 

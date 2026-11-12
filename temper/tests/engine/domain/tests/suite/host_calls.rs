@@ -569,20 +569,20 @@ fn reference_goal_leaves_ci_selection_to_its_closer() {
     let goal = reference_result_wake(&mut world, &goal);
     assert_no_coordinator_close_out(&goal);
     let instructions = String::from_utf8_lossy(&goal.run.policy.instructions);
-    assert!(instructions.contains("On a change that failed, read why"));
-    assert!(instructions.contains("When your closer escalates"));
-    assert!(instructions.contains("your closer waits for it and lands the new head"));
+    assert!(instructions.contains("**A failure:** read its report."));
+    assert!(instructions.contains("**Your closer's escalation**"));
+    assert!(instructions.contains("the closer waits for it and lands the new head"));
     world.close();
 }
 
 fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> engine::Assignment {
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Report the design", Box::new([]));
-    delegate.executor = tasks::Executor::Agent { charter: 7 };
+    delegate.executor = tasks::Executor::Agent { charter: 2 };
     delegate.authority.tools = tasks::Tools(0);
     delegate.authority.budget.spend = 10_000;
     let answer = world.scripted_call(goal, 90, engine::Tool::Delegate { batch: Box::new([delegate]) });
     assert!(matches!(answer, engine::CallAnswer::Delegated(_)), "{answer:?}");
-    let reporter = person_assignment(world, 7, None);
+    let reporter = person_assignment(world, 2, None);
     person_park(world, goal);
     person_end(
         world,
@@ -629,7 +629,6 @@ fn help_trimming_requires_existing_fact_preservation_evidence() {
     for retained in [false, true] {
         let (mut world, goal) = reference_person_world("none");
         assert_no_coordinator_close_out(&goal);
-        assert_help_preservation_instructions(&goal);
         let spec = "Trim change help to add the early-start explanation and resolving pointer. \
                     Existing facts at risk: read_task supplies the answer number. Require a \
                     before/after fact mapping and named retention assertion alongside addition checks.";
@@ -676,24 +675,10 @@ fn help_trimming_report(retained: bool) -> String {
 fn assert_help_preservation_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
     for rule in [
-        "existing facts at risk",
-        "before/after fact mapping",
-        "named retention assertions",
-        "Passing addition tests and page bounds cannot settle missing preservation evidence",
-        "unresolved acceptance",
+        "keep the requested change and unrelated base content",
+        "restore losses a review names",
+        "never remove content to pass checks",
     ] {
-        assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
-    }
-    let rules: &[&str] = match run.charter {
-        2 => &[
-            "read_task supplies the answer number",
-            "report missing preservation evidence as unresolved acceptance",
-            "Left",
-        ],
-        5 => &["identify existing facts at risk and require a before/after fact mapping"],
-        other => panic!("help preservation charter {other}"),
-    };
-    for rule in rules {
         assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
     }
 }
@@ -739,16 +724,7 @@ fn row_timing_report(measured: bool) -> String {
 
 fn assert_row_timing_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    for rule in [
-        "each requested deliverable",
-        "each requested row's measured timing",
-        "suite wall time and an arithmetic average cannot establish individual row costs",
-        "An unmet requested deliverable remains unfinished",
-        "passing CI or a status-file entry",
-        "changing the requested scope requires the person's decision",
-        "report the missing measurements as unfinished",
-        "Left",
-    ] {
+    for rule in ["what you don't know is unknown", "## Left"] {
         assert!(instructions.contains(rule), "producer requested measurements require: {rule}");
     }
 }
@@ -773,16 +749,7 @@ fn acceptance_report(covered: bool) -> String {
 
 fn assert_acceptance_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    for rule in [
-        "assertions added or extended",
-        "existing coverage",
-        "checks actually run",
-        "Page bounds and link validity",
-        "explanation or pointer",
-        "map each acceptance item to a named assertion at the lowest tier",
-        "add or extend tests when existing assertions do not cover it",
-        "Left",
-    ] {
+    for rule in ["**Done** is your acceptance", "**A new test must bite:**", "## Left"] {
         assert!(instructions.contains(rule), "producer acceptance evidence requires: {rule}");
     }
 }
@@ -992,7 +959,13 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
     let mut charters = defaults.charters.to_vec();
     for item in reference_person_settings() {
         match item.edit {
-            Edit::Set(Value::Charter(mut charter)) => {
+            Edit::Set(Value::Overlay(overlay)) => {
+                let stock = defaults
+                    .charters
+                    .iter()
+                    .find(|charter| item.setting == jig_domain_core::settings::Setting::Charter(charter.number))
+                    .expect("stock charter");
+                let mut charter = jig_domain_core::settings::overlaid(stock, &overlay);
                 // Scripted turns use the fake worker's model and no checkout document reads.
                 charter.policy.model = model.clone();
                 charter.spend = defaults.charters[0].spend;
@@ -1001,7 +974,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
                 }
                 charter.documents = Box::new([]);
                 charters.retain(|old| old.number != charter.number);
-                charters.push(*charter);
+                charters.push(charter);
             }
             Edit::Set(Value::Template(template)) => {
                 let mut templates = defaults.templates.to_vec();
@@ -1070,10 +1043,7 @@ fn reference_executor_authority(authority: &mut jig_domain_authority::Authority)
         .filter(|kind| {
             matches!(
                 kind,
-                Executor::Charter(2 | 4 | 5 | 6 | 7)
-                    | Executor::Procedure(2..=4)
-                    | Executor::Job(3)
-                    | Executor::Role(0)
+                Executor::Charter(2 | 4 | 5) | Executor::Procedure(2..=4) | Executor::Job(3) | Executor::Role(0)
             )
         })
         .collect();
@@ -1110,9 +1080,9 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
     let mut defaults = reference_person_defaults();
     let configured = defaults.policies.get(&1).expect("policy").clone();
     reference_missing_role(&mut defaults, missing);
-    // The reference coordinator instruction text plus its assignment carriers and 25% headroom.
+    // The stock goal's full policy and parts under the reference overlays.
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
-    limits.journal.run_bytes = 26_000;
+    limits.journal.run_bytes = 65_536;
     let mut world = PersonWorld::configured_stock_limits(&defaults, &crate::stock::box_model(), &limits);
     world.adopt();
     if missing == "existing" {
@@ -1688,11 +1658,10 @@ fn a_goal_reads_a_whole_design_result_in_practical_pages() {
 // temper/docs/design/protocol/configuration/reference.md: only the closer closes the goal.
 fn assert_no_coordinator_close_out(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";
-    assert_eq!(instructions.matches(prohibition).count(), 1);
-    let rest = instructions.replace(prohibition, "");
-    for removed in ["read_task", "read_job", "full or docs", "close-out", "check each acceptance item"] {
-        assert!(!rest.contains(removed), "coordinator retains removed duty: {removed}");
+    assert!(instructions.contains("No agent merges or lands."));
+    assert!(instructions.contains("A goal never finishes itself: its closer lands g and ends it."));
+    for removed in ["read_job", "full or docs", "check each acceptance item"] {
+        assert!(!instructions.contains(removed), "coordinator retains removed duty: {removed}");
     }
 }
 
