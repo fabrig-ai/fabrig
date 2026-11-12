@@ -1193,6 +1193,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     }
     if let Some(page) = &mut pages.connect_model {
         page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
+        page.refresh_login(client, &mut pages.serial, out);
     }
     default_chosen(pages, client);
     switcher_chosen(pages, client, out);
