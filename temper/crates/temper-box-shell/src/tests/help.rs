@@ -260,7 +260,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         attempt: 1,
         conversation: 1,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 13,
+        charter: 3,
         run: Box::new(engine::RunCharter {
             revision: 1,
             ended_by: tasks::EndedBy::Result,
@@ -318,18 +318,18 @@ fn tester_recipe_template_reports_without_a_goal_branch() {
         .expect("documented settings file");
     assert_eq!(items.len(), 1);
     let item = items.as_slice().first().expect("template item");
-    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 13 }));
+    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 3 }));
     let SettingEdit::Set(set) = &item.edit else { panic!("example sets the template") };
     let SettingValue::Template(template) = &set.value else { panic!("template value") };
-    assert_eq!(template.number, 13);
-    assert_eq!(template.executor, TemplateExecutor::Charter(13), "the recipe's copied charter");
+    assert_eq!(template.number, 3);
+    assert_eq!(template.executor, TemplateExecutor::Charter(3), "the recipe's copied charter");
     assert_eq!(template.contract, TaskContractDocument::Report { words: 16000 });
     assert!(template.resources.is_empty(), "no goal branch");
     assert_eq!(template.flags.ended_by, settings_form::view::EndedBy::Result);
     assert_eq!(template.tracked, Some(1));
     let stock = tester_stock();
-    assert!(stock.charters.iter().all(|charter| charter.number != 13), "free charter number");
-    assert!(stock.templates.iter().all(|template| template.number != 13), "free template number");
+    assert!(stock.charters.iter().all(|charter| charter.number != 3), "free charter number");
+    assert!(stock.templates.iter().all(|template| template.number != 3), "free template number");
 }
 
 #[test]
