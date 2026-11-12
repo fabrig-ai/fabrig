@@ -85,16 +85,12 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert_eq!(ledger.cases[0].state, CaseState::Queued, "tui stays queued");
     assert_eq!(ledger.cases[1].state, CaseState::Assigned);
     assert_eq!(ledger.sessions[1].effort, "high");
-    for path in [
-        "bin/temper-box",
-        "bin/temper-client",
-        "bin/temper-client-journeys",
-        "bundle/index.html",
-        "bundle/assets/app.js",
-    ] {
+    for path in
+        ["bin/temper-box", "bin/temper", "bin/temper-client-journeys", "bundle/index.html", "bundle/assets/app.js"]
+    {
         assert_eq!(fs::read(place.join(path)).expect("installed"), fs::read(build.join(path)).expect("build"));
     }
-    assert_eq!(fs::metadata(place.join("bin/temper-client")).expect("mode").permissions().mode() & 0o777, 0o751);
+    assert_eq!(fs::metadata(place.join("bin/temper")).expect("mode").permissions().mode() & 0o777, 0o751);
     assert!(!place.join("bin/stale").exists());
     assert!(!place.join("bundle/stale").exists());
     assert!(!place.join("setup").exists());

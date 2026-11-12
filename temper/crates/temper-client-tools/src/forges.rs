@@ -650,6 +650,8 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::Replace(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
+        | temper_client_protocol_wire::v1::Request::AddDevice(_)
+        | temper_client_protocol_wire::v1::Request::RemoveDevice(_)
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };
     state.pending.insert(key, SettingUp { intent, called: None });

@@ -448,7 +448,7 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                 "jig-protocol-charter" => {
                     ["smith-domain-run", "smith-charter", "smith-channel"].contains(&dependency.as_str())
                 }
-                "jig-protocol-transcript" => dependency == "smith-transcript",
+                "jig-protocol-transcript" | "jig-protocol-store" => dependency == "smith-transcript",
                 "jig-protocol-worker-agents" => [
                     "smith-channel",
                     "smith-domain-run",
@@ -545,7 +545,7 @@ fn a_protocol_crate_naming_an_ops_crate_is_reported() {
 }
 
 #[test]
-fn only_the_charter_the_transcript_and_the_worker_agents_link_smith_even_when_empty() {
+fn only_the_charter_the_transcript_the_store_and_the_worker_agents_link_smith_even_when_empty() {
     let failures = smith_breaches(&manifests());
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -561,6 +561,21 @@ fn a_protocol_crate_linking_smith_is_reported_unless_charter_or_transcript() {
         "[package]\nname = \"jig-protocol-charter\"\n[dependencies]\nsmith-charter.workspace = true\n",
     );
     assert_eq!(smith_breaches(&[tools, charter]), ["fixture/tools/Cargo.toml: smith-charter"]);
+}
+
+#[test]
+fn the_store_links_smiths_transcript_but_no_other_agent_crate() {
+    for name in ["jig-protocol-store", "jig-protocol-transcript"] {
+        let source = format!(
+            "[package]\nname = \"{name}\"\n[dependencies]\nsmith-transcript.workspace = true\nsmith-charter.workspace = true\nsmith-domain.workspace = true\n"
+        );
+        let manifest = parse_manifest(PathBuf::from("fixture/store/Cargo.toml"), &source);
+        assert_eq!(
+            smith_breaches(&[manifest]),
+            ["fixture/store/Cargo.toml: smith-charter", "fixture/store/Cargo.toml: smith-domain"],
+            "{name} permits only the transcript vocabulary"
+        );
+    }
 }
 
 #[test]

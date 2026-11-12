@@ -39,12 +39,11 @@ fn a_stale_revision_says_the_current_one() {
     assert_eq!(recall(&mut world), before);
 }
 #[test]
-fn a_range_past_the_end_says_the_line_count() {
+fn a_range_past_the_end_appends_at_the_end() {
     let mut world = World::default();
     first(&mut world);
-    let before = recall(&mut world);
-    assert_eq!(append(&mut world, 1, 4, b"c"), Answer::Refused { why: Refusal::PastEnd { lines: 2 } });
-    assert_eq!(recall(&mut world), before);
+    assert_eq!(append(&mut world, 1, 4, b"c"), Answer::Written { name: 20, revision: 2 });
+    assert_eq!(&*recall(&mut world).body, b"a\nb\nc");
 }
 #[test]
 fn a_result_past_the_bound_says_so() {

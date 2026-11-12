@@ -48,6 +48,8 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// A need's push, held behind its decision's commit (attention.md, 7.2).
+    Push(crate::Push),
     /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
     Ways {
         watcher: Token,
@@ -465,6 +467,7 @@ impl Decision {
     pub fn deliver(&mut self, limits: &Limits, delivery: Delivery) -> Result<(), Delivery> {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &delivery {
+            Delivery::Push(push) => push.payload.len() <= skein_push::PAYLOAD_BYTES,
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
             Delivery::Trials { rows, .. } => {
                 rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())

@@ -45,6 +45,7 @@ fn random_worlds_settle_with_every_client_heard() {
         }
         world.run(ITERATIONS);
         let (told, stats) = (world.told().0, world.stats());
+        assert_eq!(stats.store_overlaps, 0, "seed {seed}: no two Store operations of one token in flight");
         for (count, more) in cached.iter_mut().zip([told.new, told.reused, told.rebuilt, told.evicted]) {
             *count += more;
         }

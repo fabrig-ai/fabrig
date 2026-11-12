@@ -4,6 +4,68 @@ Kind: reference
 
 Every command of temper's binaries, a section each: its usage, what it does, its arguments and its notes. A command two binaries share is written under the first and named under the others.
 
+## temper
+
+temper's TUI, on an engine or in front of a box.
+
+### temper
+
+`temper [ADDRESS]`
+
+Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.
+
+- `ADDRESS`: Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
+
+Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
+
+### temper box
+
+`temper box [ARGUMENT...]`
+
+Run the TUI in front of this build's temper-box, fetching it if needed.
+
+- `ARGUMENT...`: Arguments for temper-box, passed on unchanged.
+
+Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. In a terminal, runs the TUI in front of the box. Without a terminal, or with --echo steps, runs the box in this process's place.
+
+### temper help
+
+`temper help [NAME | pages | --search WORDS...]`
+
+Print this, a page, the pages, or a search.
+
+- `NAME`: A page's name, as the index and the pages give it.
+- `WORDS`: Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.
+
+Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then "and more; narrow the words" when more matched.
+
+### temper ctl
+
+`temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`
+
+`temper ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+
+`temper ctl DIR --call FILE [--json]`
+
+`temper ctl help [GROUP [VERB]]`
+
+Act in a deployment as one party, one call a process: the agents' command line. Internal: it may change without notice.
+
+- `DIR`: ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.
+- `GROUP`: A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.
+- `VERB`: One of the group's tools; temper ctl help GROUP lists them.
+- `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
+
+temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
+
+### temper internal fetch-box
+
+`temper internal fetch-box [--cache DIR]`
+
+Find this build's temper-box, fetching it if needed, for temper box. Internal: it may change without notice.
+
+Writes progress lines, then found PATH on stdout; failures on stderr, exit 1. Reads no terminal.
+
 ## temper-engine
 
 the deployment's engine, with the owned forge's commands.
@@ -26,16 +88,32 @@ Print this binary's patch levels, its store's and families' versions, and its wi
 
 Reads no configuration and no store.
 
+### temper-engine upgrade --check
+
+`temper-engine upgrade --check [DIRECTORIES] DIRECTORY`
+
+Rehearses an upgrade over a copy; switches nothing.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+
+Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.
+
+### temper-engine upgrade --back
+
+`temper-engine upgrade --back [DIRECTORIES]`
+
+Makes the previous generation active again, before the patched one's first commit.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
 ### temper-engine help
 
 `temper-engine help [NAME | pages | --search WORDS...]`
 
-Print this, a page, the pages, or a search.
-
-- `NAME`: A page's name, as the index and the pages give it.
-- `WORDS`: Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.
-
-Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then "and more; narrow the words" when more matched.
+As temper help, above.
 
 ### temper-engine forge fetch
 
@@ -141,7 +219,7 @@ Checks the configuration and the agent's, makes the source's directory, then rep
 
 `temper-worker help [NAME | pages | --search WORDS...]`
 
-As temper-engine help, above.
+As temper help, above.
 
 ## temper-agent
 
@@ -151,7 +229,7 @@ the deployment's agent, which its worker runs for each run.
 
 `temper-agent help [NAME | pages | --search WORDS...]`
 
-As temper-engine help, above.
+As temper help, above.
 
 ### temper-agent
 
@@ -204,7 +282,7 @@ Run a deployment as one box: the setup steps of each forge it sets up, then temp
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
+Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ### temper-box init
 
@@ -248,13 +326,25 @@ As temper-worker program-login, above.
 
 `temper-box help [NAME | pages | --search WORDS...]`
 
-As temper-engine help, above.
+As temper help, above.
 
 ### temper-box versions
 
 `temper-box versions`
 
 As temper-engine versions, above.
+
+### temper-box upgrade --check
+
+`temper-box upgrade --check [DIRECTORIES] DIRECTORY`
+
+As temper-engine upgrade --check, above.
+
+### temper-box upgrade --back
+
+`temper-box upgrade --back [DIRECTORIES]`
+
+As temper-engine upgrade --back, above.
 
 ### temper-box forge fetch
 
@@ -302,14 +392,7 @@ As temper-engine forge sign-in, above.
 
 `temper-box ctl help [GROUP [VERB]]`
 
-Act in a deployment as one party, one call a process: the agents' command line. Internal: it may change without notice.
-
-- `DIR`: ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.
-- `GROUP`: A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.
-- `VERB`: One of the group's tools; temper ctl help GROUP lists them.
-- `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
-
-temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
+As temper ctl, above.
 
 ### temper-box open
 
@@ -351,14 +434,6 @@ Run temper-box serve as the box's step, on the listeners and the pipe the box gi
 `temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...`
 
 As temper-engine internal forge-child, above.
-
-### temper-box internal tui
-
-`temper-box internal tui --box ADDRESS`
-
-Run the TUI in front of the box that started it, signed in by the link the box hands it. Internal: it may change without notice.
-
-- `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
 
 ### temper-box fake llm
 

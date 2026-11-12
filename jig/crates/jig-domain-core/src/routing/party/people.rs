@@ -157,6 +157,9 @@ pub(crate) fn tag_people_part(
                 super::deployment_acts::route(core, env, &mut routed.work, &mut routed.out, request, *act);
                 continue;
             }
+            people::Request::NeedArrived { party, project, task, needs } => {
+                Request::Held(Box::new(Held::NeedArrived { party, project, task, needs }))
+            }
             people::Request::Acted { to, outcome } => {
                 if outcome == people::Outcome::Again(people::Again::Busy) {
                     core.touch_deployment();

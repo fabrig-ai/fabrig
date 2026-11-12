@@ -611,7 +611,10 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   A repository read by id answers the domain's settings when the host
   lends the domain. A site admin's read of a configured repository by its
   path is answered the same way, with no domain call, as Forgejo shows a
-  site admin every repository.
+  site admin every repository. A hook's patch sets its URL, events and
+  active and keeps the secret the hook was made with, ignoring the one it
+  sends, as Forgejo does (../../forge/setup/forgejo.md, section 2), so its
+  deliveries are still signed with that secret.
 - **A first repository is made in the domain** (../../forge/setup/forgejo.md, 1.9).
   The setup's `CreateRepository` in an org the setup store keeps makes
   a domain repository owned by that org, private, whose `main` is one

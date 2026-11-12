@@ -48,6 +48,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     `tests/boundary/tests/cli.rs` and `tests/boundary/tests/cli_names.rs`'s
     module docs: the layout, `main.rs`'s size, no features, and declared
     environment names (check 5), with their exceptions.
+11. **The patch check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `temper/docs/design/protocol/baseline.md`, 7,
+    and `tests/boundary/tests/patches.rs`: every stored owner passes `check` against
+    git's landed files and `current`, and the owner list covers every kept crate.
 
 ## The gate's lists
 

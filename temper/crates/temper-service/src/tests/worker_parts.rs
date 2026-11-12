@@ -458,3 +458,27 @@ fn an_empty_github_identity_is_decoded_and_kept() {
     assert_eq!(worker.undecodable_values, 0);
     assert_eq!(worker.identities.newest(1, fixtures::NOW), Some(&expected));
 }
+
+#[test]
+fn lazy_fetch_routing_selects_the_repository_owners_identity() {
+    use temper_worker_domain_checkout::git;
+    let at = git::Place { workspace: Token::new(1), repository: b"app".as_slice().into(), git: None };
+    let commit = git::Commit::new([1; 32]);
+    let value = crate::identities::Value::GitHub {
+        login: b"x-access-token".as_slice().into(),
+        name: b"Bot".as_slice().into(),
+        email: b"bot@example.test".as_slice().into(),
+        entries: skein_lib::List::from_boxed(Box::new([
+            crate::identities::Entry { account: 10, token: Secret::new(b"other".as_slice().into()) },
+            crate::identities::Entry { account: 22, token: Secret::new(b"owner".as_slice().into()) },
+        ])),
+    };
+    for op in [
+        git::Op::CheckOut { at: at.clone(), commit, clean: true, identity: 3, account: Some(22) },
+        git::Op::Merge { at, theirs: commit, identity: 3, account: Some(22) },
+    ] {
+        assert_eq!(crate::worker_git::identity(&op), Some(3));
+        let selected = crate::worker_git::pick(Some(&value), &op).expect("owner selected").expect("identity value");
+        assert_eq!(selected.token.expose(), b"owner");
+    }
+}

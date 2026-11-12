@@ -22,7 +22,7 @@ fn stage(home: &Home, name: &str) -> std::path::PathBuf {
     for directory in ["bin", "bundle", "bundle-record"] {
         fs::create_dir_all(path.join(directory)).expect("stage directory");
     }
-    for binary in ["temper-box", "temper-client", "temper-client-journeys"] {
+    for binary in ["temper-box", "temper", "temper-client-journeys"] {
         script(&path.join("bin").join(binary), &format!("printf '{binary} 0.1.0 (0123456789ab)\\n'"));
     }
     script(&path.join("bin/fake-claude"), "printf '2.1.312 (Claude Code)\\n'");
@@ -94,8 +94,8 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
             "bin/another",
             "bin/directory/data",
             "bin/fake-claude",
+            "bin/temper",
             "bin/temper-box",
-            "bin/temper-client",
             "bin/temper-client-journeys",
             "bundle-record/index.html",
             "bundle/a\\\\b\\nc\\r",

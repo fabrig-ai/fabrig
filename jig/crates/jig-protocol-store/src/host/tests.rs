@@ -80,6 +80,48 @@ impl World {
 }
 
 #[test]
+fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
+    let mut world = World::new();
+    // The default Open must still create a deployment before the other modes can use it.
+    world.open();
+    world.close();
+    let source = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
+    let scratch = world.machine.lay(&[]);
+    let scratch = world.sim.root(world.pid, Handle::new(scratch.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 2);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world
+        .host
+        .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Rehearse { scratch })
+        .unwrap();
+    world.settle();
+    let Some(Event::Rehearsing { .. }) = world.above.pop() else { panic!("no implicit Open before Rehearsing") };
+    let Some(Event::Opened { .. }) = world.above.pop() else { panic!("scratch opens") };
+    assert!(world.above.is_empty());
+    world.host.down(
+        &mut world.store,
+        &fixtures::env(),
+        crate::Request::Close { owner: Token::new(41) },
+        &mut world.above,
+    );
+    world.settle();
+    let Some(Event::Closed { removed: true, .. }) = world.above.pop() else { panic!("scratch emptied") };
+    world.close();
+    let source = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 3);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Back).unwrap();
+    world.settle();
+    let Some(Event::BackRefused { why: crate::BackRefusal::NoPrevious, .. }) = world.above.pop() else {
+        panic!("Back, not Open")
+    };
+    assert!(world.above.is_empty());
+    world.close();
+}
+
+#[test]
 fn a_commit_waits_for_its_driver_and_is_recovered_after_close() {
     let mut world = World::new();
     world.open();
@@ -185,6 +227,11 @@ fn debug_of_the_hosted_store_counts_its_terminals() {
     let debug = alloc::fmt::format(format_args!("{hosted:?}"));
     assert!(!debug.contains("171"));
     assert!(debug.contains("above: 1"));
+    let wait = hosted.wait_state();
+    assert!(!wait.adopted && !wait.started && !wait.root_pending);
+    assert_eq!(wait.opening, "idle");
+    let debug = alloc::fmt::format(format_args!("{wait:?}"));
+    assert!(!debug.contains("171"), "opening diagnostics contain no terminal payloads");
 }
 
 #[test]
@@ -205,4 +252,77 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
         assert_eq!(max_read(&limits), page);
         assert_eq!(check_read_page(&limits), Some(()));
     }
+}
+
+#[test]
+fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
+    const BASE: crate::PatchSet = crate::PatchSet {
+        owner: crate::Owner::Application,
+        name: "fixture",
+        families: &[crate::KeptFamily {
+            name: "fixture-label",
+            texts: &[jig_test_patches::patches::kept::fixture_label::TEXTS[0]],
+            map: crate::KeptMap::Store,
+            keys: &[],
+            frames: None,
+            flights: &[],
+        }],
+        patches: &[],
+        fresh: Some("fresh"),
+    };
+    const BEFORE: crate::PatchSets = crate::PatchSets { sets: &[BASE] };
+    const AFTER: crate::PatchSets =
+        crate::PatchSets { sets: &[crate::PatchSet { patches: &["patch 1\nowner fixture 1\nmark fresh\n"], ..BASE }] };
+    let mut world = World::new();
+    world.store.patch_sets(BEFORE);
+    world.open();
+    world.host.down(
+        &mut world.store,
+        &fixtures::env(),
+        fixtures::commit(1, Box::new([fixtures::header(1)])),
+        &mut world.above,
+    );
+    world.settle();
+    world.above = Queue::uncapped();
+    world.close();
+    let handle = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 2);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store.patch_sets(AFTER);
+    world.adopt();
+    let mut yielded = false;
+    for _ in 0_u32..1000 {
+        world.step();
+        if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
+            let hosted = Hosted {
+                component: world.store,
+                drivers: world.host,
+                above: Queue::uncapped(),
+                secrets: Queue::uncapped(),
+                sources: Queue::uncapped(),
+                env: fixtures::env(),
+                not_ready: NotReady::Above,
+                closing: false,
+            };
+            assert!(
+                hosted.work_pending(fixtures::env().now),
+                "a yielded patch pass must wake the host without IO or a timer"
+            );
+            world.store = hosted.component;
+            world.host = hosted.drivers;
+            yielded = true;
+            break;
+        }
+    }
+    assert!(yielded, "the marked patch exercises a yielded pass: {:?}", world.above);
+    world.settle();
+    let mut opened = false;
+    for event in &world.above {
+        if let Event::Opened { pending: true, .. } = event {
+            opened = true;
+        }
+    }
+    assert!(opened, "copy opens before the switch");
+    world.close();
 }

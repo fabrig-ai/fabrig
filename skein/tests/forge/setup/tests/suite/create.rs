@@ -81,14 +81,14 @@ fn creation_makes_the_org_repository_access_hook_and_bot_authored_file() {
     );
 }
 #[test]
-fn a_second_creation_only_patches_the_existing_hook() {
+fn a_second_creation_only_deletes_and_creates_the_hook() {
     let mut world = world();
     run(&mut world);
     let since = world.requests().len();
     let result = run(&mut world);
     assert_eq!(result, Ended::Done);
     assert_eq!(world.outcome(), Some(&created()));
-    assert_eq!(fixtures::write_routes(&world, since), [Route::EditRepoHook]);
+    assert_eq!(fixtures::write_routes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
     assert_eq!(world.domain().branch(FULL, b"main"), Some(FILE_COMMIT));
 }
 #[test]

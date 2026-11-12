@@ -117,7 +117,7 @@ fn startup_orders_sign_ins_and_confines_programs() {
     let [Action::Log { .. }, Action::Start { process: Process::SignIn, program }] = actions.as_slice() else {
         panic!("{actions:?}")
     };
-    assert_eq!(program.program, Path::new("/build/bin/temper-client"));
+    assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "-"]);
     assert_eq!(program.input, Input::Bytes(first.as_slice().into()));
     assert!(
@@ -172,7 +172,7 @@ fn browser_and_ctl_lines_answer_their_effects() {
     step(&mut m, Event::Found(Some(NodeId(1))));
     let actions = line(&mut m, "ctl task show 3 --until ended");
     let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else { panic!("{actions:?}") };
-    assert_eq!(program.program, Path::new("/build/bin/temper-client"));
+    assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "task", "show", "3", "--until", "ended"]);
     assert_eq!(program.input, Input::Null);
     assert_eq!(m.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(310))));
@@ -439,7 +439,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     assert!(why.contains("temper-box"));
     assert_eq!(Exit::own(why).status, 1);
     assert_eq!(fs::read(root.join("session/lines")).expect("old session"), b"previous");
-    for name in ["temper-box", "fake-claude", "temper-client", "chromium"] {
+    for name in ["temper-box", "fake-claude", "temper", "chromium"] {
         let file = root.join("bin").join(name);
         fs::write(&file, b"not executed").expect("fixture");
         fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");

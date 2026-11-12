@@ -2,7 +2,7 @@
 
 ## 1. What it runs
 
-`temper-box [DIRECTORIES] [--echo none|steps] [--no-tui]` runs its steps, which
+`temper-box [DIRECTORIES] [--echo none|steps] [--front]` runs its steps, which
 `temper-forge-setup`'s `kinds` and `temper-fake`'s fake slot give from
 the document (`init.md`), each a command of the `temper-box`
 binary, as a child process given the box's three directories as flags,
@@ -27,8 +27,9 @@ temper-box
                                       its listeners from fd 3, then its pipe to the box (below)
 ```
 
-- **In a terminal,** the box also runs the TUI in front, `temper-box internal
-  tui --box http://HOST:PORT`, its child and no step (6).
+- **With `--front`,** the box is the child of `temper box`'s TUI, its
+  link and its lines on the descriptors its parent hands it, and nothing
+  on its terminal (6). It runs no TUI of its own.
 - **A step's start.** On Linux the box spawns each step through `temper-box
   internal forge-child --parent BOX --signal terminate -- temper-box ARGS`, BOX
   its own process id (`owned.md`, 4). That process execs the step, keeping its
@@ -192,9 +193,9 @@ temper-box
   8).
 - **The first link's secret** (2) reaches `temper-box internal serve`'s
   first start on its standard input, a pipe of its own: the box writes
-  the secret's 32 bytes, nothing around them, and closes it; with its TUI
-  in front, the printed link's 32 bytes and then the first local
-  link's 32, which the box hands its front. `--box` tells
+  the secret's 32 bytes, nothing around them, and closes it; with
+  `--front`, the printed link's 32 bytes and then the first local
+  link's 32, whose link the box hands its parent (6). `--box` tells
   serve to read its standard input to its end before it starts anything,
   and it gives what it read to jig's sign-in component, the first 32 bytes
   as the printed link's `link_secret` and the next 32 as the local link's
@@ -251,10 +252,9 @@ temper-box
   `box.window_ms`. The backoff is counted from a step's exits within the
   window, so it starts again from `box.backoff_ms` once a step has run a
   window without exiting. Its stop treats a step still starting as the box's
-  stop does. With its TUI in front, it then waits for the front's end
-  (6).
+  stop does. With `--front`, it then exits 1 (6).
 - **Stops** at a first termination signal, `SIGINT`, `SIGTERM` or a closed
-  terminal's `SIGHUP`: the long steps in reverse
+  terminal's `SIGHUP`, or with `--front` its standard input's end (6): the long steps in reverse
   order, each by a signal, `box.grace_ms`, a second signal, which turns
   `temper-box serve`'s drain into an abort (../binaries.md),
   `box.grace_ms` again, then a close. The machine knows a step only as
@@ -269,8 +269,8 @@ temper-box
   process: that call blocks the box's one loop for as long as it lasts,
   without bound on a filesystem that stalls (skein's `runtime/kernel.md`, section 6),
   and a signal or a deadline is acted on only once it returns. It exits 0
-  after a stop it was asked for. With its TUI in front, the front's end is
-  such a stop, and the box signals the front before its steps (6).
+  after a stop it was asked for, its standard input's end with `--front`
+  among them (6).
 - **Stops a group** at `stop FORGE` or `remove FORGE` (1): the group's running steps
   alone, as the box's stop does, in reverse order, each by a signal,
   `box.grace_ms`, a second signal, `box.grace_ms` again, then a close;
@@ -294,9 +294,9 @@ temper-box
   public origin and sign-in path. The legacy first-line handoff to a link
   step keeps its existing bounded-piece semantics and receives no sign-in
   block. Other child streams retain bounded pieces, each completed with a
-  line feed at the piece bound or EOF. While its TUI is in front, the box
-  writes nothing on its stdout or its stderr: their links go to the front,
-  and their other lines to `box.log` (6).
+  line feed at the piece bound or EOF. With `--front`, the box writes
+  nothing on its stdout or its stderr: their links go to its parent on
+  fd 4, and their other lines to `box.log` (6).
 - **Its terminal,** its stderr, is quiet: the sign-in block and the
   blank line before each fresh link (below), and errors. Each error line
   begins with the time of day in UTC, `HH:MM:SSZ `, since the box reads no
@@ -313,10 +313,8 @@ temper-box
   failed start's error follows it and the link stays on the terminal: the
   box restarts the step until it gives up, and a link opened once the box
   has given up gets no answer, and the terminal has said why. The person
-  mends what it said and runs `temper box` again, for a new link. While
-  its TUI is in front, these lines go to `box.log` and the front, and the
-  terminal is the box's again, errors alone, once the front has ended
-  (6).
+  mends what it said and runs `temper-box` again, for a new link. With
+  `--front`, these lines go to `box.log` and fd 4 (6).
 
   `--echo steps` (`TEMPER_ECHO`; the default, `none`; skein's
   `runtime/shell.md`, 6.5) also writes every line each step writes, but serve's
@@ -332,8 +330,8 @@ temper-box
   label (3), `<label>: starting` at its `start`, then `<label>: started`
   and `<label>: stopped` as the pipe says them, and `<label>: no sign-in
   through temper: <why>` when its `source` step did not add the source;
-  with its TUI in front, the block's words, the front's end and the
-  terminal's lines in its stead (6); `Stopping` at a first
+  with `--front`, the block's words and the terminal's lines in its
+  stead (6); `Stopping` at a first
   termination signal; and last, `Stopped` once every step is closed. An
   asked group's `step` lines are the client's row's alone. Each start of an
   owned forge, an asked group's `started` or the box's own start of one
@@ -366,9 +364,8 @@ temper-box
   finds no engine's link file (`../../client/tui/README.md`, 2): the client's
   `temper` command, then the origin.
   It is the first block's alone, on stderr with the lines around it; a
-  fresh link is printed as below. With its TUI in front, the box prints no
-  block: the link goes to the front and the other lines to `box.log`
-  (6).
+  fresh link is printed as below. With `--front`, the box prints no
+  block: the link goes to fd 4 and the other lines to `box.log` (6).
 
   The box draws the link's secret as jig's sign-in component draws one
   (jig's `protocol/client/sign-in.md`): 32 bytes from the platform's
@@ -408,7 +405,8 @@ temper-box
   print, whose block is written at serve's first link, in these same words;
   and a link step among the steps, whose line is given to it (`playground.md`), with no
   block. A link past the 4096 bytes below refuses the start, naming it in
-  the words below. With no first link drawn, the box runs no front (6).
+  the words below. With no first link drawn, `--front` refuses the
+  start (6).
 
   One bounded FIFO owns whole terminal items tagged stdout or stderr. It
   admits the first block as three adjacent items (words, URL, closing words),
@@ -471,8 +469,7 @@ temper-box
   and `.log` after it (`serve.log`, `prepare-3.log`), mode 0600, holding
   every line the step writes to its stdout or its stderr, each after the
   time the box read it, `2026-10-23T14:03:20Z `, but serve's stdout: no
-  file holds a sign-in link. With its TUI in front, the front's log,
-  `tui.log`, is one of them (6). At its start the box moves the logs a box before it
+  file holds a sign-in link. At its start the box moves the logs a box before it
   left to `<data>/box/logs.previous/`, replacing that one, so the last
   two runs are kept. A start cut short after the move keeps
   `logs.previous/`; the box removes nothing else and follows no link.
@@ -540,8 +537,9 @@ temper-box
   bound to a forge by its number alone at its ask. Its policy is a small
   machine of its own (steps, exits, timers and the pipe's lines in;
   spawns, signals, closes, the pipe's lines and the groups' files and
-  records out), hosted on skein-io. Its TUI in front (6) is no step:
-  the host runs it beside the machine.
+  records out), hosted on skein-io. With `--front` (6) the host writes
+  the link and the lines on its parent's pipes beside the machine, and
+  reads its standard input's end.
 - **The steps in groups:** `Steps { always, asked }`, `always` the steps
   run in order, and `asked` a list of `Group { kind, forge, before,
   steps, remover, recorded, label }`, each a kind's group, dormant until
@@ -787,72 +785,60 @@ it. No product path branches on the flag. A conflicting issuer listener is a
 refusal, not a reason to bind another port or regenerate the retained
 document.
 
-## 6. The TUI in front
+## 6. In front of `temper box`
 
-In a terminal, bare `temper-box` runs the TUI in front of its steps, as a child
-of its own, the front: the person's terminal shows the TUI from the box's
-first moment, the TUI is signed in with nothing to read or paste, and
-quitting it stops the box. The TUI's side is `../../client/tui/box.md`,
-and the terminal's foreground skein's `runtime/shell.md`, 6.3. This front
-remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6).
+In a terminal, `temper box` runs `temper`'s TUI with the box as its
+child, `temper-box --front`: the TUI is on the person's terminal from
+the first moment, signs itself in with nothing to read or paste, and
+quitting it stops the box. The TUI's side, finding the box and running
+it, is `../../client/tui/box.md` and `../../client/box-binary.md`; this
+section is the box's side, what `--front` changes of 1 to 5. The box
+spawns no TUI, and a `temper-box` without `--front` runs with no front,
+in a terminal or not, as 1 to 5 say.
 
-- **When.** The box runs its front when all of these hold, read once at
-  its start, after its refusals and before anything is written: no
-  `--no-tui` (internal until C3); the forms are
-  `temper-box [DIRECTORIES] [--echo none|steps] [--no-tui]` and
-  `temper-box [DIRECTORIES] --fake-backends [--bundle BUNDLE]`; echo `none` (2, *Its terminal*, from
-  `--echo` or `TEMPER_ECHO`); its standard input and output each a
-  terminal (skein's `terminal_modes`); its controlling terminal opened
-  (skein's `open_terminal`); and a first link drawn (2, *The sign-in
-  block*). Otherwise, under `--no-tui` or `--echo steps`, on a pipe or a
-  file, with no controlling terminal, or where 2 *Where the box draws
-  none* holds, it runs with no front, byte for byte as 1 to 5 say.
-- **Its command:** `temper-box internal tui --box http://HOST:PORT`,
-  `HOST:PORT` the clients' listener, on loopback (../configuration/README.md,
-  section 2), never the configured public origin, which a browser's
-  printed link may name (2, *The sign-in block*). On Linux the box spawns it through `temper-box internal
-  forge-child --parent BOX --signal terminate --`, as every step, on
-  macOS directly (1, *A step's start*). Its environment is the box's,
-  `LISTEN_FDS` and `LISTEN_PID` dropped as for a step given no listener.
-- **No step.** The machine (3) never sees the front: it is spawned
-  once, never restarted, and in the first block's place, once the
-  listeners are held and the last run's logs moved, before any step; no
-  step starts until its spawn has completed.
-- **Its descriptors:**
+- **Its forms,** internal, for `temper box` alone (`../../cli/README.md`,
+  6): `temper-box [DIRECTORIES] [--echo none] --front` and `temper-box
+  [DIRECTORIES] --fake-backends [--bundle BUNDLE] --front`. `--front`
+  with `--echo steps` refuses its arguments, exit 2: its lines are fd
+  4's, and `temper box` runs a box that echoes in its own place
+  (`../../client/box-binary.md`, 5).
+- **Its descriptors,** which its parent hands it:
 
   | fd | What | Way |
   |---|---|---|
-  | 0 | the null device, as skein-io gives a descriptor no pipe takes | |
-  | 1, 2 | pipes the box reads into the front's log and its tail (below) | out |
-  | 3 | the local link's URL, written whole by the box, then closed | in |
-  | 4 | the box's lines (below), until the box exits | in |
+  | 0 | a pipe its parent holds and never writes: its end is the parent's quit or death | in |
+  | 1, 2 | pipes its parent reads, for what the box writes before `box.log` is open, a fail-stop report among it; one pipe or two, the box writes to each as to its stdout and stderr | out |
+  | 3 | the local link's URL, written whole by the box, then closed | out |
+  | 4 | the box's lines (below), until the box exits | out |
 
-  The box hands it no descriptor of its terminal: the front opens the
-  controlling terminal itself, takes its foreground, and runs the TUI on
-  it (`../../client/tui/box.md`).
+  Fd 3 or fd 4 not open for writing at its start refuses, exit 2, before
+  anything is written: `temper-box --front: fd 3 and fd 4 are its
+  parent's pipes`. Its steps are given none of them.
+- **The terminal is never the box's:** it opens no controlling terminal,
+  takes no foreground and sets no mode, and writes nothing on its stdout
+  or its stderr once `box.log` is open. Every line 2 places on the
+  terminal goes to `box.log` in its stead, timed as `box.log`'s lines
+  are: the first block's lines but its link, its blank ones left out;
+  `--fake-backends`' lines after the block (5); a group's failure, a
+  restart and a give up, each with its tail and its `Log:` line; a step's
+  lines when its log cannot be written; and the box's own refusals and
+  failures. A refusal before `box.log` is open goes on its stderr, which
+  its parent shows. A `box.log` the box cannot write leaves its lines to
+  fd 4's `log` lines alone.
 - **The sign-in it hands.** Beside the printed link's secret the box
   draws the first local link's, 32 bytes as jig's sign-in component draws
   one (jig's `protocol/client/sign-in.md`), once, before it starts
   anything, and gives both to serve's first start (1, *The first link's
   secret*). The local link's URL, made at the clients' listener with no
-  public origin, so that its host is the front's address, on the link
-  route, at most 4,096 bytes, goes on the front's fd 3 alone: never an
-  argument, the environment, a log or a file. The front
-  signs in by it, its connection waiting in the listener's backlog until
-  serve is up, as a browser's does (2), and the printed link stays the
-  browser's.
-- **The terminal is the front's** while it runs: the box writes nothing
-  on its stdout or its stderr. The first block's link goes to the front
-  alone, its first `link` line, and the block's other lines, its blank
-  ones left out, to `box.log`; a fresh link is a `link` line alone, and
-  no file holds either (2, *Its logs*). `--fake-backends`' lines after
-  the block (5) go to `box.log`. Every other line 2 places on the
-  terminal goes to `box.log` in its stead, timed as `box.log`'s lines
-  are: a group's failure, a restart and a give up, each with its tail and
-  its `Log:` line, a step's lines when its log cannot be written, and the
-  box's own refusals and failures. A `box.log` the box cannot write
-  leaves its lines to the front's `log` lines alone until the front has
-  ended.
+  public origin, so that its authority is the engine's loopback address
+  the TUI connects to, on the link route, at most 4,096 bytes, is written
+  whole on fd 3 and fd 3 closed, in the first block's place: once the
+  listeners are held and the last run's logs moved, before any step. It
+  goes nowhere else: never an argument, the environment, a log or a
+  file. The TUI signs in by it, its connection waiting in the listener's
+  backlog until serve is up, as a browser's does (2), and the printed
+  link stays the browser's. Where 2, *Where the box draws none*, holds,
+  `--front` refuses the start, exit 1, naming why, before any step.
 - **The box's lines,** on fd 4, one each: a word, one space, a field
   that runs to the line feed (bytes, spaces allowed, no escapes, never
   empty), then the line feed. A line is at most 8,192 bytes with its
@@ -867,60 +853,30 @@ remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6
   | `gave-up STEP` | the same | the box gives up on that step (2, *Gives up*) |
 
   No line but `link` holds a secret, and the box writes no `link` to a
-  log. The box holds at most 256 lines its front has not taken; a line
+  log. The box holds at most 256 lines its parent has not taken; a line
   that finds 256 held is dropped, `box.log` and the steps' logs keeping
   what it said. Writing them never holds a step, a log or the pipe to
-  serve.
-- **The front's log,** `<data>/box/logs/tui.log`, beside `box.log`:
-  every line the front writes to its stdout or its stderr, each after the
-  time the box read it, made, moved to `logs.previous/` and bounded at
-  `box.log_bytes` as a step's (2, *Its logs*). Its tail is its last
-  `box.tail_lines` lines since its start, held as a step's (2, *A
-  failure's tail*).
-- **Its end is the box's stop.** When the front ends while the box is
-  not stopping and has not given up, the box stops as at a first
-  termination signal (2, *Stops*), and exits as after it. `box.log`
-  names every end of the front, `tui exited <code>`, `tui killed by
-  signal <n>` or `tui did not start`, in `failed`'s words (1), before
-  `Stopping`. A front that did not start leaves every step unstarted.
-- **The box's own stop.** At a first termination signal the box signals
-  its front first, then its steps as 2 says, and stops the front as a
-  long step: `SIGTERM`, `box.grace_ms`, a second `SIGTERM`,
-  `box.grace_ms` again, then a close. A second termination signal closes
-  it with the steps. The box exits once its front and its steps have all
-  ended.
-- **A give up with a front.** The box stops its steps as 2 says, sends
-  `gave-up STEP` and the give up's `log` lines, and leaves its front
-  running, so that the TUI says so and shows the box's last lines
-  (`../../client/tui/box.md`); it waits for the front's end, then
-  exits 1. A termination signal meanwhile stops the front as above.
-- **The terminal after the front.** Once the front has ended, and before
-  the box writes on its terminal again, the box takes the terminal's
-  foreground back (skein's `take_foreground`, on the descriptor its start
-  opened with `open_terminal`), so that a second interrupt reaches it; a
-  foreground it cannot take back leaves its writes to succeed or fail as
-  2 says of a terminal. From then on its terminal is as without the
-  front, errors alone, as 2 says, and what `box.log` already holds is not
-  written again. A front that ended other than by exiting 0 is named there
-  first, `HH:MM:SSZ tui exited <code>`, `tui killed by signal <n>` or `tui
-  did not start`, with its tail under it and `Log:
-  <data>/box/logs/tui.log`, as a step's failure (2, *A failure's tail*).
-- **Its exit:** 0 after a stop: the front's exit 0, or a termination
-  signal; 1 after a give up, a front that ended other than by exiting 0,
-  or a terminal that failed (2).
-- **On macOS,** with no parent-death signal (1), a box killed outright
-  leaves its front running: the box's lines reach their end, and the
-  front closes (`../../client/tui/box.md`). On Linux the wrapper's
-  `SIGTERM` reaches it too.
-- **Where it lives.** The binary decides the front, draws the local
-  link's secret and URL, opens the controlling terminal and keeps its
-  descriptor, and gives temper-box-machine's host the front's arguments, its URL
-  and its secret in its settings. The host runs the front beside the
-  machine, routes the terminal's lines and writes the box's lines with
-  `temper_box_machine::front`, which owns their words and bytes; it says when the
-  front has ended, and the binary takes the foreground back in the loop's
-  drain hook (skein's `runtime/shell.md`, section 11), between that turn and its
-  submissions, since neither of skein's terminal calls is step code's.
+  serve. A write that fails, its parent gone, drops the line.
+- **Its stop:** the end of fd 0, a read that answers its end or fails,
+  is a first termination signal (2, *Stops*): `temper`'s quit, which
+  closes its end, and `temper`'s death, whose end the kernel closes, both
+  stop the box, on Linux and on macOS alike, with no parent-death signal.
+  `box.log` says `Stopping` as at any first termination signal. A
+  termination signal is as 2 says, and one after fd 0's end is a second,
+  which closes the steps.
+- **A give up:** the box stops its steps as 2 says, writes `gave-up
+  STEP` and the give up's `log` lines on fd 4, and exits 1. Its parent
+  keeps what it said (`../../client/tui/box.md`).
+- **Its exit:** 0 after a stop, 1 after a give up or a failure (2), 2
+  when it refused its arguments or its descriptors.
+- **Where it lives.** The binary (`temper-box-shell`) checks `--front`'s
+  descriptors, draws the local link's secret and URL, and gives
+  temper-box-machine's host the URL, its secret and the descriptors in
+  its settings. The host writes fd 3 in the first block's place and the
+  box's lines on fd 4 with `temper_box_machine::front`, which owns their
+  words and bytes, reads fd 0 beside its signals, and routes the
+  terminal's lines to `box.log`. No front child, no front's log and no
+  foreground taken back: those went with the box's own TUI.
 
 ## 7. Open questions
 
@@ -938,19 +894,18 @@ remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6
   lifetime guard on macOS needs a mechanism of its own; until one is
   designed, the box's ordered stop, including a hangup, is its cleanup.
 
-- **A box started in the background of a terminal** (`box.md`, 6): `temper-box &`
-  from a shell with job control has a terminal on its standard input and
-  output, so it runs its front, which takes the terminal's foreground
-  from the shell. `--no-tui` keeps it off. Telling a background start
-  from a foreground one needs the box to read its terminal's foreground
-  group, which skein's `runtime/shell.md`, 6.3 does not give yet.
+- **A `temper box` started in the background of a terminal** (`box.md`,
+  6): `temper box &` from a shell with job control has a terminal on its
+  standard input and output, so it runs its TUI, which job control stops
+  at its first read. `temper-box` runs the box alone. Telling a
+  background start from a foreground one needs `temper` to read its
+  terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
+  not give yet.
 
-- **The terminal after a front killed outright** (`box.md`, 6): the front's modes
-  and screen stay on the terminal, as any program's killed outright do
-  (skein's `runtime/shell.md`, 6.3). The box could keep the modes at its start and
-  set them back once it takes the foreground again. It needs a reason
-  first: a front leaves them only when it is killed, by the box's close
-  after two graces or from outside.
+- **The terminal after `temper box` killed outright** (`box.md`, 6): its
+  TUI's modes and screen stay on the terminal, as any program's killed
+  outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
+  life pipe's end.
 
 - **The fake box's retained ports under concurrent stories** (`box.md`, 5):
   prove the story-supplied ports across a stopped box's restart in the

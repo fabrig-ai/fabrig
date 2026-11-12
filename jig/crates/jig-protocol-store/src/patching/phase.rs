@@ -127,6 +127,9 @@ fn close_directories(store: &mut Store, below: &mut Below) {
     store.stores.secrets = skein_kv::Store::new(&store.limits.secrets);
 }
 fn dropping(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
+    if store.rehearsal.is_some() {
+        return copying(store, above, below);
+    }
     let dropping = generations::drop_previous(root(store), active(store), below);
     match dropping.progress() {
         Progress::Pending => state(store, Patching::Dropping(dropping)),
@@ -282,6 +285,25 @@ pub(crate) fn event(
     }
 }
 /// Finish synchronous KV events with the current step's environment.
+pub(crate) fn ready(store: &Store) -> bool {
+    if store.phase == Phase::Stopped {
+        return false;
+    }
+    match directory::patching(store) {
+        Some(phase) => match phase {
+            Patching::Walking(walking) => walking.ready(),
+            Patching::Recovering { opened: 3 } | Patching::Sealing { number: 0, .. } => true,
+            Patching::Recovering { .. }
+            | Patching::Mapping { .. }
+            | Patching::Closing { .. }
+            | Patching::Dropping(_)
+            | Patching::Copying(_)
+            | Patching::Sealing { .. }
+            | Patching::Checking(_) => false,
+        },
+        None => false,
+    }
+}
 pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase == Phase::Stopped {
         return;

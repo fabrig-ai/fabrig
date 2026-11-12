@@ -305,7 +305,7 @@ fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
 }
 
 // Serve's older-layout diagnostic, with a fixture deployment path.
-const OLDER_REFUSAL: &[u8] = b"temper serve: /data/deployment holds a store from an older build, whose tasks family's layout differs from this build's, and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of /data/deployment together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.\n";
+const OLDER_REFUSAL: &[u8] = b"temper serve: /data/deployment holds a store from an older build, whose tasks family's layout differs from this build's, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of /data/deployment together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.\n";
 
 // temper/docs/design/protocol/setup/box.md, 2: retain every diagnostic piece
 // under each failure notice, through five restarts and the sixth exit's give up.
@@ -504,20 +504,4 @@ fn box_log_rotates_whole_lines_and_moves_with_the_steps() {
     assert_eq!(read(&mut next, b"box/logs.previous/box.log").0, current);
     assert_eq!(read(&mut next, b"box/logs.previous/box.log.1").0, previous);
     stop(&mut next);
-}
-
-#[test]
-fn the_fronts_log_sits_between_the_steps_and_the_box() {
-    let steps = crate::layout::flatten(Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) });
-    for (front, front_step, box_step, names) in [
-        (false, None, 1, [b"serve.log".as_slice(), b"box.log"].as_slice()),
-        (true, Some(1), 2, [b"serve.log".as_slice(), b"tui.log", b"box.log"].as_slice()),
-    ] {
-        let logs = crate::logs::Logs::new(&steps, b"/data", RECORD_BYTES, front);
-        assert_eq!(logs.front_step(), front_step);
-        assert_eq!(logs.box_step(), box_step);
-        for (step, name) in names.iter().enumerate() {
-            assert_eq!(logs.path(step), crate::lines::joined(&[b"/data/box/logs/", name]));
-        }
-    }
 }

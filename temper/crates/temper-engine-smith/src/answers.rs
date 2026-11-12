@@ -1969,6 +1969,9 @@ fn task_read(
         }
     };
     task_read_metadata(&mut text, read)?;
+    if read.result_pending {
+        text.add(b"\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.")?;
+    }
     if let Some(code) = read.verdict_code {
         text.add(b"\nVerdict: ")?;
         text.number(u64::from(code))?;

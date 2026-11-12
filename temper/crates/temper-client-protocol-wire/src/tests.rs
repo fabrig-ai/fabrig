@@ -1342,9 +1342,11 @@ fn deployment_read_and_answer_round_trip() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     for (welcome, owned) in [(false, false), (false, true), (true, false), (true, true)] {
-        let answer =
-            v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned, program_login: None })
-                .unwrap();
+        let answer = v1::DeploymentAnswer::new(
+            &limits,
+            v1::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
+        )
+        .unwrap();
         let bytes = crate::deployment_answer(&answer);
         assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
         assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);
@@ -2107,4 +2109,131 @@ fn approval_people(first: u64) -> List<v1::ApprovalPerson> {
             .unwrap();
     }
     people
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one appended family checks requests, outcomes, watch and both documents together"
+)]
+fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
+    macro_rules! cycle {
+        ($value:expr, $ty:ty, $tag:expr) => {{
+            let value = $value;
+            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+            value.encode(&mut writer).unwrap();
+            let bytes = writer.finish();
+            if let Some(tag) = $tag {
+                assert_eq!(bytes.get(2), Some(&tag));
+            }
+            assert_eq!(<$ty>::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap(), value);
+            let mut tail = skein_lib::Writer::new(bytes.len() + 1);
+            tail.put(&bytes).unwrap();
+            tail.put(&[0]).unwrap();
+            <$ty>::decode(&v1::CEILINGS, &mut Reader::new(&tail.finish())).unwrap_err();
+        }};
+    }
+    let request = v1::Request::AddDevice(
+        v1::AddDevice::new(
+            &v1::CEILINGS,
+            v1::AddDeviceParts {
+                endpoint: b"http://push.test:4000/sub".as_slice().into(),
+                p256dh: [4; 65],
+                auth: [7; 16],
+                label: b"temper ctl".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    cycle!(v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request }).unwrap(), v1::Requesting, Some(19));
+    cycle!(
+        v1::Requesting::new(
+            &v1::CEILINGS,
+            v1::RequestingParts {
+                request: v1::Request::RemoveDevice(
+                    v1::RemoveDevice::new(&v1::CEILINGS, v1::RemoveDeviceParts { number: u32::MAX }).unwrap()
+                )
+            }
+        )
+        .unwrap(),
+        v1::Requesting,
+        Some(20)
+    );
+    cycle!(
+        v1::Requesting::new(
+            &v1::CEILINGS,
+            v1::RequestingParts {
+                request: v1::Request::TryAccount(
+                    v1::TryAccount::new(&v1::CEILINGS, v1::TryAccountParts { account: 1, again: false }).unwrap()
+                )
+            }
+        )
+        .unwrap(),
+        v1::Requesting,
+        Some(16)
+    );
+    for (outcome, tag) in [
+        (
+            v1::Outcome::DeviceAdded(v1::DeviceAdded::new(&v1::CEILINGS, v1::DeviceAddedParts { number: 1 }).unwrap()),
+            30,
+        ),
+        (v1::Outcome::DeviceRemoved, 31),
+    ] {
+        cycle!(v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome }).unwrap(), v1::Answer, Some(tag));
+    }
+    for reason in [
+        v1::DeviceRefusal::Person,
+        v1::DeviceRefusal::Off,
+        v1::DeviceRefusal::Service,
+        v1::DeviceRefusal::Malformed,
+        v1::DeviceRefusal::TooMany,
+        v1::DeviceRefusal::Unknown,
+    ] {
+        cycle!(
+            v1::Answer::new(
+                &v1::CEILINGS,
+                v1::AnswerParts {
+                    outcome: v1::Outcome::DeviceRefused(
+                        v1::DeviceRefused::new(&v1::CEILINGS, v1::DeviceRefusedParts { reason }).unwrap()
+                    )
+                }
+            )
+            .unwrap(),
+            v1::Answer,
+            Some(32)
+        );
+    }
+    cycle!(
+        v1::Watching::new(&v1::CEILINGS, v1::WatchingParts { watch: v1::Watch::Devices }).unwrap(),
+        v1::Watching,
+        Some(14)
+    );
+    let mut rows = List::with_capacity(8);
+    for number in 1..=8 {
+        rows.push(
+            v1::DeviceRow::new(
+                &v1::CEILINGS,
+                v1::DeviceRowParts {
+                    number,
+                    label: b"phone".as_slice().into(),
+                    at: u64::MAX,
+                    endpoint: b"https://push.test/sub".as_slice().into(),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    cycle!(v1::Devices::new(&v1::CEILINGS, v1::DevicesParts { rows }).unwrap(), v1::Devices, None::<u8>);
+    for push in [None, Some([4; 65])] {
+        cycle!(
+            v1::DeploymentAnswer::new(
+                &v1::CEILINGS,
+                v1::DeploymentAnswerParts { welcome: true, owned: false, program_login: None, push }
+            )
+            .unwrap(),
+            v1::DeploymentAnswer,
+            None::<u8>
+        );
+    }
 }

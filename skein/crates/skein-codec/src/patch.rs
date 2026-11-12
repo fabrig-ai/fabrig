@@ -395,6 +395,20 @@ impl Patcher {
             .new
     }
 
+    /// Whether an old declaration's conversion copies its encoding unchanged.
+    #[must_use]
+    pub fn copies(&self, plan: PlanIx, old: DeclIx) -> bool {
+        self.build
+            .tables
+            .plans
+            .get(plan.0)
+            .expect("plan belongs to this patcher")
+            .declarations
+            .get(old.index())
+            .expect("old declaration belongs to the plan")
+            .copies
+    }
+
     /// A new declaration's old source, when it has one.
     #[must_use]
     pub fn source(&self, plan: PlanIx, new: DeclIx) -> Option<DeclIx> {

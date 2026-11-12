@@ -3,14 +3,18 @@
 use alloc::boxed::Box;
 use skein_lib::Writer;
 
-pub(crate) use jig_protocol_engine_clients_http::server::policy::FIELDS;
+const REFERENCE: [(&[u8], &[u8]); 5] = jig_protocol_engine_clients_http::server::policy::FIELDS;
+pub const FIELDS: [(&[u8], &[u8]); 5] = {
+    let [(name, _), nosniff, opener, resource, referrer] = REFERENCE;
+    [(name, PAGE_POLICY), nosniff, opener, resource, referrer]
+};
 
-const PLAYGROUND_POLICY: &[u8] = b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'";
+const PAGE_POLICY: &[u8] = b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'";
 
-/// The policy's fields; the playground's CSP adds `worker-src 'self'`.
+/// The playground and the service share temper's page policy.
 pub const fn playground_fields() -> [(&'static [u8], &'static [u8]); 5] {
     let [(name, _), nosniff, opener, resource, referrer] = FIELDS;
-    [(name, PLAYGROUND_POLICY), nosniff, opener, resource, referrer]
+    [(name, PAGE_POLICY), nosniff, opener, resource, referrer]
 }
 
 /// Digest-directory files are immutable.
@@ -42,4 +46,24 @@ pub fn headers(directory: &[u8]) -> Box<[u8]> {
         text.put(part).expect("headers text room");
     }
     text.finish()
+}
+
+/// Supply temper's sources before the reference server fills the remaining fields.
+pub(super) fn add(response: &mut skein_http::server::Response) {
+    for header in &response.headers {
+        if header.name.eq_ignore_ascii_case(b"Content-Security-Policy") {
+            return;
+        }
+    }
+    let mut headers = skein_lib::List::uncapped();
+    for header in core::mem::replace(&mut response.headers, Box::new([])) {
+        headers.push(header).expect("uncapped headers");
+    }
+    headers
+        .push(skein_http::Header {
+            name: skein_lib::bytes::copy_of(b"Content-Security-Policy"),
+            value: skein_lib::bytes::copy_of(PAGE_POLICY),
+        })
+        .expect("policy header");
+    response.headers = headers.into_boxed();
 }

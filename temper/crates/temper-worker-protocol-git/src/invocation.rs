@@ -209,7 +209,17 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         Command::Remote { remote } => words(&mut out, &[b"remote", b"add", b"origin", b"--", remote]),
         Command::Store { remote, directory } => words(
             &mut out,
-            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory],
+            &[
+                b"clone",
+                b"--bare",
+                b"--filter=blob:none",
+                b"--single-branch",
+                b"--no-tags",
+                b"--quiet",
+                b"--",
+                remote,
+                directory,
+            ],
         ),
         Command::UpdateRef { into, commit } => words(&mut out, &[b"update-ref", reference(*into), &hex(*commit)]),
         Command::Fetch { remote, source, into, workspace } => {
@@ -225,6 +235,7 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
                     b"fetch",
                     b"--porcelain",
                     b"--verbose",
+                    b"--filter=blob:none",
                     b"--no-tags",
                     b"--no-write-fetch-head",
                     b"--no-recurse-submodules",
@@ -239,9 +250,15 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             let spec = joined(&[&hex(*commit), b":refs/heads/", branch]);
             words(&mut out, &[b"push", b"--porcelain", &lease, b"--", remote, &spec]);
         }
-        Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
+        Command::CheckOut { commit } => words(
+            &mut out,
+            &[b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", &hex(*commit)],
+        ),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
-        Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
+        Command::Merge { theirs } => words(
+            &mut out,
+            &[b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)],
+        ),
         Command::DiffPaths { before, after } => words(
             &mut out,
             &[
@@ -297,7 +314,15 @@ pub(crate) fn environment_for(
     credentials: bool,
 ) -> Box<[Box<[u8]>]> {
     let identity = match kind {
-        Some(git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
+        Some(
+            git::Kind::Store
+            | git::Kind::Fetch
+            | git::Kind::Create
+            | git::Kind::Commit
+            | git::Kind::Push
+            | git::Kind::CheckOut
+            | git::Kind::Merge,
+        ) => identity,
         None
         | Some(
             git::Kind::Point
@@ -305,9 +330,7 @@ pub(crate) fn environment_for(
             | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor
-            | git::Kind::Make
-            | git::Kind::CheckOut
-            | git::Kind::Merge,
+            | git::Kind::Make,
         ) => None,
     };
     let mut out = List::with_capacity(14);
@@ -337,7 +360,14 @@ pub(crate) fn environment_for(
             let email = joined(&[b"GIT_AUTHOR_EMAIL=", email]);
             words(&mut out, &[&author, &email]);
         }
-        Some(git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Push) => {
+        Some(
+            git::Kind::Store
+            | git::Kind::Fetch
+            | git::Kind::Create
+            | git::Kind::Push
+            | git::Kind::CheckOut
+            | git::Kind::Merge,
+        ) => {
             if let Some(identity) = identity
                 && credentials
             {
@@ -358,9 +388,7 @@ pub(crate) fn environment_for(
             | git::Kind::Look
             | git::Kind::DiffPaths
             | git::Kind::IsAncestor
-            | git::Kind::Make
-            | git::Kind::CheckOut
-            | git::Kind::Merge,
+            | git::Kind::Make,
         ) => {}
     }
     out.into_boxed()

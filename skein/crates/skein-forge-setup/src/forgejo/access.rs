@@ -32,6 +32,7 @@ enum Phase {
     Delete,
     Save,
 }
+/// A repository's collaborator and remade listener hook (forge/setup/forgejo.md, 1.5).
 #[derive(Debug)]
 pub(crate) struct Access {
     id: Option<u64>,
@@ -40,7 +41,6 @@ pub(crate) struct Access {
     phase: Phase,
     url: Option<Box<[u8]>>,
     page: u32,
-    kept: Option<u64>,
 }
 pub(crate) enum Move {
     Send(Request),
@@ -55,10 +55,10 @@ pub(crate) enum Fail {
 }
 impl Access {
     pub fn new(id: u64, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
-        Self { id: Some(id), bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1, kept: None }
+        Self { id: Some(id), bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1 }
     }
     pub fn named(at: Repo, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
-        Self { id: None, bot: bot.into(), path: Some(at), phase: Phase::Repository, url, page: 1, kept: None }
+        Self { id: None, bot: bot.into(), path: Some(at), phase: Phase::Repository, url, page: 1 }
     }
     /// The first request: the repository by the given id or path.
     pub fn begin(&mut self) -> Request {
@@ -229,10 +229,7 @@ impl Access {
             active: true,
         };
         self.phase = Phase::Save;
-        Move::Send(match self.kept {
-            Some(id) => Request::EditRepoHook { at: self.at(), id, hook },
-            None => Request::CreateRepoHook { at: self.at(), hook },
-        })
+        Move::Send(Request::CreateRepoHook { at: self.at(), hook })
     }
     fn rows(&mut self, shared: &Shared, answer: Reply) -> Result<Move, Why> {
         let Reply::Rows(rows) = answer else {
@@ -242,18 +239,10 @@ impl Access {
             let Row::Hook(hook) = row else {
                 return Err(Why::Unexpected);
             };
-            if Some(&hook.url) != self.url.as_ref() {
-                continue;
-            }
-            if let Some(kept) = self.kept {
-                if kept == hook.id {
-                    continue;
-                }
-                self.kept = Some(kept.min(hook.id));
+            if Some(&hook.url) == self.url.as_ref() {
                 self.phase = Phase::Delete;
-                return Ok(Move::Send(Request::DeleteRepoHook { at: self.at(), id: kept.max(hook.id) }));
+                return Ok(Move::Send(Request::DeleteRepoHook { at: self.at(), id: hook.id }));
             }
-            self.kept = Some(hook.id);
         }
         if rows.len() < usize_of(shared.cap.expect("cap read before listing")) {
             Ok(self.save(shared))

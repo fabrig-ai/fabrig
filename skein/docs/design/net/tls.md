@@ -353,7 +353,8 @@ independence.
   0.17.14).
 - **Not deterministic:** ring draws its randoms and keys from the kernel,
   through `getrandom`: the only kernel calls step code makes, when the
-  handshake starts and as it runs, and when it signs (below). That is the documented exception;
+  handshake starts and as it runs, when it signs, and when it parses a
+  push key (below). That is the documented exception;
   nothing else impure comes in.
 - **`getrandom` on Linux** makes the getrandom(2) system call. Where it
   cannot, a kernel older than 3.17 (below the shell's floor, ../runtime/shell.md, 4)
@@ -422,6 +423,39 @@ independence.
   a key's private values and its `e` against the rest only when it
   signs: a key wrong only there has a public half, and `sign_rs256`
   refuses it.
+- **A push's signature:** `sign_es256(key, message) -> Option<[u8;
+  64]>` signs a VAPID token (`push.md`, section 3) with ring's ECDSA
+  P-256 over SHA-256, its fixed form, `r` then `s`: the key is PKCS#8
+  DER of a P-256 key with its public half, as ring's
+  `EcdsaKeyPair::from_pkcs8` takes it, at most `ES256_KEY_BYTES`, 256;
+  another, or one ring refuses, is none, and on the portable target. It
+  draws ring's randomness for its nonce, so two signatures of one
+  message differ; it reads no clock and keeps no key.
+  `es256_public(key) -> Option<[u8; 65]>` gives the key's public half,
+  uncompressed, from the key as `sign_es256` takes it, none where it
+  would refuse: ring parses and checks it whole, with
+  `EcdsaKeyPair::from_pkcs8`, which draws ring's randomness for the
+  key's nonce seed (ring 0.17 asks a source there), and the public half
+  does not depend on it; it keeps nothing. `verify_es256(public, message,
+  signature) -> bool` checks one, for the fake push service
+  (`../testing/fakes/push.md`).
+- **A push's seal:** `seal_aes128gcm(p256dh, auth, payload) ->
+  Option<Box<[u8]>>` seals a Web Push payload for a browser's
+  subscription, RFC 8291's `aes128gcm`, in one record of 4,096
+  (`push.md`, section 4): it draws a fresh P-256 key with ring's
+  `EphemeralPrivateKey` and 16 bytes of salt with ring's randomness,
+  agrees the ECDH secret with `p256dh`, and calls
+  `seal_aes128gcm_from(secret, sender_public, salt, p256dh, auth,
+  payload)`, which draws nothing: HKDF-SHA-256 of the secret and `auth`
+  over `"WebPush: info" 0 p256dh sender_public` to the input key
+  material, then of the salt to the content key (16 bytes, `"Content-Encoding:
+  aes128gcm" 0`) and the nonce (12 bytes, `"Content-Encoding: nonce"
+  0`), and AES-128-GCM of the payload and its delimiter, 2; the body is
+  the salt, `rs` 4,096 big-endian, 65, the sender's public key, then the
+  sealed record. None for a payload empty or past 3,993 bytes, a
+  `p256dh` ring refuses as a point, and on the portable target. ring
+  keeps a P-256 private key for one agreement alone, so nothing here
+  opens a body: a receiver's side is the browser's.
 - **What rustls's API makes the crate use:** an `Arc` of the shared
   configuration, a trait object for the time, a hand-written `Debug`
   for its connection, `Vec`s in the configuration, and arms for the
@@ -445,7 +479,11 @@ a wall time each test chooses.
 - **Step tests** (`crates/skein-tls/src/tests/`): the limits and what
   they price, the configuration's refusals, names, the faults, the bytes
   held for rustls; RS256's check and signature, against RFC 7515's
-  Appendix A.2 byte for byte, and the keys a signature refuses; and the
+  Appendix A.2 byte for byte, and the keys a signature refuses; ES256's
+  signature checked by `verify_es256`, a changed byte refused, and the
+  keys it refuses; `seal_aes128gcm_from` against RFC 8291's Appendix A
+  byte for byte, from its ECDH secret, sender's key and salt, and
+  `seal_aes128gcm`'s body's length and header for a drawn key; and the
   machine fed by hand: its first flight, records no server writes (not
   TLS, past TLS's lengths, an alert, a message longer than the records
   held, a retry whose cookie no flight holds), the stream ending and

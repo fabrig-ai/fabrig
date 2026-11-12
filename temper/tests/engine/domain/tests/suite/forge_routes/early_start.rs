@@ -322,6 +322,66 @@ fn active_without_producer(world: &World, task: u64) {
 }
 
 #[test]
+fn a_coding_agent_reads_its_changes_after_dependency_but_cannot_message_it() {
+    use crate::host_calls::scripted_task_read;
+    let (mut world, goal, _, base) = goal_world();
+    let dependency = make(&mut world, &goal, b"Implement the prerequisite", &[]);
+    let upstream = reviews::next_assignment(&mut world, 1);
+    push(&mut world, &upstream, base, b"prerequisite");
+    observe_push(&mut world, &upstream);
+    let answer = call(
+        &mut world,
+        &goal,
+        engine::Tool::Change {
+            changes: Box::new([engine::ChangeCall {
+                landing: Some(engine::ChangeLanding::Goal),
+                after: Box::new([engine::ChangeAfter::Task(dependency)]),
+                questions: Some(engine::ChangeQuestions::Up),
+                ..engine::ChangeCall::words(b"Implement the dependent".as_slice().into(), None)
+            }]),
+        },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Delegated(_)), "{answer:?}");
+    let producer = reviews::next_assignment(&mut world, 2);
+    let text = scripted_task_read(&mut world, &producer, 300, dependency, false);
+    assert!(text.contains("Implement the prerequisite"), "{text}");
+    assert!(text.contains("active"), "{text}");
+    let input = format!(r#"{{"target":{dependency},"form":"words","words":"Not a reference"}}"#);
+    let decoded = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: producer.attempt, completion: 1, position: 1 },
+        b"message",
+        &smith_domain_run::HostInput::attested(input.into_bytes().into()).expect("message input"),
+    )
+    .expect("message decodes");
+    let temper_engine_smith::Decoded::Call(call) = decoded else { panic!("message call") };
+    let answer = world.scripted_call(&producer, 301, call.tool);
+    let rendered = temper_engine_smith::answer(&answer);
+    assert!(rendered.error());
+    assert!(
+        matches!(&answer, engine::CallAnswer::ToolDenied { findings, .. }
+        if findings.as_ref() == [jig_domain_authority::Finding::Reference]),
+        "{answer:?}"
+    );
+    assert!(String::from_utf8_lossy(rendered.text()).contains("task reference"), "{answer:?}");
+
+    let other_change = make(&mut world, &goal, b"No after dependency", &[]);
+    let other = reviews::next_assignment(&mut world, 3);
+    assert_eq!(live_task(&world, other.task).requester, tasks::Party::Task(other_change));
+    assert_eq!(scripted_task_read(&mut world, &other, 302, dependency, false), "Task read refused: no reference");
+    finish(&mut world, &upstream, b"Prerequisite done");
+    landed(&mut world, dependency);
+    assert!(world.root.tasks().task(dependency).is_none(), "dependency retained outside the core");
+    let text = scripted_task_read(&mut world, &producer, 303, dependency, false);
+    assert!(text.contains("Implement the prerequisite"), "{text}");
+    assert!(text.contains("done"), "{text}");
+    let text = scripted_task_read(&mut world, &producer, 304, dependency, true);
+    assert!(text.contains("Result from 0:"), "{text}");
+    assert!(text.contains("pull request #"), "{text}");
+    assert_eq!(scripted_task_read(&mut world, &other, 305, dependency, true), "Task read refused: no reference");
+    stop(&mut world, &goal);
+}
+
+#[test]
 fn a_dependent_waits_for_its_dependencys_first_push() {
     let (mut world, goal, branch, main) = goal_world();
     let c2 = make(&mut world, &goal, b"Add C2", &[]);

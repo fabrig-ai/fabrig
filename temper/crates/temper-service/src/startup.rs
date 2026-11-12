@@ -31,6 +31,9 @@ mod checkout {
 pub(crate) mod checks;
 mod problems;
 #[cfg(test)]
+#[path = "tests/push_configuration.rs"]
+mod push_configuration;
+#[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
 mod welcome_policy;
 use crate::{AccountsRuntime, Service, WorkerRuntime, settings};
@@ -173,6 +176,7 @@ pub struct Named {
     /// `application.clients.public`.
     pub public: Option<application::Origin>,
     pub sign_in: Option<SignIn>,
+    pub push: Option<application::push::Push>,
     /// `application.clients.bundle`, for the binary's read.
     pub bundle: Option<Box<[u8]>>,
     /// The bundle's limits, overrides applied.
@@ -634,6 +638,7 @@ pub fn named_with(
         link: parsed.engine.clients.link,
         public: parsed.application.clients.public,
         sign_in: parsed.application.sign_in,
+        push: parsed.application.push,
         bundle: parsed.application.clients.bundle,
         bundle_limits: parsed.application.limits.clients,
         webhooks: parsed.application.webhooks,
@@ -799,6 +804,7 @@ pub(crate) fn checked_start_with(
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
+        push: resolved.push,
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
@@ -845,6 +851,24 @@ fn checked_start(
 ) -> Result<CheckedStart, Problems> {
     checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock)
 }
+/// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
+pub fn restoring_with(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    given: &crate::stock::Given,
+) -> Result<Service, Problems> {
+    let CheckedStart { engine, io, forges, .. } =
+        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
+    match Service::prepared(engine, seeds, accounts, forges, None, io, None, None) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(Problems::jig(found, &Path::root())),
+    }
+}
+
 /// Build the engine and worker together from the parsed document and read files.
 #[expect(clippy::too_many_arguments, reason = "startup receives the same directories as named plus the runtime facts")]
 pub fn startup_with(

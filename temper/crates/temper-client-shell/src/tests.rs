@@ -1,57 +1,32 @@
-use super::{COMMANDS, Command, NAME, configure};
-use temper_shell::{commands::help, help::Request, rows};
+use super::{CLIENT, tui_argument};
 
 #[test]
-fn every_row_parses_and_the_rest_is_refused() {
+fn the_bare_form_takes_one_loopback_address() {
     for (words, expected) in [
-        (vec![], Ok(Command::Tui { address: None })),
-        (
-            vec!["http://127.0.0.1:8367"],
-            Ok(Command::Tui { address: Some(Box::from(b"http://127.0.0.1:8367".as_slice())) }),
-        ),
-        (
-            vec!["http://127.0.0.1:8367", "http://127.0.0.1:8368"],
-            Err("temper-client: invalid arguments\nusage: temper-client [ADDRESS]\n".into()),
-        ),
-        (vec!["bogus"], Err("temper-client: no command bogus; temper-client --help lists them\n".into())),
-        (vec!["ctl", "DIR", "me"], Ok(Command::Ctl { arguments: vec!["DIR".into(), "me".into()] })),
-        (vec!["ctl", "--help"], Ok(Command::Usage(&rows::CTL))),
-        (vec!["help"], Ok(Command::Help { request: Request::Index })),
-        (vec!["help", "tui"], Ok(Command::Help { request: Request::Page(Box::from(b"tui".as_slice())) })),
-        (
-            vec!["help", "--search", "sign", "out"],
-            Ok(Command::Help { request: Request::Search(Box::from(b"sign out".as_slice())) }),
-        ),
-        (
-            vec!["help", "-x"],
-            Err("temper-client help: invalid arguments\nusage: temper-client help [NAME | --search WORDS...]\n".into()),
-        ),
-        (vec!["--help"], Ok(Command::Overview)),
-        (vec!["--version"], Ok(Command::Version)),
-        (
-            vec!["--version", "extra"],
-            Err("temper-client: no command --version; temper-client --help lists them\n".into()),
-        ),
-        (vec!["box"], Err("temper-client: no command box; temper-client --help lists them\n".into())),
-        (vec!["serve"], Err("temper-client: no command serve; temper-client --help lists them\n".into())),
-        (vec!["init"], Err("temper-client: no command init; temper-client --help lists them\n".into())),
-        (
-            vec!["open", "DIR", "http://127.0.0.1:8367"],
-            Err("temper-client: no command open; temper-client --help lists them\n".into()),
-        ),
-        (
-            vec!["internal", "agent", "A.json"],
-            Err("temper-client: no command internal; temper-client --help lists them\n".into()),
-        ),
-        (vec!["fake", "git"], Err("temper-client: no command fake; temper-client --help lists them\n".into())),
-        (
-            vec!["program-login", "NAME"],
-            Err("temper-client: no command program-login; temper-client --help lists them\n".into()),
-        ),
-        (vec!["forge", "fetch", "1"], Err("temper-client: no command forge; temper-client --help lists them\n".into())),
+        (vec![], Ok(None)),
+        (vec!["http://127.0.0.1:8367"], Ok(Some(b"http://127.0.0.1:8367".as_slice()))),
+        (vec!["frob"], Err((2, "temper: not an address: frob\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["http://127.0.0.1:8367", "extra"], Err((2, "temper: invalid arguments\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["http://192.0.2.1:8367"], Err((2, "temper: the engine's address must be on loopback\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"], Err((2, "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\nusage: temper [ADDRESS]\n".into()))),
     ] {
-        let arguments: Vec<Box<[u8]>> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
-        assert_eq!(configure(&arguments), expected, "{words:?}");
+        let arguments: Vec<Box<[u8]>> = words.iter().map(|word| word.as_bytes().into()).collect();
+        assert_eq!(tui_argument(&arguments), expected, "{words:?}");
+    }
+}
+
+#[test]
+fn the_arguments_document_is_the_clients_table() {
+    let rendered = CLIENT.arguments_document();
+    let path = skein_scratch::paths::tree().join("docs/design/cli/temper-args.md");
+    if temper_test_env::rewrite() {
+        std::fs::write(path, rendered).expect("write arguments document");
+    } else {
+        assert_eq!(
+            std::fs::read_to_string(path).expect("arguments document"),
+            rendered,
+            "regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
+        );
     }
 }
 
@@ -59,40 +34,30 @@ fn every_row_parses_and_the_rest_is_refused() {
 fn the_tui_refusals_explain_the_terminal_and_sign_in() {
     use temper_client_shell_tui::start::{Refused, terminal_refusal};
     for (why, line) in [
-        (Refused::NotATerminal, "temper-client: the TUI needs a terminal on stdin and stdout\n"),
-        (Refused::NotAnAddress(Box::from(b"ARG".as_slice())), "temper-client: not an address: ARG\n"),
-        (
-            Refused::Link,
-            "temper-client: a sign-in link is never an argument: run temper-client http://HOST:PORT and paste it\n",
-        ),
-        (Refused::NotLoopback, "temper-client: the engine's address must be on loopback\n"),
+        (Refused::NotATerminal, "temper: the TUI needs a terminal on stdin and stdout\n"),
+        (Refused::NotAnAddress(Box::from(b"ARG".as_slice())), "temper: not an address: ARG\n"),
+        (Refused::Link, "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\n"),
+        (Refused::NotLoopback, "temper: the engine's address must be on loopback\n"),
         (
             Refused::Directory("/s/temper/tui: cannot open its files".into()),
-            "temper-client: /s/temper/tui: cannot open its files\n",
+            "temper: /s/temper/tui: cannot open its files\n",
         ),
     ] {
-        assert_eq!(why.line(NAME), line, "{why:?}");
+        assert_eq!(why.line(CLIENT.binary), line, "{why:?}");
     }
-    assert_eq!(terminal_refusal(NAME, false), "temper-client: no command; temper-client --help lists them\n");
-    assert_eq!(terminal_refusal(NAME, true), Refused::NotATerminal.line(NAME));
+    assert_eq!(terminal_refusal(CLIENT.binary, false), "temper: no command; temper --help lists them\n");
+    assert_eq!(terminal_refusal(CLIENT.binary, true), Refused::NotATerminal.line(CLIENT.binary));
 }
-
 #[test]
-fn the_help_lists_the_clients_rows() {
-    let text = help(NAME, &COMMANDS);
-    for (line, present) in [
-        ("  temper-client [ADDRESS]\n", true),
-        ("  temper-client ctl DIR GROUP VERB [ARGUMENT...] [--json]\n", true),
-        ("  temper-client help [NAME | --search WORDS...]\n", true),
-        ("  temper-client box ", false),
-        ("  temper-client serve ", false),
-        ("  temper-client open ", false),
-    ] {
-        assert_eq!(text.contains(line), present, "{line:?}: {text}");
+fn tui_recording_variable_is_internal_and_read() {
+    for reach in [skein_shell::Reach::Words(&[]), skein_shell::Reach::Words(&["box"])] {
+        let tui = CLIENT.commands.iter().find(|command| command.reach == reach).expect("a client TUI command");
+        let record = tui
+            .variables
+            .iter()
+            .find(|variable| variable.name == "TEMPER_INTERNAL_RECORD")
+            .expect("TUI commands must declare the recording variable");
+        assert_eq!(record.set, skein_shell::Set::Internal, "recording variable is internal");
+        assert_eq!(record.way, skein_shell::Way::Reads, "recording variable is read");
     }
-}
-
-#[test]
-fn the_version_command_succeeds_with_the_given_line() {
-    assert_eq!(super::run(Command::Version, "temper-client 0.0.0 (0123456789ab)"), Ok(0));
 }

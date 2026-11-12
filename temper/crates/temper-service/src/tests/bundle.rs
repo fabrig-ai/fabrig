@@ -91,6 +91,30 @@ fn the_page_is_served_with_its_etag_for_revalidation() {
     assert_eq!(fixtures::bundle::body(&peer), b"<!doctype html><title>t</title>");
 }
 #[test]
+fn push_root_files_are_fixed_revalidated_and_allowed_by_the_page_policy() {
+    use crate::clients::bundle::{MANIFEST, SERVICE_WORKER};
+    for (path, kind, body) in [
+        (b"/sw.js".as_slice(), b"text/javascript".as_slice(), SERVICE_WORKER),
+        (b"/manifest.webmanifest".as_slice(), b"application/manifest+json".as_slice(), MANIFEST),
+    ] {
+        let (_, peer, status, headers) = get(path, b"If-None-Match: *\r\n");
+        assert_eq!(status, 200);
+        assert_eq!(fixtures::header(&headers, b"content-type"), Some(kind));
+        assert_eq!(fixtures::header(&headers, b"cache-control"), Some(b"no-cache".as_slice()));
+        assert_eq!(fixtures::bundle::body(&peer), body);
+        let policy = fixtures::header(&headers, b"content-security-policy").unwrap();
+        for source in [b"worker-src 'self'".as_slice(), b"manifest-src 'self'"] {
+            let mut found = false;
+            for part in policy.windows(source.len()) {
+                found |= part == source;
+            }
+            assert!(found);
+        }
+        let head = fixtures::bundle::head(Method::Post, path, &[]);
+        assert_eq!(route(Some(&fixtures::bundle::bundle()), &head), Answer::NotAllowed);
+    }
+}
+#[test]
 fn a_matching_etag_is_answered_not_modified() {
     let (_, peer, status, headers) = get(b"/chats/7", b"If-None-Match: \"0011223344556677\"\r\n");
     assert_eq!(status, 304);

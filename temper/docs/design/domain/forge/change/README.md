@@ -590,9 +590,14 @@ changes live at once, never every change made.
   only when no settled one can go, as `start_change` makes the registration,
   and asks the forge to drop it first (`forge::Event::DropChange { task
   }`, then `forge::Event::Change`). The forge drops it only if its
-  table is full and the change is still settled, or dropped last with
-  no settled one left to go, and no landing names it; otherwise it
-  drops nothing.
+  table is full, the change is still settled or dropped last, and no
+  landing names it; otherwise it drops nothing. The root alone checks
+  whether another settled change can go, since only it knows which
+  goals pin them. Drop and registration run synchronously, in
+  `start_change`'s own decision and before anything else of the change
+  is queued: only an accepted registration queues the change's names,
+  its branch hold and its step, and a refused one leaves its named
+  refusal (*Refused, named*) alone.
 - **What goes with it:** every account the forge keeps by its task: its
   panel's CI, its settling, its start conflicts, its wakes and its
   deadline, its pending steps and goal-file reads (a late answer to one
