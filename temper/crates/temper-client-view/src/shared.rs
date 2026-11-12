@@ -1,5 +1,9 @@
 //! Words and data shared by the browser and TUI (temper/docs/design/client/tui/pages/README.md, Its words).
 mod cards;
+mod findings;
+mod people;
+pub use findings::finding_refusal;
+pub use people::person_line;
 mod lists;
 mod needs;
 mod question;

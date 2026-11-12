@@ -391,6 +391,9 @@ fn launchpad_projects(root: &Domain) -> List<u32> {
     let pages = &root.pages;
     let capacity = u32::try_from(DECIDED_PROJECTS).expect("decision bound fits");
     let mut wanted = List::with_capacity(capacity);
+    if let Address::Home { project } = pages.address {
+        wanted.push(project).expect("root's project first");
+    }
     if let Some(inbox) = &pages.inbox {
         for need in pages.needs.needs(inbox, root.forge().approvals()) {
             let project = match need {
