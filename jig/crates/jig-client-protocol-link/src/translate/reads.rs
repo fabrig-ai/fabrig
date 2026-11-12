@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::VERSION;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
 pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {

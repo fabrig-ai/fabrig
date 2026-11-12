@@ -249,9 +249,15 @@ temper (`../domain/agent/agents.md`, 1 and `../domain/agent/ask-temper.md`) prop
 configuration from the person's documents alone, accepts it, and checks
 what was accepted twice, by code and by a judge. What it is checked
 against is the golden: `../draft/reference-code-production.md`,
-section 14, cut into obligations, with the values of the reference's
-profile, `docs/examples/reference/` (`../protocol/configuration/reference.md`
-).
+section 14, cut into obligations, with the values of the golden's own
+profile, `golden/profile.json` in the tool's crate: the reference's
+settings file as it stood with whole charters 5, 7, 2 and 8, before
+the reference became overlays of its fields over the stock's charters 5
+and 2 (`../protocol/configuration/reference.md`). Ask temper proposes
+whole charters, as the person's documents describe them, an overlay of
+its own being later (`../draft/stock-charters.md`, 11), so the golden
+keeps the whole charters it checks a proposal against; the reference's
+landing rules, template 4, limits and room are the same in both.
 
 - **Held by the acceptance, never by the binary.** The golden, the check
   and the judge's brief are one tool crate, `crates/temper-stage-one-tool`

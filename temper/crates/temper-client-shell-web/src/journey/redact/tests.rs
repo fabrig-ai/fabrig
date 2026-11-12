@@ -221,6 +221,34 @@ fn request(path: Box<[u8]>, headers: Vec<skein_ui_web::transport::Header>) -> Li
 }
 
 #[test]
+fn each_sign_in_kind_goes_from_each_saved_place() {
+    use crate::journey::{Recorder, tests::facts};
+    let cases = places();
+    for source in [
+        Line::Secret(VALUE.into()),
+        Line::Stored { key: b"other".as_slice().into(), value: VALUE.into() },
+        Line::Stored { key: jig_client::STREAM_KEY.into(), value: kept(VALUE) },
+        Line::Save { key: jig_client::STREAM_KEY.into(), value: kept(VALUE) },
+    ] {
+        let facts = facts();
+        let (_, page) = facts.start();
+        let mut start = lines(&Recorder::new(&facts).save(&page)).expect("recorder facts");
+        let end = start.pop().expect("end");
+        start.push(source);
+        let hidden = lines(&saved(&written(&start))).expect("saved facts");
+        for case in &cases {
+            let mut before = start.clone();
+            before.extend(case.before.clone());
+            before.push(end.clone());
+            let mut expected = hidden.clone();
+            expected.extend(case.after.clone());
+            expected.push(end.clone());
+            assert_eq!(lines(&saved(&written(&before))).expect("saved lines"), expected, "{}", case.label);
+        }
+    }
+}
+
+#[test]
 fn each_kind_goes_from_each_place() {
     let cases = places();
     let sources = [

@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 temper-client-tools.workspace = true
+settings-form.workspace = true
 temper-client-domain.workspace = true
 jig-client.workspace = true
 jig-client-domain.workspace = true

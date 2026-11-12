@@ -282,6 +282,10 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         | w::Outcome::DeviceRefused(_)
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
@@ -359,6 +363,10 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::DeviceRefused(_)
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)

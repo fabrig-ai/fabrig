@@ -272,6 +272,13 @@ recipient.
   so the core can finish its watch and drain. A name the component has
   never issued is ignored. The core answers an unwatch
   whose watcher it does not know with an unwatched ending.
+- **A stream's own refusal is observable.** When its queued records pass
+  its byte ceiling, or a delivery, run text or ending fails translation,
+  the component emits one `StreamFailed` diagnostic as it starts closing.
+  It carries the sign-in number and either the queue ceiling or the
+  translation's schema path and reason, never document bytes. The host
+  writes this to its operator journal; later deliveries on that closing
+  stream add no diagnostic.
 - **A closing follows its opening's answer.** Exchanges cross
   independently, and a closing that overtook its opening would find no
   watch, be answered closed, and leave the watch admitted after it, which
@@ -326,11 +333,11 @@ recipient.
   read: *version not served*, naming the owner and the ranges the engine
   serves. A keyed request, a read and a watch's opening are each
   answered so; nothing is done.
-- **Until the first release, versions stay fixed** (skein's `data/codec/README.md`,
-  section 5). A change to a record, the template preview's among them
-  (`wire.md`, section 1), changes its schema, codec, translations and one set of
-  golden bytes in place. Versions move at a release; family owners keep
-  their own versions.
+- **Versions move with a wire's layout.** Each changed record moves its
+  wire's version and its schema, codec, translations and golden bytes.
+  The engine serves one version; a client of another version is refused
+  before its record is read. Client bridges are deferred
+  (`temper/docs/design/draft/redeploys.md`, 8).
 - **The client's versions:** jig's is its wire's; each family owner's,
   the application declares as it makes the client, and the client
   judges each hello against them, whole (`../../client/domain/client/watches.md`,

@@ -69,20 +69,32 @@ pub fn keeps(name: &[u8]) -> bool {
         && name != b"AWS_BEARER_TOKEN_BEDROCK"
 }
 
+/// The source-relative Anthropic profiles directory (smith/docs/design/protocol/programs.md, 4.2).
+pub const ANTHROPIC_DIRECTORY: &str = "anthropic";
+
 /// Maximum filtered environment bytes supplied to a source (protocol/programs.md, 4.2).
 pub const ENVIRONMENT_BYTES: usize = 4096;
 
 /// Maximum filtered environment entries supplied to a source (protocol/programs.md, 4.2).
 pub const ENVIRONMENT_ENTRIES: u32 = 64;
 
-/// Replace competing login variables with the source's configuration directory.
+/// Replace competing login variables with the source's Claude and Anthropic configuration directories.
 /// The result holds at most 64 entries and 4096 bytes (smith/docs/design/protocol/programs.md, 4.2).
 pub fn environment(base: &[Box<[u8]>], configuration: &[u8]) -> Result<Box<[Box<[u8]>]>, Error> {
     if configuration.contains(&0) {
         return Err(Error::Environment);
     }
-    let mut bytes = b"CLAUDE_CONFIG_DIR=".len().checked_add(configuration.len()).ok_or(Error::Environment)?;
-    let mut entries = 1_u32;
+    let claude_bytes = b"CLAUDE_CONFIG_DIR=".len().checked_add(configuration.len()).ok_or(Error::Environment)?;
+    let anthropic_bytes = b"ANTHROPIC_CONFIG_DIR="
+        .len()
+        .checked_add(configuration.len())
+        .ok_or(Error::Environment)?
+        .checked_add(1)
+        .ok_or(Error::Environment)?
+        .checked_add(ANTHROPIC_DIRECTORY.len())
+        .ok_or(Error::Environment)?;
+    let mut bytes = claude_bytes.checked_add(anthropic_bytes).ok_or(Error::Environment)?;
+    let mut entries = 2_u32;
     for entry in base {
         let equal = skein_lib::bytes::find(entry, b"=").ok_or(Error::Environment)?;
         if entry.contains(&0) {
@@ -103,13 +115,15 @@ pub fn environment(base: &[Box<[u8]>], configuration: &[u8]) -> Result<Box<[Box<
             result.push(entry.clone()).expect("counted entries");
         }
     }
-    let mut setting = List::with_capacity(
-        u32::try_from(b"CLAUDE_CONFIG_DIR=".len().checked_add(configuration.len()).expect("bounded setting"))
-            .expect("bounded setting"),
-    );
+    let mut setting = List::with_capacity(u32::try_from(claude_bytes).expect("bounded setting"));
     for byte in b"CLAUDE_CONFIG_DIR=".iter().chain(configuration) {
         setting.push(*byte).expect("sized setting");
     }
     result.push(setting.into_boxed()).expect("configuration entry reserved");
+    let mut anthropic = List::with_capacity(u32::try_from(anthropic_bytes).expect("bounded setting"));
+    for byte in b"ANTHROPIC_CONFIG_DIR=".iter().chain(configuration).chain(b"/").chain(ANTHROPIC_DIRECTORY.as_bytes()) {
+        anthropic.push(*byte).expect("sized setting");
+    }
+    result.push(anthropic.into_boxed()).expect("Anthropic configuration entry reserved");
     Ok(result.into_boxed())
 }

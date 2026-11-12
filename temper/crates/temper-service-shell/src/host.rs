@@ -451,6 +451,9 @@ fn long_pass_line(binary: &str, long: LongPass) -> String {
 #[must_use]
 pub fn note_line(binary: &str, note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::ClientStreamFailed { sign_in, why } => {
+            format!("{binary} serve: client stream closed: sign_in={sign_in} reason={why:?}\n")
+        }
         temper_service::Note::CoreWaiting { why } => {
             format!("{binary} serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
         }
@@ -524,6 +527,13 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
                 "{binary} serve: brief read refused task={task} section={} stage={stage} reason={reason}{bound}{heads}{error}\n",
                 String::from_utf8_lossy(section)
             )
+        }
+        temper_service::Note::HeadRefused { task, words } => {
+            let task = match task {
+                Some(task) => format!(" task={task}"),
+                None => String::new(),
+            };
+            format!("{binary} serve: branch head refused{task}: {}\n", String::from_utf8_lossy(&words))
         }
         temper_service::Note::BriefFailed { task, counts, reason } => {
             format!(
@@ -1842,6 +1852,19 @@ fn read_job_refusal_line_names_the_asked_attempt() {
 }
 
 #[test]
+fn head_refusal_line_names_the_task_only_when_concerned() {
+    for (task, expected) in [
+        (Some(7), "temper-engine serve: branch head refused task=7: WORDS\n"),
+        (None, "temper-engine serve: branch head refused: WORDS\n"),
+    ] {
+        assert_eq!(
+            note_line("temper-engine", temper_service::Note::HeadRefused { task, words: b"WORDS".as_slice().into() }),
+            expected
+        );
+    }
+}
+
+#[test]
 fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
     use skein_forge::api::{Bound, Error, Excess};
     for (stage, reason, heads, error, expected) in [
@@ -2249,3 +2272,15 @@ pub(super) mod adapter_tests {
 #[cfg(test)]
 #[path = "worker_lines_tests.rs"]
 mod worker_lines_tests;
+
+#[test]
+fn client_stream_failure_line_names_the_sign_in_and_bound() {
+    let note = temper_service::Note::ClientStreamFailed {
+        sign_in: 41,
+        why: temper_service::StreamFailure::QueueBound { queued_bytes: 65_536 },
+    };
+    assert_eq!(
+        note_line("temper", note),
+        "temper serve: client stream closed: sign_in=41 reason=QueueBound { queued_bytes: 65536 }\n"
+    );
+}

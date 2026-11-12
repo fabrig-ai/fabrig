@@ -8,6 +8,10 @@ use smith_bench::isolate::Machine;
 use smith_bench::run::{Request, attempt, scratch_root};
 use smith_bench::{End, Measure};
 
+/// No test here proves these bounds; the answer, exit or grader verdict each expects comes first.
+const HANG_GUARD_SECONDS: u64 = 30;
+const HANG_GUARD: skein_lib::Duration = skein_lib::Duration::from_secs(HANG_GUARD_SECONDS);
+
 fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     use std::os::unix::fs::DirBuilderExt;
     let scratch = skein_scratch::Scratch::new(story);
@@ -21,7 +25,7 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     fs::write(task.join("seed/protected.txt"), "frozen\n").expect("protected seed");
     let digest = smith_bench::seed_digest(&task.join("seed")).expect("digest");
     let prompt = "Complete the replay task.\n";
-    fs::write(task.join("task.toml"), format!("id='recorded'\nversion=1\nkind='probe'\ntier='small'\ndeadline_seconds=1\nprompt={prompt:?}\nseed_sha256='{digest}'\ndeciding=['end','grade','file-content:answer.txt','protected-unchanged','tree-ended','nothing-outside','exit-code','answer','last-line']\nprotected=['protected.txt']\nenvironment={{TASK_MARKER='explicit'}}\nsetup=[['sh','-c','test \"$TASK_MARKER\" = explicit && printf warmed > \"$CARGO_HOME/warm\" && printf target > \"$CARGO_TARGET_DIR/warm\" && printf setup > setup.txt && git add setup.txt && git -c user.name=setup -c user.email=setup@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm setup']]\n[[outcome]]\ncheck='file-content'\npath='answer.txt'\ncontent=\"changed\\n\"\n[[grade]]\ncommand=['sh','-c','test -f answer.txt && test ! -e \"$HOME/agent-only\" && test \"$(cat \"$CARGO_HOME/warm\")\" = warmed && test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target && printf grader-only > changed-by-grader']\ndeadline_seconds=1\nmax_output_bytes=4096\n")).expect("manifest");
+    fs::write(task.join("task.toml"), format!("id='recorded'\nversion=1\nkind='probe'\ntier='small'\ndeadline_seconds={HANG_GUARD_SECONDS}\nprompt={prompt:?}\nseed_sha256='{digest}'\ndeciding=['end','grade','file-content:answer.txt','protected-unchanged','tree-ended','nothing-outside','exit-code','answer','last-line']\nprotected=['protected.txt']\nenvironment={{TASK_MARKER='explicit'}}\nsetup=[['sh','-c','test \"$TASK_MARKER\" = explicit && printf warmed > \"$CARGO_HOME/warm\" && printf target > \"$CARGO_TARGET_DIR/warm\" && printf setup > setup.txt && git add setup.txt && git -c user.name=setup -c user.email=setup@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm setup']]\n[[outcome]]\ncheck='file-content'\npath='answer.txt'\ncontent=\"changed\\n\"\n[[grade]]\ncommand=['sh','-c','test -f answer.txt && test ! -e \"$HOME/agent-only\" && test \"$(cat \"$CARGO_HOME/warm\")\" = warmed && test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target && printf grader-only > changed-by-grader']\ndeadline_seconds={HANG_GUARD_SECONDS}\nmax_output_bytes=4096\n")).expect("manifest");
     {
         use std::io::Write;
         fs::OpenOptions::new().append(true).open(task.join("task.toml")).expect("append neutral checks")
@@ -42,7 +46,9 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
 program: "/bin/dash".into(),
 shared_temporary,
 arguments: vec!["-c".into(), "cat >/dev/null; test \"$(cat \"$CARGO_HOME/warm\")\" = warmed; test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target; printf 'changed\\n' > answer.txt; git add answer.txt; git -c user.name=replay -c user.email=replay@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm 'Agent commit'; printf untracked > new.txt; printf poisoned > \"$CARGO_HOME/warm\"; printf poisoned > \"$CARGO_TARGET_DIR/warm\"; printf marker > \"$HOME/agent-only\"; printf 'settled replay\\n' >&2; cat \"$1\"".into(), "replay".into(), recording.to_str().expect("recording UTF-8").into()],
-teardown_ms: 100,
+teardown_ms: HANG_GUARD.as_millis(),
+settlement_ms: HANG_GUARD.as_millis(),
+setup_deadline_seconds: HANG_GUARD_SECONDS,
 grace_ms: 30,
 max_stdout_bytes: 16384,
 disk_estimate_bytes: 65536,
@@ -76,10 +82,10 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
         Box::new([]),
         smith_bench::process::Capture::Raw,
         smith_bench::process::Bounds {
-            hard: skein_lib::Duration::from_secs(2),
+            hard: HANG_GUARD,
             teardown: skein_lib::Duration::ZERO,
             grace: skein_lib::Duration::from_millis(30),
-            settlement: skein_lib::Duration::from_millis(200),
+            settlement: HANG_GUARD,
             stdout: 16384,
             stderr: 16384,
             force_walk: true,
@@ -121,14 +127,14 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
         &private.workspace,
         &smith_bench::Grade {
             command: vec!["sh".into(), "-c".into(), "printf crash-evidence; kill -KILL $$".into()],
-            deadline_seconds: 1,
+            deadline_seconds: HANG_GUARD_SECONDS,
             max_output_bytes: 4096,
         },
         smith_bench::process::Bounds {
             hard: skein_lib::Duration::ZERO,
             teardown: skein_lib::Duration::ZERO,
             grace: skein_lib::Duration::from_millis(30),
-            settlement: skein_lib::Duration::from_millis(200),
+            settlement: HANG_GUARD,
             stdout: 4096,
             stderr: 4096,
             force_walk: true,

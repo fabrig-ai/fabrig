@@ -30,8 +30,8 @@ settings show forge-charter NUMBER [--revision REVISION]
   forge-charter (kind): one of forge-charter; required. One of the forge's charters
   NUMBER (number): a number from 1 to 2; required. 1 the change's charter, 2 its reviews'
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
-settings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]
-  project-ways|project-questions|project-classes|project-words (kind): one of project-ways, project-questions, project-classes or project-words; required. A project's ways, questions, classes or words
+settings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]
+  project-ways|project-questions|project-classes|project-words|project-areas|project-triager (kind): one of project-ways, project-questions, project-classes, project-words, project-areas or project-triager; required. A project's ways, questions, classes or words
   PROJECT (project): a project's name or number; required. The project by number or name
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show charter-words NUMBER [--revision REVISION]
@@ -62,8 +62,8 @@ The JSON value is what a settings file's `set` takes.
 ## settings apply
 
 ```
-settings apply FILE --against REVISION [--running stays|moves] --key KEY
-  FILE (items): a file, at most 1048576 bytes; required. The settings file, JSON, or -
+settings apply FILE... --against REVISION [--running stays|moves] --key KEY
+  FILE (items): a file, at most 1048576 bytes; repeated, at most 128. The settings files in order, JSON, with - at most once
   --against REVISION: a number from 0 to 4294967295; required. The newest revision you read
   --running stays|moves: one of stays or moves; optional. Running work stays on its revision, or moves to the new one; stays when absent
 Change the deployment's settings in one decision

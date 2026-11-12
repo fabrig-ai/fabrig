@@ -8,6 +8,7 @@ mod amend;
 mod change;
 mod demo;
 mod drafts;
+mod finding;
 mod follow;
 mod forge;
 mod forges;

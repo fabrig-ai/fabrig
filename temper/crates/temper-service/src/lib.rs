@@ -184,6 +184,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A client stream closed on its queue or translation bound (client/engine.md).
+    ClientStreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,
@@ -237,6 +242,11 @@ pub enum Note {
         reason: &'static str,
         heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
+    },
+    /// A branch head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        words: Box<[u8]>,
     },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed {
@@ -437,3 +447,6 @@ impl Service {
         }
     }
 }
+
+/// A stream edge or translation refusal (jig/docs/design/protocol/client/README.md, 5).
+pub use jig_protocol_engine_clients::StreamFailure;

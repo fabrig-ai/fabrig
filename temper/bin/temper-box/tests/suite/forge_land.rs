@@ -333,12 +333,16 @@ fn the_claude_launcher_refuses_invalid_held_directories() {
 
 #[test]
 fn a_claude_configuration_starts_on_inits_limits() {
+    assert_live_startup(configure_claude);
+}
+
+fn assert_live_startup(configure: fn(&[std::path::PathBuf; 3])) {
     use skein_io::kernel::Exit;
     use skein_lib::Duration;
     use skein_world::end_to_end::Command;
     use support::{boxed, forge_land};
-    let (scratch, paths) = initialized_deployment("live-claude-startup");
-    configure_claude(&paths);
+    let (scratch, paths) = initialized_deployment("live-model-startup");
+    configure(&paths);
     // Stop at the sign-in line: no person signs in or starts the playground.
     // There is no login and the configured executable does not exist.
     let outcome = boxed::run_command(
@@ -358,7 +362,9 @@ fn a_claude_configuration_starts_on_inits_limits() {
     assert!(support::printed_link(&outcome.stdout).is_some(), "serve reaches its sign-in line: {stderr}");
     assert_eq!(outcome.exit, Some(Exit::Code(0)), "serve drains: {stderr}");
     assert_eq!(outcome.left, Some(vec![]), "no surviving children: {stderr}");
-    assert!(std::fs::read_dir(paths[1].join("programs")).expect("private programs").next().is_none());
+    if paths[1].join("programs").exists() {
+        assert!(std::fs::read_dir(paths[1].join("programs")).expect("private programs").next().is_none());
+    }
     scratch.remove();
 }
 
@@ -473,7 +479,9 @@ fn stock_charters_choose_claude_before_the_demo_model() {
 
 /// The Claude deployment's stock catalogue, endpoints, providers and charters 1 and 2
 /// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
-fn live_claude_world() -> (
+fn live_model_world(
+    configure: fn(&[std::path::PathBuf; 3]),
+) -> (
     support::Scratch,
     jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>,
 ) {
@@ -484,8 +492,8 @@ fn live_claude_world() -> (
     };
     use temper_engine_domain_world::{store::Store, walking};
 
-    let (scratch, paths) = initialized_deployment("live-claude-settings");
-    configure_claude(&paths);
+    let (scratch, paths) = initialized_deployment("live-model-settings");
+    configure(&paths);
     let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
     let document = jig_protocol_config::document(
         &deployment,
@@ -509,6 +517,8 @@ fn live_claude_world() -> (
     limits.accounts.holder_accounts = 3;
     limits.authority.accounts = 3;
     limits.fleet.grants = 4;
+    // Init's OpenAI provider can read a list for the world's fixture accounts.
+    limits.fleet.reads = limits.accounts.accounts;
     limits.tasks.charters = 2;
     limits.templates = 3;
     limits.documents.text_bytes = 8192;
@@ -554,18 +564,33 @@ fn live_claude_world() -> (
 #[test]
 fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
     use std::path::Path;
+    use support::forge_land::LiveModel;
+    assert_live_settings(LiveModel::ClaudeCode { login: Path::new("/held/claude-login") }, configure_claude);
+}
+
+#[test]
+fn a_fresh_key_sitting_applies_claude_settings_on_inits_configuration() {
+    use std::path::Path;
+    use support::forge_land::LiveModel;
+    assert_live_settings(LiveModel::AnthropicKey { key: Path::new("/private/key") }, configure_key);
+}
+
+fn assert_live_settings(model: support::forge_land::LiveModel<'_>, configure: fn(&[std::path::PathBuf; 3])) {
+    use std::path::Path;
     use support::forge_land::{LiveModel, live_apply, live_settings};
     use temper_client_world::fixtures;
-    let (scratch, mut world) = live_claude_world();
+    let (scratch, mut world) = live_model_world(configure);
     let agent = fixtures::agent(&mut world);
-    let call = fixtures::give(
-        &mut world,
-        agent,
-        &[b"account", b"declare", b"2", b"claude_code", b"claude-login", b"--key", b"live-program"],
-    );
-    let declared = fixtures::answered(&mut world, agent, call);
-    assert_eq!(declared.status, 0, "{declared:?}");
-    assert!(declared.stderr.is_empty(), "{declared:?}");
+    if let LiveModel::ClaudeCode { .. } = model {
+        let call = fixtures::give(
+            &mut world,
+            agent,
+            &[b"account", b"declare", b"2", b"claude_code", b"claude-login", b"--key", b"live-program"],
+        );
+        let declared = fixtures::answered(&mut world, agent, call);
+        assert_eq!(declared.status, 0, "{declared:?}");
+        assert!(declared.stderr.is_empty(), "{declared:?}");
+    }
     let read = |world: &mut jig_client_kit::harness::World<_, _>, words: &[&[u8]]| {
         let call = fixtures::give(world, agent, words);
         let printed = fixtures::answered(world, agent, call);
@@ -579,13 +604,15 @@ fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
         read(&mut world, &[b"settings", b"show", b"charter", b"2", b"--json"]),
     ];
     let row = read(&mut world, &[b"settings", b"show", b"model", b"3", b"--json"]);
-    let changes = live_settings(
+    let changes = live_settings(model, &inventory, [&charters[0], &charters[1]], &row).expect("live settings");
+    let claude = live_settings(
         LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
         &inventory,
         [&charters[0], &charters[1]],
         &row,
     )
-    .expect("live settings");
+    .expect("Claude Code settings");
+    assert!(changes == claude, "the key applies exactly Claude Code's model and charter changes");
     let newest = inventory["newest"].as_u64().expect("newest");
     for (at, change) in changes.iter().enumerate() {
         let file = format!("{}.json", change.key);
@@ -738,6 +765,11 @@ fn stubbed_story_launcher(
     fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let mut command = launcher(scratch.path(), story, if story == "forge-land-claude" { Some(&login) } else { None });
     command.env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()));
+    if story == "forge-land-claude-key" {
+        let key = scratch.path().join("synthetic-key");
+        support::write_private(&key, b"opaque fixture");
+        command.env(temper_test_env::LIVE_ANTHROPIC_KEY.name, key);
+    }
     if default_store {
         command.env_remove(temper_test_env::LIVE_STORE.name);
     }
@@ -795,6 +827,7 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
     for (story, test, default_store) in [
         ("forge-land", "a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge", false),
         ("forge-land-claude", "a_person_asks_claude_code_to_land_a_change_on_the_owned_forge", false),
+        ("forge-land-claude-key", "a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge", false),
         ("forge-land", "a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge", true),
     ] {
         let (scratch, output) =
@@ -805,6 +838,9 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
         let stores = stores.to_str().expect("UTF-8 stores");
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.lines().any(|line| line == format!("kept store {stores}/{story}")), "{stdout}");
+        if story == "forge-land-claude-key" {
+            assert!(!stdout.contains("Approve the printed ChatGPT"), "{stdout}");
+        }
         let seen = std::fs::read_to_string(scratch.path().join("seen")).expect("stub arguments and stores");
         assert_eq!(
             seen.lines().collect::<Vec<_>>(),
@@ -1303,6 +1339,12 @@ fn each_landing_story_takes_its_own_store_under_one_live_store() {
     }
     fs::write(chatgpt_store.join("begun"), b"deployment begun").expect("begun deployment");
     assert_eq!(story_store(&stores, claude), Ok((stores.join("forge-land-claude"), false)));
+    let key = LiveModel::AnthropicKey { key: Path::new("/private/key") };
+    let key_store = stores.join("forge-land-claude-key");
+    assert_eq!(story_store(&stores, key), Ok((key_store.clone(), false)));
+    assert_eq!(story_store(&stores, key), Ok((key_store.clone(), false)), "an empty store is fresh");
+    fs::write(key_store.join("begun"), b"deployment begun").expect("begun key deployment");
+    assert_eq!(story_store(&stores, key), Err(format!("kept store {} lacks config", key_store.display())));
     let missing = format!("kept store {} lacks config", chatgpt_store.display());
     assert_eq!(story_store(&stores, chatgpt), Err(missing.clone()));
     assert!(!chatgpt_store.join("config").exists(), "a kept store is never repaired");
@@ -1813,4 +1855,194 @@ fn a_landing_referee_requires_whole_bounded_activity() {
         assert!(evidence.read(&detail).expect("within page bound").is_some());
     }
     assert_eq!(evidence.read(&detail), Err("bounded conversation evidence pages".to_owned()));
+}
+
+#[test]
+fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use support::forge_land::anthropic_key;
+    let scratch = support::Scratch::new("live-key-admission");
+    let file = scratch.path().join("synthetic-key");
+    assert_eq!(anthropic_key(None), Ok(None), "unset skips before any process");
+    assert_eq!(anthropic_key(Some(file.clone().into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file"));
+    support::write_private(&file, b"opaque fixture");
+    assert_eq!(anthropic_key(Some(file.clone().into())), Ok(Some(file.clone())));
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).expect("public fixture");
+    assert_eq!(anthropic_key(Some(file.clone().into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600"));
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).expect("private fixture");
+    let link = scratch.path().join("link");
+    std::os::unix::fs::symlink(&file, &link).expect("link to good fixture");
+    for path in [&link, scratch.path()] {
+        assert_eq!(
+            anthropic_key(Some(path.into())),
+            Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link")
+        );
+    }
+    fs::write(&file, b"").expect("empty fixture");
+    assert_eq!(anthropic_key(Some(file.into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty"));
+    scratch.remove();
+}
+
+#[test]
+fn a_key_plan_adds_once_without_import_declaration_or_sign_in_and_prints_file() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, live_commands, printed_command};
+    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
+    let (commands, account_at) = live_commands(true, model);
+    assert_eq!(commands[account_at - 2], ["account", "add-key", "2", "/private/synthetic-key", "--key", "live-key"]);
+    assert_eq!(commands[account_at - 1], ["account", "list", "--until", "usable", "--timeout", "600s", "--json"]);
+    assert_eq!(printed_command(&commands[account_at - 2]), ["account", "add-key", "2", "FILE", "--key", "live-key"]);
+    assert!(commands.iter().all(|args| args[0] != "account" || matches!(args[1].as_str(), "add-key" | "list")));
+    let (restart, _) = live_commands(false, model);
+    assert!(restart.iter().all(|args| args[0] != "account" || args[1] == "list"));
+}
+
+#[test]
+fn a_key_plan_requires_a_usable_provider_two_key_beside_demo_accounts() {
+    use std::path::Path;
+    use support::forge_land::LiveModel;
+    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
+    assert_eq!(model.ready(&json!({})), Err("person's accounts missing".into()));
+    for party in [
+        json!([]),
+        json!([{"provider":3,"sources":[{"kind":"key","usable":true}]}]),
+        json!([{"provider":2,"sources":[{"kind":"program","usable":true}]}]),
+        json!([{"provider":2}]),
+    ] {
+        assert_eq!(
+            model.ready(&json!({"accounts":{"party":party}})),
+            Err("Anthropic provider 2 key source missing".into())
+        );
+    }
+    for usable in [json!(false), Value::Null] {
+        assert_eq!(
+            model.ready(&json!({"accounts":{"party":[
+                {"provider":3,"sources":[{"kind":"key","usable":true}]},
+                {"provider":2,"sources":[{"kind":"key","usable":usable}]}
+            ]}})),
+            Err("Anthropic provider 2 key source is not usable".into())
+        );
+    }
+    assert_eq!(
+        model.ready(&json!({"accounts":{"party":[
+            {"provider":3,"sources":[{"kind":"key","usable":true}]},
+            {"provider":2,"sources":[{"kind":"key","usable":false}]},
+            {"provider":2,"sources":[{"kind":"key","usable":true}]}
+        ]}})),
+        Ok(())
+    );
+}
+
+fn configure_key(paths: &[std::path::PathBuf; 3]) {
+    use std::path::Path;
+    support::forge_land::configure_live_model(
+        &paths[0],
+        support::forge_land::LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") },
+        Path::new(""),
+    );
+}
+
+#[test]
+fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
+    use std::fs;
+    let (scratch, paths) = initialized_deployment("live-key-configuration");
+    let path = paths[0].join("temper.json");
+    let agent_path = paths[0].join("agent.json");
+    let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
+    let agent = fs::read(&agent_path).expect("init agent");
+    let provider = expected["engine"]["llm"]["providers"]
+        .as_array_mut()
+        .expect("providers")
+        .iter_mut()
+        .find(|provider| provider["name"] == "anthropic")
+        .expect("Anthropic")
+        .as_object_mut()
+        .expect("provider");
+    assert!(provider.remove("keep").is_some());
+    assert!(provider.remove("drop").is_some());
+    configure_key(&paths);
+    let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
+    assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
+    assert_eq!(fs::read(agent_path).expect("key agent"), agent, "Claude Code's program stays as init writes it");
+    scratch.remove();
+    assert_live_startup(configure_key);
+}
+
+#[test]
+fn the_live_temper_profile_selects_only_the_key_and_claude_code_stories() {
+    let config =
+        std::fs::read_to_string(skein_scratch::paths::tree().join("../.config/nextest.toml")).expect("profiles");
+    let profile =
+        config.split("[profile.live-temper]\n").nth(1).expect("live-temper").split("\n[").next().expect("section");
+    let filter = profile.lines().find(|line| line.starts_with("default-filter = ")).expect("default filter");
+    assert_eq!(
+        filter,
+        "default-filter = \"(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)\""
+    );
+    assert!(!filter.contains("chatgpt"));
+}
+
+#[test]
+fn the_key_launcher_refuses_invalid_files_and_other_held_inputs() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new("live-key-launcher-refusals");
+    let root = scratch.path();
+    let good = root.join("good");
+    support::write_private(&good, b"opaque fixture");
+    support::write_private(&root.join("public"), b"opaque fixture");
+    fs::set_permissions(root.join("public"), fs::Permissions::from_mode(0o644)).expect("public fixture");
+    support::write_private(&root.join("empty"), b"");
+    std::os::unix::fs::symlink(&good, root.join("link")).expect("link to good fixture");
+    for (file, extra, message) in [
+        (None, None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY is required for forge-land-claude-key"),
+        (Some("missing"), None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file"),
+        (Some("public"), None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600"),
+        (Some("empty"), None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty"),
+        (Some("link"), None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link"),
+        (Some("."), None, "TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link"),
+        (Some("good"), Some(temper_test_env::LIVE_ACCOUNT.name), "TEMPER_TEST_LIVE_ACCOUNT is for forge-land"),
+        (Some("good"), Some(temper_test_env::LIVE_CLAUDE.name), "TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude"),
+    ] {
+        let mut command = launcher(root, "forge-land-claude-key", None);
+        if let Some(file) = file {
+            command.env(temper_test_env::LIVE_ANTHROPIC_KEY.name, root.join(file));
+        }
+        if let Some(extra) = extra {
+            command.env(extra, &good);
+        }
+        let output = command.output().expect("offline key launcher refusal");
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(String::from_utf8_lossy(&output.stderr).trim(), message);
+    }
+    scratch.remove();
+}
+
+#[test]
+fn a_key_store_is_kept_without_a_held_record() {
+    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
+    use std::{fs, path::Path};
+    use support::forge_land::{LiveModel, story_store};
+    let scratch = support::Scratch::new("live-kept-key-store");
+    let stores = scratch.path().join("stores");
+    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
+    let (store, kept) = story_store(&stores, model).expect("fresh key store");
+    assert!(!kept);
+    for directory in ["data/deployment", "data/forge-1/forgejo", "config", "data/box/started"] {
+        fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
+    }
+    for file in [
+        "config/temper.json".to_owned(),
+        "config/agent.json".to_owned(),
+        "data/box/started/1".to_owned(),
+        "data/forge-1/forgejo/app.ini".to_owned(),
+        "data/forge-1/forgejo/forgejo.db".to_owned(),
+        format!("cache/forgejo/{VERSION}/forgejo"),
+        format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
+    ] {
+        let file = store.join(file);
+        fs::create_dir_all(file.parent().expect("fixture parent")).expect("fixture directories");
+        support::write_private(&file, b"synthetic deployment fixture");
+    }
+    assert_eq!(story_store(&stores, model), Ok((store, true)), "a key has no held record to import again");
+    scratch.remove();
 }

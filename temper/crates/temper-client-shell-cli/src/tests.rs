@@ -1,5 +1,6 @@
 mod deadline;
 pub(crate) mod fixtures;
+mod service;
 use crate::{directory, limits};
 use skein_io::kernel::{Error, Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);

@@ -88,7 +88,7 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
             people: 15,
             notes: 1,
             accounts: 2,
-            settings: 2,
+            settings: 3,
             application: 1,
             deployment: fixtures::DEPLOYMENT,
             levels: crate::format::NONE,

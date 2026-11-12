@@ -603,12 +603,11 @@ pub(crate) fn window_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>
 pub(crate) fn auth(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     assert!(inherited.pipes.iter().all(|(number, _)| *number != 0));
     assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"CLAUDE_CONFIG_DIR=/private/programs/alice"));
-    assert!(
-        !spawn
-            .env
-            .iter()
-            .any(|entry| entry.starts_with(b"ANTHROPIC_") || entry.starts_with(b"CLAUDE_CODE_OAUTH_TOKEN="))
+    assert_eq!(
+        spawn.env.iter().filter(|entry| entry.starts_with(b"ANTHROPIC_")).map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"ANTHROPIC_CONFIG_DIR=/private/programs/alice/anthropic".as_slice()]
     );
+    assert!(!spawn.env.iter().any(|entry| entry.starts_with(b"CLAUDE_CODE_OAUTH_TOKEN=")));
     Proc::Auth(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 pub(crate) fn worker_programs(inherited: &skein_world::Inherited) -> Proc {

@@ -1,5 +1,5 @@
 //! The existing hold tag carries the placed hold's deployment number.
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use skein_lib::{Reader, Writer};
 #[test]
 fn hold_category_placed_round_trips_with_its_number_at_the_existing_tag() {

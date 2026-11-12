@@ -286,7 +286,7 @@ fn later_saves_extend_a_whole_recording() {
     assert!(prove(&second).is_ok());
 }
 
-// Jig's v19 SignedIn wire: answer tag, present token, length, token, party, expiry.
+// Jig's v20 SignedIn wire: answer tag, present token, length, token, party, expiry.
 // The credential's first eight bytes are its sign-in number, followed by 32 fake bytes.
 fn credential() -> Secret {
     let mut bytes = 7_u64.to_be_bytes().to_vec();
@@ -462,7 +462,7 @@ fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
 fn approved() -> Walk {
     let mut walk = Walk::new();
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
-    // v19 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
+    // v20 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
     asked.extend_from_slice(&32_u32.to_be_bytes());
     asked.extend_from_slice(&[7; 32]);
@@ -706,7 +706,7 @@ fn local_records_are_refused_outside_their_places() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =

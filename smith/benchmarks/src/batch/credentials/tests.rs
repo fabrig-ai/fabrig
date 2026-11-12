@@ -2,6 +2,10 @@
 use super::*;
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 
+/// No test here proves these bounds; the rendezvous and both exits are expected to come first.
+const HANG_GUARD_SECONDS: u64 = 30;
+const HANG_GUARD: skein_lib::Duration = skein_lib::Duration::from_secs(HANG_GUARD_SECONDS);
+
 #[test]
 fn a_refresh_pair_requires_two_completions_with_a_new_generation() {
     let mut pair = [End::Completed, End::Completed];
@@ -134,10 +138,10 @@ fn two_attempt_processes_meet_before_either_can_finish() {
     let request = Request {
         program: "/nonexecuted".into(),
         logins: Some(state.join("logins/codex")),
-        teardown_ms: 100,
+        teardown_ms: HANG_GUARD.as_millis(),
         grace_ms: 100,
-        settlement_ms: 1000,
-        setup_deadline_seconds: 5,
+        settlement_ms: HANG_GUARD.as_millis(),
+        setup_deadline_seconds: HANG_GUARD_SECONDS,
         disk_estimate_bytes: 0,
         ..crate::fixture::request::request(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
@@ -149,7 +153,7 @@ fn two_attempt_processes_meet_before_either_can_finish() {
         .expect("control executable alias");
     std::fs::write(&program, PEER).expect("fake attempt executable");
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).expect("executable");
-    let pair = run(&guard, &machine, &state, &program, &request, 5_000_000_000).expect("two settled processes");
+    let pair = run(&guard, &machine, &state, &program, &request, HANG_GUARD.as_nanos()).expect("two settled processes");
     assert_eq!(pair.len(), 2);
     assert!(pair.iter().all(|result| result.outcome.checks[0].passed == Measure::Observed { value: true }));
     assert_eq!(record_generation(&token).expect("shared record generation"), Some(2));

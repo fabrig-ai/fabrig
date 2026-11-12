@@ -37,6 +37,7 @@ fn agree(world: &jig_core_world::world::World) {
             }
         }
     }
+    let defaults = expected.clone();
     for (setting, value) in changes {
         match value {
             Some(value) => {
@@ -50,6 +51,31 @@ fn agree(world: &jig_core_world::world::World) {
     assert_eq!(current.offered().as_slice(), expected.keys().copied().collect::<Vec<_>>());
     for (setting, value) in expected {
         assert_eq!(current.value(setting), Some(&value));
+        if let settings::Value::Overlay(overlay) = &value {
+            let settings::Setting::Charter(number) = setting else { panic!("overlay setting") };
+            let settings::Value::Charter(default) = &defaults[&setting] else { panic!("overlay default") };
+            let made = settings::overlaid(default, overlay);
+            let catalogue: Vec<_> = current
+                .offered()
+                .iter()
+                .filter_map(|setting| match current.value(*setting) {
+                    Some(settings::Value::Model(model)) => Some(*model.clone()),
+                    _ => None,
+                })
+                .collect();
+            let resolved = settings::charters::resolved(&made, &catalogue, &world.env().limits.core)
+                .expect("offered overlay resolves");
+            assert_eq!(current.charter(number), Some(&resolved), "default with stored overlay");
+        }
+    }
+    if let Some(assigned) = &world.assigned
+        && let Some(row) = world.domain.core().tasks.task(assigned.task)
+        && row.settings.run == Some(assigned.run.revision)
+    {
+        let tasks::Executor::Agent { charter } = row.executor else { panic!("agent assignment") };
+        let version =
+            world.domain.core().charter_at(charter, assigned.run.revision).expect("assigned revision is held");
+        assert_eq!(assigned.run.policy.instructions, version.policy.instructions, "run reads its revision's version");
     }
     assert_eq!(revision(world, current.newest(), false).head, *current.newest_head());
     let mut holders = std::collections::BTreeMap::<u32, u32>::new();
@@ -84,6 +110,23 @@ fn agree(world: &jig_core_world::world::World) {
         }
     }
 }
+fn overlay_item(words: &[u8]) -> settings::Item {
+    settings::Item {
+        setting: settings::Setting::Charter(1),
+        edit: settings::Edit::Set(settings::Value::Overlay(Box::new(settings::Overlay {
+            instructions: words.into(),
+            shell: Some(false),
+            ..settings::Overlay::empty()
+        }))),
+    }
+}
+fn restart_default(world: &mut jig_core_world::world::World, rng: &mut Rng) {
+    let mut config = configuration().0;
+    config.core.defaults.charters[0].policy.instructions =
+        format!("Release {}", rng.below(1_000_000)).into_bytes().into_boxed_slice();
+    restart(world, config);
+}
+
 fn live_work(world: &mut jig_core_world::world::World, signed: u64) {
     // Two non-conversation goals retain their settings: one parked, one running.
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -122,8 +165,9 @@ fn draw_change(
     seed: u64,
     operation: u64,
     rng: &mut Rng,
-    reached: &mut [bool; 7],
+    reached: &mut [bool; 8],
 ) {
+    reached[7] |= operation == 5;
     let previous = world.domain.settings().newest();
     let stale = rng.below(4) == 0;
     reached[0] |= stale;
@@ -134,6 +178,7 @@ fn draw_change(
     let item = match operation {
         0 => settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Reset },
         1 | 3 => template_edit(world, 6 + rng.below(8)),
+        5 => overlay_item(format!("overlay {seed} {step}").as_bytes()),
         _ => {
             let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
             charter.policy.instructions = format!("random settings {seed} {step}").into_bytes().into_boxed_slice();
@@ -193,10 +238,10 @@ fn draw_change(
 fn random_small_settings_changes_and_stale_requests_survive_restarts() {
     let count =
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(24, |value| value.parse::<u64>().expect("seed count"));
-    let mut coverage = [false; 7];
+    let mut coverage = [false; 8];
     for seed in 713..713 + count {
         let result = std::panic::catch_unwind(|| {
-            let mut reached = [false; 7];
+            let mut reached = [false; 8];
             let mut rng = Rng::new(seed);
             let mut world = start(2);
             let signed = sign_in(&mut world);
@@ -217,7 +262,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
             agree(&world);
             for step in 0..16_u8 {
                 let previous = world.domain.settings().newest();
-                let operation = rng.below(5);
+                let operation = rng.below(6);
                 if operation == 4 {
                     let held: Vec<_> = world
                         .store
@@ -243,7 +288,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                 }
                 if rng.below(4) == 0 {
                     reached[4] = true;
-                    restart(&mut world, configuration().0);
+                    restart_default(&mut world, &mut rng);
                     agree(&world);
                 }
             }
@@ -266,8 +311,8 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
         }
     }
     assert_eq!(
-        coverage, [true; 7],
-        "stale, reset, template, charter, restart, Moves with old holders and MoveToNewest with old holders all reached"
+        coverage, [true; 8],
+        "stale, reset, template, charter, restart, Moves with old holders MoveToNewest with old holders, and overlays all reached"
     );
 }
 
@@ -323,7 +368,16 @@ fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
         assert_eq!(review.items.len(), u32::try_from(set.items.len()).expect("bounded items"));
         for (shown, item) in review.items.iter().zip(&set.items) {
             assert_eq!(shown.setting, item.setting);
+            let made;
             let expected = match &item.edit {
+                settings::Edit::Set(settings::Value::Overlay(overlay)) => {
+                    let Some(settings::Value::Charter(default)) = world.domain.settings().default_value(item.setting)
+                    else {
+                        panic!("default")
+                    };
+                    made = settings::Value::Charter(Box::new(settings::overlaid(default, overlay)));
+                    Some(&made)
+                }
                 settings::Edit::Set(value) => Some(value),
                 settings::Edit::Removed => None,
                 settings::Edit::Reset => world.domain.settings().default_value(item.setting),
@@ -355,7 +409,11 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                 let key = 20 + step;
                 match operation {
                     0 => {
-                        let item = template_edit(&world, 6 + rng.below(10));
+                        let item = if rng.below(2) == 0 {
+                            overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
+                        } else {
+                            template_edit(&world, 6 + rng.below(10))
+                        };
                         let against = world.domain.settings().newest();
                         propose(&mut world, signed, key, against, Box::new([item]));
                     }
@@ -401,7 +459,7 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                         change(&mut world, signed, key, against, Box::new([item]));
                     }
                     5 => {
-                        restart(&mut world, configuration().0);
+                        restart_default(&mut world, &mut rng);
                     }
                     _ => unreachable!(),
                 }

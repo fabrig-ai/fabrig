@@ -354,12 +354,15 @@ fn review_recipe_changes_only_approvals() {
 
 #[test]
 fn policy_help_allows_other_settings_beside_a_set() {
-    for name in [b"configure".as_slice(), b"settings-fields"] {
+    for (name, operation, count, combined) in [
+        (b"configure".as_slice(), "only `set`", "at most once per file", "may share a file with other settings"),
+        (b"settings-fields", "`set` only", "once per file", "alongside other settings"),
+    ] {
         let page = temper_docs::find(name).expect("policy help");
         let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(text.contains("only `set`"), "{name:?}: policy edit operation");
-        assert!(text.contains("at most once per file"), "{name:?}: policy item count");
-        assert!(text.contains("may share a file with other settings"), "{name:?}: combined settings decision");
+        assert!(text.contains(operation), "{name:?}: policy edit operation");
+        assert!(text.contains(count), "{name:?}: policy item count");
+        assert!(text.contains(combined), "{name:?}: combined settings decision");
         assert!(!text.contains("set alone"), "{name:?}: ambiguous operation wording");
     }
 }
@@ -538,7 +541,7 @@ fn box_help_creates_the_first_project_before_using_its_number() {
 }
 
 // The deployment dispatchers are private. Reach their own table first; shared
-// rows use the box parser, while serve takes only the resolved directories.
+// rows use the box parser; serve takes directories and the engine's recording switch.
 fn deployment_page_command(table: &skein_shell::Table, arguments: &[Box<[u8]>]) -> Result<(), String> {
     use skein_shell::{Reach, Reached};
     let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
@@ -547,10 +550,18 @@ fn deployment_page_command(table: &skein_shell::Table, arguments: &[Box<[u8]>]) 
         Reached::Help | Reached::Version | Reached::CommandHelp(_) => Ok(()),
         Reached::Command(command, rest) => {
             if command.reach == Reach::Words(&["serve"]) {
-                assert_eq!(command.forms, ["[DIRECTORIES]"]);
                 let (_, rest) =
                     temper_shell::directories::resolve(rest, &environment, b"/").map_err(|why| why.to_string())?;
-                if rest.is_empty() { Ok(()) } else { Err("invalid arguments".into()) }
+                match rest.as_ref() {
+                    [] => Ok(()),
+                    [flag]
+                        if flag.as_ref() == b"--record"
+                            && command.switches.iter().any(|switch| switch.name == "record") =>
+                    {
+                        Ok(())
+                    }
+                    _ => Err("invalid arguments".into()),
+                }
             } else {
                 let shared = crate::TABLE.commands.iter().find(|row| row.reach == command.reach);
                 assert_eq!(shared, Some(command), "a shared row must have the same arguments");

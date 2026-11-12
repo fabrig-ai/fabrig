@@ -16,6 +16,7 @@ mod devices;
 mod dismissed;
 mod drafts;
 mod early;
+mod findings;
 pub(crate) mod fixtures;
 mod flight;
 mod follow_check;
@@ -121,6 +122,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -286,7 +288,7 @@ fn restoring_domain(started: Wall) -> Domain {
 pub(crate) fn domain() -> Domain {
     domain_with_limits(&LIMITS)
 }
-fn domain_with_limits(limits: &Limits) -> Domain {
+pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
@@ -516,6 +518,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -574,6 +577,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -612,6 +616,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -670,6 +675,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -701,6 +707,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -759,6 +766,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }

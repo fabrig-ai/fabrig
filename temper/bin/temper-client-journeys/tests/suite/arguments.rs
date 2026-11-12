@@ -13,7 +13,7 @@ fn again_without_a_name_is_usage() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         String::from_utf8(output.stderr).expect("usage is text"),
-        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again NAME\n"
+        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again [--prepared DIR] NAME\n"
     );
 }
 

@@ -80,6 +80,11 @@ fn the_page_holds_every_declared_tool_in_the_tables_order() {
     for line in headings {
         assert!(!line.starts_with("## "), "no undeclared tool heading");
     }
+    let mut tail = SPECS.iter().rev();
+    for name in [b"remember".as_slice(), b"document", b"see", b"read_docs"] {
+        assert_eq!(tail.next().unwrap().name, name);
+    }
+
     assert!(page.len() <= temper_docs::PAGE_BYTES);
 }
 

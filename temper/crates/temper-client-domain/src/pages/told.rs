@@ -428,6 +428,10 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::Away => None,
     }
 }

@@ -23,6 +23,7 @@ mod ci_news;
 mod connection_wait;
 #[path = "goal_branch.rs"]
 mod goal_branch;
+pub(crate) mod heads;
 mod hints;
 mod landed;
 #[path = "make.rs"]
@@ -210,6 +211,7 @@ pub struct Domain {
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
+    pub(crate) findings: Option<Box<Map<(u32, u32), crate::Finding>>>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
@@ -605,6 +607,7 @@ impl Domain {
                 crate::CallPayload::Effect { .. }
                 | crate::CallPayload::Read(_)
                 | crate::CallPayload::Refused(_)
+                | crate::CallPayload::Finding(_)
                 | crate::CallPayload::Decided { .. } => {}
             }
         }
@@ -620,7 +623,10 @@ impl Domain {
         let Some(answer) = self.named_calls.get_mut(&key) else { unreachable!("named effect owner") };
         match answer {
             crate::CallPayload::Effect { outcome: kept, .. } => *kept = Some(outcome),
-            crate::CallPayload::Read(_) | crate::CallPayload::Refused(_) | crate::CallPayload::Decided { .. } => {
+            crate::CallPayload::Read(_)
+            | crate::CallPayload::Refused(_)
+            | crate::CallPayload::Finding(_)
+            | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")
             }
         }
@@ -833,6 +839,7 @@ impl Domain {
             drafts: None,
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
+            findings: None,
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
@@ -2378,7 +2385,8 @@ fn outcome_facts(
                     };
                     if let Some(name) = from_client(&resource, &env.limits) {
                         let head = BranchHead { name: name.clone(), commit, owned: true };
-                        if d.heads.insert(name, head.clone()).is_ok() {
+                        let concerning = heads::concerning(d, &name, Some(task));
+                        if heads::record(d, env, head.clone(), concerning, out) {
                             emit(
                                 out,
                                 Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) },
@@ -2432,7 +2440,7 @@ fn outcome_facts(
                 if let Some(name) = name
                     && (d.holds.contains_key(&name) || owned)
                 {
-                    record_written_head(d, env, resource, name, commit, out);
+                    record_written_head(d, env, resource, name, commit, task, out);
                 }
                 crate::tiers::observed(d, env, repository, &branch, before, commit, out);
             }
@@ -2846,14 +2854,18 @@ fn answered(
         let saved = row.clone();
         save_hold(out, saved);
         let undrifted = row.drift.is_none();
+        let holder = row.task;
         if let Some(resource) = to_client(name, &env.limits) {
             for (pushed_name, commit) in pushed {
                 if pushed_name == name && undrifted {
                     let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
                     let previous = d.branch_head(name);
-                    d.heads.insert(name.clone(), head.clone()).expect("reported head was a live resource");
+                    let concerning = heads::concerning(d, name, Some(holder));
+                    let recorded = heads::record(d, env, head.clone(), concerning, out);
                     wake_head_dependents(d, name, previous, *commit);
-                    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+                    if recorded {
+                        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+                    }
                     record_delegate_head(d, task, name, *commit, out);
                     child(
                         d,
@@ -3136,12 +3148,12 @@ fn lost_read(
     if undrifted && let Some(commit) = observed {
         let previous = d.branch_head(&pending.name);
         let head = BranchHead { name: pending.name.clone(), commit, owned: true };
-        if d.heads.insert(pending.name.clone(), head.clone()).is_err() {
-            lost_failed(d, pending.task, pending.attempt, &pending.name, b"branch head capacity exhausted", out);
-            return;
-        }
+        let concerning = heads::concerning(d, &pending.name, Some(pending.task));
+        let recorded = heads::record(d, env, head.clone(), concerning, out);
         wake_head_dependents(d, &pending.name, previous, commit);
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+        if recorded {
+            emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+        }
         record_delegate_head(d, pending.task, &pending.name, commit, out);
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
@@ -5702,13 +5714,15 @@ fn record_written_head(
     resource: skein_forge_client::Resource,
     name: Name,
     commit: skein_forge::api::Commit,
+    task: u64,
     out: &mut Queue<Request>,
 ) {
     let head = BranchHead { name: name.clone(), commit, owned: true };
-    if d.heads.insert(name, head.clone()).is_ok() {
+    let concerning = heads::concerning(d, &name, Some(task));
+    if heads::record(d, env, head.clone(), concerning, out) {
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
-        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
     }
+    child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
 }
 
 fn record_change_head(
@@ -5729,7 +5743,7 @@ fn record_change_head(
     {
         return;
     }
-    record_written_head(d, env, resource, name, commit, out);
+    record_written_head(d, env, resource, name, commit, row.task, out);
 }
 
 /// A release adopts an observed head, including the client's drift baseline.
@@ -5751,8 +5765,9 @@ fn accept_released_branch(
         save_hold(out, hold.clone());
     }
     let head = BranchHead { name: name.clone(), commit: head, owned: true };
-    d.heads.insert(name, head.clone()).expect("the held branch has a head slot");
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
+    if heads::record(d, env, head.clone(), Some(row.task), out) {
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
+    }
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
@@ -6165,6 +6180,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
+        heads::free(d, env, out);
         d.releases.remove(&task);
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });
@@ -6985,7 +7001,7 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     let task = subscription.task;
     let ci = match &subscription.topic {
         Topic::Ci { repository, head } => Some((*repository, *head)),
-        Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+        Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => None,
     };
     if let Some(problem) = admission::subscription_problem(d, &env.limits, &subscription) {
         match problem.failure {
@@ -7000,7 +7016,7 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
     d.subscriptions.insert(key, subscription.clone()).expect("preflighted subscription capacity");
     let landing = match &subscription.topic {
         Topic::Landings { .. } => true,
-        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => false,
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => false,
     };
     let tasks = subscription.goal_tasks.clone();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Subscription(subscription) });
@@ -7033,7 +7049,7 @@ fn unsubscribe(d: &mut Domain, env: &Env<Limits>, task: u64, topic: Topic, out: 
                 }
             }
             Topic::Landings { .. } => crate::tiers::watch(d, env, out),
-            Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
         }
     }
 }
@@ -7084,7 +7100,11 @@ fn ci_hint(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint, out
                 subscribed = true;
                 break;
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     if subscribed {
@@ -7299,7 +7319,8 @@ fn branch_changed(
         None => false,
     };
     let row = BranchHead { name: name.clone(), commit, owned: recorded };
-    if d.heads.insert(name, row.clone()).is_err() {
+    let concerning = heads::concerning(d, &name, None);
+    if !heads::record(d, env, row.clone(), concerning, out) {
         return;
     }
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row.clone()) });
@@ -7363,7 +7384,7 @@ fn landing_read(
         Topic::Landings { repository, branch } => {
             crate::workflows::landed(d, env, *repository, branch, pending.after, files.as_deref(), out);
         }
-        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {
             unreachable!("landing comparison belongs to a landing")
         }
     }
@@ -7875,6 +7896,11 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Away(row) => {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");
         }
+        Stored::Finding(row) => {
+            d.finding_rows_mut(&env.limits)
+                .insert((row.project, row.number), row)
+                .expect("restored finding room checked");
+        }
         Stored::Decided(row) => {
             d.decisions.insert((row.project, row.number), row).expect("restored decision room checked");
         }
@@ -7942,7 +7968,11 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
             Topic::Ci { .. } if subscriber.goal_tasks.is_some() => {
                 emit(out, Request::GoalUntopic { goal: subscriber.task, topic: subscriber.topic.clone() });
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     d.rebuild_settings();
@@ -8007,7 +8037,11 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             Topic::Ci { repository, head } if !ci.as_slice().contains(&(*repository, *head)) => {
                 ci.push((*repository, *head)).expect("subscription capacity");
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     let mut changes = List::with_capacity(env.limits.changes);
@@ -8162,6 +8196,7 @@ pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Q
         }
         for ((_, topic), _) in &d.subscriptions {
             let provider = match topic {
+                Topic::Findings { .. } => continue,
                 Topic::Landings { repository, .. }
                 | Topic::Ci { repository, .. }
                 | Topic::Pull { repository, .. }
@@ -8448,6 +8483,12 @@ impl Domain {
             RecordKind::Subscription => {
                 for (key, _) in &self.subscriptions {
                     let repository = match &key.1 {
+                        Topic::Findings { .. } => {
+                            if need.task(key.0, None) {
+                                return Key::Subscription { task: key.0, topic: key.1.clone() };
+                            }
+                            continue;
+                        }
                         Topic::Landings { repository, .. }
                         | Topic::Ci { repository, .. }
                         | Topic::Pull { repository, .. }
@@ -8633,6 +8674,7 @@ impl Domain {
             | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided
+            | RecordKind::Finding
             | RecordKind::Looked
             | RecordKind::Dismissed => {
                 unreachable!("row has no links")

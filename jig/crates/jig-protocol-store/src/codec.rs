@@ -13,7 +13,7 @@ use jig_domain_core as domain;
 /// Generated family bounds derived from the component's limits (protocol/store/README.md, 8).
 #[derive(Clone, Copy, Debug)]
 pub struct View {
-    pub settings: crate::settings_v2::Limits,
+    pub settings: crate::settings_v3::Limits,
     pub core: crate::core_v6::Limits,
     pub tasks: crate::tasks_v10::Limits,
     pub people: crate::people_v15::Limits,
@@ -97,7 +97,12 @@ pub(crate) fn catalogue(store: &mut crate::Store) -> Result<(), crate::restore::
             Record::Changed { changed, .. } => match changed.value {
                 Some(Value::Model(model)) => model,
                 Some(
-                    Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_),
+                    Value::Overlay(_)
+                    | Value::Charter(_)
+                    | Value::Template(_)
+                    | Value::Policy(_)
+                    | Value::Rules(_)
+                    | Value::Application(_),
                 )
                 | None => return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), site)),
             },

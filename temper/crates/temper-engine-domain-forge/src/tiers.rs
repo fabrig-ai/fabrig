@@ -127,7 +127,11 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
                     names.push(name).expect("one watch per subscription");
                 }
             }
-            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. }
+            | Topic::Ci { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     crate::follows::watches(d, &mut names);
@@ -607,6 +611,20 @@ pub(crate) fn task(
         save(row, out);
     }
 }
+/// A live run and its retained probe still read their branch heads.
+pub(crate) fn needs_head(row: &TierRow, name: &Name) -> bool {
+    if row.repository.forge != name.forge || row.repository.repository != name.repository {
+        return false;
+    }
+    let Some(run) = &row.record.run else { return false };
+    if crate::items::branch_matches(name, &branch(&row.tier, run.number)) {
+        return true;
+    }
+    match &row.probe {
+        Some(probe) => crate::items::branch_matches(name, &probe_branch(row, probe.landing)),
+        None => false,
+    }
+}
 fn branch(tier: &[u8], number: u64) -> Box<[u8]> {
     joined(&[b"temper/tier/", tier, b".", skein_lib::Decimal::of(number).as_bytes()])
 }
@@ -861,7 +879,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         out,
     );
 }
-fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
     let result = row.result.as_ref().expect("terminal receipt");
     let run = row.record.run.as_ref().expect("live range");
     let next = if row.received {
@@ -898,7 +916,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
                 wait(row.task.expect("tier task"), out);
                 return;
             };
-            red::landed(d, row, &newly_red, &logs, out);
+            red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
@@ -1062,7 +1080,7 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                finish(d, env, &mut row, out);
+                finish(d, env, &mut row, heard.message_bytes, out);
             }
         }
     } else {
