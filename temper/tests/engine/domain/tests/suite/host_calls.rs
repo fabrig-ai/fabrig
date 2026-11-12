@@ -617,6 +617,24 @@ pub(super) fn scripted_task_read(
 }
 
 #[test]
+fn a_goal_reads_its_live_changes_result_as_its_specification() {
+    let (mut world, goal) = reference_person_world("none");
+    let spec = "Explain live result reads.";
+    let (change, _) = implementation_change(&mut world, &goal, 5, spec, 2);
+    let input = format!(r#"{{"task":{change},"field":"result"}}"#);
+    let call = person_tool(&goal, 6, b"read_task", input.as_bytes());
+    let answer = world.scripted_call(&goal, 6, call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, 4096);
+    let text = String::from_utf8_lossy(rendered.text());
+    assert!(!rendered.error(), "{text}");
+    assert!(text.starts_with(&format!("Task {change}, spec revision ")), "{text}");
+    assert!(text.contains("\nState: active\n"), "{text}");
+    assert!(text.contains("\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.\nWords from 0:\n"), "{text}");
+    assert!(text.contains(spec), "{text}");
+    world.close();
+}
+
+#[test]
 fn a_goal_reads_its_changes_running_and_retained_coding_agent() {
     let (mut world, goal) = reference_person_world("none");
     let spec = "Add the descendant task read explanation.";
