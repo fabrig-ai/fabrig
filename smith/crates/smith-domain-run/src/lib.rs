@@ -46,8 +46,8 @@ mod conventions;
 mod delivery;
 mod domain;
 pub mod facts;
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;
 mod host;
 mod identity;
 mod inbox;
@@ -78,8 +78,8 @@ pub use budget::{
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
 pub use charter::{brief_room, charter_room};
 pub use domain::{
-    Domain, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner, reserve, resume,
-    settle_reservation, step,
+    Domain, close_drained, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner,
+    reserve, resume, settle_reservation, step,
 };
 pub use identity::Identity;
 pub use inbox::rendered_bytes;

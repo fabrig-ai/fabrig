@@ -207,7 +207,7 @@ fn hex(word: &[u8]) -> Option<Box<[u8]>> {
         return None;
     }
     let mut out = Writer::new(word.len().checked_div(2)?);
-    for pair in word.chunks_exact(2) {
+    for pair in word.as_chunks::<2>().0 {
         let mut value = 0_u8;
         for byte in pair {
             let nibble = match byte {

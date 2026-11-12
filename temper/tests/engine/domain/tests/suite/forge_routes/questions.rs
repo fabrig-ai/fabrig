@@ -218,8 +218,8 @@ fn a_producers_words_are_refused_by_the_call_and_its_finish_goes_through() {
         "the call refuses the report: {:?}",
         world.answers
     );
-    assert!(replies(&world, producer.task, change).is_empty());
-    assert!(replies(&world, change, producer.task).is_empty());
+    assert_eq!(replies(&world, producer.task, change).len(), 0);
+    assert_eq!(replies(&world, change, producer.task).len(), 0);
     finish_producing(&mut world, change, &producer);
 }
 
@@ -882,7 +882,7 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
         }
     }
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Held { answer: ANSWER.into() });
-    assert!(replies(&world, producer.task, change).is_empty());
+    assert_eq!(replies(&world, producer.task, change).len(), 0);
     let branch = row(&world, dependency).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"prerequisite", b"ready", 1)

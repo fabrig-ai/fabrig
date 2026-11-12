@@ -874,7 +874,7 @@ impl World {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    return Ok(vec![temper_service::settings_note(to, *call, &body, &self.root.catalogue())]);
+                    return Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.root.catalogue())]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
@@ -1348,7 +1348,7 @@ impl World {
             worker::Request::CancelRelay { run, attempt, call } => {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });
             }
-            worker::Request::Stop => panic!("the worker stops only once shut down"),
+            worker::Request::Stop | worker::Request::Abandon => panic!("the worker stops only once shut down"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
@@ -1608,6 +1608,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }
         | Op::Commit { snapshot: None, .. } => return op,

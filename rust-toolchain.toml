@@ -1,0 +1,6 @@
+# skein/docs/foundation/programming-model.md, 10.1: a dated nightly, LLVM alone.
+[toolchain]
+channel = "nightly-2026-10-21"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

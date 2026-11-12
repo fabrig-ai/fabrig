@@ -249,6 +249,7 @@ pub(super) fn encode_owner_word_result(
         }
         jig_client::contract::WordResult::Failed => out.string(b"failed"),
         jig_client::contract::WordResult::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::WordResult::Job => out.string(b"job"),
     }
 }
 

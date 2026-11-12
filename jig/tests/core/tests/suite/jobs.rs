@@ -271,9 +271,9 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
     assert!(proof(&world, task).accounts.is_empty());
     assert_eq!(proof(&world, task).window, None);
     assert_eq!(proof(&world, task).conversation, proof(&world, task).attempt);
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     world.job_hello(Token::new(8), 1, Box::new([bound(9)]));
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     world.job_hello(Token::new(9), 2, Box::new([bound(7)]));
     assert_eq!(world.jobs.len(), 1);
     let (channel, assignment) = &world.jobs[0];
@@ -407,7 +407,7 @@ fn a_restart_adopts_a_claimed_job_its_worker_still_lists() {
     let attempt = world.jobs[0].1.attempt.raw();
     restart(&mut world, 911);
     hello_hosting(&mut world, task, attempt);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     assert_eq!(proof(&world, task).attempt, attempt);
     world.answer_job(Token::new(9), Token::new(task), Token::new(attempt), finished());
     assert!(matches!(ended(&world, task).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
@@ -433,4 +433,26 @@ fn a_claimed_job_no_worker_lists_after_a_restart_is_lost_and_tried_again() {
     assert!(world.jobs[1].1.attempt > attempt);
     answer(&mut world, finished());
     finish_procedure(&mut world, procedure);
+}
+
+/// A worker shutdown spends no try; loss of contact still spends a lost try
+/// (jig/docs/design/domain/hosts/hub.md, 9; domain/tasks/lifecycle.md, 2).
+#[test]
+fn a_job_cancelled_for_shutdown_is_claimed_afresh_without_a_lost_try() {
+    for (reason, lost) in [(host::Reason::Shutdown, 0), (host::Reason::Contact, 1)] {
+        let (mut world, _, task) = start(913);
+        world.job_hello(Token::new(8), 1, Box::new([bound(7)]));
+        let attempt = world.jobs.last().expect("first job claim").1.attempt;
+        answer(&mut world, failed(host::JobFailure::Cancelled(reason)));
+        assert_eq!(live_row(&world, task).tries, tasks::Tries { lost, ..tasks::Tries::NONE });
+        if reason == host::Reason::Contact {
+            assert!(matches!(live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+            world.advance(world.env().limits.core.tasks.retries.lost.max);
+        }
+        assert_eq!(world.jobs.len(), 2, "a fresh claim without waiting on shutdown");
+        let (_, fresh) = world.jobs.last().expect("job claimed afresh");
+        assert_eq!(fresh.run, Token::new(task));
+        assert!(fresh.attempt > attempt);
+        assert_eq!(live_row(&world, task).tries.lost, lost);
+    }
 }

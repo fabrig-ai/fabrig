@@ -13,7 +13,7 @@ pub fn commit(number: u64) -> client::Commit {
     id[..20].copy_from_slice(&skein_fake_forge_domain::object_bytes(number));
     id
 }
-fn number(id: client::Commit) -> u64 {
+pub(crate) fn number(id: client::Commit) -> u64 {
     let mut bytes = [0; 8];
     bytes.copy_from_slice(&id[8..16]);
     let number = u64::from_be_bytes(bytes);
@@ -62,7 +62,7 @@ pub fn key_of(body: &[u8]) -> Option<Box<[u8]>> {
                 return None;
             }
             let mut key = List::with_capacity(u32::try_from(end / 2).expect("world body bound"));
-            for pair in rest.get(..end)?.chunks_exact(2) {
+            for pair in rest.get(..end)?.as_chunks::<2>().0 {
                 key.push(hex(pair[0])?.checked_mul(16)?.checked_add(hex(pair[1])?)?).expect("key capacity");
             }
             return Some(key.into_boxed());
@@ -179,6 +179,7 @@ fn write_op(write: &client::Write) -> forge::Write {
             how: match how {
                 client::MergeHow::Style => forge::MergeHow::Style,
                 client::MergeHow::FastForwardOnly => forge::MergeHow::FastForwardOnly,
+                client::MergeHow::Recorded { commit } => forge::MergeHow::Recorded { commit: number(*commit) },
             },
         },
         client::Write::Update { number, style, .. } => forge::Write::Update {
@@ -420,6 +421,7 @@ pub fn answer_as(
         | forge::Answer::Jobs(_)
         | forge::Answer::Comments(_)
         | forge::Answer::Pulls(_)
+        | forge::Answer::PushNew { .. }
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
     })
 }

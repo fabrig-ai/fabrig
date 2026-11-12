@@ -29,22 +29,23 @@ pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub use temper_engine_shell::forge;
+pub mod forge;
 use temper_engine_shell::{address, forge_sign_in, login_passwd};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
 mod init;
 pub use temper_shell::link_file;
+pub mod lines;
 pub mod open;
 mod program_login;
-pub use temper_engine_shell::setup;
 mod serve;
 mod served;
-mod worker_half;
-use json::CONFIG_BYTES;
+pub mod setup;
 pub use served::Service;
+mod upgrade;
+use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use temper_service_shell::host;
+pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -311,7 +312,7 @@ pub fn run(
 ) -> Result<u8, String> {
     let exit = match command {
         Command::Upgrade { directories, request } => {
-            return temper_engine_shell::upgrade::run("temper-box", &directories, &request, Some(&worker_half::Half));
+            return upgrade::run(&directories, &request);
         }
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -374,13 +375,10 @@ pub fn run(
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            return temper_engine_shell::forge::command(
-                "temper",
-                forge::Command::ForgeChild { parent, signal, program, arguments },
-            );
+            return forge::command("temper", forge::Command::ForgeChild { parent, signal, program, arguments });
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            return temper_engine_shell::forge::command(
+            return forge::command(
                 "temper",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
@@ -401,7 +399,6 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
-pub use temper_service_shell::host::ending as service_ending;
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
@@ -515,3 +512,18 @@ mod box_tests {
         }
     }
 }
+
+/// The box's ending, preserving its public call path.
+#[must_use]
+pub fn service_ending(
+    end: Option<&temper_service::End>,
+    output_failed: bool,
+    directories: &Directories,
+    store: &[u8],
+    unsettled: &[temper_service::Unsettled],
+) -> (String, u8) {
+    lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+}
+
+#[cfg(test)]
+mod worker_lines_tests;

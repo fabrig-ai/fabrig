@@ -27,6 +27,7 @@ pub(crate) struct Repository {
     pub(crate) name: Box<[u8]>,
     pub(crate) default: Box<[u8]>,
     pub(crate) styles: Styles,
+    pub(crate) manual_merges: crate::api::ManualMerges,
     /// The users with a permission on it.
     pub(crate) permissions: Map<u64, Permission>,
     /// The labels defined.
@@ -184,6 +185,7 @@ impl Repository {
             name,
             default,
             styles: Styles { merge: true, rebase: true, squash: true },
+            manual_merges: crate::api::ManualMerges::OFF,
             permissions: Map::with_capacity(limits.users),
             labels: Set::with_capacity(limits.labels),
             items: Map::with_capacity(limits.items),

@@ -733,6 +733,9 @@ pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out:
         brief::GatherFate::Transient => {
             tasks::Event::PreparationCounted { task, class: tasks::Class::Transient, reason }
         }
+        brief::GatherFate::Infrastructure => {
+            tasks::Event::PreparationCounted { task, class: tasks::Class::Infrastructure, reason }
+        }
         brief::GatherFate::Permanent => {
             tasks::Event::PreparationCounted { task, class: tasks::Class::Permanent, reason }
         }

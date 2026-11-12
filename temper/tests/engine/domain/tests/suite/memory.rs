@@ -367,7 +367,7 @@ const EIGHT_STREAM_WATCH_HEAP_CEILING: u64 = 640_000;
 const WATCH_ROOM_SEED: u64 = 91; // The direct driver's configuration.
 const WATCH_ROOM_PROJECT: u32 = 1; // Walking's seeded project.
 const FIRST_ROOM_WATCH: u64 = 10_000;
-const SHIPPED_JOURNAL_DELIVERIES: u32 = 512; // temper-service's small profile.
+const SHIPPED_JOURNAL_DELIVERIES: u32 = 512; // temper-engine-service's small profile.
 
 fn watch_room_root_heap(streams: u32) -> u64 {
     let limits = root::Limits { streams, ..temper_engine_domain_world::walking::limits() };

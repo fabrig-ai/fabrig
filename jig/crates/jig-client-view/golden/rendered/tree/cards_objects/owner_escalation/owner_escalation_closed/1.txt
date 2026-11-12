@@ -40,6 +40,7 @@
       Agent tries: 4
       Lost tries: 5
       Invalid tries: 6
+      Infrastructure tries: 7
       Budget: 100:
         Budget: 100
         Spent directly: 2

@@ -6,7 +6,7 @@ use smith_agent_service as service;
 use smith_agent_shell::config;
 use smith_protocol_events::sinks::Capture;
 
-use smith_agent_shell::fixture::product_document;
+use smith_agent_document_fixtures::product_document;
 
 fn trust_path() -> String {
     skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string()

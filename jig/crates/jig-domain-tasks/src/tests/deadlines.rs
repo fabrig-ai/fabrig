@@ -246,7 +246,7 @@ fn fire(h: &mut Harness, nanos: u64) -> Vec<Request> {
 fn a_parked_task_is_made_due_just_past_its_wall() {
     let mut h = parked_at_a_wall();
     assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(201)));
-    assert!(fire(&mut h, 1100).is_empty());
+    assert_eq!(fire(&mut h, 1100).len(), 0);
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Idle));
     let out = fire(&mut h, 1101);
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
@@ -260,14 +260,14 @@ fn a_parked_task_is_made_due_just_past_its_wall() {
         1
     );
     assert_eq!(h.domain.next_deadline(), None);
-    assert!(fire(&mut h, 1102).is_empty());
+    assert_eq!(fire(&mut h, 1102).len(), 0);
 }
 
 #[test]
 fn a_running_task_is_not_woken_at_its_wall() {
     let mut h = running_at_a_wall();
     assert_eq!(h.domain.next_deadline(), None);
-    assert!(fire(&mut h, 1101).is_empty());
+    assert_eq!(fire(&mut h, 1101).len(), 0);
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Running { attempt: 1 }));
 }
 

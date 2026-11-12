@@ -82,7 +82,7 @@ fn past_the_engine_away_bound_the_attempt_is_interrupted_and_resumes_without_a_t
     assert_eq!(cluster.tries(first.task()), jig_domain_tasks::Tries::NONE, "contact costs no try");
     assert_ne!(first.attempt(), second.attempt());
     assert_eq!(first.identity(), second.identity(), "the new attempt keeps the first conversation");
-    assert!(first.transcript().is_empty());
+    assert_eq!((first.transcript()).len(), 0);
     assert_eq!(calls::occurrences(second.transcript(), BEFORE), 1, "the assignment carries the committed first turn");
     let queries: Vec<_> =
         cluster
@@ -261,13 +261,13 @@ fn two_workers_each_run_a_chat_to_its_end() {
     for (at, called) in cluster.calls().iter().enumerate() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}", String::from_utf8_lossy(&called.stderr));
     }
-    assert_eq!(cluster.served(), Some(&End::Drained));
+    assert_eq!(cluster.served(), Some(&End::Engine(temper_service::EngineEnd::Drained)));
     let mut tasks = [FIRST_CHAT, SECOND_CHAT].map(|call| cluster.number(call));
     let mut placed = Vec::new();
     for name in WORKERS {
         let worker = cluster.worker(name);
         assert_eq!(worker.linked(), LINKS_PER_WORKER, "{name} linked once");
-        assert_eq!(worker.end(), Some(&End::Drained), "{name} drained");
+        assert_eq!(worker.end(), Some(&End::Worker(temper_service::worker_alone::End::Drained)), "{name} drained");
         assert_eq!(worker.ran().len(), RUNS_PER_WORKER, "{name} ran one chat");
         placed.extend_from_slice(worker.ran());
     }

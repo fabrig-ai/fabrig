@@ -23,6 +23,9 @@ its check of the draft's section 7 (features, codec crates) to section 3.
   is a finding of the shared-test-code check, beside the size check. Such code is a library the
   binaries depend on: a kit under the tree's `testing/`, or a world's own library. A kit holds no
   tests of its own, so a test build compiles it once (section 3.2).
+- **The codec check** finds a package holding generated record code that depends on a workspace
+  crate other than `skein-lib` and `skein-codec`, so that generated code compiles beside the domains
+  (section 3.2).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -119,23 +122,26 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 |---|---|---|
 | `temper-client-view` | about 110,000 | its split, not yet planned (`temper/docs/design/draft/crate-graph.md`, 5.1) |
 | `jig-domain-core` | about 100,000 | G6 |
-| `temper-service` | about 84,000 | G4, or sooner if the worker's crates of `temper/docs/design/draft/cli.md`, 6 take it under |
+| `temper-engine-service` | about 66,000 | G4 |
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
 | `temper-engine-domain-forge` | about 74,000 | G5 |
 | `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
 | `temper-client-tools` | about 67,000 | its split, not yet planned |
 | `jig-client-view` | about 64,000 | its split, not yet planned |
-| `jig-protocol-store`'s `people` | about 40,000 | G2 |
-| `jig-protocol-store`'s `tasks` | about 39,000 | G2 |
 | `jig-client-protocol-wire`'s own family | about 130,000 | a crate of its own for its `public` family (section 5) |
 | `temper-client-protocol-wire`'s own family | about 38,000 | a crate of its own for its `public` family (section 5) |
+
+The engine service remains over the library bound until G4. The worker service and
+the composition have no size exception (`temper/docs/design/protocol/services.md`, 2).
 
 The two client wires each hold a small second family, the public wire (`public_v1.rs`), beside
 their own. That makes their own family a shared crate's family. The draft read
 `jig-client-protocol-wire` as one schema (`temper/docs/design/draft/crate-graph.md`, 4.5). The check
 keeps the rule as written and excepts both wires.
 
-### 3.2 Shared test code
+### 3.2 Shared test code and codec crates
+
+#### Shared test code
 
 `tests/boundary/tests/shared_test_code.rs`. A module that several test binaries of a package
 compile is compiled once per binary, and again with each change to it
@@ -229,6 +235,51 @@ into its suite, or keeps one copy alone.
   files under `tests/support/` are each one binary's and stay.
 - **`temper-real-loop-world`'s rail steps,** `start_change`, go to its library's `terminal` module,
   which they are built from.
+
+#### Codec crates
+
+`tests/boundary/tests/codecs.rs`, from `temper/docs/design/draft/crate-graph.md`, 7.2. A package that
+holds generated record code (section 2.2) is a codec crate, and its generated code compiles beside the
+domains only when nothing but skein's lowest crates sits below it (skein's
+`data/codec/README.md`, section 2). Its findings:
+
+- **A normal dependency on a workspace member** other than `skein-lib` and `skein-codec`, of a
+  package that holds generated record code. A normal dependency is one that `cargo metadata` gives no
+  `kind`, under any target. A workspace member is a package of the workspace, read from the same
+  metadata, by the dependency's package name. Dev-dependencies are free, `skein-codegen` for the
+  crate's tests among them. The finding names the package and the dependency.
+- **Glue makes no codec crate:** a package whose `src/generated/` holds glue alone (section 2.2),
+  as `jig-protocol-store`'s `layouts.rs`, is an owner, and its dependencies are free.
+- **A source the check can't read,** the metadata or a `src/generated/` directory, fails the check
+  and is never skipped.
+
+A dependency the rule allows, with its reason, is no finding. An allowance that matches no
+dependency fails, as an exception does:
+
+| Package | Dependency | Reason |
+|---|---|---|
+| `jig-protocol-worker-wire` | `skein-channel` | it declares its channel's kinds and schema in skein-channel's vocabulary beside its records, and skein-channel depends on `skein-lib` alone |
+| `smith-channel` | `skein-channel` | the same, for smith's channel |
+
+Its exceptions when it lands, each a package, which excuses every finding of that package: the
+other crates of `temper/docs/design/draft/crate-graph.md`, 4.2, each until G3 of
+`temper/docs/design/draft/crate-graph.execution.md`, the codec crate its area plans for it:
+
+| Exception | Until |
+|---|---|
+| `jig-client-test-protocol-wire` | G3 |
+| `jig-test-store` | G3 |
+| `jig-protocol-engine-clients` | G3 |
+| `smith-local-protocol` | G3 |
+| `jig-client-view` | G3 |
+| `skein-ui-example-view` | G3 |
+| `skein-oauth` | G3 |
+| `jig-protocol-accounts` | G3 |
+
+The two store crates, `jig-protocol-store` and `temper-protocol-store`, are no exceptions: G2 moves
+their generated record code to their codec crates (jig's `protocol/README.md`, section 5;
+temper's `protocol/store.md`, section 4). The check reads section 2.2's classification of files as
+the size check does, so the two agree on what generated record code is.
 
 ## 4. The figure
 
@@ -359,14 +410,15 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
 
 ## 5. Open questions and Later
 
-- **Later: the draft's other checks** join section 3 with their milestones: features (G1) and codec
-  crates (G2).
+- **Later: the draft's other checks** join section 3 with their milestones: features (G1).
 - **Later: the two shared files left as exceptions** (section 3.2), in
   `temper-client-shell-terminal` and `temper-engine-domain-ways`, each when its area next works on
   its library's tests.
 - **Later: libraries with no tests of their own.** A world's or a kit's library that holds no test
   is still compiled a second time, as an empty test binary, unless it sets `test = false`. Section
   3.2's kits set it; the others aren't surveyed.
+- **Later: the codec check's exceptions** (section 3.2), each removed by its crate's codec crate in
+  G3.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
 - **Later: the libraries over the bound that no milestone splits:** `temper-client-view`,

@@ -154,7 +154,7 @@ fn a_carried_move_in_makes_an_account_and_refreshes_its_source() {
     let source = line.sources.get(0).expect("signed-in source").number;
     let fact = world.domain.accounts().source(source).expect("refreshed source");
     assert_eq!((fact.state, fact.usable, fact.generation), (accounts::State::Granted, true, Some(1)));
-    assert!(world.carried_unused.is_empty());
+    assert_eq!(world.carried_unused.len(), 0);
 }
 
 #[test]

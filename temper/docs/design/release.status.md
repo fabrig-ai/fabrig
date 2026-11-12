@@ -1,6 +1,6 @@
 # release: status
 
-2026-11-11. Where temper's code lags or departs from [release.md](release.md).
+2026-11-12. Where temper's code lags or departs from [release.md](release.md).
 
 5.1's workflow, `.github/workflows/release-macos.yml`, is built, its
 strip and ad hoc signature with it, and has not yet run: no dispatch

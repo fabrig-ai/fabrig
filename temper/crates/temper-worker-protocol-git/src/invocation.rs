@@ -50,6 +50,8 @@ pub enum Command {
     DiffPaths { before: git::Commit, after: git::Commit },
     WriteTree,
     CommitTree { tree: git::Commit, parent: git::Commit, merging: Option<git::Commit> },
+    MergeBases { head: git::Commit, upstream: git::Commit },
+    BringsList { bases: Box<[git::Commit]>, base: git::Commit },
     IsAncestor { expected: git::Commit, commit: git::Commit },
     Push { remote: Box<[u8]>, commit: git::Commit, branch: Box<[u8]>, expected: Option<git::Commit> },
 }
@@ -66,6 +68,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         | git::Op::CheckOut { at, .. }
         | git::Op::Look { at, .. }
         | git::Op::DiffPaths { at, .. }
+        | git::Op::Brings { at, .. }
         | git::Op::IsAncestor { at, .. }
         | git::Op::Merge { at, .. }
         | git::Op::Commit { at, .. }
@@ -84,7 +87,9 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Push { remote, .. } => Some(remote.as_ref()),
         Command::IsAncestor { .. } => match op {
             git::Op::Push { remote, .. } => Some(remote.as_ref()),
-            git::Op::Look { .. } | git::Op::DiffPaths { .. } | git::Op::IsAncestor { .. } => None,
+            git::Op::Look { .. } | git::Op::DiffPaths { .. } | git::Op::Brings { .. } | git::Op::IsAncestor { .. } => {
+                None
+            }
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
@@ -112,6 +117,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }
         | Command::WriteTree
+        | Command::MergeBases { .. }
+        | Command::BringsList { .. }
         | Command::CommitTree { .. } => None,
     };
     let prefix = b"fatal: no git on this machine";
@@ -163,7 +170,36 @@ fn words(out: &mut List<Box<[u8]>>, bytes: &[&[u8]]) {
 /// The vector after argv[0], which io supplies from the program's path.
 #[must_use]
 pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
-    let mut out = List::with_capacity(40);
+    let extra = match command {
+        Command::BringsList { bases, .. } => u32::try_from(bases.len()).expect("bounded merge-base stdout"),
+        Command::Format
+        | Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotFetch { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Version
+        | Command::Origin { .. }
+        | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::Store { .. }
+        | Command::UpdateRef { .. }
+        | Command::Fetch { .. }
+        | Command::Create { .. }
+        | Command::CheckOut { .. }
+        | Command::Clean
+        | Command::Merge { .. }
+        | Command::Unmerged
+        | Command::Add
+        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+        | Command::WriteTree
+        | Command::CommitTree { .. }
+        | Command::MergeBases { .. }
+        | Command::IsAncestor { .. }
+        | Command::Push { .. } => 0,
+    };
+    let mut out = List::with_capacity(40_u32.checked_add(extra).expect("bounded argv"));
     for setting in SETTINGS {
         words(&mut out, &[b"-c", setting]);
     }
@@ -286,6 +322,16 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             }
             words(&mut out, &[b"-F", b"-"]);
         }
+        Command::MergeBases { head, upstream } => {
+            words(&mut out, &[b"merge-base", b"--all", &hex(*head), &hex(*upstream)]);
+        }
+        Command::BringsList { bases, base } => {
+            words(&mut out, &[b"rev-list", b"--max-count=1"]);
+            for commit in bases {
+                push(&mut out, &hex(*commit));
+            }
+            words(&mut out, &[&joined(&[b"^", &hex(*base)]), b"--"]);
+        }
         Command::IsAncestor { expected, commit } => {
             words(&mut out, &[b"merge-base", b"--is-ancestor", &hex(*expected), &hex(*commit)]);
         }
@@ -329,6 +375,7 @@ pub(crate) fn environment_for(
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
+            | git::Kind::Brings
             | git::Kind::IsAncestor
             | git::Kind::Make,
         ) => None,
@@ -387,6 +434,7 @@ pub(crate) fn environment_for(
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
+            | git::Kind::Brings
             | git::Kind::IsAncestor
             | git::Kind::Make,
         ) => {}
@@ -432,8 +480,8 @@ pub fn object(digits: &[u8]) -> Option<git::Commit> {
         return None;
     }
     let mut raw = [0; 32];
-    for (pair, byte) in digits.chunks_exact(2).zip(raw.iter_mut()) {
-        *byte = nibble(*pair.first()?)?.checked_mul(16)?.checked_add(nibble(*pair.get(1)?)?)?;
+    for (&[high, low], byte) in digits.as_chunks::<2>().0.iter().zip(raw.iter_mut()) {
+        *byte = nibble(high)?.checked_mul(16)?.checked_add(nibble(low)?)?;
     }
     Some(git::Commit::new(raw))
 }

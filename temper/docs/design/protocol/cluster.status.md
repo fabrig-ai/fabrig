@@ -1,6 +1,6 @@
 # cluster: status
 
-2026-11-11. Where the tree's code lags or departs from [cluster.md](cluster.md).
+2026-11-12. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
 - **Not yet:** 6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration

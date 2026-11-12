@@ -291,7 +291,7 @@ fn a_task_query_read_waits_for_the_commit_in_flight_and_survives_the_crash() {
         QUERY_READ,
         reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: None },
     );
-    assert!(world.reads.as_ref().expect("party").receipts.is_empty());
+    assert_eq!(world.reads.as_ref().expect("party").receipts.len(), 0);
     let committed = world.store.release_held().expect("held commit");
     world.send(root::Event::Committed { number: committed, fill: 0 });
     assert_eq!(world.reads.as_ref().expect("party").receipts[0].1, number);

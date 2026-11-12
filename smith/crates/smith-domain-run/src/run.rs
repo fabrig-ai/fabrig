@@ -160,6 +160,10 @@ pub(crate) struct Run {
     /// When its budget's time runs out.
     pub(crate) deadline: Time,
     state: State,
+    /// Main has sent a completion whose whole turn is not told yet.
+    main_turn_pending: bool,
+    /// The host forbids a next main completion, without cutting this turn.
+    draining: bool,
     /// Opaque restored history binding consumed when main opens.
     transcript: Option<Token>,
     resumed: bool,
@@ -287,6 +291,7 @@ fn refuse_start(reply_to: ReplyTo, refusal: Refusal, out: &mut Queue<Request>) {
     out.push(Request::Answer { to: reply_to, answer: Answer::Refused(refusal), read: None, detail: Box::default() });
 }
 
+#[expect(clippy::too_many_lines, reason = "admission binds the run and its main before publishing either")]
 pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &mut Queue<Request>) {
     let Start { reply_to, host_run, activation, identity, window, messages, charter, workspace, transcript, resumed } =
         start;
@@ -347,6 +352,8 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
         conversations: 1,
         deadline,
         state: State::Closed,
+        main_turn_pending: false,
+        draining: false,
         transcript,
         resumed,
         inbox: Inbox::new(&env.limits),
@@ -374,6 +381,9 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &
     out.push(Request::Admitted { host_run, run: id.token() });
     let run = runs.get_mut(id).expect("inserted above");
     let finish_requested = run.inbox.carry(facts, id.token(), messages);
+    if run.draining {
+        return;
+    }
     if finish_requested {
         match run.charter.mode {
             Mode::Open => {
@@ -479,7 +489,7 @@ pub fn offer_messages(domain: &mut Domain, conversation: Token, limits: &Limits)
         | State::Winding { .. }
         | State::Closed => return None,
     }
-    if run.inbox.has_offered() {
+    if run.draining || run.inbox.has_offered() {
         return None;
     }
     run.inbox.offer(limits)
@@ -514,6 +524,7 @@ pub(crate) fn turn(
         Some(previous) => assert!(previous.checked_add(1) == Some(sequence), "exact historical turn prefix"),
         None => assert!(sequence > 0, "historical sequence is one-based"),
     }
+    run.main_turn_pending = false;
     run.sequence = Some(sequence);
     run.turns = run.turns.checked_add(1).expect("activation count is bounded by historical sequence");
     domain.facts.about(conversation.run.token());
@@ -527,6 +538,30 @@ pub(crate) fn turn(
         read: run.inbox.fence(),
         spent: run.spent,
     });
+    let run_id = conversation.run.token();
+    if run.draining {
+        match run.charter.mode {
+            Mode::Finite => cancel(domain, run_id, out),
+            // Open main may park at its ensuing yield; an unsent completion
+            // instead reaches close_drained at this same turn boundary.
+            Mode::Open => {}
+        }
+    }
+}
+
+/// Close main's unsent next completion after its drained turn was told.
+/// A child or a run that did not drain retains its own closing path.
+pub fn close_drained(domain: &mut Domain, conversation: Token, now: Time, out: &mut Queue<Request>) {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return };
+    if conversation.asker.is_some() {
+        return;
+    }
+    let id = conversation.run;
+    let run = domain.runs.get(id).expect("conversation retains its run");
+    if run.draining && !run.main_turn_pending {
+        domain.facts.begin(now);
+        cancel(domain, id.token(), out);
+    }
 }
 
 /// Release every outstanding turn through the host's durable prefix.
@@ -620,6 +655,22 @@ pub(crate) fn probed(domain: &mut Domain, env: &Env<Limits>, owner: Token, execu
     follow(runs, alarms, facts, ready, id);
 }
 
+/// Keep a sent main turn whole; all idle phases take the ordinary cancel path.
+pub(crate) fn drain(domain: &mut Domain, token: Token, out: &mut Queue<Request>) {
+    let Some(run) = domain.runs.get_mut(Id::from_token(token)) else { return };
+    match run.state {
+        State::Working { .. } if run.main_turn_pending => run.draining = true,
+        State::Preparing { .. }
+        | State::Awaiting { .. }
+        | State::Stopping { .. }
+        | State::Working { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Closed => cancel(domain, token, out),
+    }
+}
+
 pub(crate) fn cancel(domain: &mut Domain, run: Token, out: &mut Queue<Request>) {
     let Domain { rng: _, runs, conversations, calls: _, alarms, facts, ready } = domain;
     let id = Id::<Run>::from_token(run);
@@ -696,7 +747,7 @@ fn hard_ending(ending: Ending, failure: RunFailure) -> Ending {
         RunFailure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
         RunFailure::Transcript(_)
         | RunFailure::Model(_)
-        | RunFailure::Budget { exhausted: _, .. }
+        | RunFailure::Budget { .. }
         | RunFailure::Policy(_)
         | RunFailure::Cancelled
         | RunFailure::Stale => match ending {
@@ -877,6 +928,8 @@ fn wait(
         out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
         out.push(Request::Return { spent: 0, call: made.call, result: Returned::Withheld });
         return wind_down(conversations, reply_to, main, Ending::Parked, out);
+    } else if run.draining {
+        Returned::Cancelled
     } else if run.inbox.has_queued() {
         Returned::Waited { text: prompt::waited() }
     } else {

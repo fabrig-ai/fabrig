@@ -36,7 +36,7 @@ fn a_forge_with_no_access_answers_not_connected_at_no_cost() {
     world.run_for(SECOND);
     failed(&world, 1, Error::NotConnected, 0);
     assert_eq!(world.connections_opened(), 0);
-    assert!(world.requests().is_empty());
+    assert_eq!((world.requests()).len(), 0);
     assert!(world.close());
 }
 #[test]
@@ -154,7 +154,7 @@ fn an_unknown_forge_connect_starts_no_access_generation() {
     let mut world = disconnected(vec![]);
     world.action(Request::Connect { forge: UNKNOWN_FORGE, access: access(TOKEN, WRITER, None) });
     world.run_for(SECOND);
-    assert!(world.connected_forges().is_empty());
+    assert_eq!((world.connected_forges()).len(), 0);
     assert_eq!(world.stopped(), None);
     assert!(world.close());
 }

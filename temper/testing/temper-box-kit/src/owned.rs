@@ -730,6 +730,7 @@ impl Bounded {
             Some(temper_service::WorkerRuntime {
                 root: skein_io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
+                agent: temper_playground::documents::pinned_agent(),
             }),
             self.forges(),
             Some(&self.setup),

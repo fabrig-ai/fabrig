@@ -16,10 +16,11 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Reader, Token};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
+use temper_engine_service::{settings, translate};
 use temper_protocol_worker_wire::v1;
-use temper_service::{settings, translate};
 use temper_worker_domain::wire;
 use temper_worker_domain_world::protocol as worker_protocol;
+use temper_worker_service::worker_route::translate as worker_translate;
 
 pub const GIT_BASE: &[u8] = b"http://forge.test";
 
@@ -27,17 +28,17 @@ pub const GIT_BASE: &[u8] = b"http://forge.test";
 #[must_use]
 pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::Workspace) {
     let forges = forges();
-    let encoding = temper_service::assignment::Encoding {
+    let encoding = temper_engine_service::assignment::Encoding {
         limits: v1::CEILINGS,
         endpoints: worker_protocol::endpoints(),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
-    let event = temper_service::assignment::down(
+    let event = temper_engine_service::assignment::down(
         assignment.clone(),
         &forges,
         &encoding,
-        &temper_service::values::Values::new(0, 0),
+        &temper_engine_service::values::Values::new(0, 0),
         Token::new(7),
         skein_lib::Time::ZERO,
     )
@@ -47,7 +48,8 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     else {
         panic!("assignment down")
     };
-    let assigned = temper_service::worker_route::items(&hub, &parts, &v1::CEILINGS).expect("workspace parts decode");
+    let assigned =
+        temper_worker_service::worker_route::items(&hub, &parts, &v1::CEILINGS).expect("workspace parts decode");
     (hub, assigned)
 }
 
@@ -57,18 +59,18 @@ pub fn job(
     workspace: Option<&engine::ForgeWorkspace>,
     limits: &v1::Limits,
 ) -> temper_worker_domain::Event {
-    let encoding = temper_service::assignment::Encoding {
+    let encoding = temper_engine_service::assignment::Encoding {
         limits: *limits,
         endpoints: worker_protocol::endpoints(),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
-    let event = temper_service::assignment::job_down(
+    let event = temper_engine_service::assignment::job_down(
         job,
         workspace,
         &forges(),
         &encoding,
-        &temper_service::values::Values::new(0, 0),
+        &temper_engine_service::values::Values::new(0, 0),
         Token::new(7),
         skein_lib::Time::ZERO,
     )
@@ -76,16 +78,16 @@ pub fn job(
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
         panic!("job assignment down")
     };
-    let items = temper_service::worker_route::job_items(&job, &parts, limits);
-    let spec = temper_service::worker_route::job_spec(&job.spec, limits);
+    let items = temper_worker_service::worker_route::job_items(&job, &parts, limits);
+    let spec = temper_worker_service::worker_route::job_spec(&job.spec, limits);
     temper_worker_domain::Event::AssignJob { job, items, spec }
 }
 
 /// The worker's parts through the service's channel records, without bytes.
 #[must_use]
 pub fn parts(work: &wire::Work, preparation: Option<wire::Preparation>) -> engine::Parts {
-    let (left, saved) = translate::work(work);
-    let preparation = preparation.as_ref().and_then(translate::preparation);
+    let (left, saved) = worker_translate::work(work);
+    let preparation = preparation.as_ref().and_then(worker_translate::preparation);
     translate::parts(Some(left), saved, preparation)
 }
 
@@ -120,7 +122,7 @@ pub fn render(
     page: Option<(u32, u32)>,
     ask: engine::AskHow,
 ) -> core::SettledAnswer {
-    let event = temper_service::render_for_task_page(
+    let event = temper_engine_service::render_for_task_page(
         skein_lib::ReplyTo::new(Token::new(1)),
         answer,
         tool,
@@ -161,8 +163,8 @@ pub fn end_with(outcome: &[u8], change: Option<temper_engine_smith::ChangeResour
     temper_engine_smith::result(answer, change).expect("a result the engine takes").end
 }
 
-fn forges() -> temper_service::forges::Forges {
-    let mut table = temper_service::forges::Forges::with_capacity(1);
+fn forges() -> temper_engine_service::forges::Forges {
+    let mut table = temper_engine_service::forges::Forges::with_capacity(1);
     assert!(table.insert(settings::Forge {
         log_origins: None,
         mode: temper_engine_domain_forge::Mode::Connected,

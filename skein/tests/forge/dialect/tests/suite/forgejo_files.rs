@@ -233,7 +233,7 @@ fn a_null_page_past_the_captured_pull_files_is_empty() {
     assert_eq!(&*encoded.target, b"/api/v1/repos/fixture/specimen/pulls/1/files?page=3&limit=2");
     let decoded = forgejo::decode(&request, b"null");
     assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
-    assert!(decoded.rows.is_empty());
+    assert_eq!(decoded.rows.len(), 0);
 }
 
 #[test]

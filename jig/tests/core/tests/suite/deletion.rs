@@ -1008,7 +1008,7 @@ fn a_deleted_projects_tasks_leave_every_inbox() {
     let mut world = deleted_world(SEED);
     let signed = world.sign_in.expect("requester signed in");
     world.reads = Some(reads::Parties::new(world.store.applied));
-    assert!(!fixtures::inbox_objects(&mut world, signed, core::reads::Group::Updates).is_empty());
+    assert_ne!(fixtures::inbox_objects(&mut world, signed, core::reads::Group::Updates).len(), 0);
     remove(&mut world, REMOVE);
     finish(&mut world);
     for restart in [false, true] {

@@ -237,7 +237,7 @@ fn a_busy_drive_lock_keeps_the_place_free_of_new_installs_or_records() {
     world.installable_build(2);
     run.tick();
     run.tick();
-    assert!(world.ledger().passes.is_empty());
+    assert_eq!(world.ledger().passes.len(), 0);
     assert_eq!(run.processes.commands.len(), 1);
     assert!(!place.join("bin").exists());
     assert!(!world.home.directory.join("passes").exists());
@@ -272,13 +272,13 @@ fn a_bad_manifest_names_the_path_records_nothing_and_retries_next_tick() {
         };
         run.tick();
         run.tick();
-        assert!(world.ledger().passes.is_empty());
+        assert_eq!(world.ledger().passes.len(), 0);
         assert_eq!(world.ledger().sessions.len(), 1);
         assert_eq!(world.ledger().cases[0].state, CaseState::Queued);
         run.clock.time = 3600;
         run.tick();
         let ledger = world.ledger();
-        assert!(ledger.passes.is_empty());
+        assert_eq!(ledger.passes.len(), 0);
         assert!(
             ledger.lines.iter().any(|line| line
                 .words
@@ -343,7 +343,7 @@ fn triage_and_pass_sessions_run_together_and_keep_their_own_bounds() {
     assert_eq!(world.ledger().running_sessions().len(), 2);
     run.clock.time = 19;
     run.tick();
-    assert!(run.processes.signals.is_empty());
+    assert_eq!(run.processes.signals.len(), 0);
     run.clock.time = 20;
     run.tick();
     assert_eq!(run.processes.signals, [(2, Signal::Term)]);
@@ -465,7 +465,7 @@ fn an_unstarted_agent_undoes_the_pass_start_and_removes_its_tree() {
     assert_eq!(ledger.cases[0].state, CaseState::Queued);
     assert_eq!(ledger.cases[0].pass, None);
     assert_eq!(ledger.cases[0].blocks, 0);
-    assert!(ledger.cases[0].outcomes.is_empty());
+    assert_eq!(ledger.cases[0].outcomes.len(), 0);
     assert_eq!(ledger.passes[0].state, PassState::Ended);
     assert_eq!(ledger.builds[0].held, None);
     assert!(!world.home.session_directory(2).join("tree").exists());
@@ -601,7 +601,7 @@ fn places_start_in_configuration_order_and_each_keeps_its_running_session() {
     run.processes.finish(4, Agent::Pass);
     run.tick();
     let ledger = world.ledger();
-    assert!(ledger.running_sessions().is_empty());
+    assert_eq!(ledger.running_sessions().len(), 0);
     assert!(ledger.passes.iter().all(|pass| pass.state == PassState::Ended));
     for number in [1, 2] {
         assert!(world.home.directory.join(format!("passes/{number}/report.json")).is_file());
@@ -622,7 +622,7 @@ fn restart_ends_running_pass_and_triage_lost_with_changed_setups_and_a_report() 
     let ledger = world.ledger();
     assert_eq!(ledger.sessions[1].exit, Some(Exit::Lost));
     assert_eq!(ledger.sessions[2].exit, Some(Exit::Lost));
-    assert!(ledger.running_sessions().is_empty());
+    assert_eq!(ledger.running_sessions().len(), 0);
     assert_eq!(ledger.cases[0].blocks, 1);
     assert_eq!(ledger.passes[0].requests[0].recipes, ["project"]);
     let report: serde_json::Value =

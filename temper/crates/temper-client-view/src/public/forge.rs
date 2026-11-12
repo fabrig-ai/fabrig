@@ -7,7 +7,7 @@ use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::{address::Public, forge::words::ChangeWord as W};
 use temper_client_protocol_wire::public_v1 as f;
 impl Draw<'_> {
-    fn forge_words(&self, b: &mut Builder, word: W, holes: &[Hole]) {
+    pub(super) fn forge_words(&self, b: &mut Builder, word: W, holes: &[Hole]) {
         b.text(skein_ui::Run::Plain, &super::forge_text(self.words, word, holes));
     }
     fn task(&mut self, b: &mut Builder, app: &PublicApplication, index: u16, goal: bool) {
@@ -129,6 +129,7 @@ impl Draw<'_> {
         b.open(Role::Paragraph);
         self.forge_words(b, landing_phase(landing.phase()), &[]);
         b.close();
+        self.landing_details(b, landing);
         if landing.holds_turn() {
             self.paragraph(b, Word::PublicTurn);
         }
@@ -147,6 +148,7 @@ impl Draw<'_> {
             b.close();
             b.open(Role::List);
             b.style(crate::look::PUBLIC_ROWS);
+            self.member_details(b, member);
             for gate in member.gates() {
                 b.open(Role::Item);
                 b.style(crate::look::PUBLIC_ROW);
@@ -161,6 +163,10 @@ impl Draw<'_> {
                 };
                 self.text(b, Word::ToolSeparator);
                 self.forge_words(b, proof, &[]);
+                if gate.faults() > 0 {
+                    self.text(b, Word::ToolSeparator);
+                    self.forge_words(b, W::RunnerFaults, &[Hole::Number(u64::from(gate.faults()))]);
+                }
                 b.close();
                 b.close();
             }

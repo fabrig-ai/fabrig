@@ -39,7 +39,7 @@ pub const LIMITS: Limits = Limits {
         delivery_timeout: Duration::from_secs(60),
         check_timeout: Duration::from_secs(60),
         check_tail: 512,
-        ..run::fixture::SMALL
+        ..smith_domain_run_fixtures::SMALL
     },
     session: session::Limits {
         sessions: 6,
@@ -71,11 +71,11 @@ pub const LIMITS: Limits = Limits {
             shell_tail: 256,
             search_hits: 16,
             search_bytes: 1024,
-            ..smith_domain_tools::fixture::SMALL
+            ..smith_domain_tools_fixtures::SMALL
         },
-        ..session::fixture::SMALL
+        ..smith_domain_session_fixtures::SMALL
     },
-    ..smith_domain::fixture::SMALL
+    ..smith_domain_fixtures::SMALL
 };
 
 /// An agent process's limits in random worlds: room for fewer conversations,

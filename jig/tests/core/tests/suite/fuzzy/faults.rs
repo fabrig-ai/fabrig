@@ -208,7 +208,7 @@ fn random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions() {
                 })
                 .collect();
             match cut {
-                Cut::Submitted(_) => assert!(turns.is_empty()),
+                Cut::Submitted(_) => assert_eq!(turns.len(), 0),
                 Cut::Durable(_) => assert_eq!(turns.len(), 1),
                 Cut::Disk { .. } => panic!("this table selects transaction cuts"),
             }

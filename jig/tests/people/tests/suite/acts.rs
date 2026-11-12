@@ -99,7 +99,7 @@ fn a_saved_act_answers_again_whatever_the_grants_since() {
     world.reconfigure(Box::new([]), Box::new([]));
     let replay = world.act(CONNECTOR, KEY, close());
     answer(&world, replay, DECIDED);
-    assert!(world.acts.is_empty());
+    assert_eq!(world.acts.len(), 0);
     assert_eq!(world.stats().routes, 1);
 }
 #[test]

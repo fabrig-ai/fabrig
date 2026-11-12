@@ -782,7 +782,7 @@ fn summaries_include_failed_attempt_metrics_and_report_budget_and_setup_apart() 
     assert_eq!(metric.median, crate::Measure::Observed { value: 30.0 });
     assert_eq!(group.metrics["cpu_ms/pidfd-walk"].observed, 0);
     assert_eq!(group.metrics["cpu_ms/pidfd-walk"].missing.len(), 5);
-    assert!(summary.comparisons.is_empty());
+    assert_eq!(summary.comparisons.len(), 0);
 }
 
 fn summaries_audit_disagreements_and_keep_unknown_grades_out_of_observed_rates() {
@@ -892,11 +892,12 @@ fn summaries_compare_complete_interleaved_arms_and_keep_single_runs_apart() {
     assert!(
         matches!(&wall.result, crate::Measure::Observed { value } if value.detected && (value.ratio - 2.0).abs() < f64::EPSILON)
     );
-    assert!(
+    assert_eq!(
         crate::summarise(&results, "sample", "small", crate::Design::Single, 17, None, None)
             .expect("single summary")
             .comparisons
-            .is_empty()
+            .len(),
+        0
     );
     results[0].timing.task_wall_ms = crate::Measure::unavailable("missing task end");
     let partial = crate::summarise(&results, "sample", "small", crate::Design::Interleaved, 17, None, None)

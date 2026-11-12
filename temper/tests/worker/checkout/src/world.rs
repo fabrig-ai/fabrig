@@ -737,6 +737,7 @@ impl World {
         }
         assert!(client.operation.is_none(), "a client acts between its operations");
         let ready = match client.prepared {
+            Some(Prepared::Candidate { .. }) => unreachable!("branch-only clients"),
             Some(Prepared::Ready { .. }) => true,
             Some(Prepared::Failed { .. } | Prepared::Aborted) => false,
             Some(Prepared::Refused { .. }) | None => unreachable!("a client acts once it holds a workspace"),
@@ -901,6 +902,7 @@ impl World {
         }
         let stats = &mut self.stats;
         match prepared {
+            Prepared::Candidate { .. } => unreachable!("branch-only clients"),
             Prepared::Ready { workspace, .. } => {
                 stats.ready += 1;
                 client.workspace = Some(*workspace);
@@ -1159,6 +1161,7 @@ impl World {
             | Op::CheckOut { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
@@ -1222,6 +1225,7 @@ impl World {
                 | Done::FailedWithOutput { .. }
                 | Done::Paths { .. }
                 | Done::Looked { .. }
+                | Done::Brings { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
                 | Done::Conflicted { .. } => Verified::Failed,
@@ -1277,6 +1281,7 @@ impl World {
             | Op::Push { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
@@ -1344,6 +1349,7 @@ impl World {
             | Done::FailedWithOutput { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {}
@@ -1394,6 +1400,7 @@ impl World {
                     | Kind::Push
                     | Kind::Look
                     | Kind::DiffPaths
+                    | Kind::Brings
                     | Kind::IsAncestor
                     | Kind::Merge => {}
                 }
@@ -1510,6 +1517,7 @@ fn describe_event(event: &Event) -> String {
         Event::Push { hold, .. } => format!("push {}", hold.raw()),
         Event::Save { hold, .. } => format!("save {}", hold.raw()),
         Event::Abort { hold } => format!("abort {}", hold.raw()),
+        Event::Cut { hold } => format!("cut {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
         Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),

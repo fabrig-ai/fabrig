@@ -105,8 +105,8 @@ fn a_run_without_the_settings_family_is_denied_its_read() {
         world.tool_call(b"settings", input, false);
         assert!(matches!(world.answers.last().expect("denied read").2, core::CallPart::ToolDenied { .. }));
     }
-    assert!(world.settings_answers.is_empty());
-    assert!(world.proposal_reads.is_empty());
+    assert_eq!(world.settings_answers.len(), 0);
+    assert_eq!(world.proposal_reads.len(), 0);
     assert_eq!(world.store.rows, rows);
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
@@ -139,7 +139,7 @@ fn a_settings_read_keeps_no_record_and_is_read_again() {
     assert_eq!(first_key, second_key);
     assert_eq!(second.newest, 2);
     assert_eq!(world.store.rows, rows);
-    assert!(world.answers.is_empty());
+    assert_eq!(world.answers.len(), 0);
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
@@ -198,8 +198,8 @@ fn a_settings_read_is_busy_when_the_shared_load_slots_are_full() {
         world.tool_call(b"settings", input, false);
         assert!(matches!(world.answers.last().expect("settings read fixture").2, core::CallPart::Unavailable));
     }
-    assert!(world.settings_answers.is_empty());
-    assert!(world.proposal_reads.is_empty());
+    assert_eq!(world.settings_answers.len(), 0);
+    assert_eq!(world.proposal_reads.len(), 0);
     jig_core_world::reads::complete(&mut world);
     world.reads = None;
     assert!(matches!(

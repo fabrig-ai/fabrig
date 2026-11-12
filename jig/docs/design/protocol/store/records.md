@@ -405,6 +405,14 @@ settings (decided 2026-11-03).
 
 ## 4. Sizes
 
+`jig_protocol_store::sizes::settings_value(domain) -> Option<u32>`
+returns the settings revision's map-value bound: the core's whole revision
+bound, including replaced values, plus 16 framing bytes and the model-name
+table. The table has a four-byte count and up to `tasks::MODELS` names,
+each a length-prefixed model name and a counted list of length-prefixed
+efforts. Applications can derive settings room from their effective
+capacities before checking the map, without copying this arithmetic.
+
 `jig_protocol_store::sizes::frame(domain, transcript_bytes) -> Option<u32>`
 returns the largest complete current TurnRecord frame for an admitted
 ordinary transcript byte bound. It takes the codec's limits with that

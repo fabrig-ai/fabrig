@@ -137,6 +137,7 @@ impl Driver {
                     | Request::Answer { .. }
                     | Request::JobAnswer { .. }
                     | Request::Stop
+                    | Request::Abandon
                     | Request::Io { .. }
                     | Request::Job { .. }
                     | Request::CancelIo { .. }) => self.requests.push(request),

@@ -207,9 +207,10 @@ fn owner_activity_equal_sender_numbers_keep_task_person_and_deployment_distinct(
     goldens.check(&tree);
 }
 #[test]
-fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_counters() {
+fn owner_activity_closed_run_causes_and_ends_keep_all_seven_failure_classes_and_counters() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_closed");
-    let tries = FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX };
+    let tries =
+        FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX, infrastructure: 0 };
     let causes: Box<[RunWhy]> = Box::new([
         RunWhy::Made,
         RunWhy::Ready,
@@ -244,6 +245,7 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_co
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ]);
     for class in classes {
         let tree = build(
@@ -262,6 +264,7 @@ fn assert_max_tries() {
         agent: u32::MAX,
         lost: u32::MAX,
         invalid: u32::MAX,
+        infrastructure: 0,
     };
     let tree = build(
         &activity(Activity::RunBegan { attempt: 0, why: RunWhy::Retry { tries }, resumed: false }),
@@ -307,6 +310,20 @@ fn assert_time_presentation() {
         assert_eq!(value.at.as_nanos(), 123);
     }
 }
+#[test]
+fn a_heard_job_result_has_a_job_caption_and_no_words() {
+    let word = Word { words: text(b""), ..fixture(MessageKind::Result(WordResult::Job)) };
+    let tree = build(&activity(Activity::Heard(word)), normal_words());
+    assert!(crate::tests::kit::contains(&tree, b"Result: job"));
+    for node in tree.nodes() {
+        for run in &node.text {
+            if run.run == skein_ui::Run::Code {
+                assert!(run.text.is_empty(), "job result has no words");
+            }
+        }
+    }
+}
+
 #[test]
 fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_and_change_identity() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_all_six");

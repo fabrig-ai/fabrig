@@ -213,6 +213,24 @@ const AUTHORITATIVE: u32 = 4;
 const LINE_SLOTS: u32 = 6;
 
 impl Sinks {
+    /// The admitted destination and record bounds.
+    #[must_use]
+    pub const fn limits(&self) -> &SinkLimits {
+        &self.limits
+    }
+
+    /// The largest encoded record, including its newline, in bytes.
+    #[must_use]
+    pub const fn line(&self) -> u32 {
+        self.line
+    }
+
+    /// The adopted IO output piece cap in bytes.
+    #[must_use]
+    pub const fn io_output(&self) -> u32 {
+        self.io_output
+    }
+
     /// Construct the destinations with a checked bound, the adopted IO output cap,
     /// and the write deadline IO keeps on each destination.
     #[must_use]
@@ -1181,8 +1199,8 @@ fn ordinary_credit(limits: &SinkLimits, capture: Capture) -> Option<u32> {
     Some(pair.max(limits.line_ceiling(capture)?))
 }
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+pub(crate) mod fixture;
 
 #[cfg(test)]
 pub(crate) mod tests;

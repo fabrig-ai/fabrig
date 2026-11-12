@@ -34,6 +34,7 @@ class DeliverySelection(unittest.TestCase):
         self.write('guide.md', '# Guide\n')
         self.write('.config/gate/read-by-tests.txt', 'api/docs/input.txt\n')
         self.write('.config/gate/always.txt', 'api shared/fixtures/\n')
+        self.write('tools/tiers/packages.toml', '[test-binaries]\n')
         source = Path(__file__).resolve().parents[1] / 'citations'
         for name in ('citations.py', 'sized.txt'):
             self.write('tools/citations/' + name, (source / name).read_text())
@@ -63,14 +64,21 @@ sys.exit(int(count > 0))
         self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
 
     def deliver(self, packages=('api',), expected_bundle=None,
-                clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None):
+                clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
+                build_answer=(0, ''), events=None):
         calls = []
+        events = [] if events is None else events
         data = {'packages': [{'name': name, 'id': name, 'dependencies': [],
                              'manifest_path': str(self.root / name / 'Cargo.toml')} for name in packages],
                 'workspace_members': list(packages), 'target_directory': str(self.root / 'target')}
 
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
+            if arguments[:2] == ['cargo', 'build']:
+                events.append(arguments)
+                self.assertEqual(env['TEMPER_INTERNAL_BUNDLE'], 'none')
+                self.assertNotIn('TIERS_HOLD', env)
+                return build_answer
             if process_answer is not None and arguments[:4] == ['python3', '-I', '-B', 'tools/tiers/one-process']:
                 return process_answer(arguments, cwd, env, output, stdout)
             result = subprocess.run(arguments, cwd=cwd, env=env, capture_output=True)
@@ -83,14 +91,23 @@ sys.exit(int(count > 0))
                     print(line.decode(), end='')
             return result.returncode, log.text()
 
+        def clippy_check(*args):
+            events.append('clippy')
+            return clippy_answer
+
+        run_tests = PRE_PR.one_process
+
+        def test_check(*args):
+            events.append('one-process')
+            return run_tests(*args) if one_process_answer is None else one_process_answer
+
         captured = io.BytesIO()
         log = io.TextIOWrapper(captured, encoding="utf-8")
         with contextlib.chdir(self.root), mock.patch.dict(os.environ, self.env, clear=True), \
                 mock.patch.object(PRE_PR, 'metadata', return_value=data), \
                 mock.patch.object(PRE_PR, 'formatting', return_value=[]) as formatting, \
-                mock.patch.object(PRE_PR, 'clippy', return_value=clippy_answer) as clippy, \
-                mock.patch.object(PRE_PR, 'one_process', side_effect=(
-                    PRE_PR.one_process if one_process_answer is None else lambda *args: one_process_answer)) as one_process, \
+                mock.patch.object(PRE_PR, 'clippy', side_effect=clippy_check) as clippy, \
+                mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
                 contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
             result = PRE_PR.main()
@@ -101,6 +118,89 @@ sys.exit(int(count > 0))
             self.assertEqual(clippy.call_args.args[3]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
             self.assertEqual(one_process.call_args.args[2]['TEMPER_INTERNAL_BUNDLE'], expected_bundle)
         return result, captured.getvalue().decode(), calls, (formatting.called, clippy.called, one_process.called)
+
+    def test_selected_test_binaries_build_between_lints_and_tests(self):
+        inventory = Path(__file__).resolve().parents[1] / 'tiers/packages.toml'
+        self.write('tools/tiers/packages.toml', inventory.read_text())
+        self.pin()
+        self.write('smith/src/lib.rs', 'pub fn changed() {}\n')
+        events = []
+        result, log, calls, _ = self.deliver(('api', 'smith', 'smith-fake-claude'), events=events)
+        build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
+        self.assertEqual(result, 0, log)
+        self.assertEqual(events, ['clippy', build, 'one-process'])
+        self.assertIn((build, self.root), calls)
+        self.assertIn('pre-pr: test binaries …', log)
+        self.assertIn('pre-pr: test binaries: passed,', log)
+
+    def test_unlisted_test_package_builds_no_prerequisites(self):
+        self.write('tools/tiers/packages.toml', '[test-binaries]\nsmith = '
+                   '[{package="smith-fake-claude", bin="fake-claude"}]\n')
+        self.pin()
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        events = []
+        result, log, calls, _ = self.deliver(('api', 'smith'), events=events)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(events, ['clippy', 'one-process'])
+        self.assertFalse(any(args[:2] == ['cargo', 'build'] for args, _ in calls))
+        self.assertNotIn('pre-pr: test binaries', log)
+
+    def test_test_binary_build_failure_is_not_inherited(self):
+        self.write('tools/tiers/packages.toml', '[test-binaries]\nsmith = '
+                   '[{package="smith-fake-claude", bin="fake-claude"}, '
+                   '{package="z-helper", bin="helper"}]\n')
+        self.write('.temper/known-reds.md', '- test smith::end_to_end runs_fake\n'
+                   '- lint smith-fake-claude E0001 src/main.rs\n')
+        self.pin()
+        self.write('smith/src/lib.rs', 'pub fn changed() {}\n')
+        events = []
+        result, log, calls, code = self.deliver(('api', 'smith'), events=events,
+                                               build_answer=(101, 'compiler output\n'))
+        build = ['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude']
+        self.assertEqual(result, 1, log)
+        self.assertEqual(events, ['clippy', build])
+        self.assertEqual(code, (True, True, False))
+        self.assertIn('pre-pr: test binaries: failed,', log)
+        self.assertIn('\nbuild\nsmith-fake-claude/fake-claude: exit 101\ncompiler output', log)
+        self.assertNotIn('inherited: build', log)
+        self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
+
+    def test_invalid_test_binary_inventory_starts_no_checks(self):
+        valid = '[{package="smith-fake-claude", bin="fake-claude"}]'
+        for key, value in (
+                ('smith', '[{package="smith-fake-claude"}]'),
+                ('smith', '[{package="p", bin="../bad"}]'),
+                ('smith', '[{package="p", bin="b"}, {package="p", bin="b"}]'),
+                ('missing', valid),
+                ('smith', '[{package="z", bin="b"}, {package="a", bin="a"}]'),
+                ('smith', '[{package="a", bin="b"}, {package="z", bin="b"}]'),
+                ('smith', '[{package="p", bin="b", env="P_TEST_BIN"}]'),
+                ('smith', '[{package=1, bin="b"}]'),
+                ('smith', '"not a list"'),
+                ('smith', '["not a record"]')):
+            with self.subTest(key=key, value=value):
+                self.write('tools/tiers/packages.toml', f'[test-binaries]\n{key} = {value}\n')
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                result, log, calls, code = self.deliver(('api', 'smith'))
+                self.assertEqual(result, 1, log)
+                self.assertIn('refused', log)
+                self.assertIn(key, log)
+                self.assertIn('tools/tiers/packages.toml', log)
+                self.assertEqual(code, (False, False, False))
+                self.assertEqual(calls, [])
+
+    def test_test_binaries_build_each_record_in_order(self):
+        self.write('tools/tiers/packages.toml', '[test-binaries]\napi = '
+                   '[{package="a-helper", bin="first"}, {package="z-helper", bin="last"}]\n')
+        self.pin()
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        events = []
+        result, log, _, _ = self.deliver(events=events)
+        self.assertEqual(result, 0, log)
+        self.assertEqual(events, ['clippy',
+                                 ['cargo', 'build', '-p', 'a-helper', '--bin', 'first'],
+                                 ['cargo', 'build', '-p', 'z-helper', '--bin', 'last'],
+                                 'one-process'])
 
     def test_known_reds_judge_only_listed_tests_and_lints(self):
         test = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')

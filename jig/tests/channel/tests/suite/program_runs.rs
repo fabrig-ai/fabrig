@@ -37,7 +37,7 @@ fn same_source(run: &Run) {
 fn a_program_run_answers_through_claude() {
     let run = program_runs::run(Case::Answer, &story(vec![finish()]));
     assert!(run.observations.iter().any(|row| row.arguments.first().is_some_and(|arg| arg == "-p")), "{run:?}");
-    assert!(!run.turns.is_empty());
+    assert_ne!(run.turns.len(), 0);
     assert_eq!(run.grants, vec![(1, 1, 2, b"alice".to_vec())]);
     finished(&run);
 }

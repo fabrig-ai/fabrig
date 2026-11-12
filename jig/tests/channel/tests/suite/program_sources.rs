@@ -74,7 +74,7 @@ fn an_unconfigured_worker_reports_failure_without_starting_a_program() {
             detail: b"no program configured".as_slice().into()
         }]
     );
-    assert!(result.observations.is_empty());
+    assert_eq!(result.observations.len(), 0);
 }
 
 #[test]

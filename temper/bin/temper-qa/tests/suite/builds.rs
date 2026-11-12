@@ -51,14 +51,14 @@ fn keep(home: &Home, commit: &str, stage: &Path) -> Output {
 fn success(output: &Output, files: usize) {
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, format!("build {SHORT} kept: {files} files\n").as_bytes());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
 }
 fn refusal(home: &Home, commit: &str, stage: &Path, words: &str) {
     let before = fs::read(&home.ledger).ok();
     let output = keep(home, commit, stage);
     assert_eq!(output.status.code(), Some(1), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(String::from_utf8_lossy(&output.stderr), format!("temper-qa: {words}\n"));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert!(stage.is_dir(), "staging was moved");
     assert!(!home.builds.join(commit).exists(), "build was published");
     assert!(!home.builds.join(format!(".{commit}.partial")).exists(), "staging was moved to partial");
@@ -247,7 +247,7 @@ fn keep_arguments_are_refused_through_the_table_before_home_is_read() {
             .output()
             .expect("arguments");
         assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         let command = temper_qa_tool::TABLE
             .commands
             .iter()

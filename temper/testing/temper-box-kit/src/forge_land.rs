@@ -388,8 +388,7 @@ pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
         .iter()
         .position(|call| {
             serde_json::from_slice::<serde_json::Value>(&call.stdout)
-                .ok()
-                .is_some_and(|value| value["ended"].is_object() && value["live"].is_array())
+                .is_ok_and(|value| value["ended"].is_object() && value["live"].is_array())
         })
         .expect("ended delegate pages");
     let tasks =

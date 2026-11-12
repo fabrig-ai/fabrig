@@ -53,7 +53,7 @@ fn help_answers_pages_commands_and_searches_with_their_exits() {
         Err((1, "temper-demo: no page nope; temper-demo help lists them\n".into()))
     );
     let search = help(&DEMO, &words(&["--search", "temper"])).expect("matching search");
-    assert!(!search.is_empty());
+    assert_ne!(search, "");
     assert!(search.lines().all(|line| line.split(": ").count() >= 3 || line == "and more; narrow the words"));
     assert_eq!(
         help(&DEMO, &words(&["--search", "zzzznotadocword"])),

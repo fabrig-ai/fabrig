@@ -206,6 +206,14 @@ store keeps its row until the first patch it meets writes the levels.
   golden store's line (6). A change every old value survives byte for
   byte needs none while its kept text is not frozen (skein's
   `data/codec/command.md`, 2, step 3).
+- **Patch 0005 carries v15 landing rows:** the stored adoption's
+  `settings.default_branch` supplies their target, and their new round
+  is `none` (`../domain/landing.md`, 12). The shell reads adoption rows
+  anew for each written site; a row with no members uses its project's
+  adoption rows only when they agree on the target. Missing or ambiguous
+  stored evidence refuses with `landing_branch_missing`, never a guessed
+  branch. Waiting, preparing, proving, proved, turn, landed, cancelled
+  and held rows are patch fixtures; in-flight entries and proofs survive.
 - **The gate's check is a focused test,** `fabrig-boundary`'s
   `tests/patches.rs`, which the gate runs for every change
   (`.config/gate/always.txt`): for each owner crate of 2's table, the
@@ -230,9 +238,9 @@ store keeps its row until the first patch it meets writes the levels.
 
 - **The fixture patch:** the real sets with temper's extended by one
   patch that changes no family, the one after temper's last (`patch 1`,
-  `owner temper 1 after jig 0` before the catch-up; `patch 5`, `owner
-  temper 5 after jig 2` after the devices' patch 2, the closer question
-  relay's patch 3, R2's patch 4 and the overlays' jig patch 2),
+  `owner temper 1 after jig 0` before the catch-up; `patch 6`, `owner
+  temper 6 after jig 2` after the devices' patch 2, the closer question
+  relay's patch 3, R2's patch 4, the trains' patch 5 and the overlays' jig patch 2),
   `mark fresh-windows`, its set's `fresh` that word (skein's
   `data/codec/patches.md`, 1: a patch may carry a mark and no block).
   A store made under the real sets is behind it, so a start under it

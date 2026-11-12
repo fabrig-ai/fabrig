@@ -162,32 +162,34 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             }
         }
     }
-    // Queue-bearing records are also fuzz seeds, with both queue flags.
+    // Every merge way is a fuzz seed, with both queue flags.
     for queued in [false, true] {
-        let row = forge::Stored::Entry {
-            entry: skein_forge_client::Entry {
-                number: 1,
-                task: 2,
-                repository: skein_forge::api::Repository { forge: 1, repository: 3 },
-                effect: skein_forge_client::Effect {
-                    write: skein_forge::api::Write::Merge {
-                        number: 4,
-                        head: [5; 32],
-                        how: skein_forge::api::MergeHow::Style,
+        for how in [
+            skein_forge::api::MergeHow::Style,
+            skein_forge::api::MergeHow::FastForwardOnly,
+            skein_forge::api::MergeHow::Recorded { commit: [u8::try_from(rng.below(256)).expect("byte"); 32] },
+        ] {
+            let row = forge::Stored::Entry {
+                entry: skein_forge_client::Entry {
+                    number: 1,
+                    task: 2,
+                    repository: skein_forge::api::Repository { forge: 1, repository: 3 },
+                    effect: skein_forge_client::Effect {
+                        write: skein_forge::api::Write::Merge { number: 4, head: [5; 32], how },
+                        condition: skein_forge_client::Condition::None,
                     },
-                    condition: skein_forge_client::Condition::None,
+                    start: None,
+                    attempt: None,
+                    failures: 0,
+                    queued,
                 },
-                start: None,
-                attempt: None,
-                failures: 0,
-                queued,
-            },
-            held: false,
-        };
-        let bytes = records::encode(&row);
-        record(&bytes, &bounds);
-        for _ in 0..8 {
-            record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+                held: false,
+            };
+            row_and_key(&row, &mut rng, &bounds);
+            let bytes = records::encode(&row);
+            for _ in 0..8 {
+                record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+            }
         }
     }
     for answer in [
@@ -391,6 +393,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             key: [9; 32],
         },
         receipt: forge::Receipt {
+            logs: Box::new([]),
             failures: if rng.below(2) == 0 { None } else { Some(failures) },
             passed: false,
             run: forge::ReceiptRun { id: rng.next_u64(), number: rng.next_u64(), url: Box::new([]) },

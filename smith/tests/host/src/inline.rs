@@ -25,7 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    inline::fixture::small(smith_agent_world::LIMITS)
+    smith_inline_agent_fixtures::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.
@@ -197,7 +197,7 @@ impl World {
                     search_line_bytes: 65_536,
                     env_bytes: 65_536,
                     group_stop: Duration::from_millis(1),
-                    ..smith_protocol_machine::fixture::SMALL
+                    ..smith_protocol_machine_fixtures::SMALL
                 },
             ),
             machine_trace: Vec::new(),
@@ -266,7 +266,7 @@ impl World {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.clear();
             }
-            parent::Event::Grant { .. } | parent::Event::Stop { .. } => {}
+            parent::Event::Grant { .. } | parent::Event::Drain { .. } | parent::Event::Stop { .. } => {}
         }
         self.trace.log(self.stage.env.now, format!("up {event:?}"));
         self.stage.push(event);
@@ -344,7 +344,7 @@ impl World {
     pub fn settled(&self) {
         self.lower.assert_settled();
         assert!(self.bindings.is_empty());
-        assert!(self.pending_machine.is_empty());
+        assert_eq!(self.pending_machine.len(), 0);
         assert_eq!(self.agent.hosted(), 0);
         for seen in self.seen.values() {
             assert!(seen.gone.is_some());

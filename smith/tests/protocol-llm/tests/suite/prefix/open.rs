@@ -8,7 +8,7 @@ const AGAIN: &[u8] = b"A second reply.";
 const NEXT: Token = Token::new(0);
 
 fn world(dialect: usize, turns: Box<[Turn]>, reserve: run::charter::Reserve, budget_turns: u32) -> World {
-    let bounds = smith_protocol_llm::fixture::small(skein_llm_kit::limits(), codec::stated());
+    let bounds = smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), codec::stated());
     let mut settings =
         Settings { job: Job::Waiting, network: Span::millis(1, 1), ..smith_protocol_llm_world::fixture::settings(306) };
     settings.limits.session.completion_bytes =

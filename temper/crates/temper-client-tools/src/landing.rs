@@ -1,4 +1,5 @@
 //! Landing views (domain/landing.md, 14; client/ctl/tools.md, 1).
+mod details;
 use crate::{
     jig::{
         self,
@@ -35,7 +36,7 @@ pub const READ: Tool = Tool {
 };
 pub const LIST: Tool = Tool {
     name: b"landing list",
-    line: b"List a project's landings, the turn's holder first, then newest first",
+    line: b"List a project's landings, live first, then newest first",
     prints:
         b"`landings of project PROJECT`, the turn, and a line per landing: its task, phase, changes and repositories",
     result: b"landings",
@@ -390,6 +391,13 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
     out.put(b" \xc2\xb7 ");
     out.put(phase(panel.phase()));
     out.put(b"\n");
+    if let Some(train) = panel.train() {
+        details::train_text(train, out);
+        out.put(b"\n");
+    }
+    if let Some(round) = panel.round() {
+        details::round_text(round, out);
+    }
     for member in panel.members() {
         out.put(b"member: change ");
         out.number(member.change());
@@ -412,17 +420,24 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
             out.put(b"\n");
         }
         if let Some(landed) = member.landed() {
-            out.put(b"  landed: main at ");
+            out.put(b"  landed: ");
+            out.put(member.landing());
+            out.put(b" at ");
             out.put(&hex(landed));
-        } else if let (Some(candidate), Some(base)) = (member.candidate(), member.base()) {
+            out.put(b"\n");
+        }
+        if let (Some(candidate), Some(base)) = (member.candidate(), member.base()) {
             out.put(b"  candidate ");
             out.put(&hex(candidate));
-            out.put(b" on main ");
+            out.put(b" on ");
+            out.put(member.landing());
+            out.put(b" ");
             out.put(&hex(base));
         } else {
             out.put(b"  candidate: not prepared");
         }
         out.put(b"\n");
+        details::member_text(member, out);
         for gate in member.gates() {
             gate_text(gate, out);
         }
@@ -439,6 +454,9 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
         out.put(member.name());
         out.put(b" failed on its runner past its retries\n");
     }
+    if let Some(hold) = panel.hold() {
+        details::hold_text(hold, out);
+    }
     match panel.turn() {
         None => out.put(b"turn: free\n"),
         Some(turn) if *turn == panel.task() => out.put(b"turn: this landing's\n"),
@@ -450,7 +468,7 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
     }
     out.put(b"preparations: ");
     out.number(u64::from(panel.preparation()));
-    out.put(b" \xc2\xb7 stale proofs: ");
+    out.put(b" \xc2\xb7 stale rounds: ");
     out.number(u64::from(panel.stale_proofs()));
     out.put(b"\n");
 }
@@ -474,21 +492,21 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
     for _ in 0..panel.landings().len() {
         let mut next: Option<&w::LandingLine> = None;
         for line in panel.landings() {
-            let rank = (*panel.turn() == Some(line.task()), line.task());
+            let rank = (details::live(line.phase()), line.task());
             if let Some(previous) = previous
                 && rank >= previous
             {
                 continue;
             }
             if let Some(old) = next
-                && rank <= (*panel.turn() == Some(old.task()), old.task())
+                && rank <= (details::live(old.phase()), old.task())
             {
                 continue;
             }
             next = Some(line);
         }
         let Some(line) = next else { break };
-        previous = Some((*panel.turn() == Some(line.task()), line.task()));
+        previous = Some((details::live(line.phase()), line.task()));
         out.put(b"landing ");
         out.number(line.task());
         out.put(b" \xc2\xb7 ");
@@ -507,8 +525,12 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
             }
             out.put(repository);
         }
+        if let Some(train) = line.train() {
+            out.put(b" \xc2\xb7 ");
+            details::train_text(train, out);
+        }
         for landed in line.landed() {
-            out.put(b" \xc2\xb7 main at ");
+            out.put(b" \xc2\xb7 landed at ");
             out.put(hex(landed).get(..12).expect("commit prefix"));
         }
         out.put(b"\n");
@@ -572,17 +594,7 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     phase_json(panel.phase(), out);
     out.key(b"hold");
     match panel.hold() {
-        Some(w::LandingHold::Faults(value)) => {
-            out.object_start();
-            out.key(b"faults");
-            out.object_start();
-            out.key(b"member");
-            out.unsigned(u64::from(value.member()));
-            out.key(b"gate");
-            out.unsigned(u64::from(value.gate()));
-            out.object_end();
-            out.object_end();
-        }
+        Some(value) => details::hold_json(value, out),
         None => out.null(),
     }
     out.key(b"members");
@@ -637,6 +649,7 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
             out.object_end();
         }
         out.array_end();
+        details::member_json(member, out);
         out.object_end();
     }
     out.array_end();
@@ -646,6 +659,10 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     out.unsigned(u64::from(panel.stale_proofs()));
     out.key(b"turn");
     optional_number(panel.turn().as_ref(), out);
+    out.key(b"train");
+    details::train_json(panel.train().as_ref(), out);
+    out.key(b"round");
+    details::round_json(panel.round().as_ref(), out);
     out.object_end();
 }
 fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
@@ -656,7 +673,25 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
     optional_number(panel.turn().as_ref(), out);
     out.key(b"landings");
     out.array_start();
-    for line in panel.landings() {
+    let mut previous = None;
+    for _ in 0..panel.landings().len() {
+        let mut next: Option<&w::LandingLine> = None;
+        for line in panel.landings() {
+            let rank = (details::live(line.phase()), line.task());
+            if let Some(previous) = previous
+                && rank >= previous
+            {
+                continue;
+            }
+            if let Some(old) = next
+                && rank <= (details::live(old.phase()), old.task())
+            {
+                continue;
+            }
+            next = Some(line);
+        }
+        let Some(line) = next else { break };
+        previous = Some((details::live(line.phase()), line.task()));
         out.object_start();
         out.key(b"task");
         out.unsigned(line.task());
@@ -680,6 +715,8 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
             out.string(&hex(landed));
         }
         out.array_end();
+        out.key(b"train");
+        details::train_json(line.train().as_ref(), out);
         out.object_end();
     }
     out.array_end();

@@ -20,6 +20,8 @@ skein-channel.workspace = true
 skein-fake-channel.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
+
+[dev-dependencies]
 skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

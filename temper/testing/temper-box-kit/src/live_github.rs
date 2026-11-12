@@ -807,7 +807,7 @@ fn github_musts(inputs: &Inputs, relay: &Relay, authorization: &[u8], seen: &See
             "one {method} {path}"
         );
     }
-    assert!(relay.refused().is_empty());
+    assert_eq!((relay.refused()).len(), 0);
 }
 fn clean(scan: &github::Scan, jwt: &Secret, secrets: &[Vec<u8>], bytes: &[u8]) {
     scan.clean(bytes);

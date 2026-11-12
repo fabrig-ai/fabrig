@@ -115,13 +115,14 @@ fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
         hosting: Box::new([]),
     };
     hello.jobs = jobs;
-    assert!(
+    assert_eq!(
         h.step(Event::Hello {
             channel,
             worker: u32::try_from(channel.raw() - 101).expect("fixture worker position"),
             hello
         })
-        .is_empty()
+        .len(),
+        0
     );
 }
 
@@ -131,14 +132,14 @@ fn a_job_is_placed_only_on_a_worker_whose_hello_declares_its_kind() {
     let mut h = Harness::new(LIMITS);
     worker(&mut h, C1, Box::new([]));
     worker(&mut h, C2, Box::new([JOB]));
-    assert!(h.step(job(R1, A1, JOB, false)).is_empty());
+    assert_eq!(h.step(job(R1, A1, JOB, false)).len(), 0);
     assert_eq!(
         h.settle(),
         &[Request::AssignJob { channel: C2, run: R1, attempt: A1 }, Request::Placed { run: R1, attempt: A1 },]
     );
     let other = JobBound { kind: JobKind(9), ..JOB };
     h.step(job(R2, A2, other, false));
-    assert!(h.settle().is_empty());
+    assert_eq!(h.settle().len(), 0);
     worker(&mut h, C3, Box::new([other]));
     assert_eq!(
         h.settle(),
@@ -157,7 +158,7 @@ fn a_job_past_a_workers_bounds_for_its_kind_is_not_placed_there() {
         let mut h = Harness::new(LIMITS);
         worker(&mut h, C1, Box::new([JOB]));
         h.step(job(R1, A1, bound, false));
-        assert!(h.settle().is_empty());
+        assert_eq!(h.settle().len(), 0);
     }
 }
 
@@ -213,11 +214,12 @@ fn a_worker_never_gets_a_message_or_relay_for_a_job() {
         h.step(Event::Turn { channel: C1, run: R1, attempt: A1, turn: 1, body: payload(4) }),
         &[Request::Drop { payload: payload(4) }]
     );
-    assert!(
+    assert_eq!(
         h.step(Event::Grant {
             grant: Grant { form: Form::Application, account: 1, generation: 2, valid: Duration::from_secs(10) }
         })
-        .is_empty()
+        .len(),
+        0
     );
 }
 
@@ -227,7 +229,7 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
     for listed_first in [false, true] {
         let mut h = Harness::new(LIMITS);
         if !listed_first {
-            assert!(h.step(job(R1, A1, JOB, true)).is_empty());
+            assert_eq!(h.step(job(R1, A1, JOB, true)).len(), 0);
         }
         let hello = Hello {
             slots: 2,
@@ -244,7 +246,7 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
         } else {
             assert_eq!(listed, &[Request::Placed { run: R1, attempt: A1 }]);
         }
-        assert!(h.at(11).is_empty());
+        assert_eq!(h.at(11).len(), 0);
         assert_eq!(
             h.step(Event::Answer { channel: C1, run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }),
             &[Request::Answered { to: to(A1), run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }]
@@ -260,7 +262,7 @@ fn an_engine_restart_loses_a_job_past_the_grace() {
     let mut h = Harness::new(LIMITS);
     h.step(job(R1, A1, JOB, true));
     h.step(Event::Loaded);
-    assert!(h.at(9).is_empty());
+    assert_eq!(h.at(9).len(), 0);
     assert_eq!(h.at(10), &[Request::Lost { to: to(A1), run: R1, attempt: A1 }]);
     assert_eq!(h.domain.attempts(), 0);
 }

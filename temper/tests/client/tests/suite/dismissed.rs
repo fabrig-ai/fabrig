@@ -350,7 +350,7 @@ fn a_party_with_no_role_is_refused() {
         b"The held role does not permit this action"
     );
     assert!(story.probes[OTHER_CLIENT.0].root.person().client().pending(FIRST).is_none());
-    assert!(story.rows().is_empty());
+    assert_eq!(story.rows().len(), 0);
 }
 
 const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: PROJECT, chat: 7, goal: 11, at: 0 };

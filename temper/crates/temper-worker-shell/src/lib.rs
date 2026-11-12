@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod binary;
+pub mod lines;
 pub mod served;
 pub use binary::{WORKER, main};
 use temper_shell::directories::EnvironmentEntry;

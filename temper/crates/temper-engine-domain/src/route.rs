@@ -424,7 +424,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             return;
         }
         trials::observe(domain, env);
-        let Some(work) = domain.work.pop() else { break };
+        let Some(work) = domain.work.pop() else {
+            if domain.ready() && forge_route::form_landings(domain, env) {
+                continue;
+            }
+            break;
+        };
         match work {
             Work::StartDone(phase) => {
                 if phase == core::start::Phase::LoadCore

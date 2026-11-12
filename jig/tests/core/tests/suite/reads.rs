@@ -25,7 +25,7 @@ fn a_read_waits_for_the_commit_in_flight_before_it() {
     assert_eq!(world.reached_cut, Some(Cut::Submitted(number)));
     assert!(world.store.applied < number);
     ask(&mut world, 1, reads::Read::Task { task });
-    assert!(world.reads.as_ref().expect("party").receipts.is_empty());
+    assert_eq!(world.reads.as_ref().expect("party").receipts.len(), 0);
     let acknowledged = world.store.release_held().expect("one held commit completion");
     world.send(root::Event::Committed { number: acknowledged, fill: 0 });
     let receipt = &world.reads.as_ref().expect("party").receipts[0];
@@ -267,7 +267,7 @@ fn a_read_whose_sign_in_ends_while_it_loads_is_signed_out() {
     end_sign_in(&mut world);
     complete(&mut world);
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::SignedOut));
-    assert!(world.reads.as_ref().expect("party").loads.is_empty());
+    assert_eq!(world.reads.as_ref().expect("party").loads.len(), 0);
 }
 
 fn end_sign_in(world: &mut jig_core_world::world::World) {
@@ -645,7 +645,7 @@ fn a_subtree_history_reads_each_delegates_rows_found_by_index() {
             .is_some()
     );
     let without_edge = subtree_history(&mut world, goal);
-    assert!(!without_edge.is_empty());
+    assert_ne!(without_edge.len(), 0);
     assert!(without_edge.iter().all(|row| row.1 == goal));
 }
 

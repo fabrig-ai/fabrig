@@ -41,7 +41,7 @@ fn no_credential_variable_reaches_the_program() {
         assert!(!run.relay_environments[0].iter().any(|kept| kept == name), "relay kept {name}");
     }
     assert_eq!(run.exits, vec![skein_io::kernel::Exit::Code(0); 5]);
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 fn fault(run: &Run) -> Option<ModelFault> {

@@ -196,7 +196,7 @@ fn the_reset_removes_the_project_then_the_forge_then_the_account() {
     assert_eq!(account_rows(&d).len(), 1);
     finish_forge_removal(&mut d);
     assert!(row(&d).is_none());
-    assert!(account_rows(&d).is_empty());
+    assert_eq!(account_rows(&d).len(), 0);
     assert!(d.delivered.iter().any(|delivery| matches!(
         delivery,
         Delivery::Application { outcome: Some(engine::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), .. }
@@ -269,7 +269,7 @@ fn a_restart_with_the_playground_running_resets_it() {
     restart(&mut d, true);
     finish_forge_removal(&mut d);
     assert!(row(&d).is_none());
-    assert!(account_rows(&d).is_empty());
+    assert_eq!(account_rows(&d).len(), 0);
     assert!(d.root.forges().rows.is_empty());
     assert!(!d.store.rows.values().any(|record| matches!(record, engine::Record::Forge { row }
         if matches!(row.as_ref(), forge::Stored::Forge(row) if row.number == running.forge)
@@ -310,6 +310,6 @@ fn a_reset_cut_after_each_act_ends_whole_at_the_next_start() {
         restart(&mut d, true);
         finish_forge_removal(&mut d);
         assert!(row(&d).is_none());
-        assert!(account_rows(&d).is_empty());
+        assert_eq!(account_rows(&d).len(), 0);
     }
 }

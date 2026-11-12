@@ -469,7 +469,7 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
         )),
         "forge admission pressure names its layer: {facts:?}"
     );
-    assert!(world.call_errors.is_empty());
+    assert_eq!(world.call_errors.len(), 0);
     for event in completions {
         world.send(event);
     }
@@ -623,7 +623,7 @@ fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
     }
     assert!(matches!(live_task(&world, reviewer.task).phase, tasks::Phase::Closing(_)));
     assert_eq!(world.answers.len(), before, "the cancelled host sends no retry");
-    assert!(world.call_errors.is_empty());
+    assert_eq!(world.call_errors.len(), 0);
 }
 
 #[test]
@@ -2101,7 +2101,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 
 #[test]
 fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let world = World::configured_limits(
         true,
         true,

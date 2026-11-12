@@ -135,8 +135,7 @@ fn verify(post: &delivery::Post, secret: &[u8]) -> bool {
     let signature = field(&post.head, b"X-Forgejo-Signature: ");
     let mut signed = [0; 32];
     assert_eq!(signature.len(), 64);
-    for (byte, digits) in signed.iter_mut().zip(signature.chunks_exact(2)) {
-        let [high, low] = digits else { panic!("two hexadecimal digits") };
+    for (byte, [high, low]) in signed.iter_mut().zip(signature.as_chunks::<2>().0) {
         *byte = nibble(*high).checked_mul(16).unwrap().checked_add(nibble(*low)).unwrap();
     }
     let mut hmac = Hmac::new(secret);

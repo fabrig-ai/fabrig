@@ -80,7 +80,7 @@ fn find_takes_beside_or_verified_cache_without_tls() {
     let mut out = Vec::new();
     assert_eq!(find(&skein_io::Limits::TEST, &input, &mut out).unwrap(), beside.join("temper-box"));
     assert!(!cache.exists());
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     script(&beside.join("temper-box"), b"#!/bin/sh\nprintf 'other\\n'\n");
     let cached = cache.join("bin/0123456789ab").join(platform()).join("temper-box");
     fs::create_dir_all(cached.parent().unwrap()).unwrap();
@@ -94,7 +94,7 @@ fn find_takes_beside_or_verified_cache_without_tls() {
     for name in [".gz.part", ".part", ".sha256.part"] {
         assert!(!suffix(&cached, name).exists());
     }
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     // A verified but wrong identity is a site error, not a second download.
     script(&cached, b"#!/bin/sh\nprintf 'site mistake\\n'\n");
     let bytes = fs::read(&cached).unwrap();
@@ -218,7 +218,7 @@ fn staged(name: &str, body: &[u8], success: bool) {
         assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o755);
         assert_eq!(fs::metadata(suffix(&file, ".sha256")).unwrap().permissions().mode() & 0o777, 0o600);
     } else {
-        assert!(publication.is_empty());
+        assert_eq!(publication.len(), 0);
         assert!(!file.exists());
     }
     drop(files);

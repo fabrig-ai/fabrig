@@ -1433,7 +1433,7 @@ pub mod read_condition_tests {
             calls.finish(Time::ZERO.saturating_add(PACE));
             assert!(calls.action.is_none());
             assert!(calls.ends.is_empty());
-            assert!(calls.observed_at().is_empty());
+            assert_eq!((calls.observed_at()).len(), 0);
         }
     }
 
@@ -1536,7 +1536,7 @@ pub mod read_condition_tests {
         calls.wall = Wall::from_nanos(10);
         calls.finish(Time::from_nanos(1));
         assert!(calls.ends.is_empty());
-        assert!(calls.observed_at().is_empty());
+        assert_eq!((calls.observed_at()).len(), 0);
         let stdout = b"{\n \"chip\": {\"task\":2,\"phase\":\"due\"},\n \"run_wait\":{\"account\":{\"account\":1,\"source\":0,\"why\":{\"limited\":{\"until\":30}}}}\n}\n";
         calls.child = Some(completed(stdout));
         calls.wall = Wall::from_nanos(20);

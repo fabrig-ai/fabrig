@@ -71,7 +71,7 @@ fn the_reference_settings_file_decodes() {
         }
         expected.sort_unstable();
         assert_eq!(fields, expected, "only reference fields, no text or directories");
-        assert!(overlay.instructions.bytes().is_empty());
+        assert_eq!(overlay.instructions.bytes().len(), 0);
         assert!(overlay.parts.is_empty());
         assert!(overlay.charters.is_empty());
         let configured = overlay.model.as_ref().expect("reference model");

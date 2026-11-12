@@ -691,6 +691,7 @@ fn mutation_seed(path: &Path) -> bool {
             "record_stream_text_",
             "record_spend_page_",
             "record_activity_page_",
+            "enum_word_result_",
             "record_history_page_",
             "record_inbox_page_",
             "record_ended_",

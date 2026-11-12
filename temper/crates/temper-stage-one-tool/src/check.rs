@@ -182,7 +182,7 @@ fn unhex(value: &Value) -> Option<String> {
         return None;
     }
     let mut bytes = Vec::new();
-    for pair in text.as_bytes().chunks_exact(2) {
+    for pair in text.as_bytes().as_chunks::<2>().0 {
         let hi = char::from(pair[0]).to_digit(16)?;
         let lo = char::from(pair[1]).to_digit(16)?;
         bytes.push(u8::try_from(hi * 16 + lo).ok()?);
@@ -605,7 +605,6 @@ fn run_evidence(dir: &str, as_json: bool) -> Result<bool, String> {
     }
     Ok(report.passed())
 }
-#[must_use]
 pub fn main(args: &[String]) -> ExitCode {
     let (dir, as_json) = match crate::cli::evidence_arguments(args, &crate::cli::CHECK) {
         Ok(arguments) => arguments,

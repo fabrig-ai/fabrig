@@ -92,7 +92,7 @@ fn reads_distinguish_files_directories_missing_and_unreachable() {
         begin(&mut d, PATH);
         let out = file(&mut d, PATH, result);
         refused(&d, why);
-        assert!(crate::drafts::len(&d) == 0);
+        assert_eq!(crate::drafts::len(&d), 0);
         assert_eq!(out.as_ref(), [Request::ApplicationDone { request: REQUEST, token: TOKEN }]);
     }
     let mut d = setup();
@@ -207,7 +207,7 @@ fn draft_rows_are_erased_with_their_project_and_forge() {
         };
         assert!(out.contains(&Request::Erase { key: Key::LandedDraft { repository: REPO, path: PATH.into() } }));
         assert!(out.contains(&Request::Marked { tasks: Box::new([drafts_subject(PROJECT)]) }));
-        assert!(crate::drafts::len(&d) == 0);
+        assert_eq!(crate::drafts::len(&d), 0);
     }
 }
 #[test]

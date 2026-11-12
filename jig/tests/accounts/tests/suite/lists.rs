@@ -371,8 +371,8 @@ fn answers_keep_good_names_and_ignore_unheld_reads() {
             world.step(change(ALICE, Change::Remove { account: ACCOUNT }));
         }
         for read in [read + 1, if remove { read } else { read + 2 }] {
-            assert!(world.step(Event::Listed { read, names: 1, left_out: 0, at: world.wall }).is_empty());
-            assert!(world.step(Event::ListFailed { read, failure: ReadFailure::Agent, at: world.wall }).is_empty());
+            assert_eq!(world.step(Event::Listed { read, names: 1, left_out: 0, at: world.wall }).len(), 0);
+            assert_eq!(world.step(Event::ListFailed { read, failure: ReadFailure::Agent, at: world.wall }).len(), 0);
         }
         if remove {
             assert!(world.fire_at(DAY).is_empty(), "removed account leaves no alarm");

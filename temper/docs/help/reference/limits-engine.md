@@ -80,6 +80,9 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `tasks.retries.invalid.retries`: count, 3. Bounds failures allowed before holding a task for invalid failures.
 - `tasks.retries.invalid.base_ms`: milliseconds, 1,000. Bounds the initial exponential-backoff delay for invalid failures.
 - `tasks.retries.invalid.max_ms`: milliseconds, 30,000. Bounds the exponential-backoff delay for invalid failures.
+- `tasks.retries.infrastructure.retries`: count, 12. Bounds failures allowed before holding a task for infrastructure failures.
+- `tasks.retries.infrastructure.base_ms`: milliseconds, 10,000. Bounds the initial exponential-backoff delay for infrastructure failures.
+- `tasks.retries.infrastructure.max_ms`: milliseconds, 300,000. Bounds the exponential-backoff delay for infrastructure failures.
 
 ## people
 
@@ -123,7 +126,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `fleet.call_name_bytes`: bytes, 64. Bounds bytes of a run's opaque call name retained for each relay.
 - `fleet.progress_bytes`: bytes, 1,024. Bounds whole tool-name bytes in one best-effort observation.
 - `fleet.turns`: count, 32. Bounds turns awaiting adoption or the parent's commitment, across all attempts.
-- `fleet.grace_ms`: milliseconds, 120,000. Bounds the wait for a lost worker to return or an unclaimed attempt to be adopted.
+- `fleet.grace_ms`: milliseconds, 240,000. Bounds the wait for a lost worker to return or an unclaimed attempt to be adopted.
 - `fleet.facts`: count, 32. Bounds facts kept until the parent drains them.
 - `fleet.history`: count, 8. Bounds recent lost channels and refused hellos retained separately from diagnostics, at most this many of each.
 

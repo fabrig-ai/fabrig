@@ -336,7 +336,7 @@ fn check_review(ran: &Ran) {
     assert!(heard_tool(reviewed, "fn write_csv"), "the reviewer read the produced source: {}", told(reviewed));
     assert!(!told(reviewed).contains("Error:"), "the source review succeeds");
     let brief = String::from_utf8_lossy(&reviewed.system);
-    assert!(brief.contains(include_str!("../../../crates/temper-service/src/stock/review.txt")));
+    assert!(brief.contains(include_str!("../../../crates/temper-engine-service/src/stock/review.txt")));
     let pull_at = brief.find("## Pull request").expect("review's pull section");
     let opened = ran
         .forge()
@@ -433,5 +433,5 @@ fn check_landing(ran: &Ran) {
     assert_eq!(document(ran, REVIEWED)["chip"]["phase"], "ended");
     assert!(document(ran, REVIEWED).to_string().contains("Approve."));
     assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
-    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+    assert_eq!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").len(), 0);
 }

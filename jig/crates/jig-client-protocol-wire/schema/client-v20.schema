@@ -78,7 +78,7 @@ record PersonAddressRole { value: u32 }
 enum PersonAddress { party: PersonAddressParty, role: PersonAddressRole }
 record ClosingStageRun { attempt: u64 }
 enum ClosingStage { run: ClosingStageRun, delegates, effects, releases, settled }
-enum HoldFailure { transient, permanent, run, agent, lost, invalid }
+enum HoldFailure { transient, permanent, run, agent, lost, invalid, infrastructure }
 record HoldCategoryFailures { class: HoldFailure }
 record HoldCategoryDependency { task: u64 }
 record HoldCategoryPlaced { hold: u64 }
@@ -152,7 +152,7 @@ enum EscalationHolder { task: EscalationHolderTask, person: EscalationHolderPers
 record HoldEscalationWaiting { holder: EscalationHolder entry: u64 since: u64 }
 record HoldEscalationRejected { by: u64 reason: DocumentText }
 enum HoldEscalation { routing, waiting: HoldEscalationWaiting, rejected: HoldEscalationRejected }
-record FailureTries { transient: u32 permanent: u32 run: u32 agent: u32 lost: u32 invalid: u32 }
+record FailureTries { transient: u32 permanent: u32 run: u32 agent: u32 lost: u32 invalid: u32 infrastructure: u32 }
 record RequesterTask { value: u64 }
 record RequesterPerson { value: u64 }
 record RequesterDeployment { project: u32 }
@@ -498,7 +498,7 @@ enum NewsClass { wakes, kept, dropped }
 record WordResultApproved { state: text 65536 words_present: bool }
 record WordResultVerdict { code: u32 fields: list 32 ResultField }
 record WordResultChange { connector: u16 kind: u16 resource: u64 }
-enum WordResult { approved: WordResultApproved, report, verdict: WordResultVerdict, change: WordResultChange, failed, cancelled }
+enum WordResult { approved: WordResultApproved, report, verdict: WordResultVerdict, change: WordResultChange, failed, cancelled, job }
 record MessageKindEscalation { task: u64 revision: u64 }
 record MessageKindProposal { proposer: u64 proposal: u64 kind: MessageProposalKind }
 record MessageKindPersonStalled { task: u64 }

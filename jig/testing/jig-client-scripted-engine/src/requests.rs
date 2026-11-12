@@ -450,7 +450,7 @@ impl<A: crate::Application> Engine<A> {
             .or_else(|| self.rules.iter().find(|rule| rule.ask == *ask && rule.party.is_none()))
             .cloned()
         {
-            if bounded && matches!(rule.answer, Answer::Refused { refusal: _, .. }) {
+            if bounded && matches!(rule.answer, Answer::Refused { .. }) {
                 return Err(Invalid::Script);
             }
             if matches!(rule.answer, Answer::Done(_)) {

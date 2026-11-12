@@ -154,12 +154,12 @@ fn matching_tool_cue_releases_one_line_and_then_eof() {
     let mut output = terminal_output(vec![start(), cue("finish", "done\n")], Close::AfterLastCue, Capture::Raw);
     acknowledge(&mut output, b"prompt\n");
     output.person.see(&Seen::ToolCall { tool: "read".into() });
-    assert!(writes(&mut output).is_empty());
+    assert_eq!(writes(&mut output).len(), 0);
     output.person.see(&Seen::ToolCall { tool: "finish".into() });
     acknowledge(&mut output, b"done\n");
     output.person.see(&Seen::ToolCall { tool: "finish".into() });
     acknowledge(&mut output, b"\x04");
-    assert!(writes(&mut output).is_empty());
+    assert_eq!(writes(&mut output).len(), 0);
 }
 
 #[test]
@@ -171,15 +171,15 @@ fn later_line_waits_for_named_cue_before_terminal_eof() {
     );
     acknowledge(&mut output, b"prompt\n");
     output.person.see(&Seen::ToolCall { tool: "finish".into() });
-    assert!(writes(&mut output).is_empty());
+    assert_eq!(writes(&mut output).len(), 0);
     output.person.see(&Seen::ToolCall { tool: "read".into() });
     acknowledge(&mut output, b"middle\n");
     output.person.see(&Seen::ToolCall { tool: "read".into() });
-    assert!(writes(&mut output).is_empty());
+    assert_eq!(writes(&mut output).len(), 0);
     output.person.see(&Seen::ToolCall { tool: "finish".into() });
     acknowledge(&mut output, b"last\n");
     acknowledge(&mut output, b"\x04");
-    assert!(writes(&mut output).is_empty());
+    assert_eq!(writes(&mut output).len(), 0);
 }
 
 fn failed_capture() -> (Capture, Vec<u8>) {

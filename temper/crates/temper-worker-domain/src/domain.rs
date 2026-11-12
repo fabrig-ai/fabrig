@@ -74,6 +74,12 @@ pub struct Domain {
     pub(crate) tooling_out: Queue<tooling::Request>,
     /// Told to shut down, and not stopped yet.
     pub(crate) stopping: bool,
+    /// Shutdown's current-turn grace, armed once.
+    pub(crate) drain_at: Option<Time>,
+    /// Whole stop bound from shutdown; the service abandons at it.
+    pub(crate) stop_at: Option<Time>,
+    /// Per-attempt rest-of-bound deadlines, retained through reconnects.
+    pub(crate) contact_stops: Map<Token, crate::stopping::ContactStop>,
     /// The channel to the engine has stayed down past the grace since it was
     /// last ready.
     pub(crate) past: bool,
@@ -204,6 +210,9 @@ impl Domain {
             agent_out: Queue::uncapped(),
             tooling_out: Queue::uncapped(),
             stopping: false,
+            drain_at: None,
+            stop_at: None,
+            contact_stops: Map::with_capacity(slots),
             past: false,
             facts_out: 0,
             activity_dropped: 0,
@@ -262,16 +271,16 @@ impl Domain {
         self.host.turns_abandoned().saturating_add(self.answers_abandoned)
     }
 
-    /// When the earliest agent or source-check alarm falls due.
+    /// When the earliest agent, source-check or root stop alarm falls due.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        [self.agent.next_deadline(), self.host.next_deadline()].into_iter().flatten().min()
+        [self.agent.next_deadline(), self.host.next_deadline(), crate::stopping::next(self)].into_iter().flatten().min()
     }
 
     /// Whether an alarm is due at `now`. The loop calls [`fire`] while one is.
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
-        self.agent.is_due(now) || host::sources_due(&self.host, now)
+        self.agent.is_due(now) || host::sources_due(&self.host, now) || crate::stopping::due(self, now)
     }
 
     /// Whether the domain has work of its own: the host has runs to cancel,
@@ -371,6 +380,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     host::fire_sources(&mut domain.host, &route::host_env(env), &mut domain.host_out);
     settle(domain, env, out);
+    crate::stopping::fire(domain, env, out);
+    settle(domain, env, out);
 }
 
 /// Cancels one run the host has on its ready list, or stops when shutdown
@@ -403,13 +414,19 @@ fn stop(domain: &mut Domain, out: &mut Queue<Request>) {
         if !domain.out_of_reach() {
             return;
         }
-        domain.host.give_up_turns();
-        domain.answers_abandoned = domain.answers_abandoned.saturating_add(u64::from(domain.host.kept_answers()));
+        give_up(domain);
     }
     domain.activity_dropped = domain.activity_dropped.saturating_add(u64::from(domain.facts_out));
     domain.facts_out = 0;
     domain.stopping = false;
+    domain.drain_at = None;
+    domain.stop_at = None;
     out.push(Request::Stop);
+}
+
+pub(crate) fn give_up(domain: &mut Domain) {
+    domain.host.give_up_turns();
+    domain.answers_abandoned = domain.answers_abandoned.saturating_add(u64::from(domain.host.kept_answers()));
 }
 
 /// Drains the child domains' facts into the domain's own queue, counting what

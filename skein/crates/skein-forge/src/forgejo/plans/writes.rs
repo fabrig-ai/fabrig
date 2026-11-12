@@ -396,8 +396,12 @@ fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> R
             style: match how {
                 api::MergeHow::Style => row.merge_style,
                 api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
+                api::MergeHow::Recorded { .. } => d::MergeStyle::ManuallyMerged,
             },
-            head: row.id(head),
+            head: row.id(match how {
+                api::MergeHow::Style | api::MergeHow::FastForwardOnly => head,
+                api::MergeHow::Recorded { commit } => commit,
+            }),
         },
     };
     let Some(written) = written else { unreachable!("reviewer exchanges have their own stages") };

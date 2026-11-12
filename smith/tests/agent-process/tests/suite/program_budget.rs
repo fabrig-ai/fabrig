@@ -69,7 +69,7 @@ fn a_cancel_interrupts_the_turn() {
     );
     assert!(!run.seen.contains(&Seen::Terminated));
     assert!(run.exits.contains(&skein_io::kernel::Exit::Code(0)));
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn a_program_deaf_to_its_interrupt_is_terminated() {
     );
     assert!(run.seen.contains(&Seen::Terminated));
     assert!(run.exits.contains(&skein_io::kernel::Exit::Code(143)));
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 #[test]

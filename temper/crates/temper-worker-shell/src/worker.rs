@@ -1,9 +1,17 @@
 //! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
-use std::os::unix::ffi::OsStrExt;
-use temper_service as service;
+use std::{
+    fs,
+    io::Write,
+    os::unix::{
+        ffi::OsStrExt,
+        fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    },
+    path::Path,
+};
 use temper_service_shell::jig_directories;
 use temper_shell::directories::{Directories, EnvironmentEntry, private_root};
+use temper_worker_service as service;
 /// Prepare a worker's own directories and program sources, with no deployment.
 pub fn alone(
     directories: &Directories,
@@ -12,18 +20,21 @@ pub fn alone(
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
     let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    let agent = crate::agent::preflight_worker(&part.named)?;
+        .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
+    let agent::Prepared { agent, bytes, environment: command_environment } = agent::prepare_worker(&part.named)?;
     let user = skein_shell::effective_user();
-    let files = temper_service_shell::read_files(core::mem::replace(&mut part.files, Box::new([])), user)?;
-    let runtime = root(&part.named.root, user, owned)?;
+    let files = temper_service_shell::read_files(
+        agent::without_configuration(core::mem::take(&mut part.files), &part.named.agent),
+        user,
+    )?;
+    let files = agent::with_configuration(files, &part.named.agent, &bytes);
+    let runtime = root(&part.named, &bytes, user, owned)?;
     let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
     let agent_program = part.named.program.clone();
-    let configuration = part.named.agent.clone();
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     let sources =
-        sources(&agent, path(&configuration), path(&agent_program), path(&directories.cache), user, environment)?;
+        sources(&agent, command_environment, path(&agent_program), path(&directories.cache), user, environment)?;
     if sources.reuse {
         service.reuse_workspaces();
     }
@@ -36,8 +47,13 @@ pub fn alone(
     Ok(service)
 }
 
-pub fn root(path: &[u8], user: u32, owned: &mut Vec<skein_io::kernel::Fd>) -> Result<service::WorkerRuntime, String> {
-    let root_path = crate::path(path);
+pub fn root(
+    worker: &service::startup::NamedWorker,
+    configuration: &[u8],
+    user: u32,
+    owned: &mut Vec<skein_io::kernel::Fd>,
+) -> Result<service::WorkerRuntime, String> {
+    let root_path = path(&worker.root);
     if std::fs::symlink_metadata(root_path).is_ok() {
         private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
     }
@@ -45,7 +61,70 @@ pub fn root(path: &[u8], user: u32, owned: &mut Vec<skein_io::kernel::Fd>) -> Re
         .map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
     owned.push(root);
     private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
-    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into() })
+    let agent = pin(
+        root_path,
+        &jig_protocol_config::Agent {
+            program: worker.program.clone(),
+            arguments: worker.arguments.clone(),
+            configuration: worker.agent.clone(),
+        },
+        configuration,
+    )?;
+    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent })
+}
+
+/// Write a fresh, private agent from the start's checked bytes
+/// (domain/worker/README.md, 5). Only exact configuration arguments are replaced.
+pub fn pin(
+    root: &Path,
+    agent: &jig_protocol_config::Agent,
+    configuration: &[u8],
+) -> Result<jig_protocol_config::Agent, String> {
+    let directory = std::path::absolute(root).map_err(|why| format!("{}: {why}", root.display()))?.join("agent");
+    match fs::symlink_metadata(&directory) {
+        Ok(metadata) => {
+            let removed = if metadata.is_dir() { fs::remove_dir_all(&directory) } else { fs::remove_file(&directory) };
+            removed.map_err(|why| format!("{}: {why}", directory.display()))?;
+        }
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(format!("{}: {why}", directory.display())),
+    }
+    fs::DirBuilder::new().mode(0o700).create(&directory).map_err(|why| format!("{}: {why}", directory.display()))?;
+    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))
+        .map_err(|why| format!("{}: {why}", directory.display()))?;
+    let program = path(&agent.program);
+    let document = path(&agent.configuration);
+    let program_copy =
+        directory.join(program.file_name().ok_or_else(|| format!("{}: no file name", program.display()))?);
+    let document_copy =
+        directory.join(document.file_name().ok_or_else(|| format!("{}: no file name", document.display()))?);
+    if program_copy == document_copy {
+        return Err(format!("{}: program and configuration have the same file name", document.display()));
+    }
+    fs::copy(program, &program_copy)
+        .map_err(|why| format!("{} -> {}: {why}", program.display(), program_copy.display()))?;
+    fs::set_permissions(&program_copy, fs::Permissions::from_mode(0o700))
+        .map_err(|why| format!("{}: {why}", program_copy.display()))?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&document_copy)
+        .map_err(|why| format!("{}: {why}", document_copy.display()))?;
+    file.write_all(configuration).map_err(|why| format!("{}: {why}", document_copy.display()))?;
+    file.set_permissions(fs::Permissions::from_mode(0o600))
+        .map_err(|why| format!("{}: {why}", document_copy.display()))?;
+    let pinned_configuration: Box<[u8]> = document_copy.as_os_str().as_bytes().into();
+    let arguments = agent
+        .arguments
+        .iter()
+        .map(|argument| if *argument == agent.configuration { pinned_configuration.clone() } else { argument.clone() })
+        .collect();
+    Ok(jig_protocol_config::Agent {
+        program: program_copy.as_os_str().as_bytes().into(),
+        arguments,
+        configuration: pinned_configuration,
+    })
 }
 
 /// Resources and switches the caller installs on its own service.
@@ -56,7 +135,7 @@ pub struct Sources {
 }
 pub fn sources(
     agent: &service::settings::Agent,
-    configuration: &std::path::Path,
+    command_environment: Box<[Box<[u8]>]>,
     agent_program: &std::path::Path,
     cache: &std::path::Path,
     user: u32,
@@ -70,7 +149,7 @@ pub fn sources(
                 .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
         // Source commands use the agent's explicit command environment.
-        let environment = agent::configuration(configuration)?.service.environment.command_entries();
+        let environment = command_environment;
         let parent =
             skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
         let resources = service::program_sources::configured(program, environment, user, parent)

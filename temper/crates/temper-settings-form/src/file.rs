@@ -155,9 +155,9 @@ impl Decoder<'_> {
             return Err(bound(name, most));
         }
         let mut out = Writer::new(count);
-        for pair in bytes.chunks_exact(2) {
-            let high = digit(*pair.first().expect("pair"))?;
-            let low = digit(*pair.get(1).expect("pair"))?;
+        for &[high, low] in bytes.as_chunks::<2>().0 {
+            let high = digit(high)?;
+            let low = digit(low)?;
             out.put(&[high.checked_mul(16).expect("hex digit").checked_add(low).expect("hex byte")])
                 .expect("measured hex");
         }

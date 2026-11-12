@@ -11,7 +11,7 @@ const TOLD_TEXT: &str = "Told program text";
 
 fn signed_in(turn: Turn) -> Scratch {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("fake-claude");
+    let executable = support::fake_claude();
     let settings = format!(
         "model='anthropic/claude-opus-5-5'\n[programs]\nclaude_code='{}'\n\
          [accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\naccount='work'\nprogram='claude_code'\n",
@@ -30,7 +30,7 @@ fn signed_in(turn: Turn) -> Scratch {
 
 fn signed_in_claude(turn: Turn) -> Scratch {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("fake-claude");
+    let executable = support::fake_claude();
     let settings = format!(
         "model='anthropic/claude-haiku-5-5'\n[programs]\nclaude_code='{}'\n\
          [accounts.claude]\nprovider='anthropic'\nsource='program'\n\

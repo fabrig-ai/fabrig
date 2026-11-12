@@ -1185,7 +1185,7 @@ fn a_duplicate_person_identity_refuses_naming_both_rows() {
     );
     assert!(driver.stopped);
     assert!(!driver.root.ready());
-    assert!(driver.transactions.is_empty());
+    assert_eq!(driver.transactions.len(), 0);
 }
 
 #[test]
@@ -3248,8 +3248,8 @@ fn a_missing_current_proof_refuses_before_any_restored_closing_effect_or_result(
     assert!(!restarted.root.ready());
     assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert_eq!(restarted.store.rows, before, "no closing consequence committed");
-    assert!(restarted.switches.is_empty());
-    assert!(restarted.delivered.is_empty());
+    assert_eq!(restarted.switches.len(), 0);
+    assert_eq!(restarted.delivered.len(), 0);
     restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
     restarted.reopen(config(91));
     restarted.pump();
@@ -3309,8 +3309,8 @@ fn root_restore_loads_linked_task_shapes_and_refuses_a_missing_charter() {
             assert!(restarted.stopped);
             assert!(!restarted.root.ready());
             assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
-            assert!(restarted.switches.is_empty());
-            assert!(restarted.delivered.is_empty());
+            assert_eq!(restarted.switches.len(), 0);
+            assert_eq!(restarted.delivered.len(), 0);
         } else {
             let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
             restarted.send(protocol::hello(Token::new(7), Box::new([hosting])));
@@ -3616,7 +3616,7 @@ fn a_rejected_hold_stays_rejected_across_a_restart() {
         temper_engine_domain_world::store::with_start_mark(before),
         "rejection never reopens or reroutes beside the start mark"
     );
-    assert!(driver.delivered.is_empty());
+    assert_eq!(driver.delivered.len(), 0);
 }
 
 #[test]
@@ -5160,7 +5160,7 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
         assert!(restarted.stopped);
         assert_eq!(restarted.root.start_phase(), Some(step));
         assert_eq!(restarted.store.rows, expected);
-        assert!(restarted.delivered.is_empty());
+        assert_eq!(restarted.delivered.len(), 0);
         restarted.env.limits = driver.env.limits;
         restarted.reopen(sharing_config(91));
         restarted.pump();
@@ -5474,7 +5474,7 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
     );
     assert!(driver.stopped);
     assert!(!driver.root.ready());
-    assert!(driver.transactions.is_empty());
+    assert_eq!(driver.transactions.len(), 0);
     assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert!(driver.loads.iter().any(|(_, range)| *range == engine::Range::Forge), "forge loaded before linking");
     assert!(driver.switches.is_empty(), "the keyed link refusal precedes the switch");

@@ -94,6 +94,23 @@ fn server_walk_gives_the_agents_environment_as_entries() {
 }
 
 #[test]
+fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
+    let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in [
+        "`KillMode=control-group`",
+        "`TimeoutStopSec=240s`",
+        "186-second stop bound",
+        "54-second margin",
+        "Raising the worker's bound raises this timeout too",
+    ] {
+        assert!(text.contains(required), "step 5 must explain {required}");
+    }
+}
+
+#[test]
 fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let page = help::answer(&configured(&["help", "server"])).expect("server walk");
     let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
@@ -101,11 +118,11 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let line = crate::host::note_line(
         "temper-engine",
-        temper_service::Note::ForgeSignIn {
+        temper_service::Note::Engine(temper_service::EngineNote::ForgeSignIn {
             number: 1,
             client: b"forgejo".as_slice().into(),
             why: temper_service::clients::forge_sign_in::Unserved::NotKept,
-        },
+        }),
     );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
     assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
@@ -115,8 +132,8 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
         "The page's `temper-forge-sign-in` meta appears only once `forge connect` has kept the forge.",
-        "If a page fetched after that still lacks the meta, restart the engine once:",
-        "a start makes it from the kept record.",
+        "If a newly fetched page still lacks it, restart once:",
+        "the engine makes it from the kept record.",
     ] {
         assert!(text.contains(required), "step 6 must explain {required}");
     }
