@@ -5,7 +5,7 @@ use crate::{
     table::{ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET},
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
-use skein_shell::Front;
+use skein_shell::{Front, Table};
 use std::process::Command;
 use std::process::ExitCode;
 use std::{
@@ -23,10 +23,10 @@ use temper_client_shell_web::journey;
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-client-journeys' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
-    let result = match TABLE.front(&arguments) {
+    let result = match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             return ExitCode::SUCCESS;

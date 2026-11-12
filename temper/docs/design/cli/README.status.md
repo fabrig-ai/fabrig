@@ -6,4 +6,3 @@
 `temper` takes its table in `../draft/cli.execution.md`'s C3; until then
 the client's table is `temper-shell`'s `commands` rows, and its help is
 today's (`../protocol/binaries.status.md`).
-

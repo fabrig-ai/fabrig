@@ -11,6 +11,7 @@ fn forbidden(source: &str) -> bool {
 fn forbidden_at(path: &Path, source: &str) -> bool {
     let source = if path.ends_with("temper-box-shell/src/binary.rs")
         || path.ends_with("temper-client/src/main.rs")
+        || path.ends_with("temper-client-shell/src/lib.rs")
         || path.ends_with("temper-engine/main.rs")
         || path.ends_with("temper-engine-shell/src/binary.rs")
         || path.ends_with("temper-agent/main.rs")
@@ -124,6 +125,7 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
     for path in [
         "temper-box-shell/src/binary.rs",
         "temper-client/src/main.rs",
+        "temper-client-shell/src/lib.rs",
         "temper-engine/main.rs",
         "temper-engine-shell/src/binary.rs",
         "temper-agent/main.rs",

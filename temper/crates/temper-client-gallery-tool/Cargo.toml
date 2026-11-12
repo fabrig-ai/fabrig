@@ -10,7 +10,6 @@ publish.workspace = true
 temper-protocol-reaches.workspace = true
 temper-fixtures.workspace = true
 skein-shell.workspace = true
-temper-version.workspace = true
 temper-client-view.workspace = true
 temper-client-domain.workspace = true
 temper-client-protocol-wire.workspace = true

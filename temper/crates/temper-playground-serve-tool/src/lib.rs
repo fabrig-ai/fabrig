@@ -28,8 +28,8 @@ const SERVE: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-playground-serve",
     line: "the browser tier's static host for the playground's bundle.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[SERVE],
     settings: &[],
     variables: &[],
@@ -147,13 +147,13 @@ fn mime(path: &Path) -> &'static str {
 
 /// Capture the arguments once and answer through the table before opening a host.
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,
         reason = "the binary's capture: temper-playground-serve's arguments, once (skein/docs/foundation/cli.md, 6)"
     )]
     let arguments = skein_shell::arguments();
-    match TABLE.front(&arguments) {
+    match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS

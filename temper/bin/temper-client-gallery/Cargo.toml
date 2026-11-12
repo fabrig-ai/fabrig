@@ -16,6 +16,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-version.workspace = true
 temper-client-gallery-tool.workspace = true
 skein-fail-stop.workspace = true
 

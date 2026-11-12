@@ -46,7 +46,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench test-peer", until: "smith's round" },
     Exception { what: "smith-fake-claude fake-claude", until: "smith's round" },
     Exception { what: "smith-fake-claude fake-claude-server", until: "smith's round" },
-    Exception { what: "temper-client temper-client", until: "cli C3" },
 ];
 const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },

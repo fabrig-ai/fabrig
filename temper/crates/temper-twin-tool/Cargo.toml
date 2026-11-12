@@ -21,7 +21,6 @@ jig-protocol-store.workspace = true
 smith-transcript.workspace = true
 skein-lib.workspace = true
 skein-shell.workspace = true
-temper-version.workspace = true
 serde_json.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

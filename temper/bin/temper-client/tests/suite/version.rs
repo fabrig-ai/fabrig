@@ -1,7 +1,7 @@
 #[test]
 fn the_binary_prints_its_version_and_refuses_the_rest() {
     for (arguments, code, stdout, stderr) in [
-        (vec!["--version"], 0, temper_client::version(), ""),
+        (vec!["--version"], 0, format!("{}\n", temper_version::line(temper_client_shell::NAME)), ""),
         (
             vec!["--version", "extra"],
             1,
