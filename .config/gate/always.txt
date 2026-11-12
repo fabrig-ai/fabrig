@@ -10,6 +10,10 @@ temper-playground temper/tests/playground/
 temper-playground-serve-tool
 temper-qa-tool
 skein-oauth-world
+# The shared process fixture is also compiled into both worlds' binaries.
+skein-world-tests skein/tests/conformance/real/src/bin/process_fixture.rs
+skein-io-world skein/tests/conformance/real/src/bin/process_fixture.rs
 fabrig-boundary
+fabrig-boundary skein/tests/conformance/real/src/bin/process_fixture.rs
 hearth-render-world hearth/
 hearth-builder-world hearth/tests/render/
