@@ -96,7 +96,9 @@
   repository and the task as they were; every process of the box's tree,
   read once the link is printed and again while a run started after the
   restart is live, runs a file of the new `bin/`, by device and inode,
-  and none of the old; the served page holds the mark. It needs the
+  but the owned Forgejo and its runner, which run the files their
+  configuration names (box.md, 1), compared with those; none runs an old
+  or a deleted file; the served page holds the mark. It needs the
   binaries' files and the processes, so it is this profile's.
 
 - **The upgrade's commands,** through the real binary, whose patch sets

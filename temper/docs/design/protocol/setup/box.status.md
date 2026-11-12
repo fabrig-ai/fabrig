@@ -1,6 +1,11 @@
 # box: status
 
-2026-11-11. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-12. Where the tree's code lags or departs from [box.md](box.md).
+
+- **Not yet:** 5, *Scripts given*: no `--scripts` or `--strict`
+  [in flight: change 1030].
+- **Not yet:** 1, *A newer build at a later start*: no process-tier story
+  proves it [in flight: change 1032].
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever
