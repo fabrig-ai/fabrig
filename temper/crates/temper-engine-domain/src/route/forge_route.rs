@@ -4102,7 +4102,7 @@ fn repair_words(
         forge_change::Repair::Gate(_) => append(&mut identity, b"changes requested"),
         forge_change::Repair::Review { .. } => append(&mut identity, b"changes requested on the forge"),
         forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. } => {
-            append(&mut identity, b"failed at landing candidate")
+            append(&mut identity, b"failed at landing candidate");
         }
     }
     let mut words = List::with_capacity(room);

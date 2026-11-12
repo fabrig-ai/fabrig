@@ -1200,7 +1200,7 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     match why {
         Repair::Semantic => {}
         Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => {
-            change.clean = Box::new([])
+            change.clean = Box::new([]);
         }
     }
     change.state = State::Repairing { requested: true, why };
