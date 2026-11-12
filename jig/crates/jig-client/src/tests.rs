@@ -1,4 +1,5 @@
 mod accounts;
+mod terminal_login;
 mod facts;
 mod fixtures;
 mod reads;

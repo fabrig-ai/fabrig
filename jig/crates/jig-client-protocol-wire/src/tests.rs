@@ -517,3 +517,14 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
 }
+
+#[test]
+fn lent_login_names_are_bounded_at_32_bytes() {
+    for length in [32, 33] {
+        let name = skein_lib::bytes::zeroed(length);
+        let terminal = TerminalLogin::new(&CEILINGS, TerminalLoginParts { number: 1, provider: 2, name: name.clone(), cancelled: false });
+        let change = AccountChangeLoginProgram::new(&CEILINGS, AccountChangeLoginProgramParts { provider: 2, name });
+        assert_eq!(terminal.is_ok(), length == 32);
+        assert_eq!(change.is_ok(), length == 32);
+    }
+}
