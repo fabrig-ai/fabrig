@@ -2,8 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** the whole document: the client's package at `bin/temper-client`, its crate `crates/temper-client-shell`, and its row in 4 naming that crate: today `crates/temper-client` is both [in flight: change 587].
-- **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses [in flight: change 353]
+- **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses
 
 - **Not yet:** the whole document: `temper-box upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/table.rs`). The restored-forge link gap remains `../domain/root.status.md`, 8.1.  the deferred setup-close gap remains `README.status.md`, 4.  the baseline and rehearsal gaps remain `README.status.md`, 7.
 
