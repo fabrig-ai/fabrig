@@ -12,7 +12,7 @@ use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 
 const ENTRY: &[u8] = b"Ask temper, or tell it how you work";
-const LEDE: &str = "Pick a way for Shop, or ask temper to build your own.";
+const LEDE: &str = "Choose how work runs, or describe how you work below.";
 const DRAFT: &[u8] = b"My way of working";
 const UNKNOWN: u32 = 99;
 // The request has three stock ways; its fourth tab is Yours.
@@ -84,6 +84,7 @@ fn leaves(tree: &Tree, node: &Node) -> Vec<Vec<u8>> {
 }
 
 struct Ways {
+    me: Token,
     root: d::Domain,
     watch: Token,
     settings: Token,
@@ -139,7 +140,7 @@ fn loading_fixture(configured: bool) -> Ways {
             }
         })
         .expect("ways watch");
-    let mut f = Ways { root, watch, settings: settings.expect("settings watch") };
+    let mut f = Ways { root, me, watch, settings: settings.expect("settings watch") };
     settings_document(&mut f, configured);
     f
 }
@@ -469,7 +470,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
                     (Role::Text, vec![look::WAYS_KIND_LINE]),
                 ],
             ),
-            (look::WAYS_ACTS, vec![(Role::Button, vec![look::WAYS_USE])]),
+            (look::WAYS_ACTS, vec![(Role::Button, vec![]), (Role::Button, vec![look::WAYS_USE])]),
         ] {
             assert_eq!(parts(tree, style), expected, "{style:?}");
         }
@@ -723,6 +724,10 @@ fn acts_follow_current_permission_and_configuration() {
                 expected,
                 "current={current:?}, may_change={may_change}, configured={configured}"
             );
+            let row: Vec<_> = children(styled(view.tree(), look::WAYS_ACTS)).into_iter().map(|n| n.name.as_deref().unwrap()).collect();
+            let mut names = vec![b"How does temper work?".as_slice()];
+            names.extend(expected);
+            assert_eq!(row, names);
             if let Some(node) = act {
                 let id = node.id;
                 let act = crate::act(&mut view, id, Act::Press);
@@ -799,6 +804,40 @@ fn pending_way_acts_stay_visible_disabled_and_refuse_in_words() {
 }
 
 #[test]
+fn how_button_follows_chat_readiness_not_composer_words() {
+    let mut f = fixture(Some(CURRENT), true, false);
+    for words in [b"".as_slice(), DRAFT, &[b'x'; 1024]] {
+        input(&mut f.root, pages::Act::ChatWords { words: words.into() });
+        for mut view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+            let how = named(view.tree(), Role::Button, b"How does temper work?");
+            assert!(!disabled(how));
+            assert!(how.styles.is_empty());
+            assert_eq!(how.hint.as_deref(), Some(b"Sends: Briefly, how does temper work, from my ask to main? And how do these three differ?".as_slice()));
+            let id = how.id;
+            assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::AskHow)));
+        }
+    }
+    input(&mut f.root, pages::Act::AskHow);
+    for mut view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+        let how = named(view.tree(), Role::Button, b"How does temper work?");
+        assert!(disabled(how));
+        let id = how.id;
+        assert_eq!(crate::act(&mut view, id, Act::Press), None);
+    }
+    let mut f = fixture(Some(CURRENT), true, false);
+    let mut me = f.root.pages().me(f.root.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates = List::from_boxed(project.templates.iter().filter(|t| t.number != 5).cloned().collect());
+    f::deliver_me(&mut f.root, f.me, me);
+    for mut view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+        let how = named(view.tree(), Role::Button, b"How does temper work?");
+        assert!(disabled(how));
+        let id = how.id;
+        assert_eq!(crate::act(&mut view, id, Act::Press), None);
+    }
+}
+
+#[test]
 fn loading_and_ended_ways_keep_the_lede_and_composer() {
     let mut f = loading_fixture(false);
     let watch = f.watch;
@@ -863,6 +902,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "person",
         "code",
         "no merge tool above",
+        "How does temper work?",
         "Keep it",
         core::str::from_utf8(ENTRY).unwrap(),
         "Send",
@@ -889,14 +929,13 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
 }
 
 #[test]
-fn lede_uses_the_project_name() {
+fn lede_invites_a_way_without_naming_the_project() {
     for name in [b"Hello".as_slice(), b"Another project"] {
         let (root, _, _, _, _) = f::root_at_full(Address::Ask { project: f::PROJECT }, &f::domain_limits(), name);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert_eq!(
                 leaves(view.tree(), &styled(view.tree(), look::WAYS_LEDE)[0]),
-                [format!("Pick a way for {}, or ask temper to build your own.", String::from_utf8_lossy(name))
-                    .as_bytes()]
+                [LEDE.as_bytes()]
             );
         }
     }
