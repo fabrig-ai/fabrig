@@ -122,7 +122,9 @@ pub fn startup_agent() -> settings::Agent {
     agent.host_limits.call_bytes = 256;
     agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
     agent.bounds.message_bytes = 512;
-    agent.bounds.spend = 43_584;
+    // Match init's maximum run spend, including Fable's cache-write reserve.
+    let init = super::super::stock::engine(&super::super::stock::generated());
+    agent.bounds.spend = init.rules.maximum_run_spend;
     agent.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]);
     agent
 }
