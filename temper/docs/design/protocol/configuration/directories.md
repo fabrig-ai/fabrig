@@ -77,7 +77,7 @@ login is imported.
 
 - **First preparation:** absent or empty C runs ordinary init in
   C'/D'/K', retaining init's listeners. Give --bundle DIR to name the
-  separately built loopback bundle; C stays untouched. A nonempty C is
+  separately built bundle; C stays untouched. A nonempty C is
   accepted only for the current init-shaped standalone configuration,
   and its public agent document; it reads and copies no charters, which
   are the binary's stock (`stock.md`). --bundle overrides
