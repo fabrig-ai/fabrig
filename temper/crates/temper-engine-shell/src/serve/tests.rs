@@ -46,7 +46,7 @@ fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     }
     let roots = super::trust(None).expect("machine trust roots");
     let default = super::github_runtime("temper", None, &roots, reject_names).expect("held default");
-    assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
+    assert_eq!(default.address, temper_engine_service::forge::HELD_ADDRESS);
     assert_eq!(default.log_origins.len(), 1);
     let machine = temper_forge_setup::machine::GitHubMachine {
         git: None,

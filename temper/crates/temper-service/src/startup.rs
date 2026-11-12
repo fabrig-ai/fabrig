@@ -1,19 +1,17 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
-pub(crate) mod application;
+pub mod application;
 pub mod members;
 mod reference;
 pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
-#[cfg(feature = "worker")]
+
 use temper_worker_service::startup::worker;
-#[cfg(feature = "worker")]
+
 pub use worker::WorkerPart;
 #[cfg(test)]
 #[path = "tests/startup_calls.rs"]
 mod calls_tests;
-#[cfg(not(feature = "worker"))]
-mod checkout;
-#[cfg(feature = "worker")]
+
 mod checkout {
     use super::{Problems, settings};
     use crate::limits;
@@ -30,6 +28,7 @@ mod checkout {
 }
 pub(crate) mod checks;
 mod problems;
+pub use temper_engine_service::startup::{EngineWhat, Listener, RedirectPort};
 #[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
 mod welcome_policy;
@@ -39,29 +38,16 @@ pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
-pub(crate) use problems::admission_words;
-pub use problems::{EngineWhat, Problem, Problems, What, lines};
+use temper_engine_service::startup::{checked_store, engine_limits, prepare_forges};
+pub use temper_engine_service::startup::{engine, engine_with};
+
+pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
 
 use temper_service_core::agent::Declaration;
 use temper_service_core::startup::{CallAnswer, nearest_document};
 pub use temper_service_core::startup::{Shape, nearest};
 
-/// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
-#[must_use]
-pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
-    if worker {
-        return None;
-    }
-    match shape {
-        Shape::Standalone | Shape::WorkerAlone => Some(Problem {
-            path: Path::root().member(b"workers"),
-            what: What::Half(EngineWhat::UnbuiltWorker),
-            file: None,
-        }),
-        Shape::EngineAlone => None,
-    }
-}
 fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> Option<u32> {
     read::Object::new(document, at).ok()?.member(document, name)
 }
@@ -89,22 +75,6 @@ fn finish_shape(document: &skein_json::Document, object: members::Object, path: 
 }
 /// A forge API token's bound, until the forge component supplies it.
 pub const API_TOKEN_BYTES: u32 = 4096;
-/// A provider's fixed sign-in redirect, with its diagnostic path; no credentials.
-#[derive(Debug)]
-pub struct RedirectPort {
-    pub port: u16,
-    pub path: Path,
-    pub redirect_path: Box<[u8]>,
-}
-/// The standalone listeners whose fixed ports a redirect must avoid.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Listener {
-    Clients,
-    Webhooks,
-    Owned(u32),
-    Fake(u32),
-    Demo,
-}
 fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
     let mut redirects = List::with_capacity(u32::try_from(engine.llm.providers.len()).expect("bounded providers"));
     for (index, provider) in engine.llm.providers.iter().enumerate() {
@@ -138,15 +108,9 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
     };
     redirect_ports(&redirects, port, Listener::Webhooks, problems);
 }
-#[cfg(feature = "worker")]
+
 pub use worker::NamedWorker;
-#[cfg(not(feature = "worker"))]
-#[derive(Debug)]
-pub struct NamedWorker {
-    pub root: Box<[u8]>,
-    pub agent: Box<[u8]>,
-    pub program: Box<[u8]>,
-}
+
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
     NamedWorker {
         root: own.root.clone(),
@@ -209,37 +173,6 @@ pub fn store_limits(
     Ok(StoreLimits { store, forge: root.forge })
 }
 
-fn checked_store(
-    root: &temper_engine_domain::Limits,
-    profile: &jig_protocol_store::Limits,
-    turn: Option<u32>,
-) -> Result<jig_protocol_store::Limits, Problems> {
-    match crate::store::admit(root, &root.forge, profile, turn) {
-        Ok(store) => Ok(store),
-        Err(why) => Err(checks::store_refusal(why)),
-    }
-}
-
-fn engine_limits(
-    jig: &mut config::Limits,
-    own: &crate::limits::Limits,
-    memory_bytes: u64,
-) -> Result<temper_engine_domain::Limits, Problems> {
-    check_memory_bytes(memory_bytes)?;
-    jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
-    let mut root = crate::limits::engine_candidate(jig, own);
-    root.memory_bytes = memory_bytes;
-    let mut problems = Problems::empty();
-    checks::call_answer(Path::root().member(b"engine"), jig.core.call_answer_bytes, &mut problems);
-    checks::engine_envelope(&root, &mut problems);
-    if !problems.is_empty() {
-        return Err(problems);
-    }
-    if !temper_engine_domain::valid(&root) {
-        return Err(problem(Path::root().member(b"engine").member(b"limits"), What::Jig(config::What::Bound)));
-    }
-    Ok(root)
-}
 fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
     if memory_bytes == 0 {
         return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Bound)));
@@ -285,44 +218,6 @@ fn problem(path: Path, what: What) -> Problems {
     let mut problems = Problems::empty();
     problems.push(path, what);
     problems
-}
-/// Parse jig's engine member and pass the supplied defaults, refusing document
-/// settings members (protocol/configuration/settings.md, 4 and 5).
-/// # Errors
-/// The document's problems at its paths under `engine`.
-pub fn engine_with(
-    document: &skein_json::Document,
-    at: u32,
-    directories: &config::Directories,
-    given: &crate::stock::Given,
-) -> Result<config::Engine, config::Problems> {
-    let mut engine = config::engine(document, at, directories, config::Defaults::Passed)?;
-    let stock = match given {
-        crate::stock::Given::Stock => true,
-        crate::stock::Given::Own { .. } => false,
-    };
-    if stock && crate::stock::models(&engine.llm).is_empty() {
-        let mut problems = config::Problems::empty();
-        problems.push(Path::root().member(b"llm").member(b"providers"), config::What::Bound);
-        return Err(problems);
-    }
-    let Some(defaults) = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes) else {
-        let mut problems = config::Problems::empty();
-        problems.push(
-            Path::root().member(b"llm").member(b"models").child(Segment::Index(0)).member(b"prices"),
-            config::What::Bound,
-        );
-        return Err(problems);
-    };
-    config::pass(&mut engine, defaults)?;
-    Ok(engine)
-}
-pub fn engine(
-    document: &skein_json::Document,
-    at: u32,
-    directories: &config::Directories,
-) -> Result<config::Engine, config::Problems> {
-    engine_with(document, at, directories, &crate::stock::Given::Stock)
 }
 fn parse_with(
     input: &[u8],
@@ -406,9 +301,6 @@ fn load_document(
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
-    if let Some(found) = unbuilt(shape, cfg!(feature = "worker")) {
-        return Err(problem(found.path, found.what));
-    }
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
     let root = Path::root();
@@ -483,7 +375,7 @@ fn load_document(
                 problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
             }
         }
-        #[cfg(feature = "worker")]
+
         if let Some(at) = application_at
             && let Err(found) = worker::application(document, at, directories)
         {
@@ -688,7 +580,6 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
-    #[cfg(feature = "worker")]
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
         if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
@@ -784,11 +675,10 @@ pub(crate) fn checked_start_with(
         return Err(problems);
     }
     let not_set_up = List::with_capacity(0);
-    #[cfg(feature = "worker")]
+
     let worker =
         checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
-    #[cfg(not(feature = "worker"))]
-    let worker: Option<settings::Worker> = None;
+
     let mut engine = settings::Engine {
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
@@ -912,19 +802,11 @@ pub fn with_setup_given(
     let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
-    #[cfg(feature = "worker")]
+
     let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
     {
         Ok(worker) => worker,
         Err(found) => return Err(problems::from_worker(found)),
-    };
-    #[cfg(not(feature = "worker"))]
-    let worker = {
-        drop(worker);
-        match runtime {
-            Some(runtime) => match runtime {},
-            None => None,
-        }
     };
     match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
         Ok(mut service) => {
@@ -932,16 +814,16 @@ pub fn with_setup_given(
                 let mut found = Problems::empty();
                 found.push(warning.path.clone(), warning.what);
                 let line = lines(&found);
-                service.notes().push(crate::Note::StartupWarning {
+                service.notes().push(crate::Note::Engine(temper_engine_service::Note::StartupWarning {
                     line: line.strip_suffix(b"\n").expect("one warning line").into(),
-                });
+                }));
             }
             for number in &not_set_up {
-                crate::setup::lifecycle::state(
-                    service.engine.as_mut().expect("engine startup"),
-                    *number,
-                    temper_engine_domain_forge::Connection::NotSetUp,
-                );
+                service
+                    .engine
+                    .as_mut()
+                    .expect("engine startup")
+                    .setup_state(*number, temper_engine_domain_forge::Connection::NotSetUp);
             }
             Ok(service)
         }
@@ -978,17 +860,6 @@ pub fn with_setup(
     )
 }
 
-fn prepare_forges(
-    engine: &settings::Engine,
-    forges: List<crate::ForgeRuntime>,
-) -> Result<skein_forge_connection::Settings, Problems> {
-    match crate::forge::prepare(engine, forges) {
-        Ok(settings) => Ok(settings),
-        Err(found) => Err(Problems::jig(found, &Path::root())),
-    }
-}
-
-#[cfg(feature = "worker")]
 fn checked_worker(
     workers: Box<[config::Worker]>,
     own: Box<[application::Worker]>,
@@ -1016,14 +887,13 @@ fn checked_worker(
     }
 }
 
-#[cfg(feature = "worker")]
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
     match worker::worker_part(input, directories) {
         Ok(part) => Ok(part),
         Err(found) => Err(problems::from_worker(found)),
     }
 }
-#[cfg(feature = "worker")]
+
 pub fn worker_alone(
     part: WorkerPart,
     files: &settings::Files,
@@ -1034,5 +904,31 @@ pub fn worker_alone(
     match worker::worker_alone(part, files, agent, runtime, seed) {
         Ok(service) => Ok(service),
         Err(found) => Err(problems::from_worker(found)),
+    }
+}
+
+impl Named {
+    /// The checked engine member, without the local worker declaration.
+    #[must_use]
+    pub fn into_engine(self) -> temper_engine_service::startup::Named {
+        temper_engine_service::startup::Named {
+            machine: self.machine,
+            files: self.files,
+            asked_files: self.asked_files,
+            redirects: self.redirects,
+            deployment: self.deployment,
+            llm: self.llm,
+            projects: self.projects,
+            forges: self.forges,
+            identities: self.identities,
+            clients: self.clients,
+            link: self.link,
+            public: self.public,
+            sign_in: self.sign_in,
+            bundle: self.bundle,
+            bundle_limits: self.bundle_limits,
+            webhooks: self.webhooks,
+            overrides: self.overrides,
+        }
     }
 }

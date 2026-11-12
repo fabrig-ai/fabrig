@@ -3,7 +3,7 @@ use crate::{ENGINE, forge, serve};
 use skein_io::kernel::Exit;
 use skein_shell::{Command, Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
-use temper_service::startup::{Shape, nearest};
+use temper_engine_service::startup::{Shape, nearest};
 use temper_shell::{
     commands::Row,
     directories::{self, Directories, EnvironmentEntry},
@@ -169,7 +169,7 @@ pub fn versions() -> String {
     ] {
         writeln!(text, "family {family} {version}").expect("writing into a string");
     }
-    for wire in temper_service::store::WIRES {
+    for wire in temper_engine_service::store::WIRES {
         writeln!(text, "wire {} {}", wire.name, wire.version).expect("writing into a string");
     }
     text

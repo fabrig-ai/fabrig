@@ -31,32 +31,7 @@ pub fn demo_application() -> Box<[u8]> {
         .into_bytes()
         .into_boxed_slice()
 }
-pub fn demo_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replacen(
-            "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
-            1,
-        )
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
-}
-pub fn demo_service() -> crate::Service {
-    start(
-        &demo_document(),
-        &jig_protocol_config::Directories::working(),
-        &files(),
-        &startup_agent(),
-        &super::seeds(),
-        None,
-        worker_runtime(),
-        super::forge_runtime(),
-    )
-    .unwrap()
-}
+
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)

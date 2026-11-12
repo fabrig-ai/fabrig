@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{End, Stop};
+use crate::{End, EngineEnd};
 use skein_lib::{Time, Token, Wall};
 
 #[test]
@@ -12,21 +12,23 @@ fn the_worker_dials_workers_and_its_hello_reaches_the_engine() {
     assert_eq!(hello.1.hosting.as_ref(), &[]);
     assert_eq!(stand.kernel.spawned, 1);
 }
+
 #[test]
 fn the_worker_iterates_only_once_the_engine_listens() {
     let mut stand = fixtures::one_process();
-    stand.service.engine.as_mut().expect("engine").store.opened = false;
+    let opened = stand.service.engine_component().exchange_store(fixtures::unopened_store());
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert!(!stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started, "store still closed");
-    stand.service.engine.as_mut().expect("engine").store.opened = true;
+    stand.service.engine_component().replace_store(opened);
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert!(!stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started, "listener still opening");
     for _ in 0_u8..4 {
         stand.turn();
     }
-    assert!(stand.service.engine.as_ref().expect("engine").workers.host.opened());
+    assert!(stand.service.engine.as_ref().expect("engine").workers_opened());
     assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started);
 }
+
 #[test]
 fn a_signal_drains_the_engine_then_ends_the_worker_at_once() {
     let mut stand = fixtures::one_process();
@@ -39,17 +41,18 @@ fn a_signal_drains_the_engine_then_ends_the_worker_at_once() {
             break;
         }
     }
-    assert_eq!(stand.service.end(), Some(&End::Drained));
+    assert_eq!(stand.service.end(), Some(&End::Engine(EngineEnd::Drained)));
     assert!(stand.service.is_empty(), "the worker ended with the engine");
     assert!(stand.kernel.root_closed);
 }
+
 #[test]
 fn a_second_signal_aborts_both_layers() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     stand.service.shutdown();
     stand.service.shutdown();
-    assert_eq!(stand.service.end(), Some(&End::Aborted));
+    assert_eq!(stand.service.end(), Some(&End::Engine(EngineEnd::Aborted)));
     assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).aborted);
     for _ in 0_u16..256 {
         stand.turn();
@@ -59,6 +62,7 @@ fn a_second_signal_aborts_both_layers() {
     }
     assert!(stand.service.is_empty());
 }
+
 #[test]
 fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
@@ -69,15 +73,16 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert_eq!(
         stand.service.end(),
-        Some(&End::Stopped(Stop::Listener {
+        Some(&End::Engine(EngineEnd::Stopped(crate::EngineStop::Listener {
             listener: crate::Listening::Clients,
             address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
             error: None
-        })),
+        }))),
         "clients event reached engine"
     );
     assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).aborted);
 }
+
 #[test]
 fn an_unusable_git_stops_the_service_naming_its_program() {
     let mut stand = fixtures::one_process();
@@ -88,7 +93,16 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
             break;
         }
     }
-    let Some(End::Stopped(Stop::Start(problems))) = stand.service.end() else { panic!("git refuses the start") };
+    let Some(End::Worker(crate::worker_alone::End::Stopped(crate::worker_alone::Stop::Start(problems)))) =
+        stand.service.end()
+    else {
+        panic!("git refuses the start")
+    };
+    assert_eq!(
+        stand.service.engine.as_ref().unwrap().end(),
+        Some(&EngineEnd::Drained),
+        "worker failure does not replace the engine end"
+    );
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(
         problems.problems.get(0).unwrap().path,
@@ -102,57 +116,6 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
 }
 
 #[test]
-fn a_socket_workers_bind_announces_its_bound_address_once() {
-    let mut service = fixtures::started();
-    for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
-    }
-    assert_eq!(service.notes().room(), 0, "forge diagnostics occupy their whole queue");
-    let addr = ([127, 0, 0, 1], 41733).into();
-    service.process.told().push(skein_io::Event::Listening {
-        owner: Token::new(crate::tokens::WORKER_LISTENERS),
-        listener: Token::new(77),
-        addr: skein_io::Addr::Ip(addr),
-    });
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.listening().pop(), Some(crate::Note::Listening { listener: crate::Listening::Workers, addr }));
-    assert!(service.listening().is_empty());
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.listening().is_empty());
-    assert_eq!(service.notes().pop(), Some(crate::Note::ForgeLacking { number: 1, names: Box::new([]) }));
-}
-
-#[test]
-fn an_in_process_workers_bind_has_no_listening_note() {
-    let mut service = fixtures::started();
-    service.process.told().push(skein_io::Event::Listening {
-        owner: Token::new(crate::tokens::WORKER_LISTENERS),
-        listener: Token::new(77),
-        addr: skein_io::Addr::InProcess(skein_io::Name::new(b"workers").expect("configured worker listener")),
-    });
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.listening().is_empty());
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.listening().is_empty());
-}
-
-#[test]
-fn a_clients_bind_announces_the_servers_bound_address_once() {
-    let mut service = fixtures::started();
-    let addr = ([127, 0, 0, 1], 41734).into();
-    service.process.told().push(skein_io::Event::Listening {
-        owner: Token::new(crate::tokens::SERVER),
-        listener: Token::new(77),
-        addr: skein_io::Addr::Ip(addr),
-    });
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.listening().pop(), Some(crate::Note::Listening { listener: crate::Listening::Clients, addr }));
-    assert!(service.listening().is_empty());
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.listening().is_empty());
-}
-
-#[test]
 fn standalone_announces_clients_without_announcing_in_process_workers() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
@@ -161,7 +124,7 @@ fn standalone_announces_clients_without_announcing_in_process_workers() {
     let addr = addr.socket().unwrap();
     assert_eq!(
         stand.service.listening().pop(),
-        Some(crate::Note::Listening { listener: crate::Listening::Clients, addr })
+        Some(crate::Note::Engine(crate::EngineNote::Listening { listener: crate::Listening::Clients, addr }))
     );
     assert!(stand.service.listening().is_empty());
     stand.turn();
@@ -199,11 +162,14 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
                 break;
             }
         }
-        assert_eq!(stand.service.end(), Some(if abort { &End::Aborted } else { &End::Drained }));
+        assert_eq!(
+            stand.service.end(),
+            Some(if abort { &End::Engine(EngineEnd::Aborted) } else { &End::Engine(EngineEnd::Drained) })
+        );
         assert!(stand.service.is_empty());
         assert!(stand.kernel.box_read_cancelled, "close cancelled io's pending read");
         for note in stand.service.notes().iter() {
-            if let crate::Note::BoxLink { line } = note {
+            if let crate::Note::Engine(crate::EngineNote::BoxLink { line }) = note {
                 panic!("our close is not the box closing: {line:?}");
             }
         }
@@ -230,7 +196,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     // SystemStand has fixed membership and an in-memory store. Startup's
     // absent-file state is tested separately; inject its root inputs here.
     for forge in [OWNED, OTHER] {
-        crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), forge, Connection::NotSetUp);
+        stand.service.engine_component().setup_state(forge, Connection::NotSetUp);
     }
     turns(&mut stand);
     while stand.service.notes().pop().is_some() {}
@@ -239,7 +205,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SettingUp { step: None }
     );
 
@@ -248,7 +214,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     }
     turns(&mut stand);
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SettingUp { step: Some(SetUpStep::Prepare) }
     );
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
@@ -259,7 +225,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     }
     turns(&mut stand);
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SetUpFailed { why: b"prepare 1 exited 1".as_slice().into() }
     );
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
@@ -268,7 +234,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SettingUp { step: None }
     );
 
@@ -277,10 +243,10 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SettingUp { step: None }
     );
-    assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(OTHER), Connection::NotSetUp);
+    assert_eq!(stand.service.engine.as_ref().unwrap().domain().forge_connection(OTHER), Connection::NotSetUp);
     assert!(stand.service.notes().is_empty());
 
     for byte in b"started 9\n" {
@@ -289,12 +255,14 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
+        stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED),
         Connection::SettingUp { step: None }
     );
     assert_eq!(
         stand.service.notes().pop(),
-        Some(crate::Note::BoxLink { line: b"box link: dropped started for forge 9, not asked".as_slice().into() })
+        Some(crate::Note::Engine(crate::EngineNote::BoxLink {
+            line: b"box link: dropped started for forge 9, not asked".as_slice().into()
+        }))
     );
     assert!(stand.service.notes().is_empty());
 }
@@ -312,7 +280,7 @@ fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
         turns(stand);
     }
     fn fetched(stand: &fixtures::system::SystemStand) -> Option<SetUpFetched> {
-        let rows = stand.service.engine.as_ref().unwrap().domain.forges();
+        let rows = stand.service.engine.as_ref().unwrap().domain().forges();
         for row in &rows.rows {
             if row.number == OWNED {
                 return row.fetched;
@@ -331,7 +299,7 @@ fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
             stand.service.handover_read(read.forge, read.run, Ok(None));
         }
         turns(&mut stand);
-        crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), OWNED, Connection::NotSetUp);
+        stand.service.engine_component().setup_state(OWNED, Connection::NotSetUp);
         line(&mut stand, b"");
         let bearer = box_sign_in(&mut stand);
         assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
@@ -355,7 +323,7 @@ fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
             assert_eq!(fetched(&stand), Some(expected), "progress remains between lines");
         }
         line(&mut stand, ending);
-        assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED), expected, "{ending:?}");
+        assert_eq!(stand.service.engine.as_ref().unwrap().domain().forge_connection(OWNED), expected, "{ending:?}");
         assert_eq!(fetched(&stand), None, "{ending:?}");
     }
 }
@@ -367,6 +335,7 @@ fn scripted_box() -> fixtures::system::SystemStand {
     fixtures::until_hosting(&mut stand);
     stand
 }
+
 // Allow root continuations and memory-store handoffs, then output credit and IO.
 fn turns(stand: &mut fixtures::system::SystemStand) {
     const TURNS: u8 = 64;
@@ -389,6 +358,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     };
     peer::bearer(answer.token().as_ref().expect("native credential").expose())
 }
+
 fn box_setup(
     stand: &mut fixtures::system::SystemStand,
     bearer: &[u8],
@@ -400,7 +370,7 @@ fn box_setup(
     use skein_lib::{Reader, Writer};
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();
-    let limits = &engine.clients.env.limits.wire;
+    let limits = engine.client_wire();
     let request = w::Requesting::new(
         &w::CEILINGS,
         w::RequestingParts {
@@ -451,9 +421,7 @@ fn box_setup(
     client.pump(engine, true);
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     let mut reader = Reader::new(client.received().get(at..).unwrap());
-    let j::KeyedAnswer::FinalAnswer(answer) =
-        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut reader).unwrap()
-    else {
+    let j::KeyedAnswer::FinalAnswer(answer) = j::KeyedAnswer::decode(engine.client_wire(), &mut reader).unwrap() else {
         panic!("one terminal family answer")
     };
     assert!(reader.is_empty());
@@ -461,13 +429,11 @@ fn box_setup(
         answer.version(),
         wire::CLIENT_VERSION,
         "core terminal for setup: {:?}",
-        j::Final::decode(&engine.clients.env.limits.wire, &mut Reader::new(answer.record()))
+        j::Final::decode(engine.client_wire(), &mut Reader::new(answer.record()))
     );
     assert_eq!(
         *answer.owner(),
-        j::Owner::Family(
-            j::Family::new(&engine.clients.env.limits.wire, j::FamilyParts { number: wire::FORGE }).unwrap()
-        )
+        j::Owner::Family(j::Family::new(engine.client_wire(), j::FamilyParts { number: wire::FORGE }).unwrap())
     );
     let mut reader = Reader::new(answer.record());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
@@ -475,71 +441,6 @@ fn box_setup(
     answer.into_parts().outcome
 }
 
-#[test]
-fn a_new_client_after_idle_gets_its_whole_stall_period() {
-    use skein_lib::Duration;
-    const STALL: Duration = Duration::from_secs(30);
-    const BEGAN: Time = Time::from_nanos(1_000_000_000);
-    for idle in [29, 30, 60, 100] {
-        let mut service = fixtures::started();
-        fixtures::listening(&mut service);
-        crate::iterate(&mut service, BEGAN, Wall::EPOCH);
-        let accepted = BEGAN.saturating_add(Duration::from_secs(idle));
-        service.process.told().push(skein_io::Event::Accepted {
-            owner: Token::new(crate::tokens::SERVER),
-            socket: fixtures::http::SOCKET,
-            peer: fixtures::http::address(),
-        });
-        crate::iterate(&mut service, accepted, Wall::EPOCH);
-        assert_eq!(
-            service.engine.as_ref().unwrap().clients.next_deadline(),
-            Some(accepted.saturating_add(STALL)),
-            "new connection after {idle} seconds idle gets its deadline at accept"
-        );
-    }
-}
-
-#[test]
-fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
-    use skein_lib::Duration;
-    const BEGAN: Time = Time::from_nanos(1_000_000_000);
-    const IDLE: Duration = Duration::from_secs(60);
-    const LISTENER: Token = Token::new(1_u64 << 59);
-    let mut service = fixtures::ready();
-    let config = fixtures::engine();
-    let mut found = jig_protocol_config::Problems::empty();
-    let settings = crate::forge::settings(
-        &fixtures::forges(),
-        fixtures::forge_runtime(),
-        Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
-        &mut found,
-    )
-    .unwrap();
-    let layer = &mut service.engine.as_mut().unwrap().forge;
-    layer.component = skein_forge_connection::Component::new(
-        settings,
-        &layer.env.limits,
-        &crate::forge::shared(&config.limits, &config.jig.limits.io),
-    )
-    .unwrap();
-    layer.component.begin(&layer.env, &mut layer.above, &mut layer.io);
-    layer.up(skein_io::Event::Listening { owner: LISTENER, listener: Token::new(88), addr: fixtures::http::address() });
-    while layer.io.pop().is_some() {}
-    let delivery = layer.env.limits.hook_deadline;
-    crate::iterate(&mut service, BEGAN, Wall::EPOCH);
-    let accepted = BEGAN.saturating_add(IDLE);
-    service.process.told().push(skein_io::Event::Accepted {
-        owner: Token::new(crate::tokens::FORGE | LISTENER.raw()),
-        socket: Token::new(89),
-        peer: fixtures::http::address(),
-    });
-    crate::iterate(&mut service, accepted, Wall::EPOCH);
-    assert_eq!(
-        service.engine.as_ref().unwrap().forge.component.next_deadline(),
-        Some(accepted.saturating_add(delivery)),
-        "the webhook starts its delivery period at accept"
-    );
-}
 #[test]
 fn clients_claim_a_listener_adopted_before_the_first_down() {
     use skein_io::kernel::{Fd, Op};
@@ -571,7 +472,7 @@ fn clients_claim_a_listener_adopted_before_the_first_down() {
     assert!(accepted, "clients accept on the inherited descriptor");
     assert_eq!(
         stand.service.listening().pop(),
-        Some(crate::Note::Listening { listener: crate::Listening::Clients, addr })
+        Some(crate::Note::Engine(crate::EngineNote::Listening { listener: crate::Listening::Clients, addr }))
     );
     stand.service.shutdown();
     for _ in 0_u16..256 {
@@ -614,7 +515,7 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     }
     let read = read.expect("box read published to the kernel");
     for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+        service.notes().push(crate::Note::Engine(crate::EngineNote::ForgeLacking { number: 1, names: Box::new([]) }));
     }
     service.completions().push(Complete { op: read.op, kind: read.kind, result: Ok(Done::Count(4)) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
@@ -631,53 +532,14 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     assert_eq!(service.process.told().len(), 2);
     while service.notes().pop().is_some() {}
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let Some(crate::Note::BoxLink { .. }) = service.notes().pop() else {
+    let Some(crate::Note::Engine(crate::EngineNote::BoxLink { .. })) = service.notes().pop() else {
         panic!("the box owner receives its line");
     };
-    assert_eq!(service.listening().pop(), Some(crate::Note::Listening { listener: crate::Listening::Clients, addr }));
+    assert_eq!(
+        service.listening().pop(),
+        Some(crate::Note::Engine(crate::EngineNote::Listening { listener: crate::Listening::Clients, addr }))
+    );
     assert!(service.process.told().is_empty());
-}
-
-#[test]
-fn a_source_is_marked_closing_only_once_its_close_is_queued() {
-    use skein_io::kernel::{Fd, Op, Submit};
-    use skein_lib::Queue;
-    let mut service = fixtures::ready();
-    let fd = Fd::new(90);
-    service.adopt_listener(fd, ([127, 0, 0, 1], 41736).into()).unwrap();
-    let capacity = service.completions().capacity();
-    // Stage a complete raw batch through the store's existing kernel entrance.
-    let store = &mut service.engine.as_mut().unwrap().store;
-    store.submitted = Queue::with_capacity(capacity);
-    for index in 0..capacity {
-        store.submitted.push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
-    }
-    *service.submissions() = Queue::with_capacity(capacity);
-    for index in 0..capacity {
-        service
-            .submissions()
-            .push(Submit { op: Token::new(u64::from(index) + 2000), kind: Op::Close { fd: Fd::new(92) } });
-    }
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.pending(Time::ZERO).raw_submissions, capacity, "raw kernel staging is at its cap");
-    service.engine.as_mut().unwrap().end = Some(End::Aborted);
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.wait_state().listener_closes, 0, "the source stays open without close-output credit");
-    while service.submissions().pop().is_some() {}
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.wait_state().listener_closes, 0, "publication returns credit after the close stage");
-    reap_staged_closes(&mut service);
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.wait_state().listener_closes, 1);
-    let mut closes = 0_u32;
-    for submit in service.submissions().iter() {
-        if let Op::Close { fd: found } = submit.kind
-            && found == fd
-        {
-            closes += 1;
-        }
-    }
-    assert_eq!(closes, 1, "the kernel observes the close when the source is marked closing");
 }
 
 #[test]
@@ -705,10 +567,12 @@ fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
     let read = read.expect("box read");
     while service.notes().pop().is_some() {}
     let capacity = service.completions().capacity();
-    let store = &mut service.engine.as_mut().unwrap().store;
-    store.submitted = Queue::with_capacity(capacity);
+    let store = service.engine_component().store();
+    *store.submissions() = Queue::with_capacity(capacity);
     for index in 0..capacity {
-        store.submitted.push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
+        store
+            .submissions()
+            .push(Submit { op: Token::new(u64::from(index) + 1000), kind: Op::Close { fd: Fd::new(91) } });
     }
     while service.submissions().room() > 0 {
         service.submissions().push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(92) } });
@@ -746,70 +610,12 @@ fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
     assert_eq!(signal_reads, 1, "the signal source reaches the kernel before the box completion is routed");
     assert!(service.notes().is_empty());
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let Some(crate::Note::BoxLink { .. }) = service.notes().pop() else {
+    let Some(crate::Note::Engine(crate::EngineNote::BoxLink { .. })) = service.notes().pop() else {
         panic!("the later completion reaches the box owner");
     };
     assert!(service.completions().is_empty());
 }
 
-#[test]
-fn queued_completions_are_taken_before_a_due_io_timer() {
-    use skein_io::kernel::{Complete, Error, Fd, Op};
-    use skein_lib::Queue;
-    let mut service = fixtures::ready();
-    service.adopt_signals(Fd::new(95)).unwrap();
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let mut accept = None;
-    let mut read = None;
-    for _ in 0..service.submissions().len() {
-        let submit = service.submissions().pop().unwrap();
-        if let Op::Accept { .. } = submit.kind
-            && accept.is_none()
-        {
-            accept = Some(submit);
-        } else if let Op::ReadSignal { fd } = submit.kind
-            && fd == Fd::new(95)
-        {
-            read = Some(submit);
-        } else {
-            service.submissions().push(submit);
-        }
-    }
-    let accept = accept.expect("the clients listener's accept");
-    let Op::Accept { fd: listener } = accept.kind else { panic!("accept") };
-    service.completions().push(Complete { op: accept.op, kind: accept.kind, result: Err(Error::TooManyOpenFiles) });
-    crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let due = service.next_deadline().expect("the listener retries its exhausted descriptor budget");
-    assert!(service.pending(due).io_due, "the retry is an IO timer");
-    let read = read.expect("signal read");
-    // A one-entry shell completion queue makes this one completion a full reap batch.
-    *service.completions() = Queue::with_capacity(1);
-    service.completions().push(Complete { op: read.op, kind: read.kind, result: Err(Error::BrokenPipe) });
-    assert_eq!(service.completions().room(), 0);
-    crate::iterate(&mut service, due, Wall::EPOCH);
-    let mut close_at = None;
-    let mut retry_at = None;
-    for (position, submit) in service.submissions().iter().enumerate() {
-        if let Op::Close { fd } = submit.kind
-            && fd == Fd::new(95)
-        {
-            close_at = Some(position);
-        }
-        if let Op::Accept { fd } = submit.kind
-            && fd == listener
-        {
-            retry_at = Some(position);
-        }
-    }
-    let close_at = close_at.expect("the completion's signal source closes its failed input");
-    let retry_at = retry_at.expect("the due listener timer retries accept");
-    assert!(close_at < retry_at, "the kernel sees the completion owner's output before the timer owner's output");
-    assert!(service.completions().is_empty());
-}
-
-// Synthetic closes fill staging without an io owner. Reaping their published
-// records returns route credit just as a shell completion does.
 fn reap_staged_closes(service: &mut crate::Service) {
     use skein_io::kernel::{Complete, Done, Fd, Op};
     for _ in 0..service.submissions().len() {

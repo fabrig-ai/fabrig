@@ -16,7 +16,7 @@ fn github_start_refusals_name_their_paths() {
 
 #[test]
 fn records_and_installation_notes_name_the_forge_and_reason() {
-    use temper_service::{NotConnected, Note};
+    use temper_engine_service::{NotConnected, Note};
     assert_eq!(
         note_line("temper", Note::ForgeNotConnected { number: 7, why: NotConnected::Unreadable }),
         "temper serve: forge 7: not connected: its records are unreadable\n"
@@ -43,7 +43,7 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
 
 #[test]
 fn forge_sign_in_notes_name_each_unserved_reason() {
-    use temper_service::{Note, clients::forge_sign_in::Unserved};
+    use temper_engine_service::{Note, clients::forge_sign_in::Unserved};
     for (why, words) in [
         (Unserved::NotKept, "no such forge is kept"),
         (Unserved::NotForgejo, "it is not a Forgejo"),
@@ -96,7 +96,10 @@ fn other_endings_keep_their_exit_behavior() {
     problems.push(jig_protocol_config::Path::root().member(b"deployment"), jig_protocol_config::What::Refers);
     for (end, output_failed, expected, code) in [
         (
-            Some(End::Stopped(Stop::RestorePage { range: temper_service::RestoreRangeKind::Census, failure: None })),
+            Some(End::Stopped(Stop::RestorePage {
+                range: temper_engine_service::RestoreRangeKind::Census,
+                failure: None,
+            })),
             false,
             "temper serve: restore census: store load failed\n",
             1,
@@ -116,20 +119,20 @@ fn other_endings_keep_their_exit_behavior() {
         (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
         (
             Some(End::Stopped(Stop::Journal {
-                why: temper_service::JournalStop::Refused { commit: 7, sent: 9, durable: 8 },
+                why: temper_engine_service::JournalStop::Refused { commit: 7, sent: 9, durable: 8 },
             })),
             false,
             "temper serve: the engine's journal stopped: the store answered commit 7, with 9 sent and 8 durable\n",
             1,
         ),
         (
-            Some(End::Stopped(Stop::Journal { why: temper_service::JournalStop::PastEdge { writes: 32 } })),
+            Some(End::Stopped(Stop::Journal { why: temper_engine_service::JournalStop::PastEdge { writes: 32 } })),
             false,
             "temper serve: the engine's journal stopped: a decision past the store's 32 writes\n",
             1,
         ),
         (
-            Some(End::Stopped(Stop::Journal { why: temper_service::JournalStop::Counter })),
+            Some(End::Stopped(Stop::Journal { why: temper_engine_service::JournalStop::Counter })),
             false,
             "temper serve: the engine's journal stopped: the commit counter at its end\n",
             1,
@@ -143,7 +146,7 @@ fn other_endings_keep_their_exit_behavior() {
         (Some(End::Stopped(Stop::Hooks)), false, "temper serve: webhooks listener failed\n", 1),
         (
             Some(End::Stopped(Stop::Listener {
-                listener: temper_service::Listening::Clients,
+                listener: temper_engine_service::Listening::Clients,
                 address: Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
                 error: Some(skein_io::Error::Other),
             })),
@@ -153,7 +156,7 @@ fn other_endings_keep_their_exit_behavior() {
         ),
         (
             Some(End::Stopped(Stop::Listener {
-                listener: temper_service::Listening::Workers,
+                listener: temper_engine_service::Listening::Workers,
                 address: Some(skein_io::Addr::InProcess(
                     skein_io::Name::new(b"workers").expect("configured worker listener"),
                 )),
@@ -178,7 +181,7 @@ fn other_endings_keep_their_exit_behavior() {
 
 #[test]
 fn listening_notes_print_each_listener_and_socket_address_exactly() {
-    use temper_service::{Listening, Note};
+    use temper_engine_service::{Listening, Note};
     for (listener, name) in
         [(Listening::Clients, "clients"), (Listening::Workers, "workers"), (Listening::Webhooks, "webhooks")]
     {
@@ -198,7 +201,7 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
 fn startup_warnings_print_the_configuration_path_and_figures() {
     let line = b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout";
     assert_eq!(
-        note_line("temper", temper_service::Note::StartupWarning { line: line.as_slice().into() }),
+        note_line("temper", temper_engine_service::Note::StartupWarning { line: line.as_slice().into() }),
         "temper serve: warning: engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n"
     );
 }
@@ -208,7 +211,7 @@ fn hello_refusal_notes_print_the_channel_and_words_exactly() {
     assert_eq!(
         note_line(
             "temper",
-            temper_service::Note::HelloRefused {
+            temper_engine_service::Note::HelloRefused {
                 channel: 7,
                 text: b"charter 2: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
             }
@@ -223,7 +226,7 @@ fn hello_refusal_notes_print_the_channel_and_words_exactly() {
     reason = "one table pins every engine loss and refusal for both a lost channel and an opening"
 )]
 fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
-    use temper_service::{EngineWorkerLoss as Loss, Note};
+    use temper_engine_service::{EngineWorkerLoss as Loss, Note};
     for (why, lost, opening) in [
         (
             Loss::OutputRoom { engine: 1_048_576, worker: 18_432_634 },
@@ -405,7 +408,7 @@ fn worker_unsent_lines_name_the_record_bytes_and_bound() {
         assert_eq!(
             note_line(
                 "temper",
-                temper_service::Note::WorkerUnsent {
+                temper_engine_service::Note::WorkerUnsent {
                     worker: b"worker-a".as_slice().into(),
                     channel: skein_lib::Token::new(7),
                     unsent: Unsent { kind, bytes, bound },
@@ -418,7 +421,7 @@ fn worker_unsent_lines_name_the_record_bytes_and_bound() {
 
 #[test]
 fn worker_listener_failures_print_the_exit_lines_words_at_once() {
-    use temper_service::Note;
+    use temper_engine_service::Note;
     for (address, error, expected) in [
         (
             Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
@@ -437,7 +440,7 @@ fn worker_listener_failures_print_the_exit_lines_words_at_once() {
 
 #[test]
 fn setup_stops_print_the_forge_plan_and_typed_step_without_a_subject() {
-    use temper_service::{Note, SetupPlan, SetupStage, SetupStep, SetupStopped, SetupWhy};
+    use temper_engine_service::{Note, SetupPlan, SetupStage, SetupStep, SetupStopped, SetupWhy};
     for (why, line) in [
         (SetupStopped::NotPrepared, "prepare it with `temper forge prepare`"),
         (SetupStopped::Missing, "setup host missing"),
@@ -464,7 +467,7 @@ fn the_shell_removes_only_the_named_handover_and_reports_unlink_failure() {
         std::env::temp_dir().join(format!("temper-handover-{}", skein_shell::seed().expect("scratch name")));
     std::fs::create_dir(&directory).expect("handover fixture");
     let path = directory.join("admin_token");
-    let removal = temper_service::HandoverRemoval {
+    let removal = temper_engine_service::HandoverRemoval {
         forge: 1,
         run: skein_lib::Token::new(7),
         path: path.as_os_str().as_bytes().into(),
@@ -475,9 +478,9 @@ fn the_shell_removes_only_the_named_handover_and_reports_unlink_failure() {
     let errno = remove_handover(&removal).expect_err("an unlink failure is never acknowledged as removed");
     let line = note_line(
         "temper",
-        temper_service::Note::ForgeSetupStopped {
+        temper_engine_service::Note::ForgeSetupStopped {
             number: removal.forge,
-            why: temper_service::SetupStopped::Removal { path: removal.path.clone(), errno },
+            why: temper_engine_service::SetupStopped::Removal { path: removal.path.clone(), errno },
         },
     );
     assert!(line.contains("removing the handover:") && line.contains(path.to_str().expect("handover fixture")));
@@ -494,7 +497,7 @@ fn the_shell_trims_only_the_handovers_final_newline() {
         std::env::temp_dir().join(format!("temper-handover-read-{}", skein_shell::seed().expect("scratch name")));
     std::fs::create_dir(&directory).expect("handover fixture");
     let path = directory.join("admin_token");
-    let read = temper_service::HandoverRead {
+    let read = temper_engine_service::HandoverRead {
         forge: 1,
         run: skein_lib::Token::new(7),
         path: path.as_os_str().as_bytes().into(),
@@ -514,7 +517,7 @@ fn the_shell_trims_only_the_handovers_final_newline() {
         assert!(answer.expose() == expected, "only one final LF is removed");
     }
     std::fs::write(&path, b"123456789012").expect("one byte beyond the bound");
-    assert!(matches!(read_handover(&read), Err(temper_service::HandoverUnread::TooLarge)));
+    assert!(matches!(read_handover(&read), Err(temper_engine_service::HandoverUnread::TooLarge)));
     std::fs::remove_dir_all(directory).expect("handover fixture");
 }
 
@@ -523,8 +526,10 @@ fn a_drained_end_prints_each_unsettled_write() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
-    let unfinished =
-        [temper_service::Unsettled { entry: 17, task: 3 }, temper_service::Unsettled { entry: 22, task: 9 }];
+    let unfinished = [
+        temper_engine_service::Unsettled { entry: 17, task: 3 },
+        temper_engine_service::Unsettled { entry: 22, task: 9 },
+    ];
     assert_eq!(ending_with_binary("temper", Some(&End::Drained), false, &directories, b"/data/store", &unfinished), (
         "temper serve: stopped before task 3's forge write 17 settled; the next start settles it\ntemper serve: stopped before task 9's forge write 22 settled; the next start settles it\n".into(), 0
     ));
@@ -675,7 +680,7 @@ fn unreadable_temper_rows_end_with_the_named_recovery_words_and_exit_one() {
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting")] {
-        let end = End::Stopped(Stop::StoreRow { row: temper_service::UnreadableRow { key: Box::from([tag]) } });
+        let end = End::Stopped(Stop::StoreRow { row: temper_engine_service::UnreadableRow { key: Box::from([tag]) } });
         for deployment in ["/data/deployment", "/elsewhere/store"] {
             for binary in ["temper", "temper-engine"] {
                 assert_eq!(
@@ -724,7 +729,7 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
             "Decode(Key), key [ff] (truncated, 3 bytes total)",
         ),
     ] {
-        let end = End::Stopped(Stop::RestorePage { range: temper_service::RestoreRangeKind::Tasks, failure });
+        let end = End::Stopped(Stop::RestorePage { range: temper_engine_service::RestoreRangeKind::Tasks, failure });
         assert_eq!(
             ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
             (format!("temper serve: restore tasks: {words}\n"), 1)
@@ -735,7 +740,7 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
 #[test]
 fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
     use temper_engine_domain_forge::LinkNote;
-    use temper_service::Note;
+    use temper_engine_service::Note;
     for (note, expected) in [
         (
             Note::CallAdmissionRefused {
@@ -778,7 +783,7 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
 fn read_job_refusal_line_names_the_asked_attempt() {
     let line = note_line(
         "temper",
-        temper_service::Note::ReadRefused {
+        temper_engine_service::Note::ReadRefused {
             task: 7,
             attempt: 4,
             tool: Box::from(*b"read_job"),
@@ -827,7 +832,14 @@ fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
         assert_eq!(
             note_line(
                 "temper",
-                temper_service::Note::BriefReadRefused { task: 7, section: b"pull", stage, reason, heads, error }
+                temper_engine_service::Note::BriefReadRefused {
+                    task: 7,
+                    section: b"pull",
+                    stage,
+                    reason,
+                    heads,
+                    error
+                }
             ),
             expected
         );
@@ -839,7 +851,7 @@ fn stale_files_refusal_names_the_error_without_heads() {
     assert_eq!(
         note_line(
             "temper",
-            temper_service::Note::BriefReadRefused {
+            temper_engine_service::Note::BriefReadRefused {
                 task: 7,
                 section: b"pull",
                 stage: "files",
@@ -857,7 +869,7 @@ fn brief_failure_line_names_how_it_counts_and_why() {
     assert_eq!(
         note_line(
             "temper",
-            temper_service::Note::BriefFailed {
+            temper_engine_service::Note::BriefFailed {
                 task: 7,
                 counts: "permanent",
                 reason: b"pull: the forge's answer did not match its read".as_slice().into(),
@@ -871,7 +883,7 @@ fn brief_failure_line_names_how_it_counts_and_why() {
 fn refused_job_log_origin_note_names_only_the_origin() {
     let line = note_line(
         "temper",
-        temper_service::Note::ForgeOrigin {
+        temper_engine_service::Note::ForgeOrigin {
             number: 7,
             origin: skein_forge::github::redirect::Origin {
                 tls: true,
@@ -884,8 +896,8 @@ fn refused_job_log_origin_note_names_only_the_origin() {
 }
 
 #[cfg(test)]
-fn failed_run_note(detail: &[u8]) -> temper_service::Note {
-    temper_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
+fn failed_run_note(detail: &[u8]) -> temper_engine_service::Note {
+    temper_engine_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
         task: 3,
         run: 7,
         attempt: 2,
@@ -912,8 +924,13 @@ fn failed_run_stderr_keeps_a_bounded_tail() {
 }
 
 #[cfg(test)]
-fn refused_run_note(reason: jig_domain_host::Refusal) -> temper_service::Note {
-    temper_service::Note::RunRefused(temper_service::RunRefusalDiagnostic { task: 3, run: 7, attempt: 2, reason })
+fn refused_run_note(reason: jig_domain_host::Refusal) -> temper_engine_service::Note {
+    temper_engine_service::Note::RunRefused(temper_engine_service::RunRefusalDiagnostic {
+        task: 3,
+        run: 7,
+        attempt: 2,
+        reason,
+    })
 }
 
 #[test]
@@ -951,14 +968,12 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
 #[test]
 fn job_stderr_forms_escape_and_bound_their_why() {
     use jig_domain_host::{JobFailure, JobInvalid, JobRefusal, Preparation};
-    use temper_service::{JobDiagnostic, JobDiagnosticEnding};
-    // domain/worker/jobs.md: all four forms retain the last 4,096 input bytes.
+    use temper_engine_service::{JobDiagnostic, JobDiagnosticEnding};
+    // The engine job forms retain the last 4,096 input bytes.
     const TAIL: usize = 4096;
-    for (worker, refused, prefix) in [
-        (false, false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),
-        (false, true, "temper serve: task 3 run 7 attempt 2 refused Invalid(Start): job 3: "),
-        (true, false, "temper worker: run 7 attempt 2 job 3 merge failed Unprepared(Transient): "),
-        (true, true, "temper worker: run 7 attempt 2 job 3 merge refused Invalid(Start): "),
+    for (refused, prefix) in [
+        (false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),
+        (true, "temper serve: task 3 run 7 attempt 2 refused Invalid(Start): job 3: "),
     ] {
         for (why, expected) in [
             (b"fetch base: Broken\n\xff".to_vec(), "fetch base: Broken\\n\\xff".to_owned()),
@@ -973,23 +988,13 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     detail: why.clone().into(),
                 }
             };
-            let note = if worker {
-                temper_service::Note::WorkerJob {
-                    run: 7,
-                    attempt: 2,
-                    kind: 3,
-                    verb: b"merge".as_slice().into(),
-                    ending: match ending {
-                        JobDiagnosticEnding::Failed { failure, detail } => {
-                            temper_service::WorkerJobEnding::Failed { failure, detail }
-                        }
-                        JobDiagnosticEnding::Refused(reason) => temper_service::WorkerJobEnding::Refused(reason),
-                    },
-                    why: why.into(),
-                }
-            } else {
-                temper_service::Note::JobAnswered(JobDiagnostic { task: 3, run: 7, attempt: 2, kind: 3, ending })
-            };
+            let note = temper_engine_service::Note::JobAnswered(JobDiagnostic {
+                task: 3,
+                run: 7,
+                attempt: 2,
+                kind: 3,
+                ending,
+            });
             assert_eq!(note_line("temper", note), format!("{prefix}{expected}\n"));
         }
     }
@@ -997,7 +1002,7 @@ fn job_stderr_forms_escape_and_bound_their_why() {
         (JobFailure::Deadline, "Deadline"),
         (JobFailure::Undelivered(jig_domain_host::DeliveryOutcome::Failed), "Undelivered(Failed)"),
     ] {
-        let note = temper_service::Note::JobAnswered(JobDiagnostic {
+        let note = temper_engine_service::Note::JobAnswered(JobDiagnostic {
             task: 3,
             run: 7,
             attempt: 2,
@@ -1012,7 +1017,7 @@ fn job_stderr_forms_escape_and_bound_their_why() {
 }
 #[test]
 fn core_wait_notes_name_the_reason_and_recovery() {
-    use temper_service::{CoreWait, Note};
+    use temper_engine_service::{CoreWait, Note};
     for (binary, note, expected) in [
         (
             "temper",

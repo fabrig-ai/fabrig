@@ -65,23 +65,7 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-bench smith-bench", until: "smith's round" },
     Exception { what: "smith-bench test-peer", until: "smith's round" },
 ];
-const FEATURE_EXCEPTIONS: &[Exception] = &[
-    Exception { what: "Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-fake/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-playground/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-service/Cargo.toml: [features]", until: "cli C5" },
-    Exception { what: "temper/crates/temper-service/Cargo.toml: temper-worker-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-service/Cargo.toml: temper-worker-domain", until: "cli C5" },
-    Exception { what: "temper/crates/temper-box-shell/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/testing/temper-github-app/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/client-browser/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/client/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/engine/domain/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/one-process/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/playground/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/real-loop/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/system/Cargo.toml: temper-service", until: "cli C5" },
-];
+const FEATURE_EXCEPTIONS: &[Exception] = &[];
 
 /// The findings no exception names, and the exceptions that name no
 /// finding, as one failure message; `None` when both are empty.
