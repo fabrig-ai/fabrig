@@ -33,12 +33,15 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     patcher.finish().expect("patched record").into()
 }
 
+#[expect(clippy::disallowed_types, reason = "the code generator returns golden bytes as a Vec")]
+#[expect(clippy::disallowed_methods, reason = "the test selects a generated golden by name")]
 fn baseline_golden(name: &str) -> Vec<u8> {
     let schema = skein_codegen::parse(crate::patches::kept::jig_store_tasks::TEXTS[0]).expect("old schema");
     skein_codegen::generate(&schema).goldens.into_iter().find(|golden| golden.name == name).expect("old golden").bytes
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the test assembles baseline and expected record bytes")]
 fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let smallest = baseline_golden("enum_value_live_smallest.bin");
     let (tag, record) = smallest.split_first().expect("live tag");
