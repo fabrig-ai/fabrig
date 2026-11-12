@@ -367,7 +367,7 @@ fn program_login_takes_its_background_groups_terminal_before_claude_reads() {
     fs::create_dir_all(claude.parent().expect("cached build directory")).expect("cache");
     fs::write(
         &claude,
-        b"#!/bin/sh\n[ \"$DISABLE_AUTOUPDATER\" = 1 ] && [ \"$DISABLE_UPDATES\" = 1 ] || exit 10\n[ \"$#\" -eq 2 ] && [ \"$1\" = auth ] && [ \"$2\" = login ] || exit 9\nIFS= read -r answer || exit 8\n[ -z \"$answer\" ] || exit 7\nprintf 'login read its terminal\\n'\n",
+        b"#!/bin/sh\n[ \"$DISABLE_AUTOUPDATER\" = 1 ] && [ \"$DISABLE_UPDATES\" = 1 ] || exit 10\n[ \"$#\" -eq 2 ] && [ \"$1\" = auth ] && [ \"$2\" = login ] || exit 9\nIFS= read -r answer || exit 8\n[ -z \"$answer\" ] || exit 7\nprintf 'login read its terminal\\n'\nexit 0\n",
     )
     .expect("fake claude reads its inherited terminal");
     fs::OpenOptions::new().write(true).open(&claude).expect("cached fake").set_len(build.bytes).expect("pinned size");

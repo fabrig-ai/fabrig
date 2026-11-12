@@ -269,8 +269,130 @@ signed in, and 02, after):
 - **Its foot** is the no-project launchpad's: the box takes commands
   alone, its placeholder "/ for commands", then the quiet line. Its notes
   follow its sections, as the launchpad's do.
+- **Model's detail:** once a model is usable, "3 Model" ticked reads,
+  after its label, " · " and ACCOUNT (`tui-hint`), the first usable
+  account as the browser's Ready names it (`../pages/welcome.md`, 1,
+  *Ready*: "Claude subscription", "ChatGPT plan", "OpenAI API key"),
+  and for a program's source ", through Claude Code" after it: "✓ 3
+  Model · Claude subscription, through Claude Code"
+  (`../../draft/claude-sign-in.md`, 3, t3).
 
-**The playground**, illustrative (the request's 03):
+**Lending its terminal**, illustrative (`../../draft/claude-sign-in.md`,
+3: t2, the terminal while lent, and t3, back; `claude-sign-in/`):
+
+```
+$ temper box
+temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.
+(Claude Code's own sign-in, its screens its own)
+```
+
+```
+ Setting temper up in your browser
+   ✓ Signed in as the owner
+   ✓ 1 Welcome
+   ✓ 2 Forge
+   ✓ 3 Model · Claude subscription, through Claude Code
+   ▸ 4 Ready
+
+ The steps are the browser's; this screen follows them.
+```
+
+The TUI follows the welcome's steps and takes none (*The welcome*,
+above), but for this one act: on the engine's ask, after the browser's
+"Sign in to Claude Code" (`../pages/welcome.md`, 1, *Claude Code's
+sign-in*), it lends the terminal the person started `temper box` in to
+`temper-box program-login`, as git hands a terminal to an editor, and
+takes it back when Claude Code exits. It reads, draws and keeps nothing
+of the sign-in (jig's `domain/terminal-login.md`, 6).
+
+- **The offer,** in front alone: right after `Start`, after
+  `Event::Launchpad` (`README.md`, 3), the host gives the root
+  `Event::Lends { terminal }` once, `terminal` a number drawn from the
+  host's seed, and the root keeps the watch `terminal{n}` of that number
+  open for as long as the TUI runs (jig's `domain/terminal-login.md`,
+  2). Out of front the TUI offers none: bare `temper` lends nothing
+  (`../../draft/claude-sign-in.md`, 7, *Which TUI can lend*).
+- **Asked:** after each report, while the TUI lends nothing, a login
+  the root's terminal document names, not cancelled, of a number the TUI
+  has not taken before, is the duty `lend`: its number, its NAME, and
+  the line to print. The TUI's state holds the login it lends from then
+  until its end; a login named meanwhile is not taken, and one the
+  document stops naming is still lent until its end.
+- **Stepping aside,** the run carrying `lend`, in this order:
+  1. the terminal lent (skein's `ui/screen.md`, section 8, *Lent to a
+     child*), and once `lent`, the kept modes set back (`Kept::set_kept`,
+     skein's `runtime/shell.md`, 6.3);
+  2. the line written to standard output, then a line feed: "temper:
+     Claude Code signs in here. Approve it on Anthropic's page, in the
+     tab it opens; if that page shows a code, paste it here. temper comes
+     back when it's done, or when you press Cancel in the browser.";
+  3. NAME checked against a source's name's bounds, 1 to 32 of `a` to
+     `z`, `0` to `9` and `-`, then the child spawned: the box's own
+     `temper-box`, the path its fetch found (`found PATH`, *The box's
+     start*), with `program-login`, the box's directories as `--config
+     CONFIG --data DATA --cache CACHE`, resolved from `temper box`'s
+     arguments and environment as the box resolves them
+     (`../box-binary.md`), and NAME; its descriptors 0, 1 and 2 the
+     TUI's own (`Way::Inherit`, skein's `runtime/io/processes.md`,
+     section 1); the captured environment and working directory, as the
+     box's; in a process group of its own, which takes the terminal's
+     foreground itself (`../../protocol/credentials.md`, 3, *Its
+     terminal's foreground*). Nothing from the engine but NAME reaches
+     its arguments or environment. A NAME refused, a box with no path
+     yet, or a spawn that fails is the end `NotStarted`, at once.
+- **While lent** the TUI reads nothing and draws nothing: the keys are
+  Claude Code's, and Ctrl+C there is Claude Code's, its group being the
+  foreground. The engine's events, the box's lines and its stages still
+  reach the TUI's state as they come, and the frame drawn once the
+  terminal is back holds them. The box ending meanwhile leaves the child
+  to its end; a termination signal of `temper`'s own sends the child's
+  group `SIGTERM`, waits for its end and takes the terminal back before
+  the run closes (`README.md`, 4).
+- **Cancelled:** a login lent that the root's document marks cancelled is
+  the duty `unlend`, once: the run sends the child's group `SIGTERM`
+  (io's `Signal` with `Target::Group`) and waits for its end.
+- **Back,** at the child's end, an exit or a signal: the run takes the
+  foreground back (`take_foreground`), sets the modes raw again
+  (`Kept::set_raw`), resumes the terminal (`Terminal::resume`), which
+  draws the next frame whole, and reports `Lent { number, exit }`. The
+  host gives the root the act that sends `LoginEnded { number, exit }`
+  (jig's `domain/terminal-login.md`, 4), clears the login lent, and
+  gives the TUI's notice (`pages/README.md`, 1, *The notice*): "Claude
+  Code's sign-in cancelled" where it gave `unlend`, else "Claude Code
+  signed in" at exit 0, else "Claude Code's sign-in didn't finish". The
+  engine's answer changes none of them. Once the host's check says the
+  source is usable, "3 Model" reads its detail (*Model's detail*, above).
+- **`program-login` refusing** (no program configured, a directory not
+  the person's): its one line shows in the terminal under the TUI's, and
+  its exit 1 ends the login as any non-zero exit
+  (`../../draft/claude-sign-in.md`, 7).
+- **The seam** (`README.md`, 3) gains, for this alone:
+
+  ```rust
+  // temper_client_shell_tui::host
+  pub struct Lend {
+      pub number: u32,
+      pub name: Box<[u8]>,                        // the source's NAME, as the document names it
+      pub line: Box<[u8]>,                        // the TUI's line, its words, no line feed
+  }
+  // Duties gains
+  pub lend: Option<Lend>,                         // the terminal to lend for this login
+  pub unlend: bool,                               // the child to stop, the login cancelled
+  // Report gains
+  Report::Lent { number: u32, exit: jig_client_domain::contract::LoginExit },
+  ```
+
+  and the root, `temper-client-domain`'s, gains `Event::Lends { terminal:
+  u64 }`, a read of its terminal document's login, and the act that
+  reports a login's end with `LoginEnded`, its holder the person's own.
+- **The TUI's state** holds, beside the rest: the login lent, its number
+  and NAME, and whether `unlend` was given. **Its words**, the line and
+  the three notices, are its own (*Its words*, below).
+- **The recording:** `Report::Lent` is the record `lent`, `NUMBER EXIT`,
+  EXIT `exited N`, `killed N` or `not-started`, and the duties are
+  recorded as any (`journeys.md`, 3.2): `lend` with its number and NAME,
+  never its line, and `unlend`. A replay gives `lent` to the host as the
+  run reported it.
 
 ```
 ╭─ temper · Demo ─────────────────────────────────────────── playground · box ─╮
@@ -463,8 +585,8 @@ header's border end with no project, as the frames show.
   Each marks the frame it acts on in a recording, as any key with an
   event but typing does (`journeys.md`, 3.3).
 - **Its words,** every one quoted in this section, are the TUI's own,
-  under its owner (skein's `ui/README.md`, section 9), but "temper box" and the
-  steps' labels, the view's.
+  under its owner (skein's `ui/README.md`, section 9), but "temper box", the
+  steps' labels and Model's ACCOUNT, the view's.
 - **Its tokens,** under the TUI's owner, after `theme.md`'s, in its table's
   form:
 
@@ -514,3 +636,22 @@ header's border end with no project, as the frames show.
   with a `temper-box` beside it, the local link on its pipe signing the
   TUI in, Ctrl+C with "Stop the box" stopping the box and `temper`
   exiting 0, and `temper` killed stopping the box.
+- **Lending's tests** (*Lending its terminal*): golden frames at 80 by
+  24, dark, of the welcome back with each of the three notices, and with
+  Model's detail; rows of the host for the offer given once in front and
+  never out of front, `lend` from a login named and none while lending
+  or for a number taken, `unlend` once, and `Lent` giving `LoginEnded`
+  and each notice; of the recording's codec for `lent` and the duties;
+  of the run, with fakes for the child and the terminal, for `lend`'s
+  order (the terminal lent, the modes set back, the line, the spawn's
+  program, arguments, environment and inherited descriptors), the end
+  `NotStarted` for a NAME refused, `SIGTERM` to the child's group at
+  `unlend` and at a termination signal while lent, and the terminal
+  taken back at the child's end; and the joint world's: the browser's
+  press reaching a TUI in front as `lend`, its `Lent` at exit 0 making
+  the source, Cancel reaching it as `unlend`, and the TUI's end turning
+  the page to its form with no terminal. The process tier, written and
+  compiled: `temper box` on a pseudo-terminal lending it to a fake
+  `temper-box program-login` that reads a line and exits 0, and the
+  TUI's frame back after it. A journey of it waits with `box-welcome`'s
+  (`journeys.md`, 9).
