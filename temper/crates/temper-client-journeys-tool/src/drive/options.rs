@@ -78,6 +78,7 @@ pub struct Plan {
     pub options: Options,
     pub chromium: PathBuf,
     pub environment: Vec<(OsString, OsString)>,
+    pub(super) tui_display: Option<OsString>,
 }
 impl Plan {
     #[must_use]
@@ -94,7 +95,7 @@ impl Plan {
         ] {
             environment.push((key.into(), options.scratch.join("session").join(dir).into_os_string()));
         }
-        Self { options, chromium, environment }
+        Self { options, chromium, environment, tui_display: None }
     }
     #[must_use]
     pub fn box_program(&self) -> Program {
@@ -115,6 +116,28 @@ impl Plan {
         let mut all = vec!["ctl".into(), self.options.scratch.join("session/ctl").into_os_string()];
         all.extend(args.iter().map(|arg| OsStr::from_bytes(arg).to_os_string()));
         self.program("temper-client", all, input)
+    }
+    pub(super) fn tui(&self, origin: &[u8]) -> Result<Program, String> {
+        let mut given = self
+            .environment
+            .iter()
+            .map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into()))
+            .collect::<Vec<_>>();
+        if let Some(display) = &self.tui_display {
+            given.push((b"DISPLAY".as_slice().into(), display.as_bytes().into()));
+        }
+        let mut environment = crate::tui_driver::environment(&given, &self.options.scratch.join("session"))
+            .map_err(|why| format!("cannot build TUI environment: {why}"))?;
+        for (name, value) in &mut environment {
+            if ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"].iter().any(|key| name == key) {
+                value.clone_from(
+                    &self.environment.iter().find(|(key, _)| key == name).expect("session XDG directory").1,
+                );
+            }
+        }
+        let mut program = self.program("temper-client", vec![OsStr::from_bytes(origin).into()], Input::Null);
+        program.environment = environment;
+        Ok(program)
     }
     fn program(&self, name: &str, args: Vec<OsString>, input: Input) -> Program {
         Program {
@@ -197,8 +220,12 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
         crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
     let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
     executable(&chromium)?;
-    let plan =
+    let mut plan =
         Plan::new(options, chromium, OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default()));
+    plan.tui_display = environment
+        .iter()
+        .find(|(name, _)| name.as_ref() == b"DISPLAY")
+        .map(|(_, value)| OsStr::from_bytes(value).to_os_string());
     fresh_session(&plan.options.scratch)
         .map_err(|error| format!("cannot prepare {}/session: {error}", plan.options.scratch.display()))?;
     Ok(plan)

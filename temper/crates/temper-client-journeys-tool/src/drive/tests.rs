@@ -181,9 +181,6 @@ fn failure_names_sought_controls_keeps_line_and_continues() {
     assert!(answer(&actions).failed.as_ref().is_some_and(|why| why.contains("line 2") && why.contains("name")));
     assert!(!actions.iter().any(|a| matches!(a, Action::Keep(_))));
     assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
-    let actions = line(&mut m, "tui key enter");
-    assert_eq!(answer(&actions).print(), "failed: line 4: the TUI's lines are not driven yet\n");
-    assert!(actions.iter().any(|a| matches!(a, Action::Keep(_))));
 }
 struct Pages {
     page: u32,
@@ -248,13 +245,12 @@ fn kept_steps_replay_on_a_fresh_face() {
         r#"web press button "Start""#,
         "web look 1000",
         r#"web input textbox "Name" "Hello""#,
-        "tui key enter",
         r#"web press button "Continue""#,
         "web look",
     ] {
         pages.walk(&mut m, source.as_bytes(), &mut kept);
     }
-    assert_eq!(kept.len(), 4);
+    assert_eq!(kept.len(), 3);
     let mut replay = Pages { page: 0, value: Box::new([]) };
     let mut fresh = ready();
     let mut replay_kept = vec![];
@@ -368,13 +364,23 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         fs::write(&file, b"not executed").expect("fixture");
         fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
     }
-    let environment = vec![(
-        b"SKEIN_TEST_CHROMIUM".as_slice().into(),
-        root.join("bin/chromium").as_os_str().as_encoded_bytes().into(),
-    )];
-    super::options::prepare(options, &environment).expect("preflight only");
+    let environment = vec![
+        (b"SKEIN_TEST_CHROMIUM".as_slice().into(), root.join("bin/chromium").as_os_str().as_encoded_bytes().into()),
+        (b"DISPLAY".as_slice().into(), b":7".as_slice().into()),
+    ];
+    let plan = super::options::prepare(options, &environment).expect("preflight only");
+    let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
+    assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
+    for opener in ["xdg-open", "open"] {
+        assert_eq!(
+            fs::read_link(root.join("session/bin").join(opener)).expect("opener link"),
+            Path::new("/usr/bin/true")
+        );
+    }
     assert_eq!(fs::read(root.join("session/lines")).expect("fresh lines"), b"");
     for dir in ["config", "data", "cache"] {
         assert_eq!(fs::read(root.join(dir).join("kept")).expect("unchanged"), dir.as_bytes());
     }
 }
+
+mod tui;
