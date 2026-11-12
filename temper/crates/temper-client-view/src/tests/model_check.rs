@@ -546,6 +546,7 @@ fn trial_failures_say_why_and_retry_the_account() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
     for (class, words) in [
         (v::TrialClass::Transient, "Claude was busy or out of reach just now."),
+        (v::TrialClass::Infrastructure, "Claude was busy or out of reach just now."),
         (v::TrialClass::Permanent, "Claude refused the request. Its account may need attention."),
         (v::TrialClass::Run, "The run stopped before Claude answered."),
         (v::TrialClass::Agent, "The run stopped before Claude answered."),

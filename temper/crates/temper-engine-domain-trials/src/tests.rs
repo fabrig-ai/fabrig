@@ -175,7 +175,7 @@ fn seconds_round_up_and_are_at_least_one() {
 #[test]
 fn a_failed_run_fails_it_and_cancels() {
     for class in
-        [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid, Class::Refused]
+        [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid, Class::Refused, Class::Infrastructure]
     {
         let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
         let event = Event::RunFailed { task: TASK, class };

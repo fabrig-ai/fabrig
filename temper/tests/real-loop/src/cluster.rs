@@ -27,7 +27,7 @@ impl Cluster {
     #[must_use]
     pub fn tries(&self, number: u64) -> jig_domain_tasks::Tries {
         *self.ran.service().tries.get(&number).expect("observed task")
-   , infrastructure: 0 }
+    }
     #[must_use]
     pub fn worker(&self, name: &str) -> &ServiceHost {
         self.ran

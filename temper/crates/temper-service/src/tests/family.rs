@@ -4158,6 +4158,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         State::Failed { why: Why::Refused },
         State::Failed { why: Why::Waited },
         State::Failed { why: Why::Ended { class: Class::Transient } },
+        State::Failed { why: Why::Ended { class: Class::Infrastructure } },
         State::Failed { why: Why::Ended { class: Class::Permanent } },
         State::Failed { why: Why::Ended { class: Class::Run } },
         State::Failed { why: Why::Ended { class: Class::Agent } },
@@ -4217,6 +4218,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
             let w::TrialWhy::Ended(ended) = failed.why() else { panic!("run ending") };
             let classes = [
                 w::TrialClass::Transient,
+                w::TrialClass::Infrastructure,
                 w::TrialClass::Permanent,
                 w::TrialClass::Run,
                 w::TrialClass::Agent,

@@ -891,6 +891,7 @@ fn application_moved_and_ended(rows: &mut skein_lib::List<jig_domain_people::Ref
         p::FailureClass::Run,
         p::FailureClass::Agent,
         p::FailureClass::Lost,
+        p::FailureClass::Infrastructure,
     ] {
         rows.push(p::Refusal::Moved { now: p::Moved::Hold { revision: 4, reason: p::HoldReason::Failures { class } } })
             .expect("bounded application cases");

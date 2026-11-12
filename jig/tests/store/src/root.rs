@@ -77,7 +77,8 @@ pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
         agent: TASK_RETRY,
         lost: TASK_RETRY,
         invalid: TASK_RETRY,
-   , infrastructure: RETRY },
+        infrastructure: TASK_RETRY,
+    },
     facts: 2,
     room_refusals: 2,
 };

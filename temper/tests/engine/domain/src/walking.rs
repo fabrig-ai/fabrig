@@ -83,7 +83,7 @@ pub fn limits() -> engine::Limits {
             run: retry,
             agent: retry,
             lost: retry,
-            invalid: retry, infrastructure: 0 },
+            invalid: retry, infrastructure: retry },
         facts: 2,
         room_refusals: 2,
     };
