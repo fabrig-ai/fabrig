@@ -191,13 +191,6 @@ pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
             "Make the change this task names, on its own branch.",
         ),
         (
-            6,
-            "Foreman",
-            "When a coding agent asks: answers from the goal’s design, or passes it up",
-            "read the code and the forge; never merge",
-            "Settle the question in your brief from the change’s words, the design and its pushed head.",
-        ),
-        (
             9,
             "Status agent",
             "When you look at Home after landings: writes the lines at its top",

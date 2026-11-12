@@ -481,7 +481,7 @@ pub(super) fn questions(b: &mut Builder, root: &Domain, w: &Words, bindings: &mu
         b.state(State::Disabled);
     }
     for (route, word) in
-        [(Route::Foreman, Word::SettingsForeman), (Route::Up, Word::SettingsUp), (Route::None, Word::SettingsAlone)]
+        [(Route::Up, Word::SettingsUp), (Route::None, Word::SettingsAlone)]
     {
         b.open(Role::Option);
         b.name(&w.say(word, &[]));

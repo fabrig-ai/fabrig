@@ -96,7 +96,6 @@ pub static FORMS: [Form; 70] = [
     Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"Project display and how goals start. Absent: drafts true, other switches false, way 0." },
     Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
         Word { word: b"none", line: b"No question route; the stock's value." },
-        Word { word: b"foreman", line: b"A change's questions go to its foreman." },
         Word { word: b"up", line: b"A change's questions go up to its parent." },
     ] }, line: b"The route a project's change takes when its maker names none." },
     Form { shape: Shape::ProjectClasses, name: b"project-classes", choice: Choice::Every, line: b"What agents decide or ask a person, by kind and path set. Absent: Agents review's table." },
