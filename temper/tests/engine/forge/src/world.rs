@@ -270,7 +270,7 @@ impl World {
     }
 
     #[must_use]
-    pub fn workspace_item(&self, seed: top::Seed) -> Option<top::Item> { self.top.workspace_item(seed) }
+    pub fn workspace_item(&self, seed: top::items::Seed) -> Option<top::items::Item> { self.top.workspace_item(seed) }
     pub fn pull_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
         let row = self.top.change(task).expect("change");
         let section = Token::new(901);

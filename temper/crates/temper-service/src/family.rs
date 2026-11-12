@@ -1456,7 +1456,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     ))
                 }
                 forge::LandingPhase::Held {
-                    why: forge::LandingHold::Prepare | forge::LandingHold::Record { .. },
+                    why: forge::LandingHold::Prepare | forge::LandingHold::Record { .. } | forge::LandingHold::Timeout { .. } | forge::LandingHold::Turn,
                     ..
                 }
                 | forge::LandingPhase::Waiting
