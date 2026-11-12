@@ -1,11 +1,11 @@
 //! One whole-set check, also used after restoring stored changes (domain/engine/settings.md, 1).
 
-pub use crate::below::settings::check::*;
 use crate::{
     Limits, Settings,
     settings::{Current, Failure, Item, Setting},
 };
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::settings::check::*;
 use jig_domain_tasks as tasks;
 
 /// Check the maps in place: no third materialised set of values is constructed.

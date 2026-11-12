@@ -1,13 +1,13 @@
 //! The party's accounts (`client/domain/contract/documents.md`, 1; `domain/accounts.md`, sections 3 and 5).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::documents::accounts::*;
 use crate::{
     Core, Limits,
     documents::{Missing, Text, Window, deployment::account_state, inbox_deployment::line_bound},
 };
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
+pub use jig_domain_core_vocabulary::documents::accounts::*;
 use skein_lib::List;
 
 /// An account's facts as this reader may see them (client/domain/contract/documents.md, 1).

@@ -6,7 +6,6 @@
 //! period. Permission mappings come from the core's retained policy entry;
 //! an absent entry remains absent, and each new list states its own loss.
 
-pub use crate::below::documents::project_note::*;
 use crate::{
     Core, Limits,
     documents::{
@@ -15,6 +14,7 @@ use crate::{
     },
 };
 use jig_domain_authority as authority;
+pub use jig_domain_core_vocabulary::documents::project_note::*;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

@@ -1,9 +1,9 @@
 //! A task's next-run wait, separate from its creator preference and its committed account
 //! (client/domain/contract/documents.md, 1; accounts.md, 4.3).
 
-pub use crate::below::documents::task_wait::*;
 use crate::{Core, RunWait};
 use jig_domain_accounts as accounts;
+pub use jig_domain_core_vocabulary::documents::task_wait::*;
 use jig_domain_tasks as tasks;
 
 pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {

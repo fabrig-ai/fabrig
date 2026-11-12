@@ -1,12 +1,12 @@
 //! Public offers and payer readiness (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::documents::catalogue::*;
 use crate::{
     Core, Limits,
     documents::{DocumentLimits, Missing},
 };
 use jig_domain_accounts as accounts;
+pub use jig_domain_core_vocabulary::documents::catalogue::*;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::List;

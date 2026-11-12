@@ -4,7 +4,7 @@
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
 
-pub use crate::below::documents::task_tree::*;
+pub use jig_domain_core_vocabulary::documents::task_tree::*;
 
 use crate::{
     Core, Limits,

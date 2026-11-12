@@ -1,5 +1,12 @@
 //! The core's vocabulary: what crosses its edge (jig/docs/design/domain/engine/README.md, section 3).
 
+#![cfg_attr(not(test), no_std)]
+#![forbid(unsafe_code)]
+#![expect(clippy::must_use_candidate, reason = "the vocabulary exposes the core's existing value operations")]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+
+extern crate alloc;
+
 pub mod acts;
 pub mod admission;
 pub mod documents;
@@ -16,7 +23,59 @@ pub mod stored;
 pub mod translate;
 pub mod vocabulary;
 
-use crate::Model;
+pub use crate::{
+    admission::{
+        amendments::TaskAmendDenied,
+        policy::{grants_to_authority, snapshot as policy_snapshot},
+    },
+    documents::Offered,
+    effects::{
+        EffectKey, EffectOrigin, EffectPurpose,
+        connector::PersonSeed,
+        projections::{
+            MilestoneId, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
+            ProjectionTask, projection_record_bytes,
+        },
+    },
+    limits::{
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
+        brief_holds_documents, charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
+    },
+    numbers::{Counters, Deployment, Family, fresh},
+    public::{
+        PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
+        PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
+    },
+    reads::{ProposalRead, SettingsAnswer, SettingsRead},
+    runs::{
+        brief_text::{BriefPart, BriefTextLimits},
+        conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall},
+        delegation::{Delegate, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage},
+        host_rule::HostRule,
+        live::LiveAsk,
+        state::{
+            EFFORT_BYTES, EFFORTS, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, RunCharter, RunPolicy,
+            most_costly, reserve_floor,
+        },
+        transcript_text::TranscriptRow,
+    },
+    settings::{
+        charters::{Charter, CharterPart, Document},
+        templates::Template,
+    },
+    start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
+    stored::{
+        CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
+        Made, ProposalDecisionRecord, Record, RunProof, TerminalRecord, TurnProof, TurnRecord,
+    },
+    translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
+    vocabulary::{
+        Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
+        NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, StepRefusal,
+        Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+    },
+};
+
 use alloc::boxed::Box;
 use jig_domain_accounts::{self as accounts, Kind, Ways};
 use jig_domain_authority as authority;

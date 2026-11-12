@@ -1,9 +1,9 @@
 //! Bounded source text reads (jig/docs/design/client/domain/contract/README.md, 4).
 
 use super::{Answer, Why};
-pub use crate::below::reads::task_text::*;
 use crate::{Core, Limits};
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::reads::task_text::*;
 use jig_domain_tasks as tasks;
 use skein_lib::length::len_u64;
 

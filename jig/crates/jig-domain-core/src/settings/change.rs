@@ -1,10 +1,10 @@
 //! The edits a settings decision leaves (domain/engine/settings.md, 1–2).
 
-pub use crate::below::settings::change::*;
 use crate::{
     CoreKey, CoreRecord, Write,
     settings::{Changed, Current, Edit, Item, Key, Record, Setting},
 };
+pub use jig_domain_core_vocabulary::settings::change::*;
 use skein_lib::List;
 #[must_use]
 pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {

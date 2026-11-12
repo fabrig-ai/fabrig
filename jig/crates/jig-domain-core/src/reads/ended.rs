@@ -1,11 +1,11 @@
 //! The single index serving a task query's ended group (protocol/store/loads.md, 3).
 
-pub use crate::below::reads::ended::*;
 use crate::{
     Core, Limits,
     documents::{self, Missing, TaskQuery},
     reads::{PageRow, Row, vocabulary::row_owner},
 };
+pub use jig_domain_core_vocabulary::reads::ended::*;
 use jig_domain_tasks as tasks;
 /// Apply keys beyond the prefix to the joined ended owner.
 pub(super) fn line(

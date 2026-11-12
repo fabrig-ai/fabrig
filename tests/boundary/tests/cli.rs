@@ -70,6 +70,8 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "hearth/tests/render/Cargo.toml: minijinja", until: "hearth's round" },
     Exception { what: "jig/crates/jig-client-shell-web/Cargo.toml: web-sys", until: "jig's round" },
+    Exception { what: "jig/crates/jig-domain-core-vocabulary/Cargo.toml: [features]", until: "jig's round" },
+    Exception { what: "jig/crates/jig-domain-core/Cargo.toml: jig-domain-core-vocabulary", until: "jig's round" },
     Exception { what: "jig/crates/jig-protocol-worker-agents/Cargo.toml: smith-host-protocol", until: "jig's round" },
     Exception { what: "jig/testing/jig-client-test-shell-web/Cargo.toml: web-sys", until: "jig's round" },
     Exception { what: "skein/crates/skein-fake-peers/Cargo.toml: rustls", until: "skein's round" },

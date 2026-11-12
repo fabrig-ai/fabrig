@@ -1,6 +1,6 @@
 //! Core-owned standing and policy decisions for a person's task amendment.
 
-pub use crate::below::admission::amendments::*;
+pub use jig_domain_core_vocabulary::admission::amendments::*;
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;

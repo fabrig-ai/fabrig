@@ -1,8 +1,8 @@
 //! Complete close-disposal identities and their owner funding
 //! (`jig/docs/design/client/domain/objects.md`, 11).
 
-pub use crate::below::documents::live_delegates::*;
 use crate::{Core, Limits, documents::Missing};
+pub use jig_domain_core_vocabulary::documents::live_delegates::*;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 

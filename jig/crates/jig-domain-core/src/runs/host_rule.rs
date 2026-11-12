@@ -1,5 +1,5 @@
 //! Placement protects kept personal logins (accounts.md, 3.4; domain/engine/fleet.md).
-pub use crate::below::runs::host_rule::*;
+pub use jig_domain_core_vocabulary::runs::host_rule::*;
 
 use crate::Core;
 use jig_domain_accounts as accounts;

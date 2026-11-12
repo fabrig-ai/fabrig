@@ -1,13 +1,13 @@
 //! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store/README.md, 6.2).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::documents::deployment::*;
 use crate::{
     Core, Limits,
     documents::{Missing, TaskLink, Window, inbox_deployment::line_bound},
 };
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
+pub use jig_domain_core_vocabulary::documents::deployment::*;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

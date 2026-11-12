@@ -1388,6 +1388,23 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
+ "jig-domain-core-vocabulary",
+ "jig-domain-fleet",
+ "jig-domain-link",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-domain-core-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
  "jig-domain-fleet",
  "jig-domain-link",
  "jig-domain-notes",

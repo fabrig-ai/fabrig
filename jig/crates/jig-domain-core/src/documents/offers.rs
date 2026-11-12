@@ -1,7 +1,7 @@
 //! Whole party-specific offers (`client/domain/contract/documents.md`, 3;
 //! `client/domain/objects.md`, 11). The acts owner supplies every judgment.
 
-pub use crate::below::documents::offers::*;
+pub use jig_domain_core_vocabulary::documents::offers::*;
 
 use crate::{
     Core, Limits,

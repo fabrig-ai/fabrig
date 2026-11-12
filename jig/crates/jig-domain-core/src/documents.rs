@@ -25,7 +25,7 @@
     reason = "the core keeps its constructor modules private while re-exporting their vocabulary"
 )]
 
-pub use crate::below::documents::*;
+pub use jig_domain_core_vocabulary::documents::*;
 
 mod accounts;
 mod catalogue;

@@ -4,12 +4,12 @@
 //! needs count all live task projections across the party's projects. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 
-pub use crate::below::documents::inbox_deployment::*;
 use crate::{
     Core, Limits,
     documents::{Count, Cursor, Missing, Proposer, TaskLine, TaskLink, Window},
 };
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::documents::inbox_deployment::*;
 use jig_domain_people as people;
 use skein_lib::{List, Map};
 

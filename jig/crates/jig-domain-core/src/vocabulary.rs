@@ -1,6 +1,6 @@
 //! The core's vocabulary toward its root (`domain/engine/README.md`, section 4).
 
-pub use crate::below::vocabulary::*;
+pub use jig_domain_core_vocabulary::vocabulary::*;
 
 use jig_domain_brief as brief;
 use jig_domain_notes as notes;

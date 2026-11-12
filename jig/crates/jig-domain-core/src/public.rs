@@ -1,6 +1,6 @@
 //! Public reading's documents and messages (jig/docs/design/domain/people/public-reading.md).
 
-pub use crate::below::public::*;
+pub use jig_domain_core_vocabulary::public::*;
 
 pub(crate) mod index;
 mod line;

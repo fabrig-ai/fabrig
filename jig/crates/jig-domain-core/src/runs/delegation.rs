@@ -8,7 +8,7 @@
     )
 )]
 
-pub use crate::below::runs::delegation::*;
+pub use jig_domain_core_vocabulary::runs::delegation::*;
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

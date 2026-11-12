@@ -1,6 +1,6 @@
 //! Application-owned settings (jig/docs/design/domain/engine/settings.md, 5).
 
-pub use crate::below::settings::application::*;
+pub use jig_domain_core_vocabulary::settings::application::*;
 
 use alloc::boxed::Box;
 
