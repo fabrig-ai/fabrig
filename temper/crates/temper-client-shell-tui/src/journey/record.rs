@@ -102,6 +102,7 @@ impl Recorder {
 
     pub fn report(&mut self, host: &mut Host, report: Report) -> Duties {
         let line = match &report {
+            Report::Lent { number, exit } => Line::Lent { number: *number, exit: *exit },
             Report::Front(line) => Line::BoxLine(line.print()),
             Report::Stage(stage) => Line::BoxStage(stage.print()),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
@@ -243,6 +244,12 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
             crate::host::Stop::Second => Line::StopBoxAgain,
         });
     }
+    if let Some(lend) = &duties.lend {
+        lines.push(Line::Lend { number: lend.number, name: lend.name.clone() });
+    }
+    if duties.unlend {
+        lines.push(Line::Unlend);
+    }
     if duties.close {
         lines.push(Line::Quit);
     }
@@ -262,7 +269,9 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         Line::Read => Some(4),
         Line::Browse(_) => Some(5),
         Line::StopBox | Line::StopBoxAgain => Some(6),
-        Line::Quit => Some(7),
+        Line::Lend { .. } => Some(7),
+        Line::Unlend => Some(8),
+        Line::Quit => Some(9),
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
@@ -273,6 +282,7 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Front
         | Line::BoxLine(_)
         | Line::BoxStage(_)
+        | Line::Lent { .. }
         | Line::Local
         | Line::Stored { .. }
         | Line::Credential(_)

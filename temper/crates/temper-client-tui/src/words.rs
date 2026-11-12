@@ -163,8 +163,13 @@ pub enum Word {
     BoxKilled,
     BoxEndNote,
     Asked,
+    LendLine,
+    LoginSignedIn,
+    LoginCancelled,
+    LoginNotFinished,
+    ThroughClaudeCode,
 }
-pub(crate) const ALL: [Word; 153] = [
+pub(crate) const ALL: [Word; 158] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -318,6 +323,11 @@ pub(crate) const ALL: [Word; 153] = [
     Word::BoxKilled,
     Word::BoxEndNote,
     Word::Asked,
+    Word::LendLine,
+    Word::LoginSignedIn,
+    Word::LoginCancelled,
+    Word::LoginNotFinished,
+    Word::ThroughClaudeCode,
 ];
 
 #[derive(Clone, Copy)]
@@ -534,6 +544,11 @@ impl Word {
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
             Self::Asked => 155,
+            Self::LendLine => 156,
+            Self::LoginSignedIn => 157,
+            Self::LoginCancelled => 158,
+            Self::LoginNotFinished => 159,
+            Self::ThroughClaudeCode => 160,
         }
     }
     const fn id(self) -> PhraseId {
@@ -557,6 +572,11 @@ impl Word {
             Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
             Self::PaneGoal => (&[b"/goal starts a goal from the draft"], &[]),
             Self::Asked => (&[b"asked ", b""], &[Slot::Span]),
+            Self::LendLine => (&[b"temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser."], &[]),
+            Self::LoginSignedIn => (&[b"Claude Code signed in"], &[]),
+            Self::LoginCancelled => (&[b"Claude Code's sign-in cancelled"], &[]),
+            Self::LoginNotFinished => (&[b"Claude Code's sign-in didn't finish"], &[]),
+            Self::ThroughClaudeCode => (&[b", through Claude Code"], &[]),
             Self::PaneLinkedGoal => (&[b"goal ", b" \xc2\xb7 /open opens it"], &[Slot::Title]),
 
             Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
@@ -811,6 +831,9 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::LoginSignedIn => self.say(Word::LoginSignedIn, &[]),
+            crate::Notice::LoginCancelled => self.say(Word::LoginCancelled, &[]),
+            crate::Notice::LoginNotFinished => self.say(Word::LoginNotFinished, &[]),
             crate::Notice::Proposed => self.say(Word::ProposedNotice, &[]),
             crate::Notice::Theme { choice, terminal } => {
                 let word = match choice {
