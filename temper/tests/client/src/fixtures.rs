@@ -107,8 +107,8 @@ pub(crate) const WATCH_ROOM_DELEGATES: u32 = temper_engine_domain::WATCHES_PER_S
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 25; // Four findings subjects and one live-goals menu.
-    limits.client.domain.handles = 27; // Four findings subjects and one live-goals menu.
+    limits.client.domain.watches = 27; // The shipped watch room, including findings.
+    limits.client.domain.handles = 29; // The shipped watch room, including findings.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
