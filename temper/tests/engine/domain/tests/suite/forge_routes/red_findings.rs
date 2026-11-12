@@ -49,7 +49,7 @@ fn world() -> (World, u64) {
     (world, triager.task)
 }
 
-fn findings(world: &World) -> Vec<&forge_top::Finding> {
+pub(super) fn findings(world: &World) -> Vec<&forge_top::Finding> {
     world
         .store
         .rows
@@ -64,7 +64,7 @@ fn findings(world: &World) -> Vec<&forge_top::Finding> {
         .collect()
 }
 
-fn news(world: &World, triager: u64) -> Vec<&tasks::Word> {
+pub(super) fn news(world: &World, triager: u64) -> Vec<&tasks::Word> {
     task(world, triager)
         .inbox
         .iter()

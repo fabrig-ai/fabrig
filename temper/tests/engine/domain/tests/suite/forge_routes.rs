@@ -111,6 +111,7 @@ mod stall_hold;
 mod result;
 
 mod red_findings;
+mod triager_prover;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
 
