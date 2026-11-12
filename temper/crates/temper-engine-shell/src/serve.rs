@@ -14,6 +14,7 @@ pub mod printed;
 const CONFIG_BYTES: u32 = 1_048_576;
 /// The worker's half of a start, supplied by a binary that holds one.
 pub trait WorkerHalf {
+    fn preflight(&self, named: &service::startup::Named) -> Result<service::settings::Agent, String>;
     fn alone(&self, directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String>;
     /// Call `before_root` once after agent preflight, before creating the worker root.
     fn start(

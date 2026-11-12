@@ -105,7 +105,7 @@ pub(crate) const BOX: Command = Command {
     notes: "In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 29] = [
+const COMMANDS: [Command; 31] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -144,6 +144,8 @@ Refused, changing nothing, when the configuration directory already holds temper
     temper_worker_shell::PROGRAM_LOGIN,
     HELP,
     temper_engine_shell::commands::VERSIONS,
+    temper_engine_shell::commands::UPGRADE_CHECK,
+    temper_engine_shell::commands::UPGRADE_BACK,
     FETCH,
     PREPARE,
     RUN,

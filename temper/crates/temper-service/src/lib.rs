@@ -58,6 +58,7 @@ mod route;
 mod setup;
 mod start_refusal;
 mod stop;
+pub mod upgrade;
 pub use start_refusal::refused_start;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
