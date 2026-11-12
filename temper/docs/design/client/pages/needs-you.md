@@ -226,8 +226,8 @@
     under its question on Home's cards (`home.md`, 1, *The cards*), as the
     whole story's `needs.html` and `home.html` place it, from one domain function
     every shell calls (`pages::needs::why`), its words the view's shared ones
-    (`temper_client_view::shared::why`), so that the TUI's launchpad can say
-    it too. By the card's kind:
+    (`temper_client_view::shared::why`), so that the TUI's walk says it
+    too (`../tui/pages/launchpad.md`, 6). By the card's kind:
     - *A question,* by `message` or a person task in words. Its asking task
       is a question's sender where that is a task (`from`,
       `Requester::Task`), else the question's own task, and a person task's

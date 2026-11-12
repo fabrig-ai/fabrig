@@ -457,3 +457,36 @@ fn main_tree(root: &d::Domain, words: &Words) -> (Tree, Bindings) {
     pages::all_home::main(&mut b, root, words, &mut bindings, &mut Times::new(f::NOW), 40);
     (b.finish(), bindings)
 }
+
+#[test]
+fn the_shared_headline_and_joined_brief_are_the_pages_words() {
+    let mut projects = vec![project(1, "Hello", 3, 0), project(2, "shop", 1, 0)];
+    for project in &mut projects {
+        let brief = w::StatusBrief::new(
+            &w::CEILINGS,
+            w::StatusBriefParts {
+                at: BRIEF_AT - u64::from(project.project) * MINUTE,
+                landed: 1,
+                sentence: b"A change landed.".as_slice().into(),
+                lede: b"Ready for review. More details.".as_slice().into(),
+            },
+        )
+        .unwrap();
+        project.status = status(project.project, 1, 0, Some(0), Some(NOW), false, Some(brief));
+    }
+    let all = facts(projects);
+    let brief = h::brief(&all).unwrap();
+    for words in [f::words(), f::browser_words()] {
+        let (tree, _) = drawn(&all, &words);
+        let (headline, tick) = crate::shared::all_home_headline(&words, &all, Wall::from_nanos(NOW));
+        assert!(f::find(&tree, Role::Heading { level: 1 }, &headline).is_some());
+        assert_eq!(tick, None);
+        let plain = crate::shared::joined_brief(&words, &brief);
+        assert_eq!(plain.as_ref(), b"Hello: Ready for review. shop: Ready for review.");
+        let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::HOME_LEDE)).unwrap();
+        assert_eq!(plain, f::node_text(&tree, at));
+    }
+    let facts = facts(vec![project(1, "Hello", 3, 3)]);
+    let (_, tick) = crate::shared::all_home_headline(&f::words(), &facts, Wall::from_nanos(NOW));
+    assert_eq!(tick, Some(Wall::from_nanos(NOW + MINUTE)));
+}

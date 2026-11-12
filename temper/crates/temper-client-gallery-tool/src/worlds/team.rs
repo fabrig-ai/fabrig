@@ -91,7 +91,7 @@ fn member(party: u64, kind: c::PartyKind, name: &str, role: c::HeldRole) -> c::P
     c::ProjectMember { party, kind, name: doc(name), login: doc(name), role }
 }
 
-fn project(reader: u64, alone: bool) -> c::Project {
+pub(super) fn project(reader: u64, alone: bool) -> c::Project {
     let mut members = List::with_capacity(MEMBERS);
     members.push(member(reader, c::PartyKind::Person, "Reader", c::HeldRole::Owner)).expect("reader");
     if !alone {

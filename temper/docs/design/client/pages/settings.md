@@ -265,10 +265,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   the project's process (`../../draft/surfaces.md`, section 7), its look the
   whole story's `web/whole-story/how.html` and `pair/how.html`
   (`../web/look.md`, *How work runs' look*). It draws what the engine
-  holds (`../../draft/whole-story.execution.md`, section 2): rules by path,
-  what follows a landing and a role's budget are
-  later milestones' (`../README.md`, section 5), and none of them is drawn, as an empty
-  section, a placeholder or a made-up value. Under the frame's kicker, in
+  holds (`../../draft/whole-story.execution.md`, section 2): rules by path
+  are a later milestone's (3, *How work runs' later parts*), and aren't
+  drawn, as an empty section, a placeholder or a made-up value. Under the frame's kicker, in
   order, its sections 44 apart, each a section title and its rows:
   - *Its heading and lede,* in the frame's place for them (1),
     the words saved with the settings
@@ -347,6 +346,54 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     no control of kind 8: a class changes by proposal, Ask temper's from
     "Ask temper to change this", or a need's Stop asking, which an owner
     may apply (`needs-you.md`, 1).
+  - *What follows a landing,* the project's follows and its tiers after
+    landing (`../../draft/surfaces.md`, section 7;
+    `../../domain/forge/follows.md`, sections 2 and 7;
+    `../../domain/after-landing.md`, sections 2 and 7), after What reaches
+    you and after Rules by path once it is drawn: a section "What follows a
+    landing", at its head's right, small and muted, "code triggers, agents
+    judge"; under it its boxes side by side, a box a follow, then the
+    tiers' box, each its title, its words, small, and its chips, a chip
+    who acts' mark and its words, as What reaches you's chips are, code's
+    mark the path's (`chat/conversation.md`, 3):
+    - *A follow,* each of the forge's `follows` document's, in its order
+      (`../../domain/forge/follows.md`, section 7): the title "TARGET
+      follows SOURCE", the repositories as the document names them; the
+      words "Each landing on SOURCE's BRANCH that touches PATHS makes a
+      change in TARGET's TBRANCH, owned by OWNER.", the branches as the
+      document names them, PATHS the follow's paths joined by ", " and a
+      last " or ", and " that touches PATHS" left out where it names
+      none; then "Each waits for OWNER's word." under `start` `owner`, or
+      "Each starts once the one before it has landed." under `code`; then
+      "Its check: WORKFLOW.", its check's workflow. OWNER is the owner's
+      name among the project's members, else their login, as Team names a
+      person (`team.md`, 1), and "you" and "your word" where the owner is
+      the reader; where the members aren't read or don't hold the owner,
+      ", owned by OWNER" is left out and the start's sentence says "its
+      owner's word". Then a line, small and muted, "LAG · PARITY", as
+      `temper ctl follow list` words them (`../../domain/forge/follows.md`,
+      section 7; the client's `forge::follows`): "caught up" or "K
+      behind", then "check passes at AFTER12", "K failing at AFTER12",
+      "many failing at AFTER12" or "no check yet"; and where the follow
+      is stopped, "Stopped: WORDS." under it, its words as the document
+      gives them. Its chips: "code hears the landing", code's mark; "an
+      agent ports", an agent's star; "code checks", code's mark.
+    - *The tiers,* while the path the project runs, the current way's or,
+      where it runs none, the `ways` read's `own`, holds a stop that opens a
+      tier and verifies what landed (`../../domain/forge/change/branch-path.md`;
+      the path's `verify` stops): the title "Tiers on BRANCH", BRANCH the
+      path's branch; the words "Code runs each after landings on BRANCH:
+      TIERS. A red reaches the goals whose changes landed in it, and their
+      agents repair it.", TIERS each such stop's tier, in the path's order,
+      by its card's name, then " (WORDS)" where its card says what it
+      checks ("Checks"), joined by "; "; its chips: "code runs", code's
+      mark; "an agent repairs", an agent's star.
+
+    Until the `follows` document answers, and once its watch has ended or
+    been refused, no follow's box is drawn; until the `ways` read answers,
+    no tiers' box. A section with no box isn't drawn. Nothing in it is a
+    control: a follow changes by a proposal of kind 12, or by its owner's
+    acts in `temper ctl` (`../../domain/forge/follows.md`, section 5).
   - *Roles,* every agent the project's work runs
     (`../../draft/surfaces.md`, section 7): a section "Roles", at its head's
     right, small and muted, "every agent PROJECT runs"; a row a role of
@@ -367,14 +414,35 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     instructions' first sentence where none are kept, which the root
     puts in `who`: the page draws `who` as it comes and composes
     nothing.
-  - *Budgets,* while one is set (`../../draft/surfaces.md`, section 12): what
-    a goal is given when it starts, while kind 7 has Goals shown and its
-    goal's template, the one `way` names or else the first tracked one in
-    `me`, gives an amount or a cap (its `budget`). A section "Budgets",
-    then one row: "Goals", in small type "each given its own when it
-    starts", and at its right the amount, a whole number as a chat's bar
-    says a budget, or "up to N" for a cap. A budget a goal's starter gives,
-    or one only its policy bounds, has no figure, and so no row.
+  - *Budgets,* while one is set (`../../draft/surfaces.md`, sections 7 and
+    12): each of the project's standing roles' budget per period
+    (`../../domain/agent/standing.md`, section 5; jig's
+    `domain/tasks/standing.md`, section 4), then what a goal is given when
+    it starts. A section "Budgets", at its head's right, small and muted,
+    the project's open period as the project's document gives it (its
+    `current_period`, jig's `client/domain/contract/documents.md`, 1):
+    "a week" where its `next` is seven days after its `began`, else "each
+    period"; then " · renews DAY" where `next` is known, DAY the day of the
+    week `next` falls on in the reader's time, as the client says a day
+    ("Tuesday"); nothing at its right while the document isn't read or
+    holds no open period. Then its rows:
+    - *a standing role's,* for each live task of the project labelled 3
+      (`../../domain/agent/standing.md`, section 2), in number order, at
+      most the watch's window: its title, its spec's first line as jig's
+      chip gives it; in small type "a standing role · N left", N what its
+      budget has left (`left`); and at its right its budget, the amount it
+      was made with or an amendment set (`numbers.budget`), a whole number
+      as the Goals row says one;
+    - *"Goals,"* while kind 7 has Goals shown and its goal's template, the
+      one `way` names or else the first tracked one in `me`, gives an
+      amount or a cap (its `budget`): in small type "each given its own
+      when it starts", and at its right the amount, a whole number as a
+      chat's bar says a budget, or "up to N" for a cap. A budget a goal's
+      starter gives, or one only its policy bounds, has no figure, and so
+      no row.
+
+    No unit follows a figure: the deployment's unit has no word yet (jig's
+    `domain/authority.md`, section 12).
   - *At its foot,* *What the project shows* and, while Goals is shown,
     *Ways of working*, below: the switches stay as overrides of what each
     page's own rule shows (`../../draft/surfaces.md`, section 12).
@@ -386,13 +454,18 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
 - **Its parts** are one pure function, `pages::how::parts`, of the facts
   `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
   read's state and current way, kind 7's Goals and its goal template's
-  budget, kind 8 read, and `me` listing two projects or more), which the
+  budget, kind 8 read, `me` listing two projects or more, the project's
+  open period from its document, and its live standing roles), which the
   web and the terminal share (`../../draft/surfaces.md`, section 12): the
   heading's way, "Ask temper to change this", the path section's state,
-  What reaches you's columns and its head's words, Roles' state and
-  Budgets' row. What reaches you's lines are a second pure function,
+  What reaches you's columns and its head's words, Roles' state, and
+  Budgets' head and rows. What reaches you's lines are a second pure function,
   `pages::how::reaches`, of the project's table: its three columns, each
-  subject placed once (*What reaches you,* above).
+  subject placed once (*What reaches you,* above). What follows a
+  landing's boxes are a third, `pages::how::follows`, of the `follows`
+  document as read, the path the project runs, the project's members and
+  the reader: a box a follow, in the document's order, then the tiers'
+  box, or none (*What follows a landing,* above).
 - **Its rows:**
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
@@ -437,6 +510,16 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   goal; `drafts_offered` is false, with an Ask temper chat's exception (`README.md`).
   The tab's live controls draw the stock, disabled; a value of none reads as
   the stock (`../../protocol/configuration/stock.md`).
+  How work runs also holds, while it is open: the forge's `follows`
+  document of the project (`../../domain/forge/follows.md`, section 7;
+  `forge::follows::watch`), watched as the `ways` read is and dropped on
+  leaving; and a watch of the project's live standing roles, jig's task
+  query of the project's tasks labelled 3 in number order within the
+  client's window of rows (jig's `client/domain/contract/README.md`, 4.1),
+  as Chats and Goals watch theirs, dropped on leaving. Its members and
+  open period are the project's document that every project page reads
+  (`team.md`, 1; jig's `Read::Project`), read again on each `me`
+  delivery; How work runs reads no other copy of it.
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
   item, running work staying, against the newest revision the person has, the
   one exception to the pages sending proposals alone, beside Stop asking's
@@ -477,7 +560,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   runs as *The page* does, above.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; What reaches you's columns one after another, each its chip's
-  words, its lines and its small line; it all prints.
+  words, its lines and its small line; What follows a landing's boxes one
+  after another, each its title, its words, its lines and its chips'
+  words; it all prints.
 - **What the settings change:** the rail and the tab bar (`../view.md`, 3), `goals` hiding
   the offer of Goals and not a goal the project holds; `drafts`,
   `pages::chats::drafts_offered`, the chats' offer of a draft, an Ask temper
@@ -714,6 +799,16 @@ the document gives them; the client hides nothing of its own.
   you" to "Agents decide, then tell you", and "Limits" bringing the
   section into view. Owner: temper/ui. Default: each difference a
   finding filed back as a repair.
+- **What follows a landing and Budgets after landing** (2, *What follows a
+  landing* and *Budgets*): temper/ui compares main with those sections of
+  the whole story's `web/whole-story/how.html`, through `../web/gallery.md`,
+  2's `how-follows` and `night-how-follows`, at 1440, 1000 and 390 px, by
+  day and by night, code's mark on the chips beside the agent's star; and
+  walks on a box a follow's box on the target project's How work runs, its
+  lag rising with a source landing and back to "caught up" once its change
+  lands, and a standing role's row once `temper ctl role start` has made
+  one. Owner: temper/ui. Default: each difference a finding filed back as
+  a repair.
 - **How work runs' fuller page** (2, *Later: the fuller page*): roles as settings, ways to
   start work, rules, running work and history on the page; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
@@ -721,8 +816,8 @@ the document gives them; the client hides nothing of its own.
   and the card alone.
 - **How work runs' later parts** (`../../draft/surfaces.md`, sections 7 and 12;
   `../../draft/whole-story.execution.md`, section 3): Rules
-  by path and the path's stops for a path set (P3c), What follows a landing and
-  a role's budget (P3d), each drawn by its milestone from the engine's reads;
+  by path and the path's stops for a path set (P3c), drawn by its milestone
+  from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking
   you", once a rule by path can be one (P3c);
   "History · N changes" beside "Ask temper to change this", once a page lists

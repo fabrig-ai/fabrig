@@ -1407,10 +1407,15 @@ fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
 #[test]
 fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
-    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
-    for watch in [f.status, f.live, f.inbox] {
-        up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+    let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
     }
+    finish_closes(&mut f, &out);
     let mut limits = f::limits();
     limits.forge.field_bytes = u32::MAX;
     let mut out = Queue::uncapped();
@@ -1420,6 +1425,14 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
         Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
         &mut out,
     );
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
+    }
+    finish_closes(&mut f, &out);
     let subject = forge::status::watch(f::PROJECT, &f::limits().forge).unwrap();
     assert!(opened(&out, &subject).is_none());
     assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
@@ -1430,8 +1443,16 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     );
     let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     assert!(opened(&out, &subject).is_none());
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
+    }
+    finish_closes(&mut f, &out);
     let out = go(&mut f.root, f::PROJECT);
-    assert!(opened(&out, &subject).is_some(), "the next page entry opens status");
+    assert!(opened(&out, &subject).is_some(), "the next page entry opens status: {out:?}");
 }
 #[test]
 fn a_status_document_must_name_this_project() {

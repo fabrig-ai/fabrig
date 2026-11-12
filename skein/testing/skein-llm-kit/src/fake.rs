@@ -248,6 +248,7 @@ pub fn config() -> fake::Config {
         tool_rounds: 0,
         cache_lifetime: skein_lib::Duration::from_secs(300),
         cache_entries: 16,
+        strict: false,
         unscoped_reads: 0,
     }
 }
@@ -544,6 +545,12 @@ impl Exchange {
         assert_eq!(self.ticks, 0, "model configuration precedes progress");
         assert!(ceiling > 0, "the independent model has a nonzero ceiling");
         self.peer_env.limits.documents.model_ceiling = ceiling;
+    }
+
+    /// Sets strict script coverage before the exchange starts (fakes/llm.md, 2.5).
+    pub fn strict(&mut self, strict: bool) {
+        assert_eq!(self.ticks, 0, "strict configuration precedes progress");
+        self.fake_env.limits.strict = strict;
     }
 
     /// Sets seeded failure chances before the exchange starts, keeping its bounds.

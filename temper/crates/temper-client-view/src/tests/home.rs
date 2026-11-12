@@ -2153,11 +2153,11 @@ fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
 
 #[test]
 fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
-    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let (mut root, me_watch, _) = f::root_at(Address::Accounts, &f::domain_limits());
     let template = f::chat::messaging_root();
     let me = f::asking_me(template.pages().me(template.client()).expect("me").clone());
     f::deliver_me(&mut root, me_watch, me);
-    // Leave and return so the test observes the watch that Settings itself owns.
+    // Open Settings after its offered templates answer, observing the watch it owns.
     drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     let mut live = None;
@@ -2166,9 +2166,13 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
             request:
                 jig_client::UnlinkedRequest::Down {
                     down:
-                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
                 },
         } = request
+            && query.label != Some(3)
         {
             live = Some(*watch);
         }

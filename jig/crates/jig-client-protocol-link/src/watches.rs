@@ -11,7 +11,10 @@ pub(crate) struct Opening {
     pub(crate) version: u32,
     pub(crate) subject: Option<w::Owned>,
     pub(crate) live: bool,
+    pub(crate) admitted: bool,
     pub(crate) closing: bool,
+    // The request's order, without reserving an exchange (protocol/client/README.md, 10).
+    pub(crate) held: Option<Token>,
 }
 #[derive(Debug)]
 pub(crate) struct Watches(pub(crate) Map<Token, Opening>);
