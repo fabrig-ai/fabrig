@@ -11,6 +11,7 @@ sharing their checks with the chosen focused cuts. Complete snapshots,
 startup and cold readback remain the contract; section 10 holds further
 observation and world-cost work.
 
+- **Not yet:** 7: no `jig-test-kit`: `jig-test`'s two test binaries each compile its support as a module [in flight: change 2050].
 - **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
