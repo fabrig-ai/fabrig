@@ -66,6 +66,7 @@ fn landed(owner: &Path, base: &str) -> Result<Landed, String> {
 }
 
 #[test]
+#[ignore = "65 s on w1, a third of the focused suite: skipped while the focused suite is made faster; run it by hand (the user, 2026-11-12)"]
 fn stored_changes_have_patches() {
     let root = paths::workspace();
     let base = base(&root);
