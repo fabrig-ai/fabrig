@@ -26,8 +26,11 @@ fn at_org(machine: &mut Create) {
     go(machine, Event::Read(Some(fixtures::secret(fixtures::ADMIN))));
     let mut admin = fixtures::person(b"ada", b"Ada");
     admin.is_admin = true;
-    go(machine, Event::Reply(Reply::Document(Document::User(admin))));
-    go(machine, Event::Reply(Reply::Document(Document::Org(Org { id: 1, name: b"first".as_slice().into() }))));
+    go(machine, Event::Reply(Reply::Document(Box::new(Document::User(admin)))));
+    go(
+        machine,
+        Event::Reply(Reply::Document(Box::new(Document::Org(Org { id: 1, name: b"first".as_slice().into() })))),
+    );
 }
 #[test]
 fn a_repository_creation_race_reads_the_winning_repository_again() {
@@ -47,19 +50,18 @@ fn a_repository_creation_race_reads_the_winning_repository_again() {
 fn an_empty_file_list_finishes_after_access_with_the_repository_id() {
     let mut machine = machine();
     at_org(&mut machine);
-    let Event::Reply(Reply::Document(Document::Repository(mut repository))) =
-        fixtures::repository(1, b"first", b"starter")
-    else {
+    let Event::Reply(Reply::Document(document)) = fixtures::repository(1, b"first", b"starter") else {
         panic!("repository fixture")
     };
+    let Document::Repository(mut repository) = *document else { panic!("repository fixture") };
     repository.default_branch = b"trunk".as_slice().into();
-    go(&mut machine, Event::Reply(Reply::Document(Document::Repository(repository))));
+    go(&mut machine, Event::Reply(Reply::Document(Box::new(Document::Repository(repository)))));
     let permission = skein_forge::forgejo::document::CollaboratorPermission {
         permission: skein_forge::forgejo::document::Permission::Write,
         user: fixtures::person(b"kit", b"kit:bot"),
     };
     assert_eq!(
-        go(&mut machine, Event::Reply(Reply::Document(Document::Permission(permission)))),
+        go(&mut machine, Event::Reply(Reply::Document(Box::new(Document::Permission(permission))))),
         Need::Done(Outcome::Created {
             id: core::num::NonZeroU64::new(1).expect("id"),
             branch: b"trunk".as_slice().into()
@@ -73,7 +75,7 @@ fn creation_halt_reports_the_outstanding_org_and_then_ignores_events() {
     go(&mut machine, Event::Read(Some(fixtures::secret(fixtures::ADMIN))));
     let mut admin = fixtures::person(b"ada", b"Ada");
     admin.is_admin = true;
-    go(&mut machine, Event::Reply(Reply::Document(Document::User(admin))));
+    go(&mut machine, Event::Reply(Reply::Document(Box::new(Document::User(admin)))));
     let mut out = Queue::uncapped();
     create::halt(&mut machine, Why::Down, &mut out);
     assert_eq!(
