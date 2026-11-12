@@ -4,7 +4,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use std::{fs, path::Path};
 
 use skein_codec::patch::{Build, Capacity, Halt, Old, Patcher, PlanIx, Site, Step};
-use skein_codec::schema::{self, DeclIx};
+use skein_codec::schema::{self, DeclIx, FieldIx, Held, Shape, Type, TypeIx};
 use skein_codec::value::{Node, Value};
 
 use super::{
@@ -145,6 +145,117 @@ fn type_nodes(ty: &crate::Type, counts: &BTreeMap<&str, u32>) -> Result<u32, Str
     }
 }
 
+// Only the patch's opened pieces depart from the fixed golden rule (command.md, 3).
+// Declarations refer backwards, so each item's prepared full sample is already available.
+fn open_goldens(
+    patcher: &Patcher,
+    plan: PlanIx,
+    goldens: &mut [(DeclIx, crate::Golden)],
+    nodes: u32,
+) -> Result<(), String> {
+    let schema = patcher.schema(patcher.versions(plan).from).expect("kept old text");
+    let mut samples = BTreeMap::new();
+    for (root, golden) in goldens {
+        if !golden.name.ends_with("_full.bin") {
+            continue;
+        }
+        let mut value = Value::with_room(nodes);
+        let at = value
+            .decode(schema, *root, golden.bytes.clone().into_boxed_slice())
+            .map_err(|error| format!("{}: {error:?}", golden.name))?;
+        let mut opened = Opened {
+            patcher,
+            plan,
+            schema,
+            samples: &samples,
+            value: &value,
+            bytes: Vec::new(),
+            cursor: 0,
+        };
+        opened.declaration(*root, at)?;
+        opened.bytes.extend_from_slice(value.bytes().get(opened.cursor..).expect("remaining golden bytes"));
+        golden.bytes = opened.bytes;
+        samples.entry(*root).or_insert_with(|| golden.bytes.clone());
+    }
+    Ok(())
+}
+
+struct Opened<'a> {
+    patcher: &'a Patcher,
+    plan: PlanIx,
+    schema: &'a schema::Schema,
+    samples: &'a BTreeMap<DeclIx, Vec<u8>>,
+    value: &'a Value,
+    bytes: Vec<u8>,
+    cursor: usize,
+}
+
+impl Opened<'_> {
+    fn declaration(&mut self, root: DeclIx, at: Node) -> Result<(), String> {
+        match self.schema.declaration(root).shape {
+            Shape::Record { first, count, .. } => {
+                for offset in 0..count {
+                    let field = FieldIx::new(first.index().checked_add(offset).expect("bounded field index"));
+                    self.ty(self.schema.field(field).ty, self.value.field(at, field).expect("golden field"))?;
+                }
+            }
+            Shape::Enum { .. } => {
+                let tag = self.value.tag(at).expect("golden variant");
+                if let Some(record) = self.schema.variant(tag).record {
+                    self.declaration(record, self.value.payload(at).expect("golden payload").expect("record payload"))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn ty(&mut self, ty: TypeIx, at: Node) -> Result<(), String> {
+        match self.schema.ty(ty) {
+            Type::Named(root) => self.declaration(root, at)?,
+            Type::List { item, .. } => {
+                let mut items = self.value.items(at).expect("golden list");
+                while let Some(at) = self.value.next_item(&mut items) {
+                    self.ty(item, at)?;
+                }
+            }
+            Type::Option(item) => {
+                if let Some(at) = self.value.some(at).expect("golden option") {
+                    self.ty(item, at)?;
+                }
+            }
+            Type::Bytes { held: Held::Pieces(item), bound } | Type::Secret { held: Held::Pieces(item), bound }
+                if !self.patcher.copies(self.plan, item) =>
+            {
+                let sample = self.samples.get(&item).expect("earlier item's full golden");
+                let length = u32::try_from(sample.len()).map_err(|error| error.to_string())?;
+                let piece = length.checked_add(4).ok_or("full golden piece length exceeds u32")?;
+                if piece > bound {
+                    return Err(format!("full golden piece needs {piece} bytes, bound {bound}"));
+                }
+                let span = self.value.span(at).expect("golden pieces span");
+                let start = usize::try_from(span.start).expect("golden span fits usize");
+                self.bytes.extend_from_slice(self.value.bytes().get(self.cursor..start).expect("ordered golden spans"));
+                // The bytes field's length, then one skein-codec piece's length and item.
+                self.bytes.extend_from_slice(&piece.to_be_bytes());
+                self.bytes.extend_from_slice(&length.to_be_bytes());
+                self.bytes.extend_from_slice(sample);
+                self.cursor = usize::try_from(span.end).expect("golden span fits usize");
+            }
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Text(_)
+            | Type::Bytes { .. }
+            | Type::Secret { .. } => {}
+        }
+        Ok(())
+    }
+}
+
 #[expect(clippy::too_many_arguments, reason = "one family's run shares the patch text, dispatch and failure report")]
 fn family<C: Default>(
     krate: &Crate,
@@ -161,7 +272,7 @@ fn family<C: Default>(
     let old_schema = crate::parse(old).map_err(|error| error.to_string())?;
     let new_schema = crate::parse(new).map_err(|error| error.to_string())?;
     let nodes = golden_nodes(&old_schema)?.max(golden_nodes(&new_schema)?);
-    let goldens = crate::emit_tests::goldens(&old_schema);
+    let mut goldens = crate::emit_tests::goldens(&old_schema);
     let largest = goldens
         .iter()
         .map(|(_, golden)| golden.bytes.len())
@@ -176,6 +287,7 @@ fn family<C: Default>(
         .plan(source.as_bytes())
         .map_err(|error| format!("line {}: {:?}", error.line, error.wrong))?
         .ok_or("no block planned")?;
+    open_goldens(&patcher, plan, &mut goldens, capacity.nodes)?;
     let mut decoded = Value::with_room(capacity.nodes);
     let mut results = BTreeMap::new();
     let mut expected = BTreeSet::new();
@@ -391,6 +503,45 @@ mod tests {
         let krate = fixture(name);
         run_goldens(&krate, 1, dispatch, true).expect("write goldens");
         krate
+    }
+
+    #[test]
+    fn opened_piece_goldens_convert_one_full_item_and_leave_copied_pieces_unchanged() {
+        const OLD_PIECES: &str = "family small 1\nrecord Item { value: u8 }\nrecord Kept { value: u8 }\nrecord Open { data: bytes 32 pieces Item }\nrecord Copy { data: bytes 3 pieces Kept }\n";
+        const NEW_PIECES: &str = "family small 2\nrecord Item { value: u8 added: u8 }\nrecord Kept { value: u8 }\nrecord Open { data: bytes 32 pieces Item }\nrecord Copy { data: bytes 3 pieces Kept }\n";
+        let fixture = fixture("pieces");
+        for (path, text) in [
+            ("schema/kept/small-v1.schema", OLD_PIECES),
+            ("schema/kept/small-v2.schema", NEW_PIECES),
+            ("patches/0001.patch", "patch 1\nowner sample 1\nfamily small 1 to 2\nadd Item.added u8 7\n"),
+        ] {
+            fs::write(fixture.root.join(path), text).expect("pieces fixture text");
+        }
+        let krate = Crate::read(&fixture.root).expect("pieces fixture crate");
+        run_goldens(&krate, 1, no_site, true).expect("opened pieces convert their full item");
+        let full = fs::read(directory(&krate).join("record_open_full.bin")).expect("opened full golden");
+        let schema = skein_codec::schema::parse(NEW_PIECES.as_bytes()).expect("new schema");
+        let root = schema.find(b"Open").expect("opened record");
+        let skein_codec::schema::Shape::Record { first, .. } = schema.declaration(root).shape else {
+            unreachable!("record")
+        };
+        let mut value = skein_codec::value::Value::with_room(16);
+        let at = value.decode(&schema, root, full.into_boxed_slice()).expect("new full value");
+        let bytes = value.content(value.field(at, first).expect("pieces field")).expect("pieces bytes");
+        assert_eq!(skein_codec::piece::count(bytes), Ok(1));
+        assert_eq!(bytes, [0, 0, 0, 2, u8::MAX, 7], "new length and added value");
+        let mut item = skein_codec::value::Value::with_room(16);
+        let at = item
+            .decode(&schema, schema.find(b"Item").expect("item record"), bytes.get(4..).expect("one piece length").into())
+            .expect("piece decodes as the new item");
+        assert_eq!(item.uint(item.field(at, skein_codec::schema::FieldIx::new(1)).unwrap()), Ok(7));
+        assert_eq!(fs::read(directory(&krate).join("record_open_smallest.bin")).unwrap(), [0; 4]);
+        assert_eq!(
+            fs::read(directory(&krate).join("record_copy_full.bin")).unwrap(),
+            [0, 0, 0, 3, 0, 0x7f, 0xff],
+            "copied pieces keep the fixed golden pattern"
+        );
+        fs::remove_dir_all(krate.root).expect("remove fixture");
     }
 
     #[test]

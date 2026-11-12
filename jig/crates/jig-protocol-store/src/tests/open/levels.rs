@@ -236,6 +236,76 @@ fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
     );
 }
 
+const MOVED_JIG: PatchSets = PatchSets {
+    sets: &[PatchSet {
+        owner: Owner::Jig,
+        name: "jig",
+        patches: &["patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\n"],
+        fresh: None,
+        families: &[
+            KeptFamily {
+                name: "jig-store-tasks",
+                texts: &[
+                    "family jig-store-tasks 9\nversioned record Data { value: u8 }\n",
+                    "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
+                ],
+                map: crate::KeptMap::Store,
+                keys: &[],
+                frames: None,
+                flights: &[],
+            },
+            KeptFamily {
+                name: "jig-store-settings",
+                texts: &[
+                    "family jig-store-settings 1\nrecord Model { value: u8 }\n",
+                    "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
+                ],
+                map: crate::KeptMap::Store,
+                keys: &[],
+                frames: None,
+                flights: &[],
+            },
+        ],
+    }],
+};
+
+fn at_jig_level(level: u32, tasks: u16) -> Store {
+    let (key, _) = fixture_format();
+    let row = crate::codec::component::Format {
+        tasks,
+        application: fixtures::APPLICATION.version,
+        deployment: fixtures::DEPLOYMENT,
+        levels: Levels { jig: Some(level), ..format::NONE },
+        ..crate::baseline::BASELINE.format
+    };
+    let mut store = replacing(skein_kv::Op::Put { key, value: row.encode().expect("level format") });
+    store.patch_sets(MOVED_JIG);
+    store.limits.store.value = ROOM.bytes;
+    store
+}
+
+#[test]
+fn jig_behind_opens_at_its_baseline_versions_and_patches_to_current() {
+    let mut store = at_jig_level(0, 9);
+    assert_opened(&open(&mut store), 1);
+    let pending = store.directory.patch.as_mut().expect("jig patch planned");
+    let family = pending.machines.named(b"jig-store-tasks").expect("tasks machine");
+    let machine = pending.machines.get(family);
+    assert_eq!(machine.reached, 9);
+    let plan = machine.at(1).expect("tasks patch");
+    let patcher = pending.machines.patcher(family);
+    patcher.start(plan, skein_codec::schema::DeclIx::new(0), Box::new([0, 9, 42])).unwrap();
+    assert_eq!(patcher.next(), Ok(skein_codec::patch::Step::Done));
+    assert_eq!(patcher.finish().unwrap(), [0, 10, 42, 0]);
+}
+
+#[test]
+fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
+    for (level, tasks, wanted) in [(0, 10, 9), (1, 9, 10)] {
+        refused(&mut at_jig_level(level, tasks), OpenRefusal::Format { family: Family::Tasks, found: u32::from(tasks), wanted });
+    }
+}
+
 #[test]
 fn baseline_and_unleveled_rows_compare_by_owner() {
     use crate::baseline::BASELINE;
