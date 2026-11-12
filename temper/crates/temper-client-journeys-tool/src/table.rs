@@ -40,7 +40,7 @@ const BUNDLE: Variable = Variable {
 
 const RECORD: Variable = Variable {
     way: Way::Sets,
-    absent: "The tool always sets 1 for the TUI and its box when recording again.",
+    absent: "The tool always sets 1 for temper's TUI when recording again.",
     ..temper_shell::environment::INTERNAL_RECORD
 };
 
@@ -109,7 +109,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "bin",
             value: "DIR",
-            about: "Directory holding executable temper-box, fake-claude and temper-client.",
+            about: "Directory holding executable temper-box, fake-claude and temper.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,

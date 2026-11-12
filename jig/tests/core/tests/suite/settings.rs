@@ -986,11 +986,11 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
-    // v19 SettingValue tag + this fixture's Template: 50 fixed bytes (including
+    // v20 SettingValue tag + this fixture's Template: 50 fixed bytes (including
     // the empty resource list's count) + its 4096-byte name.
     const ENCODED_TEMPLATE_BYTES: u64 = 4146;
     let (config, mut limits) = configuration();

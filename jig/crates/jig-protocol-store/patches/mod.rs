@@ -45,7 +45,7 @@ add Refusal.talk_open
 add Refusal.no_talk
 ",
     r"patch 1
-owner jig 2
+owner jig 2 after smith 0 skein 0
 
 family jig-store-settings 2 to 3
 add Overlay

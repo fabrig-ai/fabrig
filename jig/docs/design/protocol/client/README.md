@@ -326,11 +326,11 @@ recipient.
   read: *version not served*, naming the owner and the ranges the engine
   serves. A keyed request, a read and a watch's opening are each
   answered so; nothing is done.
-- **Until the first release, versions stay fixed** (skein's `data/codec/README.md`,
-  section 5). A change to a record, the template preview's among them
-  (`wire.md`, section 1), changes its schema, codec, translations and one set of
-  golden bytes in place. Versions move at a release; family owners keep
-  their own versions.
+- **Versions move with a wire's layout.** Each changed record moves its
+  wire's version and its schema, codec, translations and golden bytes.
+  The engine serves one version; a client of another version is refused
+  before its record is read. Client bridges are deferred
+  (`temper/docs/design/draft/redeploys.md`, 8).
 - **The client's versions:** jig's is its wire's; each family owner's,
   the application declares as it makes the client, and the client
   judges each hello against them, whole (`../../client/domain/client/watches.md`,

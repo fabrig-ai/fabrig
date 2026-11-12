@@ -312,6 +312,16 @@ from the engine's own answers, is where the look is tuned.
 | `night-remembered-full` | `remembered-full` with the night look on |
 | `night-remembered-changing` | `remembered-changing` with the night look on |
 | `night-remembered-refused` | `remembered-refused` with the night look on |
+| `told-not-set-up` | "Telling you" on a deployment that doesn't push: its quiet band (`../pages/told.md`) |
+| `told-off` | "Telling you" with this browser off, "Turn on", and two devices under "Your devices", each with "Remove" |
+| `told-on` | `told-off` with this browser on: "On since …", "Turn off", and its row marked "This browser" |
+| `told-cannot` | "Telling you" on an iPhone's browser that can't be pushed to: its words and the Home Screen's line, no act |
+| `told-refused` | `told-off` after "Turn on" refused as `too_many`: its line under the row |
+| `night-told-not-set-up` | `told-not-set-up` with the night look on |
+| `night-told-off` | `told-off` with the night look on |
+| `night-told-on` | `told-on` with the night look on |
+| `night-told-cannot` | `told-cannot` with the night look on |
+| `night-told-refused` | `told-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`../pages/README.md`): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |

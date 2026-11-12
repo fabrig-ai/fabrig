@@ -427,6 +427,7 @@ impl Session {
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Chats { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -861,6 +862,7 @@ pub(crate) fn act(
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Work { .. }
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits
@@ -890,6 +892,7 @@ pub(crate) fn act(
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Team { .. }
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits

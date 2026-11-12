@@ -1,2 +1,4 @@
 jig 1 225 23
 temper 1 40 16
+temper 2 40 16
+jig 2 33 4

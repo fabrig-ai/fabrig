@@ -145,10 +145,11 @@ its parts, `../tasks/messages.md`, 6.
   record (`../../protocol/store/README.md`, 4.4) and a proposal's
   stored items, which the settings tool's bytes carry too. A setting's
   read document gains the optional overlay of 6.
-- **Additive:** every record and message that decoded before decodes the
-  same; a value of the new member reaches only a peer built with it.
-  Before jig's first release a stored format changes in place, with no
-  version or migration.
+- **Versioned:** stored settings move from version 2 to 3 in jig's patch
+  2, after its catch-up patch; old values retain their fields and gain
+  no overlay (`temper/docs/design/protocol/baseline.md`, 7). The client
+  wire moves from version 19 to 20, and a client of another version is
+  refused (`../../protocol/client/README.md`, 6).
 - **Bounds:** an overlay's instructions and each part are bounded as a
   charter's own; its record is priced as a charter's in the settings'
   bounds (`settings.md`, 8), never above it.

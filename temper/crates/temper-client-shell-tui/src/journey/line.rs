@@ -34,6 +34,9 @@ pub enum Line {
     Opened { opened: bool },
     Found(Option<Box<[u8]>>),
     BoxLine(Box<[u8]>),
+    BoxStage(Box<[u8]>),
+    StopBox,
+    StopBoxAgain,
     Send { exchange: u64, message: Sent, credential: Option<Box<[u8]>> },
     Stream(Option<Box<[u8]>>),
     Unstream,
@@ -148,6 +151,7 @@ impl Line {
                 w.number(u64::from(rgb.blue));
             }
             Self::BoxLine(bytes)
+            | Self::BoxStage(bytes)
             | Self::Address(bytes)
             | Self::Credential(bytes)
             | Self::Erase(bytes)
@@ -167,7 +171,9 @@ impl Line {
             | Self::Saved
             | Self::Unsaved
             | Self::Unstream
-            | Self::Quit => {}
+            | Self::Quit
+            | Self::StopBox
+            | Self::StopBoxAgain => {}
             Self::Key { key, event } => {
                 w.key(key);
                 w.optional(event.as_deref());
@@ -229,6 +235,9 @@ impl Line {
             Self::Local => "local",
             Self::Front => "front",
             Self::BoxLine(_) => "box-line",
+            Self::BoxStage(_) => "box-stage",
+            Self::StopBox => "stop-box",
+            Self::StopBoxAgain => "stop-box-again",
             Self::Box => "box",
             Self::Background(_) => "background",
             Self::Noted(_) => "noted",
@@ -581,6 +590,9 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"local" => Line::Local,
         b"front" => Line::Front,
         b"box-line" => Line::BoxLine(r.bytes()?),
+        b"box-stage" => Line::BoxStage(r.bytes()?),
+        b"stop-box" => Line::StopBox,
+        b"stop-box-again" => Line::StopBoxAgain,
         b"box" => Line::Box,
         b"noted" => Line::Noted(r.note()?),
         b"found" => Line::Found(r.optional()?),

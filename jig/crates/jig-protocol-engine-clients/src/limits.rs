@@ -18,7 +18,7 @@ pub struct Limits {
     pub exchanges_per_client: u32,
     /// A message's bytes, owned by the component (protocol/client/wire.md, 2.2, and protocol/client/README.md, 10).
     pub message_bytes: u32,
-    pub wire: jig_client_protocol_wire::v19::Limits,
+    pub wire: jig_client_protocol_wire::v20::Limits,
     pub link_span: Duration,
 }
 /// Whether these limits are representable: every edge bound they size
@@ -44,10 +44,10 @@ pub fn valid(limits: &Limits) -> bool {
     {
         return false;
     }
-    jig_client_protocol_wire::v19::check_limits(&limits.wire).is_ok()
-        && jig_client_protocol_wire::v19::KeyedAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v19::ReadAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v19::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
+    jig_client_protocol_wire::v20::check_limits(&limits.wire).is_ok()
+        && jig_client_protocol_wire::v20::KeyedAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v20::ReadAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v20::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
         && limits.exchanges.checked_add(limits.exchanges).is_some()
         && provider_bounds(&provider_limits(limits)).is_some()
 }

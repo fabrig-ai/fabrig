@@ -158,7 +158,7 @@ fn stores_before_embedded_people_v15_refuse_at_startup() {
     // Store 6 named a repository by its id alone; 7 has no Binding family;
     // 8 embeds people v11 refusal tags.
     let wanted = temper_protocol_store::STORE_VERSION;
-    assert_eq!(wanted, 12);
+    assert_eq!(wanted, 13);
     for found in [6, 7, 8, 9] {
         refused(OpenRefusal::Format { family: Family::Application, found, wanted });
     }
@@ -167,7 +167,7 @@ fn stores_before_embedded_people_v15_refuse_at_startup() {
 #[test]
 fn a_store_without_forge_records_refuses_at_startup() {
     let wanted = temper_protocol_store::STORE_VERSION;
-    assert_eq!(wanted, 12);
+    assert_eq!(wanted, 13);
     refused(OpenRefusal::Format { family: Family::Application, found: 10, wanted });
 }
 

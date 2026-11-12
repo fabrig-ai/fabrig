@@ -1,5 +1,5 @@
 use super::fixtures;
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{Env, List, Queue, Reader, Secret, Time, Token, Wall, Writer};
 

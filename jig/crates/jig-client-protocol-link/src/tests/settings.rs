@@ -539,7 +539,7 @@ fn settings_items_fit_at_the_count_and_byte_bounds() {
 
 // The standard inventory has 8 charters + 16 templates + 9 policies + the rules.
 const STANDARD_SETTINGS: u32 = 34;
-const MAX_SETTINGS: u32 = 256; // SettingsDocument.settings on client wire 19.
+const MAX_SETTINGS: u32 = 256; // SettingsDocument.settings on client wire 20.
 
 fn settings_inventory(count: u32) -> c::SettingsDocument {
     let mut settings = List::with_capacity(count);
@@ -597,7 +597,7 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
     let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("measured answer");
     let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 20, record: bytes.finish() })
             .expect("answer"),
     );
     assert_eq!(

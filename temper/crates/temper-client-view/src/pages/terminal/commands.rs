@@ -67,6 +67,7 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     | Address::Inbox { .. }
                     | Address::Chats { .. }
                     // page-view: draw Remembered.
+                    | Address::Told
                     | Address::Remembered
                     | Address::Members
                     | Address::Limits

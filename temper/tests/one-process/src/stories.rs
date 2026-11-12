@@ -389,6 +389,7 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
         jig.charters[0].policy.waiting = Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
     }
     crate::review_delivery::given(&mut given);
+    crate::push::given(&mut given);
     given
 }
 

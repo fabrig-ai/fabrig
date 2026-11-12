@@ -55,7 +55,7 @@ next start (`domain/engine/README.md`, `domain/connectors.md`). A run's fresh se
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;
 `domain/engine/settings.md`, 6). Derived run-wait refusals carry admitted hosts'
-bound shortfalls and required/offered figures through the v19 client
+bound shortfalls and required/offered figures through the v20 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).

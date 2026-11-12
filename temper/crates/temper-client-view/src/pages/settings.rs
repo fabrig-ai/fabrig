@@ -142,6 +142,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -796,6 +797,7 @@ pub(crate) fn sign_out(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
     b.open(Role::Slot);
     b.style(look::SETTINGS_END);
     link(b, w, bindings, Word::RememberedTitle, Address::Remembered);
+    link(b, w, bindings, Word::ToldTitle, Address::Told);
     b.open(Role::Button);
     b.style(look::SETTINGS_BTN);
     b.style(look::SETTINGS_SMALL);

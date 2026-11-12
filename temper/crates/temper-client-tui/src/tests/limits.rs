@@ -67,12 +67,14 @@ fn the_trees_fit_their_limits() {
         scene_marks: 2,
         scene_bytes: 256,
     };
-    let front_text = 50 * 512 + 8192 + 4096;
+    // /log and stopping each retain fifty lines, two nodes per extra line.
+    let front_text = 2 * 50 * 512 + 8192 + 4096;
+    let front_nodes = 192 + 2 * 50;
     let with_front = skein_ui::Limits {
-        nodes: chat.nodes + 192,
+        nodes: chat.nodes + front_nodes,
         text_bytes: chat.text_bytes + front_text,
         bindings: chat.bindings + 1,
-        patches: chat.patches + 192 * 4,
+        patches: chat.patches + front_nodes * 4,
         ..chat
     };
     assert_eq!(crate::limits(&domain, &chat, 512), Some(with_front));
@@ -381,6 +383,6 @@ fn chat_views() -> crate::view::chat::Chat {
         pane: None,
         to_end: 1,
         entries: Box::new([Entry::Viewed(pieces)]),
-        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None },
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None },
     }
 }

@@ -886,14 +886,14 @@ fn overlay_codec_bounds_instructions_parts_documents_and_alternatives() {
 }
 
 #[test]
-fn charter_versions_without_overlays_keep_the_existing_stored_bytes() {
+fn charter_versions_without_overlays_keep_the_versioned_stored_bytes() {
     let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
     let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Charter {
         charter: 1,
         revision: 2,
         value: s::CharterVersion { overlay: None, charter: None },
     }));
-    let bytes = [0_u8, 1, 0];
+    let bytes = [0_u8, 3, 0];
     assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row.clone()));
     assert_eq!(codec::encode(&row, &limits, &[]).unwrap().as_ref(), bytes);
 }

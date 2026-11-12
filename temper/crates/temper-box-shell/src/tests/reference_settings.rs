@@ -341,7 +341,7 @@ fn reference_rules(current: &jig_domain_core::settings::Current) -> jig_client::
     let value = jig_domain_core::settings::Value::Rules(Box::new(current.rules().clone()));
     let wire =
         jig_protocol_engine_clients::translate::settings::value(&value, &[], link.wire()).expect("stock rules fit ctl");
-    let jig_client_protocol_wire::v19::SettingValue::Rules(wire) = wire else { panic!("rules") };
+    let jig_client_protocol_wire::v20::SettingValue::Rules(wire) = wire else { panic!("rules") };
     jig_client_protocol_link::translate::settings::restore_rules(&wire, &link).expect("stock rules")
 }
 

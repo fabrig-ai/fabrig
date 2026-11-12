@@ -2,7 +2,7 @@
 
 The families' current versions are the component's 3, the core's 6,
 the tasks' 10, the people's 15, the notes' 1, the accounts' 2, the
-settings' 2 and the secrets' 1. The tasks family's durable
+settings' 3 and the secrets' 1. The tasks family's durable
 `MessageKind` holds `FinishRequested { revision }` for a cancel grace
 and `NothingAwaited` for a result-ended task with nothing pending
 (`../../domain/tasks/lifecycle.md`, 2), and it stores the successful `NoChange`

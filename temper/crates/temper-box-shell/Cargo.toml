@@ -33,11 +33,6 @@ temper-box-machine.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true
 temper-client-shell-terminal.workspace = true
-temper-client-shell-tui.workspace = true
-temper-client-tui.workspace = true
-skein-ui-screen.workspace = true
-skein-ui-screen-terminal.workspace = true
-skein-ui.workspace = true
 temper-worker-domain.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true
@@ -62,6 +57,7 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-client-shell.workspace = true
 temper-engine-domain.workspace = true
 jig-domain-tasks.workspace = true
 temper-test-env.workspace = true

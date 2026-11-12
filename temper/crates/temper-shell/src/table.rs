@@ -8,31 +8,48 @@ pub const HELP: Command = Command {
     forms: &["[NAME | pages | --search WORDS...]"],
     line: "Print this, a page, the pages, or a search.",
     arguments: &[
-        skein_shell::Argument { shown: "NAME", line: crate::rows::HELP.arguments[0].line },
-        skein_shell::Argument { shown: "WORDS", line: crate::rows::HELP.arguments[1].line },
+        skein_shell::Argument { shown: "NAME", line: "A page's name, as the index and the pages give it." },
+        skein_shell::Argument {
+            shown: "WORDS",
+            line: "Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.",
+        },
     ],
     settings: &[],
     switches: &[],
     variables: &[],
-    notes: crate::rows::HELP.notes,
+    notes: "Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then \"and more; narrow the words\" when more matched.",
 };
 
 /// The tests' ctl command, with ctl's own lines (temper/docs/design/cli/README.md, 6).
 pub const CTL: Command = Command {
-    reach: Reach::Words(crate::rows::CTL.words),
+    reach: Reach::Words(&["ctl"]),
     set: Set::Internal,
-    forms: crate::rows::CTL.forms,
-    line: crate::rows::CTL.line,
+    forms: &[
+        "DIR GROUP VERB [ARGUMENT...] [--json]",
+        "DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]",
+        "DIR --call FILE [--json]",
+        "help [GROUP [VERB]]",
+    ],
+    line: "Act in a deployment as one party, one call a process: the agents' command line.",
     arguments: &[
-        skein_shell::Argument { shown: "DIR", line: crate::rows::CTL.arguments[0].line },
-        skein_shell::Argument { shown: "GROUP", line: crate::rows::CTL.arguments[1].line },
-        skein_shell::Argument { shown: "VERB", line: crate::rows::CTL.arguments[2].line },
-        skein_shell::Argument { shown: "FILE", line: crate::rows::CTL.arguments[3].line },
+        skein_shell::Argument {
+            shown: "DIR",
+            line: "ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.",
+        },
+        skein_shell::Argument {
+            shown: "GROUP",
+            line: "A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.",
+        },
+        skein_shell::Argument { shown: "VERB", line: "One of the group's tools; temper ctl help GROUP lists them." },
+        skein_shell::Argument {
+            shown: "FILE",
+            line: "One call as JSON, {\"tool\": \"GROUP VERB\", \"arguments\": {...}}, or - for stdin.",
+        },
     ],
     settings: &[],
     switches: &[],
     variables: &[],
-    notes: crate::rows::CTL.notes,
+    notes: "temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.",
 };
 
 /// Help's words: stdout on success, or an exit code and stderr.

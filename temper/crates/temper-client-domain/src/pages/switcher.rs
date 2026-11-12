@@ -80,7 +80,8 @@ impl Switcher {
     }
     pub(super) fn went(&mut self, address: &Address) {
         match address {
-            Address::Remembered
+            Address::Told
+            | Address::Remembered
             | Address::Members
             | Address::Limits
             | Address::Accounts

@@ -5,6 +5,7 @@ extern crate alloc;
 
 mod approval;
 mod box_line;
+mod box_stage;
 mod choices;
 mod event;
 pub mod limits;
@@ -18,6 +19,7 @@ mod view;
 pub mod words;
 pub use approval::{approval_address, may_ask_again};
 pub use box_line::BoxLine;
+pub use box_stage::{BoxEnd, BoxStage};
 pub use choices::{ReplyChoice, ReplyChoices, reply_choices};
 pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, WalkStep, command_name};
 pub use limits::limits;
