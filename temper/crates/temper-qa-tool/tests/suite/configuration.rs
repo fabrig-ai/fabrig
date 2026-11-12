@@ -56,6 +56,61 @@ fn configuration_defaults_paths_required_keys_and_unknown_names() {
 }
 
 #[test]
+fn default_surfaces_take_both_and_web_only_leaves_tui_queued() {
+    for surfaces in [None, Some(json!(["web"]))] {
+        let mut value = configuration();
+        if let Some(surfaces) = &surfaces {
+            value["surfaces"] = surfaces.clone();
+        }
+        let config =
+            Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/home/qa")).expect("config");
+        let mut ledger = temper_qa_tool::Ledger::default();
+        super::passes::queue(&mut ledger, "work", "web");
+        super::passes::queue(&mut ledger, "chat", "tui");
+        super::passes::build(&mut ledger, "build", &[1, 2], 2);
+        let pass = ledger.start_pass("places/1", &config.surfaces, "high", 3).expect("pass");
+        assert_eq!(ledger.passes[0].cases.len(), if surfaces.is_none() { 2 } else { 1 });
+        assert_eq!(ledger.cases[1].pass, if surfaces.is_none() { Some(pass.pass) } else { None });
+    }
+}
+
+#[test]
+fn places_read_ports_and_refuse_collisions_by_place() {
+    let mut value = configuration();
+    let ports = json!([31001, 31002, 31003, 31004, 31005, 31006, 31007, 31008, 31009]);
+    let decode =
+        |value: &serde_json::Value| Configuration::decode(&serde_json::to_vec(value).expect("JSON"), Path::new("/qa"));
+    value["places"] = json!(["plain", {"directory":"fixed", "ports":ports}]);
+    let config = decode(&value).expect("mixed forms");
+    assert_eq!(config.places, ["plain", "fixed"]);
+    assert_eq!(
+        config.ports.get("fixed").map(String::as_str),
+        Some("31001,31002,31003,31004,31005,31006,31007,31008,31009")
+    );
+    assert!(!config.ports.contains_key("plain"));
+    for bad in [
+        json!([1, 2, 3, 4, 5, 6, 7, 8]),
+        json!([0, 2, 3, 4, 5, 6, 7, 8, 9]),
+        json!([1, 2, 3, 4, 5, 6, 7, 8, 8]),
+        json!([1, 2, 3, 4, 5, 6, 7, 8, 65536]),
+        json!([1, 2, 3, 4, 5, 6, 7, 8, "nine"]),
+    ] {
+        value["places"] = json!([{"directory":"bad-place", "ports":bad}]);
+        let why = decode(&value).expect_err("invalid ports").to_string();
+        assert!(why.contains("bad-place"), "{why}");
+    }
+    for places in [
+        json!([{"directory":"first", "ports":ports}, {"directory":"bad-place", "ports":ports}]),
+        json!(["bad-place", {"directory":"bad-place", "ports":ports}]),
+        json!(["bad-place", {"directory":"./bad-place", "ports":ports}]),
+    ] {
+        value["places"] = places;
+        let why = decode(&value).expect_err("collision").to_string();
+        assert!(why.contains("bad-place"), "{why}");
+    }
+}
+
+#[test]
 fn pass_configuration_defaults_and_helpers_and_nested_refusals() {
     let home = Path::new("/qa/home");
     let decode = |value: &serde_json::Value| Configuration::decode(&serde_json::to_vec(value).expect("JSON"), home);
@@ -64,7 +119,7 @@ fn pass_configuration_defaults_and_helpers_and_nested_refusals() {
     assert_eq!(config.agent.pass, "high");
     assert_eq!(config.bounds.pass, 7200);
     assert_eq!(config.places, ["places/1"]);
-    assert_eq!(config.surfaces, ["web"]);
+    assert_eq!(config.surfaces, ["web", "tui"]);
     assert_eq!(config.request.area, "qa");
     assert_eq!(config.request.state, None);
     assert_eq!(config.finding_area("web"), "qa");

@@ -13,6 +13,7 @@ mod accounts;
 mod collaborators;
 mod creation;
 mod hooks;
+pub(crate) mod image;
 pub(crate) mod migrate;
 mod reads;
 mod repo_hooks;

@@ -9,11 +9,44 @@ fn plan() -> Plan {
             scratch: "/scratch".into(),
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
+            ports: None,
         },
         "/browser/chromium".into(),
         OsStr::new("/bin"),
     )
 }
+#[test]
+fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
+    let parse = |ports: &str| {
+        let args =
+            ["--bin", "/missing/bin", "--bundle", "/missing/bundle", "--scratch", "/missing/scratch", "--ports", ports]
+                .iter()
+                .map(|word| word.as_bytes().into())
+                .collect::<Vec<Box<[u8]>>>();
+        Options::parse(&args)
+    };
+    assert_eq!(parse("1,2,3,4,5,6,7,8,9").expect("ports").ports.as_deref(), Some("1,2,3,4,5,6,7,8,9"));
+    for bad in
+        ["1,2,3,4,5,6,7,8", "0,2,3,4,5,6,7,8,9", "1,2,3,4,5,6,7,8,8", "1,2,3,4,5,6,7,8,no", "1,2,3,4,5,6,7,8,65536"]
+    {
+        let why = parse(bad).expect_err("invalid list");
+        assert!(why.contains("--ports") && why.contains(bad), "{why}");
+    }
+}
+
+#[test]
+fn only_the_box_receives_explicit_ports() {
+    let mut plan = plan();
+    let key = OsStr::new("TEMPER_INTERNAL_FAKE_BOX_PORTS");
+    assert!(!plan.box_program().environment.iter().any(|(name, _)| name == key));
+    let ports = "1,2,3,4,5,6,7,8,9";
+    plan.options.ports = Some(ports.into());
+    let box_program = plan.box_program();
+    assert!(box_program.environment.iter().any(|(name, value)| name == key && value == ports));
+    assert!(!plan.ctl(&[], Input::Null).environment.iter().any(|(name, _)| name == key));
+    assert!(!plan.tui(b"http://127.0.0.1:9").expect("tui plan").environment.iter().any(|(name, _)| name == key));
+}
+
 fn step(m: &mut Machine, event: Event) -> Vec<Action> {
     m.step(event, Time::ZERO)
 }
@@ -354,6 +387,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scratch: root.into(),
         scripts: vec![],
         strict: false,
+        ports: None,
     };
     let why = super::options::prepare(options.clone(), &[]).expect_err("missing binary before any process");
     assert!(why.contains("temper-box"));

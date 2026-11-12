@@ -22,7 +22,7 @@ impl Turn {
     pub fn read(d: &Document, at: u32, p: &Path) -> Result<Self, Refusal> {
         Self::read_standalone(d, at, p, None)
     }
-    /// The standalone document permits pieces and failures for its accepted credentials.
+    /// The standalone document permits pieces, takes and failures for its accepted credentials.
     pub(crate) fn read_standalone(d: &Document, at: u32, p: &Path, credentials: Option<u32>) -> Result<Self, Refusal> {
         let token = d.token(at).ok_or(read::why(p, b"missing"))?;
         if token.kind == Kind::String {
@@ -82,7 +82,24 @@ fn line(d: &Document, at: u32, p: &Path, credentials: Option<u32>) -> Result<Lin
     let args_at = o.member(d, b"arguments");
     let pieces_at = if credentials.is_some() { o.member(d, b"pieces") } else { None };
     let fail_at = if credentials.is_some() { o.member(d, b"fail") } else { None };
+    let take_at = if credentials.is_some() { o.member(d, b"take") } else { None };
+    let before_at = if credentials.is_some() { o.member(d, b"before") } else { None };
+    let after_at = if credentials.is_some() { o.member(d, b"after") } else { None };
     read::finish(o, d, p)?;
+    if take_at.is_some() || before_at.is_some() || after_at.is_some() {
+        if text_at.is_some() || call_at.is_some() || args_at.is_some() || pieces_at.is_some() || fail_at.is_some() {
+            return Err(read::why(p, b"expected take, before and after alone"));
+        }
+        let at = take_at.ok_or(read::why(&p.member(b"take"), b"missing"))?;
+        let name = read::text(d, at, crate::ANSWER_BYTES, &p.member(b"take"))?;
+        let at = before_at.ok_or(read::why(&p.member(b"before"), b"missing"))?;
+        let before = read::text(d, at, crate::ANSWER_BYTES, &p.member(b"before"))?;
+        read::nonempty(&before, &p.member(b"before"))?;
+        let at = after_at.ok_or(read::why(&p.member(b"after"), b"missing"))?;
+        let after = read::text(d, at, crate::ANSWER_BYTES, &p.member(b"after"))?;
+        read::nonempty(&after, &p.member(b"after"))?;
+        return Ok(Line::Take { name, before, after });
+    }
     if let Some(at) = fail_at {
         if text_at.is_some() || call_at.is_some() || args_at.is_some() || pieces_at.is_some() {
             return Err(read::why(p, b"expected fail alone"));
@@ -177,6 +194,12 @@ fn check_answer(turn: &api::Turn, p: &Path) -> Result<(), Refusal> {
     let mut size = u64::try_from(wrappers).expect("bounded wrappers");
     for line in &turn.lines {
         let bytes = match line {
+            Line::Take { .. } => {
+                size = size
+                    .checked_sub(u64::try_from(size_of::<api::Part>()).expect("part wrapper"))
+                    .expect("one wrapper per line");
+                0
+            }
             Line::Text { text } => text.len(),
             Line::Call { name, arguments } => {
                 name.len().checked_add(arguments.len()).expect("bounded call").checked_add(21).expect("call id")

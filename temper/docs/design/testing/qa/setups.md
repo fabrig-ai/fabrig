@@ -17,8 +17,8 @@ them is `places.md`.
   adds a chat asked and answered from the TUI's launchpad.
 - **The twins** (section 4): B0's walk replayed as setups, its
   scripts its twin's with takes, so that its numbers and heads are the
-  box's own: `widget`, `b0-plan` and `b0-landed`. B1's waits on how its
-  gate's commit is made (section 4.4).
+  box's own: `widget`, `b0-plan` and `b0-landed`; B1's, its gate
+  committed by `forge` lines, `b1-plan` and `b1-landed` (section 4.4).
 - **Grown by passes** (`places.md`, 6): a recipe a pass adds lands with
   its request; this document names the catalogue's roots, not every
   recipe.
@@ -45,13 +45,19 @@ scripts answer, strict (`../../protocol/setup/box.md`, 5):
   steps of the `launchpad-chat` journey's walk past its approval
   (`../../client/tui/journeys/launchpad-chat/walk`), as drive lines, from
   `web reload "/projects/1"`, as the journey's setup ends, to the fake
-  model's answer; its check `tui see` of that answer. It reaches Hello
+  model's answer, a `tui see` of it that waits, then `web reload "/"`,
+  a step that is no `see`, so that the answer's `see` stays a step
+  (`../../client/recipe.md`, 3.1); its check `tui see "/chats 1"`, the
+  chat's row on the launchpad of the TUI the check starts afresh after
+  the walk's `tui stop` (`../../client/recipe.md`, 5.1;
+  `../../client/tui/pages/launchpad.md`, 4). It reaches Hello
   with an Ask temper chat asked and answered from the TUI, and serves
   the TUI's chat screen (`../../client/tui/pages/chat.md`) and the web
   client's view of a chat the TUI started.
 - **A TUI state** a later case needs is a pass's to add, as any other
   (`places.md`, 6): its lines are `tui` lines, and its check `tui see`
-  or `web see` lines.
+  or `web see` lines, read on the root page and a TUI started afresh
+  (`../../client/recipe.md`, 5.1).
 
 ## 4. The twins
 
@@ -115,19 +121,31 @@ From `temper/tests/real-loop/tests/fixtures/b0/`, the rung's walk
 
 ### 4.4 B1's
 
-B1's walk (`../../../development/acceptance.md`, 7) starts from
-`widget` with its person's gate committed to `main` through the
-Forgejo's write API, which no drive line makes
-(`../../client/drive.md`, 3). How that commit is made is open
-(`../../draft/landed-qa.status.md`); until it is settled B1's twin is
-no setup.
+From `temper/tests/real-loop/tests/fixtures/b1/`, the rung's walk
+(`../../../development/acceptance.md`, 7), from `widget`:
+
+| Recipe | After | Its lines | Reaches |
+|---|---|---|---|
+| `b1-plan` | `widget` | first the person's gate: `forge commit 1 playground/widget` (`../../client/drive.md`, 3.5) with the walk's message, "CI: each pull request adds changes/<its number>.md", and the two gate files of the fixture's `forge.json` tree, its workflow `ci.yml` under `.forgejo/workflows/` and its contributing guide, each path and content as the tree holds it, then `forge checks 1 playground/widget`; then the person's request, `person.json`'s `request`, in a chat of widget's project through ctl, waited until the work's question is in the inbox; its check a `web see` of the question's words | widget gated on `main`, its push's checks passed, and the work's plan asked and waiting for its go-ahead, nothing pushed |
+| `b1-landed` | `b1-plan` | the person's answer, `person.json`'s `answer`, through ctl's inbox, waited until the chat's last word; its check a `web see` of the chat's last word, as the twin's last chat turn gives it | the change landed on `main` after its first CI failed and temper's repair passed on the same pull request, an agent's review passed, the chat saying so |
+
+- **The gate is the twin's,** not today's text of
+  `../../../development/acceptance.md`, 7: the fixture's walk met the
+  gate its `forge.json` holds, and its repair writes what that gate
+  checks, so a later gate the twin never met would fail it. A focused
+  test holds the recipe's two contents equal to the fixture's.
+- **`b1-plan`'s `scripts.json`** is B1's twin's; `b1-landed` has none
+  of its own.
+- **Their pages:** as B0's, and the change's failed CI, its repair and
+  the repaired head on the same pull request between the two.
 
 ## 5. Their tests
 
 Focused, with no box: every recipe of the catalogue reads, its chain
 and hash, as `recipe list` gives them (`../../client/recipe.md`, 7); a
 twin setup's `scripts.json` reads in the box's `--scripts` form and
-equals its fixture's `cued` and `asked`. The walks are the walk's after
+equals its fixture's `cued` and `asked`; `b1-plan`'s `forge commit`
+contents equal the B1 fixture's gate files. The walks are the walk's after
 landing (`../../draft/landed-qa.execution.md`, 1).
 
 ## 6. Open questions

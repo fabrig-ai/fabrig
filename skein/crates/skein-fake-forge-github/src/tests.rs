@@ -63,3 +63,5 @@ mod rates;
 mod mutations;
 
 mod comment_edit;
+
+mod image;
