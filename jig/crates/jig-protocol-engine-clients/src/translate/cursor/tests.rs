@@ -7,8 +7,8 @@ use skein_lib::{Reader, Writer};
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the committed schema is a version test input")]
 fn cursor_version_equals_the_header_and_the_codec() {
-    let schema = skein_codec::schema::parse(include_bytes!("../../../schema/cursor-v1.schema"))
-        .expect("cursor family parses");
+    let schema =
+        skein_codec::schema::parse(include_bytes!("../../../schema/cursor-v1.schema")).expect("cursor family parses");
     assert_eq!(schema.spelled(schema.family()), b"jig-engine-cursor");
     assert_eq!(CURSOR_VERSION, schema.version());
 

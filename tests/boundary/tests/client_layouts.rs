@@ -77,13 +77,15 @@ fn current_files(owner: &Path) -> BTreeMap<String, String> {
 }
 
 fn base_files(owner: &Path, base: &str) -> BTreeMap<String, String> {
-    let files = git(owner, &["ls-tree", "-r", "--name-only", "-z", base, "--", "schema"])
-        .expect("list base schemas");
-    files.split(|byte| *byte == 0)
+    let files = git(owner, &["ls-tree", "-r", "--name-only", "-z", base, "--", "schema"]).expect("list base schemas");
+    files
+        .split(|byte| *byte == 0)
         .filter(|bytes| !bytes.is_empty())
         .map(|bytes| std::str::from_utf8(bytes).expect("UTF-8 git path"))
         .map(Path::new)
-        .filter(|path| path.parent() == Some(Path::new("schema")) && path.extension().is_some_and(|ext| ext == "schema"))
+        .filter(|path| {
+            path.parent() == Some(Path::new("schema")) && path.extension().is_some_and(|ext| ext == "schema")
+        })
         .map(|path| {
             let object = format!("{base}:./{}", path.display());
             let text = String::from_utf8(git(owner, &["show", &object]).expect("read base schema"))
