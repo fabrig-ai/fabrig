@@ -2154,6 +2154,7 @@ fn landing_reviewers(
                 role: escalation::role_number(role),
                 head: review.commit,
                 verdict: review.verdict,
+                at: skein_lib::Wall::from_nanos(review.at.as_nanos()),
             })
             .ok()?;
     }
@@ -2656,6 +2657,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         let room = drop_settled_change(domain, env);
         domain.work.push(Work::Forge(forge::Event::Change {
             row: forge::ChangeRow {
+                signed: Box::new([]),
                 task,
                 repository: provider,
                 branch: branch.clone(),
@@ -5446,7 +5448,9 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
-            forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
+            forge::Request::StatusRun { project, words, signers } => {
+                status_route::start_status_run(domain, env, project, words, &signers);
+            }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
             forge::Request::CancelFollow { project, task } => {
                 domain.work.push(Work::Tasks(tasks::Event::Cancel {
@@ -5941,11 +5945,21 @@ pub(crate) fn effect_ask(
                     assert!(kept.number == entry && kept.task == task, "admitted projection entry");
                     domain.work.push(Work::Forge(forge::Event::KeepProjection { row: *row, entry: kept }));
                 }
-                Some(
-                    EffectFlight::Procedure { entry: kept, .. }
-                    | EffectFlight::Landing { entry: kept, .. }
-                    | EffectFlight::Tier { entry: kept, .. },
-                ) => {
+                Some(EffectFlight::Procedure { entry: kept, task, evidence, description, .. }) => {
+                    assert!(kept == entry, "core releases the described procedure entry");
+                    if description.effect.kind == 4 {
+                        keep_sign_offs(domain, env, task, task, description.effect.state, &evidence);
+                    }
+                }
+                Some(EffectFlight::Landing { entry: kept, task, evidence, description, .. }) => {
+                    assert!(kept == entry, "core releases the described procedure entry");
+                    if description.effect.kind == 4
+                        && let Some(evidence) = evidence
+                    {
+                        keep_sign_offs(domain, env, task, evidence.change, description.effect.state, &evidence.facts);
+                    }
+                }
+                Some(EffectFlight::Tier { entry: kept, .. }) => {
                     assert!(kept == entry, "core releases the described procedure entry");
                 }
                 None => {}
@@ -6143,6 +6157,21 @@ fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidenc
             .work
             .push(Work::Core(jig_domain_core::Event::Marked { connector: domain.config.forge_connector, subjects }));
     }
+}
+
+/// Save alongside the admitted entry, before its commit can hand the merge to the forge.
+fn keep_sign_offs(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    change: u64,
+    head: [u8; 32],
+    evidence: &forge::ChangeEvidence,
+) {
+    let row = domain.forge.change(change).expect("admitted change");
+    let reviewers = landing_reviewers(domain, env, row, evidence).expect("admitted reviewers");
+    let signed = domain.forge.landing_sign_offs(task, head, evidence, &reviewers.reviewers);
+    domain.work.push(Work::Forge(forge::Event::Signed { task: change, signed }));
 }
 
 fn judge_effect(

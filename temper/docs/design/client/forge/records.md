@@ -539,8 +539,13 @@
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
-    landing's, 32 bytes; and `default_branch`, whether the branch the
-    landing moved is its repository's default branch;
+    landing's, 32 bytes; `default_branch`, whether the branch the
+    landing moved is its repository's default branch; and `signed`, at
+    most 8, the landing log's sign-offs of the change, in its order, each
+    a `ChangesSigned`: `party`; `head`, the commit their review named, 32
+    bytes; and `at`, when they reviewed, nanoseconds since the epoch
+    (`../../domain/forge/change/gates.md`, 2, *Sign-offs kept at
+    landing*);
   - `landed_more`, what `landed` cut;
   - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
     set, at most `forge.changes_landed`, newest first, so that landings
@@ -601,10 +606,18 @@
   - the approval it waits on: `scope`, 0 for the deployment's rules or the
     project's number; `rule`; `role`; `required`; `counted`, the people
     counted so far;
-  - `behind`, the changes waiting behind it in its landing branch's order;
-    `whole`, whether its reviews were read whole;
+  - `sets`, at most 6, each an `ApprovalSet`: `number`, u8, and `name`, at
+    most 40 bytes, the sets of the approval's rule the change touches;
+  - `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - who can still sign (`../../domain/forge/change/questions.md`, 2, *Who
+    can still sign*): `signed`, at most 8, the people counted at the head;
+    `can_sign`, at most 8, the people who can still give the next
+    sign-off, the watcher first where among them; and `can_sign_more`,
+    u32, how many more can past those. Each is an `ApprovalPerson`:
+    `person`, u64, the deployment's person number, and `name`, at most 64
+    bytes, empty where none is known;
   - `size`, option, last, `ApprovalSize`: the pull request's size at the
     head its reviews were read at, as the forge counts it
     (`../../domain/forge/change/questions.md`, 2): `files`, `additions`

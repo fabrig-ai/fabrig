@@ -1674,6 +1674,27 @@ pub enum Word {
     ApprovalJoin,
     ApprovalAnd,
     ApprovalSignOff,
+    ApprovalYou,
+    ApprovalSomeone,
+    ApprovalOr,
+    ApprovalOneOther,
+    ApprovalOthers,
+    ApprovalSigned,
+    ApprovalCanGive,
+    ApprovalWhoBoth,
+    ApprovalWhoEnd,
+    ApprovalIt,
+    ApprovalFirst,
+    ApprovalSecond,
+    ApprovalThird,
+    ApprovalFourth,
+    ApprovalFifth,
+    ApprovalSixth,
+    ApprovalSeventh,
+    ApprovalEighth,
+    ApprovalNinth,
+    ApprovalNext,
+
     ApprovalReview,
     ApprovalOwner,
     ApprovalMaintainer,
@@ -1840,7 +1861,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2393;
+const PHRASES: u32 = 2413;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1867,10 +1888,10 @@ const PHRASES: u32 = 2393;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4345;
+const SEGMENTS: u32 = 4385;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57596;
-const ALL: [Word; 1707] = [
+const ENGLISH_BYTES: u32 = 57740;
+const ALL: [Word; 1727] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3487,6 +3508,26 @@ const ALL: [Word; 1707] = [
     Word::ApprovalJoin,
     Word::ApprovalAnd,
     Word::ApprovalSignOff,
+    Word::ApprovalYou,
+    Word::ApprovalSomeone,
+    Word::ApprovalOr,
+    Word::ApprovalOneOther,
+    Word::ApprovalOthers,
+    Word::ApprovalSigned,
+    Word::ApprovalCanGive,
+    Word::ApprovalWhoBoth,
+    Word::ApprovalWhoEnd,
+    Word::ApprovalIt,
+    Word::ApprovalFirst,
+    Word::ApprovalSecond,
+    Word::ApprovalThird,
+    Word::ApprovalFourth,
+    Word::ApprovalFifth,
+    Word::ApprovalSixth,
+    Word::ApprovalSeventh,
+    Word::ApprovalEighth,
+    Word::ApprovalNinth,
+    Word::ApprovalNext,
     Word::ApprovalReview,
     Word::ApprovalOwner,
     Word::ApprovalMaintainer,
@@ -3609,6 +3650,27 @@ impl Word {
             Self::ApprovalJoin => 5654,
             Self::ApprovalAnd => 5655,
             Self::ApprovalSignOff => 5656,
+            Self::ApprovalYou => 5726,
+            Self::ApprovalSomeone => 5727,
+            Self::ApprovalOr => 5728,
+            Self::ApprovalOneOther => 5729,
+            Self::ApprovalOthers => 5730,
+            Self::ApprovalSigned => 5731,
+            Self::ApprovalCanGive => 5732,
+            Self::ApprovalWhoBoth => 5733,
+            Self::ApprovalWhoEnd => 5734,
+            Self::ApprovalIt => 5735,
+            Self::ApprovalFirst => 5736,
+            Self::ApprovalSecond => 5737,
+            Self::ApprovalThird => 5738,
+            Self::ApprovalFourth => 5739,
+            Self::ApprovalFifth => 5740,
+            Self::ApprovalSixth => 5741,
+            Self::ApprovalSeventh => 5742,
+            Self::ApprovalEighth => 5743,
+            Self::ApprovalNinth => 5744,
+            Self::ApprovalNext => 5745,
+
             Self::ApprovalReview => 4135,
             Self::ApprovalOwner => 4136,
             Self::ApprovalMaintainer => 4137,
@@ -5408,8 +5470,22 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
     }
-    if [Word::ApprovalSets, Word::ApprovalJoin, Word::ApprovalAnd].contains(&word) {
+    if word == Word::ApprovalSets {
         return Ok(APPROVAL_SET_NAMES_BYTES);
+    }
+    // Eight 64-byte names, conjunctions and the count of others; both parts fit together.
+    if [
+        Word::ApprovalJoin,
+        Word::ApprovalAnd,
+        Word::ApprovalOr,
+        Word::ApprovalSigned,
+        Word::ApprovalCanGive,
+        Word::ApprovalWhoBoth,
+        Word::ApprovalWhoEnd,
+    ]
+    .contains(&word)
+    {
+        return Ok(1280);
     }
     if word == Word::ClassesSet {
         return Ok(if last { 490 } else { 40 });
@@ -5825,11 +5901,31 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalDeploymentRule => (&[b"The deployment's landing rule ", b""], &[Number]),
         Word::ApprovalProjectRule => (&[b"This project's landing rule ", b""], &[Number]),
         Word::ApprovalOne => (&[b"", b" asks for one approval by ", b"."], &[Name, Name]),
-        Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"; ", b" so far."], &[Name, Number, Name, Number]),
+        Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"."], &[Name, Number, Name]),
         Word::ApprovalCut => (&[b"There are too many reviews to read them all, so one may already count."], &[]),
         Word::ApprovalTooFew => (&[b"Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change."], &[]),
         Word::ApprovalNoAccount => (&[b"temper knows no ", b" account of yours, so your review wouldn't count."], &[Name]),
         Word::ApprovalOtherRole => (&[b"It waits for a review by ", b"; yours wouldn't count."], &[Name]),
+        Word::ApprovalYou => (&[b"you"], &[]),
+        Word::ApprovalSomeone => (&[b"someone"], &[]),
+        Word::ApprovalOr => (&[b"", b" or ", b""], &[Name, Name]),
+        Word::ApprovalOneOther => (&[b"one other"], &[]),
+        Word::ApprovalOthers => (&[b"", b" others"], &[Number]),
+        Word::ApprovalSigned => (&[b"", b" of ", b" signed: ", b""], &[Number, Number, Name]),
+        Word::ApprovalCanGive => (&[b"", b" can give ", b""], &[Name, Name]),
+        Word::ApprovalWhoBoth => (&[b"", b"; ", b"."], &[Name, Name]),
+        Word::ApprovalWhoEnd => (&[b"", b"."], &[Name]),
+        Word::ApprovalIt => (&[b"it"], &[]),
+        Word::ApprovalFirst => (&[b"the first"], &[]),
+        Word::ApprovalSecond => (&[b"the second"], &[]),
+        Word::ApprovalThird => (&[b"the third"], &[]),
+        Word::ApprovalFourth => (&[b"the fourth"], &[]),
+        Word::ApprovalFifth => (&[b"the fifth"], &[]),
+        Word::ApprovalSixth => (&[b"the sixth"], &[]),
+        Word::ApprovalSeventh => (&[b"the seventh"], &[]),
+        Word::ApprovalEighth => (&[b"the eighth"], &[]),
+        Word::ApprovalNinth => (&[b"the ninth"], &[]),
+        Word::ApprovalNext => (&[b"the next"], &[]),
         Word::ApprovalSets => (&[b"Signs off changes to ", b"."], &[Name]),
         Word::ApprovalPathSet => (&[b"path set ", b""], &[Number]),
         Word::ApprovalJoin => (&[b"", b", ", b""], &[Name, Name]),

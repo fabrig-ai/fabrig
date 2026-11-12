@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 413;
+pub const N: usize = 414;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -914,6 +914,12 @@ pub fn samples() -> [Sample; N] {
             name: "needs-done",
             world: Solo,
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-sign-off-part",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
         Sample { name: "needs-approval", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -1713,6 +1719,21 @@ fn start_domain(sample: &Sample) -> Domain {
     }
     root
 }
+/// Kept sign-offs in the Team and Work samples, as the whole story draws them.
+pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
+    use temper_client_protocol_wire::v1 as w;
+    let mut signed = skein_lib::List::with_capacity(8);
+    for party in parties {
+        signed
+            .push(
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [0xab; 32], at })
+                    .expect("sample signer"),
+            )
+            .expect("at most eight sample signers");
+    }
+    signed
+}
+
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {

@@ -220,6 +220,46 @@ merge, kind 4, on a pattern of landing branches (jig's
   another head is unread for this head. An unmapped review names its
   forge account and head, without inferring a person from a display
   name. Removing a rule removes its panel line at once.
+- **Sign-offs kept at landing** (`../../../draft/what-reaches-you.md`,
+  section 7; `../../../draft/whole-story.execution.md`, N6): the people
+  whose approvals a merge's judgement counted are kept with the change
+  once it lands, who signed, at which head and when, for Work's "signed
+  by", Team's counts and the brief (`../../../client/pages/work.md`, 1;
+  `../../../client/pages/team.md`, 1; `../attention.md`, 3).
+  - *Who:* each distinct person `approval_count` counts for an approval
+    of an enforcing rule covering the merge, at the head and with the
+    `Touched` the admitting judgement read (requirement 5, above), across
+    every such approval, each person once: a person counted under two
+    approvals is one sign-off. With no enforcing rule asking an approval
+    covering the merge, none is kept. What counts for nothing there (a
+    comment, an unmapped account, temper's writer, a person of another
+    role, a request for changes, a review at a head the approval doesn't
+    count at) counts for nothing here.
+  - *Each a `SignOff`* (in `temper-engine-domain-forge`'s
+    `boundary.rs`): `person`, the party; `head`, the head their counted
+    review names, the merge's head or, where the approval counts
+    `clean`, a head its clean updates led through; and `at`, a `Wall`,
+    the review's time as the forge gives it (skein's `Review.at`, its
+    submission), which `landing_reviewers` carries on each
+    `judge::Reviewer` it gives, as `at`, from the latest review it keeps
+    of each account. At most `SIGN_OFFS`, 8, are kept, the earliest `at`
+    first, a tie the lower person first; those past it are left out.
+  - *Kept from the admission:* the decision that admits a change's merge,
+    under the queue or a member's under the turn (`../../landing.md`, 8),
+    keeps that judgement's sign-offs on the change's record,
+    `ChangeRow`'s `signed`, saved with it and replacing an earlier
+    admission's, so a restart between the admission and the merge's
+    settlement keeps them. A merge refused or failed after its admission
+    leaves them for the next admission to replace.
+  - *Into the landing log:* when temper's merge settles merged, the
+    change's entry in its repository's landing log takes its record's
+    `signed` (`../../after-landing.md`, 10), so the sign-offs outlive
+    the change's record (`README.md`, 7). A change whose pull request
+    someone else merged keeps none in the log.
+  - *Read* through each landed row of the project's changes document
+    (`../../../client/forge/records.md`, *A project's changes*) and in
+    the status agent's words (`../attention.md`, 3). They change no
+    judgement and no wait.
 - **Landing rules** are settings, the forge's own kinds (3): the
   deployment's and each project's, each covering a pattern of landing
   branches with CI, up to date, its gates and its approvals. A merge

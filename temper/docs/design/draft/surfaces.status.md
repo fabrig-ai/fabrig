@@ -14,7 +14,14 @@
     you" lede, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
-    A path set's why names the set, not its paths. Its
+    A path set's why names the set, not its paths. Who can still sign a
+    sign-off is a sentence of the card's context
+    (`../client/forge/README.md`, 4.1, *Its context*), where
+    `team/needs.html` closes the card's why line with it and
+    `team/home.html` its question, a sign-off's card having neither as
+    the mockups word them; the phone's from line (`team/phone-home.html`)
+    and Work's table of changes to sign (`team/work.html`) don't say it.
+    Its
     **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
@@ -32,9 +39,11 @@
     under the areas, where `../client/pages/team.md`, 1 has a line at
     People's foot, "Findings with no area go to NAME.", which nothing
     draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
-    gives a person's line what they can still sign, signed and asked for,
-    which waits for sign-offs by path and kept sign-offs
-    (`whole-story.execution.md`, N2, N5 and N6).
+    gives a person's line what they can still sign and asked for, which
+    waits for a read of the sign-offs another person can still give: the
+    `approvals` rows name who can still sign only the changes their watcher
+    sees (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
+    what they signed is `../client/pages/team.md`, 1, *What each signed*.
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's

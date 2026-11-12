@@ -1942,7 +1942,12 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
                 branch: vec![b'x'; usize::try_from(branch_bytes).unwrap()].into(),
                 at: skein_lib::Wall::from_nanos(123),
                 changes: vec![
-                    forge::LoggedChange { task: 51, pull: Some(2), title: vec![b't'; 256].into() };
+                    forge::LoggedChange {
+                        signed: Box::new([]),
+                        task: 51,
+                        pull: Some(2),
+                        title: vec![b't'; 256].into()
+                    };
                     usize::try_from(members).unwrap()
                 ]
                 .into(),
@@ -1956,7 +1961,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_669);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_797);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [
@@ -2267,6 +2272,33 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
     assert_eq!(forge::stored_bytes(&cloned), Some(held));
     drop(cloned);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn sign_offs_round_trip_on_changes_and_landing_logs() {
+    use skein_lib::Wall;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for count in [0, 1, forge::SIGN_OFFS] {
+        let mut signed = skein_lib::List::with_capacity(u32::try_from(forge::SIGN_OFFS).unwrap());
+        for n in 0..count {
+            signed
+                .push(forge::SignOff {
+                    person: u64::try_from(n).unwrap() + 1,
+                    head: [u8::try_from(n).unwrap(); 32],
+                    at: Wall::from_nanos(u64::MAX - u64::try_from(n).unwrap()),
+                })
+                .unwrap();
+        }
+        let signed = signed.into_boxed();
+        let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+        change.signed = signed.clone();
+        let mut log = landing_log(1, 1, 1);
+        let forge::Stored::LandingLog(row) = &mut log else { panic!("log fixture") };
+        row.landings[0].changes[0].signed = signed;
+        for row in [forge::Stored::Change(Box::new(change)), log] {
+            assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        }
+    }
 }
 
 #[test]

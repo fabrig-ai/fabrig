@@ -203,6 +203,7 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),

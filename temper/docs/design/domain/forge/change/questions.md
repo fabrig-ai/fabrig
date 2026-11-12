@@ -280,6 +280,29 @@ rest of the branch lands while a sign-off waits a night
   counts are, one past 4294967295 kept at it and the size marked cut, so
   that the card says so (`../../../client/forge/records.md`, the subject
   `approvals`).
+- **Who can still sign:** the root's part names, too, who has signed the
+  row's approval at the head and who can still give the next sign-off
+  (`../../../draft/what-reaches-you.md`, section 7;
+  `../../../draft/whole-story.execution.md`, N5). Nothing assigns a
+  sign-off to one of them: any of them may give it.
+  - `signed`: the people counted for the row's approval at the head, in
+    the order the forge counted them, at most eight, each an
+    `ApprovalPerson { person, name }`; `counted` counts them all, so the
+    client says those past the eight as a number.
+  - `can_sign`: the project's members that `eligible_people` counts for
+    the approval's role on the change's forge (`gates.md`, 3), less the
+    people counted for it at the head: the watcher first where among
+    them, then in the order the people domain lists the project's
+    members, at most eight, each an `ApprovalPerson`; and
+    `can_sign_more`, how many more there are past the eight. The watcher
+    is among them exactly where their review would count or the row is
+    *too few* and they hold the role with a forge account.
+  - A person's `name` is their identity's display name, its login where
+    the name is empty, its first 64 bytes at most, cut at a character's
+    boundary (skein's `bytes::utf8_prefix`); empty for a person the
+    people domain has no identity of.
+  - A row's largest size, which bounds how many rows a delivery holds
+    (*Its rows*), counts sixteen such people at 64 bytes of name each.
 - **Its rows,** oldest first by when their facts were first kept, then by
   task: at most 32, and as many as one whole delivery holds at the largest
   row, as the trials' are bounded (`../../trial.md`, section 6); `more` counts the

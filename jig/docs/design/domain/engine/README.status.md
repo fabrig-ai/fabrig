@@ -289,4 +289,4 @@ try. A window's later pages keep its first page's slot there
   no reason is recorded.
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
 
-- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2) [in flight: change 232].
+- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).

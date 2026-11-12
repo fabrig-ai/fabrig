@@ -627,6 +627,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
             required: 2,
             read: f::ReviewRead::Complete,
             counted: Box::new([f::Reviewer {
+                at: Wall::from_nanos(0),
                 person: 9,
                 role: 2,
                 head: HASH,
@@ -693,6 +694,7 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
             },
         ]),
         landed: Box::new([f::ChangesLanded {
+            signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
             task: 40,

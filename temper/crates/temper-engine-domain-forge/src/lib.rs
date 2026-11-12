@@ -106,6 +106,8 @@ pub mod resources;
 pub mod settings;
 pub use settings::ForgeCharters;
 #[cfg(test)]
+mod fuzzy;
+#[cfg(test)]
 #[path = "tests/public.rs"]
 mod public_tests;
 mod settle;
@@ -688,8 +690,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(total)
         }
-        Stored::Change(row) => skein_lib::len_u64(row.repair_tasks.len())
-            .checked_mul(8)?
+        Stored::Change(row) => skein_lib::len_u64(row.signed.len())
+            .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
+            .checked_add(skein_lib::len_u64(row.repair_tasks.len()).checked_mul(8)?)?
             .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
             .checked_add(skein_lib::len_u64(row.resolution_tasks.len()).checked_mul(8)?)?
             .checked_add(match &row.ending {

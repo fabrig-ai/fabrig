@@ -25,6 +25,7 @@ to 4.16) and the first recipes in `../../development/qa/setups/`.
   - 2, 7: a pass takes the web client's cases alone; the TUI's wait in the queue until Q4 adds `tui` to `qa.json`'s `surfaces` (`../testing/qa/README.md`, 3.2).
   - 6: a scripted call cannot take a value from the conversation (skein's `testing/fakes/llm.md`, 2.4), and `../protocol/setup/box.md`, 5's fake forges start from their seed at every restart.
   - 10: its later items, as 6.
+  - 5, 6, 10: the setups and their places run on the box's own Forgejo, with its runner (`../testing/qa/places.md`; `../../development/qa/setups/`), where the draft, since 2026-11-12, has the fakes alone; Q5 moves them.
 - **Design departs:**
   - 3, 10: the client a build keeps is the TUI's recording build (`temper-client` with `temper-client-shell-tui/record`, `../client/tui/journeys.md`, 2), beside the bundle's recording build: the drive session reads the TUI's frames from its saves, replayed natively, since nothing in the tree reads a pseudo-terminal's screen (`../client/drive.md`, 2.1 and 3.3). The goal's designer, 2026-11-12.
   - 10: the journeys' `again` keeps building from the checkout and recording into it, a person's command (`../client/web/journeys.md`, 8.1); the drive session and the recipe walk are what walks and drives with a given build in a given scratch directory (`../client/drive.md`, 2; `../client/recipe.md`, 5), since `again` writes into the checkout, which a QA session never touches. The goal's designer, 2026-11-12.
