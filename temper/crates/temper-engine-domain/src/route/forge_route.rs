@@ -2110,8 +2110,9 @@ fn configured_gates(
     env: &Env<Limits>,
     repository: &forge::Repository,
     base: &[u8],
+    touched: forge::Touched,
 ) -> Option<Box<[forge_change::Gate]>> {
-    domain.forge.held_gates(&env.limits.forge, repository, base)
+    domain.forge.held_gates(&env.limits.forge, repository, base, touched)
 }
 
 fn refused_review_request(
@@ -2658,7 +2659,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         return false;
     }
     let Some(base_parts) = branch_parts(&base, env.limits.forge.name_bytes) else { return false };
-    let Some(gates) = configured_gates(domain, env, adopted, &base) else { return false };
+    let Some(gates) = configured_gates(domain, env, adopted, &base, domain.forge.change_touched(task)) else {
+        return false;
+    };
     if domain.forge.change(task).is_none() {
         let room = drop_settled_change(domain, env);
         domain.work.push(Work::Forge(forge::Event::Change {
@@ -3538,7 +3541,8 @@ fn chat_change(
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
         kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
     }
-    let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
+    let gates =
+        configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -5472,6 +5476,12 @@ pub(crate) fn outputs(
                     landing_decision(domain, env, task, choice);
                 }
             }
+            forge::Request::Reviewed { task, evidence } => {
+                retain_review_wait(domain, env, task, &evidence);
+                if let Some(head) = refused_review_request(domain, env, task, &evidence) {
+                    domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
+                }
+            }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
                     if let Some(entry) = entry
@@ -6082,6 +6092,7 @@ fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidenc
     let Some(row) = domain.forge.change(task) else { return };
     let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
     if domain.forge.keep_review_facts(env.wall, task, facts) {
+        domain.work.push(Work::Forge(forge::Event::ReviewsChanged { task }));
         let mut subjects = List::with_capacity(2);
         subjects.push(Token::new(task)).expect("one changed panel");
         subjects.push(Token::new(crate::APPROVALS_SUBJECT)).expect("approvals beside the panel");

@@ -87,6 +87,8 @@ fn a_pull_seen_merged_is_logged() {
         contains_catch_up: change::Status::Passed,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     };
     // A fresh read of a merged pull reaches the same step for external and forge-queue merges.

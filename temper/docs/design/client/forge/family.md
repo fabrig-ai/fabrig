@@ -369,9 +369,8 @@ client removes no account and closes no chat of its own.
   begin shows (`../pages/home.md`, 1), and Settings' Repositories says each of the
   project's, with a failed one's "Copy again" and "Dismiss" (`../pages/settings.md`, 1).
   Default: with To begin skipped, on any other page, no line says a row.
-- **A repository's role, health and landing rules on the Repositories
-  tab** (`../pages/README.md`; `repositories.md`, 2 and 3). Default: not drawn, as the user's
-  request of 2026-11-05 settled: a line says its name and its forge.
+- A repository's role, health and landing rules on the Repositories
+  tab: `repositories.md`, section 5.
 - **The form's place:** among a project's settings (`repositories.md`, 3),
   which `Settings` (`../pages/README.md`) links and does not hold. Default: a page of its
   own, from `Settings` and Home.
@@ -405,9 +404,7 @@ client removes no account and closes no chat of its own.
   is listed, and adopting one the project holds is refused by the
   engine as any adoption; the request naming the project, the engine
   leaving those out, is the candidate (`README.md`, section 8).
-- **A connect's end told:** the forges' page reads how a connect ended
-  on the deployment's part. Default: that read, watched while the page
-  is open; no notice in the inbox.
+- A connect's end told: `deployment.md`, section 1.
 - **The pull request's link on the card** ("OWNER/NAME#N on
   Playground forge"): the forge's part, which the forge's
   side does not read yet (2). Default: the link to the task's page.

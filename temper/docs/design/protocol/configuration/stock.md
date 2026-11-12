@@ -259,7 +259,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   that two chats and a goal's agents run side by side, which the hubs'
   and the fleet's slots in `standard` already hold, with
   `checkout.workspaces` and `git_component.operations` 4, the least they
-  take (`../../domain/worker.md`, section 6); and, at what the box had, the
+  take (`../../domain/worker/README.md`, section 5); and, at what the box had, the
   clients' streams, `clients.streams` and `clients_http.streams` 8,
   each with four ordinary exchanges beside it in what carries it
   (`clients.exchanges`, `clients_http.calls` and temper's server
@@ -313,3 +313,20 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   it changed. A setting a deployment changed keeps its change; a reset
   removes the stored change, as a change of its own, and the setting
   follows the default again.
+
+## 1. Open questions
+
+- **A landing branch with another name than `main`** (`settings.md`, 8;
+  `../../draft/stock-ways.md`, section 2): Draft first's rule 1 names
+  `main`, so over a repository whose landing branch is named otherwise
+  its rules cover no landing branch, and its path shows none of their
+  stops there. Default: later, as the draft has it.
+
+- **A chat checking the forge before declaring a repository absent**
+  (`stock.md`, charter 1): the stock directs `read_branch` for a repository
+  outside the checkout. Default: the instruction and its phrase assertion;
+  a real-model observation follows landing, with no new tool or authority.
+
+- **Ask temper's real-model walk** (`stock.md`): the small chat's walk follows
+  landing; the request bound covers
+  temper's parts, not Claude Code's own MCP-attached overhead.

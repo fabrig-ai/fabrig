@@ -1,4 +1,4 @@
-//! Chat entries and hand-written frames (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/theme.md).
+//! Chat entries and hand-written frames (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md).
 use super::{fixtures as f, goldens, printed as p};
 use crate::{
     Scheme, Told, Tui, look,

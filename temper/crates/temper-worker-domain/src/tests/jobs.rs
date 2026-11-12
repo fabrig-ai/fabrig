@@ -1,4 +1,4 @@
-//! Jobs through the root's protocol boundary (temper/docs/design/domain/worker.md, 4.4).
+//! Jobs through the root's protocol boundary (temper/docs/design/domain/worker/jobs.md).
 
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
@@ -165,7 +165,7 @@ fn answer(rows: &[Request]) -> &host::JobEnding {
     answer.expect("job answers")
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn the_hello_states_the_job_capabilitys_kinds() {
     let mut h = harness(false);
@@ -174,7 +174,7 @@ fn the_hello_states_the_job_capabilitys_kinds() {
     assert_eq!(hello.jobs.as_ref(), &[kind(false).bound]);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_runs_its_command_in_its_prepared_checkout_and_answers_its_result() {
     let mut h = harness(false);
@@ -217,7 +217,7 @@ fn a_job_runs_its_command_in_its_prepared_checkout_and_answers_its_result() {
     assert!(h.domain.items.is_empty());
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering() {
     let mut h = harness(true);
@@ -236,7 +236,7 @@ fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering(
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_jobs_stale_push_answers_failed_undelivered() {
     let mut h = harness(true);
@@ -249,7 +249,7 @@ fn a_delivering_jobs_stale_push_answers_failed_undelivered() {
     assert_eq!(*work, host::Work { left: None, saved: None });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_cancelled_job_is_killed_and_answered_once_its_processes_are_gone() {
     let mut h = harness(true);
@@ -269,7 +269,7 @@ fn a_cancelled_job_is_killed_and_answered_once_its_processes_are_gone() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_whose_spec_did_not_decode_is_refused_its_start() {
     let mut h = harness(false);
@@ -287,7 +287,7 @@ fn a_job_whose_spec_did_not_decode_is_refused_its_start() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     let mut h = harness(false);
@@ -314,7 +314,7 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_job_waits_for_a_push_already_begun_when_cancelled() {
     let mut h = harness(true);
@@ -330,7 +330,7 @@ fn a_delivering_job_waits_for_a_push_already_begun_when_cancelled() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_job_without_one_writable_repository_pushes_nothing() {
     let mut h = harness(true);
@@ -341,7 +341,7 @@ fn a_delivering_job_without_one_writable_repository_pushes_nothing() {
     assert_eq!(*failure, host::JobFailure::Failed);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2.
+/// temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2.
 #[test]
 fn a_close_jobs_commit_title_names_its_goal() {
     for (kind, request, expected) in [

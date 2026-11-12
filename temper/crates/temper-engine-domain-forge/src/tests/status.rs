@@ -98,6 +98,8 @@ fn observe_pull(d: &mut Domain) {
         contains_catch_up: change::Status::Passed,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     };
     decide_step(d, &env(), pending, &mut Queue::uncapped());

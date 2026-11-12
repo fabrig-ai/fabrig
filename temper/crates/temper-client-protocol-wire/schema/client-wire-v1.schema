@@ -47,7 +47,8 @@ enum Kind { forgejo, github }
 
 # A change waiting on a person's review (client/forge/records.md; domain/forge/change/questions.md, 2).
 enum ApprovalYours { counts, no_account, too_few, other_role }
-record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 behind: u32 whole: bool yours: ApprovalYours }
+record ApprovalSet { number: u8 name: bytes 40 }
+record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours }
 versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 
 record Looked { project: u32 }
@@ -289,7 +290,7 @@ enum LandingLast { exact: LandingExact, open: LandingOpen }
 record LandingPattern { segments: list 16 bytes 4096 last: LandingLast }
 record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
-record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval sets: list 6 u8 }
 record ForgeCharter { charter: u32 }
 record TemplateGoal { design: bool close_out: bool }
 enum QuestionsRoute { none, foreman, up }

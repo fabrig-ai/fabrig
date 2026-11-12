@@ -249,13 +249,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    branch starts at the next step. Every producing delegate's writable
    repository carries the change's landing branch beside its write
    destination, whatever its start, and the worker pins its tip for the
-   project's checks (`../../worker.md`, 4.1 and section 5). A producing delegate
+   project's checks (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A producing delegate
    retried while it still owns an existing change branch starts at that
    branch. Only a writable producer whose start is that destination gets
    the comparison for existing work;
    saved starts, repairs, resolution, gates and ordinary runs do not. The
    worker fetches the landing tip per hold and verifies an existing
-   unlanded head through a guarded push (../../worker.md, section 5). This does
+   unlanded head through a guarded push (../../worker/checkouts.md). This does
    not substitute a historical receipt for current ownership or drift checks.
    A catch-up's producer is the merge job (`repairs.md`): its landing branch's
    tip with the catch-up's commit merged in, pushed as the change's
@@ -416,7 +416,7 @@ the change reads the head afresh once the slot is freed. Otherwise:
   89abcdef0123`). Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
-  (`../../worker.md`, 4.4). A release
+  (`../../worker/jobs.md`). A release
   takes the new head as the change's and checks it, gates asked again,
   its pull request opened first where none is open (2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at
@@ -646,3 +646,15 @@ changes live at once, never every change made.
   (`../../../protocol/configuration/limits.md`). A
   closer reading a compact account of its goal's changes, kept beside
   its own row, would lift the pin.
+
+- **A forge's run on a head replaced** (`README.md`, 2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+
+- **An early update against the bound** (`README.md`, 2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.

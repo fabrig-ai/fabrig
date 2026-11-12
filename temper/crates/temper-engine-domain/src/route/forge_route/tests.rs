@@ -733,6 +733,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
+                touched: forge::Touched::UNKNOWN,
                 prior,
                 head: Some(SHA1),
                 base_tip: SHA1,
@@ -902,6 +903,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
+            touched: forge::Touched::UNKNOWN,
             prior: row.change.clone(),
             head: Some(SHA1),
             base_tip: SHA1,
@@ -2873,7 +2875,7 @@ fn malformed_repairs_refuses_a_change_start() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
+/// temper/docs/design/domain/worker/jobs.md: the root writes R1's repository-relative command.
 #[test]
 #[expect(
     clippy::disallowed_macros,
@@ -4325,7 +4327,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: preserve the close request whole.
+/// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1;
@@ -4471,6 +4473,7 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     )
     .unwrap();
     let evidence = forge::ChangeEvidence {
+        touched: forge::Touched::UNKNOWN,
         prior: row.change.clone(),
         head: Some(SHA1),
         base_tip: SHA1,

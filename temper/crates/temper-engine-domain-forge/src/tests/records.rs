@@ -232,6 +232,7 @@ fn made_and_restored_forges_supply_their_checkout_credential() {
 
 pub(super) fn setting_rule() -> setting::LandingRule {
     setting::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: GateLast::Open(Box::new([])),

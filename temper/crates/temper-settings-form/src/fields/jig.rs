@@ -105,7 +105,7 @@ pub static FORMS: [Form; 70] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"What the charter does: a JSON string of 1 to 120 UTF-8 bytes, no control characters. If absent, Roles uses its instructions' first sentence. Selector: charter number, no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"Both headline and lede for the project's own way in How work runs. If absent, it uses the way's words. Selector: project, no number." },
 ];
-pub static FIELDS: [Field; 245] = [
+pub static FIELDS: [Field; 246] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -1266,6 +1266,7 @@ pub static FIELDS: [Field; 245] = [
     Field { shape: Shape::LandingRule, name: b"up_to_date", value: Value::Boolean, list: None, null: false, line: b"The change's head must contain its base's tip." },
     Field { shape: Shape::LandingRule, name: b"gates", value: Value::Shape(Shape::LandingGate), list: Some(Bound::Limit(Limit::LandingGates)), null: false, line: b"The gates every change it covers asks for." },
     Field { shape: Shape::LandingRule, name: b"approvals", value: Value::Shape(Shape::LandingApproval), list: Some(Bound::Limit(Limit::LandingApprovals)), null: false, line: b"Distinct people per role required to approve by forge review." },
+    Field { shape: Shape::LandingRule, name: b"sets", value: Value::Integer(Width::U8), list: Some(Bound::Limit(Limit::LandingSets)), null: false, line: b"Project path sets 1 to 6, unique. Default [], omitted when empty. None for deployments." },
     Field { shape: Shape::LandingGate, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"The agent review's or repository check's gate number." },
     Field { shape: Shape::LandingGate, name: b"blocking", value: Value::Boolean, list: None, null: false, line: b"Whether this gate must pass before the change lands." },
     Field { shape: Shape::LandingGate, name: b"freshness", value: Value::Words(FRESHNESS), list: None, null: false, line: b"At which later heads a verdict still counts." },

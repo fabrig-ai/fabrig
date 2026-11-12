@@ -620,7 +620,15 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
             }
             let rule = w::LandingRule::new(
                 &w::CEILINGS,
-                w::LandingRuleParts { pattern, enforce: true, ci: !goal, up_to_date: !goal, gates, approvals },
+                w::LandingRuleParts {
+                    pattern,
+                    enforce: true,
+                    ci: !goal,
+                    up_to_date: !goal,
+                    gates,
+                    approvals,
+                    sets: List::with_capacity(0),
+                },
             )
             .expect("way rule");
             let mut writer = Writer::new(usize::try_from(rule.measure()).expect("rule bytes"));

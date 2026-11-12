@@ -41,7 +41,7 @@ pub struct Domain {
     pub(crate) tooling: tooling::Domain,
     /// Decoded job specs by the engine's run and attempt, until answered.
     pub(crate) job_specs: Map<(Token, Token), crate::jobs::Spec>,
-    /// Operator evidence for hosted jobs and the entering assignment (worker.md, 4.4).
+    /// Operator evidence for hosted jobs and the entering assignment (domain/worker/jobs.md).
     pub(crate) job_evidence: Map<(Token, Token), crate::jobs::Evidence>,
     /// Owners whose job capability has not yet refused or gone.
     pub(crate) jobs: Map<Token, Token>,
@@ -174,7 +174,7 @@ impl Domain {
     }
 
     /// A domain with room for `limits`, which [`crate::valid`] accepts, and
-    /// job kinds accepted by the tooling capability (temper/docs/design/domain/worker.md, 4.4).
+    /// job kinds accepted by the tooling capability (temper/docs/design/domain/worker/jobs.md).
     ///
     /// # Panics
     /// Panics if the kinds do not fit the job capability's limits.
@@ -298,7 +298,7 @@ impl Domain {
     }
 
     /// Settled, with no run left to answer and the engine out of reach past
-    /// the grace (`domain/worker.md`, section 2; jig's `domain/hosts/hub.md`,
+    /// the grace (`domain/worker/README.md`, section 2; jig's `domain/hosts/hub.md`,
     /// 7): what is kept is given up.
     fn out_of_reach(&self) -> bool {
         self.settled() && self.past && self.host.unanswered() == 0
@@ -326,7 +326,7 @@ impl Domain {
         self.host.activity_lost().saturating_add(self.activity_dropped)
     }
 
-    /// The assigned kind and its verb, until the service takes the job's evidence (worker.md, 4.4).
+    /// The assigned kind and its verb, until the service takes the job's evidence (domain/worker/jobs.md).
     #[must_use]
     pub fn job_kind(&self, run: Token, attempt: Token) -> Option<(u32, Box<[u8]>)> {
         let evidence = self.job_evidence.get(&(run, attempt))?;
@@ -334,7 +334,7 @@ impl Domain {
         Some((evidence.kind.0, verb))
     }
 
-    /// Take a job's operator evidence once, outside facts, results and turns (worker.md, 4.4).
+    /// Take a job's operator evidence once, outside facts, results and turns (domain/worker/jobs.md).
     pub fn job_why(&mut self, run: Token, attempt: Token) -> Option<Box<[u8]>> {
         self.job_evidence.remove(&(run, attempt))?.why
     }

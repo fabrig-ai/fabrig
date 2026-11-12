@@ -125,10 +125,10 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, `engine.md`'s rule member for member but `connector` and `kind`,
   which are always the forge's and its merge: `pattern`, `enforce`,
-  `ci`, `up_to_date`, `gates` and `approvals`, each as `engine.md` says.
-  Its largest bytes, the kind's bound, are its encoding with a pattern
-  at jig's pattern bounds, `forge.change_policy.gates` gates and
-  `authority.roles` approvals; `forge.landing_rules`, a limit of the
+  `ci`, `up_to_date`, `gates`, `approvals` and `sets`, each as `engine.md`
+  says, `sets` last. Its largest bytes, the kind's bound, are its encoding
+  with a pattern at jig's pattern bounds, `forge.change_policy.gates`
+  gates, `authority.roles` approvals and 6 sets; `forge.landing_rules`, a limit of the
   forge's (`limits.md`), is 4 in `small`, as jig's requirements per scope
   bound the rules today.
 - **A project's rule may name a branch** (`../../draft/stock-ways.md`,
@@ -152,7 +152,11 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     bounds; with more gates than
     `forge.change_policy.gates`, or a gate's number twice; with an
     approval of no people, or a role twice, or one past
-    `authority.roles`;
+    `authority.roles`; with more than 6 sets, a set's number outside 1
+    to 6 or named twice, or, of kind 1, any set ("a deployment's rule
+    names no path set": sets are a project's). A set the project's
+    classes don't hold is no refusal: each item is judged alone, and the
+    rule covers every change until the classes hold it (`engine.md`);
   - *the forge's charter* outside 1 to jig's `tasks.charters`, or
     removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
@@ -211,7 +215,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   its items and replaces its rules, the deployment's or the project's,
   whole; each live change into a repository it serves is stepped after
   the commit, so a gate a rule added is asked for and one it dropped no
-  longer waited on (`../../domain/forge/change/gates.md`, 1). At a start the forge is given the stock
+  longer waited on (`../../domain/forge/change/gates.md`, 1), and a change
+  a rule's sets now cover waits for what the rule asks. A commit that
+  changes a project's classes' sets steps, likewise, each live change of
+  the project that a rule naming a set covers by its branch, so a set's
+  patterns changed reach the changes they now cover or no longer do
+  (`../../draft/what-reaches-you.md`, section 7). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
   before its other records (`../../domain/forge/README.md`, section 9).
 - **Erased with their project.** A project deleted (jig's
@@ -342,7 +351,9 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 - **Judged over the rules the forge holds then.** At a merge, the forge
   takes every rule covering its branch that enforces, the deployment's
   and the project's, a project's rule beginning at `branch` covering the
-  branch of that name in each of the project's repositories (2), and
+  branch of that name in each of the project's repositories (2), a rule
+  naming path sets only where the change touches one of them at the
+  merge's head (`../../domain/forge/change/gates.md`, 2), and
   its rule 1 the stock's while its owners have set none (`stock.md`):
   requirement 5 meets when each one's CI, gates and
   approvals are met, waits when one waits and none refuses, and refuses
@@ -580,7 +591,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | Limit | Relation |
 |---|---|
 | both `hub.turn_bytes` | T |
-| the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 (4 MiB), so that a coding run's whole window resumes after an interruption, not one turn's worth (`../../domain/worker.md`, section 2) |
+| the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 (4 MiB), so that a coding run's whole window resumes after an interruption, not one turn's worth (`../../domain/worker/README.md`, section 2) |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
 | the engine's and each worker's `io.output` | the same room, the greatest worker room derived from a turn of T's frame and the workers' configured rooms |
@@ -724,3 +735,73 @@ defaults (`stock.md`), so that a test world gives its own or none.
   project's settings: an owner of the project, as jig's `ChangeSettings`
   asks (jig's `domain/people/acts.md`, 1). "Use this" and "Keep it" send
   its items (`../../client/pages/settings.md`, 2).
+
+## 9. Open questions
+
+- **Settings refusal positions** (`settings.md`, 2; jig's `domain/engine/settings.md`, 2):
+  the core's `at` counts from 0, and temper's form prints it as given,
+  while a settings file and temper's translation refusal count from 1.
+  Consistent person-facing numbering is later work. Default: keep the
+  protocol's position and the current words until both temper paths agree.
+
+- **A reference call of 128 KB** (`settings.md`, 7): the 131,072-byte payload and
+  98,500-token output pass the session's rendered feedback beyond the
+  transcript's `said_text` ceiling. Raising that ceiling changes a stored
+  format and needs its owner's decision. Default: the admitted 63,740-byte
+  payload and 48,000-token output; no codec ceiling changes.
+
+- **Large arguments through a real program** (`settings.md`, 7): the fake-program
+  table carries 65,536 and 100,000 bytes whole, while the live story asks
+  for 65,536 and 131,072. Default: compile that story during a plan and
+  run it after landing; no real-provider result is established by the
+  fake or by startup admission.
+
+- **A real provider's list** (`settings.md`, 1): checking the configured patterns and
+  account grant against a real provider follows landing. Default: fake
+  lists through the worker and agent, with the account's retained names,
+  catalogue decision and unchanged accounting checked together. A fake
+  establishes no real-provider result. Later pages and changes to a known
+  model's figures remain jig's `domain/engine/README.md`, section 10's work.
+
+- **A Claude-only box on the small profile.** Its largest turn's store
+  frame passes small's page ceiling (`settings.md`, 7), where `standard`'s holds any
+  turn smith admits: a page decision of jig's or skein's profile.
+  Default: such a box runs `standard`, as `temper-box init`'s document does.
+
+- **A message, a report or a person's spec past what a box takes**
+  (`stock.md`, `settings.md`, 7). The user's request of 2026-11-03 sizes a message at
+  128 kB and a report at 256 kB, and a box's are its agent's message,
+  10,660 bytes, since a call's payload is bounded by its model's output:
+  128 kB in one call needs an output of about 98,500 tokens, and a
+  message past one offer, 200,068 bytes at luna's window, fits no offer.
+  A spec a person writes stops at `people.words`, 8,192, people-v14's
+  ceiling, past which the format would change, below the largest seen,
+  19 kB; `tasks.spec_bytes`, 131,072, is reached only by a model whose
+  output admits that payload. Default: as they stand, `standard`
+  holding 262,144 for a deployment with larger models. The user's to
+  choose, with no answer yet: smith's messages and host answers take a
+  bound of their own, an offer's (smith's `protocol/limits.md`, 13), so
+  a box's results reach about 200 kB at luna's window while a call stays
+  within the payload; or init's models declare a larger output where the
+  provider allows it, raising every agent figure with T and the budgets'
+  C; or this default stays. Past `people.words`, people-v14's ceilings
+  change in place (jig's `protocol/configuration.md`, section 8).
+
+- **A brief past the host part's room** (`stock.md`). The same request sizes a
+  run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
+  353,072, a whole spec among it, fits the room the host part leaves
+  charter 5 at init's models, the least a stock charter keeps: 355,042
+  bytes, less 1,472 for its 64 sections' titles and framing and a
+  498-byte margin. It is past the largest fabrig's development has had,
+  200 kB.
+  1 MB needs a window of about 2.7M tokens or a larger share of
+  it for the host. Default: as it stands. The user's to choose, with no
+  answer yet: smith's room split asked again with measurements (smith's
+  `protocol/limits.md`, 13, "A window's halves"), or a larger window
+  declared for a model whose provider has one.
+
+- **Requirements an application fixes** (`settings.md`, 3). The landing rules'
+  two requirements are in jig's rules, which the deployment's owners may
+  change, so landing can be left unenforced by a change of rules.
+  Default: changeable, and said plainly on the review page; jig could
+  let an application mark requirements no change removes.

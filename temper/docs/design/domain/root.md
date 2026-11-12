@@ -8,7 +8,7 @@ root composes and carries, its vocabulary toward the protocol layer, the
 one shape as temper holds it, how it routes, translates and puts outputs
 together, its store vocabulary, its part in restart and stopping, its
 limits, and what it never does. The core is jig's `domain/engine/README.md`;
-the forge is forge/README.md; the worker the root assigns runs to is worker.md,
+the forge is forge/README.md; the worker the root assigns runs to is worker/README.md,
 and the agent agent/README.md. What is still open is listed in section 12.
 
 ## 1. In one page
@@ -459,7 +459,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   forge's connector, its pattern the repository's path; the root
   translates nothing of it (jig's `domain/engine/briefs.md`, section 2).
 - **The hub's link vocabulary** to the fleet's and back: a hello with its
-  bounds, the worker's stop bound among them (worker.md, section 2), a
+  bounds, the worker's stop bound among them (worker/README.md, section 2), a
   run's phases, activity and counts. A run's live piece goes to the
   core as the run's text instead (jig's `domain/engine/views.md`):
   one of a kind other than text, or past the offsets the core keeps, is
@@ -488,7 +488,7 @@ preparing, held until its claim commits:
   repositories, read only. Each item is the forge's: where it
   starts, and the branch it pushes to, the change's branch for a
   change's delegate and the task's own `r` branch for any other run
-  (forge/branches.md; worker.md, 4.1), pushed only when the task
+  (forge/branches.md; worker/README.md, 4.1), pushed only when the task
   holds that branch, or the change it works for does, and its authority
   grants the push; otherwise read only.
 - **The workstream:** the change's task for its delegates, so a change's
@@ -496,7 +496,7 @@ preparing, held until its claim commits:
   own otherwise.
 - **Saving:** the task's saved-work branch (forge/branches.md) for a
   run that may write, so the unfinished work it leaves is saved and the
-  next run starts from it (jig's `domain/engine/executors.md`, 4; worker.md,
+  next run starts from it (jig's `domain/engine/executors.md`, 4; worker/README.md,
   4.2).
 - **Grants:** the LLM accounts its charter's models need, the core's;
   and each repository's forge's git identity, one of temper's
@@ -594,12 +594,12 @@ its bounded retry path.
 - **A failed preparation** names its repository and why: what the forge
   lacks (the repository, the branch, the commit), that it refused the
   identity, or the head that did not merge into a base with heads merged
-  in (`../protocol/channel.md`, section 5; worker.md, section 5). The
+  in (`../protocol/channel.md`, section 5; worker/checkouts.md). The
   root reports it as a fact of the attempt: its task, its attempt, the
   repository's tag, the reason; a conflict it gives the forge too, for
   the change whose producer the run is (forge/change/questions.md, 1). Whether the
   task tries again follows the answer's class, as for any failure
-  (worker.md, 4.3).
+  (worker/README.md, 4.3).
 - **Past their bounds,** an answer's parts fail its run as invalid,
   whatever the answer says.
 
@@ -755,8 +755,8 @@ back:
 
 | Restarted or away | What carries on |
 |---|---|
-| the engine | each worker keeps hosting its runs within its engine-away bound, redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/README.md`, section 4, and `forge/branches.md`, section 1, and `forge/README.md`, section 9) |
-| a worker | its runs, stopped or lost, are resumed on it or another worker from their transcripts and saved work, their start messages kept (`worker.md`, section 2) |
+| the engine | each worker keeps hosting its runs within its engine-away bound, redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/README.md`, section 4, and `forge/branches.md`, section 1, and `forge/README.md`, section 9) |
+| a worker | its runs, stopped or lost, are resumed on it or another worker from their transcripts and saved work, their start messages kept (`worker/README.md`, section 2) |
 | a forge | its reads and writes wait out the outage and its CI is read again (`forge/keeping-up.md`, 5); an owned Forgejo on a box gets its sign-in source once the engine answers, without its own restart (`../protocol/setup/box.md`, 2) |
 
 The root itself adds no step: steps 4 and 5 of 8.1 are where the engine's

@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -138,3 +138,6 @@ that proof remains with the after-landing runs (11).
   adopts and renders no `policies`
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).
+
+- **Not yet:** 2.8: temper's one story on macOS has not run green
+  on the runner, so `../draft/macos.md`'s acceptance stands open.

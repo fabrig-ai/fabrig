@@ -19,7 +19,7 @@ pub enum Start {
     /// Resolve this branch against the named base commit.
     Merge { branch: Box<[u8]>, base: api::Commit },
     /// The landing branch with each head merged into it in order
-    /// (temper/docs/design/domain/worker.md, 4.1).
+    /// (temper/docs/design/domain/worker/README.md, 4.1).
     Merged { branch: Box<[u8]>, heads: Box<[api::Commit]> },
 }
 /// Root-translated identities and branch names for one repository.
@@ -179,7 +179,7 @@ impl Domain {
         if let Some((row, change::Delegate::Produce)) = inherited {
             let merge_landing = match &row.change.early {
                 change::Early::Started(_) | change::Early::Spent(_) => true,
-                change::Early::None => !self.requires(repository, &row.base).up_to_date,
+                change::Early::None => !self.requires(repository, &row.base, self.touched_at(row)).up_to_date,
             };
             if merge_landing {
                 match &start {

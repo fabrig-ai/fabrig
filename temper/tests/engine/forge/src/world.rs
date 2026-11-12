@@ -802,6 +802,7 @@ impl World {
             edit: top::settings::Edit::Set(top::settings::SizedValue {
                 size: 64,
                 value: top::settings::Value::Rule(top::settings::LandingRule {
+                    sets: Box::new([]),
                     pattern: top::GatePattern {
                         segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"]
                             .map(Box::from)
@@ -817,6 +818,14 @@ impl World {
             }),
         };
         self.top.keep_settings(&self.env, 1, None, &[item], &mut self.top_out);
+        self.take_top();
+        self.run_for(1);
+    }
+
+    /// Commit the forge's settings and drive the resulting live-change wakes.
+    pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
+        self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
+        top::fire(&mut self.top, &self.env, &mut self.top_out);
         self.take_top();
         self.run_for(1);
     }
@@ -1298,6 +1307,7 @@ impl World {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
                 | top::Request::BriefReady { .. }

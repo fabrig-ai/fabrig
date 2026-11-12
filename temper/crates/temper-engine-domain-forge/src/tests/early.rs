@@ -69,6 +69,7 @@ fn producing_under_rule(base: &[u8], last: GateLast, up_to_date: bool) -> Domain
         value: settings::SizedValue {
             size: 0,
             value: settings::Value::Rule(settings::LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern {
                     segments: Box::new([
                         b"forge".as_slice().into(),

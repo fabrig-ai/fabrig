@@ -217,7 +217,7 @@ fn approvals(name: &str) -> Box<[u8]> {
                         role: 0,
                         required: 1,
                         counted: 0,
-                        behind: 0,
+                        sets: List::with_capacity(0),
                         whole: true,
                         yours: w::ApprovalYours::Counts,
                     },
