@@ -1,7 +1,7 @@
 use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::{
     delivery::SUBSCRIBED,
-    request::{Page, Request},
+    request::{Grant, Page, Request},
 };
 use skein_forge_setup::{
     item::Item,
@@ -51,14 +51,17 @@ fn an_adopted_repository_gets_a_hook_to_the_listener() {
     assert!(world.secrets_absent());
 }
 #[test]
-fn a_second_run_writes_only_the_hooks_patches() {
+fn a_second_run_only_deletes_and_creates_each_repositorys_hook() {
     let mut world = world();
     world.adopted(&[2, 1]);
     assert_eq!(world.reconcile(), Ended::Done);
     let since = world.requests().len();
     let files = fixtures::file_writes(&world);
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(writes(&world, since), [Route::EditRepoHook, Route::EditRepoHook]);
+    assert_eq!(
+        writes(&world, since),
+        [Route::DeleteRepoHook, Route::CreateRepoHook, Route::DeleteRepoHook, Route::CreateRepoHook]
+    );
     assert_eq!(fixtures::file_writes(&world), files);
 }
 #[test]
@@ -82,40 +85,52 @@ fn a_hook_on_the_second_page_is_neither_repeated_nor_passed_over() {
     assert_eq!(world.reconcile(), Ended::Done);
     assert_hook(&world, 1, 1);
     assert_eq!(world.repository_hooks(1).len(), 3);
-    assert_eq!(writes(&world, 0), [Route::AddCollaborator, Route::EditRepoHook]);
-    assert!(
+    assert_eq!(writes(&world, 0), [Route::AddCollaborator, Route::DeleteRepoHook, Route::CreateRepoHook]);
+    assert_eq!(
         world
             .requests()
             .iter()
-            .any(|r| matches!(r, Request::RepoHooks { page: Page { page: Some(2), limit: Some(2) }, .. }))
+            .filter(|r| matches!(r, Request::RepoHooks { page: Page { page: Some(2), limit: Some(2) }, .. }))
+            .count(),
+        2,
     );
 }
 #[test]
 fn a_hook_deleted_on_page_two_does_not_skip_the_next_row() {
     let mut world = world();
-    world.with_hook(1, b"http://other", fixtures::secret(b"other-secret"));
-    let kept = world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
-    for _ in 0..2 {
-        world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
+    for target in [b"http://other/one".as_slice(), b"http://other/two"] {
+        world.with_hook(1, target, fixtures::secret(b"other-secret"));
     }
+    let old: Vec<_> = (0..3).map(|_| world.with_hook(1, &url(1), fixtures::secret(b"old-secret"))).collect();
     assert_eq!(world.reconcile(), Ended::Done);
     assert_hook(&world, 1, 1);
-    assert_eq!(world.repository_hooks(1).len(), 2);
-    assert_eq!(world.repository_hooks(1)[1].id, kept);
+    assert_eq!(world.repository_hooks(1).len(), 3);
+    assert!(world.repository_hooks(1).iter().all(|hook| !old.contains(&hook.id)));
     assert_eq!(
         writes(&world, 0),
-        [Route::AddCollaborator, Route::DeleteRepoHook, Route::DeleteRepoHook, Route::EditRepoHook]
+        [
+            Route::AddCollaborator,
+            Route::DeleteRepoHook,
+            Route::DeleteRepoHook,
+            Route::DeleteRepoHook,
+            Route::CreateRepoHook,
+        ]
     );
 }
 #[test]
-fn two_hooks_with_the_listeners_url_keep_the_lowest_id_patched_and_delete_the_other() {
+fn two_hooks_with_the_listeners_url_are_both_deleted_then_one_is_created() {
     let mut world = world();
-    let kept = world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
-    world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
+    let old = [
+        world.with_hook(1, &url(1), fixtures::secret(b"old-secret")),
+        world.with_hook(1, &url(1), fixtures::secret(b"old-secret")),
+    ];
     assert_eq!(world.reconcile(), Ended::Done);
     assert_hook(&world, 1, 1);
-    assert_eq!(world.repository_hooks(1)[0].id, kept);
-    assert_eq!(writes(&world, 0), [Route::AddCollaborator, Route::DeleteRepoHook, Route::EditRepoHook]);
+    assert!(!old.contains(&world.repository_hooks(1)[0].id));
+    assert_eq!(
+        writes(&world, 0),
+        [Route::AddCollaborator, Route::DeleteRepoHook, Route::DeleteRepoHook, Route::CreateRepoHook]
+    );
 }
 #[test]
 fn a_hook_of_another_url_is_left_alone() {
@@ -153,15 +168,64 @@ fn a_webhook_secret_is_drawn_when_missing() {
     assert!(secret.iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
     assert_hook(&world, 1, 1);
 }
-#[test]
-fn a_webhook_secret_is_kept_when_present() {
+fn stale_hook() -> (HostWorld, u64) {
     let mut world = world();
-    world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
+    world.store_mut().grant(1, b"kit", Grant::Write).expect("collaborator");
+    let old = world.with_hook(1, &url(1), fixtures::secret(b"old-secret"));
     world.put(Item::WebhookSecret, fixtures::secret(b"seeded-webhook-secret"));
+    (world, old)
+}
+#[test]
+fn a_hook_with_another_secret_is_remade_with_the_kept_webhook_secret() {
+    let (mut world, old) = stale_hook();
     assert_eq!(world.reconcile(), Ended::Done);
     assert_eq!(secret_writes(&world), 0);
     assert_hook(&world, 1, 1);
+    assert_ne!(world.repository_hooks(1)[0].id, old);
     assert_eq!(world.repository_hooks(1)[0].secret, fixtures::secret(b"seeded-webhook-secret"));
+    assert_eq!(writes(&world, 0), [Route::DeleteRepoHook, Route::CreateRepoHook]);
+    assert!(world.secrets_absent());
+}
+#[test]
+fn a_refused_hook_deletion_is_finished_by_the_next_run() {
+    let (mut world, old) = stale_hook();
+    world.refuse(Route::DeleteRepoHook);
+    assert_eq!(world.reconcile(), refused_hook());
+    let hooks = world.repository_hooks(1);
+    assert_eq!(hooks.len(), 1);
+    assert_eq!(hooks[0].id, old);
+    assert_eq!(hooks[0].secret, fixtures::secret(b"old-secret"));
+    assert_eq!(writes(&world, 0), [Route::DeleteRepoHook]);
+    assert!(world.secrets_absent());
+    world.permit();
+    let since = world.requests().len();
+    assert_eq!(world.reconcile(), Ended::Done);
+    assert_hook(&world, 1, 1);
+    assert_ne!(world.repository_hooks(1)[0].id, old);
+    assert_eq!(writes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
+}
+#[test]
+fn a_refused_hook_creation_is_finished_by_the_next_run() {
+    let (mut world, old) = stale_hook();
+    world.refuse(Route::CreateRepoHook);
+    assert_eq!(world.reconcile(), refused_hook());
+    assert!(world.repository_hooks(1).is_empty());
+    assert_eq!(writes(&world, 0), [Route::DeleteRepoHook, Route::CreateRepoHook]);
+    assert!(world.secrets_absent());
+    world.permit();
+    let since = world.requests().len();
+    assert_eq!(world.reconcile(), Ended::Done);
+    assert_hook(&world, 1, 1);
+    assert_ne!(world.repository_hooks(1)[0].id, old);
+    assert_eq!(writes(&world, since), [Route::CreateRepoHook]);
+}
+fn refused_hook() -> Ended {
+    Ended::Stop(Failure {
+        forge: 1,
+        step: Stage::Repository,
+        subject: b"alice/specimen".as_slice().into(),
+        why: Why::Refused(403),
+    })
 }
 #[test]
 fn the_secret_is_asked_once_for_many_repositories() {
@@ -175,11 +239,12 @@ fn the_secret_is_asked_once_for_many_repositories() {
     }
 }
 #[test]
-fn two_services_keep_their_own_hook_on_one_repository() {
+fn two_services_remake_only_their_own_hook_on_one_repository() {
     let mut world = world();
     world.service_word(b"alpha");
     assert_eq!(world.reconcile(), Ended::Done);
     let alpha_secret = world.file(Item::WebhookSecret).expect("alpha secret").clone();
+    let alpha_id = world.repository_hooks(1)[0].id;
     let alpha_files: Vec<_> = [Item::ApiToken, Item::GitToken, Item::User]
         .into_iter()
         .map(|item| (item, world.file(item).expect("alpha item").clone()))
@@ -190,9 +255,18 @@ fn two_services_keep_their_own_hook_on_one_repository() {
     assert_hook(&world, 1, 2);
     let beta_secret = world.file(Item::WebhookSecret).expect("beta secret").clone();
     assert_ne!(alpha_secret, beta_secret);
+    let alpha = world.repository_hooks(1).into_iter().find(|h| h.url == url(1)).expect("alpha");
+    assert_eq!(alpha.id, alpha_id);
+    assert_eq!(alpha.secret, alpha_secret);
+    let beta_id = world.repository_hooks(1).into_iter().find(|h| h.url == url(2)).expect("beta").id;
     let since = world.requests().len();
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(writes(&world, since), [Route::EditRepoHook]);
+    assert_eq!(writes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
+    let alpha = world.repository_hooks(1).into_iter().find(|h| h.url == url(1)).expect("alpha");
+    assert_eq!(alpha.id, alpha_id);
+    assert_eq!(alpha.secret, alpha_secret);
+    let beta_id_after = world.repository_hooks(1).into_iter().find(|h| h.url == url(2)).expect("beta").id;
+    assert_ne!(beta_id_after, beta_id);
     world.service_word(b"alpha");
     world.forge_number(1);
     for (item, bytes) in alpha_files {
@@ -201,20 +275,25 @@ fn two_services_keep_their_own_hook_on_one_repository() {
     world.put(Item::WebhookSecret, alpha_secret.clone());
     let since = world.requests().len();
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(writes(&world, since), [Route::EditRepoHook]);
+    assert_eq!(writes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
     let hooks = world.repository_hooks(1);
     assert_eq!(hooks.len(), 2);
-    assert_eq!(hooks.iter().find(|h| h.url == url(1)).expect("alpha").secret, alpha_secret);
-    assert_eq!(hooks.iter().find(|h| h.url == url(2)).expect("beta").secret, beta_secret);
+    let alpha = hooks.iter().find(|h| h.url == url(1)).expect("alpha");
+    let beta = hooks.iter().find(|h| h.url == url(2)).expect("beta");
+    assert_ne!(alpha.id, alpha_id);
+    assert_eq!(alpha.secret, alpha_secret);
+    assert_eq!(beta.id, beta_id_after);
+    assert_eq!(beta.secret, beta_secret);
+    assert!(world.secrets_absent());
 }
 #[test]
-fn adopt_makes_the_hook_and_the_reconcile_after_it_only_patches_it() {
+fn adopt_makes_the_hook_and_the_reconcile_after_it_remakes_it() {
     let mut world = world();
     assert_eq!(world.adopt(1), Ended::Done);
     assert_hook(&world, 1, 1);
     let since = world.requests().len();
     assert_eq!(world.reconcile(), Ended::Done);
-    assert_eq!(writes(&world, since), [Route::EditRepoHook]);
+    assert_eq!(writes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
 }
 #[test]
 fn no_secret_is_in_a_hook_runs_failure_debug_or_trace() {
@@ -284,9 +363,10 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
     let since = world.needs().len();
     world.run_plan(2, plan);
     world.finish();
-    assert_eq!(world.store().repository_hooks(1).next().expect("kept hook").id, hook_id);
-    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&1));
-    assert_eq!(world.tally().routes.get(&Route::EditRepoHook), Some(&1));
+    assert_ne!(world.store().repository_hooks(1).next().expect("remade hook").id, hook_id);
+    assert_eq!(world.tally().routes.get(&Route::CreateRepoHook), Some(&2));
+    assert_eq!(world.tally().routes.get(&Route::DeleteRepoHook), Some(&1));
+    assert_eq!(world.tally().routes.get(&Route::EditRepoHook), None);
     assert_eq!(
         world.needs().get(since..),
         Some([Need::Read(Item::AdminToken), Need::Read(Item::WebhookSecret)].as_slice())
