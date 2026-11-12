@@ -1,6 +1,6 @@
 # ui-web: status
 
-2026-11-11. Where skein's code lags or departs from [README.md](README.md).
+2026-11-12. Where skein's code lags or departs from [README.md](README.md).
 
 
 `elements.md` and `README.md`, section 5 have no known gap in a field's options: listbox and
@@ -66,6 +66,10 @@ it; no browser has painted one on record.
   is recorded; seen by reading: `a_log_kept_busy_says_nothing_until_the_person_moves`
   moves nearer from short of the head, temper's `a_failed_head_read_says_so_and_the_next_near_retries`
   gives its `Near` by hand, and no browser story has a read fail.
+- **Not yet:** 4.2 and 4.3: a report raised during a turn after it took its last, as a
+  log's `Near` from the draw's measure (`page/web.rs`, `Mounted::measure`), waits in the
+  inbox until another report arrives, where the inbox calls the turn again at once:
+  `inbox.rs`'s `run` calls the turn once [in flight: change 1726]
 - **Not yet:** 5: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
