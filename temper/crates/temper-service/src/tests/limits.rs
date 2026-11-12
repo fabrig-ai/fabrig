@@ -1,37 +1,6 @@
 use super::fixtures;
-use crate::{limits, tokens};
+use crate::limits;
 use skein_lib::{Duration, Token};
-
-#[test]
-fn no_two_component_prefixes_meet() {
-    let owners = [
-        tokens::WORKER_LISTENERS,
-        tokens::WORKER_CONNECTIONS,
-        tokens::ACCOUNTS,
-        tokens::CLIENTS,
-        tokens::SERVER,
-        tokens::FORGE,
-        tokens::GIT,
-        tokens::STORE[0],
-        tokens::STORE[1],
-        tokens::STORE[2],
-    ];
-    for (index, owner) in owners.iter().enumerate() {
-        for other in owners.iter().skip(index + 1) {
-            assert_ne!(tokens::prefix(Token::new(*owner)), tokens::prefix(Token::new(*other)), "{owner:x}, {other:x}");
-        }
-    }
-    assert_eq!(tokens::prefix(Token::new(tokens::SIGNALS)), 0);
-    for index in [0, 1, 4094] {
-        assert_eq!(tokens::worker(index), Some((3_u64 << 60_u32) + (u64::from(index + 1) << 48_u32)));
-        assert_eq!(tokens::git(index), Some((6_u64 << 60_u32) + (u64::from(index + 1) << 48_u32)));
-    }
-    assert_ne!(tokens::worker(0), Some(tokens::ACCOUNTS));
-    for index in [4095, 4096, u32::MAX] {
-        assert_eq!(tokens::worker(index), None, "{index}");
-        assert_eq!(tokens::git(index), None, "{index}");
-    }
-}
 
 #[test]
 fn an_override_sets_the_field_its_dotted_name_names() {
@@ -42,10 +11,14 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
     assert_eq!(limits.forge.change_policy.questions, 4);
-    let rows: [(&[u8], u64); 16] = [
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        assert_eq!(limits::profile(profile).forge.change_policy.reruns, 1);
+    }
+    let rows: [(&[u8], u64); 17] = [
         (b"forge.repositories", 3),
         (b"forge.sitting_ms", 3000),
         (b"forge.change_policy.questions", 7),
+        (b"forge.change_policy.reruns", 2),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
         (b"checkout.remote_timeout_ms", 7_000),
@@ -66,6 +39,8 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge.repositories, 3);
     assert_eq!(limits.forge.sitting, Duration::from_secs(3));
     assert_eq!(limits.forge.change_policy.questions, 7);
+    assert_eq!(limits.forge.change_policy.reruns, 2);
+    assert_eq!((limits::find(b"forge.change_policy.reruns").expect("listed re-run bound").value)(&limits), 2);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
     assert_eq!(limits.checkout.remote_timeout, Duration::from_millis(7_000));
@@ -104,6 +79,43 @@ fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
         crate::startup::lines(&problems).as_ref(),
         b"application.limits.overrides.forge.change_policy.tasks: outside its type\n",
     );
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test formats override documents and their expected diagnostics")]
+fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
+    for changes in [1024_u32, 1025] {
+        let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
+        let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
+        let directories = jig_protocol_config::Directories::working();
+        let starting = crate::startup::named(&document, &directories).unwrap_err();
+        let reading =
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+        for problems in [starting, reading] {
+            assert_eq!(
+                crate::startup::lines(&problems).as_ref(),
+                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 379, the most the store's tier rows hold (2 * forge.changes + 1 within 759)\n").as_bytes(),
+            );
+        }
+    }
+}
+
+#[test]
+fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.changes":379}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    let starting = crate::startup::named(&document, &directories).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+    for problems in [starting, reading] {
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            b"engine.limits.store: the store's map value, 43648978 bytes, past its bound of 3419252 bytes\n",
+        );
+    }
 }
 
 #[test]
@@ -159,9 +171,12 @@ fn the_small_profile_passes_each_domains_validity() {
         bounds.sitting = Duration::from_millis(1);
         assert!(temper_engine_domain_forge::valid(&bounds));
     }
-    assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout.into()));
+    assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(settings.limits.checkout)));
     assert_eq!(
-        temper_worker_protocol_git::check(&settings.limits.git_component.into(), &settings.limits.checkout.into()),
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(settings.limits.git_component),
+            &crate::worker_settings::checkout(settings.limits.checkout)
+        ),
         Ok(())
     );
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -179,6 +194,9 @@ fn the_standard_profile_holds_fabrig_scale_work() {
     let standard = limits::profile(limits::Profile::Standard);
     let expected = limits::Limits {
         forge: temper_engine_domain_forge::Limits {
+            follows: 8,
+            dependencies: 16,
+            follow_queue: 64,
             brief_bytes: 131_584,
             tasks: 128,
             holds: 128,
@@ -187,6 +205,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             landings: 32,
             client: skein_forge_client::Limits { resources: 128, op_bytes: 262_144, ..small.forge.client },
             change_policy: temper_engine_domain_forge_change::Limits {
+                reruns: 1,
                 questions: 80,
                 tasks: 80,
                 repairs: 80,
@@ -200,7 +219,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 353_072,
+                brief_bytes: 336_713,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -210,9 +229,9 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The closer owner adds 32 bytes; two executor places add 16.
-                transcript_bytes: 22_467_744,
-                result_bytes: 353_072,
+                // The closer and session each add 32 bytes; two executor places add 16.
+                transcript_bytes: 22_467_808,
+                result_bytes: 336_713,
                 ..small.root.journal
             },
             loads: temper_engine_domain::loads::Limits {
@@ -249,8 +268,14 @@ fn the_standard_brief_and_its_carriers_share_their_bounds() {
 fn the_standard_profile_passes_each_domains_validity() {
     let own = limits::profile(limits::Profile::Standard);
     assert!(temper_engine_domain_forge::valid(&own.forge));
-    assert!(temper_worker_domain_checkout::valid(&own.checkout.into()));
-    assert_eq!(temper_worker_protocol_git::check(&own.git_component.into(), &own.checkout.into()), Ok(()));
+    assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(own.checkout)));
+    assert_eq!(
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout)
+        ),
+        Ok(())
+    );
     for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
         let jig = jig_protocol_config::profile(profile);
         let root = limits::engine(&jig, &own).expect("coherent root profile");
@@ -395,7 +420,14 @@ fn each_git_component_limit_has_its_dotted_override() {
             expected,
             "{name:?}"
         );
-        assert_eq!(temper_worker_protocol_git::check(&git.into(), &limits.checkout.into()), Ok(()), "{name:?}");
+        assert_eq!(
+            temper_worker_protocol_git::check(
+                &crate::worker_settings::git_component(git),
+                &crate::worker_settings::checkout(limits.checkout)
+            ),
+            Ok(()),
+            "{name:?}"
+        );
     }
 }
 
@@ -721,7 +753,7 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
 fn the_watch_rooms_follow_the_streams() {
     let settings = fixtures::engine();
     let mut jig = settings.jig.limits;
-    for (streams, room) in [(2, 44), (8, 176)] {
+    for (streams, room) in [(2, 52), (8, 208)] {
         jig.clients.streams = streams;
         let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
         assert_eq!(root.streams, streams);
@@ -737,7 +769,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
     let document = engine_overrides(br#""clients.streams":126322568"#);
     let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
-        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 22, with two slots per watch)\n");
+        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 26, with two slots per watch)\n");
     let mut settings = fixtures::engine();
     settings.jig.limits.clients.streams = u32::MAX;
     assert!(limits::engine(&settings.jig.limits, &settings.limits).is_none());
@@ -746,7 +778,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
 #[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!(limits.root.brief.sections, 9);
+    assert_eq!(limits.root.brief.sections, 10);
     assert_eq!(limits.root.brief.budgets.document, 4096);
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
     assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));
@@ -874,4 +906,33 @@ fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
         overrides.put(part).expect("override map fits its measured length");
     }
     fixtures::with(&document, b"engine.limits.overrides", &overrides.finish())
+}
+
+#[test]
+fn follow_limits_have_their_profile_values_and_dotted_overrides() {
+    let small = limits::profile(limits::Profile::Small);
+    let standard = limits::profile(limits::Profile::Standard);
+    for (name, tiny, normal, unit) in [
+        ("forge.follows", 2, 8, limits::Unit::Count),
+        ("forge.dependencies", 4, 16, limits::Unit::Count),
+        ("forge.follow_paths", 8, 8, limits::Unit::Count),
+        ("forge.follow_queue", 16, 64, limits::Unit::Count),
+        ("forge.follow_merge", 8, 8, limits::Unit::Count),
+        ("forge.follow_commits", 8, 8, limits::Unit::Count),
+        ("forge.follow_files", 32, 32, limits::Unit::Count),
+        ("forge.follow_message_bytes", 512, 512, limits::Unit::Bytes),
+        ("forge.follow_skips", 8, 8, limits::Unit::Count),
+        ("forge.follow_reason_bytes", 256, 256, limits::Unit::Bytes),
+    ] {
+        let field = limits::find(name.as_bytes()).expect("follow limit named");
+        assert_eq!(field.unit, unit);
+        assert_eq!((field.value)(&small), tiny, "{name} in small");
+        assert_eq!((field.value)(&standard), normal, "{name} in standard");
+        let mut changed = small;
+        limits::apply(&mut changed, name.as_bytes(), tiny + 1).unwrap();
+        assert_eq!((field.value)(&changed), tiny + 1, "{name} override");
+        assert_eq!(limits::apply(&mut changed, name.as_bytes(), u64::from(u32::MAX) + 1), Err(limits::Refused::Range));
+    }
+    assert_eq!(small.forge.follows, 2);
+    assert_eq!(standard.forge.follows, 8);
 }

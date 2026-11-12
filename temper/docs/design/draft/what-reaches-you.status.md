@@ -11,21 +11,26 @@ table is 5.13's *What reaches you*, the three columns `surfaces.md`,
 section 7, draws, milestone P3b, in place of Settings' section and its
 checks. `what-reaches-you.md`, section 8 is carried by
 `../client/pages/README.md`, **Only you**, and 5.5, *Each state*,
-milestone N3a, but for lag 8. Where the code lags them is their status
-files'.
+milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
+`../protocol/configuration/engine.md`'s `sets`,
+`../protocol/configuration/settings.md`, 2 and 3,
+`../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
+`../domain/forge/change/questions.md`, 2, `../domain/landing.md`, 8,
+`../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
+milestone N2, and by `../domain/forge/change/branch-path.md`'s *A rule
+by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
+2's *Rules by path*, milestone P3c, but for lag 7. Where the code lags
+them is their status files'.
 
 - **Design lags:**
-  - 4: no design gives a standing role's person
-    (`standing-roles.status.md`), so a standing role's case waits for R1
-    of `whole-story.execution.md`. `../domain/forge/attention.md`, 6 judges the
+  - 4: `../domain/forge/attention.md`, 6 judges the
     paths a call names alone, not those its asker's change touches at its
-    head: the forge reads a change's paths with rules by path, `what-reaches-you.md`, section 7,
-    N2 of `whole-story.execution.md`.
-  - 7: a landing rule names no path set (`../protocol/configuration/engine.md` and `../protocol/configuration/settings.md`, section 3
-    ); `../domain/forge/change/gates.md`, 2 reads no paths a change
-    touches from its merge base, and 8.12's line names none; 8.12 and
-    `what-reaches-you.md`, section 9 leave a change waiting on a person's approval first in its
-    branch's queue, holding every landing behind it.
+    head, which the forge reads for rules by path alone
+    (`../domain/forge/change/gates.md`, 2, *What a change touches*):
+    N1's repair's.
+  - 7: no design says who can still sign a waiting sign-off, or keeps
+    the sign-offs counted at landing: N5 and N6 of
+    `whole-story.execution.md`.
   - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line
@@ -35,7 +40,7 @@ files'.
     no task waiting on a person's own account (jig's
     `client/domain/contract/documents.md`, 1), no read says a forge's token
     must be replaced, and a person task asking an act stays among the
-    cards. The terminal's inbox lists no Only you (`../client/tui/pages.md`
+    cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
   - 9: carried by `../domain/forge/attention.md`, section 7,
     `../client/pages/told.md`, `../client/web/README.md`, 2.7,

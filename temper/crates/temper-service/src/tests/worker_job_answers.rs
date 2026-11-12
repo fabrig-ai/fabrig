@@ -1,4 +1,4 @@
-//! Job answers through the root and service link (temper/docs/design/domain/worker.md, 4.4).
+//! Job answers through the root and service link (temper/docs/design/domain/worker/jobs.md).
 use super::fixtures;
 use crate::Worker;
 use jig_domain_host as hub;
@@ -62,7 +62,12 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-        Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
+        Op::Point { .. }
+        | Op::Store { .. }
+        | Op::Make { .. }
+        | Op::Clone { .. }
+        | Op::Create { .. }
+        | Op::CheckOut { .. } => Done::Succeeded,
     }
 }
 
@@ -87,7 +92,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, fault: GitFault) -
         match request {
             root::Request::Io { owner, op, .. } => {
                 let done = match (&op, fault) {
-                    (root::checkout::git::Op::Clone { .. }, GitFault::CloneRefused) => {
+                    (root::checkout::git::Op::Store { .. }, GitFault::CloneRefused) => {
                         root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
                     }
                     (
@@ -202,7 +207,7 @@ fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
     (worker, peer)
 }
 
-/// temper/docs/design/domain/worker.md, 4.4; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
+/// temper/docs/design/domain/worker/jobs.md; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
 #[test]
 fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     let (mut worker, mut peer) = merge_worker();
@@ -212,7 +217,7 @@ fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     let (answer, parts) = merge_answer(&mut peer, &mut worker);
     assert_merge_answer(&answer, &parts);
     while let Some(note) = worker.notes().pop() {
-        if let crate::Note::WorkerJob { .. } = note {
+        if let crate::worker_alone::Note::WorkerJob { .. } = note {
             panic!("finished jobs have no failure note");
         }
     }
@@ -280,12 +285,12 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
         assert!(parts.is_empty());
         assert_eq!(
             worker.notes().pop(),
-            Some(crate::Note::WorkerJob {
+            Some(crate::worker_alone::Note::WorkerJob {
                 run: 99,
                 attempt: 2,
                 kind: 3,
                 verb: b"merge".as_slice().into(),
-                ending: temper_engine_domain::JobDiagnosticEnding::Refused(reason),
+                ending: crate::WorkerJobEnding::Refused(reason),
                 why: b"workspace items".as_slice().into(),
             })
         );
@@ -365,13 +370,10 @@ fn failed_jobs_name_the_workers_why_once() {
         assert_eq!(detail.as_ref(), &expected_detail[expected_detail.len().saturating_sub(bound)..]);
         let mut found = 0_u32;
         while let Some(note) = worker.notes().pop() {
-            if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
+            if let crate::worker_alone::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
                 assert_eq!((run, attempt, kind, verb.as_ref()), (JOB.raw(), 2, 3, b"merge".as_slice()));
                 assert_eq!(why.as_ref(), expected_why);
-                assert_eq!(
-                    ending,
-                    temper_engine_domain::JobDiagnosticEnding::Failed { failure, detail: detail.clone() }
-                );
+                assert_eq!(ending, crate::WorkerJobEnding::Failed { failure, detail: detail.clone() });
                 found += 1;
             }
         }
@@ -379,7 +381,7 @@ fn failed_jobs_name_the_workers_why_once() {
         merge_step(&mut worker, root::Event::Lost);
         merge_step(&mut worker, root::Event::Ready);
         while let Some(note) = worker.notes().pop() {
-            if let crate::Note::WorkerJob { .. } = note {
+            if let crate::worker_alone::Note::WorkerJob { .. } = note {
                 panic!("a kept answer resent has no second note");
             }
         }

@@ -52,7 +52,7 @@ impl Domain {
                             kind: match gate.kind {
                                 c::GateKind::Agent => w::PublicGateKind::Review,
                                 c::GateKind::Person => w::PublicGateKind::Approval,
-                                c::GateKind::Check => w::PublicGateKind::Check,
+                                c::GateKind::Check | c::GateKind::Follow => w::PublicGateKind::Check,
                             },
                             blocks: gate.blocking,
                             verdict: match verdict {

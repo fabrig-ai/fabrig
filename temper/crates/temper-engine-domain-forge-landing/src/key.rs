@@ -30,7 +30,13 @@ pub struct Tree {
 pub enum Keyed {
     Need(Commit),
     Key(Key),
-    TooLarge,
+    TooLarge { bound: Option<KeyBound>, needed: u64 },
+}
+/// The configured filtered-tree capacity that refused the next entry.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum KeyBound {
+    Entries,
+    PathBytes,
 }
 /// Bounds of the filtered entries and their total full-path bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -82,8 +88,36 @@ pub fn key(
     trees: &[Tree],
     limits: &KeyLimits,
 ) -> Keyed {
+    key_with_source(repository, name, definition, ignored, candidate, trees, *limits, None)
+}
+
+/// A follow check includes the padded source commit immediately after its definition.
+#[must_use]
+pub fn follow_key(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    source: Commit,
+    candidate: Commit,
+    trees: &[Tree],
+    limits: &KeyLimits,
+) -> Keyed {
+    key_with_source(repository, name, definition, &[], candidate, trees, *limits, Some(source))
+}
+
+#[expect(clippy::too_many_arguments, reason = "the canonical key has one optional follow source component")]
+fn key_with_source(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    ignored: &[Box<[u8]>],
+    candidate: Commit,
+    trees: &[Tree],
+    limits: KeyLimits,
+    source: Option<Commit>,
+) -> Keyed {
     let (Ok(name_len), Ok(definition_len)) = (u16::try_from(name.len()), u16::try_from(definition.len())) else {
-        return Keyed::TooLarge;
+        return Keyed::TooLarge { bound: None, needed: 0 };
     };
     let mut hash = Sha256::new();
     hash.update(&[1]);
@@ -93,7 +127,10 @@ pub fn key(
     hash.update(name);
     hash.update(&definition_len.to_be_bytes());
     hash.update(definition);
-    walk(hash, ignored, candidate, trees, *limits)
+    if let Some(source) = source {
+        hash.update(&source);
+    }
+    walk(hash, ignored, candidate, trees, limits)
 }
 
 fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tree], limits: KeyLimits) -> Keyed {
@@ -116,7 +153,7 @@ fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tre
                 for supplied in trees {
                     if supplied.object == object {
                         if tree.is_some() {
-                            return Keyed::TooLarge;
+                            return Keyed::TooLarge { bound: None, needed: 0 };
                         }
                         tree = Some(supplied);
                     }
@@ -124,14 +161,15 @@ fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tre
                 let Some(tree) = tree else {
                     for supplied in trees {
                         if !read.contains(&supplied.object) {
-                            return Keyed::TooLarge;
+                            return Keyed::TooLarge { bound: None, needed: 0 };
                         }
                     }
                     return Keyed::Need(object);
                 };
                 let _inserted = read.insert(object);
-                if !expand(&path, tree, ignored, limits, &mut pending, &mut entries, &mut path_bytes) {
-                    return Keyed::TooLarge;
+                if let Err(problem) = expand(&path, tree, ignored, limits, &mut pending, &mut entries, &mut path_bytes)
+                {
+                    return problem;
                 }
             }
             Pending::Entry { mode, object } => {
@@ -142,13 +180,13 @@ fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tre
             }
         }
     }
-    if pending.is_empty() { finished(hash, &read, trees) } else { Keyed::TooLarge }
+    if pending.is_empty() { finished(hash, &read, trees) } else { Keyed::TooLarge { bound: None, needed: 0 } }
 }
 
 fn finished(hash: Sha256, read: &BTreeSet<Commit>, trees: &[Tree]) -> Keyed {
     for tree in trees {
         if !read.contains(&tree.object) {
-            return Keyed::TooLarge;
+            return Keyed::TooLarge { bound: None, needed: 0 };
         }
     }
     Keyed::Key(hash.finish())
@@ -162,11 +200,11 @@ fn expand(
     pending: &mut BTreeMap<Box<[u8]>, Pending>,
     entries: &mut u32,
     path_bytes: &mut u32,
-) -> bool {
+) -> Result<(), Keyed> {
     for entry in &tree.entries {
         let length = parent.len().saturating_add(usize::from(!parent.is_empty())).saturating_add(entry.name.len());
         if entry.name.is_empty() {
-            return false;
+            return Err(Keyed::TooLarge { bound: None, needed: 0 });
         }
         let mut path = Writer::new(length);
         path.put(parent).expect("sized parent");
@@ -191,25 +229,29 @@ fn expand(
         let item = match entry.kind {
             EntryKind::Tree if below => Pending::Directory(entry.object),
             EntryKind::Tree | EntryKind::Blob | EntryKind::Commit => {
-                if *entries >= limits.entries || length > usize::from(u16::MAX) {
-                    return false;
+                if *entries >= limits.entries {
+                    return Err(Keyed::TooLarge {
+                        bound: Some(KeyBound::Entries),
+                        needed: u64::from(*entries).saturating_add(1),
+                    });
+                }
+                if length > usize::from(u16::MAX) {
+                    return Err(Keyed::TooLarge { bound: None, needed: 0 });
                 }
                 *entries = entries.checked_add(1).expect("entry below limit");
-                let Some(total) = path_bytes.checked_add(u32::try_from(path.len()).expect("path fits u16")) else {
-                    return false;
-                };
-                if total > limits.path_bytes {
-                    return false;
+                let total = u64::from(*path_bytes).saturating_add(skein_lib::len_u64(path.len()));
+                if total > u64::from(limits.path_bytes) {
+                    return Err(Keyed::TooLarge { bound: Some(KeyBound::PathBytes), needed: total });
                 }
-                *path_bytes = total;
+                *path_bytes = u32::try_from(total).expect("path bytes below limit");
                 Pending::Entry { mode: entry.mode, object: entry.object }
             }
         };
         if pending.insert(path, item).is_some() {
-            return false;
+            return Err(Keyed::TooLarge { bound: None, needed: 0 });
         }
     }
-    true
+    Ok(())
 }
 
 fn prefix(prefix: &[u8], path: &[u8]) -> bool {

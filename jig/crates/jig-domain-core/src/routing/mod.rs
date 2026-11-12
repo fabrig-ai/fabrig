@@ -288,6 +288,7 @@ pub(crate) enum NoteRoute {
     Person { request: Token },
     Brief { task: u64 },
     Preferences { task: u64 },
+    Now { task: u64 },
 }
 
 /// One task's wait within the live-tasks bound (`limits.tasks.tasks`)

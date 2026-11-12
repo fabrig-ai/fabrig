@@ -483,6 +483,11 @@ fn a_line_at_long_text_decodes_whole() {
                 | c::Activity::Turn { .. }
                 | c::Activity::Decided { .. }
                 | c::Activity::Milestone { .. }
+                | c::Activity::NowWritten { .. }
+                | c::Activity::Stood { .. }
+                | c::Activity::TalkOpened { .. }
+                | c::Activity::TalkEnded { .. }
+                | c::Activity::SessionEnded { .. }
                 | c::Activity::Kept { .. }) => panic!("word line: {other:?}"),
             };
             assert_eq!(words_read.bytes(), words.as_ref());
@@ -562,5 +567,27 @@ fn a_message_and_an_answer_encode_to_long_text() {
             };
             assert_eq!(encoded_words, &[b'w'; 128]);
         }
+    }
+}
+
+#[test]
+fn talk_words_take_the_message_bound_and_both_talk_acts_restore() {
+    let limits = line_limits();
+    for size in [128, 129] {
+        let source =
+            c::Ask::Talk { project: 3, task: 7, words: c::Text::new(skein_lib::bytes::zeroed(size), 129).unwrap() };
+        let record = translate::asks::ask(&source, limits.wire());
+        if size == 129 {
+            assert_eq!(record.unwrap_err().reason, skein_codec::Reason::Bound);
+        } else {
+            assert_eq!(translate::store::restore_ask(record.unwrap(), &limits).unwrap(), source);
+        }
+    }
+    for source in [
+        c::Ask::Talk { project: 3, task: 7, words: c::Text::new(b"hello".as_slice().into(), 32).unwrap() },
+        c::Ask::Leave { project: 3, task: 7 },
+    ] {
+        let record = translate::asks::ask(&source, limits.wire()).unwrap();
+        assert_eq!(translate::store::restore_ask(record, &limits).unwrap(), source);
     }
 }

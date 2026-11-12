@@ -586,7 +586,7 @@ fn refused_deployment_start(root: &Path) {
         assert!(output.stdout.is_empty(), "{name}");
         let location = if names_file { format!("{}: ", path.display()) } else { String::new() };
         let expected = if extra {
-            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n".into()
+            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n".into()
         } else {
             format!("temper fake {kind}: {location}{reason}\n")
         };
@@ -991,10 +991,22 @@ fn git_run() {
     let object = |id| invocation::object(id).expect("fixture object id");
     let clone = || {
         git_step(
-            GitCommand::Clone { remote: Box::new([]), directory: b"widget".as_slice().into() },
-            Some(Kind::Clone),
+            GitCommand::Store { remote: Box::new([]), directory: b"pool".as_slice().into() },
+            Some(Kind::Store),
             "work",
         )
+    };
+    let format = || GitStep { stdout: "sha1\n", ..git_step(GitCommand::Format, None, "work/pool") };
+    let init = || {
+        git_step(
+            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1 },
+            None,
+            "work",
+        )
+    };
+    let origin = || GitStep {
+        edit: Some((".git/objects/info/alternates", b"../../../pool/objects\n")),
+        ..git_step(GitCommand::Remote { remote: Box::new([]) }, None, "work/widget")
     };
     let check_out = || git_step(GitCommand::CheckOut { commit: object(BASE) }, Some(Kind::CheckOut), "work/widget");
     let mut files: Vec<_> = temper_fake::forge::FILES
@@ -1020,7 +1032,7 @@ fn git_run() {
             endpoint: GitEndpoint::Forge,
             verb: false,
             missing: None,
-            steps: vec![clone(), check_out()],
+            steps: vec![clone(), format(), init(), origin(), check_out()],
             files,
             branch: None,
             unchanged: false,
@@ -1032,6 +1044,9 @@ fn git_run() {
             missing: None,
             steps: vec![
                 clone(),
+                format(),
+                init(),
+                origin(),
                 check_out(),
                 GitStep {
                     edit: Some(("new.txt", b"new\n")),
@@ -1203,7 +1218,8 @@ fn git_run() {
         for mut step in row.steps {
             match &mut step.command {
                 GitCommand::SnapshotFetch { remote: url, .. }
-                | GitCommand::Clone { remote: url, .. }
+                | GitCommand::Store { remote: url, .. }
+                | GitCommand::Remote { remote: url }
                 | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
                 }
@@ -1212,6 +1228,9 @@ fn git_run() {
                 | GitCommand::SnapshotReachable { .. }
                 | GitCommand::SnapshotReset { .. }
                 | GitCommand::Version
+                | GitCommand::Clone { .. }
+                | GitCommand::Format
+                | GitCommand::UpdateRef { .. }
                 | GitCommand::Fetch { .. }
                 | GitCommand::Create { .. }
                 | GitCommand::CheckOut { .. }

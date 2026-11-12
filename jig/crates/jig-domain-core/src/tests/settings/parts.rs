@@ -54,7 +54,7 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
         ("past count", repeated_parts(count.checked_add(1).unwrap()), false, Some(Fault::Count), None),
         ("empty on", Box::new([part(Reasons::EMPTY, 1)]), false, Some(Fault::Shape), None),
         ("unknown on", Box::new([part(Reasons(1 << 14), 1)]), false, Some(Fault::Shape), None),
-        ("resume", Box::new([part(Reasons::FIRST, 1)]), true, Some(Fault::Shape), None),
+        ("resume", Box::new([part(Reasons::FIRST, 1)]), true, None, None),
         ("at run bytes", Box::new([part(Reasons::FIRST, at_bytes)]), false, None, None),
         ("past run bytes", past_parts, false, Some(Fault::Shape), past_detail),
     ] {

@@ -455,6 +455,13 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
                 },
             )?)
         }
+        domain::Ask::Talk { project, task, words } => wire::Ask::Talk(wire::AskSay::new(
+            limits,
+            wire::AskSayParts { project: *project, task: *task, words: words.clone() },
+        )?),
+        domain::Ask::Leave { project, task } => {
+            wire::Ask::Leave(wire::AskStop::new(limits, wire::AskStopParts { project: *project, task: *task })?)
+        }
         domain::Ask::Say { project, task, words } => wire::Ask::Say(wire::AskSay::new(
             limits,
             wire::AskSayParts { project: *project, task: *task, words: words.clone() },
@@ -656,6 +663,11 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
                 },
             }
         }
+        wire::Ask::Talk(value) => {
+            let v = value.into_parts();
+            domain::Ask::Talk { project: v.project, task: v.task, words: v.words }
+        }
+        wire::Ask::Leave(value) => domain::Ask::Leave { project: value.project(), task: value.task() },
         wire::Ask::Say(value) => {
             let wire::AskSayParts { project, task, words } = value.into_parts();
             domain::Ask::Say { project, task, words }

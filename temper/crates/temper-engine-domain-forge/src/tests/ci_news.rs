@@ -194,7 +194,7 @@ fn a_pull_watch_does_not_repeat_ci_news_or_restart_a_ci_free_gather() {
                 approvals: 0,
                 dismiss_stale: false,
             });
-            d.repositories.insert(REPO, repository).unwrap();
+            d.repositories.insert(REPO, Box::new(repository)).unwrap();
         }
         fixtures::step_change(&mut d);
         let mut owner = None;

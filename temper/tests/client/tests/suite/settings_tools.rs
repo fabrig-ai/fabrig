@@ -605,6 +605,29 @@ fn forge_revision_file(charter: u32, ci: bool) -> String {
 }
 
 #[test]
+fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"landing-rule","project":1,"number":1},"set":{"pattern":{"segments":["6272616e6368"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[],"sets":[1]}}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"sets.json", b"--against", b"1", b"--key", b"rule-sets"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    for json in [false, true] {
+        let mut words = vec![b"settings".as_slice(), b"show", b"landing-rule", b"1", b"--project", b"1"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains("\"sets\":[1]"), "{shown}");
+    }
+}
+
+#[test]
 fn revision_show_keeps_temper_values_after_both_settings_are_overwritten() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);
@@ -682,7 +705,7 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
     })
 }
 
-const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"up"}]}"#;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks ways, questions and words through the joined ctl path")]
@@ -706,7 +729,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
     for (kind, value) in [
         (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"way":0}"#),
-        (b"project-questions", "\"foreman\""),
+        (b"project-questions", "\"up\""),
     ] {
         for selector in [b"1".as_slice(), project.as_ref()] {
             let shown = call(&mut world, agent, &[b"settings", b"show", kind, selector]);
@@ -721,7 +744,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let revision = call(&mut world, agent, &[b"revision", b"show", b"2"]);
     assert!(revision.contains("project-ways 1") && revision.contains("project-questions 1"), "{revision}");
     assert!(!revision.contains("application kind"), "{revision}");
-    let changed = PROJECT_WAYS_FILE.replace("foreman", "up").replace("\"changes\":false", "\"changes\":true");
+    let changed = PROJECT_WAYS_FILE.replace("up", "none").replace("\"changes\":false", "\"changes\":true");
     let number = fixtures::give_with_file(
         &mut world,
         agent,
@@ -731,10 +754,10 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let applied = fixtures::answered(&mut world, agent, number);
     assert_eq!(applied.status, 0, "{applied:?}");
     let shown = call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1"]);
-    assert!(shown.contains("\"up\""), "{shown}");
+    assert!(shown.contains("\"none\""), "{shown}");
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
-    assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+    assert!(historical.contains("\"value\":\"up\""), "{historical}");
     for (kind, selector, value, owners, name, initial) in [
         (
             b"charter-words".as_slice(),
@@ -848,6 +871,12 @@ fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
 #[test]
 fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name() {
     let mut world = world();
+    let mut hello = temper_engine_domain_world::protocol::hello(skein_lib::Token::new(7), Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
+    {
+        hello.bounds.message_bytes = world.front().engine.env.limits.tasks.message_bytes;
+    }
+    world.front().engine.send(hello);
     let agent = fixtures::agent(&mut world);
     let (setting, mut value) = show_value(&mut world, agent, &KINDS[1]);
     let c::SettingValue::Template(template) = &mut value else { panic!("template") };

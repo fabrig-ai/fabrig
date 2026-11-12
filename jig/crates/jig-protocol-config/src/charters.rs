@@ -140,12 +140,6 @@ fn charter(
     };
     let documents = documents(&mut object, document, path, problems);
     let parts = parts(&mut object, document, path, limits.core.tasks.charter_parts, directories, problems);
-    if resume == Some(true)
-        && let Some(parts) = &parts
-        && !parts.is_empty()
-    {
-        problems.push(path.member(b"parts"), What::Form);
-    }
     object.finish(document, path, problems);
     let charter = Charter {
         parts: parts?,

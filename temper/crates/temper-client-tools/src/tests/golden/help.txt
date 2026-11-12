@@ -7,16 +7,19 @@ inbox  Read what waits on your party, then its updates
 task  Tasks: read one and its parts, and act on it
 chat  Chats: start one, read its conversation, close it
 goal  Goals: start one from a project template
+role  Standing roles: start, list, read their Now or report, and talk
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
+follow  Follows: read a project's follows and their lag and parity
 landing  Landings: read one or a project's landings
+draft  Landed drafts: say ready or not ready, list them
 repository  Repositories: make, copy or adopt one into a project
 forge  Forges: read them, set one up, connect it, accept an installation, read what it reaches
 account  LLM accounts: read them, connect one, manage its keys and sources, move one in or out
 model  Models: read those your party may use
 settings  The settings: read them, change them, or propose a change to their owners
 revision  Settings revisions: read one or the history, move running work to the newest
-project  Projects: make or remove one, read periods and pools, set spend and visibility
+project  Projects: make or delete one, read periods and pools, set spend and visibility
 push  Push devices: list, add or remove your subscriptions
 playground  The playground: start it, or end it and set up temper

@@ -554,6 +554,11 @@ fn start_jig(
     if !bounded_query(&read, &env.limits) {
         return answer(destination, Answer::None(Why::Busy));
     }
+    if let Read::Project { project } = &read
+        && core.people.deleted(*project)
+    {
+        return answer(destination, Answer::None(Why::Gone));
+    }
     if let Read::TaskText { task, field, from } = &read
         && let Some(row) = core.tasks.task(*task)
     {

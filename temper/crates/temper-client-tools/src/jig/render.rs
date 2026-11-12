@@ -7,6 +7,7 @@ pub(crate) mod lists;
 mod notes;
 pub(crate) mod outcome;
 pub mod pending;
+pub(crate) mod roles;
 pub(crate) mod task_source;
 mod turn;
 pub(super) mod visibility;
@@ -369,6 +370,7 @@ pub fn read(
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "read-set dispatch keeps terminal project reads beside other read failures")]
 pub(crate) fn reads(
     reading: &crate::jig::runner::reads::Reading,
     client: &Client,
@@ -404,6 +406,11 @@ pub(crate) fn reads(
                 if check_selected(&reading.called.call, *local, value).is_err() {
                     return failure(b"tools' bug; unexpected document; report it as a finding", reading.called.json, 1);
                 }
+            }
+            Readout::Jig(ReadResult::None(ReadNone::Gone))
+                if reading.called.call.tool == crate::jig::rows::PROJECT_SHOW_AT && *local == 1 =>
+            {
+                return failure(&deleted_project(reading.project.expect("project read")), reading.called.json, 2);
             }
             Readout::Jig(ReadResult::None(ReadNone::TooLarge { bytes })) if reading.called.call.tool == 6 => {
                 let Some(crate::jig::call::Value::Turn(name)) = crate::jig::call::value(&reading.called.call, 1) else {
@@ -464,6 +471,9 @@ pub(crate) fn reads(
             vocabulary,
         );
     }
+    if reading.called.call.tool == crate::jig::rows::ROLE_LIST_AT {
+        return roles::list(reading, limits);
+    }
     if plain_task(reading) {
         return read(reading.pages.get(&1).expect("task read"), client, me, reading.called.json, limits, vocabulary);
     }
@@ -476,14 +486,25 @@ pub(crate) fn reads(
     document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
 }
 
+fn deleted_project(project: u32) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(u64::from(project));
+    let size = b"project  was deleted".len().checked_add(number.as_bytes().len()).expect("project reason");
+    let mut reason = Writer::new(size);
+    reason.put(b"project ").expect("measured reason");
+    reason.put(number.as_bytes()).expect("measured reason");
+    reason.put(b" was deleted").expect("measured reason");
+    reason.finish()
+}
+
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
+        (crate::jig::rows::ROLE_LIST_AT | 2, 1, ReadValue::Tasks(_))
+        | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
+        | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
-        | (2, 1, ReadValue::Tasks(_))
         | (3, 1, ReadValue::Task(_))
         | (3, 2, ReadValue::Activity(_))
         | (4 | 5, 1, ReadValue::Activity(_))

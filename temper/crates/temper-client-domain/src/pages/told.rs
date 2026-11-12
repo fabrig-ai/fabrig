@@ -425,6 +425,9 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::Away => None,
     }
 }

@@ -9,6 +9,7 @@ enum SourceKind {
     #[default]
     Key,
     Program,
+    ProgramAndKey,
 }
 #[derive(Default)]
 pub(crate) struct Setup {
@@ -28,12 +29,20 @@ impl Setup {
         Self { kind: SourceKind::Program, ..Self::default() }
     }
 
+    pub(crate) fn program_and_key() -> Self {
+        Self { kind: SourceKind::ProgramAndKey, ..Self::default() }
+    }
+
     pub(crate) fn source(&self) -> Option<u32> {
         self.source
     }
     pub(crate) fn ready(&self) -> bool {
         self.phase == 3
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one public client handshake serializes source setup before admitting the task"
+    )]
     pub(crate) fn act(&mut self, procs: &mut [Proc], story: Story, done: bool) {
         let link = if self.linked { None } else { ready_link(procs) };
         let Some(client) = procs.iter_mut().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }) else {
@@ -50,7 +59,7 @@ impl Setup {
         }
         if self.phase == 0 && client.account_sign_in_ready() {
             let value = if matches!(story, Story::Key { .. }) { crate::fixtures::KEY } else { crate::fixtures::TOKEN };
-            if matches!(self.kind, SourceKind::Program) {
+            if matches!(self.kind, SourceKind::Program | SourceKind::ProgramAndKey) {
                 client.account_request(accounts::declare_program(
                     key(1),
                     [71; 16],
@@ -98,8 +107,21 @@ impl Setup {
             else {
                 panic!("fixture source admitted: {answer:?}");
             };
-            self.source = Some(*source);
-            if self.phase == 1 && matches!(story, Story::Providers) {
+            if !matches!(self.kind, SourceKind::ProgramAndKey) || self.source.is_none() {
+                self.source = Some(*source);
+            }
+            if self.phase == 1 && matches!(self.kind, SourceKind::ProgramAndKey) {
+                client.account_request(accounts::add_key(
+                    key(2),
+                    [72; 16],
+                    c::AskAccountHolder::Own,
+                    1,
+                    // The fixture's first declared program made account 0.
+                    Some(0),
+                    Secret::new(crate::fixtures::KEY.into()),
+                ));
+                self.phase = 2;
+            } else if self.phase == 1 && matches!(story, Story::Providers) {
                 client.account_request(accounts::add_key(
                     key(2),
                     [72; 16],

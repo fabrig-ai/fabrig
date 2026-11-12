@@ -34,6 +34,9 @@ pub enum EscalationChoice {
 /// Facts returned by a committed jig request, including a ended winner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DocumentOutcome {
+    Left {
+        task: u64,
+    },
     Lifted {
         hold: u64,
         released: u32,

@@ -219,3 +219,20 @@ fn the_largest_report_beside_its_evidence_is_whole_then_marked() {
         }
     }
 }
+
+#[test]
+fn checks_name_later_attempts_only_at_their_head() {
+    for (head, attempt, state, expected) in [
+        (HEAD, 1, Check::Passed, "ci/test passed"),
+        (HEAD, 2, Check::Passed, "ci/test passed at attempt 2"),
+        (HEAD, 2, Check::Failed, "ci/test failed at attempt 2"),
+        (HEAD, 2, Check::Pending, "ci/test pending"),
+        ([4; 32], 2, Check::Passed, "ci/test passed"),
+    ] {
+        let mut status = check(b"ci/test", state);
+        status.job = Some(skein_forge::api::JobAttempt { head, run: 7, job: 41, attempt });
+        let mut result = ChangeResult::empty();
+        result.checked(HEAD, &[status], BOUND);
+        assert_eq!(result.checks.bytes.as_ref(), expected.as_bytes());
+    }
+}

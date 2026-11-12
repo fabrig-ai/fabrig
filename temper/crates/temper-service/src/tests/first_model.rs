@@ -386,6 +386,7 @@ impl StockBox {
         member.flags = people::Flags {
             ended_by: match template.flags.ended_by {
                 tasks::EndedBy::Requester => people::EndedBy::Requester,
+                tasks::EndedBy::Standing => people::EndedBy::Standing,
                 tasks::EndedBy::Closer(closer) => {
                     people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
                 }
@@ -531,7 +532,7 @@ impl StockBox {
         );
         // Complete this activation before the world's cold-restart oracle.
         let end = match assignment.run.ended_by {
-            tasks::EndedBy::Requester => tasks::End::Parked,
+            tasks::EndedBy::Requester | tasks::EndedBy::Standing => tasks::End::Parked,
             tasks::EndedBy::Result | tasks::EndedBy::Closer(_) => tasks::End::Finished {
                 result: tasks::TaskResult::Report { words: b"Done".as_slice().into() },
                 cancel_delegates: false,
@@ -590,6 +591,7 @@ fn claude_alone_runs_the_goals_coding_task() {
 #[test]
 fn chatgpt_alone_runs_the_stock_chat() {
     let mut world = stock_box(OneAccount::ChatGpt);
+    world.worker();
     world.assert_offer(&[
         (OPENAI, b"high"),
         (ASTRA, b"high"),
@@ -600,7 +602,6 @@ fn chatgpt_alone_runs_the_stock_chat() {
     let task = world.create(1, None);
     let document = world.document(task);
     assert_eq!(world.main(&document), OPENAI, "Task before claim");
-    world.worker();
     world.assert_claim(task, OPENAI);
 }
 

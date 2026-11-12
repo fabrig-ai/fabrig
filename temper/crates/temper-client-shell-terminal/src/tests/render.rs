@@ -1,10 +1,6 @@
 use super::fixtures;
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn each_adoption_outcome_prints_as_its_golden_file() {
     use temper_client_domain::forge;
     let words = fixtures::page_words();
@@ -20,7 +16,7 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
     {
         let tree = fixtures::adoption_page(&form, &words);
         let print = fixtures::print(&tree);
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+        if temper_test_env::rewrite() {
             std::fs::write(fixtures::golden(name), print.text.as_slice()).expect("write adoption golden file");
         }
         let golden = std::fs::read(fixtures::golden(name)).expect("adoption golden file");
@@ -29,13 +25,10 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
+        ("sheet_delete_project", fixtures::chat::deleting_project()),
         ("models", fixtures::page(&temper_client_domain::Address::Models { project: 1 }, false)),
         ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
@@ -78,7 +71,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
             assert!(print.numbers.as_slice().contains(&owner.id));
         }
 
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+        if temper_test_env::rewrite() {
             std::fs::write(fixtures::golden(name), print.text.as_slice()).expect("write golden file");
         }
         let golden = std::fs::read(fixtures::golden(name)).expect("golden file");

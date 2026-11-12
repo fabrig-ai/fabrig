@@ -124,9 +124,10 @@ impl Kernel {
         }
         Done::Count(u32::try_from(count).unwrap())
     }
+    #[expect(clippy::too_many_lines, reason = "the service fixture routes layout for workspaces, stores and home")]
     pub fn answer(&mut self, service: &mut Service) {
-        for _ in 0..service.submissions.len() {
-            let mut submit = service.submissions.pop().unwrap();
+        for _ in 0..service.submissions().len() {
+            let mut submit = service.submissions().pop().unwrap();
             let result = match &mut submit.kind {
                 Op::Socket { .. } => Ok(Done::Fd(self.descriptor())),
                 Op::Bind { addr, .. } => Ok(Done::Bound(*addr)),
@@ -138,16 +139,22 @@ impl Kernel {
                     Ok(Done::Nothing)
                 }
                 Op::Accept { .. } | Op::Connect { .. } => {
-                    service.submissions.push(submit);
+                    service.submissions().push(submit);
                     continue;
                 }
                 Op::Open { path, .. } => {
-                    assert!(path.as_ref() == b"trash" || path.as_ref() == b"workspaces", "layout opens {path:?}");
+                    assert!(
+                        path.as_ref() == b"trash" || path.as_ref() == b"workspaces" || path.as_ref() == b"stores",
+                        "layout opens {path:?}"
+                    );
                     self.files = self.files.checked_add(1).unwrap();
                     Ok(Done::Fd(self.descriptor()))
                 }
                 Op::Rename { from, .. } => {
-                    assert!(from.as_ref() == b"workspaces" || from.as_ref() == b"home", "layout moves {from:?}");
+                    assert!(
+                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"stores",
+                        "layout moves {from:?}"
+                    );
                     self.files = self.files.checked_add(1).unwrap();
                     Err(Error::NotFound)
                 }
@@ -159,7 +166,7 @@ impl Kernel {
                 Op::PipeRead { fd, buf } if *fd == Fd::new(4) => {
                     if self.box_answers.is_empty() {
                         // The box has written nothing; io's bounded read remains in flight.
-                        service.submissions.push(submit);
+                        service.submissions().push(submit);
                         continue;
                     }
                     Ok(self.box_read(buf))
@@ -190,19 +197,19 @@ impl Kernel {
                     Ok(Done::Nothing)
                 }
                 Op::Cancel { target } => {
-                    for _ in 0..service.submissions.len() {
-                        let held = service.submissions.pop().unwrap();
+                    for _ in 0..service.submissions().len() {
+                        let held = service.submissions().pop().unwrap();
                         if held.op == *target {
                             if let Op::PipeRead { fd, .. } = &held.kind {
                                 self.box_read_cancelled |= *fd == Fd::new(4);
                             }
-                            service.completions.push(Complete {
+                            service.completions().push(Complete {
                                 op: held.op,
                                 kind: held.kind,
                                 result: Err(Error::Cancelled),
                             });
                         } else {
-                            service.submissions.push(held);
+                            service.submissions().push(held);
                         }
                     }
                     Ok(Done::Nothing)
@@ -223,7 +230,7 @@ impl Kernel {
                 | Op::ReadSignal { .. }
                 | Op::PipeWrite { .. }) => panic!("unexpected kernel record {other:?}"),
             };
-            service.completions.push(Complete { op: submit.op, kind: submit.kind, result });
+            service.completions().push(Complete { op: submit.op, kind: submit.kind, result });
         }
     }
 }

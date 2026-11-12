@@ -23,6 +23,7 @@ fn header(value: &DocumentOutcome) -> P {
         DocumentOutcome::NoteEdited { .. } => P::NoteEdited,
         DocumentOutcome::ServiceMade { .. } => P::ServiceMade,
         DocumentOutcome::Adopted { .. } => P::Adopted,
+        DocumentOutcome::Left { .. } => P::Left,
         DocumentOutcome::Stopped { .. } => P::Stopped,
         DocumentOutcome::Cancelled { .. } => P::Cancelled,
         DocumentOutcome::Released { .. } | DocumentOutcome::Lifted { .. } => P::Released,
@@ -149,7 +150,8 @@ fn details(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
         | DocumentOutcome::ProjectMade { project }
         | DocumentOutcome::RolesSet { project }
         | DocumentOutcome::PolicyChanged { project } => number(b, words, P::Project, u64::from(*project)),
-        DocumentOutcome::Stopped { task }
+        DocumentOutcome::Left { task }
+        | DocumentOutcome::Stopped { task }
         | DocumentOutcome::Cancelled { task }
         | DocumentOutcome::Released { task }
         | DocumentOutcome::PersonTaken { task }

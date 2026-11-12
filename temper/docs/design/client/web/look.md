@@ -38,7 +38,7 @@
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
   over `style.css`): it is tuned on the journeys' prints
   (`journeys.md`, section 7), and the mockups are reconciled to it
-  (`../mockups/README.md`, 1); they are not shipped. What follows here
+  (`mockups/README.md`, 1); they are not shipped. What follows here
   says what it draws, and is the gallery's for the states no journey reaches (`gallery.md`).
   These are the bundle's three
   stylesheets; `jig.css` is not in it. `temper.css` holds the mockups'
@@ -155,10 +155,10 @@
   ink button, a secondary one a white bordered button, a quiet one
   underlined words. The muted line under the cards is 14.5 px; the
   foot, "‹ Back" at the left and the playground alternative at the
-  right, is muted underlined words. Model's forge region follows the
-  choices before the foot: from 1280 px, a 272 px pane to the right of
+  right, is muted underlined words. Model's pane, "Forge and model",
+  follows the choices before the foot: from 1280 px, a 272 px pane to the right of
   the column, its top at the heading's, with a hairline on its left;
-  narrower, in the column with a hairline above. Its line stacks a quiet
+  narrower, in the column with a hairline above. Forge's line stacks a quiet
   ring, the forge's strong name in ink and each detail muted on its own
   line; once connected the ring is a green tick, drawn by style alone,
   and "Each step" is gone. Under way, the repository precedes the status,
@@ -177,7 +177,7 @@
   fields under it, indented, small bold labels over 38 px inputs, the
   addresses a monospace text area; its foot, under a hairline, the
   quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). Ready's pane is Model's forge region, its lines 18 px apart:
+  2026-11-04). Ready's pane is Model's, its lines 18 px apart:
   each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
   name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
   forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
@@ -447,6 +447,26 @@
     `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
     last line, `.small.muted`; its rows under the grid Settings'
     `.setting` rows;
+  - *Rules by path,* `whole-story.css`' `.shead a`, `.scroll` and `.tbl`
+    rules taken exactly, on tokens of its own: `temper-how-add`, "+ A
+    rule" at the head's right; `temper-how-rules`, the `.scroll` box
+    that scrolls the table across on a phone; `temper-how-table`, the
+    `.tbl` table, its header cells small and muted, its rows on
+    hairlines; `temper-how-paths`, a row's paths, `.mono`; a row's
+    sign-off What reaches you's chip, `temper-how-who-person`; an empty
+    cell's "–" `.muted`; `temper-how-rules-note`, the note under it,
+    `.small.muted`;
+  - *What follows a landing,* `whole-story.css`' `.grid2`, `.box`, `.box
+    h3`, `.chips` and `.who.c` rules taken exactly, on tokens of its own:
+    `temper-how-follows`, the boxes' grid, `repeat(auto-fit, minmax(300px,
+    1fr))` with a gap of 16; `temper-how-follow`, a box, its title `.box
+    h3`'s 17 px at 600, its words and its lag's line `.small`, the lag's
+    `.small.muted`; `temper-how-chips`, its chips' row, wrapping with a gap
+    of 6; `temper-how-who-code`, code's chip, `.who.c`'s 7 px square with
+    corners of 1.5 on `--gf-muted`, beside What reaches you's
+    `temper-how-who-agent`;
+  - *Budgets' head,* the period's words at the section head's right, as
+    `temper-how-way` is;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
     width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui/scenes.md`, 5) has the look of

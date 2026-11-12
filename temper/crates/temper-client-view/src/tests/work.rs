@@ -12,7 +12,7 @@ use skein_ui::{Builder, Role, Tree};
 use temper_client_domain::{
     Address, Domain, Event, GoalsFilter, Place, Request, WorkFilter,
     forge::ways::Ways,
-    pages::work::{Card, Item, Work},
+    pages::work::{Card, Item, Landed, LandedDraft, Work},
 };
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -69,6 +69,8 @@ struct Fixture {
     goals: Token,
     chats: Token,
     changes: Token,
+    drafts: Token,
+    me: Token,
 }
 impl Fixture {
     fn new(ways: Option<Ways>, refused: bool) -> Self {
@@ -91,8 +93,15 @@ impl Fixture {
         chat.label = 7;
         frame.projects.get_mut(0).unwrap().templates = list(&[chat, goal]);
         f::deliver_me(&mut root, me, frame);
-        let mut fixture =
-            Self { root, out: Queue::uncapped(), goals: Token::new(0), chats: Token::new(0), changes: Token::new(0) };
+        let mut fixture = Self {
+            root,
+            out: Queue::uncapped(),
+            goals: Token::new(0),
+            chats: Token::new(0),
+            changes: Token::new(0),
+            drafts: Token::new(0),
+            me,
+        };
         fixture.go(Address::Work { project: f::PROJECT, filter: WorkFilter::All });
         for request in &fixture.out {
             if let Request::Unlinked {
@@ -112,6 +121,10 @@ impl Fixture {
                             == temper_client_domain::forge::changes::watch(f::PROJECT, &limits().forge)
                         {
                             fixture.changes = *watch;
+                        } else if Some(subject.clone())
+                            == temper_client_domain::forge::drafts::watch(f::PROJECT, &limits().forge)
+                        {
+                            fixture.drafts = *watch;
                         }
                     }
                     Watchable::Jig(_) => {}
@@ -158,6 +171,7 @@ impl Fixture {
     }
     #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
     fn populate(&mut self, full: bool) {
+        self.drafts(&[]);
         let mut goal = line(GOAL, b"membership-handoff");
         goal.label = 8;
         goal.tracked = Some(1);
@@ -208,9 +222,26 @@ impl Fixture {
                     .unwrap();
             }
         }
+        let landed = if full {
+            list(&[w::ChangesLanded::new(
+                &w::CEILINGS,
+                w::ChangesLandedParts {
+                    commit: [0xab; 32],
+                    default_branch: true,
+                    task: LANDED,
+                    title: b"Handoff states".as_slice().into(),
+                    at: RECENT,
+                },
+            )
+            .unwrap()])
+        } else {
+            List::with_capacity(0)
+        };
         let panel = w::ChangesPanel::new(
             &w::CEILINGS,
             w::ChangesPanelParts {
+                landed_default: landed.clone(),
+                landed_default_more: 0,
                 project: f::PROJECT,
                 landing: b"main".as_slice().into(),
                 queues: list(&[w::ChangesQueue::new(
@@ -224,15 +255,7 @@ impl Fixture {
                 )
                 .unwrap()]),
                 more: 0,
-                landed: if full {
-                    list(&[w::ChangesLanded::new(
-                        &w::CEILINGS,
-                        w::ChangesLandedParts { task: LANDED, title: b"Handoff states".as_slice().into(), at: RECENT },
-                    )
-                    .unwrap()])
-                } else {
-                    List::with_capacity(0)
-                },
+                landed,
                 landed_more: 0,
             },
         )
@@ -266,6 +289,18 @@ impl Fixture {
             }
         }
     }
+    fn drafts(&mut self, rows: &[w::LandedDraft]) {
+        let panel =
+            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+        self.up(Up::FamilyDelivered {
+            watch: self.drafts,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::drafts_panel(&panel),
+            },
+        });
+    }
     fn tree(&self, words: &Words) -> (Tree, Bindings) {
         let mut b = Builder::new(&f::tree_limits());
         let mut bindings = Bindings::new(f::tree_limits().bindings);
@@ -287,6 +322,157 @@ fn styled(tree: &Tree, style: skein_ui::Style) -> Box<[&skein_ui::Node]> {
     }
     nodes.into_boxed()
 }
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the project fixture checks goal, chat and unread landings across successive history deliveries"
+)]
+fn landed_this_week_names_the_goal_once_at_its_main_commit() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let branch = w::ChangesLanded::new(
+        &w::CEILINGS,
+        w::ChangesLandedParts {
+            task: 21,
+            title: b"Goal-branch implementation".as_slice().into(),
+            at: RECENT,
+            commit: [0x12; 32],
+            default_branch: false,
+        },
+    )
+    .unwrap();
+    let landing = w::ChangesLanded::new(
+        &w::CEILINGS,
+        w::ChangesLandedParts {
+            task: 22,
+            title: b"Landing fallback".as_slice().into(),
+            at: RECENT + 1,
+            commit: [0xab; 32],
+            default_branch: true,
+        },
+    )
+    .unwrap();
+    let panel = w::ChangesPanel::new(
+        &w::CEILINGS,
+        w::ChangesPanelParts {
+            project: f::PROJECT,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: list(&[landing.clone(), branch]),
+            landed_more: 0,
+            landed_default: list(&[landing]),
+            landed_default_more: 0,
+        },
+    )
+    .unwrap();
+    page.up(Up::FamilyDelivered {
+        watch: page.changes,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::changes_panel(&panel),
+        },
+    });
+    for (read, what) in page.reads() {
+        if let c::Read::Task { task } = what {
+            let mut document = f::task::document();
+            document.chip.task = task;
+            document.goal = Some(GOAL);
+            let mut chip = document.chip.clone();
+            chip.task = GOAL;
+            chip.title = text(b"The whole goal");
+            document.lineage_chips = list(&[chip]);
+            page.answer(read, c::ReadValue::Task(Box::new(document)));
+        }
+    }
+    let (tree, bindings) = page.tree(&f::words());
+    assert!(has(&tree, "Landed this week · 1"), "counts main landings, not goal-branch changes");
+    assert!(has(&tree, "One landed this week."));
+    assert_eq!(styled(&tree, look::WORK_ROW).len(), 1);
+    assert!(has(&tree, "The whole goal"));
+    assert!(!has(&tree, "Goal-branch implementation"));
+    assert!(!has(&tree, "Landing fallback"));
+    assert!(has(&tree, "abababa"));
+    assert!(has(&tree, "Also one change landed into a goal branch."));
+    let mut tasks = List::uncapped();
+    for node in tree.nodes() {
+        if let Some(link) = node.link
+            && let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                address: Address::Task { task },
+            })) = bindings.decode(link.token, skein_ui::Act::Press)
+        {
+            tasks.push(task).unwrap();
+        }
+    }
+    assert_eq!(tasks.as_slice(), &[GOAL]);
+
+    // Chat and unread tasks stay change rows; a goal without its chip uses the change's title.
+    let mut parts = panel.into_parts();
+    let mut branches = List::with_capacity(2);
+    for row in parts.landed.into_boxed() {
+        let mut row = row.into_parts();
+        row.default_branch = false;
+        branches.push(w::ChangesLanded::new(&w::CEILINGS, row).unwrap()).unwrap();
+    }
+    parts.landed = branches;
+    let mut defaults = List::with_capacity(3);
+    for (task, title, commit) in [(30, "Chat landing", 0x32), (31, "Unread landing", 0x45), (32, "Goal fallback", 0x67)]
+    {
+        defaults
+            .push(
+                w::ChangesLanded::new(
+                    &w::CEILINGS,
+                    w::ChangesLandedParts {
+                        task,
+                        title: title.as_bytes().into(),
+                        at: RECENT,
+                        commit: [commit; 32],
+                        default_branch: true,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    parts.landed_default = defaults;
+    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    page.up(Up::FamilyDelivered {
+        watch: page.changes,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::changes_panel(&panel),
+        },
+    });
+    for (read, what) in page.reads() {
+        if let c::Read::Task { task } = what {
+            if task == 31 {
+                continue;
+            }
+            let mut document = f::task::document();
+            document.chip.task = task;
+            document.goal = if task == 32 { Some(GOAL) } else { None };
+            document.lineage_chips = List::uncapped();
+            if task == 30 {
+                let mut chip = document.chip.clone();
+                chip.task = CHAT;
+                chip.executor = c::ChipExecutor::Agent { charter: 1 };
+                document.lineage_chips = list(&[chip]);
+            }
+            page.answer(read, c::ReadValue::Task(Box::new(document)));
+        }
+    }
+    let (tree, _) = page.tree(&f::words());
+    assert!(has(&tree, "Landed this week · 3"));
+    assert!(has(&tree, "Chat landing"));
+    assert!(has(&tree, "Unread landing"));
+    assert!(has(&tree, "Goal fallback"));
+    assert!(has(&tree, "a chat with you · 3232323"));
+    assert!(has(&tree, "4545454"));
+    assert!(has(&tree, "6767676"));
+    assert!(has(&tree, "Also two changes landed into goal branches."));
+}
 fn heading_work(flight: u32, drafts: u32, landed: u32) -> Work {
     let card = Card { item: Item::Goal(GOAL), changes: List::uncapped() };
     let mut work = Work::default();
@@ -297,7 +483,7 @@ fn heading_work(flight: u32, drafts: u32, landed: u32) -> Work {
         work.drafts.push(card.clone()).unwrap();
     }
     for _ in 0..landed {
-        work.landed.push(LANDED).unwrap();
+        work.landed.push(Landed { item: Item::Goal(GOAL), change: LANDED, commit: [0xab; 32], at: NOW }).unwrap();
     }
     work
 }
@@ -486,4 +672,144 @@ fn the_terminal_numbers_filters_and_cards_with_their_from_headline_and_rows() {
     ] {
         assert!(skein_lib::bytes::find(printed, value.as_bytes()).is_some(), "missing {value}");
     }
+}
+
+const READY: u64 = 1_792_159_800_000_000_000; // Friday 14:10 in the clock's preceding week.
+fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
+    w::LandedDraft::new(
+        &w::CEILINGS,
+        w::LandedDraftParts {
+            forge: 3,
+            owner: b"author".as_slice().into(),
+            name: b"NAME".as_slice().into(),
+            path: path.into(),
+            branch: b"main".as_slice().into(),
+            commit: b"abc".as_slice().into(),
+            title: title.into(),
+            writer: 9,
+            at: READY,
+            chat: Some(99),
+            goal: None,
+            ready: true,
+        },
+    )
+    .unwrap()
+}
+fn subtree_text(tree: &Tree, node: &skein_ui::Node) -> Box<[u8]> {
+    let mut text = List::uncapped();
+    let mut taking = false;
+    let mut left = node.size;
+    for next in tree.nodes() {
+        if core::ptr::eq(next, node) {
+            taking = true;
+        }
+        if taking && left > 0 {
+            for run in &next.text {
+                for byte in &run.text {
+                    text.push(*byte).unwrap();
+                }
+            }
+            left = left.checked_sub(1).unwrap();
+        }
+    }
+    text.into_boxed()
+}
+struct LandedChoices {
+    configured: Option<u32>,
+    tracked: bool,
+    labels: &'static [&'static [u8]],
+}
+#[test]
+fn landed_cards_draw_clock_provenance_and_the_three_choice_cases_in_both_shells() {
+    use temper_client_domain::{Action, pages::Act};
+    for words in [f::browser_words(), f::words()] {
+        for LandedChoices { configured, tracked, labels } in [
+            LandedChoices {
+                configured: Some(jig_client::shapes::GOAL),
+                tracked: true,
+                labels: &[b"Start a goal: Task by task", b"Another way"],
+            },
+            LandedChoices { configured: Some(99), tracked: true, labels: &[b"Start a goal\xe2\x80\xa6"] },
+            LandedChoices { configured: None, tracked: true, labels: &[b"Start a goal\xe2\x80\xa6"] },
+            LandedChoices { configured: Some(jig_client::shapes::GOAL), tracked: false, labels: &[] },
+        ] {
+            let ways = match configured {
+                Some(way) => Some(Ways { way, ..Ways::STOCK }),
+                None => None,
+            };
+            let mut page = Fixture::new(ways, false);
+            if !tracked {
+                let mut me = page.root.pages().me(page.root.client()).unwrap().clone();
+                for template in me.projects.get_mut(0).unwrap().templates.iter_mut() {
+                    template.tracked = None;
+                }
+                f::deliver_me(&mut page.root, page.me, me);
+            }
+            page.populate(false);
+            let row = landed_draft(b"docs/design/draft/catch-up.md", b"Catch up");
+            page.drafts(core::slice::from_ref(&row));
+            let (tree, bindings) = page.tree(&words);
+            assert_eq!(skein_ui::outline::check(&tree), None);
+            assert!(has(&tree, "One draft."));
+            assert!(has(&tree, "Drafts · 1"), "only a landed draft shows the filter");
+            let from = styled(&tree, look::WORK_FROM);
+            assert_eq!(from.len(), 1);
+            assert_eq!(
+                subtree_text(&tree, from[0]).as_ref(),
+                "draft · catch-up.md · landed in docs/design/draft/ · ready since Fri 14:10".as_bytes()
+            );
+            assert!(has(&tree, "Catch up"));
+            let choices = styled(&tree, look::WORK_CHOICE);
+            let mut actual = List::uncapped();
+            for choice in &choices {
+                actual.push(choice.name.as_deref().unwrap()).unwrap();
+            }
+            assert_eq!(actual.as_slice(), labels);
+            for (i, choice) in choices.iter().enumerate() {
+                assert_eq!(choice.role, Role::Button);
+                assert_eq!(choice.styles.as_slice().contains(&look::WORK_RECOMMENDED), i == 0);
+                assert_eq!(
+                    bindings.decode(choice.binding.unwrap().token, skein_ui::Act::Press),
+                    Some(Action::Pages(Act::OpenLanded {
+                        draft: LandedDraft::row(&row),
+                        start: labels.len() == 2 && i == 0,
+                    }))
+                );
+            }
+            assert_eq!(has(&tree, "Shop’s way"), labels.len() == 2);
+            if words.shell == crate::words::Shell::Terminal {
+                let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                let printed = print.text.as_slice();
+                let from = skein_lib::bytes::find(printed, "draft · catch-up.md".as_bytes()).unwrap();
+                let title = skein_lib::bytes::find(printed, b"Catch up").unwrap();
+                assert!(from < title);
+                if let Some(label) = labels.first() {
+                    assert!(title < skein_lib::bytes::find(printed, label).unwrap());
+                    let numbered = crate::accounts::words::join(&[b"[3] ", label]);
+                    assert!(skein_lib::bytes::find(printed, &numbered).is_some(), "{printed:?}");
+                }
+            }
+            page.drafts(&[landed_draft(b"root.md", b"")]);
+            let (tree, _) = page.tree(&words);
+            assert!(has(&tree, "landed in NAME/"));
+            assert!(styled(&tree, look::WORK_QUOTE).is_empty());
+        }
+    }
+}
+#[test]
+fn landed_and_chat_drafts_share_the_headings_count_and_newest_first_order() {
+    let mut page = Fixture::new(None, false);
+    page.populate(true);
+    let row = landed_draft(b"catch-up.md", b"Catch up");
+    let mut parts = row.into_parts();
+    parts.at = RECENT.checked_add(1).unwrap();
+    page.drafts(&[w::LandedDraft::new(&w::CEILINGS, parts).unwrap()]);
+    page.go(Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts });
+    let (tree, _) = page.tree(&f::browser_words());
+    assert!(has(&tree, "Three in flight, two drafts, one landed this week."));
+    assert_eq!(styled(&tree, look::WORK_CARD).len(), 2);
+    let from = styled(&tree, look::WORK_FROM);
+    assert!(skein_lib::bytes::find(&subtree_text(&tree, from[0]), b"catch-up.md").is_some());
+    assert!(skein_lib::bytes::find(&subtree_text(&tree, from[1]), b"read-barriers.md").is_some());
 }

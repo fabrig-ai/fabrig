@@ -5,6 +5,8 @@ skein-ui-example-view
 skein-ui-example-shell-web
 jig-client-shell-web
 temper-client-shell-web
+temper-client-web-page
+temper-playground-page
 skein-playground
 skein-lib
 skein-codec

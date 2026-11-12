@@ -54,6 +54,8 @@ enum CommandState {
     Done,
 }
 type KeptValue = (Box<[u8]>, Box<[u8]>);
+mod look;
+use look::Capture;
 
 /// One page's asynchronous semantic face. Nodes are numbered locally.
 pub struct BrowserFace<'a> {
@@ -89,6 +91,11 @@ pub struct BrowserFace<'a> {
     keep_done: bool,
     command: Option<crate::harness::CommandAction>,
     command_state: CommandState,
+    viewport_size: (u32, u32),
+    viewport_change: Option<(Token, u32, u32)>,
+    capture: Option<Capture>,
+    snapshot: Option<Box<[u8]>>,
+    screenshot: Option<Box<[u8]>>,
 }
 
 impl<'a> BrowserFace<'a> {
@@ -132,6 +139,11 @@ impl<'a> BrowserFace<'a> {
             keep_done: false,
             command: None,
             command_state: CommandState::Idle,
+            viewport_size: (1280, 800),
+            viewport_change: None,
+            capture: None,
+            snapshot: None,
+            screenshot: None,
         }
     }
     pub fn title(&mut self, words: &[u8]) -> Found {
@@ -352,6 +364,7 @@ impl<'a> BrowserFace<'a> {
         self.refusal = None;
         let op = self.token();
         self.acting = Some(op);
+        self.viewport_change = Some((op, width, height));
         self.requests.push(Request::Viewport { page: self.page, op, width, height });
     }
     /// Read the current whole URL; take its answer once the face is no longer pending.
@@ -505,6 +518,9 @@ impl<'a> BrowserFace<'a> {
     }
     /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {
+        if self.look_event(event) {
+            return;
+        }
         match event {
             Event::Warned { op } => {
                 if self.go == Some(*op) && self.acting == Some(*op) {
@@ -517,6 +533,11 @@ impl<'a> BrowserFace<'a> {
             }
             Event::Done { op } => {
                 if self.acting == Some(*op) {
+                    if let Some((change, width, height)) = self.viewport_change.take()
+                        && change == *op
+                    {
+                        self.viewport_size = (width, height);
+                    }
                     self.acting = None;
                     self.press = None;
                     self.input_next();

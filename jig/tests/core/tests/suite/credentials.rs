@@ -743,11 +743,16 @@ fn claim_keeps_pin_and_bindings(world: &World, task: u64, attempt: u64, account:
 }
 
 fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
-    let (mut config, limits) = jig_core_world::world::fixture(seed, false);
+    let (mut config, mut limits) = jig_core_world::world::fixture(seed, false);
     config.core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     config.core.settings.endpoints[0].program = Some(b"claude_code".as_slice().into());
     config.core.defaults.charters[0].policy.model.program = Some(b"claude_code".as_slice().into());
     config.core.settings.llm_providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
+    // The program's name and model cache lifetime fit in the stored charter's policy room.
+    limits.core.run_bytes = limits.core.run_bytes.max(
+        u32::try_from(core::charter_owned_bytes(&config.core.defaults.charters[0]).expect("program charter size"))
+            .expect("fixture policy fits u32"),
+    );
     (config, limits)
 }
 #[test]

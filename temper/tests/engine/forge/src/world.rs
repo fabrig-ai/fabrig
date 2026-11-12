@@ -68,6 +68,16 @@ pub const LIMITS: top::Limits = top::Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -83,6 +93,7 @@ pub const LIMITS: top::Limits = top::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -103,6 +114,8 @@ struct Pending {
     op: skein_forge::api::Op,
     generation: u64,
 }
+
+mod follows;
 
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
@@ -130,12 +143,14 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
     pull_snapshot: Option<skein_forge::api::Pull>,
+    held_compares: Option<Vec<(u64, top::Event)>>,
     read_script: ReadScript,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
@@ -237,6 +252,55 @@ impl World {
         )
     }
 
+    /// Gather the repair's pinned CI section through the forge client.
+    pub fn ci_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
+        let row = self.top.change(task).expect("change");
+        let section = Token::new(900);
+        self.event(top::Event::PlanBrief {
+            section,
+            partner: None,
+            source: top::BriefSource::Ci {
+                item: top::BriefItem { repository: row.repository.repository, number: row.pull.expect("pull") },
+                head: top::BriefCommit(head),
+            },
+        });
+        self.event(top::Event::GatherPlanned {
+            task,
+            section,
+            parts: 2,
+            bytes: 2048,
+            ci_budget: 2048,
+            deadline: self.env.now.saturating_add(Duration::from_secs(30)),
+        });
+        self.run_for(1);
+        self.top.take_brief(section).expect("gathered CI brief")
+    }
+
+    /// Script the runner's failure independently from its check's outcome.
+    #[must_use]
+    pub fn runner_failure(seed: u64, passes: u32, fault: raw::Failing) -> World {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            false,
+            None,
+            fake_config(),
+            Some(passes),
+        );
+        forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
+        world
+    }
+
+    /// The forge makes the next re-run but its transport loses the answer.
+    pub fn lose_rerun_answer(&mut self) {
+        self.lose_rerun_answer = true;
+    }
+
     /// Branch rules from the independent fake, with signatures supplied by the layer.
     #[must_use]
     pub fn with_protection(seed: u64, protection: raw::Protection, signatures: bool) -> World {
@@ -285,6 +349,7 @@ impl World {
             false,
             None,
             config,
+            None,
         )
     }
 
@@ -304,7 +369,8 @@ impl World {
     pub fn comparison_fits(&self, base: u64, head: u64) -> bool {
         let read = skein_forge::api::Read::Compare { before: translate::commit(base), after: translate::commit(head) };
         let answer = self.inspect(&raw::Read::Compare { base, head, page: 1, limit: 40 });
-        let answer = translate::answer_as(&skein_forge::api::Op::Read(read), answer, &self.env.limits.client, 1, false);
+        let answer = translate::answer_as(&skein_forge::api::Op::Read(read), answer, &self.env.limits.client, 1, false)
+            .expect("comparison projection");
         skein_forge_client::measure::answer_rows(&answer, self.env.limits.client.rows)
             && skein_forge::measure::answer(&answer).expect("bounded comparison")
                 <= u64::from(self.env.limits.client.answer_bytes)
@@ -364,6 +430,7 @@ impl World {
             turn,
             tier,
             fake_config(),
+            None,
         )
     }
     #[expect(
@@ -381,6 +448,7 @@ impl World {
         turn: bool,
         tier: Option<raw::Workflow>,
         mut config: forge::Config,
+        passes: Option<u32>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -423,7 +491,7 @@ impl World {
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
                     silent: 0,
-                    passes: 1000,
+                    passes: passes.unwrap_or(1000),
                     reruns: 0,
                     cue: None,
                 },
@@ -466,12 +534,14 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
             call_ops: Vec::new(),
             hints: Vec::new(),
             signatures,
             pull_snapshot: None,
+            held_compares: None,
             read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
             landing_config: None,
         };
@@ -619,6 +689,7 @@ impl World {
             true,
             Some(workflow.clone()),
             repository_config(2),
+            None,
         );
         forge::repository(
             &mut world.forge,
@@ -737,6 +808,7 @@ impl World {
             edit: top::settings::Edit::Set(top::settings::SizedValue {
                 size: 64,
                 value: top::settings::Value::Rule(top::settings::LandingRule {
+                    sets: Box::new([]),
                     pattern: top::GatePattern {
                         segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"]
                             .map(Box::from)
@@ -752,6 +824,14 @@ impl World {
             }),
         };
         self.top.keep_settings(&self.env, 1, None, &[item], &mut self.top_out);
+        self.take_top();
+        self.run_for(1);
+    }
+
+    /// Commit the forge's settings and drive the resulting live-change wakes.
+    pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
+        self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
+        top::fire(&mut self.top, &self.env, &mut self.top_out);
         self.take_top();
         self.run_for(1);
     }
@@ -835,6 +915,18 @@ impl World {
             assert!(self.iterate(end), "post must reach the forge before the horizon");
         }
         panic!("post did not settle at the forge");
+    }
+
+    /// Stop before the fake processes the named read, after the connector submits it.
+    pub fn run_until_read(&mut self, read: &skein_forge::api::Read) {
+        let end = self.env.now.saturating_add(Duration::from_secs(5));
+        for _ in 0..20_000 {
+            if self.call_ops.contains(&skein_forge::api::Op::Read(read.clone())) {
+                return;
+            }
+            assert!(self.iterate(end), "read must be submitted before the horizon");
+        }
+        panic!("read was not submitted");
     }
 
     pub fn observations(&mut self) -> Vec<forge::Observation> {
@@ -995,7 +1087,7 @@ impl World {
         let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: false });
         let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
         let skein_forge::api::Answer::Pull(snapshot) =
-            translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)
+            translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures).expect("pull projection")
         else {
             panic!("fixture pull read")
         };
@@ -1127,7 +1219,9 @@ impl World {
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
-                top::Request::MakingCopied { .. }
+                top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
+                | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
@@ -1232,6 +1326,7 @@ impl World {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
                 | top::Request::BriefReady { .. }
@@ -1336,7 +1431,7 @@ impl World {
                         Ok(answer) => {
                             let mut answer =
                                 translate::answer_as(&pending.op, answer, &self.env.limits.client, 1, self.signatures);
-                            if let skein_forge::api::Answer::Run(run) = &mut answer {
+                            if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .forge
                                     .inspect(
@@ -1355,12 +1450,12 @@ impl World {
                                 skein_forge::api::Op::Read(
                                     skein_forge::api::Read::PullFor { .. } | skein_forge::api::Read::Pull { .. }
                                 )
-                            ) && let skein_forge::api::Answer::Pull(pull) = &mut answer
+                            ) && let Ok(skein_forge::api::Answer::Pull(pull)) = &mut answer
                                 && let Some(snapshot) = self.pull_snapshot.take()
                             {
                                 *pull = snapshot;
                             }
-                            Ok(answer)
+                            answer
                         }
                         Err(raw::Error::TooLarge)
                             if matches!(
@@ -1381,7 +1476,15 @@ impl World {
                             Err(translate::error(error, forge::time(&self.forge_env.limits, self.forge_env.now)))
                         }
                     };
-                    self.to_top.push((
+                    let result = if self.lose_rerun_answer
+                        && matches!(&pending.op, skein_forge::api::Op::Write(skein_forge::api::Write::Rerun { .. }))
+                    {
+                        self.lose_rerun_answer = false;
+                        Err(skein_forge::api::Error::Timeout)
+                    } else {
+                        result
+                    };
+                    let event = (
                         pending.generation,
                         top::Event::Client(skein_forge_client::Event::Answered {
                             free: 0,
@@ -1390,7 +1493,14 @@ impl World {
                             cost: 1,
                             result,
                         }),
-                    ));
+                    );
+                    if matches!(pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
+                        && let Some(held) = &mut self.held_compares
+                    {
+                        held.push(event);
+                    } else {
+                        self.to_top.push(event);
+                    }
                 }
                 hook @ forge::Request::Hook { .. } => self.hear(&hook),
             }
@@ -1449,6 +1559,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::RefusedSetting(key) => top::Key::Setting(*key),
         top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Making(row) => top::Key::Making(row.key.clone()),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
@@ -1460,9 +1571,11 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
+        top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },

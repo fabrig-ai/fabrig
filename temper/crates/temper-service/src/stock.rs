@@ -63,6 +63,8 @@ struct StockModel {
     effort: Option<&'static [u8]>,
     efforts: &'static [&'static [u8]],
     input: u64,
+    cached: u64,
+    cache_write: Option<u64>,
     output: u64,
     unit: u32,
 }
@@ -75,6 +77,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 4_000,
+        cached: 200,
+        cache_write: Some(5_000),
         output: 20_000,
         unit: 1_000_000,
     },
@@ -86,6 +90,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 2_000,
+        cached: 200,
+        cache_write: Some(2_500),
         output: 10_000,
         unit: 1_000_000,
     },
@@ -97,6 +103,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 10_000,
+        cached: 250,
+        cache_write: Some(12_500),
         output: 50_000,
         unit: 1_000_000,
     },
@@ -108,6 +116,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 2_000,
+        cached: 2_000,
+        cache_write: None,
         output: 10_000,
         unit: 1_000_000,
     },
@@ -119,6 +129,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 10_000,
+        cached: 10_000,
+        cache_write: None,
         output: 50_000,
         unit: 1_000_000,
     },
@@ -130,6 +142,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"medium"),
         efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 1_000,
+        cached: 1_000,
+        cache_write: None,
         output: 5_000,
         unit: 1_000_000,
     },
@@ -141,6 +155,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"medium"),
         efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 100,
+        cached: 100,
+        cache_write: None,
         output: 500,
         unit: 1_000_000,
     },
@@ -152,6 +168,8 @@ const MODELS: &[StockModel] = &[
         effort: None,
         efforts: &[],
         input: 1,
+        cached: 1,
+        cache_write: None,
         output: 1,
         unit: 1_000,
     },
@@ -182,11 +200,12 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                             endpoint: endpoint.number,
                             dialect: endpoint.dialect,
                             program: endpoint.program.clone(),
+                            cache_life_ms: if row.number == 8 { 0 } else { 300_000 },
                             window: 1_048_576,
                             output: 8192,
                             input_price: row.input,
-                            cached_price: row.input,
-                            cache_write_price: None,
+                            cached_price: row.cached,
+                            cache_write_price: row.cache_write,
                             output_price: row.output,
                             price_unit: row.unit,
                             effort: match row.effort {
@@ -225,7 +244,8 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 /// Read (the forge's reads), Settings (Ask temper proposes)
 /// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration/stock.md.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
+const CHAT_TOOLS: authority::Tools =
+    authority::Tools(1 | 2 | 4 | ToolFamilies::JIG.subscribe.0 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 // A chat's families without delegate (temper/docs/design/protocol/configuration/stock.md).
@@ -234,7 +254,6 @@ const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const ASK_TOOLS: jig_domain_tasks::Tools =
     jig_domain_tasks::Tools(ToolFamilies::JIG.ask.0 | ToolFamilies::JIG.settings);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
-const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 const TRIAL_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 
@@ -362,10 +381,10 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     models.first()?;
     let mut charters = Box::new([
         charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
-        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
+        charter(2, WORK_TURNS, WORK_TIME, &temper_charter_set::implementer(&charter_set()), &models, FIRST_CHOICES),
         reviewer(&models),
         coordinator(&models),
-        foreman(&models),
+        standing_role(&models),
         status(&models),
         trial(&models),
         ask_charter(&models),
@@ -393,6 +412,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         chat(result_bytes),
         goal(result_bytes),
         draft_goal(result_bytes),
+        role(result_bytes),
         ask(result_bytes),
         design(result_bytes),
     ]);
@@ -475,9 +495,9 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
 const CHAT_TURNS: u32 = 64;
 // Chat, Ask temper and drafter charter rows: one hour (temper/docs/design/protocol/configuration/stock.md).
 const CHAT_TIME: Duration = Duration::from_secs(3_600);
-// Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration/stock.md).
+// Coding and reviewer rows (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TURNS: u32 = 800;
-// Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration/stock.md).
+// Coding and reviewer rows: eight hours (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TIME: Duration = Duration::from_secs(28_800);
 
 fn charter(
@@ -538,11 +558,11 @@ fn charter(
                 1 | 5 => CHAT_CHARTER_TOOLS,
                 2 => CODING_TOOLS,
                 4 => REVIEWING_TOOLS,
-                6 => FOREMAN_TOOLS,
                 9 => STATUS_TOOLS,
                 10 => TRIAL_TOOLS,
                 11 => ASK_TOOLS,
                 12 => DRAFTER_TOOLS,
+                13 => jig_domain_tasks::Tools(2047),
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -583,10 +603,30 @@ const COORDINATOR_WAKE: WakePolicy = WakePolicy {
     timers: true,
 };
 
+// temper/docs/design/domain/agent/charter.md, 1: the stock's files are code to every gate.
+#[expect(clippy::disallowed_macros, reason = "the stock's set is compiled into the binary")]
+pub(super) fn charter_set() -> temper_charter_set::Set<'static> {
+    temper_charter_set::Set {
+        common: Some(include_str!("../../../docs/charters/stock/common.md")),
+        goal: Some(include_str!("../../../docs/charters/stock/goal.md")),
+        designer: Some(include_str!("../../../docs/charters/stock/designer.md")),
+        coordinator: Some(include_str!("../../../docs/charters/stock/coordinator.md")),
+        implementer: Some(include_str!("../../../docs/charters/stock/implementer.md")),
+    }
+}
 fn coordinator(models: &[CatalogueModel]) -> Charter {
-    let (shared, parts) = sections(include_bytes!("stock/coordinator.md"));
-    let mut value = charter(5, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
-    value.parts = parts;
+    let assembled = temper_charter_set::goal_agent(&charter_set(), |name| Reasons::named(name.as_bytes()))
+        .expect("the stock set's focused test holds its assembly");
+    let mut value = charter(5, WORK_TURNS, WORK_TIME, &assembled.instructions, models, FIRST_CHOICES);
+    let mut parts = List::with_capacity(u32::try_from(assembled.parts.len()).expect("stock part count"));
+    for part in assembled.parts {
+        let mut on = Reasons::EMPTY;
+        for reason in part.reasons {
+            on = on.union(reason);
+        }
+        parts.push(CharterPart { on, instructions: part.text }).expect("assembled parts counted");
+    }
+    value.parts = parts.into_boxed();
     value.policy.waiting = Duration::ZERO;
     value.policy.resume = false;
     value.policy.shell = false;
@@ -594,9 +634,25 @@ fn coordinator(models: &[CatalogueModel]) -> Charter {
     value
 }
 
+// temper/docs/design/domain/agent/standing.md, 2: every delegate's result concerns the role.
+const ROLE_WAKE: WakePolicy = WakePolicy { results: ResultsWake::Each, ..COORDINATOR_WAKE };
+
+fn standing_role(models: &[CatalogueModel]) -> Charter {
+    let (shared, parts) = sections(include_bytes!("stock/role.md"));
+    let mut value = charter(13, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
+    value.parts = parts;
+    value.policy.waiting = Duration::ZERO;
+    value.policy.inspect = false;
+    value.policy.modify = false;
+    value.policy.shell = false;
+    value.policy.agents = false;
+    value.wake = ROLE_WAKE;
+    value
+}
+
 #[expect(clippy::disallowed_methods, reason = "compiled stock headings and UTF-8 are held by the parts test")]
 fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
-    let text = core::str::from_utf8(text).expect("stock coordinator is UTF-8");
+    let text = core::str::from_utf8(text).expect("stock charter is UTF-8");
     let mut sections = text.strip_prefix("## ").expect("stock section heading").split("\n## ");
     let (heading, shared) = sections.next().expect("stock shared section").split_once('\n').expect("heading line");
     assert_eq!(heading, "shared", "stock shared heading");
@@ -610,17 +666,11 @@ fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
         }
         parts
             .push(CharterPart { on, instructions: bytes::copy_of(instructions.trim_matches('\n').as_bytes()) })
-            .expect("four stock coordinator parts");
+            .expect("at most four stock charter parts");
     }
     (bytes::copy_of(shared.trim_matches('\n').as_bytes()), parts.into_boxed())
 }
 
-fn foreman(models: &[CatalogueModel]) -> Charter {
-    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), models, FIRST_CHOICES);
-    value.policy.modify = false;
-    value.policy.agents = false;
-    value
-}
 fn status(models: &[CatalogueModel]) -> Charter {
     let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), models, FIRST_CHOICES);
     value.policy.inspect = false;
@@ -664,10 +714,10 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(2),
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(5),
-                authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
                 authority::Executor::Charter(11),
                 authority::Executor::Charter(12),
+                authority::Executor::Charter(13),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
@@ -728,6 +778,17 @@ fn draft_goal(result_bytes: u32) -> Template {
         ..goal(result_bytes)
     }
 }
+fn role(result_bytes: u32) -> Template {
+    Template {
+        number: 7,
+        name: bytes::copy_of(b"standing role"),
+        deadline: TemplateDeadline::None,
+        tracked: None,
+        flags: Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept },
+        label: 3,
+        ..goal(result_bytes)
+    }
+}
 fn goal(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
@@ -773,13 +834,8 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (
             9,
             5,
-            settings::Value::CharterWords(bytes::copy_of(b"cuts a goal's draft into changes and lands the goal whole")),
-        ),
-        (
-            9,
-            6,
             settings::Value::CharterWords(bytes::copy_of(
-                b"answers a coding agent's question from the goal's design, or passes it up",
+                b"designs a goal's draft, cuts it into changes, and answers what they ask",
             )),
         ),
         (
@@ -806,12 +862,17 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
                 b"writes a draft with you, one question at a time, and starts nothing",
             )),
         ),
+        (
+            9,
+            13,
+            settings::Value::CharterWords(bytes::copy_of(b"owns its work for the project's life and keeps its Now")),
+        ),
     ];
-    let mut stock = List::with_capacity(13);
+    let mut stock = List::with_capacity(14);
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, nine charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, ten charter lines and one goal template's work");
     }
     stock.into_boxed()
 }
@@ -820,6 +881,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
 fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
     use temper_engine_domain_forge::{self as forge, settings};
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: forge::GateLast::Open(Box::default()),

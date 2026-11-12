@@ -29,7 +29,7 @@ pub fn stock(deployment: &Value) -> Value {
     let template = json!({"number":t.number,"name":{"bytes":text(&t.name),"cut":false},"executor":{"charter":executor},"contract":{"report":{"words":words}},"shallower":t.shallower,
         "budget":{"as_allowed":{"cap":cap}},"deadline":"none","tracked":t.tracked,"label":t.label,"grace":t.grace.map(skein_lib::Duration::as_nanos),"llm":null,
         "flags":{"conversation":t.flags.conversation,"listed":t.flags.listed,"retention":match t.flags.retention { jig_domain_tasks::Retention::Kept=>"kept",jig_domain_tasks::Retention::ForgottenOnceRead=>"forgotten_once_read" },
-        "ended_by":match t.flags.ended_by { jig_domain_tasks::EndedBy::Requester=>"requester",jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_)=>"result" }}});
+        "ended_by":match t.flags.ended_by { jig_domain_tasks::EndedBy::Requester=>"requester",jig_domain_tasks::EndedBy::Standing=>"standing",jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_)=>"result" }}});
     json!({"charter":charter,"template":template})
 }
 #[must_use]
@@ -109,6 +109,7 @@ fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
                 });
             }
             rules.push(LandingRule {
+                sets: Box::new([]),
                 connector: 1,
                 kind: 4,
                 pattern: jig_domain_authority::Pattern {

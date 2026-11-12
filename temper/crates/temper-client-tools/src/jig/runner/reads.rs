@@ -19,8 +19,10 @@ pub(crate) struct Reading {
     pub pages: BTreeMap<u32, Readout>,
     pub documents: BTreeMap<u32, c::Delivery>,
     pub text: Option<c::RunText>,
+    pub project: Option<u32>,
     pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
+    pub talk: Option<super::talk::Reply>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
     pub person: Option<Box<c::PersonTask>>,
@@ -67,17 +69,36 @@ pub(crate) fn met_inbox(
     for value in called.call.values.iter_mut().skip(4) {
         *value = None;
     }
-    start_reading(runner, client, env, called, Some(fallback), out);
+    start_reading(runner, client, env, called, Some(After::Inbox(fallback)), out);
 }
 
+enum After {
+    Inbox(Printed),
+    Talk(super::talk::Reply),
+}
+pub(crate) fn talk_reply(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    called: Called,
+    reply: super::talk::Reply,
+    out: &mut Queue<Out>,
+) {
+    start_reading(runner, client, env, called, Some(After::Talk(reply)), out);
+}
 fn start_reading(
     runner: &mut Runner,
     client: &Client,
     env: &Env<Limits>,
     called: Called,
-    met_inbox: Option<Printed>,
+    after: Option<After>,
     out: &mut Queue<Out>,
 ) {
+    let (met_inbox, talk) = match after {
+        Some(After::Inbox(fallback)) => (Some(fallback), None),
+        Some(After::Talk(reply)) => (None, Some(reply)),
+        None => (None, None),
+    };
     let reading = Reading {
         called,
         command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
@@ -85,8 +106,10 @@ fn start_reading(
         pages: BTreeMap::new(),
         documents: BTreeMap::new(),
         text: None,
+        project: None,
         specification: None,
         thread: None,
+        talk,
         questions: BTreeMap::new(),
         question: None,
         person: None,
@@ -154,11 +177,33 @@ fn start_overview(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut r
 fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
-        4 => thread_start(runner, env, &mut reading, task, out),
+        4 | rows::ROLE_TALK_AT => thread_start(runner, env, &mut reading, task, out),
         5 => {
             let before = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Activity { task, before }, out);
         }
+        rows::ROLE_LIST_AT => {
+            let Some(me) = super::acts::me(runner, client) else { return };
+            let Some(project) = project(&reading.called.call, me) else {
+                let printed = render::failure(b"unknown project", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            };
+            let query = c::TaskQuery {
+                project: Some(project),
+                requester: None,
+                root: None,
+                parent: None,
+                label: Some(3),
+                phase: None,
+                executor: None,
+                tracked: None,
+                order: c::QueryOrder::Number,
+            };
+            let live = cursor(&reading.called.call, 1);
+            read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
+        }
+        rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
@@ -203,6 +248,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 finish(reading, printed, out);
                 return;
             };
+            reading.project = Some(project);
             read(runner, &mut reading, 1, c::Read::Project { project }, out);
         }
         rows::PROPOSAL_AT => {
@@ -244,7 +290,7 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
             live: env.limits.text,
         },
     );
-    let next = match cursor(&reading.called.call, 1) {
+    let next = match if reading.talk.is_some() { None } else { cursor(&reading.called.call, 1) } {
         Some(cursor) => {
             thread.lines.edges.after = thread::window::Edge::More(cursor);
             thread.older()
@@ -255,7 +301,9 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
         read(runner, reading, 1, next, out);
     }
     reading.thread = Some(thread);
-    watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
+    if reading.talk.is_none() {
+        watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
+    }
 }
 pub(crate) fn project(call: &Call, me: &c::Me) -> Option<u32> {
     selected_project(value(call, 0), me)
@@ -300,7 +348,11 @@ pub(super) fn page(
         person_page(runner, client, env, reading, page, out);
         return;
     }
-    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::TASK_TEXT_AT) && local == 7 {
+    if (reading.called.call.tool == rows::TASK_AT
+        || reading.called.call.tool == rows::TASK_TEXT_AT
+        || reading.called.call.tool == rows::ROLE_SHOW_AT)
+        && local == 7
+    {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
         return;
@@ -339,7 +391,21 @@ fn accept_page(
         complete(runner, client, env, reading, out);
         return;
     }
-    if let Some(thread) = &mut reading.thread
+    if let Some(reply) = &mut reading.talk {
+        let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page else {
+            let printed = render::read(&page, client, runner.me(), reading.called.json, &env.limits, reading.parts);
+            finish(reading, printed, out);
+            return;
+        };
+        match reply.page(reading.thread.as_mut().expect("talk thread"), *page.clone(), &env.limits) {
+            Ok(Some(next)) => read(runner, &mut reading, local, next, out),
+            Ok(None) => {}
+            Err(printed) => {
+                finish(reading, printed, out);
+                return;
+            }
+        }
+    } else if let Some(thread) = &mut reading.thread
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page
     {
         let mut next = thread.accept(*page.clone());
@@ -507,6 +573,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if let Some((local, what)) = super::role::next(&reading) {
+        read(runner, &mut reading, local, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if let Some(what) = super::specification::next(&mut reading, &env.limits) {
         read(runner, &mut reading, 7, what, out);
         runner.active.insert(reading.called.call_number, reading);
@@ -540,8 +611,23 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         super::accounts::resolved(runner, client, env, reading, out);
         return;
     }
-    let printed =
-        render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
+    let printed = if let Some(reply) = &reading.talk {
+        render::roles::reply(reply, reading.called.json, &env.limits)
+    } else if reading.called.call.tool == rows::ROLE_SHOW_AT {
+        let now = reading.pages.remove(&8);
+        let report = reading.called.call.values.get_mut(1).expect("report flag").take();
+        reading.called.call.tool = rows::TASK_AT;
+        let task =
+            render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
+        reading.called.call.tool = rows::ROLE_SHOW_AT;
+        *reading.called.call.values.get_mut(1).expect("report flag") = report;
+        if let Some(now) = now {
+            reading.pages.insert(8, now);
+        }
+        render::roles::show(task, &reading, super::acts::me(runner, client), &env.limits)
+    } else {
+        render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall)
+    };
     finish(reading, printed, out);
 }
 
@@ -656,7 +742,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
         None => super::super::settings_file::selector(call),
     };
     if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = number(call, if call.form == 2 { 3 } else { 2 }) {
+        if let Some(revision) = number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }) {
             super::application::historical(
                 runner,
                 reading,

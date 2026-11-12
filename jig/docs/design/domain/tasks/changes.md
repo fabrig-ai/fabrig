@@ -165,7 +165,8 @@
   counts; a task waiting for holds leaves their queues. Each task ends
   once its own closing is done, deepest first, and its requester hears
   that it ended cancelled, with what it had done.
-- **A project deleted** cancels each of its live tasks by the
+- **A project deleted** by the deployment's act (an owner's is refused
+  while any is live: ../people/acts.md, 2) cancels each of its live tasks by the
   deployment's compound (below), its conversations, their delegates and
   its other roots composed into compounds as ../people/acts.md, 2 has it, and
   takes no new task from that decision; once none is live, each of its

@@ -118,7 +118,7 @@ pub static SHAPES: [Shape; 33] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 116] = [
+pub static MEMBERS: [Member; 117] = [
     Member {
         shape: "document",
         name: "engine",
@@ -576,6 +576,15 @@ pub static MEMBERS: [Member; 116] = [
         bound: "relative repository path without parent segments; 1 to 4,096 bytes",
         required: false,
         line: "The close command’s path from the repository root; see temper help configuration’s close command.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "landing_attempts",
+        kind: "integer",
+        bound: "1 to 255; 3 when absent",
+        required: false,
+        line: "How many cancelled or failed changes per close or land step the goal closer makes again without judgement before asking its goal.",
         gone: None,
     },
     Member {

@@ -364,6 +364,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
                 dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 8192,
                 output: 1024,
                 input_price: 1,
@@ -698,7 +699,9 @@ fn a_persons_approval_and_a_missing_main_source_are_not_agent_assignments() {
 
 #[test]
 fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
-    for ended_by in [jig_domain_tasks::EndedBy::Result, jig_domain_tasks::EndedBy::Requester] {
+    for ended_by in
+        [jig_domain_tasks::EndedBy::Result, jig_domain_tasks::EndedBy::Requester, jig_domain_tasks::EndedBy::Standing]
+    {
         for resume in [false, true] {
             for resumed in [false, true] {
                 let mut value = assignment_fixture(b"Brief", 64, 20, 4);
@@ -722,7 +725,8 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
                     match ended_by {
                         jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_) =>
                             smith_domain_run::Mode::Finite,
-                        jig_domain_tasks::EndedBy::Requester => smith_domain_run::Mode::Open,
+                        jig_domain_tasks::EndedBy::Requester | jig_domain_tasks::EndedBy::Standing =>
+                            smith_domain_run::Mode::Open,
                     }
                 );
                 assert_eq!(translated.brief.sections[0].text.as_ref(), b"First");
@@ -918,6 +922,31 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     assert_eq!(result.assignment.grants, value.grants);
     assert_eq!(result.turns, value.transcript);
     assert!(decoded.resume());
+}
+
+#[test]
+fn hosted_titles_a_now_with_its_note_revision_and_write_time() {
+    let mut value = hosted_fixture();
+    value.brief = Box::new([jig_domain_brief::GatherPlaced::Core {
+        kind: jig_domain_brief::Core::Now,
+        text: b"Note 12, revision 3, written at 123 ns since Unix epoch.\nWrite your Now before you park.\n\nWaiting"
+            .as_slice()
+            .into(),
+    }]);
+    let result = crate::hosted(
+        &value,
+        crate::RootParts {
+            tools: Box::new([]),
+            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+            deployment: &[3; 16],
+            limits: &wire::CEILINGS,
+        },
+    )
+    .expect("hosted Now");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
+    let [section] = decoded.brief().as_slice() else { panic!("one Now") };
+    assert_eq!(section.title(), b"Now: Note 12, revision 3, written at 123 ns since Unix epoch.");
+    assert!(section.body().ends_with(b"Waiting"));
 }
 
 #[test]

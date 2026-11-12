@@ -188,6 +188,7 @@ impl Settings {
                 tool_rounds: 2,
                 cache_lifetime: Duration::from_secs(300),
                 cache_entries: 8,
+                strict: false,
                 unscoped_reads: 0,
             },
             network: Span::millis(1, 20),

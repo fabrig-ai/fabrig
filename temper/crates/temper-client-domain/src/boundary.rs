@@ -16,6 +16,8 @@ pub enum Event {
     Push(crate::pages::told::Report),
     /// The native client's ask for an approval (client/README.md, 4.1).
     AskApproval,
+    /// The TUI's reads across projects (client/tui/pages/launchpad.md, 2).
+    Launchpad,
     /// The browser left full screen, whoever left it (client/pages/README.md).
     ScreenLeft,
     /// At start, the kept store’s look (client/pages/README.md).

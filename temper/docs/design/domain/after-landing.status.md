@@ -1,6 +1,6 @@
 # after-landing: status
 
-2026-11-09. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-11. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred

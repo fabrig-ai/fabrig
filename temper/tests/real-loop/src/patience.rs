@@ -142,7 +142,7 @@ pub(crate) fn caller(id: usize, caller: &Caller, now: Time, out: &mut String) {
 }
 
 /// Formatting belongs to the std harness; the service only returns closed data.
-fn service_pending(service: &temper_service::Service, now: Time, out: &mut String) {
+fn service_pending(service: &crate::service::Driven, now: Time, out: &mut String) {
     writeln!(out, "service {:#?}", service.pending(now)).expect("string writer");
 }
 
@@ -294,6 +294,7 @@ mod tests {
             &crate::fixtures::given(scratch.path()),
         )
         .expect("prepared service");
+        let prepared = crate::service::Driven::new(prepared);
         let first = format!("{:?}", prepared.pending(Time::ZERO));
         let second = format!("{:?}", prepared.pending(Time::ZERO));
         assert_eq!(first, second, "taking the snapshot never advances the service");

@@ -166,9 +166,8 @@ jobs:
           runner=$(echo "$root"/cache/forgejo-runner/*/forgejo-runner)
           $RUN forgejo-runs "$forgejo" --version
           $RUN runner-runs "$runner" --version
-          echo "TEMPER_FORGEJO=$forgejo" >>"$GITHUB_ENV"
-          echo "TEMPER_FORGEJO_RUNNER=$runner" >>"$GITHUB_ENV"
-          echo "TEMPER_TEST_CLAUDE=$PWD/target/debug/fake-claude" >>"$GITHUB_ENV"
+          echo "TEMPER_TEST_FORGEJO=$forgejo" >>"$GITHUB_ENV"
+          echo "TEMPER_TEST_FORGEJO_RUNNER=$runner" >>"$GITHUB_ENV"
 
       - name: The one story
         if: ${{ !cancelled() && steps.rust.outcome == 'success' && steps.fetch.outcome == 'success' }}

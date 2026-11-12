@@ -34,9 +34,6 @@ pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     )?;
     let resume = d.boolean(field(&fields, b"resume")?)?;
     let parts = charter_parts(d, optional(&fields, b"parts"))?;
-    if resume && !parts.is_empty() {
-        return Err(error(b"charter.parts", b"a charter that resumes takes no parts"));
-    }
     Ok(c::Charter {
         parts,
         rest: match optional(&fields, b"rest") {
@@ -1034,6 +1031,7 @@ fn ended_by(d: &Decoder<'_>, at: u32) -> Result<c::EndedBy, Error> {
         return match d.string(at)? {
             b"result" => Ok(c::EndedBy::Result),
             b"requester" => Ok(c::EndedBy::Requester),
+            b"standing" => Ok(c::EndedBy::Standing),
             _ => Err(error(b"ended_by", b"unknown word")),
         };
     }

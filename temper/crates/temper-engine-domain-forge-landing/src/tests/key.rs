@@ -1,4 +1,4 @@
-use crate::{Entry, EntryKind, Gate, Key, KeyLimits, Keyed, Repository, Tree, definition, key};
+use crate::{Entry, EntryKind, Gate, Key, KeyBound, KeyLimits, Keyed, Repository, Tree, definition, key};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes::copy_of, sha256::digest};
 
@@ -32,7 +32,7 @@ fn keyed(trees: &[Tree], ignored: &[Box<[u8]>]) -> Keyed {
 fn complete(value: Keyed) -> Key {
     match value {
         Keyed::Key(key) => key,
-        Keyed::Need(_) | Keyed::TooLarge => unreachable!("complete fixture"),
+        Keyed::Need(_) | Keyed::TooLarge { .. } => unreachable!("complete fixture"),
     }
 }
 #[test]
@@ -129,7 +129,9 @@ fn a_filtered_tree_past_its_limits_is_too_large() {
         if limits.entries == 2 && limits.path_bytes == 3 {
             assert_eq!(result, Keyed::Key(complete(result)));
         } else {
-            assert_eq!(result, Keyed::TooLarge);
+            let bound = if limits.entries == 1 { KeyBound::Entries } else { KeyBound::PathBytes };
+            let needed = if limits.entries == 1 { 2 } else { 3 };
+            assert_eq!(result, Keyed::TooLarge { bound: Some(bound), needed });
         }
     }
 }
@@ -154,11 +156,11 @@ fn ignored_paths_match_whole_segments() {
 }
 #[test]
 fn an_unrequested_tree_is_rejected() {
-    assert_eq!(keyed(&[tree(9, &[])], &[]), Keyed::TooLarge);
-    assert_eq!(keyed(&[tree(1, &[]), tree(9, &[])], &[]), Keyed::TooLarge);
+    assert_eq!(keyed(&[tree(9, &[])], &[]), Keyed::TooLarge { bound: None, needed: 0 });
+    assert_eq!(keyed(&[tree(1, &[]), tree(9, &[])], &[]), Keyed::TooLarge { bound: None, needed: 0 });
     let mut root = tree(1, &[(b"crates", 2)]);
     directory(&mut root, 0);
-    assert_eq!(keyed(&[root, tree(9, &[])], &[copy_of(b"crates/a")]), Keyed::TooLarge);
+    assert_eq!(keyed(&[root, tree(9, &[])], &[copy_of(b"crates/a")]), Keyed::TooLarge { bound: None, needed: 0 });
 }
 
 #[test]

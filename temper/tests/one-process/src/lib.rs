@@ -19,5 +19,6 @@ pub mod lower;
 pub mod m15;
 pub mod public;
 
+pub mod claude_keys;
 pub mod model_list;
 pub mod push;

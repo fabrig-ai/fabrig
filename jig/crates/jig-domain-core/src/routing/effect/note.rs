@@ -81,7 +81,13 @@ pub(crate) fn tag_notes(
             notes::Request::ProjectDropped { owner } => {
                 crate::admission::deletion::notes_dropped(core, env, owner, &mut out);
             }
-            notes::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Notes(record)))),
+            notes::Request::Save { record } => {
+                match &record {
+                    notes::Record::Entry(entry) => crate::routing::run::now::written(core, work, entry),
+                    notes::Record::Line(_) => {}
+                }
+                out.push(Request::Write(Write::Save(Record::Notes(record))));
+            }
             notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
@@ -107,7 +113,12 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note reads and project deletion cannot write an entry")
                 }
                 None => {}
@@ -120,7 +131,12 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteDeleted { name });
                 }
-                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Now { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("note indexes and project deletion cannot delete one entry")
                 }
                 None => {}
@@ -130,6 +146,9 @@ pub(crate) fn tag_notes(
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
                 }
+                Some(NoteRoute::Now { task }) => {
+                    crate::routing::run::now::recalled(core, env, work, task, entries, more);
+                }
                 Some(
                     NoteRoute::Person { .. }
                     | NoteRoute::Brief { .. }
@@ -138,17 +157,18 @@ pub(crate) fn tag_notes(
                 ) => {
                     unreachable!("a run owns this recall")
                 }
-                None => {}
+                None => out.push(Request::Now(Box::new(Now::NotesRecalled { owner, entries, more }))),
             },
             notes::Request::Indexed { owner, lines, more } => match core.take_note(owner) {
                 Some(NoteRoute::Brief { task }) => work.push(Work::BriefNotes { task, lines, more }),
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::indexed(core, env, work, task, lines, more), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::indexed(core, work, task, lines),
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
-                None => {}
+                None => out.push(Request::Now(Box::new(Now::NotesIndexed { owner, lines, more }))),
             },
             notes::Request::Refused { owner, why } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => match why {
@@ -209,6 +229,7 @@ pub(crate) fn tag_notes(
                 Some(NoteRoute::Preferences { task }) => {
                     append(crate::routing::run::preferences::refused(core, env, work, task, why), &mut out);
                 }
+                Some(NoteRoute::Now { task }) => crate::routing::run::now::refused(core, work, task, why),
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
@@ -314,5 +335,66 @@ pub(crate) fn edit_note_request(
 fn append(mut from: Queue<Request>, to: &mut Queue<Request>) {
     for _ in 0..from.len() {
         to.push(from.pop().expect("preference output count"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::core;
+    use skein_lib::{Time, Token, Wall};
+
+    #[test]
+    fn an_unclaimed_index_answer_keeps_its_owner_and_payload() {
+        let (mut core, limits) = core();
+        let owner = Token::new(u64::MAX);
+        let mut lines = List::with_capacity(1);
+        lines
+            .push(notes::Line {
+                scope: notes::Scope::Goal { project: 1, goal: 41 },
+                name: 7,
+                description: b"now".as_slice().into(),
+                revision: 2,
+            })
+            .expect("one line");
+        let mut child = Queue::uncapped();
+        child.push(notes::Request::Indexed { owner, lines: lines.clone(), more: 3 });
+        let mut out =
+            tag_notes(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, &mut Queue::uncapped(), child);
+        let Some(Request::Now(answer)) = out.pop() else { panic!("root index answer") };
+        let Now::NotesIndexed { owner: echoed, lines: got, more } = *answer else { panic!("index answer") };
+        assert_eq!(echoed, owner);
+        assert_eq!(got, lines);
+        assert_eq!(more, 3);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn an_unclaimed_recall_answer_keeps_its_owner_and_payload() {
+        let (mut core, limits) = core();
+        let owner = Token::new(u64::MAX);
+        let mut entries = List::with_capacity(1);
+        entries
+            .push(notes::Entry {
+                scope: notes::Scope::Goal { project: 1, goal: 41 },
+                name: 7,
+                description: b"now".as_slice().into(),
+                body: b"Repairing the test.".as_slice().into(),
+                references: List::with_capacity(0),
+                author: notes::Author::Task { task: 41, attempt: 1 },
+                revision: 2,
+                changed: Wall::from_nanos(5),
+            })
+            .expect("one entry");
+        let mut child = Queue::uncapped();
+        child.push(notes::Request::Recalled { owner, entries: entries.clone(), more: true });
+        let mut out =
+            tag_notes(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, &mut Queue::uncapped(), child);
+        let Some(Request::Now(answer)) = out.pop() else { panic!("root recall answer") };
+        let Now::NotesRecalled { owner: echoed, entries: got, more } = *answer else { panic!("recall answer") };
+        assert_eq!(echoed, owner);
+        assert_eq!(got, entries);
+        assert!(more);
+        assert!(out.is_empty());
     }
 }

@@ -34,6 +34,24 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
                 },
             },
         )?),
+        t::Line::NowWritten { attempt, line } => w::Activity::NowWritten(w::ActivityNowWritten::new(
+            limits,
+            w::ActivityNowWrittenParts { attempt: *attempt, line: line.clone() },
+        )?),
+        t::Line::Stood { attempt, words } => w::Activity::Stood(w::ActivityStood::new(
+            limits,
+            w::ActivityStoodParts { attempt: *attempt, words: words.clone() },
+        )?),
+        t::Line::TalkOpened { party } => {
+            w::Activity::TalkOpened(w::TalkOpened::new(limits, w::TalkOpenedParts { party: *party })?)
+        }
+        t::Line::TalkEnded { party, lapsed } => {
+            w::Activity::TalkEnded(w::TalkEnded::new(limits, w::TalkEndedParts { party: *party, lapsed: *lapsed })?)
+        }
+        t::Line::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded::new(
+            limits,
+            w::ActivitySessionEndedParts { attempt: *attempt, end: session_end(*end) },
+        )?),
         t::Line::Kept { attempt, pending, question } => {
             let mut rows =
                 skein_lib::List::with_capacity(u32::try_from(pending.len()).expect("bounded pending dependencies"));
@@ -55,6 +73,19 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
         w::ActivityLineParts { task: value.task, position: value.position, at: value.at.as_nanos(), line },
     )
 }
+fn session_end(value: t::SessionEnd) -> w::SessionEnd {
+    match value {
+        t::SessionEnd::Quiet => w::SessionEnd::Quiet,
+        t::SessionEnd::Bound => w::SessionEnd::Bound,
+        t::SessionEnd::Unoffered => w::SessionEnd::Unoffered,
+        t::SessionEnd::Fresh => w::SessionEnd::Fresh,
+        t::SessionEnd::Closed => w::SessionEnd::Closed,
+        t::SessionEnd::Talk => w::SessionEnd::Talk,
+        t::SessionEnd::Left => w::SessionEnd::Left,
+        t::SessionEnd::Rules => w::SessionEnd::Rules,
+    }
+}
+
 fn why(value: t::Why, limits: &w::Limits) -> Result<w::RunWhy, w::Problem> {
     Ok(match value {
         t::Why::Made => w::RunWhy::Made,
@@ -146,6 +177,11 @@ pub fn page_turn(
         | t::Line::RunBegan { .. }
         | t::Line::RunEnded { .. }
         | t::Line::Decided { .. }
+        | t::Line::NowWritten { .. }
+        | t::Line::Stood { .. }
+        | t::Line::TalkOpened { .. }
+        | t::Line::TalkEnded { .. }
+        | t::Line::SessionEnded { .. }
         | t::Line::Kept { .. }
         | t::Line::Milestone { .. } => {
             if supplied.is_some() {

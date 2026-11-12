@@ -16,6 +16,18 @@ mod tests;
 /// One version for every durable family (protocol/store.md, section 4).
 pub const STORE_VERSION: u32 = 11;
 
+/// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
+#[must_use]
+pub fn tier_landings_ceiling() -> u32 {
+    v11::CEILINGS.tier_row_pending.min(v11::CEILINGS.tier_run_landings).min(v11::CEILINGS.tier_finding_blamed)
+}
+
+/// The most `forge.changes` the tier rows hold at two landings per change plus one.
+#[must_use]
+pub fn forge_changes_bound() -> Option<u32> {
+    tier_landings_ceiling().checked_sub(1)?.checked_div(2)
+}
+
 /// Largest encodings under the forge's and task spec's bounds, before jig's key tag.
 #[must_use]
 pub fn application(
@@ -32,7 +44,11 @@ pub fn application(
 
 /// A malformed row, which the routing reports before stopping the engine.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Undecodable;
+pub enum Undecodable {
+    Malformed,
+    /// The setting's identity survives refusal of a retired stored value.
+    Setting(temper_engine_domain_forge::settings::SettingKey),
+}
 
 /// Schema limits checked once alongside the forge's key bounds.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -65,6 +81,8 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         // Explicit titles fit the forge; the body retains the task words.
         change_row_title: 256,
         change_row_body: change_words,
+        follow_question_words: forge.client.op_bytes.max(change_words),
+        follow_question_answer_some: forge.client.op_bytes.max(change_words),
         change_failure_line: change_words,
         change_row_report: forge.client.op_bytes,
         held_answer: forge.client.op_bytes,
@@ -108,6 +126,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         adopted_name: forge.name_bytes,
         adopted_prefix: forge.name_bytes,
         adopted_checks: forge.change_policy.gates,
+        adopted_contexts: forge.judge_projects,
         retargeted_before: forge.name_bytes,
         retargeted_after: forge.name_bytes,
         names_resources: forge.resources_per_task,

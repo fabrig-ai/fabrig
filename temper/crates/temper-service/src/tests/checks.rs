@@ -101,7 +101,10 @@ fn a_checkout_with_one_repository_can_start() {
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     let own = crate::limits::profile(crate::limits::Profile::Small);
-    for limits in [crate::translate::limits(&own).unwrap(), crate::worker_settings::payload_limits(&own).unwrap()] {
+    for limits in [
+        crate::translate::limits(&own).unwrap(),
+        crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap(),
+    ] {
         assert_eq!(payload::largest(&limits).unwrap().grant, 7057);
         assert_eq!(jig_protocol_worker_wire::CEILINGS.application_value_secret, 8192);
         let worker = fixtures::worker_settings();
@@ -110,8 +113,8 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
         crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
-    assert_eq!(worker.limits.forges.installations, crate::limits::FORGE_INSTALLATIONS);
-    assert_eq!(worker.limits.forge_component.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
+    assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
+    assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
 
 #[test]
@@ -150,7 +153,10 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
-    let engine_limits = crate::translate::limits(&part.limits).unwrap();
+    let mut engine = crate::limits::profile(crate::limits::Profile::Small);
+    crate::limits::apply(&mut engine, b"forges.installations", 3).unwrap();
+    crate::limits::apply(&mut engine, b"forge_component.token_bytes", 64).unwrap();
+    let engine_limits = crate::translate::limits(&engine).unwrap();
     assert_eq!(engine_limits.entries_entries, limits.entries_entries);
     assert_eq!(engine_limits.entry_token, limits.entry_token);
 }
@@ -383,23 +389,27 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"engine"),
             What::Standalone,
         ),
-        (Shape::HostSocket, Path::root().member(b"workers"), What::EngineAlone),
+        (Shape::HostSocket, Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
         (
             Shape::ClientProcess,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
         (
             Shape::ClientRemote,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
         (
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
-        (Shape::Connectors, Path::root().member(b"engine").member(b"connectors"), What::Connectors),
+        (
+            Shape::Connectors,
+            Path::root().member(b"engine").member(b"connectors"),
+            What::Half(crate::startup::EngineWhat::Connectors),
+        ),
         (
             Shape::Program,
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
@@ -498,7 +508,7 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);
         assert_eq!(problems.problems.len(), 1, "{listener:?} {port:?}");
-        assert_eq!(problems.problems.get(0).unwrap().what, What::Redirect(listener));
+        assert_eq!(problems.problems.get(0).unwrap().what, What::Half(crate::startup::EngineWhat::Redirect(listener)));
         assert_eq!(lines(&problems).as_ref(), expected.as_bytes());
     }
 }
@@ -620,6 +630,57 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
                 b"engine.charters[0].model: needs 1024 output tokens; the agent offers 1 tokens\n".as_slice()
             }
         );
+    }
+}
+
+#[test]
+fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
+    use jig_domain_link::EndpointBound;
+    for (window, output, expected) in [
+        (None, 1024, "not in the agent's configuration under the same name"),
+        (Some(8191), 1024, "needs a context window of 8192 tokens; the agent offers 8191 tokens"),
+        (Some(8192), 1023, "needs 1024 output tokens; the agent offers 1023 tokens"),
+        (Some(8192), 1024, ""),
+    ] {
+        let mut engine = fixtures::engine().jig;
+        engine.llm.endpoints[0].program = Some(b"claude_code".as_slice().into());
+        engine.llm.providers[0].programs = Box::new([b"claude_code".as_slice().into()]);
+        let mut direct = engine.llm.endpoints[0].clone();
+        direct.name = b"direct".as_slice().into();
+        direct.number = 4;
+        direct.program = None;
+        engine.llm.endpoints = Box::new([engine.llm.endpoints[0].clone(), direct]);
+        engine.llm.providers[0].direct = Some(b"direct".as_slice().into());
+        let mut agent = fixtures::startup_agent();
+        if let Some(window) = window {
+            agent.bounds.endpoints =
+                Box::new([agent.bounds.endpoints[0].clone(), EndpointBound { endpoint: 4, window, output }]);
+        }
+        agent.programs = Box::new([crate::settings::Program {
+            adapter: crate::settings::Adapter::ClaudeCode,
+            path: b"/bin/claude".as_slice().into(),
+            directory: b"/programs".as_slice().into(),
+        }]);
+        let mut endpoints = skein_lib::List::with_capacity(2);
+        endpoints
+            .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 1, dialect: 3 })
+            .unwrap();
+        if window.is_some() {
+            endpoints
+                .push(smith_protocol_channel::Endpoint { name: b"direct".as_slice().into(), number: 4, dialect: 3 })
+                .unwrap();
+        }
+        agent.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
+        let mut identity = Problems::empty();
+        checks::agent(&engine, &agent, &mut identity);
+        assert_eq!(identity.is_empty(), window.is_some(), "the direct endpoint must also resolve");
+        let core = config::core(&engine, [7; 16], 7);
+        let mut problems = Problems::empty();
+        let warnings = checks::admission(&core, &engine, &agent, &mut problems);
+        assert!(problems.is_empty(), "{problems:?}");
+        let expected =
+            if expected.is_empty() { String::new() } else { format!("engine.charters[0].model: {expected}\n") };
+        assert_eq!(core::str::from_utf8(&lines(&warnings)).unwrap(), expected);
     }
 }
 
@@ -786,20 +847,13 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
 
 #[test]
 fn each_document_shape_is_read_from_its_members() {
-    use crate::startup::{Shape, nearest, shape};
+    use crate::startup::{Shape, shape};
     for (document, expected) in [
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
     ] {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
-        assert_eq!(nearest(&document), Some(expected));
-    }
-    let broken = fixtures::with(&fixtures::worker_alone_document(), b"application", b"null");
-    for (document, expected) in
-        [(broken.as_ref(), Some(Shape::WorkerAlone)), (b"[]".as_slice(), None), (b"not json".as_slice(), None)]
-    {
-        assert_eq!(nearest(document), expected);
     }
 }
 
@@ -822,21 +876,24 @@ fn an_engine_alone_names_each_shape_departure() {
     let listener = hosts.member(b"listener");
     let base = fixtures::engine_alone_document();
     let rows: &[ShapeRow] = &[
-        (b"workers", b"[{}]", vec![(root.member(b"workers"), What::EngineAlone)]),
+        (b"workers", b"[{}]", vec![(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
             b"application.workers",
             br#"[{"root":"worker-root","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::EngineAlone)],
+            vec![(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
         (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
-            vec![(listener.clone(), What::EngineAlone), (listener.child(Index(1)), What::EngineAlone)],
+            vec![
+                (listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone)),
+                (listener.child(Index(1)), What::Half(crate::startup::EngineWhat::EngineAlone)),
+            ],
         ),
         (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"socket":"[::1]:0"}]"#,
-            vec![(listener.clone(), What::EngineAlone)],
+            vec![(listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
         (
             b"engine.hosts.listener",
@@ -848,11 +905,18 @@ fn an_engine_alone_names_each_shape_departure() {
             br#"[{"socket":"127.0.0.1:0","transport":"tls"}]"#,
             vec![(listener.child(Index(0)).member(b"transport"), What::Jig(config::What::Unknown))],
         ),
-        (b"engine.hosts.workers", b"[]", vec![(hosts.member(b"workers"), What::EngineAlone)]),
+        (
+            b"engine.hosts.workers",
+            b"[]",
+            vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
+        ),
         (
             b"engine.hosts.workers",
             br#"[{"name":"worker-a","digest":"same"},{"name":"worker-b","digest":"same"}]"#,
-            vec![(hosts.member(b"workers").child(Index(1)).member(b"digest"), What::EngineAlone)],
+            vec![(
+                hosts.member(b"workers").child(Index(1)).member(b"digest"),
+                What::Half(crate::startup::EngineWhat::EngineAlone),
+            )],
         ),
     ];
     for (member, value, expected) in rows {
@@ -867,8 +931,11 @@ fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_li
     assert_eq!(
         shape_problems(&input),
         vec![
-            (Path::root().member(b"workers"), What::EngineAlone),
-            (Path::root().member(b"application").member(b"workers"), What::EngineAlone),
+            (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
+            (
+                Path::root().member(b"application").member(b"workers"),
+                What::Half(crate::startup::EngineWhat::EngineAlone)
+            ),
         ]
     );
 }

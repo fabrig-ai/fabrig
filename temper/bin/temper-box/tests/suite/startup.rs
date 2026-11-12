@@ -28,7 +28,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("serve");
     assert_eq!(output.status.code(), Some(1));
-    // Two executor places in four policy authorities add 64 bytes.
+    // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
         "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n",
@@ -501,6 +501,8 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         &[],
         b"/",
         b"temper-box",
+        "0.0.0",
+        "0123456789ab",
     )
     .expect_err("box refused")
 }
@@ -590,7 +592,9 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             },
             &[],
             b"/",
-            b"temper-box"
+            b"temper-box",
+            "0.0.0",
+            "0123456789ab",
         ),
         Err(format!(
             "temper-box: configuration {}: absent; temper init writes one\n",
@@ -877,7 +881,9 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
-                let mut service = result.expect("charter shortfalls warn");
+                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
+                    panic!("standalone service")
+                };
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),
@@ -973,7 +979,8 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     let own = &own;
     assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
-    let prepared = service::worker_settings::prepare(worker, agent, own).expect("complete worker bounds");
+    let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
+        .expect("complete worker bounds");
     // Each receiver one byte below its sender's bound fails its own rule.
     let mut short = prepared.root.clone();
     short.host.event_bytes = u64::from(agent.bounds.message_bytes).checked_sub(1).expect("nonempty message");
@@ -1031,6 +1038,8 @@ fn every_command_checks_setup_before_reading_files() {
                 &[],
                 b"/",
                 b"temper-box",
+                "0.0.0",
+                "0123456789ab",
             )
             .expect_err("box refused"),
         ),
@@ -1816,10 +1825,6 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
 }
 
 /// Hold only the limit maps this derivation owns; keep the document's other text.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     use support::configuration::turn_bounds;
     let text = fs::read_to_string(path).expect("turn-bound document");
@@ -1838,7 +1843,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
             maps.push((&worker["limits"]["overrides"], &after["workers"][index]["limits"]["overrides"]));
         }
     }
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|v| v == "1");
+    let write = temper_test_env::rewrite();
     if !write {
         assert_eq!(
             before,
@@ -2148,12 +2153,8 @@ fn observing_parent_descendants_leaves_cleanup_with_their_world() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_FORGE_PARENT_HELPER, through temper's test table once it exists"
-)]
 fn forge_parent_listener_helper() {
-    if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
+    if temper_test_env::value(&temper_test_env::FORGE_PARENT_HELPER).is_some() {
         support::forge_parent::serve();
     }
 }
@@ -2193,7 +2194,7 @@ if [ "$1" = --version ]; then
 fi
 test "$LISTEN_FDS" = 1 || exit 22
 test -S /proc/self/fd/3 || exit 23
-export TEMPER_FORGE_PARENT_HELPER=1
+export {parent_helper}=1
 '{}' --exact startup::forge_parent_listener_helper --nocapture &
 helper=$!
 trap 'printf term > "{pid}.term"; wait "$helper"; exit 37' TERM
@@ -2209,7 +2210,8 @@ exit 38
             skein_forge::forgejo::pin::VERSION,
             test.display(),
             pid = pid_file.display(),
-            release = release.display()
+            release = release.display(),
+            parent_helper = temper_test_env::FORGE_PARENT_HELPER.name
         ),
     )
     .expect("fake Forgejo");

@@ -85,6 +85,20 @@ fn a_full_payload_table_returns_payload_records_but_takes_metadata() {
 }
 
 #[test]
+fn change_reclamation_is_admitted_at_the_watermark() {
+    let mut limits = super::resume_fixture::limits();
+    limits.watermark = 1;
+    let (mut domain, env) =
+        super::resume_fixture::root_with_config_and_limits(super::resume_fixture::config(1), &limits);
+    crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
+    crate::try_step(&mut domain, &env, Event::Resume).unwrap();
+    assert_eq!(crate::limits::backlog(&domain), u64::from(env.limits.watermark));
+
+    let event = Event::Forge(Box::new(temper_engine_domain_forge::Event::DropChange { task: 999 }));
+    crate::try_step(&mut domain, &env, event).expect("table reclamation advances admitted work at the watermark");
+}
+
+#[test]
 fn completions_wait_for_earlier_handoffs_and_store_answers() {
     let (mut domain, env) = root();
     domain.work.push(crate::boundary::Work::Forge(temper_engine_domain_forge::Event::BoxClosed));

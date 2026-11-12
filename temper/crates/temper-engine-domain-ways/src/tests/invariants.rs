@@ -20,3 +20,16 @@ pub(crate) fn bounds(path: &Path) {
         }
     }
 }
+
+pub(crate) fn rules_bounds(rules: &PathRules) {
+    assert!(rules.rows.len() <= 9, "path rows bound");
+    assert!(rules.note.len() <= 160, "path note bound");
+    for row in &rules.rows {
+        assert!(row.paths.len() <= 256, "paths bound");
+        for member in [&row.review, &row.sign_off, &row.lands] {
+            assert!(member.len() <= 64, "row member bound");
+            assert!(skein_lib::bytes::is_utf8(member), "row ends at a character boundary");
+        }
+        assert!(skein_lib::bytes::is_utf8(&row.paths), "patterns end at a character boundary");
+    }
+}

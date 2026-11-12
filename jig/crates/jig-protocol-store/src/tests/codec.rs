@@ -1451,6 +1451,18 @@ fn program_checks_retain_the_source_number() {
 }
 
 #[test]
+fn a_retained_live_tasks_refusal_round_trips() {
+    use jig_domain_people as p;
+    people_round_trip(p::Stored::Answer {
+        models: Box::new([]),
+        key: p::RequestKey { person: 1, key: [7; 16] },
+        ask: Box::new(p::Ask::RemoveProject { project: 1, grace: None }),
+        outcome: p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }),
+        at: skein_lib::Wall::EPOCH,
+    });
+}
+
+#[test]
 fn retained_people_answers_keep_dependency_refusal_facts() {
     use jig_domain_people as p;
     for why in [
@@ -1612,6 +1624,25 @@ fn a_project_removed_outcome_round_trips() {
     people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::ProjectRemoved {
         project: u32::MAX,
     }));
+}
+
+#[test]
+fn a_deleted_mark_round_trips_with_its_number_only_key() {
+    for project in [0, 2, u32::MAX] {
+        people_round_trip(jig_domain_people::Stored::Deleted { project });
+        let key = jig_domain_core::Key::People(jig_domain_people::Key::Deleted(project));
+        assert!(jig_domain_people::Key::Deleted(project).live());
+        let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
+        let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (target, byte) in expected.iter_mut().skip(3).zip(u64::from(project).to_be_bytes()) {
+            *target = byte;
+        }
+        assert_eq!(bytes.as_ref(), &expected);
+        assert_eq!(crate::keys::decode(&bytes), Some(key));
+        let mut oversized = bytes;
+        *oversized.get_mut(6).expect("project high word") = 1;
+        assert_eq!(crate::keys::decode(&oversized), None);
+    }
 }
 
 #[test]
@@ -1858,8 +1889,58 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
 
 #[test]
 fn a_closer_in_a_people_batch_round_trips() {
-    let mut member = fixtures::people_member();
-    member.flags.conversation = false;
-    member.flags.ended_by = jig_domain_people::EndedBy::Closer(jig_domain_people::Closer { connector: 1, code: 6 });
-    ask_round_trip(jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) });
+    for ended_by in [
+        jig_domain_people::EndedBy::Closer(jig_domain_people::Closer { connector: 1, code: 6 }),
+        jig_domain_people::EndedBy::Standing,
+    ] {
+        let mut member = fixtures::people_member();
+        member.flags.conversation = false;
+        member.flags.ended_by = ended_by;
+        ask_round_trip(jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) });
+    }
+}
+
+#[test]
+fn task_talks_and_their_lines_round_trip() {
+    use jig_domain_tasks as t;
+    use skein_lib::Wall;
+    for talk in [None, Some(t::Talk { party: 31, opened: Wall::from_nanos(11), last: Wall::from_nanos(17) })] {
+        let mut record = fixtures::task_record();
+        record.talk = talk;
+        for row in [t::Stored::Live(Box::new(record.clone())), t::Stored::Ended(Box::new(record))] {
+            assert_eq!(saved_tasks(&row), Ok(row));
+        }
+    }
+    for line in [
+        t::Line::TalkOpened { party: 31 },
+        t::Line::TalkEnded { party: 31, lapsed: true },
+        t::Line::TalkEnded { party: 31, lapsed: false },
+        t::Line::SessionEnded { attempt: 7, end: t::SessionEnd::Talk },
+        t::Line::SessionEnded { attempt: 7, end: t::SessionEnd::Left },
+    ] {
+        let row = t::Stored::Activity(t::ActivityLine { task: 17, position: 1, at: Wall::from_nanos(23), line });
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
+#[test]
+fn rows_stored_before_talk_decode_with_no_talk() {
+    use crate::{codec::tasks as codec, tasks_v9 as w};
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Writer};
+    let limits = tasks_limits();
+    let original = fixtures::task_record();
+    let modern = codec::record::task_record(&original, &limits, None).unwrap().into_parts();
+    for live in [true, false] {
+        let value = if live { w::Value::Live(modern.record.clone()) } else { w::Value::Ended(modern.record.clone()) };
+        let record = w::Row::new(&limits, w::RowParts { value, models: List::with_capacity(0) }).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let expected = if live {
+            t::Stored::Live(Box::new(original.clone()))
+        } else {
+            t::Stored::Ended(Box::new(original.clone()))
+        };
+        assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(expected));
+    }
 }

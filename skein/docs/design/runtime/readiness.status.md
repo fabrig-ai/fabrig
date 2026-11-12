@@ -1,14 +1,8 @@
 # readiness: status
 
-2026-11-10. Where the tree's code lags or departs from [readiness.md](readiness.md).
+2026-11-11. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Departs:**  `read_trust_roots` gives its caller the counts, and only
-  `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
-  through the shell's re-export too. temper's own two readers
-  (`temper/crates/temper-engine-shell/src/serve.rs`, `trust`, and
-  `temper-fetch-shell/src/fetch.rs`) say nothing of a malformed block, where
-  the section has startup say the counts: the request `first-usable-model` of
-  2026-11-06 asked only that smith's line go quiet. Seen by reading.
+- **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
   and `bytes::concat` ended 190 lines up, 215 in skein against 25 down
@@ -31,7 +25,4 @@
   `../../foundation/cli.md`, 7's example, the draft's
   (`temper/docs/design/draft/cli.md`, 3.6), lists the directories' twins
   alone. No binary prints a page yet: C2's first tables meet it.
-   a binary's documents gain a `## Test` part after `## Internal`
-  when its table holds a test entry, where `shell.md`, 14.3 has the two alone and
-  `../../foundation/cli.md`, 4 puts the test set in the test set's document.
-  No table holds one.
+   the test-document departure remains `shell.status.md`, 14.3.

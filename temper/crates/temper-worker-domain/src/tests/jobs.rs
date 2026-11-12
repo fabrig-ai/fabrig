@@ -1,4 +1,4 @@
-//! Jobs through the root's protocol boundary (temper/docs/design/domain/worker.md, 4.4).
+//! Jobs through the root's protocol boundary (temper/docs/design/domain/worker/jobs.md).
 
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
@@ -48,6 +48,7 @@ fn kind(delivers: bool) -> tooling::Kind {
 
 fn harness(delivers: bool) -> Harness {
     let mut h = Harness::new();
+    h.env.limits.host.detail_bytes = 128;
     h.domain = Domain::new(&h.env.limits, Box::new([kind(delivers)]));
     h.step(Event::Ready);
     h
@@ -104,7 +105,12 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 }
                 Op::DiffPaths { .. } => panic!("this job scripts no design delivery"),
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-                Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
+                Op::Point { .. }
+                | Op::Store { .. }
+                | Op::Make { .. }
+                | Op::Clone { .. }
+                | Op::Create { .. }
+                | Op::CheckOut { .. } => Done::Succeeded,
                 Op::Merge { .. } => Done::Merged,
             };
             for request in h.step(Event::Done { owner: *owner, done }) {
@@ -131,7 +137,11 @@ fn job(h: &mut Harness, owner: Token, event: tooling::Event) -> Box<[Request]> {
 }
 
 fn running(h: &mut Harness, writable: bool) -> Token {
-    let rows = h.step(assignment(true, writable));
+    running_assignment(h, assignment(true, writable))
+}
+
+fn running_assignment(h: &mut Harness, event: Event) -> Token {
+    let rows = h.step(event);
     let rows = git(h, rows, false);
     let owner = owner(&rows);
     let rows = job(h, owner, tooling::Event::Written { owner, written: true });
@@ -160,7 +170,7 @@ fn answer(rows: &[Request]) -> &host::JobEnding {
     answer.expect("job answers")
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn the_hello_states_the_job_capabilitys_kinds() {
     let mut h = harness(false);
@@ -169,7 +179,7 @@ fn the_hello_states_the_job_capabilitys_kinds() {
     assert_eq!(hello.jobs.as_ref(), &[kind(false).bound]);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_runs_its_command_in_its_prepared_checkout_and_answers_its_result() {
     let mut h = harness(false);
@@ -212,7 +222,7 @@ fn a_job_runs_its_command_in_its_prepared_checkout_and_answers_its_result() {
     assert!(h.domain.items.is_empty());
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering() {
     let mut h = harness(true);
@@ -231,7 +241,7 @@ fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering(
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_jobs_stale_push_answers_failed_undelivered() {
     let mut h = harness(true);
@@ -244,7 +254,7 @@ fn a_delivering_jobs_stale_push_answers_failed_undelivered() {
     assert_eq!(*work, host::Work { left: None, saved: None });
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_cancelled_job_is_killed_and_answered_once_its_processes_are_gone() {
     let mut h = harness(true);
@@ -264,7 +274,7 @@ fn a_cancelled_job_is_killed_and_answered_once_its_processes_are_gone() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_whose_spec_did_not_decode_is_refused_its_start() {
     let mut h = harness(false);
@@ -282,7 +292,7 @@ fn a_job_whose_spec_did_not_decode_is_refused_its_start() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     let mut h = harness(false);
@@ -309,7 +319,7 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_job_waits_for_a_push_already_begun_when_cancelled() {
     let mut h = harness(true);
@@ -325,18 +335,57 @@ fn a_delivering_job_waits_for_a_push_already_begun_when_cancelled() {
     assert_eq!(h.domain.workspaces(), 0);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4.
+/// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_job_without_one_writable_repository_pushes_nothing() {
     let mut h = harness(true);
     let owner = running(&mut h, false);
     assert!(result(&mut h, owner).is_empty());
     let rows = job(&mut h, owner, tooling::Event::Gone { owner });
-    let host::JobEnding::Failed { failure, .. } = answer(&rows) else { panic!("no delivery target") };
+    let host::JobEnding::Failed { failure, detail, .. } = answer(&rows) else { panic!("no delivery target") };
     assert_eq!(*failure, host::JobFailure::Failed);
+    assert_eq!(detail.as_ref(), b"no unique writable repository: saw home read-only, work read-only");
 }
 
-/// temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2.
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn a_delivering_job_with_several_writable_repositories_pushes_nothing() {
+    let mut h = harness(true);
+    let mut event = assignment(true, true);
+    let Event::AssignJob { items: Ok(items), .. } = &mut event else { panic!("decoded items") };
+    items.repositories[0].access =
+        wire::Access::Writable { push: Box::from(b"topic".as_slice()), landing: None, expected: None };
+    let owner = running_assignment(&mut h, event);
+    assert!(result(&mut h, owner).is_empty(), "no commit or push");
+    let rows = job(&mut h, owner, tooling::Event::Gone { owner });
+    assert!(!pushed(&rows));
+    let host::JobEnding::Failed { failure, detail, .. } = answer(&rows) else { panic!("no unique delivery target") };
+    assert_eq!(*failure, host::JobFailure::Failed);
+    assert_eq!(detail.as_ref(), b"no unique writable repository: saw home writable, work writable");
+}
+
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn a_delivering_jobs_repository_detail_keeps_whole_entries_within_its_bound() {
+    let full = b"no unique writable repository: saw home read-only, work read-only".as_slice();
+    let one = b"no unique writable repository: saw home read-only, and 1 more".as_slice();
+    let none = b"no unique writable repository: saw , and 2 more".as_slice();
+    for (bound, expected) in [(full.len(), full), (full.len() - 1, one), (one.len(), one), (one.len() - 1, none)] {
+        let mut h = harness(true);
+        h.env.limits.host.detail_bytes = u32::try_from(bound).expect("small detail bound");
+        h.domain = Domain::new(&h.env.limits, Box::new([kind(true)]));
+        h.step(Event::Ready);
+        let owner = running(&mut h, false);
+        assert!(result(&mut h, owner).is_empty(), "no commit or push");
+        let rows = job(&mut h, owner, tooling::Event::Gone { owner });
+        let host::JobEnding::Failed { failure, detail, .. } = answer(&rows) else { panic!("no delivery target") };
+        assert_eq!(*failure, host::JobFailure::Failed);
+        assert!(detail.len() <= bound);
+        assert_eq!(detail.as_ref(), expected, "detail bound {bound}");
+    }
+}
+
+/// temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2.
 #[test]
 fn a_close_jobs_commit_title_names_its_goal() {
     for (kind, request, expected) in [

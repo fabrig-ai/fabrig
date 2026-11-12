@@ -235,13 +235,11 @@ pub fn error(error: forge::Error, now: Time) -> client::Error {
         forge::Error::Protected => client::Error::Protected,
     }
 }
-#[must_use]
-pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::Answer {
+pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> Result<client::Answer, client::Error> {
     answer_as(asked, answer, l, 1, false)
 }
 
 /// Translate protection for the acting user, with the layer's signatures setting.
-#[must_use]
 #[expect(clippy::too_many_lines, reason = "each domain answer has an independent client projection")]
 pub fn answer_as(
     asked: &client::Op,
@@ -249,8 +247,8 @@ pub fn answer_as(
     l: &Limits,
     actor: u64,
     signatures: bool,
-) -> client::Answer {
-    match answer {
+) -> Result<client::Answer, client::Error> {
+    Ok(match answer {
         forge::Answer::Artifact { commit: head, artifact } => {
             let client::Op::Read(client::Read::Artifact { max_bytes, .. }) = asked else {
                 panic!("artifact read");
@@ -317,9 +315,14 @@ pub fn answer_as(
         forge::Answer::Commit(id) => client::Answer::Commit(commit(id)),
         forge::Answer::Cloned { branches, .. } => branches_answer(asked, branches),
         forge::Answer::PullFiles { head, files, more } => {
-            let client::Op::Read(client::Read::PullFiles { skip, .. }) = asked else { panic!("pull files read") };
+            let client::Op::Read(client::Read::PullFiles { head: asked_head, skip, sides, .. }) = asked else {
+                panic!("pull files read")
+            };
+            if *asked_head != commit(head) {
+                return Err(client::Error::Stale);
+            }
             let files = files.into_iter().skip(usize::try_from(*skip).expect("skip fits")).collect();
-            client::Answer::PullFiles { head: commit(head), files: files_in(files), more, cut: false }
+            client::Answer::PullFiles { head: commit(head), files: files_in(files, *sides), more, cut: false }
         }
         forge::Answer::Comparison { base, head, ahead, behind, files, .. } => {
             let changed = skein_lib::len_u64(files.len());
@@ -418,7 +421,7 @@ pub fn answer_as(
         | forge::Answer::Comments(_)
         | forge::Answer::Pulls(_)
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
-    }
+    })
 }
 fn checks_answer(asked: &client::Op, checks: Box<[forge::CheckSummary]>) -> client::Answer {
     let head = match asked {
@@ -491,6 +494,11 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                 },
                 queued: None,
                 dequeued: None,
+                size: Some(client::Size {
+                    files: pull.size.files,
+                    additions: pull.size.additions,
+                    deletions: pull.size.deletions,
+                }),
             }),
             client::Read::Reviews { page, skip, .. } => {
                 let mut range = page_range(pull.reviews.len(), *page, l.rows);
@@ -568,10 +576,15 @@ fn collaborators_answer(asked: &client::Op, collaborators: &[forge::Collaborator
     }
     client::Answer::Collaborators { collaborators: rows.into_boxed(), more: range.1 < collaborators.len() }
 }
-fn files_in(files: Box<[forge::ChangedFile]>) -> Box<[client::File]> {
+fn files_in(files: Box<[forge::ChangedFile]>, sides: bool) -> Box<[client::File]> {
     let mut rows = List::with_capacity(u32::try_from(files.len()).expect("bounded fake files"));
     for f in files {
-        rows.push(client::File { path: f.path, before: f.before, after: f.after }).expect("files capacity");
+        rows.push(client::File {
+            path: f.path,
+            before: if sides { f.before } else { None },
+            after: if sides { f.after } else { None },
+        })
+        .expect("files capacity");
     }
     rows.into_boxed()
 }

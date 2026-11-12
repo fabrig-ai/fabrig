@@ -1,6 +1,7 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
 mod goal;
+mod role;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
@@ -52,20 +53,23 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     }
     if called.call.tool == rows::PROJECT_FUND_AT
         || called.call.tool == rows::PROJECT_AMEND_AT
-        || called.call.tool == rows::PROJECT_REMOVE_AT
+        || called.call.tool == rows::PROJECT_DELETE_AT
     {
         let Some(me) = me(runner, client) else { return };
         let request = if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
-        } else if called.call.tool == rows::PROJECT_REMOVE_AT {
-            project_remove(&called.call, me)
+        } else if called.call.tool == rows::PROJECT_DELETE_AT {
+            project_delete(&called.call, me)
         } else {
             project_fund(&called.call, me)
         };
         prepared(runner, client, env, called, request, out);
         return;
     }
-    if called.call.tool == rows::CHAT_CREATE_AT || called.call.tool == rows::GOAL_START_AT {
+    if called.call.tool == rows::CHAT_CREATE_AT
+        || called.call.tool == rows::GOAL_START_AT
+        || called.call.tool == rows::ROLE_START_AT
+    {
         let Some(me) = me(runner, client) else { return };
         let ask = creation(&called.call, me, &env.limits);
         prepared(runner, client, env, called, ask, out);
@@ -157,20 +161,9 @@ fn project_amend(call: &Call, me: &c::Me) -> Prepared {
     let public = *visibility == 0;
     Ok((Request::Ask(c::Ask::SetVisibility { project, public }), None))
 }
-fn project_remove(call: &Call, me: &c::Me) -> Prepared {
+fn project_delete(call: &Call, me: &c::Me) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Refused(b"unknown project"))?;
-    match shapes::remove_project(me, project) {
-        Ok(ask) => Ok((Request::Ask(ask), None)),
-        Err(shapes::NotOffered::Project) => Err(Failed::Refused(b"unknown project")),
-        Err(
-            shapes::NotOffered::Template
-            | shapes::NotOffered::ChipExecutor
-            | shapes::NotOffered::Ceiling
-            | shapes::NotOffered::Creating,
-        ) => {
-            unreachable!("remove_project only requires project membership")
-        }
-    }
+    Ok((Request::Ask(c::Ask::RemoveProject { project, grace: None }), None))
 }
 fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     match super::reads::project(call, me) {
@@ -186,7 +179,11 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     }
 }
 fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
-    if call.tool == rows::GOAL_START_AT { goal::start(call, me, limits) } else { chat(call, me, limits) }
+    match call.tool {
+        rows::GOAL_START_AT => goal::start(call, me, limits),
+        rows::ROLE_START_AT => role::start(call, me, limits),
+        _ => chat(call, me, limits),
+    }
 }
 fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
@@ -476,6 +473,8 @@ fn build(
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT if call.form == 0 => c::Ask::Talk { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT => c::Ask::Leave { project, task },
         rows::ANSWER_AT => c::Ask::Answer { project, on: answer(call, limits)? },
         rows::TAKE_AT => c::Ask::Take { project, task },
         rows::HAND_BACK_AT => c::Ask::HandBack { project, task },
@@ -501,25 +500,45 @@ fn build(
     let phase = subject::ended(document);
     Ok((Request::Act { ask, phase, asked: asked(call, document) }, to))
 }
-/// Past what the read contract asks, the refusal names the bound (client/ctl/areas.md).
+/// The read contract explains an engine refusal; it never prevents submission (client/ctl/areas.md).
 fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked> {
+    use render::outcome::Asked;
     if call.tool != rows::ANSWER_AT {
         return None;
     }
     let c::ReadValue::PersonTask(task) = document else { return None };
     let (bound, choice, index) = match call.form {
-        1 => {
-            let c::TaskContractDocument::Verdict { choices, .. } = &task.contract else { return None };
-            let code = number(call, 2)?;
-            let mut bound = None;
-            for choice in choices {
-                if u64::from(choice.code) == code {
-                    bound = Some((choice.words, Some(choice.code), 3));
-                    break;
+        1 => match &task.contract {
+            c::TaskContractDocument::Report { words } => {
+                return Some(Asked::Words { bound: *words, revision: number(call, 1)? });
+            }
+            c::TaskContractDocument::Approval { .. } => {
+                return Some(Asked::Approval { revision: number(call, 1)? });
+            }
+            c::TaskContractDocument::Verdict { choices, cut } => {
+                let code = number(call, 2)?;
+                let mut bound = None;
+                for choice in choices {
+                    if u64::from(choice.code) == code {
+                        bound = Some((choice.words, Some(choice.code), 3));
+                        break;
+                    }
+                }
+                if let Some(bound) = bound {
+                    bound
+                } else {
+                    if *cut || choices.is_empty() {
+                        return None;
+                    }
+                    let mut codes = List::with_capacity(choices.len());
+                    for choice in choices {
+                        codes.push(choice.code).expect("read choices fit");
+                    }
+                    return Some(Asked::Choices { choice: u32::try_from(code).ok()?, codes });
                 }
             }
-            bound?
-        }
+            c::TaskContractDocument::Change { .. } | c::TaskContractDocument::Job { .. } => return None,
+        },
         2 => {
             let c::TaskContractDocument::Report { words } = &task.contract else { return None };
             (*words, None, 2)
@@ -527,7 +546,7 @@ fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked>
         _ => return None,
     };
     let Some(Value::Text(text)) = value(call, index) else { return None };
-    if text.len() > skein_lib::length::usize_of(bound) { Some(render::outcome::Asked { bound, choice }) } else { None }
+    if text.len() > skein_lib::length::usize_of(bound) { Some(Asked::Bound { bound, choice }) } else { None }
 }
 fn answer(call: &Call, limits: &Limits) -> Result<c::AnswerOn, Failed> {
     let task = number(call, 0).expect("task");
@@ -579,6 +598,8 @@ fn chip_project(chip: &c::Chip) -> u32 {
 fn kind(call: &Call) -> c::ActKind {
     match call.tool {
         rows::MESSAGE_AT => c::ActKind::Message,
+        rows::ROLE_TALK_AT if call.form == 0 => c::ActKind::Talk,
+        rows::ROLE_TALK_AT => c::ActKind::Leave,
         rows::CLOSE_AT | rows::CANCEL_AT => c::ActKind::Cancel,
         rows::ANSWER_AT => c::ActKind::Answer,
         rows::TAKE_AT => c::ActKind::Take,
@@ -816,7 +837,7 @@ fn send(
     out.push(Out::Client { event });
 }
 fn removal_name(call: &Call, me: &c::Me) -> Option<c::DocumentText> {
-    if call.tool != rows::PROJECT_REMOVE_AT {
+    if call.tool != rows::PROJECT_DELETE_AT {
         return None;
     }
     let project = super::reads::project(call, me).expect("removal project resolved");
@@ -856,6 +877,15 @@ pub(super) fn answered(
                 return;
             };
             sent.operation.to = Some(c::Recipient::Role { project, role: *to });
+        }
+        if sent.called.call.tool == rows::ROLE_TALK_AT
+            && sent.called.call.form == 0
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Said { message, .. },
+            )))) = outcome
+        {
+            crate::jig::wait::talk(runner, client, env, sent.called, *message, out);
+            return;
         }
         if sent.called.call.tool == rows::EXPORT_AT {
             super::moves::answered(runner, client, env, sent, outcome, out);
@@ -988,6 +1018,7 @@ fn draw_name(runner: &mut Runner, called: &mut Called) {
 fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
     match tool {
         rows::GOAL_START_AT => b"goal",
+        rows::ROLE_START_AT => b"role",
         rows::CLOSE_AT => b"close",
         _ => word,
     }

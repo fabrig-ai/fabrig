@@ -496,7 +496,7 @@ pub(crate) fn config(
 /// What a forge connect starts from.
 pub(crate) enum Start {
     /// The forge's records, with their accepted installations.
-    Restored(temper_protocol_records::Start),
+    Restored(temper_protocol_records_forge::Start),
     /// An adoption's fresh access.
     Adopted(skein_forge_connection::Access),
 }

@@ -830,12 +830,11 @@ pub fn assert_cached_binary_unchanged(cached: &std::path::Path, source: &std::pa
 /// Init's shipped charters on the process story's three roots. The model
 /// choice changes only ordinary provider and program configuration.
 #[must_use]
-#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::SocketAddr {
     initialize(paths);
     super::own_listener_files(&paths[0]);
     if let LiveModel::ClaudeCode { .. } = model {
-        let executable = std::env::var_os("PATH")
+        let executable = temper_test_env::value(&temper_shell::environment::PATH)
             .into_iter()
             .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
             .filter(|directory| directory.is_absolute())
@@ -861,10 +860,10 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
 /// Select the launcher's store and admit it before starting any process; a
 /// held account moves into a fresh store only.
 #[must_use]
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_STORE, through temper's test table once it exists")]
 pub fn live_store(account: bool) -> (PathBuf, bool) {
     let store = std::path::PathBuf::from(
-        std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
+        temper_test_env::value(&temper_test_env::LIVE_STORE)
+            .expect("run live through scripts/proof-live.sh forge-land"),
     );
     let kept = reserve_account_store(&store, account).unwrap_or_else(|message| {
         super::live::notice(&message);
@@ -873,13 +872,13 @@ pub fn live_store(account: bool) -> (PathBuf, bool) {
     (store, kept)
 }
 
-/// The owned-forge landing story's own store under `TEMPER_LIVE_STORE`, so the pair runs
+/// The owned-forge landing story's own store under `TEMPER_TEST_LIVE_STORE`, so the pair runs
 /// in one invocation, each on its own deployment (testing/live-tier.md).
 #[must_use]
-#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_STORE, through temper's test table once it exists")]
 pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
     let stores = PathBuf::from(
-        std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
+        temper_test_env::value(&temper_test_env::LIVE_STORE)
+            .expect("run live through scripts/proof-live.sh forge-land"),
     );
     story_store(&stores, model).unwrap_or_else(|message| {
         super::live::notice(&message);
@@ -908,14 +907,10 @@ fn reserve_account_store(store: &std::path::Path, account: bool) -> Result<bool,
     })
 }
 
-/// The held record `TEMPER_LIVE_ACCOUNT` names, admitted before any store is.
+/// The held record `TEMPER_TEST_LIVE_ACCOUNT` names, admitted before any store is.
 #[must_use]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: TEMPER_LIVE_ACCOUNT, through temper's test table once it exists"
-)]
 pub fn live_account() -> Option<PathBuf> {
-    let account = PathBuf::from(std::env::var_os("TEMPER_LIVE_ACCOUNT")?);
+    let account = PathBuf::from(temper_test_env::value(&temper_test_env::LIVE_ACCOUNT)?);
     if let Err(message) = held_account(&account) {
         super::live::notice(message);
         panic!("{message}");
@@ -928,12 +923,12 @@ pub fn live_account() -> Option<PathBuf> {
 /// never name the path, which goes to `account import` alone.
 pub fn held_account(file: &std::path::Path) -> Result<(), &'static str> {
     use std::os::unix::fs::MetadataExt;
-    let metadata = fs::symlink_metadata(file).map_err(|_| "TEMPER_LIVE_ACCOUNT names no file")?;
+    let metadata = fs::symlink_metadata(file).map_err(|_| "TEMPER_TEST_LIVE_ACCOUNT names no file")?;
     if !metadata.file_type().is_file() {
-        return Err("TEMPER_LIVE_ACCOUNT is not a regular file");
+        return Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file");
     }
     if metadata.mode() & 0o7777 != 0o600 {
-        return Err("TEMPER_LIVE_ACCOUNT is not 0600");
+        return Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600");
     }
     Ok(())
 }
@@ -1268,7 +1263,7 @@ fn source_name(login: &std::path::Path) -> &str {
 }
 
 impl LiveModel<'_> {
-    /// The story's launcher argument, and its store's name under `TEMPER_LIVE_STORE`.
+    /// The story's launcher argument, and its store's name under `TEMPER_TEST_LIVE_STORE`.
     #[must_use]
     pub const fn story(self) -> &'static str {
         match self {
@@ -1418,11 +1413,14 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
         let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
-        entries.retain(|entry| entry[field] != "openai" && entry[field] != "anthropic");
+        entries
+            .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);
     }
     let endpoints = agent["endpoints"].as_array_mut().expect("agent endpoints");
-    endpoints.retain(|endpoint| endpoint["name"] != "openai" && endpoint["name"] != "anthropic");
+    endpoints.retain(|endpoint| {
+        endpoint["name"] != "openai" && endpoint["name"] != "anthropic" && endpoint["name"] != "anthropic-api"
+    });
     endpoints.insert(0, endpoint);
     if agent["programs"].is_null() {
         agent["programs"] = serde_json::json!({});

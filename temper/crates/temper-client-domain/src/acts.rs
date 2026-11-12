@@ -155,6 +155,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::Resume
         | Act::Stop
         | Act::Close
+        | Act::DeleteProject { .. }
         | Act::StartOver
         | Act::DelegateFate { .. }
         | Act::Older
@@ -177,6 +178,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::ChatFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
         Act::OpenStart { .. }
+        | Act::OpenLanded { .. }
         | Act::StartDraft { .. }
         | Act::StartName { .. }
         | Act::StartWay { .. }

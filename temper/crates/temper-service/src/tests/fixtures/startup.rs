@@ -76,7 +76,7 @@ pub fn document() -> Box<[u8]> {
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
     let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
+    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(
@@ -122,7 +122,9 @@ pub fn startup_agent() -> settings::Agent {
     agent.host_limits.call_bytes = 256;
     agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
     agent.bounds.message_bytes = 512;
-    agent.bounds.spend = 43_584;
+    // Match init's maximum run spend, including Fable's cache-write reserve.
+    let init = super::super::stock::engine(&super::super::stock::generated());
+    agent.bounds.spend = init.rules.maximum_run_spend;
     agent.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]);
     agent
 }

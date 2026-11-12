@@ -418,6 +418,7 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
@@ -1168,6 +1169,7 @@ fn claim_existing_open(core: &mut Core, limits: &Limits, attempt: u64) {
         core,
         limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
@@ -1496,7 +1498,7 @@ fn an_open_program_endpoint_still_checks_its_account() {
     open(&mut core, &limits);
     let mut fleet = placement_fleet(&core, &limits);
     core::mem::swap(&mut core.fleet, &mut fleet);
-    let main_endpoint = core.chosen_main(OPEN_TASK).endpoint;
+    let main_endpoint = core.chosen_policy(OPEN_TASK).model.endpoint;
     host_with_endpoints(&mut core, &limits, FIRST, &[b"scripted", b"same"], Box::new([]), Box::new([main_endpoint]));
     assert_eq!(core.run_choice(OPEN_TASK).unwrap(), core.run_choice(TASK).unwrap());
     account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
@@ -1610,7 +1612,7 @@ fn an_open_task_retains_its_program_endpoint_alternative() {
 fn a_program_host_and_its_replacement_make_open_due() {
     let (mut core, limits) = ready(false);
     open(&mut core, &limits);
-    let endpoint = core.chosen_main(OPEN_TASK).endpoint;
+    let endpoint = core.chosen_policy(OPEN_TASK).model.endpoint;
     let mut old = placement_fleet(&core, &limits);
     core::mem::swap(&mut core.fleet, &mut old);
     host_with_endpoints(&mut core, &limits, FIRST, &[b"scripted", b"same"], Box::new([]), Box::new([endpoint]));
@@ -1642,7 +1644,7 @@ fn program_metadata_on_an_ineligible_probe_does_not_refuse_a_native_choice() {
     let (mut core, limits) = ready(false);
     open(&mut core, &limits);
     granted(&mut core, &limits, 2);
-    let endpoint = core.chosen_main(OPEN_TASK).endpoint;
+    let endpoint = core.chosen_policy(OPEN_TASK).model.endpoint;
     let mut old = placement_fleet(&core, &limits);
     core::mem::swap(&mut core.fleet, &mut old);
     host_with_endpoints(&mut core, &limits, FIRST, &[b"scripted", b"same"], Box::new([]), Box::new([endpoint]));
@@ -1656,7 +1658,7 @@ fn an_open_start_takes_the_first_eligible_hosts_answer_in_either_order() {
     for (program, native) in [(FIRST, SECOND), (SECOND, FIRST)] {
         let (mut core, limits) = ready(false);
         open(&mut core, &limits);
-        let endpoint = core.chosen_main(OPEN_TASK).endpoint;
+        let endpoint = core.chosen_policy(OPEN_TASK).model.endpoint;
         let mut old = placement_fleet(&core, &limits);
         core::mem::swap(&mut core.fleet, &mut old);
         host_with_endpoints(&mut core, &limits, program, &[b"scripted", b"same"], Box::new([]), Box::new([endpoint]));
@@ -1841,6 +1843,7 @@ fn a_first_later_run_changes_provider_and_its_claim_keeps_the_account() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: tasks::Reasons::ALL,
             reasons: tasks::Reasons::EMPTY,
             reply_to: ReplyTo::new(FIRST),

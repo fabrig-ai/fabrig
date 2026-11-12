@@ -14,9 +14,11 @@ C3).
 ## 1. In one page
 
 - **A binary is a package** at `temper/bin/<binary>/`, whose `main.rs`
-  installs fail-stop and calls its crate's `main` (2). The box's crate
-  is `temper-box-shell`, the engine's `temper-engine-shell`, the
-  worker's `temper-worker-shell` and the agent's `temper-agent-shell`.
+  installs fail-stop and calls its crate's `main`, handing it
+  `temper-version`'s build identity, which no other package links (2).
+  The box's crate is `temper-box-shell`, the engine's
+  `temper-engine-shell`, the worker's `temper-worker-shell`, the agent's
+  `temper-agent-shell` and the client's `temper-client-shell`.
 - **Its crate holds its table,** a `skein_shell::Table`, and captures
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
@@ -33,6 +35,9 @@ C3).
 - **Generated:** each binary's `<binary>-args.md` and `<binary>-env.md`,
   and the tree's common environment document, beside this page, checked
   byte for byte (9).
+- **The test set:** `temper-test-env`'s table of the `TEMPER_TEST_*`
+  variables, through which temper's tests read the environment, and its
+  generated `test-env` (11).
 
 ## 2. The binaries and their crates
 
@@ -42,19 +47,26 @@ C3).
 | `temper-engine` | `temper/bin/temper-engine` | `temper-engine-shell` | `temper_engine_shell::ENGINE` |
 | `temper-worker` | `temper/bin/temper-worker` | `temper-worker-shell` | `temper_worker_shell::WORKER` |
 | `temper-agent` | `temper/bin/temper-agent` | `temper-agent-shell` (`temper/crates/temper-agent-shell`) | `temper_agent_shell::AGENT` |
+| `temper-client` | `temper/bin/temper-client` | `temper-client-shell` (`temper/crates/temper-client-shell`) | `temper-shell`'s rows, `temper_client_shell::COMMANDS`, until `../draft/cli.execution.md`'s C3 |
 
-- **`main.rs`** is the package's whole source:
+- **`main.rs`** is the package's whole source, and hands its crate the
+  build identity (`../release.md`, 3):
 
   ```rust
   //! The box's binary (temper/docs/design/cli/README.md, 2).
   fn main() -> std::process::ExitCode {
       skein_fail_stop::install();
-      temper_box_shell::main()
+      temper_box_shell::main(temper_version::VERSION, temper_version::COMMIT)
   }
   ```
 
-  Its `[dependencies]` are its crate and `skein-fail-stop`, which decide
-  what it links (`skein/docs/foundation/cli.md`, 2).
+  The client's hands its crate the line itself:
+  `temper_client_shell::main(&temper_version::line(temper_client_shell::NAME))`.
+  Its `[dependencies]` are its crate, `skein-fail-stop` and
+  `temper-version`, which decide what it links
+  (`skein/docs/foundation/cli.md`, 2). Only these packages depend on
+  `temper-version`, so a new commit relinks the binaries and rebuilds no
+  crate they link.
 - **The libraries that held the names are renamed:** the whole
   product's library, `temper` at `temper/crates/temper`, is
   `temper-box-shell` at `temper/crates/temper-box-shell`, holding the
@@ -70,6 +82,14 @@ C3).
   the library's code, its table and everything the binary runs. No other
   crate names the old library. The worker's package is already at
   `temper/bin/temper-worker`, its crate `temper-worker-shell`.
+- **The client's package splits the same way:**
+  `temper/crates/temper-client`, a library and a binary in one package,
+  becomes the binary's package `temper-client` at
+  `temper/bin/temper-client` and its crate `temper-client-shell` at
+  `temper/crates/temper-client-shell`, which holds the library's code
+  and the capture the old `main.rs` made (3). Its suite moves to the
+  binary's package, as the agent's did. The binary's file and target
+  keep the name `temper-client` until C3 names it `temper`.
 - **Tests that run a binary live in its package,** under its `tests/`,
   since Cargo gives `CARGO_BIN_EXE_<name>` to its own package's tests
   alone: the whole product's integration tests, with their `[[test]]`
@@ -88,7 +108,9 @@ C3).
 
 ## 3. Its `main`: the capture and the reach
 
-Each binary's crate has `pub fn main() -> std::process::ExitCode`:
+Each binary's crate has `pub fn main(version: &'static str, commit:
+&'static str) -> std::process::ExitCode`, given `temper-version`'s
+`VERSION` and `COMMIT` by its binary's package (2):
 
 1. **The capture,** one function, the only place the binary reads the
    process: argv's first word, the arguments after it, the environment
@@ -99,7 +121,9 @@ Each binary's crate has `pub fn main() -> std::process::ExitCode`:
 2. **The reach,** `TABLE.reach(run_as, &arguments)`
    (`skein/docs/design/runtime/shell.md`, 14.4):
    - `Help`: `TABLE.help()` on stdout, exit 0;
-   - `Version`: `TABLE.version_line()` on stdout, exit 0;
+   - `Version`: the version line of the table with `main`'s identity,
+     `Table { version, commit, ..TABLE }.version_line()`, on stdout,
+     exit 0;
    - `CommandHelp(command)`: `TABLE.command_help(command)` on stdout,
      exit 0;
    - `Unknown(line)`: the line on stderr, exit 2;
@@ -114,9 +138,15 @@ Each binary's crate has `pub fn main() -> std::process::ExitCode`:
    tree's that reads the process itself, smith's relay and program child,
    stays as it is until its tree's round.
 
-The version and commit in each table are `temper_version::VERSION` and
-`temper_version::COMMIT`, so `--version` prints `temper-box VERSION
-(COMMIT)` as `../release.md`, section 3, words it.
+**The build identity is `main`'s alone.** A crate's table names none:
+its `version` and `commit` are empty (`""`), and the crate links no
+`temper-version`. Every place the crate prints its version line, a
+pure `configure` that answers `--version` among them, takes the
+identity `main` was handed, so `--version` prints `temper-box VERSION
+(COMMIT)` as `../release.md`, section 3, words it. The client's crate
+has `pub fn main(line: &str) -> std::process::ExitCode` instead,
+given `temper_version::line(NAME)` whole, and prints it, a newline
+after it, for `--version`.
 
 ## 4. Exits and refusals
 
@@ -391,7 +421,7 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
   | Today | After | Read by |
   |---|---|---|
   | `TEMPER_BUNDLE` | `TEMPER_INTERNAL_BUNDLE` | the bundle's build script |
-  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper-client` reads `temper-version`'s |
+  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone, into its `COMMIT`, which each binary's package hands its crate (2 and 3) |
   | `TEMPER_DUMP_LLM` | `TEMPER_INTERNAL_DUMP_LLM` | the service and its agents |
   | `TEMPER_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
   | `TEMPER_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
@@ -400,10 +430,22 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
 
   A compile-time name (`env!`) is declared as internal in each table
   whose binary links its crate, as is the bundle's build variable.
+  `TEMPER_INTERNAL_COMMIT`'s `Variable` is
+  `temper_shell::environment::INTERNAL_COMMIT`, since every table
+  declares it and no table's crate links `temper-version`; its words are
+  as they were, so the generated documents (9) don't change.
 - **Empty is unset** for each of them (`skein/docs/foundation/cli.md`,
   5), switches included: `TEMPER_INTERNAL_WORKSPACE_REUSE` set to any
   nonempty value turns reuse on, and an empty one leaves it off, as
   `Variable::value` reads it.
+- **`TEMPER_INTERNAL_RECORD`** (`../draft/cli.md`, 4.6 and section 6):
+  internal, a switch read where the TUI starts, from the binary's
+  captured environment, by the box's front and by the client's start;
+  any nonempty value records the TUI (`../client/tui/journeys.md`, 2),
+  and the journeys tool sets it. One constant,
+  `temper_shell::environment::INTERNAL_RECORD`, which each table that
+  runs the TUI holds: the box's, on `internal tui` until C3, and the
+  client's once C3 gives it a table.
 - **Twins dropped:** `TEMPER_ECHO`, `TEMPER_SEED`, `TEMPER_READY`,
   `TEMPER_OBSERVATIONS` and `TEMPER_DOCUMENT`. A test that set one
   passes the flag; a flag's precedence over its twin is skein's to test
@@ -429,7 +471,9 @@ Beside this page, rendered by skein (`skein/docs/design/runtime/shell.md`,
   `temper_worker_shell::WORKER` and `temper_agent_shell::AGENT`, and
   C3's client as it's built. `temper-box-shell` depends on
   `temper-agent-shell` for it, as it does on the engine's and the
-  worker's crates already.
+  worker's crates already;
+- the test set's document, `test-env`, from
+  `temper_test_env::TESTS`, checked in `temper-test-env`'s tests (11.1).
 
 `SKEIN_CODEGEN_WRITE=1` rewrites them, as it does the help's generated
 pages. A change to an entry changes its documents in the same commit.
@@ -446,7 +490,12 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
   `--version` prints its name, the workspace's version and a commit of
   twelve hexadecimal digits, `-dirty` or `unknown`; an unknown command
   is refused, exit 2; another binary's document is refused, exit 1, as
-  today, by each binary that reads one.
+  today, by each binary that reads one. A row that checks the version
+  line whole reads `temper-version`'s `VERSION` and `COMMIT`, a
+  dependency of its package, where the identity enters; no crate's unit
+  test names `temper-version`, and a crate's own tests of a `configure`
+  that answers `--version` give it an identity of their own, such as
+  `("0.0.0", "0123456789ab")`.
 - **Dispatch and parsing** stay unit tests of the crate, on its
   `configure` without a process.
 - **The agent's suite** keeps a row per mode as well
@@ -456,6 +505,118 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
 - **A story in a slower tier** that a rename touches is changed and
   compiled, not run (`AGENTS.md`, 5).
 
-## 11. Open questions
+## 11. The test set
+
+What temper's tests, their harnesses, its tools and its scripts read
+beside the binaries' tables: the test set (`skein/docs/foundation/cli.md`,
+4), named `TEMPER_TEST_*` (5), declared in one test table and read
+through it (6 and 8).
+
+### 11.1 Its table
+
+- **The crate:** `temper-test-env`, at `temper/testing/temper-test-env`,
+  in the harness profile (`tools/lints/design.md`, 2.2), whose one
+  dependency is `skein-shell`. It's a crate of its own, not a module of
+  `temper-fixtures`, because the unit tests of temper's crates read the
+  set as the worlds do, and `temper-fixtures` brings jig's client with
+  it. A test crate takes it as a dev-dependency; a test-support crate
+  that reads the set, as `temper-fixtures` does, as a dependency.
+- **The table:** `temper_test_env::TESTS`, a `skein_shell::TestTable`
+  (`skein/docs/design/runtime/shell.md`, 14.1) whose tree is `temper`,
+  holding every variable of 11.3 in the order of their names. Each is a
+  `pub const` `Variable` of its own, named for it without
+  `TEMPER_TEST_`: `TEMPER_TEST_LIVE_STORE` is
+  `temper_test_env::LIVE_STORE`. Each is `Set::Test` and `Way::Reads`,
+  since a test, a harness, a tool or a script reads it; its form,
+  absent and notes are as its readers take it, and its line says what
+  it's for and who sets it.
+- **Each is read:** by a test or a harness through 11.2, by one of
+  temper's tools, or by a script. One that nothing reads leaves the
+  table, as `TEMPER_TEST_CLAUDE` does (11.3).
+- **Its document:** `test-env`, beside this page, is
+  `TESTS.document()` (`skein/docs/design/runtime/shell.md`, 14.3),
+  checked byte for byte in `temper-test-env`'s tests and rewritten when
+  11.2's `rewrite()` is on, as section 9's documents are. Check 5
+  (`skein/docs/foundation/cli.md`, 9) reads it with the others.
+
+### 11.2 Reading it
+
+`temper-test-env` is the one place temper's test code reads the
+process's environment. It reads it through `skein_shell::environment`,
+under one scoped
+`#[expect(clippy::disallowed_methods, reason = "a test harness: ...")]`
+(`skein/docs/foundation/cli.md`, 9, check 4), and offers:
+
+```rust
+/// A declared variable's value in the process's environment: none
+/// when it's absent or empty.
+pub fn value(variable: &skein_shell::Variable) -> Option<std::ffi::OsString>;
+
+/// The process's environment, as `skein_shell::environment` returns it,
+/// for a test that hands a child the environment it was given.
+pub fn environment() -> Box<[(Box<[u8]>, Box<[u8]>)]>;
+
+/// Whether the rewrite switch is on: `SKEIN_CODEGEN_WRITE` is `1`.
+pub fn rewrite() -> bool;
+```
+
+- **A lookup names a declared entry,** never a string: a variable of
+  `TESTS`; a host's variable by `temper_shell::environment`'s constant,
+  as `PATH` and `TERM`; an internal one by its crate's, as
+  `temper_service_shell::WAIT_CHECK`; or one of three this crate
+  declares outside `TESTS`, since no table of temper's may hold them:
+  - `TMPDIR`, the host's, which no binary of temper reads;
+  - `SKEIN_CODEGEN_WRITE` and `SKEIN_TEST_CHROMIUM`, skein's, until
+    skein's round declares them in skein's test table and this crate
+    names those instead.
+- **Empty is unset** (`skein/docs/foundation/cli.md`, 5): a variable
+  that was on by being set at all, as `TEMPER_RATE` was, is on only
+  when it's nonempty.
+- **`rewrite()`** is the rewrite switch section 9 names. Every checked
+  document and golden of temper's tests asks it, and `1` alone turns it
+  on, as most of them took it already.
+- **Cargo's directory** is `env!("CARGO_MANIFEST_DIR")`, at compile
+  time, not a read of the process.
+- **No other test code reads the process,** so no `expect` whose reason
+  starts `cli C4` is left. A tool's own reads stay its own until
+  `../draft/cli.execution.md`'s C8 gives it a table: the git transcripts
+  tool reads `TEMPER_TEST_FORGEJO` under its own `expect`.
+- **Setting one for a child** stays the child's command's
+  (`std::process::Command::env`), naming the constant's `name`.
+
+### 11.3 The names
+
+The draft's renames (`../draft/cli.md`, 4.6): each name below takes
+`TEMPER_TEST_` before the rest of its name, unchanged, so a name is
+found by its old one: `TEMPER_BOX_PARENT_TEST` becomes
+`TEMPER_TEST_BOX_PARENT_TEST`. Every reader and setter changes with it:
+code, scripts, `tools/tiers/`, CI, `.config/gate/` and the design
+documents.
+
+| Today | Read by |
+|---|---|
+| `TEMPER_BOX_PARENT_TEST` | `temper-box`'s process tests |
+| `TEMPER_E4_CAPTURE`, `TEMPER_E4_LIFE`, `TEMPER_E4_RESTART` | `temper-box`'s Forgejo-elsewhere support |
+| `TEMPER_FORGE_PARENT_HELPER` | `temper-box`'s startup suite |
+| `TEMPER_FORGEJO`, `TEMPER_FORGEJO_RUNNER` | `temper-box`'s owned-forge support, the checkout world's real delivery and the git transcripts tool; CI sets them |
+| `TEMPER_LIVE_ACCOUNT`, `TEMPER_LIVE_CLAUDE`, `TEMPER_LIVE_KEEP`, `TEMPER_LIVE_NOTICE`, `TEMPER_LIVE_STORE` | the live tier's stories and `temper/scripts/proof-live.sh` |
+| `TEMPER_LIVE_GITHUB_FIXTURES`, `TEMPER_LIVE_GITHUB_KEEP`, `TEMPER_LIVE_GITHUB_OWNER` | the live GitHub story and `temper/scripts/proof-live-github.sh` |
+| `TEMPER_MANAGED_CLIENT`, `TEMPER_MANAGED_EVIDENCE`, `TEMPER_MANAGED_MODE`, `TEMPER_MANAGED_PERSON`, `TEMPER_MANAGED_PREFIX`, `TEMPER_MANAGED_SCRATCH`, `TEMPER_MANAGED_UPSTREAM` | the managed sitting's relay and fake client, which the sitting and `temper/scripts/proof-live-github-managed.py` set |
+| `TEMPER_RATE` | the forge protocol's rate suite |
+| `TEMPER_RECORD_RELEASE` | `temper-client-view`'s confirm tests |
+| `TEMPER_SITTING_WAIT_SECS` | `temper/scripts/proof-live-github-managed.py` |
+| `TEMPER_WRAPPER` | temper's proof scripts and the real loop's fixture scripts |
+
+- **Kept:** `TEMPER_TEST_BUNDLE` and `TEMPER_TEST_PLAYGROUND`, which
+  `tools/tiers/` sets for the browser tier and the browser world reads.
+- **Gone:** `TEMPER_TEST_CLAUDE`, which `tools/tiers/` and CI set and
+  nothing reads. The process tier still builds `fake-claude`, which
+  temper's tests run as a sibling binary, and names it in no variable.
+- **`TEMPER_BENIGN`,** a made-up name in the program login's tests'
+  data, is `BENIGN_SETTING`, outside every tree's prefix
+  (`skein/docs/foundation/cli.md`, 9, check 5).
+- **Nothing stored** names any of them, so no stored form changes.
+
+## 12. Open questions
 
 None now; `../draft/cli.status.md` keeps what's open.

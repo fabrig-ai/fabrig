@@ -47,6 +47,7 @@ mod waiting;
 
 mod close_project;
 mod periods;
+mod sessions;
 
 mod last_batch;
 
@@ -455,5 +456,6 @@ mod classifiers {
     }
 }
 
+mod closer_funds;
 mod offering;
 mod reasons;

@@ -53,7 +53,13 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
             .push(
                 w::ChangesLanded::new(
                     &w::CEILINGS,
-                    w::ChangesLandedParts { task: 80, title: b"A landed change".as_slice().into(), at: SIX_MIN_AGO },
+                    w::ChangesLandedParts {
+                        commit: [0xab; 32],
+                        default_branch: true,
+                        task: 80,
+                        title: b"A landed change".as_slice().into(),
+                        at: SIX_MIN_AGO,
+                    },
                 )
                 .unwrap(),
             )
@@ -62,6 +68,8 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
     w::ChangesPanel::new(
         &w::CEILINGS,
         w::ChangesPanelParts {
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
             project: f::PROJECT,
             landing: landing.into(),
             queues: rows,

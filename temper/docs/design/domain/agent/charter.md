@@ -16,7 +16,63 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
   amendment's words. A charter is a setting in the store, read from the
   revision the task runs under (jig's `domain/engine/settings.md`, 3),
   temper's stock chat's and coding agent's held in the binary as their
-  defaults (`../../protocol/configuration/stock.md`).
+  defaults (`../../protocol/configuration/stock.md`), the goal's agent's
+  and the implementer's assembled from the stock's set of charter files
+  (below).
+- **A set of charter files** (`../../draft/stock-charters.md`, 2) is a
+  directory of Markdown files, each named `<file>.md`, of five:
+  `common`, `goal`, `designer`, `coordinator` and `implementer`; the
+  stock's, `temper/docs/charters/stock/`, holds all five, and an
+  overlay's (that draft's section 4) any of them. The assembly makes two
+  charters' texts from it:
+
+  | Charter | Its instructions | Its parts, in order |
+  |---|---|---|
+  | 5, the goal's agent | `common`, then `goal` | `designer`, on `first`; then each section of `coordinator` |
+  | 2, the implementer | `common`, then `implementer` | none |
+
+  - **A section** of `coordinator` starts at a line beginning
+    `## part, on:`; its reasons are the rest of that line, split at
+    commas, each trimmed of spaces, named as jig names a part's reasons
+    (jig's `domain/tasks/messages.md`, 6), and its text runs from the
+    next line to the next such line or the file's end, other headings
+    included. The heading line is no part of the text.
+  - **Texts join** with one blank line, every byte as written but the
+    line feeds that open and close a file or a section. A file absent,
+    or holding nothing but line feeds, gives nothing: no text and, for
+    `designer`, no part. A section is a part whatever its text.
+  - **Nothing is dropped:** the assembly refuses, naming the file, the
+    line and the name: a Markdown file (a name ending `.md`) in the
+    directory that is none of the five; text in `coordinator` before its
+    first section, line feeds aside; and a section whose reasons are
+    empty (none, or an empty name between commas), repeated within its
+    heading, or unknown. Other files in the directory, a settings file
+    among them, are no part of the set. The stock's set is assembled at
+    each start and held by the stock's focused tests, which assemble it
+    and list its directory, so a stock the assembly refuses never lands;
+    an overlay's is refused at apply (that draft's section 4).
+  - **The code:** the step crate `temper-charter-set`, which names
+    neither the service nor jig's types, so that the stock module and
+    ctl's `settings apply` assemble a set by the same rule. It reads
+    texts, never a directory: its caller lists the directory and reads
+    the files. Its public surface, which the stock and a settings file's
+    overlay items (that draft's section 4) build on:
+    - `File`, the five, with `File::name`, its name in a directory (the
+      file's name, then `.md`), and `file`,
+      which gives a directory entry's file: `Ok(Some(File))` for one of
+      the five, `Ok(None)` for a name not ending `.md`, and the refusal
+      for any other Markdown name.
+    - `Set`, each file's text optional, `&str`.
+    - `goal_agent(set, reason)`, where `reason` maps a reason's name to
+      the caller's own value or `None` for an unknown name, gives
+      `GoalAgent { instructions, parts }`, each `Part { reasons, text }`,
+      its `reasons` the mapped values in the heading's order; the
+      designer's part names `first` through the same map.
+    - `implementer(set)` gives charter 2's instructions, and refuses
+      nothing.
+    - `Refusal`, one variant for each refusal above, carrying the file,
+      the line (counted from 1) and the name where it has them, and
+      saying them in its words.
 - **The brief:** the sections jig's core gathers (jig's
   `domain/engine/briefs.md`, section 1) and the forge's (../forge/README.md, section 2),
   each rendered as one of smith's titled sections, titled by its kind:
@@ -39,11 +95,11 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
 
 The connectors name the repositories, where each starts, which may be
 written and the branch a change goes to (jig's `domain/engine/executors.md`, 1;
-../worker.md, 4.1); the worker prepares them and gives smith the workspace:
+../worker/README.md, 4.1); the worker prepares them and gives smith the workspace:
 each repository's directory and name, whether it may be written, and for
-a merge in progress the files in conflict (../worker.md, section 5). Every
+a merge in progress the files in conflict (../worker/checkouts.md). Every
 temper workspace is git repositories. A run with no repository, such as
-a chat that names none, runs with no workspace (../worker.md, 4.1). A run
+a chat that names none, runs with no workspace (../worker/README.md, 4.1). A run
 whose charter is an asking one (`tools.md`) is given no repository, whatever
 its project's home and context repositories (`../root.md`, 6.1; `ask-temper.md`), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
@@ -75,8 +131,7 @@ contract's other texts stay within 1,024. The run's contract prints
 the bound. The coding charter's words say that the report goes there, and that
 one past the bound is no question: the run cuts what can be read elsewhere and
 says under Left what it cut (`../../protocol/configuration/stock.md`'s charter 2
-row). A foreman that settles a question about it names no other form (13.4's
-charter 6 row).
+row).
 
 A rendering of a report may cut what it shows, and the store keeps it whole. A
 landing's result to its requester holds the report as far as the contract's
@@ -109,7 +164,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   A `save` runs none, and is marked unchecked (`tools.md`; `README.md`, section 5).
   The worker pins the landing branch's tip in each change producer's
   checkout as `refs/temper/landing`, and the head a repair's or a
-  resolution's delivery replaces in theirs (../worker.md, section 5), so a
+  resolution's delivery replaces in theirs (../worker/checkouts.md), so a
   check can take what the delivery changed against it; fabrig's checks the changed
   packages' lints and the focused tests of those packages and their direct
   dependents, a failure the base has too reported as inherited
@@ -188,3 +243,13 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   Cancellation after the grace keeps its existing meaning; only the
   person's Close, or a cancel, ends the chat. Goals and every delegate
   run Finite and end by their results.
+
+## 6. Open questions
+
+- **A direct change result's rendering room** (`charter.md`, 3): the landing procedure
+  reserves 59 bytes for its result's label and sender before fitting its
+  report. A task made directly by `delegate` with a Change contract has
+  no such reserve, so its result at the contract's bound can be refused
+  by a live requester's receiving bound. Default: keep the durable result
+  whole and read it through `read_task`; the rendering allowance remains
+  jig's `domain/hosts/README.md`, section 10's question.

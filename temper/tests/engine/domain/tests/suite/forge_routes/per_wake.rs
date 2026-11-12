@@ -150,6 +150,7 @@ fn request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
         ended_by: match template.flags.ended_by {
             tasks::EndedBy::Result => people::EndedBy::Result,
             tasks::EndedBy::Requester => people::EndedBy::Requester,
+            tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
@@ -179,6 +180,9 @@ fn request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
         .collect();
     people::Ask::Create { project, batch }
 }
+
+#[path = "stock_per_wake.rs"]
+mod stock_per_wake;
 
 fn instructions(shared: &[u8], part: &[u8]) -> Vec<u8> {
     [shared, b"\n\n", part].concat()

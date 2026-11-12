@@ -134,6 +134,11 @@ impl ForgeStand {
     }
 
     pub fn push_branch(&mut self, repository: u32, branch: &[u8]) {
+        self.push_branch_with_file(repository, branch, b"file", b"review this diff");
+    }
+
+    /// Push a new branch whose one changed file is supplied by the story.
+    pub fn push_branch_with_file(&mut self, repository: u32, branch: &[u8], path: &[u8], content: &[u8]) {
         assert!(self.quiescent(), "push between stand calls");
         let name = self.repositories.get(&repository).expect("configured repository").clone();
         // Finish setup's CI before making the push's synchronous calls.
@@ -173,8 +178,7 @@ impl ForgeStand {
             self.out.pop(),
             Some(fake::Request::Reply { result: Ok(raw::Answer::Branch(raw::Created::Created)), .. })
         ));
-        fake::advance(&mut self.domain, &self.env, &name, branch, b"file", b"review this diff", 1)
-            .expect("pushed change head");
+        fake::advance(&mut self.domain, &self.env, &name, branch, path, content, 1).expect("pushed change head");
         // The push's zero-latency CI is complete before the engine starts.
         while self.domain.is_due(self.env.now) {
             fake::fire(&mut self.domain, &self.env, &mut self.out);
@@ -296,7 +300,8 @@ impl ForgeStand {
             panic!("one synchronous observation reply");
         };
         assert_eq!(to.into_token(), observation);
-        let answer = translate::answer(&op, result.expect("stand observation"), &self.limits);
+        let answer =
+            translate::answer(&op, result.expect("stand observation"), &self.limits).expect("stand projection");
         self.domain.reclaim();
         assert!(self.quiescent());
         assert!(!self.domain.is_due(self.env.now));
@@ -338,7 +343,7 @@ impl ForgeStand {
                 let call = to.into_token();
                 let op = self.pending.remove(&call).expect("one stand terminal");
                 let result = match result {
-                    Ok(answer) => Ok(translate::answer(&op, answer, &self.limits)),
+                    Ok(answer) => translate::answer(&op, answer, &self.limits),
                     Err(error) => Err(translate::error(error, self.env.now)),
                 };
                 replies.push(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(

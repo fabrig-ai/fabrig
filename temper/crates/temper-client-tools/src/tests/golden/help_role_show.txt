@@ -1,0 +1,9 @@
+role show TASK [--report]
+  TASK (task): a number; required. The role's task number
+  --report: a switch. Read its weekly report instead of its Now
+Read a standing role's task document and its Now or weekly report whole
+Prints: The task document, its open talk, then its whole Now or report with note number, revision and time, or `no Now yet` / `no report yet`
+--json: the record role.
+Key: none.
+The Now or report is the lowest-numbered note described now or
+report in the role's own task scope. A supplied cut body is marked.

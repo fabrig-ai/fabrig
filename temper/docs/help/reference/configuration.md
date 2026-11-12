@@ -139,6 +139,7 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `by`: text, queue or turn; queue when absent; optional; init leaves it out. The project’s way of landing changes.
 - `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command’s path from the repository root; see The merge command, below.
 - `close_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The close command’s path from the repository root; see temper help configuration’s close command.
+- `landing_attempts`: integer, 1 to 255; 3 when absent; optional; init leaves it out. How many cancelled or failed changes per close or land step the goal closer makes again without judgement before asking its goal.
 - `gates`: list of repository-checks, at most forge.repositories; optional; init leaves it out. Each repository’s test gates and tiers.
 - `check_timeout_ms`: integer, 1,000 to 86,400,000; none when absent; optional; init leaves it out. Delivery checks’ wall bound for change producers, repairs and resolutions, including goal landings; read each attempt, or the agent’s bound when absent.
 - `tier_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many times a failing tier may be retried.

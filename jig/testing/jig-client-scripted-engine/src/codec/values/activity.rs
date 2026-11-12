@@ -1,6 +1,19 @@
 //! Wire projections of owner activity facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, w};
 use super::{wire_failure_tries, wire_hold_failure, wire_requester, wire_result_field};
+fn session_end(value: c::SessionEnd) -> w::SessionEnd {
+    match value {
+        c::SessionEnd::Quiet => w::SessionEnd::Quiet,
+        c::SessionEnd::Bound => w::SessionEnd::Bound,
+        c::SessionEnd::Unoffered => w::SessionEnd::Unoffered,
+        c::SessionEnd::Fresh => w::SessionEnd::Fresh,
+        c::SessionEnd::Closed => w::SessionEnd::Closed,
+        c::SessionEnd::Talk => w::SessionEnd::Talk,
+        c::SessionEnd::Left => w::SessionEnd::Left,
+        c::SessionEnd::Rules => w::SessionEnd::Rules,
+    }
+}
+
 pub(in crate::codec) fn wire_message_proposal_kind(
     value: &c::MessageProposalKind,
     _limits: &w::Limits,
@@ -82,6 +95,24 @@ pub(in crate::codec) fn wire_activity(value: &c::Activity, limits: &w::Limits) -
         c::Activity::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone::new(
             limits,
             w::ActivityMilestoneParts { position: *(position) },
+        )?),
+        c::Activity::NowWritten { attempt, line } => w::Activity::NowWritten(w::ActivityNowWritten::new(
+            limits,
+            w::ActivityNowWrittenParts { attempt: *attempt, line: line.bytes().into() },
+        )?),
+        c::Activity::Stood { attempt, words } => w::Activity::Stood(w::ActivityStood::new(
+            limits,
+            w::ActivityStoodParts { attempt: *attempt, words: words.bytes().into() },
+        )?),
+        c::Activity::TalkOpened { party } => {
+            w::Activity::TalkOpened(w::TalkOpened::new(limits, w::TalkOpenedParts { party: *party })?)
+        }
+        c::Activity::TalkEnded { party, lapsed } => {
+            w::Activity::TalkEnded(w::TalkEnded::new(limits, w::TalkEndedParts { party: *party, lapsed: *lapsed })?)
+        }
+        c::Activity::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded::new(
+            limits,
+            w::ActivitySessionEndedParts { attempt: *attempt, end: session_end(*end) },
         )?),
         c::Activity::Kept { attempt, pending, question } => w::Activity::Kept(w::ActivityKept::new(
             limits,

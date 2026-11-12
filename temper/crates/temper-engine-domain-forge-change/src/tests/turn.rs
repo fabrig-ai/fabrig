@@ -85,7 +85,7 @@ fn a_prepare_ask_requires_its_head_and_the_writer_slot() {
     let mut f = prepare_facts();
     f.writer_taken = true;
     let blocked = step(&ready(), &f, &heard(), at(60), &LIMITS);
-    assert_eq!(blocked.decision, Decision::Wait { until: None });
+    assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
     f.writer_taken = false;
     f.ask = Some(Ask::Prepare { head: NEW, main: BASE });
     assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));
@@ -227,7 +227,9 @@ fn turn_gate_failures_still_repair_or_hold_and_keep_their_bounds() {
         f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Failed }]);
         let next = decide(&c, &f, &heard());
         let expected = match kind {
-            GateKind::Agent | GateKind::Check => Decision::Delegate(Delegate::Repair(Repair::Gate(9))),
+            GateKind::Agent | GateKind::Check | GateKind::Follow => {
+                Decision::Delegate(Delegate::Repair(Repair::Gate(9)))
+            }
             GateKind::Person => Decision::Hold(Hold::Rejected),
         };
         assert_eq!(next.decision, expected);

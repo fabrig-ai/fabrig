@@ -46,6 +46,16 @@ pub fn delegation_page(landed: bool) -> skein_ui::Tree {
 pub fn settings() -> skein_ui::Tree {
     first_run_page(client::Address::Settings { project: 1 }, true)
 }
+pub fn deleting_project() -> skein_ui::Tree {
+    first_run_words(
+        client::Address::Settings { project: 1 },
+        true,
+        false,
+        None,
+        None,
+        Some(client::pages::Act::DeleteProject { project: 1 }),
+    )
+}
 pub fn first_run() -> skein_ui::Tree {
     first_run_page(client::Address::NewChat { draft: false }, true)
 }
@@ -56,10 +66,10 @@ pub fn closing_page() -> skein_ui::Tree {
     first_run_sheet(client::Address::Chat { task: 1 }, false, true)
 }
 pub fn long_line_page(address: client::Address, line: &contract::Activity) -> skein_ui::Tree {
-    first_run_words(address, false, false, Some(line), None)
+    first_run_words(address, false, false, Some(line), None, None)
 }
 fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> skein_ui::Tree {
-    first_run_words(address, landed, closing, None, None)
+    first_run_words(address, landed, closing, None, None, None)
 }
 #[expect(clippy::too_many_lines, reason = "the fixture pumps one first-run page and optionally opens its confirmation")]
 fn first_run_words(
@@ -68,6 +78,7 @@ fn first_run_words(
     closing: bool,
     line: Option<&contract::Activity>,
     typed: Option<&[u8]>,
+    after: Option<client::pages::Act>,
 ) -> skein_ui::Tree {
     use jig_client::contract as c;
     use skein_lib::{Env, List, Queue, Time, Wall};
@@ -76,6 +87,7 @@ fn first_run_words(
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut root = client::unlinked(&limits, 16);
     let mut out = Queue::uncapped();
+    let owner_settings = address == (client::Address::Settings { project: 1 });
     client::step(&mut root, &env, Event::Start { address, kept: List::with_capacity(0), with: None }, &mut out);
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -119,7 +131,13 @@ fn first_run_words(
                         held: List::with_capacity(0),
                         pending: List::with_capacity(0),
                     }))),
-                    c::Subject::Me => Some(c::Delivery::Me(Box::new(demo_me()))),
+                    c::Subject::Me => {
+                        let mut me = demo_me();
+                        if owner_settings {
+                            me.projects.get_mut(0).expect("settings project").role = c::HeldRole::Owner;
+                        }
+                        Some(c::Delivery::Me(Box::new(me)))
+                    }
                     c::Subject::Task { task } => {
                         let mut document = delegation_task(task, landed);
                         if line.is_some() {
@@ -290,6 +308,10 @@ fn first_run_words(
             Event::Act { action: client::Action::Pages(client::pages::Act::Close) },
             &mut out,
         );
+    }
+    if let Some(act) = after {
+        client::step(&mut root, &env, Event::Act { action: client::Action::Pages(act) }, &mut out);
+        assert!(out.is_empty(), "opening a sheet sends nothing");
     }
     if let Some(words) = typed {
         client::step(
@@ -515,5 +537,5 @@ fn demo_forges() -> Box<[u8]> {
 }
 
 pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {
-    first_run_words(client::Address::Chat { task: 1 }, false, false, None, Some(words))
+    first_run_words(client::Address::Chat { task: 1 }, false, false, None, Some(words), None)
 }

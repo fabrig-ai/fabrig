@@ -301,7 +301,7 @@ fn a_goals_authority_is_the_runs_narrowed() {
             .authority
             .grants
             .iter()
-            .filter(|g| g.connector == 0 && [1, 2, 3, 4, 10, 11, 12].contains(&g.kind))
+            .filter(|g| g.connector == 0 && [1, 2, 3, 4, 10, 11, 12, 17].contains(&g.kind))
             .cloned()
             .collect::<Box<[_]>>()
     );

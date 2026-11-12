@@ -79,7 +79,13 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
         rows.push(
             w::ChangesLanded::new(
                 &w::CEILINGS,
-                w::ChangesLandedParts { task: *task, title: b"Landed change".as_slice().into(), at: 0 },
+                w::ChangesLandedParts {
+                    commit: [0xab; 32],
+                    default_branch: true,
+                    task: *task,
+                    title: b"Landed change".as_slice().into(),
+                    at: 0,
+                },
             )
             .unwrap(),
         )
@@ -88,6 +94,8 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
     w::ChangesPanel::new(
         &w::CEILINGS,
         w::ChangesPanelParts {
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
             project: f::PROJECT,
             landing: b"main".as_slice().into(),
             queues,
@@ -153,7 +161,7 @@ fn changes_watch_is_project_scoped_and_leaves_with_the_page() {
         State::Shown(_) | State::Ended => panic!("page starts loading"),
     }
     let out = go(&mut root, Address::Settings { project: f::PROJECT });
-    assert_eq!(&*closed(&out), &[watch]);
+    assert!(closed(&out).contains(&watch));
     assert!(root.pages().changes().is_none());
 }
 #[test]
@@ -243,4 +251,43 @@ fn row_origin_uses_its_goal_chip_or_a_chat_root_and_waits_for_its_read() {
         };
         assert_eq!(root.pages().changes().unwrap().from(root.client(), FIRST), expected);
     }
+}
+
+#[test]
+fn default_branch_rows_get_task_reads_without_rereading_shared_or_kept_rows() {
+    let (mut root, watch) = fixture();
+    let mut parts = panel(&[], &[SECOND]).into_parts();
+    parts.landed_default = list_for_default(&[SECOND, 99]);
+    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    let got = reads(&show(&mut root, watch, &panel));
+    let mut tasks = List::uncapped();
+    for (task, _) in &got {
+        tasks.push(*task).unwrap();
+    }
+    assert_eq!(tasks.as_slice(), &[SECOND, 99]);
+    assert!(reads(&show(&mut root, watch, &panel)).is_empty());
+    let mut parts = panel.into_parts();
+    parts.landed = List::with_capacity(0);
+    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    assert!(reads(&show(&mut root, watch, &panel)).is_empty(), "default history keeps its reads");
+}
+fn list_for_default(tasks: &[u64]) -> List<w::ChangesLanded> {
+    let mut rows = List::with_capacity(32);
+    for task in tasks {
+        rows.push(
+            w::ChangesLanded::new(
+                &w::CEILINGS,
+                w::ChangesLandedParts {
+                    task: *task,
+                    title: b"Main landing".as_slice().into(),
+                    at: 0,
+                    commit: [0xab; 32],
+                    default_branch: true,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    rows
 }

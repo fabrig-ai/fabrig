@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use skein_ui_screen::Size;
-use temper_client_shell_web::journey::{Kind, Shape};
+use temper_client_redaction::{Kind, Shape};
 
 #[test]
 fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {

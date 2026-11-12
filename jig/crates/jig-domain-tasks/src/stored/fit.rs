@@ -283,7 +283,13 @@ fn holdings(value: &[crate::Holding], limits: &Limits) -> Result<(), RestoreCaus
     Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "one task restore checks every durable field bound")]
 pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCause> {
+    if value.flags.ended_by == crate::EndedBy::Standing
+        && (!crate::flags::valid(value.flags, value.executor, value.requester) || value.tracked.is_some())
+    {
+        return Err(RestoreCause::Accounting);
+    }
     if crate::batch::matches_job(value.executor) {
         crate::batch::job_member(limits, &value.spec, &value.contract).or(Err(RestoreCause::Accounting))?;
         if !crate::flags::valid(value.flags, value.executor, value.requester)

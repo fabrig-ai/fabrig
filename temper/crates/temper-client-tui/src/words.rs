@@ -1,4 +1,4 @@
-//! The TUI's phrases beside the view's (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's phrases beside the view's (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
 use crate::look;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -136,8 +136,22 @@ pub enum Word {
     DraftStart,
     KindSession,
     Drafter,
+    GoalHead,
+    ProposedNotice,
+    PaneWriting,
+    PaneEmpty,
+    PaneNew,
+    PaneFolded,
+    PaneHalf,
+    PaneAll,
+    PaneOpens,
+    PaneWidens,
+    PaneFolds,
+    PaneGoal,
+    PaneLinkedGoal,
+    Asked,
 }
-pub(crate) const ALL: [Word; 126] = [
+pub(crate) const ALL: [Word; 140] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -264,6 +278,20 @@ pub(crate) const ALL: [Word; 126] = [
     Word::DraftStart,
     Word::KindSession,
     Word::Drafter,
+    Word::GoalHead,
+    Word::ProposedNotice,
+    Word::PaneWriting,
+    Word::PaneEmpty,
+    Word::PaneNew,
+    Word::PaneFolded,
+    Word::PaneHalf,
+    Word::PaneAll,
+    Word::PaneOpens,
+    Word::PaneWidens,
+    Word::PaneFolds,
+    Word::PaneGoal,
+    Word::PaneLinkedGoal,
+    Word::Asked,
 ];
 
 #[derive(Clone, Copy)]
@@ -447,6 +475,20 @@ impl Word {
             Self::DraftStart => 126,
             Self::KindSession => 127,
             Self::Drafter => 128,
+            Self::GoalHead => 129,
+            Self::ProposedNotice => 130,
+            Self::PaneWriting => 131,
+            Self::PaneEmpty => 132,
+            Self::PaneNew => 133,
+            Self::PaneFolded => 134,
+            Self::PaneHalf => 135,
+            Self::PaneAll => 136,
+            Self::PaneOpens => 137,
+            Self::PaneWidens => 138,
+            Self::PaneFolds => 139,
+            Self::PaneGoal => 140,
+            Self::PaneLinkedGoal => 141,
+            Self::Asked => 142,
         }
     }
     const fn id(self) -> PhraseId {
@@ -459,6 +501,21 @@ impl Word {
             Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
             Self::KindSession => (&[b", a design session"], &[]),
             Self::Drafter => (&[b"drafter"], &[]),
+            Self::PaneWriting => (&[b" \xc2\xb7 writing"], &[]),
+            Self::PaneEmpty => (&[b"The draft appears here as you write it together."], &[]),
+            Self::PaneNew => (&[b"  new"], &[]),
+            Self::PaneFolded => (&[b"pane: folded"], &[]),
+            Self::PaneHalf => (&[b"pane: half"], &[]),
+            Self::PaneAll => (&[b"pane: all"], &[]),
+            Self::PaneOpens => (&[b"Ctrl-P opens"], &[]),
+            Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
+            Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
+            Self::PaneGoal => (&[b"/goal starts a goal from the draft"], &[]),
+            Self::Asked => (&[b"asked ", b""], &[Slot::Span]),
+            Self::PaneLinkedGoal => (&[b"goal ", b" \xc2\xb7 /open opens it"], &[Slot::Title]),
+
+            Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
+            Self::ProposedNotice => (&[b"Proposed: the goal starts once it is accepted."], &[]),
             Self::KindChat => (&[b", a chat"], &[]),
             Self::KindGoal => (&[b", a goal"], &[]),
             Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
@@ -696,6 +753,7 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Proposed => self.say(Word::ProposedNotice, &[]),
             crate::Notice::Theme { choice, terminal } => {
                 let word = match choice {
                     crate::theme::ThemeChoice::Auto => match terminal {

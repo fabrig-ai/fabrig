@@ -92,9 +92,9 @@ impl Cluster {
     fn description(scratch: &Path) -> Self {
         Self::description_from(scratch, &skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster"))
     }
-    // Cluster authority.executors has seventeen stock places including the closer procedure and close job.
+    // Cluster authority.executors has eighteen stock places including the standing charter, closer procedure and close job.
     // Cluster tasks.executor_kinds has seventeen places for the same delegation.
-    // GitHub authority.executors has seventeen stock places including the closer procedure and close job.
+    // GitHub authority.executors has eighteen stock places including the standing charter, closer procedure and close job.
     // GitHub tasks.executor_kinds has seventeen places for the same delegation.
     pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");

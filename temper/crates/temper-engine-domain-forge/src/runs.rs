@@ -94,7 +94,12 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
             policy::Verdict::Running
             | policy::Verdict::Passed
             | policy::Verdict::Failed
-            | policy::Verdict::Fault(policy::Fault::Cancelled | policy::Fault::OtherCommit | policy::Fault::Lost),
+            | policy::Verdict::Fault(
+                policy::Fault::Cancelled
+                | policy::Fault::OtherCommit
+                | policy::Fault::Lost
+                | policy::Fault::MissingWorkflow,
+            ),
         )
         | None => {}
     }
@@ -247,4 +252,84 @@ pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
         },
         candidate,
     )
+}
+
+impl Follow {
+    pub(crate) fn restore(&mut self, flight: &crate::TierFlight, actor: u64) {
+        self.entry = flight.entry;
+        self.start = flight.start;
+        self.since = flight.since;
+        self.waiting = flight.waiting;
+        if let Some(id) = flight.run {
+            self.run = Some(api::Run {
+                id,
+                number: 0,
+                workflow: self.workflow.clone(),
+                commit: self.commit,
+                event: api::Event::Dispatch,
+                actor,
+                state: api::RunState::Running,
+                conclusion: None,
+                url: Box::new([]),
+                created: flight.start.unwrap_or(Time::ZERO),
+                jobs: Box::new([]),
+            });
+        }
+        self.writes = Box::new([]);
+        let mut writes = List::with_capacity(u32::try_from(flight.pending.len()).expect("pending jobs"));
+        for attempt in &flight.pending {
+            writes.push(api::Write::Rerun { attempt: *attempt }).expect("pending jobs");
+        }
+        self.writes = writes.into_boxed();
+        // An empty, unsent flight is a fresh dispatch; a sent one is followed.
+        if flight.start.is_none() && !flight.waiting && flight.pending.is_empty() && flight.fault.is_none() {
+            self.writes = Box::new([api::Write::Dispatch {
+                workflow: self.workflow.clone(),
+                branch: self.branch.clone(),
+                inputs: self.inputs.clone(),
+            }]);
+        }
+        if let Some(report) = &flight.report {
+            let run = self.run.as_mut().expect("failed workflow identity");
+            run.number = report.number;
+            run.url.clone_from(&report.url);
+            run.state = api::RunState::Completed;
+            run.conclusion = Some(api::Conclusion::Failure);
+            self.outcome = Some(policy::Verdict::Failed);
+        }
+        if let Some(fault) = flight.fault {
+            self.outcome = Some(policy::Verdict::Fault(fault));
+        }
+    }
+    pub(crate) fn progress(&self, next: Option<Time>) -> crate::TierFlight {
+        let mut pending = List::with_capacity(u32::try_from(self.writes.len()).expect("pending writes"));
+        for write in &self.writes {
+            if let api::Write::Rerun { attempt } = write {
+                pending.push(*attempt).expect("pending jobs");
+            }
+        }
+        crate::TierFlight {
+            entry: self.entry,
+            start: self.start,
+            since: self.since,
+            waiting: self.waiting,
+            next,
+            run: match &self.run {
+                Some(run) => Some(run.id),
+                None => None,
+            },
+            pending: pending.into_boxed(),
+            report: match self.outcome {
+                Some(policy::Verdict::Failed) => {
+                    let run = self.run.as_ref().expect("failed workflow");
+                    Some(crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() })
+                }
+                Some(policy::Verdict::Fault(_) | policy::Verdict::Passed | policy::Verdict::Running) | None => None,
+            },
+            fault: match self.outcome {
+                Some(policy::Verdict::Fault(fault)) => Some(fault),
+                Some(policy::Verdict::Failed | policy::Verdict::Passed | policy::Verdict::Running) | None => None,
+            },
+        }
+    }
 }

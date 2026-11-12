@@ -1,4 +1,4 @@
-//! Views printed as terminal text (temper/docs/design/client/tui/pages.md).
+//! Views printed as terminal text (temper/docs/design/client/tui/pages/README.md).
 use super::text;
 use crate::{look, words::Words};
 use alloc::boxed::Box;
@@ -7,7 +7,7 @@ use temper_client_domain::pages::chat::Shown;
 use temper_client_protocol_wire::v1 as w;
 use temper_client_view::words::Word;
 
-// The actors' marks (temper/docs/design/client/tui/pages.md, A chat, a view).
+// The actors' marks (temper/docs/design/client/tui/pages/chat.md, 1, a view).
 const PERSON: &[u8] = "○".as_bytes();
 const AGENT: &[u8] = "✦".as_bytes();
 const CODE: &[u8] = "▪".as_bytes();
@@ -94,7 +94,12 @@ fn print_path(b: &mut Builder, path: &w::BranchPath) {
         b.open(Role::Paragraph);
         text(b, Role::Text, mark, mark_style);
         text(b, Role::Text, b" ", None);
-        text(b, Role::Text, stop.words(), word_style);
+        let words = if stop.over().is_empty() {
+            skein_lib::bytes::copy_of(stop.words())
+        } else {
+            skein_lib::bytes::concat(&[stop.words(), b" (", stop.over(), b")"])
+        };
+        text(b, Role::Text, &words, word_style);
         b.close();
         if indented {
             b.close();

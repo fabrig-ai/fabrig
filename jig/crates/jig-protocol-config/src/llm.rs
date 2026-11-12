@@ -134,13 +134,15 @@ pub(crate) fn parse(
     }
     let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, defaults, problems);
     for (index, provider) in providers.iter().enumerate() {
+        let provider_path = check::index(&path.member(b"providers"), index);
+        direct_binding(provider, endpoints.as_slice(), &provider_path, problems);
         if let Some(name) = &provider.endpoint {
             let mut found = false;
             for endpoint in &endpoints {
                 found |= endpoint.name == *name;
             }
             if !found {
-                problems.push(check::index(&path.member(b"providers"), index).member(b"endpoint"), What::Refers);
+                problems.push(provider_path.member(b"endpoint"), What::Refers);
             }
         }
     }
@@ -155,6 +157,26 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Llm { endpoints: endpoints.into_boxed(), models: models.into_boxed(), providers: providers.into_boxed() })
 }
+/// A direct way speaks the program endpoint's dialect and accepts credentials (configuration.md, 3).
+fn direct_binding(provider: &Provider, endpoints: &[Endpoint], path: &Path, problems: &mut Problems) {
+    let Some(name) = &provider.direct else { return };
+    let mut program_dialect = None;
+    for endpoint in endpoints {
+        if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) && endpoint.program.is_some() {
+            program_dialect = Some(endpoint.dialect);
+        }
+    }
+    let mut valid = false;
+    for endpoint in endpoints {
+        if endpoint.name == *name && endpoint.program.is_none() && program_dialect == Some(endpoint.dialect) {
+            valid = true;
+        }
+    }
+    if !valid || (!provider.keys && provider.sign_in.is_none()) {
+        problems.push(path.member(b"direct"), What::Refers);
+    }
+}
+
 /// A shared endpoint must name a program offered by every provider whose models use it.
 fn program_bindings(
     endpoints: &[Endpoint],
@@ -323,6 +345,16 @@ fn model(
     }
     let endpoint = check::text(&mut object, document, b"endpoint", path, problems);
     let window = check::count(&mut object, document, b"window", path, problems);
+    let cache_life_ms = match object.member(document, b"cache_life_ms") {
+        Some(at) => match read::integer(document, at, u64::from(u32::MAX)) {
+            Ok(value) => u32::try_from(value).expect("cache life bounded by u32"),
+            Err(what) => {
+                problems.push(path.member(b"cache_life_ms"), what);
+                0
+            }
+        },
+        None => 0,
+    };
     let output = check::count(&mut object, document, b"output", path, problems);
     let mut efforts = Some(Box::default());
     if let Some(at) = object.member(document, b"efforts") {
@@ -390,6 +422,7 @@ fn model(
     model.endpoint = endpoint.number;
     model.program.clone_from(&endpoint.program);
     model.window = window?;
+    model.cache_life_ms = cache_life_ms;
     model.output = output?;
     model.efforts = efforts?;
     model.effort = effort;
@@ -461,6 +494,7 @@ fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
         endpoint: 0,
         program: None,
         window: 0,
+        cache_life_ms: 0,
         output: 0,
         input_price: input_price?,
         cached_price: cached_price?,

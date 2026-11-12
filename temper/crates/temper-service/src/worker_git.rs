@@ -1,5 +1,5 @@
 //! Git's records at the worker layer, with identity values below the root.
-use crate::{limits, settings};
+use crate::{settings, worker_settings::Limits};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
 use skein_io::kernel;
@@ -18,7 +18,7 @@ pub(crate) struct Git {
 impl Git {
     pub fn new(
         worker: &settings::Worker,
-        own: &limits::Limits,
+        own: &Limits,
         path: &[u8],
         root: kernel::Fd,
         seed: u64,
@@ -27,8 +27,8 @@ impl Git {
         home.put(path).expect("home path");
         home.put(b"/home").expect("home suffix");
         let component = match component::Component::new(
-            &own.git_component.into(),
-            &own.checkout.into(),
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout),
             component::Settings {
                 git: worker.git.clone(),
                 home: home.finish(),
@@ -77,12 +77,14 @@ fn unfit(unfit: component::Unfit) -> Problems {
 #[must_use]
 pub(crate) fn identity(op: &git::Op) -> Option<u32> {
     match op {
-        git::Op::Clone { identity, .. }
+        git::Op::Store { identity, .. }
         | git::Op::Fetch { identity, .. }
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
-        git::Op::Make { .. }
+        git::Op::Point { .. }
+        | git::Op::Clone { .. }
+        | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -102,12 +104,12 @@ pub(crate) fn pick(
         Value::Forgejo(identity) => return Ok(Some(identity.clone())),
         Value::GitHub { login, name, email, entries } => (login, name, email, entries),
     };
-    let (at, account) = match op {
-        git::Op::Clone { at, account, .. }
-        | git::Op::Fetch { at, account, .. }
+    let (repository_name, account) = match op {
+        git::Op::Store { remote, account, .. } => (remote.as_ref(), account),
+        git::Op::Fetch { at, account, .. }
         | git::Op::Create { at, account, .. }
-        | git::Op::Push { at, account, .. } => (at, account),
-        git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at, &snapshot.account),
+        | git::Op::Push { at, account, .. } => (at.repository.as_ref(), account),
+        git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at.repository.as_ref(), &snapshot.account),
         git::Op::Commit { snapshot: None, .. } => {
             return Ok(Some(component::Identity {
                 token: skein_lib::Secret::new(Box::default()),
@@ -116,7 +118,9 @@ pub(crate) fn pick(
                 email: email.clone(),
             }));
         }
-        git::Op::Make { .. }
+        git::Op::Point { .. }
+        | git::Op::Clone { .. }
+        | git::Op::Make { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -136,9 +140,9 @@ pub(crate) fn pick(
         }
     }
     let prefix = b"temper's App is not installed on the account owning ";
-    let mut output = Writer::new(prefix.len().checked_add(at.repository.len()).expect("bounded repository name"));
+    let mut output = Writer::new(prefix.len().checked_add(repository_name.len()).expect("bounded repository name"));
     output.put(prefix).expect("measured diagnostic");
-    output.put(&at.repository).expect("measured diagnostic");
+    output.put(repository_name).expect("measured diagnostic");
     Err(git::Done::FailedWithOutput {
         fault: git::Fault::Refused,
         diagnostic: git::PushDiagnostic::new(&output.finish(), 0),

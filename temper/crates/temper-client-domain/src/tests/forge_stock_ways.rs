@@ -219,7 +219,19 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
     }
     w::WaysPanel::new(
         &w::CEILINGS,
-        w::WaysPanelParts { words: None, project, ways, current, own: path(b"own"), may_change },
+        w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
+            words: None,
+            project,
+            ways,
+            current,
+            own: path(b"own"),
+            may_change,
+        },
     )
     .unwrap()
 }
@@ -475,6 +487,26 @@ fn acts_follow_current_step_permission_and_pending_state() {
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!([page.act(0), page.act(1), page.act(2)], expected, "{name}");
         assert_eq!(page.sending(), pending, "{name}");
+    }
+}
+
+#[test]
+fn configured_ways_follow_the_pages_own_project() {
+    let mut f = fixture();
+    document(&mut f, NEWEST, true);
+    for (project, settings) in [(f::PROJECT, false), (OTHER, true), (OTHER, false), (f::PROJECT, true)] {
+        let address = if settings { Address::Settings { project } } else { Address::Ask { project } };
+        let out = go(&mut f.root, address);
+        if let Some(watch) = opened(&out, &stock_ways::watch(project, &f::limits().forge).unwrap()) {
+            f.watch = watch;
+            up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        }
+        show(&mut f, &panel(project, Some(0), true));
+        assert_eq!(
+            f.root.pages().stock_ways().unwrap().act(0),
+            if project == f::PROJECT { None } else { Some(WayAct::Keep) },
+            "project={project}"
+        );
     }
 }
 

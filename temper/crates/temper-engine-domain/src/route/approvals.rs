@@ -36,9 +36,26 @@ pub struct ApprovalRow {
     pub role: u32,
     pub required: u32,
     pub counted: u32,
-    pub behind: u32,
+    pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: YourReview,
+    pub size: Option<ApprovalSize>,
+}
+
+/// The forge's counts narrowed for an approval row (client/forge/records.md, `approvals`).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSize {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
+}
+
+/// A touched path set of this row's approval (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSet {
+    pub number: u8,
+    pub name: Box<[u8]>,
 }
 
 /// One watcher's approvals document (client/forge/records.md).
@@ -58,7 +75,11 @@ impl Approvals {
                 .saturating_add(size_of::<ApprovalRow>())
                 .saturating_add(row.owner.len())
                 .saturating_add(row.name.len())
-                .saturating_add(row.title.len());
+                .saturating_add(row.title.len())
+                .saturating_add(size_of_val(row.sets.as_ref()));
+            for set in &row.sets {
+                bytes = bytes.saturating_add(set.name.len());
+            }
         }
         bytes
     }
@@ -119,6 +140,22 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
     } else {
         YourReview::Counts
     };
+    let mut sets = List::with_capacity(6);
+    let classes = domain.forge.project_classes(wait.project);
+    for number in 1_u8..=6 {
+        let bit = 1_u8.checked_shl(u32::from(number.saturating_sub(1))).expect("six path sets");
+        if approval.sets & bit == 0 {
+            continue;
+        }
+        let mut name: Box<[u8]> = Box::default();
+        for set in &classes.sets {
+            if set.number == number {
+                name.clone_from(&set.name);
+                break;
+            }
+        }
+        sets.push(ApprovalSet { number, name }).expect("six path sets");
+    }
     Some(ApprovalRow {
         task: wait.task,
         project: wait.project,
@@ -134,10 +171,25 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         role: approval.role,
         required: approval.required,
         counted: u32::try_from(approval.counted.len()).expect("bounded counted people"),
-        behind: wait.behind,
+        sets: sets.into_boxed(),
         whole: wait.whole,
         yours,
+        size: match wait.size {
+            Some(size) => Some(narrow(size)),
+            None => None,
+        },
     })
+}
+
+fn narrow(size: skein_forge::api::Size) -> ApprovalSize {
+    ApprovalSize {
+        files: u32::try_from(size.files).unwrap_or(u32::MAX),
+        additions: u32::try_from(size.additions).unwrap_or(u32::MAX),
+        deletions: u32::try_from(size.deletions).unwrap_or(u32::MAX),
+        cut: size.files > u64::from(u32::MAX)
+            || size.additions > u64::from(u32::MAX)
+            || size.deletions > u64::from(u32::MAX),
+    }
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository

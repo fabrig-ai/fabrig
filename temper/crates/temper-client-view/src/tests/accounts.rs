@@ -159,7 +159,7 @@ fn a_row_holds_its_trials_line() {
             c::AccountKind::Key,
             v::TrialStep::Answers,
             v::TrialState::Running,
-            "OpenAI API key · trying: ChatGPT answers",
+            "OpenAI API key · trying: ChatGPT answers · one short message",
             None,
             true,
         ),
@@ -404,10 +404,24 @@ fn a_plan_card_names_the_plan_display_brand_and_holder() {
 }
 #[test]
 fn a_key_only_card_names_the_brand_and_holder_once() {
-    assert_eq!(
-        card_heading(card_document(b"openai", b"", c::AccountKind::Key)),
-        "OpenAI API key · held by Pat".as_bytes()
-    );
+    for (provider, name) in [(b"openai".as_slice(), "OpenAI API key"), (b"anthropic", "Anthropic API key")] {
+        let (mut root, me_watch, _, _, watch) =
+            fixtures::root_at_full(d::Address::Accounts, &fixtures::domain_limits(), b"Shop");
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        me.party.name = text(b"Alice");
+        fixtures::deliver_me(&mut root, me_watch, me);
+        deliver(&mut root, watch.unwrap(), card_document(provider, b"", c::AccountKind::Key));
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let row = fixtures::find(view.tree(), Role::Disclosure, format!("{name} · held by Alice").as_bytes());
+            assert!(row.is_some(), "missing {name} · held by Alice");
+        }
+        let row = root.pages().accounts_document(root.client()).unwrap().accounts.get(0).unwrap();
+        assert_eq!(
+            crate::pages::accounts::account_words(&root, &fixtures::words(), row, row.sources.get(0).unwrap(), false)
+                .as_ref(),
+            name.as_bytes()
+        );
+    }
 }
 /// The key account's row controls are view reads (temper/docs/design/client/web/testing.md, 6).
 #[test]
@@ -1884,10 +1898,6 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn english_phrase_declarations_match_the_vocabulary() {
     let path = skein_scratch::paths::package().join("src/words.rs");
     let source = std::fs::read_to_string(&path).unwrap();
@@ -1902,7 +1912,7 @@ fn english_phrase_declarations_match_the_vocabulary() {
     all.push_str("];");
     let start = source.find("const ALL: [Word;").unwrap();
     let end = start + source[start..].find("\n];").unwrap() + 3;
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let updated = format!("{}{}{}", &source[..start], all, &source[end..]);
         std::fs::write(&path, updated).unwrap();
     } else {

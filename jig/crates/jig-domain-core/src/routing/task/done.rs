@@ -20,7 +20,7 @@ pub(crate) fn done(
     match core.land_task(token) {
         Some(flight) => complete(core, env, flight, pending, out),
         None => {
-            if let Some((attempt, _offered)) = core.claiming.remove(&token.raw()) {
+            if let Some((attempt, _offered, _session_end)) = core.claiming.remove(&token.raw()) {
                 core.claim_done(token.raw(), attempt, out);
             }
         }
@@ -47,6 +47,7 @@ pub(crate) fn complete(
                 PersonTaskRoute::PoolSet { project, person } => people::Outcome::PoolSet { project, person },
                 PersonTaskRoute::HandBack(task) => people::Outcome::PersonHandedBack { task },
                 PersonTaskRoute::Answer(task) => people::Outcome::PersonAnswered { task },
+                PersonTaskRoute::Leave(task) => people::Outcome::Left { task },
                 PersonTaskRoute::Stop(task) => people::Outcome::Stopped { task },
                 PersonTaskRoute::Cancel(task) => people::Outcome::Cancelled { task },
                 PersonTaskRoute::Release(task) => people::Outcome::Released { task },

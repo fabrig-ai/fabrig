@@ -1,6 +1,9 @@
 # agents: status
 
-2026-11-10. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-12. Where the tree's code lags or departs from [agents.md](agents.md).
+
+
+- **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2) [in flight: change 108].
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
   goal template whose charter designs first or makes a close-out carries
@@ -14,3 +17,21 @@
   `model_document`), because its scripts are static, so on `temper box
   --fake-backends` a fresh box's first chat's goal alone writes a report: a
   later goal is refused its note and ends with none.
+
+- **Design departs:** 1, from `../../draft/model-catalogue.md`, 3, decided
+  by the `model-catalogue-1` cut: settings reads return whole charters,
+  including models outside the offer, because a proposal needs their whole
+  value. The inventory is filtered, but validation checks the configured
+  catalogue alone, and Ask temper's instructions, `../../draft/ask-temper.md`,
+  section 8, which win there (the user, 2026-11-07), say nothing of models
+  outside the offer.
+
+- **Not yet:** *A coordinator hears its changes while it
+  designs*: a coordinator's first run hears none of its changes' results
+  while it lives (jig's `domain/tasks/messages.status.md`, 6), and the stock
+  coordinator's words say its first run never reacts to its changes
+  (`../../../charters/stock/designer.md`) [in flight: change 100].
+
+- **Design departs:** 3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
+
+- **Design departs:** 3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.

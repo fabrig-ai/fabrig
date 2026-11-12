@@ -50,7 +50,7 @@ impl LinkPeer {
     pub(crate) fn with_limits(
         settings: &crate::settings::Worker,
         agent: &crate::settings::Agent,
-        own: &crate::limits::Limits,
+        own: &worker_settings::Limits,
     ) -> Self {
         let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
@@ -72,7 +72,7 @@ impl LinkPeer {
     pub(crate) fn with_engine_limits(
         settings: &crate::settings::Worker,
         agent: &crate::settings::Agent,
-        own: &crate::limits::Limits,
+        own: &worker_settings::Limits,
         limits: &engine_link::Limits,
         pipe: u32,
         room: u32,
@@ -738,7 +738,7 @@ pub(crate) fn socket_stand_with(
 pub(crate) fn socket_stand_with_limits(
     settings: &crate::settings::Worker,
     agent: &crate::settings::Agent,
-    own: &crate::limits::Limits,
+    own: &worker_settings::Limits,
 ) -> fixtures::WorkerStand {
     let mut stand = fixtures::WorkerStand::new();
     stand.worker =
@@ -1108,8 +1108,8 @@ fn asking_grants(worker: &mut crate::Worker, grants: &[Grant]) {
             .granted(
                 grant.account,
                 grant.generation,
-                jig_protocol_accounts::table::Value {
-                    scheme: jig_protocol_accounts::table::Scheme::Key,
+                crate::worker::credentials::Value {
+                    scheme: crate::worker::credentials::Scheme::Key,
                     token: skein_lib::Secret::new(b"fake-model-key".as_slice().into()),
                 },
                 Time::from_nanos(u64::MAX),

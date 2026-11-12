@@ -151,6 +151,23 @@ pub(crate) fn reasons(domain: &Domain, number: u64, inbox: &[Word]) -> crate::Re
     reasons
 }
 
+/// Kinds that can end a session as unoffered. Always-offered messages still
+/// choose parts at a fresh start, but cannot end the session for their kind.
+pub(crate) fn session_kinds(domain: &Domain, number: u64, inbox: &[Word]) -> crate::Reasons {
+    let mut kinds = crate::Reasons::EMPTY;
+    for word in inbox {
+        let wakes = match rule(domain, number, word) {
+            WakeRule::Immediate => true,
+            WakeRule::Batch { .. } | WakeRule::Paced { .. } => word.eligible,
+            WakeRule::Never => false,
+        };
+        if wakes && !crate::offered(word, crate::Reasons::EMPTY) {
+            kinds = kinds.union(crate::Reasons::of(&word.kind));
+        }
+    }
+    kinds
+}
+
 fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
     let task = record(domain, number).expect("inbox task live");
     let mut hits = 0_u32;

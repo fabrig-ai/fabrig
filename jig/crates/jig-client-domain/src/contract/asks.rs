@@ -107,6 +107,15 @@ pub enum Ask {
         proposal: u64,
     },
     /// Add words to a task inbox.
+    Talk {
+        project: u32,
+        task: u64,
+        words: Text,
+    },
+    Leave {
+        project: u32,
+        task: u64,
+    },
     Message {
         project: u32,
         task: u64,

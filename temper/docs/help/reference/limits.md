@@ -30,7 +30,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 65,536. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
 - `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
-- `root.journal.run_bytes`: bytes, 24,576. Bounds a run charter's owned bytes in a held assignment.
+- `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
 - `root.loads.bytes`: bytes, 65,536. Bounds a kept page prefix, counting record slots and their owned bytes.
@@ -38,7 +38,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.loads.reply_bytes`: bytes, 65,536. Bounds a decoded store answer before its kept prefix is cut.
 - `root.loads.transcript_bytes`: bytes, 65,536. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
 - `root.brief.briefs`: count, 2. Bounds briefs the root gathers at once.
-- `root.brief.sections`: count, 9. Bounds brief sections the root gathers at once.
+- `root.brief.sections`: count, 10. Bounds brief sections the root gathers at once.
 - `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
 - `root.brief.read_bytes`: bytes, 4,608. Bounds bytes read for one gathered brief section.
 - `root.brief.brief_bytes`: bytes, 14,592. Bounds the body of a gathered brief.
@@ -53,6 +53,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.brief.budgets.plan`: bytes, 128. Bounds plan section bytes in a gathered brief.
 - `root.brief.budgets.notes`: bytes, 64. Bounds note section bytes in a gathered brief.
 - `root.brief.budgets.preferences`: bytes, 2,048. Bounds whole requester preferences in a gathered brief.
+- `root.brief.budgets.now`: bytes, 4,096. Bounds a standing task's Now body in a gathered brief.
 
 ## forge
 
@@ -81,8 +82,18 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
+- `forge.dependencies`: count, 4. Dependencies per project.
+- `forge.follows`: count, 2. Follows per project.
+- `forge.follow_paths`: count, 8. Path prefixes per follow.
+- `forge.follow_queue`: count, 16. Queued landings per follow.
+- `forge.follow_merge`: count, 8. Landings per follow change.
+- `forge.follow_commits`: count, 8. Commits retained per follow entry.
+- `forge.follow_files`: count, 32. Files retained per follow entry.
+- `forge.follow_message_bytes`: bytes, 512. Message bytes retained per follow commit.
+- `forge.follow_skips`: count, 8. Skips retained per follow.
+- `forge.follow_reason_bytes`: bytes, 256. Bytes per follow skip reason.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.
-- `forge.brief_sections`: count, 36. Bounds forge brief sections gathered at once.
+- `forge.brief_sections`: count, 40. Bounds forge brief sections gathered at once.
 - `forge.brief_bytes`: bytes, 4,608. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
@@ -116,6 +127,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.facts`: count, 16. Bounds forge client facts awaiting drain.
 - `forge.change_policy.repairs`: count, 3. Bounds repair attempts in a change.
 - `forge.change_policy.resolutions`: count, 3. Bounds conflict resolution attempts in a change.
+- `forge.change_policy.reruns`: count, 1. Bounds re-runs of a runner-failed job at one head.
 - `forge.change_policy.updates`: count, 3. Bounds update attempts in a change.
 - `forge.change_policy.questions`: count, 4. Bounds questions raised in a change.
 - `forge.change_policy.tasks`: count, 6. Bounds the producer, reviews and repairs a change may create.

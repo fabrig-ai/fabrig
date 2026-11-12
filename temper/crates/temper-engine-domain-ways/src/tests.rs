@@ -15,6 +15,7 @@ const OTHER: u32 = 10;
 
 fn rule(last: GateLast, ci: bool, up_to_date: bool) -> LandingRule {
     LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern { segments: Box::new([b"branch".as_slice().into()]), last },
         enforce: true,
         ci,
@@ -465,6 +466,7 @@ fn derive_keeps_the_branch_and_repository() {
         ),
     ] {
         let inputs = Inputs {
+            sets: Box::default(),
             branch: b"topic".as_slice().into(),
             repository,
             rules: Box::default(),

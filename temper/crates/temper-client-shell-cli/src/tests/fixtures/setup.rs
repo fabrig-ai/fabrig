@@ -42,6 +42,8 @@ impl Frame {
                 .expect("valid setup fixture"),
             ),
             f::Request::Adopt(_)
+            | f::Request::SetDraft(_)
+            | f::Request::FollowAct(_)
             | f::Request::TryAccount(_)
             | f::Request::Dismiss(_)
             | f::Request::SetAway(_)

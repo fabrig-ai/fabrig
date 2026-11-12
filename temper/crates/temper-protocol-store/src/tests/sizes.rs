@@ -14,6 +14,27 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     );
 }
 #[test]
+fn the_change_bound_follows_the_tier_landings_ceilings() {
+    let ceilings = crate::v11::CEILINGS;
+    let least = ceilings.tier_row_pending.min(ceilings.tier_run_landings).min(ceilings.tier_finding_blamed);
+    let bound = crate::forge_changes_bound().expect("tier rows hold a landing");
+    assert_eq!(crate::tier_landings_ceiling(), least);
+    assert_eq!([ceilings.tier_row_pending, ceilings.tier_run_landings, ceilings.tier_finding_blamed], [759; 3]);
+    assert_eq!(bound, 379);
+    assert_eq!(bound, (least - 1) / 2);
+    assert_eq!(crate::v11::TierRow::encoded_bound(&ceilings), Some(4_291_165_782));
+    let mut forge = fixtures::LIMITS;
+    forge.changes = bound;
+    let limits = records::limits(&forge).unwrap();
+    assert_eq!(limits.tier_row_pending, 2 * bound + 1);
+    assert_eq!(limits.tier_run_landings, 2 * bound + 1);
+    assert_eq!(limits.tier_finding_blamed, 2 * bound + 1);
+    crate::v11::check_limits(&limits).expect("the boundary fits all three ceilings");
+    forge.changes = bound + 1;
+    assert!(crate::v11::check_limits(&records::limits(&forge).unwrap()).is_err());
+}
+
+#[test]
 fn limits_past_a_ceiling_have_no_sizes() {
     for (name, field, value) in [("name", 0_u8, 4097_u32), ("answer", 1, 1_048_577)] {
         let mut limits = fixtures::LIMITS;
@@ -39,12 +60,12 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
         if name == "right key" {
             assert_eq!(records::row(&key, &value, &bounds), Ok(row.clone()));
         } else {
-            assert_eq!(records::row(&key, &value, &bounds), Err(Undecodable), "{name}");
+            assert_eq!(records::row(&key, &value, &bounds), Err(Undecodable::Malformed), "{name}");
         }
     }
-    assert_eq!(records::row(&[], &value, &bounds), Err(Undecodable), "malformed key");
+    assert_eq!(records::row(&[], &value, &bounds), Err(Undecodable::Malformed), "malformed key");
     let key = keys::encode(&forge::Key::Landed([1; 32]), u32::MAX).expect("a fixed key fits");
-    assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable), "malformed value");
+    assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable::Malformed), "malformed value");
 }
 #[test]
 fn the_store_version_is_eleven() {

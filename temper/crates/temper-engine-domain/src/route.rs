@@ -10,6 +10,7 @@ pub(crate) mod held;
 pub(crate) mod host_route;
 mod making;
 pub(crate) mod playground;
+pub(crate) mod standing;
 pub use host_route::{
     ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
@@ -354,13 +355,16 @@ pub(crate) fn route_core_requests(
     decision: &mut Decision,
     requests: Queue<core::Request>,
 ) {
+    standing::saved(domain, env, decision, &requests);
     let mut output = requests;
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
                 keep_produced_title(domain, &record);
+                forge_route::close_saved(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
                     if let core::CallPart::Effect { .. } = row.part {
@@ -446,8 +450,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
                     domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
+                let period = if let core::Event::Period { project, .. } = &event { Some(*project) } else { None };
                 let routed = forge_route::step_core(domain, env, event);
                 route_core_requests(domain, env, decision, routed);
+                if let Some(project) = period {
+                    standing::move_roles(domain, project, None);
+                }
             }
             Work::Tasks(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));
@@ -468,6 +476,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
+                domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;
@@ -599,6 +608,19 @@ pub(crate) fn delegate_call(
     validated: bool,
     stubs: Box<[tasks::Stub]>,
 ) {
+    if let Some(context) = domain.core.tasks.delegation(key.task)
+        && let Err(body) = forge_route::follow_route::check_batch(
+            domain,
+            env,
+            context.project,
+            tasks::Party::Task(key.task),
+            &batch,
+            &[],
+        )
+    {
+        host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body });
+        return;
+    }
     if let Err(part) = domain.core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part }));
         return;

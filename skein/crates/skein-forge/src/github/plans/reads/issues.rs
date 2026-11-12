@@ -33,14 +33,12 @@ impl Plan {
     pub(super) fn issue_admission(&mut self, bounds: Bounds) -> Result<(), api::Error> {
         match self.read {
             Read::Items { single, .. } => {
-                let capacity = size::capacity(bounds, measure::SUMMARY_BYTES)?;
-                self.limit = if single { 1 } else { size::page_size(bounds, capacity)? };
-                self.issues.items = List::with_capacity(capacity);
+                self.limit = if single { 1 } else { size::page_size(bounds, crate::github::pin::PAGE_CAP)? };
+                self.issues.items = List::with_capacity(self.limit);
             }
             Read::Item { .. } => {
-                let capacity = size::capacity(bounds, measure::COMMENT_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
-                self.issues.comments = List::with_capacity(capacity);
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
+                self.issues.comments = List::with_capacity(bounds.rows);
             }
             Read::Locate { .. }
             | Read::Settings
@@ -69,6 +67,9 @@ impl Plan {
     pub(super) fn issue_row(&mut self, row: document::Row, bounds: Bounds, word: &[u8]) -> Result<(), api::Error> {
         if self.stage != Stage::Read && self.stage != Stage::Comments {
             return Err(api::Error::InvalidAnswer);
+        }
+        if self.cut {
+            return Ok(());
         }
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
@@ -108,7 +109,11 @@ impl Plan {
                     } else {
                         Excess::at_least(api::Bound::AnswerBytes, u64::from(bounds.answer_bytes), total)
                     };
-                    return Err(api::Error::TooLarge(excess));
+                    if self.issues.items.is_empty() || self.issues.items.len() >= bounds.rows {
+                        return Err(api::Error::TooLarge(excess));
+                    }
+                    self.cut = true;
+                    return Ok(());
                 }
                 if self.issues.items.push(item).is_err() {
                     return Err(api::Error::TooLarge(measure::capacity_excess(
@@ -287,7 +292,10 @@ impl Plan {
                 let mut items = core::mem::replace(&mut self.issues.items, List::with_capacity(0)).into_boxed();
                 // Only contiguous equal-time runs are sorted: times remain the forge's order.
                 order(&mut items)?;
-                self.terminal(api::Answer::Items { items, more: next, cut: false, now: self.issues.now }, bounds)
+                self.terminal(
+                    api::Answer::Items { items, more: next || self.cut, cut: self.cut, now: self.issues.now },
+                    bounds,
+                )
             }
             Read::Item { .. } if self.stage == Stage::Comments => {
                 if !self.issues.more && next {

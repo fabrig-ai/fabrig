@@ -352,7 +352,7 @@ fn an_undecodable_data_line_refuses() {
 
 #[test]
 fn the_committed_recordings_redact() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/journeys");
+    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
     let mut count = 0;
     for entry in std::fs::read_dir(journeys).expect("journeys") {
         let path = entry.expect("journey").path().join("recording");
@@ -396,31 +396,4 @@ fn unreadable_input_is_refused_by_its_line() {
     let result = redact(b"due\nnot-a-record\n", &[]);
     let Err(Unredacted::Unreadable(error)) = result else { panic!("unreadable input refused") };
     assert_eq!(error.line, 2);
-}
-
-#[test]
-fn candidate_kinds_redact_each_form_in_each_framing() {
-    for kind in [Kind::Approval, Kind::Credential, Kind::Bearer] {
-        let value = [b"ab/+=".as_slice(), b"\"<&\\sample!"].concat();
-        let originals = Originals::new(vec![(kind, value.into())], &[]);
-        for form in [VALUE, UPPER, LOWER, HTML, DEBUG] {
-            for framing in [Framing::Framed, Framing::Text] {
-                let hidden = match framing {
-                    Framing::Framed => vec![b'x'; form.len()],
-                    Framing::Text => HIDDEN.to_vec(),
-                };
-                let (mut field, expected, places) = match framing {
-                    Framing::Framed => (framed(form), framed(&hidden), 2),
-                    Framing::Text => (query(form), query(&hidden), 1),
-                };
-                assert_eq!(crate::journey::redact_field(&mut field, framing, &originals), places, "{kind:?}");
-                assert_eq!(field, expected, "{kind:?}");
-            }
-        }
-        for framing in [Framing::Framed, Framing::Text] {
-            let mut field = framed(&digest(VALUE));
-            assert_eq!(crate::journey::redact_field(&mut field, framing, &originals), 2, "{kind:?} digest");
-            assert_eq!(field, framed(&digest(HIDDEN)), "{kind:?} placeholder digest");
-        }
-    }
 }

@@ -17,9 +17,9 @@ boundary (smith's run.md, 8.1).
   landing branch's tip as fetched at prepare, in each change producer's
   checkout and never moves it within the hold
   (`temper/docs/design/protocol/git.md`, 4.3;
-  `temper/docs/design/domain/worker.md`, section 5). The check's base is
+  `temper/docs/design/domain/worker/checkouts.md`). The check's base is
   the merge base of that reference and `HEAD`, and `MERGE_HEAD` in a merge
-  (section 2). Without the reference it runs today's checks alone and says so.
+  (`design.md`, section 2). Without the reference it runs today's checks alone and says so.
 - **What changed, and who reads it.** The packages owning a path the
   delivery changed against its base, and their direct dependents in the
   workspace (section 3).
@@ -31,6 +31,10 @@ boundary (smith's run.md, 8.1).
   `tools/tiers/one-process default`: each test binary's selected tests in
   one process, one at a time, binaries in parallel, nextest only selecting
   and building (section 4). A starved run is a warning.
+- **One hold for the check.** With `TIERS_HOLD` set, the check holds its
+  build directory from before its first build to its verdict, so the
+  executables one-process built are still there when it runs them
+  (section 4; `tools/tiers/design.md`, 3).
 - **Known reds, and inherited counts.** Nothing is built or tested at the
   base. A lint or test failure is inherited only when the checked tree's
   `.temper/known-reds.md` lists it; a build failure is always the
@@ -58,8 +62,8 @@ boundary (smith's run.md, 8.1).
   is newer and already merged into the branch, or being merged.
 - **A repair's pin is the head it repairs.** A repair, a resolution and a
   merge job name no landing branch, and the worker pins the head their
-  delivery replaces instead (`temper/docs/design/domain/worker.md`, section
-  5): the base is that head, so a repair of a goal's landing into main
+  delivery replaces instead (`temper/docs/design/domain/worker/checkouts.md`
+  ): the base is that head, so a repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
   merge and its edits change on the branch.
@@ -216,6 +220,21 @@ private index; their scratch repositories keep their own indexes. No
 `cargo clean`, no `--workspace`, no network
 fetch beyond what cargo's own configuration does.
 
+**The hold.** With `TIERS_HOLD` set, the check takes the build directory's
+hold as `tools/tiers/design.md`, section 3 gives it, once: after the
+passed-tree cache has not answered (section 7), before its first cargo
+command (the first `cargo metadata`), and kept to its verdict, the cache's
+record written, whatever the checks ended in. Every check runs under it
+with the setting removed, so one-process, check 4, takes none of its own,
+and the check's builds and the executables they built are one hold, not one
+claim per cargo command: an environment that lends a build directory only
+while a cargo command runs could otherwise reclaim it after one-process's
+listing has built the tests and before their processes start. A cache hit
+takes none. A hold that fails prints its warning, `pre-pr: hold: <why>;
+going on unheld`, and refuses nothing; the summary does not repeat it, since
+it is the deployment's, not the delivery's. Killed, the check releases the
+hold by its death (`tools/tiers/design.md`, 3).
+
 ## 5. Inherited failures
 
 Only selected checks contribute failures. The format check runs within
@@ -367,7 +386,12 @@ package, a deletion), with the tests' set given to one-process as section
 4's command and no nextest run of the check's own; known reds and new
 failures of each kind, a build failure among them, with no cargo run and
 no worktree made at the base; a starved run that passes with its warning;
-the cache by tree and base; the summary's bound.
+the cache by tree and base; the summary's bound; and the hold: a fake hold
+program, named by `TIERS_HOLD`, records its start and its stdin's end in the
+ledger, so that one hold starts before the first fake `cargo` call and ends
+after the fake one-process has returned, the fake one-process sees no
+`TIERS_HOLD`, a cache hit and an unset setting start none, and a hold that
+exits before its line leaves the warning and the verdict as it would be.
 
 `tools/pre-pr/test_pre_pr.py` first exercises code-only, docs-only, both
 and neither in scratch repositories. It runs the citation checker against

@@ -225,6 +225,8 @@ pub struct TaskSettings {
 /// A task page's header, overview, funding, authority and current held decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Task {
+    pub talk: Option<tasks::Talk>,
+    pub session: Option<tasks::Session>,
     /// None for a procedure's or a person's task.
     pub settings: Option<TaskSettings>,
     pub waits_on: super::WaitsOn,
@@ -920,6 +922,8 @@ fn task_with_lineage(
     let acts = super::offers::task(core, limits, party, row, decision)?;
     let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
     Ok(Task {
+        talk: row.talk,
+        session: row.session,
         settings: match row.executor {
             tasks::Executor::Agent { .. } => Some(TaskSettings {
                 task: row.settings.task,

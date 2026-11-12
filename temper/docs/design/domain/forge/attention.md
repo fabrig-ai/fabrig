@@ -158,19 +158,26 @@ new to say. Its charter is the stock's 9
   With neither, its run waits, as *In flight* has it.
 - **Its run:** the procedure's first step delegates to charter 9 with the
   task's words, unlisted, no person asked (`asks` false), its authority
-  narrowed to no tools, grants, notes or delegation (as a foreman's is,
-  `change/questions.md`, 1), and no workspace: a run of this charter selects no repository. A
+  narrowed to no tools, grants, notes or delegation, and no workspace: a run of this charter selects no repository. A
   project whose policy's delegation doesn't name charter 9 has its
   delegate refused, which is a refused run. It is kept as a tier run's task
   is: jig forgets a result only for a person's request.
-- **Its words,** made by the forge, and the root adding the goals, which
-  are core's: the span since the last brief, the landed count, the titles
-  of the changes the landing log holds since the last brief (at most 20),
-  the project's live goals each with its delegates done and total, and the
-  failing tests each tier of the project's repositories holds. They say
-  only what the engine keeps.
-- **Heard** at the procedure's next step, from its inbox, as a foreman's
-  result is (`change/questions.md`, 1): the report's first paragraph is `sentence`, the rest
+- **Its words,** made by the forge, and the root adding the goals and
+  the standing roles, which are core's: the span since the last brief,
+  the landed count, the titles of the changes the landing log holds since
+  the last brief (at most 20), the project's live goals each with its
+  delegates done and total, the failing tests each tier of the project's
+  repositories holds, and each live standing role's Now. They say only
+  what the engine keeps.
+- **The roles' Nows** (`../agent/standing.md`, section 8): after the
+  goals, a line "Standing roles:", then for each of the project's live
+  standing roles, label 3, by number, at most 8, a line "Role N:" and its
+  Now's body, read as `role show` reads it, the note described `now` in
+  its scope, cut to 1,024 bytes at a character's edge, or "no Now yet".
+  The words are fitted to the spec's bound as before, the roles' part
+  cut first from its end. A Now the root cannot read is left out, and the
+  run goes on: a brief never waits on a role.
+- **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
   `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
   the subject `status` marked. A failed, cancelled, refused or empty run
@@ -239,8 +246,8 @@ no brief or wake (`../../draft/what-reaches-you.md`, sections 4 and 6).
   person, a goal, a chat or any task a person made, that person; of a
   task whose requester is a task, the person of the chat serving it
   (jig's `served_chat`) where that chat's requester is a person. A
-  standing role's person is not yet designed (`../../draft/standing-roles.md`,
-  section 2). Any other caller is answered ask by the root, with nothing
+  standing role's requester is its person, so it is that person
+  (`../agent/standing.md`, section 3). Any other caller is answered ask by the root, with nothing
   asked of the connector: its questions go to its requester, a task,
   which asks in turn. The root hands over too whether the caller's words
   hold a line `Asks: always`, as `always`.
@@ -569,3 +576,35 @@ the changes it was given.
   off; on, `host`, `port` (465 for TLS from the start, 587 for
   STARTTLS), `from`, an address, `user`, and `password`, a data path,
   private, 0o600, read at start.
+## 8. Open questions
+
+- **"The brief on Home" in Settings** (`attention.md`, 3): the status agent always runs
+  for now; the switch is another plan's. Default: it runs.
+
+- **A status run's kept row** (`attention.md`, 3): a task made for the deployment is
+  never forgotten, as jig forgets a result only for a person's request. At
+  most one a sitting and an hour, each small. Default: kept, until jig
+  forgets a deployment's reads.
+
+- **A stock project's room, shared** (`attention.md`, 3; `../../protocol/configuration/stock.md`):
+  the chat's 24K outside the pools is what no pool reserved, and no brief's own: the
+  forge's repairs draw on it and a member's first spend in a period reserves it, and
+  a shared project's plan doesn't serve the run. Home then keeps its computed
+  sentence, and nothing tells the owners why. Default: so; they can fund the period.
+
+- **What lands on a goal's branch and then on main** (`attention.md`, 2) counts twice,
+  each a change landed. Default: so, said here and in the design of Home.
+
+- **What ends the Away switch** (`attention.md`, 4): `until`, by the client's next
+  08:00, and a hand. Quiet hours and notifications are the client's
+  later parts (`../../client/README.md`, section 5); neither is the
+  switch's.
+
+- **The classes per person** (`attention.md`, 6; `../../draft/what-reaches-you.md`,
+  section 11): a team may want one person asked about a path set and
+  another not. Default: the classes are the project's and Away each
+  person's, approvals naming roles as they do.
+
+- **What code decides, listed** (`attention.md`, 5): a known flake's rerun
+  (`../findings.md`, section 5) asks no one and writes no row. Whether
+  Decided for you lists it. Default: not listed.

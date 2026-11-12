@@ -67,7 +67,7 @@ it too. This uses the retained change and branch records, with no new
 ancestry read (2026-11-04).
 
 A task's saved work is named by the set its task's record keeps of the
-repositories a next attempt would resume from (`../worker.md`, section 5). As
+repositories a next attempt would resume from (`../worker/checkouts.md`). As
 its task's release begins, each branch of that set becomes a hold of the
 closing task, with no writer, and goes as any hold does: deleted, a branch
 already gone counting as deleted (skein's `forge/client.md`, section 7);
@@ -193,7 +193,7 @@ section 6).
   1. **Close,** where the goal holds a goal branch and its project names
      a `close_job` (`../../protocol/configuration/engine.md`): a change
      into the goal's branch whose producer is the close job, kind 4
-     (`../worker.md`, 4.4), as a catch-up's is the merge job: its bytes
+     (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
@@ -225,20 +225,94 @@ section 6).
   `domain/tasks/proposals.md`); a red after landing, while the landing
   is verified, is news for the goal, whose tree the landing is in
   (`../after-landing.md`, section 7). A step's change that ends without
-  landing (cancelled, failed) holds the closer, `ClosingStep`, its
-  words naming the step and the change, which escalates to the goal:
-  its release makes the step's change again, and its cancel ends the
-  closer, the goal's branch kept.
+  landing (cancelled, failed) is made again, or holds the closer,
+  `ClosingStep`, by its attempts (below), its words naming the step,
+  the change and why, which escalates to the goal: its release makes
+  the step's change again, and its cancel ends the closer, the goal's
+  branch kept.
 - **A landing that ended is never the end.** When the land step's
   change ends cancelled or failed, the closer first reads afresh
   whether the base holds the goal's branch (the land step's own test,
   above): where it does, someone or something landed it meanwhile, and
   the closer goes on to report, its landing part `The landing: none,
   its base already held the goal's branch.`; where it does not, it
-  holds as above. Its release reads that again, and either reports or
-  makes a new landing change, never holding again on the landing that
-  ended: a hold names a change still to be made, never one that has
-  ended.
+  makes the next landing or holds, by its attempts (below). A release
+  reads that again, and either reports or makes a new landing change,
+  never holding again on the landing that ended: a hold names a change
+  still to be made, never one that has ended.
+- **Attempts, and the project's bound.** Each change the closer makes
+  for a step is an attempt at it, and one that ends cancelled or failed
+  counts against the project's `landing_attempts`
+  (`../../protocol/configuration/engine.md`), 3 when absent: the close
+  step's and the land step's each counted alone, over the closer's
+  life. A step's change that ends so:
+  - *for its branch's reason* holds the closer, whatever its count,
+    since another attempt at the same branch would meet the same: its
+    state, as it became `Ended`, was held for repairs past their bound
+    (`Repairs`), conflict resolutions past theirs (`Resolutions`), a
+    person's rejection of a required gate (`Rejected`), its pull
+    request closed without a merge (`PullClosed`) or its branch missing
+    (`BranchMissing`), the change's holds (`change/repairs.md`). The
+    change keeps the hold its state was in as that state becomes
+    `Ended`, as `Change.ended_held`, an `Option<Hold>`, none where it
+    was not held, so that its reason outlives the hold. The store keeps
+    it in the stored state it already has, an ended state with that
+    one hold (`ChangeState`'s `holds`), so that its format stays and
+    every row stored before reads as none. An ended change takes no
+    hold after its end (a relay refused, a bound passed): its state
+    stays `Ended`, so that stored form is its ending hold's alone, and
+    a row stored before with a hold over its ended state reads as
+    ended in that hold.
+  - *for any other reason* (a cancel while it went on, a lost or failed
+    run, a stall, any other hold, or none) is made again with no hold,
+    as a release makes it, waiting for new work first and, for a
+    landing, reading containment first, while fewer than
+    `landing_attempts` of the step's changes have ended so; at the
+    bound, it holds the closer.
+  - A release makes one attempt more, past the bound too, and its end
+    counts as any. A `landing_attempts` of 1 holds on every ended
+    change.
+  - The hold's words name why, after the change's ending:
+    `, held for its branch: WHAT`, WHAT `repairs`, `conflict
+    resolutions`, `a rejection`, `its pull request closed` or `its
+    branch missing`; or `; attempts ended without landing: K, the
+    project's bound L`. So `the landing T41 ended cancelled; attempts
+    ended without landing: 3, the project's bound 3`.
+- **Its authority across attempts.** The closer's budget and task
+  count (jig's `domain/tasks/lifecycle.md`, 11) fund each attempt up to
+  the bound:
+  - *Spend:* each step's change is given half of what the closer has
+    left, its budget less what it spent, what its ended delegates spent
+    and what it holds reserved. An ended change's unspent share goes
+    back to the closer as it ends (jig's `domain/authority.md`, section
+    7), so an attempt costs the closer what it spent, never its share.
+  - *Lent to its goal's run:* while a run of its goal holds the
+    closer's funds (jig's `domain/tasks/lifecycle.md`, 11), a step the
+    closer cannot fund waits, with no hold, keeping the step to make;
+    that run's answer gives the funds back and makes the closer due,
+    and the step is made then. So a release the goal's run makes takes
+    effect once that run has answered, and never holds the closer for
+    funds the run holds.
+  - *Tasks:* a change's subtree makes at most its share of the room,
+    sized for the bound. The room is the fewer of the tasks the closer
+    and its goal have left to make (jig's `domain/authority.md`,
+    section 3: a lifetime count, which an ended attempt never gives
+    back). The step's attempts left are `landing_attempts` less the
+    step's changes ended without landing, and at least 1. The change's
+    `delegation.tasks` is the fewer of what the forge's change policy
+    gives a change (`forge.change_policy.tasks`, with its `questions`
+    beside where a foreman answers them,
+    `../../protocol/configuration/limits.md`) and the room divided by
+    one more than the attempts left, less one for the change itself;
+    and at least 1.
+  - *Short:* a step the closer cannot fund or fit while no run of its
+    goal holds its funds holds the closer, its words `the goal closer
+    cannot delegate its next change within its authority: ` and what it
+    lacks: `spend: A left, its change's half must pass M`, A what it
+    has left and M the deployment's minimum run spend; `tasks: R left,
+    its change needs 2`; `depth`; or `its change's terms`, for any
+    other refusal. Its release reads afresh and makes the step where it
+    now fits.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
   `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it
@@ -329,7 +403,7 @@ undrifted, is a **design writer** of it: its workspace starts at g's tip
 (or its saved work, or, where its run branch holds a head g lacks, g's
 tip with that head merged in) and names g as both its push branch and
 its landing branch, which the worker takes as a design delivery
-(`../worker.md`, section 5): Markdown only, g's moved tip merged first, a
+(`../worker/checkouts.md`): Markdown only, g's moved tip merged first, a
 fast-forward never forced. Its repository's other writes are as before.
 
 - **Its first run among them.** A goal's run prepared while its goal
@@ -382,3 +456,12 @@ fast-forward never forced. Its repository's other writes are as before.
   producer delivers its change's branch, and its design reaches g by
   that change's pull request, as any change's does. A push to g from
   anywhere but a design writer holds as drift (`change/README.md`, 3).
+
+## 4. Open questions
+
+- **Saved branches outside the task's saved set** (`README.md`, 11): a terminal the
+  engine never heard, a repository no longer in the set, or full holds at
+  close can leave a branch on the forge. Finding these needs a branch
+  inventory beyond the set a next attempt resumes from. Default: manual
+  deletion or deployment retention; a failed descendant's known saved
+  work stays with its root until that root closes.

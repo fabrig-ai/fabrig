@@ -129,6 +129,7 @@ pub fn domain() -> Domain {
                 connectors: Box::new([1, 2]),
                 settings: core::Settings {
                     endpoints: Box::new([core::EndpointFacts {
+                        direct: Box::new([]),
                         providers: Box::new([]),
                         number: 1,
                         dialect: 3,
@@ -210,6 +211,7 @@ pub fn run() -> Box<core::RunCharter> {
                 endpoint: 1,
                 program: None,
                 name: b"small".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 128,
                 input_price: 1,

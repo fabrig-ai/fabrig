@@ -117,10 +117,11 @@ fn fixture_with_limits(frame: c::Me, limits: crate::Limits) -> Fixture {
     }
 }
 fn settings(fixture: &mut Fixture, follows: c::SettingFollows) -> Queue<Request> {
+    setting(fixture, c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 }, follows)
+}
+fn setting(fixture: &mut Fixture, setting: c::Setting, follows: c::SettingFollows) -> Queue<Request> {
     let mut lines = List::with_capacity(ONE);
-    lines
-        .push(c::SettingLine { setting: c::Setting::Rules, name: None, follows, last: None, application: None })
-        .unwrap();
+    lines.push(c::SettingLine { setting, name: None, follows, last: None, application: None }).unwrap();
     deliver(
         &mut fixture.root,
         fixture.settings,
@@ -287,6 +288,40 @@ fn refused_and_ended_settings_are_not_configured() {
         settings(&mut f, c::SettingFollows::Change);
         up(&mut f.root, Up::WatchEnded { watch: f.settings, end });
         assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "{end:?}");
+    }
+}
+#[test]
+fn only_the_projects_own_application_change_marks_the_way_of_working_done() {
+    const PROJECT: u32 = 3;
+    const OWN: c::Setting = c::Setting::Application { kind: 2, scope: PROJECT, number: 1 };
+    use c::SettingFollows::{Change, Default};
+    for (item, follows, end, done) in [
+        (Some(OWN), Change, None, true),
+        (Some(OWN), Default, None, false),
+        (Some(c::Setting::Application { kind: 2, scope: 4, number: 1 }), Change, None, false),
+        (Some(c::Setting::Rules), Change, None, false),
+        (Some(c::Setting::Application { kind: 2, scope: 0, number: 1 }), Change, None, false),
+        (Some(c::Setting::Charter(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Template(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Policy(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::Model(c::SettingNumber { number: 1 })), Change, None, false),
+        (Some(c::Setting::ProjectPolicy { project: PROJECT }), Change, None, false),
+        (None, Change, None, false),
+        (Some(OWN), Change, Some(c::WatchEnd::SubjectEnded), false),
+        (Some(OWN), Change, Some(c::WatchEnd::NotAllowed), false),
+    ] {
+        let mut f = fixture();
+        if let Some(item) = item {
+            setting(&mut f, item, follows.clone());
+        }
+        if let Some(end) = end {
+            up(&mut f.root, Up::WatchEnded { watch: f.settings, end });
+        }
+        assert_eq!(
+            home::facts(&f.root, PROJECT, Wall::EPOCH).configured,
+            done,
+            "setting={item:?}, follows={follows:?}, end={end:?}"
+        );
     }
 }
 #[test]
@@ -1372,10 +1407,15 @@ fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
 #[test]
 fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
-    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
-    for watch in [f.status, f.live, f.inbox] {
-        up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+    let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
     }
+    finish_closes(&mut f, &out);
     let mut limits = f::limits();
     limits.forge.field_bytes = u32::MAX;
     let mut out = Queue::uncapped();
@@ -1385,6 +1425,14 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
         Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
         &mut out,
     );
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
+    }
+    finish_closes(&mut f, &out);
     let subject = forge::status::watch(f::PROJECT, &f::limits().forge).unwrap();
     assert!(opened(&out, &subject).is_none());
     assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).status, home::Status::Unknown);
@@ -1395,8 +1443,16 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     );
     let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     assert!(opened(&out, &subject).is_none());
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
+            up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
+        }
+    }
+    finish_closes(&mut f, &out);
     let out = go(&mut f.root, f::PROJECT);
-    assert!(opened(&out, &subject).is_some(), "the next page entry opens status");
+    assert!(opened(&out, &subject).is_some(), "the next page entry opens status: {out:?}");
 }
 #[test]
 fn a_status_document_must_name_this_project() {

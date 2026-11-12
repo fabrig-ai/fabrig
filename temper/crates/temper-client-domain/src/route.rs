@@ -15,6 +15,11 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
     match event {
         Event::Push(report) => pages(root, env, crate::pages::Event::Push(report), out),
         Event::AskApproval => crate::asked::ask(root, env, out),
+        Event::Launchpad => {
+            let mut requests = Queue::uncapped();
+            root.pages.enable_launchpad(&mut requests);
+            route_pages(root, env, &mut requests, out);
+        }
         Event::ScreenLeft => pages(
             root,
             env,

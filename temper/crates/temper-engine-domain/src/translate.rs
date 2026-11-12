@@ -59,6 +59,9 @@ pub struct LandingRules {
     pub projects: Map<u32, Box<[LandingRule]>>,
 }
 
+/// The goal closer's attempts (temper/docs/design/protocol/configuration/engine.md).
+pub const LANDING_ATTEMPTS: u8 = 3;
+
 /// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
@@ -66,6 +69,7 @@ pub struct ProjectLanding {
     pub by: Way,
     pub merge_job: Option<Box<[u8]>>,
     pub close_job: Option<Box<[u8]>>,
+    pub landing_attempts: u8,
     pub repositories: Box<[RepositoryChecks]>,
     pub after: AfterLandingCheck,
 }

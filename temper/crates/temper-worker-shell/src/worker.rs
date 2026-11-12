@@ -10,7 +10,7 @@ pub fn alone(
     bytes: &[u8],
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
-) -> Result<service::Service, String> {
+) -> Result<service::worker_alone::Service, String> {
     let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;
@@ -22,8 +22,17 @@ pub fn alone(
     let configuration = part.named.agent.clone();
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    tune(&mut service, environment);
-    sources(&mut service, &agent, path(&configuration), path(&agent_program), path(&directories.cache), user)?;
+    let sources =
+        sources(&agent, path(&configuration), path(&agent_program), path(&directories.cache), user, environment)?;
+    if sources.reuse {
+        service.reuse_workspaces();
+    }
+    if let Some(directory) = sources.dump {
+        service.dump_llm(&directory);
+    }
+    if let Some(resources) = sources.resources {
+        service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
+    }
     Ok(service)
 }
 
@@ -39,15 +48,23 @@ pub fn root(path: &[u8], user: u32, owned: &mut Vec<skein_io::kernel::Fd>) -> Re
     Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into() })
 }
 
+/// Resources and switches the caller installs on its own service.
+pub struct Sources {
+    pub resources: Option<service::program_sources::Resources>,
+    pub reuse: bool,
+    pub dump: Option<Box<[u8]>>,
+}
 pub fn sources(
-    service: &mut service::Service,
     agent: &service::settings::Agent,
     configuration: &std::path::Path,
     agent_program: &std::path::Path,
     cache: &std::path::Path,
     user: u32,
-) -> Result<(), String> {
-    if let Some(program) = agent.programs.first() {
+    environment: &[EnvironmentEntry],
+) -> Result<Sources, String> {
+    let reuse = crate::workspace_reuse(environment);
+    let dump = crate::dump_llm(environment).map(|directory| directory.as_os_str().as_bytes().into());
+    let resources = if let Some(program) = agent.programs.first() {
         if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
             temper_launcher::place(path(&program.path).parent().expect("launcher parent"), cache, agent_program)
                 .map_err(|why| format!("programs.claude_code: {why}"))?;
@@ -58,16 +75,9 @@ pub fn sources(
             skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
         let resources = service::program_sources::configured(program, environment, user, parent)
             .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
-        service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
-    }
-    Ok(())
-}
-
-pub fn tune(service: &mut service::Service, environment: &[EnvironmentEntry]) {
-    if crate::workspace_reuse(environment) {
-        service.reuse_workspaces();
-    }
-    if let Some(directory) = crate::dump_llm(environment) {
-        service.dump_llm(directory.as_os_str().as_bytes());
-    }
+        Some(resources)
+    } else {
+        None
+    };
+    Ok(Sources { resources, reuse, dump })
 }
