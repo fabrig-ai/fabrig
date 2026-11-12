@@ -28,9 +28,9 @@ delegation's kinds (`../../domain/authority.md`, section 3). The accounts family
 family refuses to open under the format check (3).
 
 A `model` setting's value holds no index, so **at open** the store reads the
-settings family's `model` changes by key range, before any family's
-restore, and takes its names as the given defaults' overlaid with them, so
-that a stored vocabulary's model a person added isn't read as gone; and it
+settings family's `model` changes by key range, after pending patches
+and before any family's restore, and takes its names as the given defaults'
+overlaid with them, so that a stored vocabulary's model a person added isn't read as gone; and it
 takes each later catalogue from the root, before the commit that makes it
 (`../../domain/engine/settings.md`, 11).
 

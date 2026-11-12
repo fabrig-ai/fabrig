@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 72] = [
+const SHAPES: [Shape; 76] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -78,6 +78,10 @@ const SHAPES: [Shape; 72] = [
     Shape::PathSet,
     Shape::CharterWords,
     Shape::ProjectWords,
+    Shape::ProjectAreas,
+    Shape::ProjectTriager,
+    Shape::Area,
+    Shape::AreaOwner,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -317,6 +321,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-questions"
                         && kind != b"project-classes"
                         && kind != b"project-words"
+                        && kind != b"project-areas"
+                        && kind != b"project-triager"
                         && kind != b"follow"
                         && kind != b"dependency"
                     {
@@ -331,6 +337,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             b"project-questions",
                             b"project-classes",
                             b"project-words",
+                            b"project-areas",
+                            b"project-triager",
                         ]
                         .contains(&kind)
                     {
@@ -782,8 +790,8 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     let page = super::page(&limits);
     for needle in [
         b"`resources`: list of at most 2, each `symbol`".as_slice(),
-        b"Optional; absent means an empty list",
-        b"forge connector 1, symbol 1 is its own goal branch",
+        b"Optional, default []",
+        b"Forge connector 1, symbol 1: its own goal branch",
     ] {
         let mut found = false;
         for word in page.windows(needle.len()) {

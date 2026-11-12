@@ -24,8 +24,7 @@ check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
 `draft/surfaces.status.md`, 5). A person talks with a standing role through
 `role talk`, with instructions for every case becoming rules by settings
 proposals. A role reports through its Now, a line per session and a weekly
-`report` note, with its Now in Home's brief's words; areas and routing remain
-a later milestone, and Team's and the terminal's talk and report surfaces
+`report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
 Being told is the whole story's milestone N3b, goal 492, built
 against fakes alone: a person's devices, jig's need's arrival, the
@@ -372,3 +371,9 @@ Drafts:
 Archived drafts:
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)
+
+Goal 684 carries R2: areas in words and their owners, the project triager
+(kinds 14 and 15), findings held by those owners with news or Needs you,
+ctl filing, handing and triage, outside service parties, and stock
+triager, prover and porter charters (`domain/areas.status.md`,
+`domain/findings.status.md`, `draft/standing-roles.status.md`).

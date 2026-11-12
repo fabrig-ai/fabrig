@@ -385,6 +385,34 @@
   A task that overturned words reach (`../../client/pages/README.md`) asks it
   by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
   answers a question for it, and one that skips the tool waits as ever.
+- **`finding`,** of the delegate family, declared where `goal` and
+  `change` are, so that a chat, a goal's coordinator and a standing role
+  file and triage findings in their task's project (`../findings.md`,
+  sections 4 and 6; `../areas.md`, sections 5 and 7). One tool, its
+  `act` saying which:
+  - `{"act": "file", "kind", "severity", "area", "title", "body"}`,
+    `kind` one of `qa`, `flake`, `red`, `review` and `feedback`,
+    `severity` one of `low`, `medium` and `high`, `area` optional, title
+    and body within `../findings.md`, section 2's bounds: "Filed finding
+    P/N; it is HOLDER's.";
+  - `{"act": "hand", "number", "area", "why"}`: "Handed finding P/N to
+    area NAME; it is HOLDER's.";
+  - `{"act": "route", "number", "goal"}`, `{"act": "backlog",
+    "number"}` and `{"act": "drop", "number", "reason"}`: "Routed
+    finding P/N to task G.", "Finding P/N is in the backlog.", "Dropped
+    finding P/N.";
+  - `{"act": "list", "state", "mine"}`, both optional: the project's
+    areas, a line each, `NAME (OWNER, HOLDER): WORDS`, its triager's
+    line, then its findings newest first, a line each, `P/N STATE KIND
+    SEVERITY AREA HOLDER: TITLE`, cut to the answer's bound with `and K
+    more`;
+  - `{"act": "show", "number"}`: one finding whole, as `temper ctl
+    finding show` prints it.
+
+  `HOLDER` is `task N`, `party N` or `role N`, by `../areas.md`, section
+  4. Its refusals are `../areas.md`, section 7's words, marked an error,
+  and the run goes on. The writes are named and decided once, as
+  `change`; `list` and `show` are reads.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and

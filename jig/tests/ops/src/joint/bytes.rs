@@ -98,6 +98,7 @@ impl Side {
                         attempt: *exchange,
                         final_answer: matches!(value, w::KeyedAnswer::FinalAnswer(_)),
                         unconfigured_model: false,
+                        closed_project: false,
                         words: None,
                     });
                 }

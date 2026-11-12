@@ -252,7 +252,8 @@ nothing and prints no original.
     one is an original whole;
   - *typed:* each value of an act whose event shows a secret's length
     (`Secret { len: N }`, 3.3), such as a typed key or a pasted sign-in;
-  - *given:* each `--redact TEXT`;
+  - *given:* each `--redact TEXT`; `again` also supplies its local binary,
+    bundle, scratch and cache paths, for both browser and TUI captures;
   - *approval*, *credential* and *bearer:* the TUI's, the approval's
     secret, the credential the TUI takes and the bearer every exchange
     carries (`../tui/journeys.md`, section 5), which a browser's recording
@@ -644,6 +645,12 @@ reprint carries, since its acts are events, not controls.
   print's diff holds those as well as what changed (section 10).
 
 ### 8.1 Again
+
+`again --prepared DIR NAME` uses prebuilt `temper-box`, `fake-claude`,
+`temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
+and creates its fresh private scratch directory beneath DIR. An optional
+`cache` subdirectory supplies pinned downloads. Without this
+option, the recorder builds its inputs in a system scratch directory.
 
 `cargo run -p temper-client-journeys -- again NAME`, in
 `crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,

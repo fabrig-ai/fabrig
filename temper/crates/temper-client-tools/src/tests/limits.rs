@@ -2,8 +2,8 @@ use crate::limits;
 #[test]
 fn each_ceiling_is_within_the_client_limit_it_reads_from() {
     let client = limits::client().client.domain;
-    // The reference delegation needs eighteen executor places.
-    assert_eq!(client.authority, 18);
+    // The stock's 21 executors and one deployment charter fit whole.
+    assert_eq!(client.authority, 22);
     assert_eq!(client.delegates, 80);
     assert_eq!(limits::ROWS, client.rows, "a page's rows are the client's rows per window");
     assert_eq!(limits::PART, 65_536, "a page holds 64 KiB");

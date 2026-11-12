@@ -110,6 +110,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
                     path: delivered_path(index, name),
                     items: items(project, index),
                     delegation: false,
+                    roles: List::with_capacity(0),
                 },
             )
             .expect("stock way"),

@@ -17,6 +17,7 @@ mod document_limits;
 mod drafts;
 mod escalation;
 mod fabrig_scale;
+mod findings;
 mod forge_routes;
 mod hello_refused;
 mod host_calls;
@@ -51,6 +52,7 @@ mod fuzzy {
     mod closer_attempts;
     mod endings;
     mod escalation;
+    mod findings;
     mod follows;
     mod loads;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]

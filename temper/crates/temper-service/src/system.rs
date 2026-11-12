@@ -65,6 +65,7 @@ impl Service {
                     restart: engine.domain.start_phase(),
                     mark_durable: engine.store.host.mark_durable(),
                     store_closed: engine.store.closed(),
+                    store: engine.store.host.wait_state(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
                     workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
                     setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },

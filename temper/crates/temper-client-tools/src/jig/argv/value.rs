@@ -40,6 +40,10 @@ pub(super) fn valid(
         Kind::Literal | Kind::Text => return valid_text(spec, value, argument, limits),
         Kind::File => return valid_file(spec, value, argument, limits),
         Kind::Project { empty } => return valid_project(value, argument, empty),
+        Kind::Finding => {
+            let Value::Text(text) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
+            finding(text).is_some()
+        }
         Kind::Turn => {
             let Value::Turn(_) = value else {
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
@@ -130,6 +134,10 @@ pub(crate) fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) ->
             } else {
                 Project::Name(Box::from(word))
             })
+        }
+        Kind::Finding => {
+            finding(word)?;
+            Value::Text(Box::from(word))
         }
         Kind::Turn => Value::Turn(turn(word)?),
         Kind::Cursor => Value::Cursor(hex(word)?),
@@ -443,4 +451,22 @@ fn turn(word: &[u8]) -> Option<TurnName> {
     let split = dot?;
     let end = split.checked_add(1)?;
     Some(TurnName { attempt: number(word.get(..split)?)?, number: u32::try_from(number(word.get(end..)?)?).ok()? })
+}
+
+/// FINDING is P/N, P a nonempty project name or a u32, N a positive u32.
+pub(crate) fn finding(word: &[u8]) -> Option<(&[u8], u32)> {
+    let slash = skein_lib::bytes::find(word, b"/")?;
+    let project = word.get(..slash)?;
+    let number = u32::try_from(number(word.get(slash.checked_add(1)?..)?)?).ok()?;
+    if project.is_empty() || number == 0 {
+        return None;
+    }
+    let mut digits = true;
+    for byte in project {
+        digits &= byte.is_ascii_digit();
+    }
+    if digits {
+        u32::try_from(self::number(project)?).ok()?;
+    }
+    Some((project, number))
 }

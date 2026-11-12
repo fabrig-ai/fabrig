@@ -88,7 +88,7 @@ pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
     let (known, open) = match root.pages().inbox() {
         Some(inbox) => (
             inbox.known(),
-            u32::try_from(root.pages().needs().needs(inbox, root.forge().approvals()).len()).expect("inbox cards fit"),
+            u32::try_from(root.pages().needs().all(inbox, root.forge().approvals()).len()).expect("inbox cards fit"),
         ),
         None => (false, 0),
     };

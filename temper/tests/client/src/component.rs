@@ -113,7 +113,7 @@ impl Composition {
             link_secret: secret.clone(),
             local_secret: None,
             approval,
-            deployment_provider: 2,
+            deployment_provider: configuration.core.settings.deployment_provider,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
             served: list([
@@ -962,6 +962,7 @@ fn family_subject(record: &jig_client::Family, scope: c::Scope) -> jig_client_te
         .and_then(|watching| match watching.into_parts().watch {
             temper_client_protocol_wire::v1::Watch::Change(change) => Some(change.task()),
             temper_client_protocol_wire::v1::Watch::Forges
+            | temper_client_protocol_wire::v1::Watch::Findings(_)
             | temper_client_protocol_wire::v1::Watch::Drafts(_)
             | temper_client_protocol_wire::v1::Watch::Ways(_)
             | temper_client_protocol_wire::v1::Watch::Trials

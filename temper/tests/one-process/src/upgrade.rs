@@ -17,7 +17,8 @@ pub const FIXTURE_SETS: PatchSets = PatchSets {
             patches: &[
                 include_str!("../../../crates/temper-protocol-store/patches/0001.patch"),
                 include_str!("../../../crates/temper-protocol-store/patches/0002.patch"),
-                "patch 1\nowner temper 3 after jig 2\nmark fresh-windows\n",
+                include_str!("../../../crates/temper-protocol-store/patches/0003.patch"),
+                "patch 1\nowner temper 4 after jig 2\nmark fresh-windows\n",
             ],
             fresh: Some("fresh-windows"),
             ..temper_protocol_store::PATCH_SET

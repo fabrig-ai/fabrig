@@ -215,6 +215,7 @@ pub(super) fn queues(
             | Document::Devices(_)
             | Document::Aways(_)
             | Document::Decisions(_)
+            | Document::Findings(_)
             | Document::Dismissals(_),
         )
         | None => None,

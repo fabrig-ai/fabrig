@@ -15,12 +15,15 @@
 - **Not yet:** 3: a settings file's landing rule has no `sets`, in
   `temper-settings-form` or `temper-client-tools`' `render_rule`.
 
-- **Not yet:** 1: the groups `finding`, `qa`, `party` and
+- **Not yet:** 1, 3 and 5: the group `party`, `party make`, and the host's `sign-in --service` [in flight: change 724].
+
+- **Not yet:** 1, 2 and 3: the groups `finding` and `need`, FINDING's form and the placeholders `AREA` and `PARTY`; `finding list` and `finding show`; `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` [in flight: change 749].
+
+- **Not yet:** 1: the groups `qa` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
-  2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
+  2: `repository receipts`, `qa marks`,
   `qa passes` and `hold list`. 3: `task move
-  --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold` and `project hold`.
+  --under`, `task succeed --by`, `qa choose`, `task hold` and `project hold`.
    the missing area operations remain `areas.status.md` (Not yet, the whole document).
    the hello stop-bound units remain `results.status.md`, 1.
    the trailing-help command syntax remains `README.status.md`, 6.1.

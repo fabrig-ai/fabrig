@@ -3,6 +3,9 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "authority.executors": 21,
+        "tasks.executor_kinds": 21,
+        "tasks.charters": 16,
         "clients.exchanges": 12,
         "clients.streams": 8,
         "clients_http.calls": 12,

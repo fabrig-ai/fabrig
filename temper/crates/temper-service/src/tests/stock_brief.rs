@@ -56,7 +56,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
             .0,
         1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 2048
     );
-    assignment.run.ended_by = if number == 13 {
+    assignment.run.ended_by = if number >= 13 {
         jig_domain_tasks::EndedBy::Standing
     } else if open {
         jig_domain_tasks::EndedBy::Requester
@@ -65,7 +65,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 5 || number == 13 {
+    } else if number == 5 || number >= 13 {
         jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
     } else if number == 10 {
         jig_domain_tasks::Contract::Report { words: 64 }
@@ -106,6 +106,28 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
+fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
+    let limits = configured().service.limits.domain.run;
+    let mut declarations = skein_lib::List::uncapped();
+    for number in engine(&generated()).charters.iter().map(|charter| charter.number) {
+        let charter = temper_engine_smith::charter(&assignment(number, false, 0));
+        let room = run::brief_room(&charter, None, &limits).expect("stock host part fits");
+        eprintln!(
+            "finding host part: charter {number}: non-brief={}, room={room}, bound={}",
+            limits.host_part - u64::from(room),
+            limits.host_part
+        );
+        assert!(room >= 2_048, "charter {number}");
+        declarations
+            .push((number, charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding")))
+            .expect("stock declarations");
+    }
+    for (number, offered) in declarations.into_boxed() {
+        assert_eq!(offered, [1, 5, 13, 14, 15, 16].contains(&number), "charter {number}");
+    }
+}
+
+#[test]
 fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -125,12 +147,15 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         (11, true),
         (12, true),
         (13, false),
+        (14, false),
+        (15, false),
+        (16, false),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
+        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number >= 13 {
             None
         } else {
             Some(workspace(number != 4 && !open))
@@ -154,7 +179,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 79_959);
+            assert_eq!(original.owned_bytes().unwrap(), 80_639);
             assert_eq!(receiving, 65_463);
             assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
             assert_ne!(charter.brief, original.brief);
@@ -166,7 +191,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 2_867, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 2_259, "the goal's brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -211,7 +236,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 340_114, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 339_498, "charter 5's maximal non-brief host part leaves this room");
     assert_eq!(brief.brief_bytes, 336_713);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
@@ -227,6 +252,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         (11, true),
         (12, true),
         (13, false),
+        (14, false),
+        (15, false),
+        (16, false),
     ] {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
@@ -236,7 +264,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
+        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number >= 13 {
             None
         } else {
             Some(workspace(number != 4 && !open))
@@ -249,6 +277,11 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             );
         }
         let rendered = run::brief_bytes(&charter.brief).unwrap();
+        eprintln!(
+            "whole brief charter {number} open={open}: host bound={} non-brief={} room={remaining} rendered={rendered}",
+            limits.host_part,
+            limits.host_part - u64::from(remaining)
+        );
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));

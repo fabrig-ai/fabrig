@@ -7,6 +7,13 @@ use settings_form::{
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 
 #[test]
+fn the_page_leaves_room_for_more_fields() {
+    let page = fields::page(&temper_client_tools::limits::form());
+    let most = temper_docs::PAGE_BYTES.checked_sub(1_000).expect("reference bound leaves growth room");
+    assert!(page.len() <= most, "settings-fields is {} bytes; at most {most} leaves 1,000 bytes of room", page.len());
+}
+
+#[test]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
@@ -218,8 +225,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // The fixture has one model, ten charters, six templates, one policy and the rules.
-    const STOCK_VALUES: usize = 18;
+    // The fixture has one model, twelve charters, six templates, one policy and the rules.
+    const STOCK_VALUES: usize = 21;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::with_models(

@@ -1,0 +1,7 @@
+finding backlog FINDING --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+Put a finding in the backlog
+Prints: backlog: P/N
+--json: the record finding_backlog.
+Key: --key KEY, required.
+Only its holder or a project owner may triage.

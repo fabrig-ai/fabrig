@@ -6,6 +6,25 @@ Every tool temper adds to its runs' own: what it does, as a run reads it, whethe
 
 File, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.
 
+## finding
+
+file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number
+
+A write.
+
+- `act`: one of `file`, `hand`, `route`, `backlog`, `drop`, `list` or `show`; required.
+- `kind`: one of `qa`, `flake`, `red`, `review` or `feedback`; optional.
+- `severity`: one of `low`, `medium` or `high`; optional.
+- `area`: text; optional.
+- `title`: text; optional.
+- `body`: text; optional.
+- `number`: an integer; optional.
+- `why`: text; optional.
+- `goal`: an integer; optional.
+- `reason`: text; optional.
+- `state`: text; optional.
+- `mine`: true or false; optional.
+
 ## decided
 
 Ask whether you may decide this for your person. Carry on only if decided; otherwise ask them with message, as a question.

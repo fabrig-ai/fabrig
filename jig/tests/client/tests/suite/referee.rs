@@ -125,6 +125,7 @@ impl<const BAD: u8> App for Broken<BAD> {
     }
     fn sent(_: &Wire) -> Option<Sent> {
         Some(Sent {
+            application: false,
             attempt: Token::new(1),
             key: [1; 16],
             card: Some(CardKey::of(KEY)),
@@ -138,6 +139,7 @@ impl<const BAD: u8> App for Broken<BAD> {
                 attempt: Token::new(1),
                 final_answer: true,
                 unconfigured_model: false,
+                closed_project: false,
                 words: Some((9, 1)),
             }],
             Event::Start | Event::Press => vec![],

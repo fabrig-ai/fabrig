@@ -33,6 +33,16 @@ impl OneShot {
                 self.preparing = false;
                 self.finish(0, false);
             }
+            Parsed::Call { call, .. }
+                if call.tool == jig::rows::PARTY_MAKE_AT
+                    && self.service_file.as_ref().is_none_or(|service| !service.checked) =>
+            {
+                if let Some(service) = &self.service_file {
+                    self.directory.check_output(&service.path);
+                } else {
+                    self.fail(b"party make --out needs a file, not stdin");
+                }
+            }
             Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT => {
                 self.directory.create_record(self.move_file.as_deref().expect("export file"));
             }
@@ -59,12 +69,25 @@ impl OneShot {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "input forms share one preparation state machine")]
     pub(super) fn prepare_progress(&mut self) {
         if !self.preparing || self.status.is_some() {
             return;
         }
         if self.file_input() {
             self.directory.progress(self.env.now);
+        }
+        if let Some(service) = &mut self.service_file
+            && !service.checked
+        {
+            if self.directory.checked_output.is_some() && self.directory.ready() {
+                service.checked = true;
+                self.prepare_start();
+                if !self.preparing {
+                    self.directory.start(self.class);
+                }
+            }
+            return;
         }
         if self.exporting {
             if self.directory.created && self.directory.ready() {
@@ -157,8 +180,11 @@ impl OneShot {
                 let specs = TOOLS[usize::from(call.tool)].forms[usize::from(call.form)];
                 for (index, (spec, slot)) in specs.iter().zip(call.values.iter_mut()).enumerate() {
                     if file == Some(index) || (file.is_none() && *slot == Some(Values::One(Value::Stdin))) {
-                        let text =
-                            if spec.kind == Kind::File { bytes.strip_suffix(b"\n").unwrap_or(&bytes) } else { &bytes };
+                        let text = if spec.kind == Kind::File && spec.name != b"body" {
+                            bytes.strip_suffix(b"\n").unwrap_or(&bytes)
+                        } else {
+                            &bytes
+                        };
                         *slot = Some(Values::One(Value::Text(text.into())));
                     }
                 }
@@ -195,6 +221,7 @@ impl OneShot {
             Some(Parsed::Call { call, .. }) if super::settings_input::settings(call) => self.settings_file_input(call),
             Some(Parsed::Call { call, .. }) => {
                 call.tool == temper_client_tools::jig::rows::EXPORT_AT
+                    || call.tool == jig::rows::PARTY_MAKE_AT
                     || arguments::key_file(call).is_some()
                     || text_file(call).is_some()
             }
@@ -245,7 +272,7 @@ fn text_file_index(call: &jig::call::Call) -> Option<usize> {
 }
 fn text_file(call: &jig::call::Call) -> Option<(u8, &[u8])> {
     let name = TOOLS[usize::from(call.tool)].name;
-    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" {
+    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" && name != b"finding file" {
         return None;
     }
     for (index, slot) in call.values.iter().enumerate() {
@@ -273,6 +300,31 @@ mod tests {
         let Some(Parsed::Call { call, .. }) = &frame.host.call else { panic!("prepared call") };
         let Some(Some(Values::One(Value::Text(bytes)))) = call.values.get(index) else { panic!("loaded text") };
         bytes
+    }
+    #[test]
+    fn finding_body_keeps_its_bytes_from_a_file_stdin_or_json() {
+        for source in ["-", "/body/link-file"] {
+            let mut frame = amendment(&[
+                "finding",
+                "file",
+                "--project",
+                "shop",
+                "--kind",
+                "red",
+                "Flaky boot",
+                source,
+                "--key",
+                "file",
+            ]);
+            frame.input = WORDS;
+            frame.link = WORDS;
+            frame.drain();
+            assert_eq!(text(&frame, 5), WORDS);
+        }
+        let mut frame = amendment(&["--call", "call.json"]);
+        frame.link = br#"{"tool":"finding file","arguments":{"key":"file","project":"shop","kind":"red","title":"Flaky boot","body":"Boot twice\n"}}"#;
+        frame.drain();
+        assert_eq!(text(&frame, 5), b"Boot twice\n");
     }
     #[test]
     fn amend_reads_instructions_from_a_file() {

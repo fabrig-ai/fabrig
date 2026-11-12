@@ -77,6 +77,8 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 settings-form.workspace = true
+temper-client-shell-cli.workspace = true
+skein-shell.workspace = true
 skein-ui-text.workspace = true
 skein-fake-forge-domain.workspace = true
 jig-boundary.workspace = true

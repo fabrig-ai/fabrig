@@ -372,6 +372,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::ProjectReleased { .. }
             | root::Delivery::MoveStanding { .. }
+            | root::Delivery::FindingsOwned { .. }
             | root::Delivery::ForgeCommitted { .. }
             | root::Delivery::ForgeCall { .. }
             | root::Delivery::Bound { .. }

@@ -6,6 +6,7 @@ Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
+- **Not yet:** 7, *A goal that has ended*: a red of no goal's is not filed as a finding of its project, once per landing, so no triager hears it [in flight: change 751].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 3: the pending verdict status a run posts on its tip
@@ -16,9 +17,7 @@ in section 14. The log's other gaps and the retained change rows remain below.
   goal, only a red one (section 7); and a verdict after the bound, or
   after a verifying change is cancelled, reaches no one: the
   `Verification` row goes with the landing's last change, and no
-  landing log or red of no goal's keeps the landing's verdict. 7: a red
-  of no goal's is not kept on the tier's record, nor counted when
-  dropped. 8: no trailers in landing news; no `landing list
+  landing log or red of no goal's keeps the landing's verdict. 8: no trailers in landing news; no `landing list
   --newer-than`. 9: no `temper/verdict/<tier>` status or comment;
   purpose tag 8's operations 6 and 7 are unused. 10: no `trailers` or `trailer_bytes` limit;
   a push from outside temper, trailers and verdicts stay out of the log

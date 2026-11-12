@@ -15,6 +15,10 @@ fn every_call_goes_from_argv_to_json_and_back_unchanged() {
                 jig::call::Values::One(value)
             });
         }
+        if call.tool == jig::rows::FINDING_FILE_AT {
+            *call.values.get_mut(5).expect("body") =
+                Some(jig::call::Values::One(jig::call::Value::Text(b"Body".as_slice().into())));
+        }
         let json = jig::json::write_call(table::TOOLS, &call).expect("a call's JSON within its bound");
         fixtures::unique_keys(&json).expect("call JSON has unique keys");
         assert_eq!(fixtures::from_json(&json), call, "{words:?}");

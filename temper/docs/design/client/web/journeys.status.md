@@ -17,6 +17,8 @@ three requests remains `journeys.md`, section 10's after-landing work; replayed 
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.
 
+Section 8.1 also accepts prebuilt recording inputs through `again --prepared DIR NAME`; its fresh private scratch directory stays beneath DIR and no child build runs.
+
 Section 8.1 has no known gap in a save's control found outside a menu:
 `temper-client-shell-web`'s `journey.rs`, `control`, skips a node under
 `Role::Menu`, and `a_saves_control_skips_a_menu_item_for_the_pages_link`

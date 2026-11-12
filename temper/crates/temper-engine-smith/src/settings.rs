@@ -67,9 +67,15 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             }
         }
         let mut by_project = None;
-        for name in
-            [b"project-policy".as_slice(), b"project-ways", b"project-questions", b"project-classes", b"project-words"]
-        {
+        for name in [
+            b"project-policy".as_slice(),
+            b"project-ways",
+            b"project-questions",
+            b"project-classes",
+            b"project-words",
+            b"project-areas",
+            b"project-triager",
+        ] {
             if kind.as_ref() == name {
                 by_project = Some(name);
             }
