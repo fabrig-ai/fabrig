@@ -19,7 +19,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             let bounds = bounds(&env.limits);
             let mut judged = List::uncapped();
             for item in &items {
-                let answer = judge(domain, &bounds, owner, proposal, item);
+                let answer = judge(domain, &bounds, env.limits.authority.roles, owner, proposal, item);
                 judged.push(answer).expect("one judgement per asked item");
             }
             domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged {
@@ -46,7 +46,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
         connector::Ask::RestoreSettings { owner, proposal, items } => {
-            let answers = restore(domain, &bounds(&env.limits), proposal, &items, &mut out);
+            let answers = restore(domain, &bounds(&env.limits), env.limits.authority.roles, proposal, &items, &mut out);
             let mut judged = List::uncapped();
             for answer in answers {
                 let answer = judgement(answer);
@@ -70,6 +70,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
 fn restore(
     domain: &mut Domain,
     bounds: &settings::Bounds,
+    owner_roles: u32,
     proposal: u64,
     items: &[application::Restored],
     out: &mut Queue<temper_engine_domain_forge::Request>,
@@ -80,10 +81,10 @@ fn restore(
     let mut refused = false;
     for (key, edit) in kept {
         let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit };
-        if way_refusal(domain, None, &asked).is_some() || owner_refusal(domain, bounds, &asked).is_some() {
+        if way_refusal(domain, None, &asked).is_some() || owner_refusal(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked).is_some() {
             for (item, answer) in items.iter().zip(answers.iter_mut()) {
                 if (item.kind, item.scope, item.number) == (key.kind, key.scope, key.number) {
-                    *answer = settings::Judged::Refuse(owner_refusal(domain, bounds, &asked).unwrap_or(settings::Refusal::Way));
+                    *answer = settings::Judged::Refuse(owner_refusal(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked).unwrap_or(settings::Refusal::Way));
                 }
             }
             refused = true;
@@ -115,19 +116,20 @@ fn judgement(answer: settings::Judged) -> connector::Judged {
 fn judge(
     domain: &Domain,
     bounds: &settings::Bounds,
+    owner_roles: u32,
     owner: skein_lib::Token,
     proposal: Option<u64>,
     item: &application::Item,
 ) -> connector::Judged {
     let Some(asked) = typed(domain, proposal, item) else {
-        return connector::Judged::Refuse { why: settings::Refusal::Value.words() };
+        return connector::Judged::Refuse { why: match item.kind { 12 => b"areas: value does not decode".as_slice().into(), 13 => b"triager: value does not decode".as_slice().into(), _ => settings::Refusal::Value.words() } };
     };
     let answers = domain.forge.judge_settings(bounds, core::slice::from_ref(&asked));
     let answer = answers.first().expect("one forge judgement per item").clone();
     match answer {
         settings::Judged::Refuse(_) => judgement(answer),
         settings::Judged::Accept { .. } | settings::Judged::Same => {
-            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)).or(owner_refusal_words(domain, bounds, &asked)) {
+            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)).or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)) {
                 Some(why) => connector::Judged::Refuse { why },
                 None => judgement(answer),
             }
@@ -613,8 +615,8 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
         settings::AreaOwner::Task(number) => {
             let Some(task) = domain.core.tasks.task(number) else { return false };
             if task.project != project { return false; }
-            match task.phase { jig_domain_tasks::Phase::Ended(_) | jig_domain_tasks::Phase::Closing(_) => false,
-                jig_domain_tasks::Phase::Waiting | jig_domain_tasks::Phase::Active(_) | jig_domain_tasks::Phase::Held { .. } => true }
+            match task.phase { jig_domain_tasks::Phase::Ended(_) => false,
+                jig_domain_tasks::Phase::Closing(_) | jig_domain_tasks::Phase::Waiting | jig_domain_tasks::Phase::Active(_) | jig_domain_tasks::Phase::Held { .. } => true }
         }
         settings::AreaOwner::Party(number) => domain.core.people.role(number, project).is_some(),
         settings::AreaOwner::Role(number) => number < bounds.roles,

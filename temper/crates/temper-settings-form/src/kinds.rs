@@ -351,6 +351,7 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatch renders each settings kind with its codec")]
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {

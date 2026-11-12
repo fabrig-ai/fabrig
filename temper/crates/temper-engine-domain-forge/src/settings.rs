@@ -654,7 +654,7 @@ pub fn rows(l: &Limits) -> Option<u32> {
 
 fn judge_areas(value: &ProjectAreas) -> Result<(), Refusal> {
     if !within(value.areas.len(), 16) {
-        return Err(Refusal::Area { name: b"areas".as_slice().into(), rule: b"more than 16 areas" });
+        return Err(Refusal::Area { name: value.areas.get(16).expect("past 16 areas").name.clone(), rule: b"more than 16 areas" });
     }
     for (at, area) in value.areas.iter().enumerate() {
         let mut twice = false;

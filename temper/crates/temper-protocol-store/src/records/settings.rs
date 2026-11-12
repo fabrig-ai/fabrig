@@ -286,7 +286,7 @@ fn owner_from(value: w::AreaOwner) -> d::AreaOwner {
     }
 }
 fn wire_areas(value: &d::ProjectAreas) -> w::ProjectAreas {
-    let mut areas = List::uncapped();
+    let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
     for area in &value.areas {
         areas.push(w::Area::new(&w::CEILINGS, w::AreaParts { name: area.name.clone(), words: area.words.clone(), owner: owner_record(area.owner) }).expect("admitted area fits")).expect("counted areas");
     }
