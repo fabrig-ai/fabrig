@@ -20,7 +20,9 @@ pub enum FileEnd {
     Keep,
     Remove,
     /// Match the one-time credential to this durable service answer before writing.
-    Service { party: u64 },
+    Service {
+        party: u64,
+    },
 }
 #[derive(Debug)]
 pub struct Printed {

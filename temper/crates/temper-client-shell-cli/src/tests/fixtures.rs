@@ -18,8 +18,8 @@ macro_rules! encode {
 pub mod changes;
 pub mod local;
 pub mod moves;
-pub mod service;
 pub mod recovery;
+pub mod service;
 pub mod setup;
 pub mod waits;
 pub use recovery::{dropped, kept_chat, other_party, small_store};

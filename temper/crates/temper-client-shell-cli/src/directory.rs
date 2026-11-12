@@ -172,7 +172,9 @@ impl Directory {
                 Some(rest) => [b"service file".as_slice(), rest].concat().into_boxed_slice(),
                 None => text.into(),
             }
-        } else { text.into() });
+        } else {
+            text.into()
+        });
         self.close();
     }
     fn answer(&mut self, now: Time, event: file::Event) {
@@ -582,7 +584,7 @@ impl Directory {
         match (self.stage, event) {
             (Stage::RecordCreate, file::Event::Opened { .. }) => {
                 self.stage = if self.record_bytes.is_some() { Stage::RecordWrite } else { Stage::Ready };
-            },
+            }
             (Stage::RecordCreate, file::Event::Failed { error, .. }) => {
                 let mut message = self.record_given.as_deref().expect("record path").to_vec();
                 message.extend_from_slice(if matches!(error, Error::Exists | Error::TooManyLinks) {

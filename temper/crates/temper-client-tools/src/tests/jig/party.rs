@@ -5,12 +5,27 @@ use jig_client::contract as c;
 fn party_make_sends_the_named_project_role_and_name_keyed() {
     for project in ["1", "shop"] {
         let mut root = f::signed_in(f::PARTY);
-        let call = root.submit(&["party", "make", "--project", project, "--role", "2", "--out", "service", "scout", "--key", "scout"]);
-        assert_eq!(f::act_ask(&root, call), &c::Ask::MakeService {
-            project: 1,
-            name: c::Text::new(b"scout".as_slice().into(), crate::limits::TEXT).unwrap(),
-            role: c::HeldRole::Member,
-        });
+        let call = root.submit(&[
+            "party",
+            "make",
+            "--project",
+            project,
+            "--role",
+            "2",
+            "--out",
+            "service",
+            "scout",
+            "--key",
+            "scout",
+        ]);
+        assert_eq!(
+            f::act_ask(&root, call),
+            &c::Ask::MakeService {
+                project: 1,
+                name: c::Text::new(b"scout".as_slice().into(), crate::limits::TEXT).unwrap(),
+                role: c::HeldRole::Member,
+            }
+        );
         assert_eq!(root.sent_name(call), Some(f::named("scout")));
         root.done(call, c::Outcome::Made { what: c::Made::Service { party: 9 } });
         let printed = root.answer(call).unwrap();

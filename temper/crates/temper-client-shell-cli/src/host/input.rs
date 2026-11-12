@@ -34,8 +34,11 @@ impl OneShot {
                 self.finish(0, false);
             }
             Parsed::Call { call, .. } if call.tool == jig::rows::PARTY_MAKE_AT => {
-                if let Some(service) = &self.service_file { self.directory.check_output(&service.path); }
-                else { self.fail(b"party make --out needs a file, not stdin"); }
+                if let Some(service) = &self.service_file {
+                    self.directory.check_output(&service.path);
+                } else {
+                    self.fail(b"party make --out needs a file, not stdin");
+                }
             }
             Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT => {
                 self.directory.create_record(self.move_file.as_deref().expect("export file"));

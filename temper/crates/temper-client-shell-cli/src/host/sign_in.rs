@@ -12,7 +12,10 @@ impl OneShot {
             {
                 match call.values.first() {
                     Some(Some(Values::One(Value::Stdin))) => {
-                        if call.form == 1 { self.fail(b"sign-in --service needs a file, not stdin"); return; }
+                        if call.form == 1 {
+                            self.fail(b"sign-in --service needs a file, not stdin");
+                            return;
+                        }
                         if self.stdin_ended.is_some() {
                             self.directory.link = Some(Box::new([]));
                         } else {
@@ -21,8 +24,12 @@ impl OneShot {
                         }
                     }
                     Some(Some(Values::One(Value::File(path)))) => {
-                        if call.form == 1 { self.directory.load_service(path); } else { self.directory.load_link(path); }
-                    },
+                        if call.form == 1 {
+                            self.directory.load_service(path);
+                        } else {
+                            self.directory.load_link(path);
+                        }
+                    }
                     _ => {
                         self.fail(b"a sign-in file is required");
                         return;
@@ -61,8 +68,11 @@ impl OneShot {
             && let Some((held, records)) = signing.shell.as_mut().and_then(Shell::loaded)
         {
             let secret = signing.with.take().expect("sign-in secret");
-            let with = if signing.service.is_some() { jig_client::With::Service(secret) }
-                else { jig_client::With::Link { secret, held: held.clone() } };
+            let with = if signing.service.is_some() {
+                jig_client::With::Service(secret)
+            } else {
+                jig_client::With::Link { secret, held: held.clone() }
+            };
             signing.held.clone_from(&held);
             let mut kept = skein_lib::List::with_capacity(u32::try_from(records.len()).expect("bounded records"));
             for record in records {
@@ -77,8 +87,11 @@ impl OneShot {
         if signing.retry.is_some_and(|at| self.env.now >= at) && self.until.is_some_and(|until| self.env.now < until) {
             signing.retry = None;
             let secret = signing.link.as_ref().expect("sign-in secret").clone();
-            let with = if signing.service.is_some() { jig_client::With::Service(secret) }
-                else { jig_client::With::Link { secret, held: signing.held.clone() } };
+            let with = if signing.service.is_some() {
+                jig_client::With::Service(secret)
+            } else {
+                jig_client::With::Link { secret, held: signing.held.clone() }
+            };
             self.root_event(jig_client::Event::SignIn { with });
         }
     }

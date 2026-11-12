@@ -2,7 +2,9 @@
 use super::fixtures::{Frame, service};
 use skein_io::kernel::{Exit, Kind, OpenHow, Stat};
 const MAKE: &[&str] = &["party", "make", "--project", "7", "--role", "2", "--out", "record", "scout", "--key", "scout"];
-fn make() -> Frame { Frame::read(MAKE) }
+fn make() -> Frame {
+    Frame::read(MAKE)
+}
 #[test]
 fn party_make_writes_the_private_file_only_after_the_answer_is_durable() {
     let mut f = make();
@@ -71,7 +73,12 @@ fn sign_in_service_refuses_group_or_other_access_before_reading_or_sending() {
 }
 #[test]
 fn sign_in_service_refuses_other_forms_before_sending() {
-    for bytes in [b"".as_slice(), super::fixtures::LINK, b"http://127.0.0.1:4000\nshort", b"not-an-address\nZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ"] {
+    for bytes in [
+        b"".as_slice(),
+        super::fixtures::LINK,
+        b"http://127.0.0.1:4000\nshort",
+        b"not-an-address\nZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    ] {
         let mut f = Frame::read(&["sign-in", "--service", "link-file"]);
         f.link = bytes;
         f.answer_sign_in_then_me();

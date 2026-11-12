@@ -383,7 +383,9 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
-    if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party }) | c::Outcome::Made { what: c::Made::Service { party } } = done {
+    if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
+    | c::Outcome::Made { what: c::Made::Service { party } } = done
+    {
         out.put(b"made: party ");
         out.number(*party);
         return;
