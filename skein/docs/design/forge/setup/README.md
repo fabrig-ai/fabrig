@@ -347,13 +347,17 @@ The tiers and budgets are ../../../foundation/testing-strategy.md's and skein's 
   - a token kept untouched when it answers as the bot, made again when it
     is another user's or was never made, and one found on a listing's
     second page replaced;
-  - a second run writing only the hooks' patches;
+  - a second run writing to the forge only each hook, deleted and made
+    again;
   - a deleted bot, a revoked token, a removed collaborator and a deleted
     hook, each made again;
   - a collaborator or a repository's hook on a listing's second page
     neither repeated nor passed over; two hooks with the listener's URL,
-    the lowest id patched and the other deleted, and a hook of another
-    URL left alone;
+    both deleted and one made, and a hook of another URL left alone;
+  - a hook left with another secret made again with the kept one, on a
+    fake that, as Forgejo, keeps a hook's secret through a patch; a
+    refused deletion or making stopping the run, and the next run, no
+    longer refused, leaving one hook with the kept secret;
   - an owned forge's missing org made for its owner; the secret drawn
     when missing and kept when present; a person's account under the
     bot's login refused; another service's bot refused as unmarked; two
@@ -377,8 +381,11 @@ The tiers and budgets are ../../../foundation/testing-strategy.md's and skein's 
   names, with headroom (../../runtime/shell.md, 11): over plaintext and TLS, Forgejo,
   GitHub and both, `runs` runs live with their connections and `states`
   states held. The pure plans keep their edge and derived-capacity checks.
-- **Fuzzy:** random initial forges converge, and a second run writes only
-  the hooks' patches (../../../foundation/testing-strategy.md, section 8).
+- **Fuzzy:** random initial forges, their hooks of the listener's URL
+  holding the kept secret or another, converge, a run that a refused
+  hook deletion or making stops converging at the next; and a second run
+  writes only each hook, deleted and made again
+  (../../../foundation/testing-strategy.md, section 8).
 - **Against a real forge,** the conformance records `forgejo.md`, section 2's and
   10's facts, and a service tests its host on the throwaway Forgejo
   (../../testing/fakes/forge.md, sections 7 and 6). No suite calls GitHub itself.
