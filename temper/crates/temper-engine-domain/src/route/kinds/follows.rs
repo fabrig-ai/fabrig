@@ -86,7 +86,8 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
             let standing = match domain.core.tasks.task(owner) {
                 Some(row) => {
                     row.label == 3
-                        && super::super::findings::stands(domain, asked.scope, settings::AreaOwner::Task(owner)).is_some()
+                        && super::super::findings::stands(domain, asked.scope, settings::AreaOwner::Task(owner))
+                            .is_some()
                 }
                 None => false,
             };
@@ -94,7 +95,12 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
                 let owner = Decimal::of(owner);
                 return Some(words(
                     asked.number,
-                    &[b"its owner task ", owner.as_bytes(), b" is not a live standing role of project ", project.as_bytes()],
+                    &[
+                        b"its owner task ",
+                        owner.as_bytes(),
+                        b" is not a live standing role of project ",
+                        project.as_bytes(),
+                    ],
                 ));
             }
         }

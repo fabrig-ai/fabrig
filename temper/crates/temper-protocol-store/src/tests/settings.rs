@@ -323,6 +323,15 @@ fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
 fn a_task_owned_follow_round_trips_stored_and_wire_values() {
     let mut follow = follow_value();
     follow.owner = d::FollowOwner::Task(52);
+    let wire = d::follow_record(&follow).unwrap();
+    let mut writer = skein_lib::Writer::new(9);
+    wire.owner().encode(&mut writer).unwrap();
+    assert_eq!(writer.finish().as_ref(), &[1, 0, 0, 0, 0, 0, 0, 0, 52]);
+    let owner =
+        w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
+    let mut writer = skein_lib::Writer::new(9);
+    owner.encode(&mut writer).unwrap();
+    assert_eq!(writer.finish().as_ref(), &[1, 0, 0, 0, 0, 0, 0, 0, 52]);
     follow_round_trip(follow);
 }
 

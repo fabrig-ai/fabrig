@@ -917,8 +917,14 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
     let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
     let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
     for (owner, expected) in [
-        (br#"{"task":52}"#.as_slice(), w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap())),
-        (br#"{"person":4}"#.as_slice(), w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap())),
+        (
+            br#"{"task":52}"#.as_slice(),
+            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap()),
+        ),
+        (
+            br#"{"person":4}"#.as_slice(),
+            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()),
+        ),
     ] {
         let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
         let item = items.get(0).unwrap();
@@ -927,7 +933,12 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
         assert_eq!(record.owner(), &expected);
         let text = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None, setting: item.setting, revision: 1, value: Some(set.value.clone()), application: None, proposed: None,
+            overlay: None,
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
         })));
         assert!(skein_lib::bytes::find(&text, &joined(&[br#""owner":"#, owner])).is_some());
     }

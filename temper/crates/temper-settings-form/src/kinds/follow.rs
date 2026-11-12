@@ -92,7 +92,7 @@ pub(super) fn read(d: &Decoder<'_>, at: u32) -> Result<w::Follow, Error> {
             w::FollowOwnerTask::new(&d.kinds, w::FollowOwnerTaskParts { task: d.number(field(&owner, b"task")?)? })
                 .or(Err(error(b"owner", b"wire value bound")))?,
         )
-    }; 
+    };
     let start = match text(d, &fields, b"start", false)?.as_ref() {
         b"" | b"owner" => w::FollowStart::Owner,
         b"code" => w::FollowStart::Code,

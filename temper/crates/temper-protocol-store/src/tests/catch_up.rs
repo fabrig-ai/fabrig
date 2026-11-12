@@ -42,7 +42,11 @@ fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
 }
 
 fn baseline_golden(name: &str) -> Box<[u8]> {
-    let schema = skein_codegen::parse(crate::patches::kept::temper_store::TEXTS[0]).expect("old schema");
+    kept_golden(0, name)
+}
+
+fn kept_golden(version: usize, name: &str) -> Box<[u8]> {
+    let schema = skein_codegen::parse(crate::patches::kept::temper_store::TEXTS[version]).expect("old schema");
     for golden in skein_codegen::generate(&schema).goldens {
         if golden.name == name {
             return golden.bytes.into_boxed_slice();
@@ -74,7 +78,7 @@ fn a_foreman_with_a_task_becomes_retired() {
 
 #[test]
 fn a_v13_closer_upgrades_with_no_question_relay() {
-    let before = include_bytes!("../../golden/v13/record_closer_full.bin").to_vec().into_boxed_slice();
+    let before = kept_golden(2, "record_closer_full.bin");
     let bytes = patched(13, 2, b"Closer", before);
     let row = crate::v14::Closer::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
@@ -86,7 +90,7 @@ fn a_v13_closer_upgrades_with_no_question_relay() {
 
 #[test]
 fn a_v15_person_owned_follow_keeps_its_bytes_and_owner() {
-    let before = include_bytes!("../../golden/v15/record_follow_full.bin").to_vec().into_boxed_slice();
+    let before = kept_golden(4, "record_follow_full.bin");
     let bytes = patched(15, 4, b"Follow", before.clone());
     assert_eq!(bytes, before, "adding task owners leaves person owners unchanged");
     let follow = crate::v16::Follow::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
@@ -96,7 +100,7 @@ fn a_v15_person_owned_follow_keeps_its_bytes_and_owner() {
 
 #[test]
 fn a_v14_closer_keeps_its_question_relay_through_r2() {
-    let before = include_bytes!("../../golden/v14/record_closer_full.bin").to_vec().into_boxed_slice();
+    let before = kept_golden(3, "record_closer_full.bin");
     let bytes = patched(14, 3, b"Closer", before.clone());
     assert_eq!(bytes, before, "R2 only adds declarations and variants");
     let closer =

@@ -293,7 +293,8 @@ fn follow_show_prints_the_whole_setting_and_oldest_first_entries() {
 fn follow_show_names_a_task_owner_in_text_and_json() {
     let mut parts = row().into_parts();
     let mut setting = parts.setting.into_parts();
-    setting.owner = w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
+    setting.owner =
+        w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
     parts.setting = w::Follow::new(&w::CEILINGS, setting).unwrap();
     let panel = panel(&[w::FollowView::new(&w::CEILINGS, parts).unwrap()]);
     let text = read(&panel, true, false);
