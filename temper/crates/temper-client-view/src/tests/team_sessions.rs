@@ -10,11 +10,12 @@ use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role};
 use temper_client_domain::pages::team::{self, Facts, Shown};
 
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
         people: List::with_capacity(0),
         cut: false,
         triager: None,
+        follows: List::with_capacity(0),
         roles: List::from_boxed(Box::new([team::Role {
             task: 52,
             name: b"Prover".as_slice().into(),

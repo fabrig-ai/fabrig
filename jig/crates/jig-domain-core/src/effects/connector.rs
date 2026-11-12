@@ -29,6 +29,58 @@ impl RepairSeed {
     pub const fn number(&self) -> u64 {
         self.number
     }
+
+    /// Root-made procedure delegate, checking its requester's room, depth and funding,
+    /// without requiring an agent-selectable delegation kind (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    pub fn delegate(
+        self,
+        task: u64,
+        context: &tasks::DelegationContext,
+        connector: u16,
+        code: u32,
+        spec: tasks::Spec,
+        contract: tasks::Contract,
+    ) -> Result<tasks::Event, tasks::Refusal> {
+        if context.tasks_left == 0 {
+            return Err(tasks::Refusal::Tree);
+        }
+        let mut authority = context.authority.clone();
+        authority.delegation.depth = authority.delegation.depth.checked_sub(1).ok_or(tasks::Refusal::Depth)?;
+        authority.budget.spend = self.budget.min(
+            context
+                .numbers
+                .budget
+                .saturating_sub(context.numbers.spent)
+                .saturating_sub(context.numbers.spent_below)
+                .saturating_sub(context.numbers.reserved),
+        );
+        if authority.budget.spend == 0 {
+            return Err(tasks::Refusal::Funding);
+        }
+        Ok(tasks::Event::Make {
+            reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
+            creator: tasks::Party::Task(task),
+            batch: Box::new([tasks::New {
+                number: self.number,
+                project: self.project,
+                executor: tasks::Executor::Procedure { connector, code },
+                spec,
+                contract,
+                numbers: tasks::Numbers { budget: authority.budget.spend, spent: 0, spent_below: 0, reserved: 0 },
+                authority,
+                funder: tasks::Funder::Task(task),
+                deadline: tasks::Deadline::Named,
+                label: 0,
+                flags: tasks::Flags::PLAIN,
+                llm: None,
+                dependencies: Box::new([]),
+                holdings: Box::new([]),
+                wake: tasks::WakePolicy::DEFAULT,
+                recurring: None,
+                tracked: None,
+            }]),
+        })
+    }
 }
 
 /// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).

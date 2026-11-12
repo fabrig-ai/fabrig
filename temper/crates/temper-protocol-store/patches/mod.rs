@@ -119,6 +119,7 @@ owner temper 5
 family temper-store 15 to 16
 add FollowOwnerTask
 add FollowOwner.task
+add FollowQuestion.relayed option u64 none
 add CallFollow
 add CallPayload.follow
 ",
@@ -2603,7 +2604,7 @@ record FollowSkip { after: fixed 32 reason: bytes 8192 }
 record FollowFailing { count: u32 }
 enum FollowVerdict { passed, failing: FollowFailing, many }
 record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
-record FollowQuestion { change: u64 number: u64 words: bytes 1048576 person: option u64 answer: option bytes 1048576 }
+record FollowQuestion { change: u64 number: u64 words: bytes 1048576 person: option u64 answer: option bytes 1048576 relayed: option u64 }
 record FollowRow { project: u32 follow: u32 source: Repository branch: bytes 1024 heard: option fixed 32 task: option u64 stopped: option bytes 8192 queue: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity questions: list 1024 FollowQuestion pending: option FollowAct }
 record FollowCheckProgress { follow: u32 source: fixed 32 head: fixed 32 definition: bytes 1024 key: option fixed 32 flight: option TierFlight page: u32 faults: u32 held: option bytes 512 }
 record ChangeRow { signed: list 8 SignOff goal: option u64 ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 follows: option ChangeFollows follow_check: option FollowCheckProgress catch_up: option fixed 32 close: option bytes 16384 merge_result: option bytes 512 }
@@ -17217,80 +17218,81 @@ versioned record Row { value: Value }
                 pub const WORDS: FieldIx = FieldIx::new(843);
                 pub const PERSON: FieldIx = FieldIx::new(844);
                 pub const ANSWER: FieldIx = FieldIx::new(845);
+                pub const RELAYED: FieldIx = FieldIx::new(846);
             }
             pub mod follow_row {
                 use skein_codec::schema::FieldIx;
-                pub const PROJECT: FieldIx = FieldIx::new(846);
-                pub const FOLLOW: FieldIx = FieldIx::new(847);
-                pub const SOURCE: FieldIx = FieldIx::new(848);
-                pub const BRANCH: FieldIx = FieldIx::new(849);
-                pub const HEARD: FieldIx = FieldIx::new(850);
-                pub const TASK: FieldIx = FieldIx::new(851);
-                pub const STOPPED: FieldIx = FieldIx::new(852);
-                pub const QUEUE: FieldIx = FieldIx::new(853);
-                pub const SKIPS: FieldIx = FieldIx::new(854);
-                pub const PARITY: FieldIx = FieldIx::new(855);
-                pub const QUESTIONS: FieldIx = FieldIx::new(856);
-                pub const PENDING: FieldIx = FieldIx::new(857);
+                pub const PROJECT: FieldIx = FieldIx::new(847);
+                pub const FOLLOW: FieldIx = FieldIx::new(848);
+                pub const SOURCE: FieldIx = FieldIx::new(849);
+                pub const BRANCH: FieldIx = FieldIx::new(850);
+                pub const HEARD: FieldIx = FieldIx::new(851);
+                pub const TASK: FieldIx = FieldIx::new(852);
+                pub const STOPPED: FieldIx = FieldIx::new(853);
+                pub const QUEUE: FieldIx = FieldIx::new(854);
+                pub const SKIPS: FieldIx = FieldIx::new(855);
+                pub const PARITY: FieldIx = FieldIx::new(856);
+                pub const QUESTIONS: FieldIx = FieldIx::new(857);
+                pub const PENDING: FieldIx = FieldIx::new(858);
             }
             pub mod follow_check_progress {
                 use skein_codec::schema::FieldIx;
-                pub const FOLLOW: FieldIx = FieldIx::new(858);
-                pub const SOURCE: FieldIx = FieldIx::new(859);
-                pub const HEAD: FieldIx = FieldIx::new(860);
-                pub const DEFINITION: FieldIx = FieldIx::new(861);
-                pub const KEY: FieldIx = FieldIx::new(862);
-                pub const FLIGHT: FieldIx = FieldIx::new(863);
-                pub const PAGE: FieldIx = FieldIx::new(864);
-                pub const FAULTS: FieldIx = FieldIx::new(865);
-                pub const HELD: FieldIx = FieldIx::new(866);
+                pub const FOLLOW: FieldIx = FieldIx::new(859);
+                pub const SOURCE: FieldIx = FieldIx::new(860);
+                pub const HEAD: FieldIx = FieldIx::new(861);
+                pub const DEFINITION: FieldIx = FieldIx::new(862);
+                pub const KEY: FieldIx = FieldIx::new(863);
+                pub const FLIGHT: FieldIx = FieldIx::new(864);
+                pub const PAGE: FieldIx = FieldIx::new(865);
+                pub const FAULTS: FieldIx = FieldIx::new(866);
+                pub const HELD: FieldIx = FieldIx::new(867);
             }
             pub mod change_row {
                 use skein_codec::schema::FieldIx;
-                pub const SIGNED: FieldIx = FieldIx::new(867);
-                pub const GOAL: FieldIx = FieldIx::new(868);
-                pub const ENDING: FieldIx = FieldIx::new(869);
-                pub const REPAIR_TASKS: FieldIx = FieldIx::new(870);
-                pub const RESOLUTION_TASKS: FieldIx = FieldIx::new(871);
-                pub const RESULT: FieldIx = FieldIx::new(872);
-                pub const TASK: FieldIx = FieldIx::new(873);
-                pub const REPOSITORY: FieldIx = FieldIx::new(874);
-                pub const BRANCH: FieldIx = FieldIx::new(875);
-                pub const BASE: FieldIx = FieldIx::new(876);
-                pub const TITLE: FieldIx = FieldIx::new(877);
-                pub const BODY: FieldIx = FieldIx::new(878);
-                pub const PRIORITY: FieldIx = FieldIx::new(879);
-                pub const CHANGE: FieldIx = FieldIx::new(880);
-                pub const CI: FieldIx = FieldIx::new(881);
-                pub const PULL: FieldIx = FieldIx::new(882);
-                pub const PENDING: FieldIx = FieldIx::new(883);
-                pub const EFFECT: FieldIx = FieldIx::new(884);
-                pub const DELEGATE: FieldIx = FieldIx::new(885);
-                pub const DELEGATE_STATUS: FieldIx = FieldIx::new(886);
-                pub const VERDICTS: FieldIx = FieldIx::new(887);
-                pub const GATE_REMARKS: FieldIx = FieldIx::new(888);
-                pub const DRIFT: FieldIx = FieldIx::new(889);
-                pub const BASE_REPAIR: FieldIx = FieldIx::new(890);
-                pub const QUEUE_REPAIR: FieldIx = FieldIx::new(891);
-                pub const QUEUE_REPAIRS: FieldIx = FieldIx::new(892);
-                pub const PRODUCING_CHARTER: FieldIx = FieldIx::new(893);
-                pub const REVIEW_CHARTER: FieldIx = FieldIx::new(894);
-                pub const PRODUCING_LLM: FieldIx = FieldIx::new(895);
-                pub const REVIEW_LLM: FieldIx = FieldIx::new(896);
-                pub const EFFECT_ACCOUNT: FieldIx = FieldIx::new(897);
-                pub const PRODUCER_FAILURE: FieldIx = FieldIx::new(898);
-                pub const REPORT: FieldIx = FieldIx::new(899);
-                pub const QUESTIONS: FieldIx = FieldIx::new(900);
-                pub const REPAIRS: FieldIx = FieldIx::new(901);
-                pub const FOLLOWS: FieldIx = FieldIx::new(902);
-                pub const FOLLOW_CHECK: FieldIx = FieldIx::new(903);
-                pub const CATCH_UP: FieldIx = FieldIx::new(904);
-                pub const CLOSE: FieldIx = FieldIx::new(905);
-                pub const MERGE_RESULT: FieldIx = FieldIx::new(906);
+                pub const SIGNED: FieldIx = FieldIx::new(868);
+                pub const GOAL: FieldIx = FieldIx::new(869);
+                pub const ENDING: FieldIx = FieldIx::new(870);
+                pub const REPAIR_TASKS: FieldIx = FieldIx::new(871);
+                pub const RESOLUTION_TASKS: FieldIx = FieldIx::new(872);
+                pub const RESULT: FieldIx = FieldIx::new(873);
+                pub const TASK: FieldIx = FieldIx::new(874);
+                pub const REPOSITORY: FieldIx = FieldIx::new(875);
+                pub const BRANCH: FieldIx = FieldIx::new(876);
+                pub const BASE: FieldIx = FieldIx::new(877);
+                pub const TITLE: FieldIx = FieldIx::new(878);
+                pub const BODY: FieldIx = FieldIx::new(879);
+                pub const PRIORITY: FieldIx = FieldIx::new(880);
+                pub const CHANGE: FieldIx = FieldIx::new(881);
+                pub const CI: FieldIx = FieldIx::new(882);
+                pub const PULL: FieldIx = FieldIx::new(883);
+                pub const PENDING: FieldIx = FieldIx::new(884);
+                pub const EFFECT: FieldIx = FieldIx::new(885);
+                pub const DELEGATE: FieldIx = FieldIx::new(886);
+                pub const DELEGATE_STATUS: FieldIx = FieldIx::new(887);
+                pub const VERDICTS: FieldIx = FieldIx::new(888);
+                pub const GATE_REMARKS: FieldIx = FieldIx::new(889);
+                pub const DRIFT: FieldIx = FieldIx::new(890);
+                pub const BASE_REPAIR: FieldIx = FieldIx::new(891);
+                pub const QUEUE_REPAIR: FieldIx = FieldIx::new(892);
+                pub const QUEUE_REPAIRS: FieldIx = FieldIx::new(893);
+                pub const PRODUCING_CHARTER: FieldIx = FieldIx::new(894);
+                pub const REVIEW_CHARTER: FieldIx = FieldIx::new(895);
+                pub const PRODUCING_LLM: FieldIx = FieldIx::new(896);
+                pub const REVIEW_LLM: FieldIx = FieldIx::new(897);
+                pub const EFFECT_ACCOUNT: FieldIx = FieldIx::new(898);
+                pub const PRODUCER_FAILURE: FieldIx = FieldIx::new(899);
+                pub const REPORT: FieldIx = FieldIx::new(900);
+                pub const QUESTIONS: FieldIx = FieldIx::new(901);
+                pub const REPAIRS: FieldIx = FieldIx::new(902);
+                pub const FOLLOWS: FieldIx = FieldIx::new(903);
+                pub const FOLLOW_CHECK: FieldIx = FieldIx::new(904);
+                pub const CATCH_UP: FieldIx = FieldIx::new(905);
+                pub const CLOSE: FieldIx = FieldIx::new(906);
+                pub const MERGE_RESULT: FieldIx = FieldIx::new(907);
             }
             pub mod findings_topic {
                 use skein_codec::schema::FieldIx;
-                pub const PROJECT: FieldIx = FieldIx::new(907);
+                pub const PROJECT: FieldIx = FieldIx::new(908);
             }
             pub mod topic {
                 use skein_codec::schema::VariantIx;
@@ -17302,16 +17304,16 @@ versioned record Row { value: Value }
             }
             pub mod subscriber {
                 use skein_codec::schema::FieldIx;
-                pub const TASK: FieldIx = FieldIx::new(908);
-                pub const NUMBER: FieldIx = FieldIx::new(909);
-                pub const TOPIC: FieldIx = FieldIx::new(910);
-                pub const OWN_CHANGE: FieldIx = FieldIx::new(911);
-                pub const GOAL_TASKS: FieldIx = FieldIx::new(912);
-                pub const PATHS: FieldIx = FieldIx::new(913);
+                pub const TASK: FieldIx = FieldIx::new(909);
+                pub const NUMBER: FieldIx = FieldIx::new(910);
+                pub const TOPIC: FieldIx = FieldIx::new(911);
+                pub const OWN_CHANGE: FieldIx = FieldIx::new(912);
+                pub const GOAL_TASKS: FieldIx = FieldIx::new(913);
+                pub const PATHS: FieldIx = FieldIx::new(914);
             }
             pub mod finding_count {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(914);
+                pub const NUMBER: FieldIx = FieldIx::new(915);
             }
             pub mod finding_holder {
                 use skein_codec::schema::VariantIx;
@@ -17321,15 +17323,15 @@ versioned record Row { value: Value }
             }
             pub mod finding_held {
                 use skein_codec::schema::FieldIx;
-                pub const HOLDER: FieldIx = FieldIx::new(915);
+                pub const HOLDER: FieldIx = FieldIx::new(916);
             }
             pub mod finding_areas {
                 use skein_codec::schema::FieldIx;
-                pub const NAMES: FieldIx = FieldIx::new(916);
+                pub const NAMES: FieldIx = FieldIx::new(917);
             }
             pub mod finding_words {
                 use skein_codec::schema::FieldIx;
-                pub const WORDS: FieldIx = FieldIx::new(917);
+                pub const WORDS: FieldIx = FieldIx::new(918);
             }
             pub mod finding_refusal {
                 use skein_codec::schema::VariantIx;
@@ -17343,7 +17345,7 @@ versioned record Row { value: Value }
             }
             pub mod finding_refused {
                 use skein_codec::schema::FieldIx;
-                pub const WHY: FieldIx = FieldIx::new(918);
+                pub const WHY: FieldIx = FieldIx::new(919);
             }
             pub mod finding_result {
                 use skein_codec::schema::VariantIx;
@@ -17356,15 +17358,15 @@ versioned record Row { value: Value }
             }
             pub mod finding_reply {
                 use skein_codec::schema::FieldIx;
-                pub const PROJECT: FieldIx = FieldIx::new(919);
-                pub const NUMBER: FieldIx = FieldIx::new(920);
-                pub const AREA: FieldIx = FieldIx::new(921);
-                pub const RESULT: FieldIx = FieldIx::new(922);
+                pub const PROJECT: FieldIx = FieldIx::new(920);
+                pub const NUMBER: FieldIx = FieldIx::new(921);
+                pub const AREA: FieldIx = FieldIx::new(922);
+                pub const RESULT: FieldIx = FieldIx::new(923);
             }
             pub mod call_follow {
                 use skein_codec::schema::FieldIx;
-                pub const FOLLOW: FieldIx = FieldIx::new(923);
-                pub const REFUSAL: FieldIx = FieldIx::new(924);
+                pub const FOLLOW: FieldIx = FieldIx::new(924);
+                pub const REFUSAL: FieldIx = FieldIx::new(925);
             }
             pub mod call_payload {
                 use skein_codec::schema::VariantIx;
@@ -17377,24 +17379,24 @@ versioned record Row { value: Value }
             }
             pub mod call {
                 use skein_codec::schema::FieldIx;
-                pub const KEY: FieldIx = FieldIx::new(925);
-                pub const ANSWER: FieldIx = FieldIx::new(926);
+                pub const KEY: FieldIx = FieldIx::new(926);
+                pub const ANSWER: FieldIx = FieldIx::new(927);
             }
             pub mod area_task {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(927);
+                pub const NUMBER: FieldIx = FieldIx::new(928);
             }
             pub mod area_party {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(928);
+                pub const NUMBER: FieldIx = FieldIx::new(929);
             }
             pub mod area_role {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(929);
+                pub const NUMBER: FieldIx = FieldIx::new(930);
             }
             pub mod area_charter {
                 use skein_codec::schema::FieldIx;
-                pub const NUMBER: FieldIx = FieldIx::new(930);
+                pub const NUMBER: FieldIx = FieldIx::new(931);
             }
             pub mod area_owner {
                 use skein_codec::schema::VariantIx;
@@ -17405,17 +17407,17 @@ versioned record Row { value: Value }
             }
             pub mod area {
                 use skein_codec::schema::FieldIx;
-                pub const NAME: FieldIx = FieldIx::new(931);
-                pub const WORDS: FieldIx = FieldIx::new(932);
-                pub const OWNER: FieldIx = FieldIx::new(933);
+                pub const NAME: FieldIx = FieldIx::new(932);
+                pub const WORDS: FieldIx = FieldIx::new(933);
+                pub const OWNER: FieldIx = FieldIx::new(934);
             }
             pub mod project_areas {
                 use skein_codec::schema::FieldIx;
-                pub const AREAS: FieldIx = FieldIx::new(934);
+                pub const AREAS: FieldIx = FieldIx::new(935);
             }
             pub mod project_triager {
                 use skein_codec::schema::FieldIx;
-                pub const OWNER: FieldIx = FieldIx::new(935);
+                pub const OWNER: FieldIx = FieldIx::new(936);
             }
             pub mod setting_value {
                 use skein_codec::schema::VariantIx;
@@ -17434,8 +17436,8 @@ versioned record Row { value: Value }
             }
             pub mod sized_value {
                 use skein_codec::schema::FieldIx;
-                pub const VALUE: FieldIx = FieldIx::new(936);
-                pub const SIZE: FieldIx = FieldIx::new(937);
+                pub const VALUE: FieldIx = FieldIx::new(937);
+                pub const SIZE: FieldIx = FieldIx::new(938);
             }
             pub mod setting_edit {
                 use skein_codec::schema::VariantIx;
@@ -17445,11 +17447,11 @@ versioned record Row { value: Value }
             }
             pub mod setting_row {
                 use skein_codec::schema::FieldIx;
-                pub const KIND: FieldIx = FieldIx::new(938);
-                pub const SCOPE: FieldIx = FieldIx::new(939);
-                pub const NUMBER: FieldIx = FieldIx::new(940);
-                pub const SLOT: FieldIx = FieldIx::new(941);
-                pub const EDIT: FieldIx = FieldIx::new(942);
+                pub const KIND: FieldIx = FieldIx::new(939);
+                pub const SCOPE: FieldIx = FieldIx::new(940);
+                pub const NUMBER: FieldIx = FieldIx::new(941);
+                pub const SLOT: FieldIx = FieldIx::new(942);
+                pub const EDIT: FieldIx = FieldIx::new(943);
             }
             pub mod finding_kind {
                 use skein_codec::schema::VariantIx;
@@ -17479,30 +17481,30 @@ versioned record Row { value: Value }
             }
             pub mod finding {
                 use skein_codec::schema::FieldIx;
-                pub const PROJECT: FieldIx = FieldIx::new(943);
-                pub const NUMBER: FieldIx = FieldIx::new(944);
-                pub const KIND: FieldIx = FieldIx::new(945);
-                pub const SEVERITY: FieldIx = FieldIx::new(946);
-                pub const AREA: FieldIx = FieldIx::new(947);
-                pub const STATE: FieldIx = FieldIx::new(948);
-                pub const TITLE: FieldIx = FieldIx::new(949);
-                pub const BODY: FieldIx = FieldIx::new(950);
-                pub const FILER: FieldIx = FieldIx::new(951);
-                pub const AT: FieldIx = FieldIx::new(952);
-                pub const WHY: FieldIx = FieldIx::new(953);
-                pub const HANDER: FieldIx = FieldIx::new(954);
-                pub const GOAL: FieldIx = FieldIx::new(955);
-                pub const REASON: FieldIx = FieldIx::new(956);
+                pub const PROJECT: FieldIx = FieldIx::new(944);
+                pub const NUMBER: FieldIx = FieldIx::new(945);
+                pub const KIND: FieldIx = FieldIx::new(946);
+                pub const SEVERITY: FieldIx = FieldIx::new(947);
+                pub const AREA: FieldIx = FieldIx::new(948);
+                pub const STATE: FieldIx = FieldIx::new(949);
+                pub const TITLE: FieldIx = FieldIx::new(950);
+                pub const BODY: FieldIx = FieldIx::new(951);
+                pub const FILER: FieldIx = FieldIx::new(952);
+                pub const AT: FieldIx = FieldIx::new(953);
+                pub const WHY: FieldIx = FieldIx::new(954);
+                pub const HANDER: FieldIx = FieldIx::new(955);
+                pub const GOAL: FieldIx = FieldIx::new(956);
+                pub const REASON: FieldIx = FieldIx::new(957);
             }
             pub mod device {
                 use skein_codec::schema::FieldIx;
-                pub const PARTY: FieldIx = FieldIx::new(957);
-                pub const NUMBER: FieldIx = FieldIx::new(958);
-                pub const ENDPOINT: FieldIx = FieldIx::new(959);
-                pub const P256DH: FieldIx = FieldIx::new(960);
-                pub const AUTH: FieldIx = FieldIx::new(961);
-                pub const LABEL: FieldIx = FieldIx::new(962);
-                pub const AT: FieldIx = FieldIx::new(963);
+                pub const PARTY: FieldIx = FieldIx::new(958);
+                pub const NUMBER: FieldIx = FieldIx::new(959);
+                pub const ENDPOINT: FieldIx = FieldIx::new(960);
+                pub const P256DH: FieldIx = FieldIx::new(961);
+                pub const AUTH: FieldIx = FieldIx::new(962);
+                pub const LABEL: FieldIx = FieldIx::new(963);
+                pub const AT: FieldIx = FieldIx::new(964);
             }
             pub mod value {
                 use skein_codec::schema::VariantIx;
@@ -17548,7 +17550,7 @@ versioned record Row { value: Value }
             }
             pub mod row {
                 use skein_codec::schema::FieldIx;
-                pub const VALUE: FieldIx = FieldIx::new(964);
+                pub const VALUE: FieldIx = FieldIx::new(965);
             }
         }
         pub mod p0001 {

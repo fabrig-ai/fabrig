@@ -4,5 +4,6 @@ owner temper 5
 family temper-store 15 to 16
 add FollowOwnerTask
 add FollowOwner.task
+add FollowQuestion.relayed option u64 none
 add CallFollow
 add CallPayload.follow

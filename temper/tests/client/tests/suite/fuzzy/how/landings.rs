@@ -119,7 +119,7 @@ impl Drawing {
                 name: text(if rng.chance(500) { b"Pat" } else { b"" }),
             }])
         });
-        let expected = how::follows(panel.as_ref(), route.as_ref(), members.as_deref(), rng.below(5));
+        let expected = how::follows(panel.as_ref(), route.as_ref(), members.as_deref(), rng.below(5), &[]);
         let sources: Vec<_> =
             panel.as_ref().map_or_else(Vec::new, |panel| panel.follows().iter().map(w::FollowView::source).collect());
         assert_eq!(
