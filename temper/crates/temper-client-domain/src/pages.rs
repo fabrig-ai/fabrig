@@ -354,8 +354,11 @@ impl Default for Pages {
     }
 }
 impl Pages {
-    pub(crate) const fn enable_launchpad(&mut self) {
+    pub(crate) fn enable_launchpad(&mut self, out: &mut Queue<Request>) {
         self.launchpad = true;
+        if let Some(reads) = &mut self.all_home {
+            reads.stop_follows(out);
+        }
     }
     /// Left-off handles on a launchpad Home; each read is unknown until delivered.
     #[must_use]
@@ -1848,7 +1851,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             let filter = if pages.launchpad {
-                pages.all_home = Some(all_home::AllHome::new(true, None));
+                pages.all_home = Some(all_home::AllHome::new(true, None, env.limits.forge));
                 pages.left_off = Some(launchpad::LeftOff::new(project, &mut pages.next));
                 crate::address::Filter::ALL
             } else {
@@ -1869,11 +1872,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.chats = Some(page);
         }
         if address == Address::AllHome {
-            pages.all_home = Some(all_home::AllHome::new(true, None));
+            pages.all_home = Some(all_home::AllHome::new(true, None, env.limits.forge));
             pages.inbox = Some(inbox::Inbox::new(crate::address::Filter::ALL, pages.next, &env.limits, out));
         }
         if let Address::Inbox { filter } = address {
-            pages.needs_decided = Some(all_home::AllHome::new(false, filter.project));
+            pages.needs_decided = Some(all_home::AllHome::new(false, filter.project, env.limits.forge));
             pages.inbox = Some(inbox::Inbox::new(filter, pages.next, &env.limits, out));
         }
         pages.choice = choice::Draft::default();
@@ -3052,7 +3055,14 @@ fn configure_across(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: 
     }
     let mut next = pages.next;
     let own = if let Address::Home { project } = pages.address { Some(project) } else { None };
-    reads.configure(pages.me(client), own, &mut next, env.limits.forge, out);
+    reads.configure(
+        pages.me(client),
+        own,
+        pages.address == Address::AllHome && !pages.launchpad,
+        &mut next,
+        env.limits.forge,
+        out,
+    );
     pages.next = next;
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = pages.next;

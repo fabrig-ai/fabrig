@@ -317,13 +317,15 @@ fn period_words(w: &Words, period: how::Period) -> Box<[u8]> {
         None => word,
     }
 }
-enum Who {
+pub(super) enum Who {
+    None,
     Code,
     Agent,
     Person,
 }
-fn chip(b: &mut Builder, words: &[u8], who: Who) {
+pub(super) fn chip(b: &mut Builder, words: &[u8], who: Who) {
     let style = match who {
+        Who::None => look::HOW_WHO_NONE,
         Who::Code => look::HOW_WHO_CODE,
         Who::Agent => look::HOW_WHO_AGENT,
         Who::Person => look::HOW_WHO_PERSON,

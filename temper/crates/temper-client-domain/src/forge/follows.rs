@@ -11,22 +11,19 @@ pub fn dependency_line(
     project: &[u8],
     projects: &[jig_client::contract::MeProject],
 ) -> Box<[u8]> {
-    let mut name = None;
+    let name = dependency_name(row.project(), projects);
+    concat(&[b"dependency ", Decimal::of(u64::from(row.number())).as_bytes(), b": ", project, b" depends on ", &name])
+}
+
+/// Name only a project the reader belongs to (domain/forge/dependencies.md, 4).
+#[must_use]
+pub fn dependency_name(number: u32, projects: &[jig_client::contract::MeProject]) -> Box<[u8]> {
     for project in projects {
-        if project.project == row.project() {
-            name = Some(project.name.bytes());
-            break;
+        if project.project == number {
+            return project.name.bytes().into();
         }
     }
-    let fallback = concat(&[b"project ", Decimal::of(u64::from(row.project())).as_bytes()]);
-    concat(&[
-        b"dependency ",
-        Decimal::of(u64::from(row.number())).as_bytes(),
-        b": ",
-        project,
-        b" depends on ",
-        name.unwrap_or(&fallback),
-    ])
+    concat(&[b"project ", Decimal::of(u64::from(number)).as_bytes()])
 }
 
 #[must_use]
