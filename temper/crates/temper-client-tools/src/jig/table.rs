@@ -84,6 +84,8 @@ pub enum Kind {
     File,
     Duration,
     Proposal,
+    /// A project name or number and a finding number, P/N.
+    Finding,
     Digest,
     Condition,
     Project {
@@ -114,6 +116,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         Kind::File if argument.name == b"items" || argument.name == b"instructions" || argument.name == b"spec" => {
             Bound::Bytes { most: limits.ask_bytes }
         }
+        Kind::File if argument.name == b"body" => Bound::Bytes { most: 4096 },
         Kind::Duration if argument.name == b"timeout" => {
             Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
         }
@@ -122,6 +125,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         | Kind::Duration
         | Kind::Word { .. }
         | Kind::Proposal
+        | Kind::Finding
         | Kind::Digest
         | Kind::Condition
         | Kind::Project { .. }
@@ -170,6 +174,9 @@ pub const fn repeated(
 /// The published vocabulary of argument placeholders.
 pub const PLACEHOLDERS: &[&[u8]] = &[
     b"HOLD",
+    b"FINDING",
+    b"AREA",
+    b"PARTY",
     b"TASK",
     b"PROJECT",
     b"FORGE",

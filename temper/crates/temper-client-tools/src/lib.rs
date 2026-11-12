@@ -7,6 +7,7 @@ pub mod adopt;
 mod amend;
 mod change;
 mod demo;
+mod finding;
 mod forge;
 mod forges;
 pub mod jig;
