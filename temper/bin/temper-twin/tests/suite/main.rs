@@ -2,7 +2,9 @@
 mod cli;
 
 use std::process::{Command, Stdio};
-use temper_twin_tool::TABLE;
+
+const TABLE: skein_shell::Table =
+    skein_shell::Table { version: temper_version::VERSION, commit: temper_version::COMMIT, ..temper_twin_tool::TABLE };
 
 fn empty(text: &str) -> bool {
     text.is_empty()

@@ -21,8 +21,8 @@ const PRINT: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-client-gallery",
     line: "the browser's pages in named states, printed for screenshots.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[PRINT],
     settings: &[],
     variables: &[],
@@ -31,13 +31,13 @@ pub const TABLE: Table = Table {
 
 /// Answer the table, then print the gallery (temper/docs/design/testing/tools.md, 4.2).
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,
         reason = "the binary's capture: temper-client-gallery's arguments, once (skein/docs/foundation/cli.md, 6)"
     )]
     let arguments = skein_shell::arguments();
-    match TABLE.front(&arguments) {
+    match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS

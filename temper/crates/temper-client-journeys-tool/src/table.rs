@@ -100,8 +100,8 @@ pub(crate) const AGAIN: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[REPRINT, ADD, AGAIN],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &PATH, &TARGET],
