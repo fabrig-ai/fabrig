@@ -5,6 +5,7 @@
 
 
 
+- **Not yet:** 2.6, *Its own selection*: the nested cargo commands set no feature unification [in flight: change 2121].
 - **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
   browser kit can't do it offline: `skein-browser`'s requests and
   `fake-person-browser`'s steps can't grant a notification permission,
