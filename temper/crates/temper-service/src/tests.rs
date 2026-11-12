@@ -4,7 +4,6 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod core_wait;
 pub(crate) mod fixtures;
 mod limits;
-mod long_pass;
 mod store_route;
 
 mod store;
@@ -61,3 +60,5 @@ mod room;
 mod workspace_reuse;
 
 mod link_room;
+
+mod mirrors;

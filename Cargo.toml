@@ -294,6 +294,7 @@ members = [
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
+    "temper/crates/temper-service-core",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -619,6 +620,7 @@ temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
+temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }

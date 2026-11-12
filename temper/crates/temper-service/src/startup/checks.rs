@@ -499,7 +499,7 @@ pub(super) fn call_answer(path: Path, bytes: u32, problems: &mut Problems) {
         super::call_input_path(path),
         u64::from(bytes),
         b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_engine_smith::DOC_ANSWER)),
+        Some(u64::from(temper_service_core::DOC_ANSWER)),
     );
 }
 /// Only an agent running locally must hold the answer in its tool payload.
@@ -513,7 +513,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
             .member(b"tool_payload"),
         u64::from(agent.tool_payload()),
         b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_engine_smith::DOC_ANSWER)),
+        Some(u64::from(temper_service_core::DOC_ANSWER)),
     );
 }
 /// Each process checks the turn bounds its own document can know
