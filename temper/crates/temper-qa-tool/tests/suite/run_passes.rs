@@ -166,10 +166,13 @@ fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
     fs::create_dir(files.join("dir")).expect("repository directory");
     fs::write(files.join("dir/b.txt"), b"kept across resumes").expect("commit file");
     run.tick();
-    world.home.transact(|ledger| {
-        ledger.file_request(1, 1, Some(99), 1)?;
-        ledger.end_goal(99, 2)
-    }).expect("ended goal");
+    world
+        .home
+        .transact(|ledger| {
+            ledger.file_request(1, 1, Some(99), 1)?;
+            ledger.end_goal(99, 2)
+        })
+        .expect("ended goal");
     run.processes.next.push_back(Agent::Never);
     run.tick();
     assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");

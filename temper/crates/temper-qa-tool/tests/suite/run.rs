@@ -121,7 +121,10 @@ fn builds_learn_holds_only_when_the_observed_head_contains_them() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one serial triage session pins its inputs, fakes-only brief and environment")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one serial triage session pins its inputs, fakes-only brief and environment"
+)]
 fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Case, Agent::None]);
