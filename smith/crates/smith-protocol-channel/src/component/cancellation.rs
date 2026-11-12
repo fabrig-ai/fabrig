@@ -1,4 +1,4 @@
-//! One polite cancellation per activation (smith/docs/design/protocol/channel.md, section 5).
+//! One turn drain before the one polite cancellation per activation (smith/docs/design/protocol/channel.md, section 5).
 use crate::Error;
 use core::mem;
 

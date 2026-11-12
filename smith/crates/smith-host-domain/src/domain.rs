@@ -90,6 +90,7 @@ pub(crate) struct Agent {
     tree: tree::State,
     word: word::State,
     host_stopped: bool,
+    /// The turn-stop entrance has been used or superseded by a stop.
     turn_stop: bool,
     diagnostic: Option<Fault>,
     reading: reading::State,
@@ -245,6 +246,7 @@ fn from_parent(
         }
         parent::Event::Stop { agent: token } => {
             let agent = current(domain, token)?;
+            agent.turn_stop = true;
             match agent.supervision {
                 State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } => agent.host_stopped = true,
                 State::Spawning

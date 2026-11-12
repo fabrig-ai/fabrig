@@ -1,13 +1,13 @@
-//! The run handle and a cancel waiting for admission share one state.
-//! No handle is known until the domain names it. `cancel` accepts cancellation,
-//! `admit` retains the handle, and `follow` delivers an owed cancel after requests.
+//! The run handle and a drain or cancel waiting for admission share one state.
+//! No handle is known until the domain names it. `drain` and `cancel` retain controls,
+//! `admit` retains the handle, and `follow` delivers the owed control after requests.
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use super::Stages;
 use skein_lib::Token;
 use smith_domain as domain;
 
-/// The domain's run handle and any cancel waiting for it.
+/// The domain's run handle and any drain or cancel waiting for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Admission {
     /// The domain has not named the run.

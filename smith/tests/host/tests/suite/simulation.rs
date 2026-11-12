@@ -1535,6 +1535,16 @@ fn drain_before_start_follows_the_start_send() {
         last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
         world.clean_end();
     }
+    let mut world = World::new(1773, limits());
+    world.spawn(start());
+    world.event(Input::Parent(parent::Event::Stop { agent: world.owner() }));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.owner() }));
+    world.spawned();
+    world.sent();
+    assert_eq!(world.seen.down.len(), 1, "a stop supersedes a drain even before spawning ends");
+    world.up(Up::Admitted);
+    last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
+    world.clean_end();
 }
 
 #[test]
