@@ -304,6 +304,35 @@ fn a_change_asked_from_the_launchpad_starts_a_chat() {
     assert!(tui.rows().iter().any(|row| row == &format!("❯ {REQUEST}")), "{}", tui.text());
 }
 
+#[test]
+fn telling_from_the_launchpad_files_feedback_in_hello() {
+    const WORDS: &str = "The export button is grey";
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    let mut tui = Tui::hello_launchpad(&mut world, TUI);
+    tui.type_words(&mut world, &format!("/tell {WORDS}"));
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let front = world.front();
+    let findings: Vec<_> = front
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            let temper_engine_domain::Record::Forge { row } = record else { return None };
+            let temper_engine_domain_forge::Stored::Finding(finding) = row.as_ref() else { return None };
+            Some(finding)
+        })
+        .collect();
+    assert_eq!(findings.len(), 1, "one word files one finding");
+    let finding = findings[0];
+    assert_eq!(finding.project, 1);
+    assert_eq!(finding.kind, temper_engine_domain_forge::FindingKind::Feedback);
+    assert_eq!(finding.title.as_ref(), WORDS.as_bytes());
+    let number = finding.number;
+    assert!(tui.text().contains(&format!("Filed as finding {number} on Hello.")), "{}", tui.text());
+}
+
 const FAST_ANSWER: &str = "Hello from the local fake model.";
 
 fn assert_said_before_answer(tui: &mut Tui, question: &str, answer: &str) {

@@ -42,10 +42,12 @@ pub enum Own {
     Brief,
     Needs,
     Open,
+    Tell,
     Theme,
 }
 impl Own {
-    pub const ALL: [Own; 7] = [Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Theme];
+    pub const ALL: [Own; 8] =
+        [Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme];
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {
@@ -55,6 +57,7 @@ impl Own {
             Self::Brief => b"/brief",
             Self::Needs => b"/needs",
             Self::Open => b"/open",
+            Self::Tell => b"/tell",
             Self::Theme => b"/theme",
         }
     }

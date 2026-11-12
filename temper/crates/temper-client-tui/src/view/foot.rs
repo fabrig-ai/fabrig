@@ -194,7 +194,9 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
                 value,
                 written: tui.box_written(),
                 focus: tui.focus(),
-                refusal: if root.pages().start().is_some() {
+                refusal: if let Some(refusal) = tui.tell_refusal() {
+                    Some(refusal.into())
+                } else if root.pages().start().is_some() {
                     shared::start_goal_refusal(root, words.view())
                 } else {
                     shared::refusal(root, words.view())

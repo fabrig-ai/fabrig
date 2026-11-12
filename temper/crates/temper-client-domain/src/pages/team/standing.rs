@@ -84,7 +84,14 @@ impl Standing {
     pub(super) fn count(&self) -> Option<u32> {
         if self.read { Some(self.rows.len()) } else { None }
     }
-    pub(super) fn configure(&mut self, project: u32, address: &Address, launchpad: bool, next: &mut u64, out: &mut Queue<Request>) {
+    pub(super) fn configure(
+        &mut self,
+        project: u32,
+        address: &Address,
+        launchpad: bool,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
         if self.watch.is_none() {
             let handle = new_handle(next);
             self.watch = Some(handle);

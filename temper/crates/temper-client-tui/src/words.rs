@@ -163,8 +163,15 @@ pub enum Word {
     BoxKilled,
     BoxEndNote,
     Asked,
+    TeamHead,
+    You,
+    Triage,
+    TellCommand,
+    FiledNotice,
+    TellLost,
+    TellLong,
 }
-pub(crate) const ALL: [Word; 153] = [
+pub(crate) const ALL: [Word; 160] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -318,6 +325,13 @@ pub(crate) const ALL: [Word; 153] = [
     Word::BoxKilled,
     Word::BoxEndNote,
     Word::Asked,
+    Word::TeamHead,
+    Word::You,
+    Word::Triage,
+    Word::TellCommand,
+    Word::FiledNotice,
+    Word::TellLost,
+    Word::TellLong,
 ];
 
 #[derive(Clone, Copy)]
@@ -534,6 +548,13 @@ impl Word {
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
             Self::Asked => 155,
+            Self::TeamHead => 156,
+            Self::You => 157,
+            Self::Triage => 158,
+            Self::TellCommand => 159,
+            Self::FiledNotice => 160,
+            Self::TellLost => 161,
+            Self::TellLong => 162,
         }
     }
     const fn id(self) -> PhraseId {
@@ -542,6 +563,13 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::TeamHead => (&[b"Team on ", b""], &[Slot::Title]),
+            Self::You => (&[b"You"], &[]),
+            Self::Triage => (&[b"triage"], &[]),
+            Self::TellCommand => (&[b"Tell temper what's off"], &[]),
+            Self::FiledNotice => (&[b"Filed as finding ", b" on ", b"."], &[Slot::Number, Slot::Title]),
+            Self::TellLost => (&[b"temper couldn't file that. Try again."], &[]),
+            Self::TellLong => (&[b"Too long to file: ", b" bytes past 4,096."], &[Slot::Number]),
             Self::DraftCommand => (&[b"A design session that ends in a draft and a goal"], &[]),
             Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
             Self::KindSession => (&[b", a design session"], &[]),
@@ -801,6 +829,14 @@ impl Words {
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
         Ok(Words { book, view, notice_bytes: domain.client.domain.text })
     }
+    #[must_use]
+    pub fn tell_lost(&self) -> Box<[u8]> {
+        self.say(Word::TellLost, &[])
+    }
+    #[must_use]
+    pub fn tell_long(&self, over: u32) -> Box<[u8]> {
+        self.say(Word::TellLong, &[Hole::Number(u64::from(over))])
+    }
     pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
         match notice {
             crate::Notice::Unknown { words } => {
@@ -811,6 +847,9 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Filed { number, project } => {
+                self.say(Word::FiledNotice, &[Hole::Number(u64::from(*number)), Hole::Name(copy_of(project))])
+            }
             crate::Notice::Proposed => self.say(Word::ProposedNotice, &[]),
             crate::Notice::Theme { choice, terminal } => {
                 let word = match choice {

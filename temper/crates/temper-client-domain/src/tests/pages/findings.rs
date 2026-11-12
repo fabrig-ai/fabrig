@@ -151,23 +151,38 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     let mut parts = document(1, Box::new([]), false).into_parts();
     parts.areas = List::uncapped();
     for (name, holder) in [(b"tests".as_slice(), Some(task)), (b"core", Some(person)), (b"docs", None)] {
-        parts.areas.push(w::AreaRow::new(&w::CEILINGS, w::AreaRowParts {
-            name: name.into(), words: name.into(),
-            owner: w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap()),
-            holder,
-        }).unwrap()).unwrap();
+        parts
+            .areas
+            .push(
+                w::AreaRow::new(
+                    &w::CEILINGS,
+                    w::AreaRowParts {
+                        name: name.into(),
+                        words: name.into(),
+                        owner: w::AreaOwner::Task(
+                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
+                        ),
+                        holder,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
     }
     parts.triager = Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 41 }).unwrap()));
     parts.holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).unwrap());
     deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
-    assert_eq!(team::areas(&root, 1), Some(Areas {
-        rows: Box::new([
-            Area { name: b"tests".as_slice().into(), holder: Some(Holder::Task(40)) },
-            Area { name: b"core".as_slice().into(), holder: Some(Holder::Party(2)) },
-            Area { name: b"docs".as_slice().into(), holder: None },
-        ]),
-        triager: Some(Holder::Task(41)),
-    }));
+    assert_eq!(
+        team::areas(&root, 1),
+        Some(Areas {
+            rows: Box::new([
+                Area { name: b"tests".as_slice().into(), holder: Some(Holder::Task(40)) },
+                Area { name: b"core".as_slice().into(), holder: Some(Holder::Party(2)) },
+                Area { name: b"docs".as_slice().into(), holder: None },
+            ]),
+            triager: Some(Holder::Task(41)),
+        })
+    );
     assert_eq!(team::areas(&root, 2), None, "documents belong to their project");
     parts.triager = None;
     deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());

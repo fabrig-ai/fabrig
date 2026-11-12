@@ -225,7 +225,10 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Finding(findings::Act),
-    Tell { project: u32, words: Box<[u8]> },
+    Tell {
+        project: u32,
+        words: Box<[u8]>,
+    },
     StopAsking(stop_asking::Act),
     Away(away::Act),
     Models(models::Act),

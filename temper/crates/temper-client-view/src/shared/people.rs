@@ -46,4 +46,3 @@ fn wait_line(w: &Words, waits: &team::Waits, whom: Box<[u8]>) -> Box<[u8]> {
         &[Hole::Name(number), Hole::Name(w.say(kind, &[])), Hole::Name(whom)],
     )
 }
-

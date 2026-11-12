@@ -1010,8 +1010,12 @@ fn shared_person_line_names_the_reader_and_waits_only_when_read() {
     use d::pages::team::{Person, Waits};
     let w = Words::english(1, 4096, crate::words::Shell::Browser).expect("English");
     let mut person = Person {
-        party: 1, you: true, name: b"Reader".as_slice().into(), role: c::HeldRole::Member,
-        waits: None, signed: None,
+        party: 1,
+        you: true,
+        name: b"Reader".as_slice().into(),
+        role: c::HeldRole::Member,
+        waits: None,
+        signed: None,
     };
     assert_eq!(shared::person_line(&w, &person), None);
     person.waits = Some(Waits { questions: 2, reviews: 0, proposals: 0, held: 0, person_tasks: 0, cut: false });
@@ -1028,14 +1032,29 @@ fn shared_person_line_names_the_reader_and_waits_only_when_read() {
 fn shared_finding_refusal_says_full_and_context_free_owners_and_areas() {
     use temper_client_protocol_wire::v1 as w;
     let words = Words::english(1, 4096, crate::words::Shell::Browser).expect("English");
-    let full = w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).expect("full"));
+    let full =
+        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).expect("full"));
     assert_eq!(shared::finding_refusal(&words, &full).as_ref(), b"the project's findings are full: 128 new");
-    let areas = w::FindingRefusal::NoArea(w::FindingAreas::new(&w::CEILINGS, w::FindingAreasParts {
-        areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"core".as_slice().into()])),
-    }).expect("areas"));
+    let areas = w::FindingRefusal::NoArea(
+        w::FindingAreas::new(
+            &w::CEILINGS,
+            w::FindingAreasParts {
+                areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"core".as_slice().into()])),
+            },
+        )
+        .expect("areas"),
+    );
     assert_eq!(shared::finding_refusal(&words, &areas).as_ref(), b"No such area; its areas: tests, core");
-    let held = w::FindingRefusal::NotYours(w::FindingNotYours::new(&w::CEILINGS, w::FindingNotYoursParts {
-        holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).expect("task")),
-    }).expect("holder"));
+    let held = w::FindingRefusal::NotYours(
+        w::FindingNotYours::new(
+            &w::CEILINGS,
+            w::FindingNotYoursParts {
+                holder: w::Holder::Task(
+                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).expect("task"),
+                ),
+            },
+        )
+        .expect("holder"),
+    );
     assert_eq!(shared::finding_refusal(&words, &held).as_ref(), b"Not yours: its owner is task 41");
 }

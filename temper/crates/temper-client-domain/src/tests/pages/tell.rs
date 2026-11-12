@@ -1,5 +1,12 @@
 //! Tell's filing through the root and its fake engine.
-use crate::{Action, Domain, Event, Request, pages::{self, tell::{State, Tell}}, tests::fixtures as f};
+use crate::{
+    Action, Domain, Event, Request,
+    pages::{
+        self,
+        tell::{State, Tell},
+    },
+    tests::fixtures as f,
+};
 use jig_client::{Down, Up, contract as c};
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -11,14 +18,21 @@ fn setup() -> Domain {
     root
 }
 fn tell(root: &mut Domain, words: &[u8]) -> Queue<Request> {
-    super::welcome::event(root, Event::Act { action: Action::Pages(pages::Act::Tell { project: 1, words: words.into() }) })
+    super::welcome::event(
+        root,
+        Event::Act { action: Action::Pages(pages::Act::Tell { project: 1, words: words.into() }) },
+    )
 }
 fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
     let mut sent = List::uncapped();
     for request in out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down {
-            down: Down::Send { attempt, request: jig_client::Ask::Family { scope, record }, .. },
-        }} = request {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Send { attempt, request: jig_client::Ask::Family { scope, record }, .. },
+                },
+        } = request
+        {
             assert_eq!(*scope, c::Scope::Project(1));
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
             let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
@@ -32,14 +46,20 @@ fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
 fn answer(root: &mut Domain, attempt: Token, outcome: Option<w::Outcome>) {
     let answer = match outcome {
         Some(outcome) => Some(jig_client::Answered::Family(jig_client::Family {
-            family: wire::FORGE, version: wire::CLIENT_VERSION,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
             bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
         })),
         None => None,
     };
-    super::welcome::event(root, Event::Client { event: jig_client::Event::Up { up: Up::Answer {
-        attempt, envelope: skein_lib::RequestEnvelope::Final, answer, why: None,
-    }}});
+    super::welcome::event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Final, answer, why: None },
+            },
+        },
+    );
 }
 
 #[test]
@@ -56,17 +76,31 @@ fn tell_files_trimmed_feedback_once_and_keeps_each_outcome() {
     assert_eq!(request.area(), &None);
     assert_eq!(request.title(), b"The export button is grey on dark.");
     assert_eq!(request.body(), body);
-    assert_eq!(root.pages().tell(), Some(&Tell { serial: 1, project: 1, words: body.as_slice().into(), state: State::Sending }));
+    assert_eq!(
+        root.pages().tell(),
+        Some(&Tell { serial: 1, project: 1, words: body.as_slice().into(), state: State::Sending })
+    );
     assert!(tell(&mut root, b"Another").is_empty(), "one in flight");
     assert_eq!(root.pages().tell().unwrap().serial, 1);
-    answer(&mut root, attempt, Some(w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap())));
+    answer(
+        &mut root,
+        attempt,
+        Some(w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap())),
+    );
     assert_eq!(root.pages().tell().unwrap().state, State::Filed { number: 12 });
     assert!(tell(&mut root, b" \n ").is_empty());
     assert_eq!(root.pages().tell().unwrap().serial, 1, "empty words keep last outcome");
     let (attempt, _) = sent(&tell(&mut root, b"Another"));
     assert_eq!(root.pages().tell().unwrap().serial, 2);
-    let refusal = w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
-    answer(&mut root, attempt, Some(w::Outcome::FindingRefused(w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: refusal.clone() }).unwrap())));
+    let refusal =
+        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
+    answer(
+        &mut root,
+        attempt,
+        Some(w::Outcome::FindingRefused(
+            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: refusal.clone() }).unwrap(),
+        )),
+    );
     assert_eq!(root.pages().tell().unwrap().state, State::Refused(refusal));
 }
 

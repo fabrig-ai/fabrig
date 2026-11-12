@@ -1,4 +1,4 @@
-//! Home's launchpad (temper/docs/design/client/tui/pages/launchpad.md, 3–6).
+//! Home's launchpad (temper/docs/design/client/tui/pages/launchpad.md, 3–7).
 use super::{Binds, foot, front, text};
 use crate::{
     Own, Tui, look,
@@ -13,7 +13,7 @@ use skein_lib::{
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
-    pages::{all_home, chats, home},
+    pages::{all_home, chats, home, team},
 };
 use temper_client_view::{
     shared::{self, NeedMark},
@@ -31,6 +31,7 @@ pub(crate) struct Launchpad {
     pub selected: Option<u64>,
     pub needs: Box<[NeedRow]>,
     pub brief: List<Line>,
+    pub team: List<TeamRow>,
     pub columns: u16,
     pub notes: foot::Notes,
     pub tick: Option<Wall>,
@@ -56,6 +57,12 @@ pub(crate) struct NeedRow {
     pub project: Box<[u8]>,
     pub words: Box<[u8]>,
     pub since: Option<Wall>,
+}
+#[derive(Debug)]
+pub(crate) struct TeamRow {
+    pub name: Box<[u8]>,
+    pub areas: Box<[u8]>,
+    pub line: Box<[u8]>,
 }
 #[derive(Debug)]
 pub(crate) struct Line {
@@ -229,6 +236,7 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
             }
         }
     }
+    part.team = team_rows(root, project, me, words, wall);
     part.left_off = left_off(root, me, words, wall, &mut part.tick);
     let mut needs = List::with_capacity(5);
     for prompt in shared::need_prompts(root, words.view()).into_iter().take(5) {
@@ -245,6 +253,49 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
             .expect("five launchpad needs");
     }
     part.needs = needs.into_boxed();
+}
+fn held_areas(areas: Option<&team::Areas>, holder: &team::Holder, words: &Words) -> Box<[u8]> {
+    let Some(areas) = areas else { return Box::default() };
+    let mut held: Box<[u8]> = Box::default();
+    for area in &areas.rows {
+        if area.holder.as_ref() == Some(holder) {
+            held = if held.is_empty() { copy_of(&area.name) } else { concat(&[&held, b", ", &area.name]) };
+        }
+    }
+    if areas.triager.as_ref() == Some(holder) {
+        let triage = words.say(Word::Triage, &[]);
+        held = if held.is_empty() { triage } else { concat(&[&held, b", ", &triage]) };
+    }
+    held
+}
+fn team_rows(root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall) -> List<TeamRow> {
+    let mut rows = List::with_capacity(4);
+    if team::standing_roles(root, project).is_none() {
+        return rows;
+    }
+    let shown = team::shown_at(root, project, wall);
+    let Some(facts) = shown.facts() else { return rows };
+    let areas = team::areas(root, project);
+    let yours = held_areas(areas.as_ref(), &team::Holder::Party(me.party.number), words);
+    let limit = if yours.is_empty() { 4 } else { 3 };
+    for role in facts.roles.iter().take(limit) {
+        rows.push(TeamRow {
+            name: copy_of(&role.name),
+            areas: held_areas(areas.as_ref(), &team::Holder::Task(role.task), words),
+            line: role.now.as_deref().unwrap_or_default().into(),
+        })
+        .expect("four team rows");
+    }
+    if !yours.is_empty() {
+        let mut line = Box::default();
+        for person in &facts.people {
+            if person.you {
+                line = shared::person_line(words.view(), person).unwrap_or_default();
+            }
+        }
+        rows.push(TeamRow { name: words.say(Word::You, &[]), areas: yours, line }).expect("person keeps fourth place");
+    }
+    rows
 }
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launchpad {
     let me = if root.client().link().state == Link::SignedOut { None } else { root.pages().me(root.client()) };
@@ -269,6 +320,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         selected: tui.left_off(),
         needs: Box::default(),
         brief: List::with_capacity(9),
+        team: List::with_capacity(4),
         columns: tui.columns(),
         notes: foot::read_notes(root, tui, words),
         tick: None,
@@ -393,6 +445,37 @@ fn row(
         span(b, hint, Some(look::HINT));
     }
 }
+fn draw_team(b: &mut Builder, part: &Launchpad, words: &Words) {
+    if part.team.is_empty() {
+        return;
+    }
+    let Some(project) = &part.project else { return };
+    let mut names = 0;
+    let mut areas = 0;
+    for row in &part.team {
+        names = names.max(columns(&row.name));
+        areas = areas.max(columns(&row.areas));
+    }
+    let room = if part.columns == 0 { 80 } else { usize::from(part.columns) }.saturating_sub(4);
+    b.open(Role::Region);
+    text(b, Role::Paragraph, &words.say(Word::TeamHead, &[Hole::Name(copy_of(project))]), Some(look::HEAD));
+    b.open(Role::List);
+    b.style(look::LEFT_OFF);
+    for row in &part.team {
+        b.open(Role::Item);
+        b.open(Role::Paragraph);
+        let name = padded(&row.name, names.saturating_add(3));
+        let areas = if areas == 0 { Box::default() } else { padded(&row.areas, areas.saturating_add(3)) };
+        let (line, end) = cut(&concat(&[&name, &areas, &row.line]), room, words);
+        let split = name.len().min(end);
+        span(b, line.get(..split).expect("name boundary"), Some(look::NAME));
+        span(b, line.get(split..).expect("line boundary"), Some(look::HINT));
+        b.close();
+        b.close();
+    }
+    b.close();
+    b.close();
+}
 // The screen adds punctuation to Term and Heading. Paragraph heads keep
 // the section labels plain; Description retains the two-column words indent.
 #[expect(clippy::too_many_lines, reason = "the foot and launchpad retain their existing section layout")]
@@ -477,6 +560,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         }
         b.close();
     }
+    draw_team(b, part, words);
     if let Some(project) = &part.project {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::StartHead, &[]), Some(look::HEAD));
