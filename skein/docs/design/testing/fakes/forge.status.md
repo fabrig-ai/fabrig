@@ -8,9 +8,6 @@ cache and the claims checked on every request are present.
 
 - **Not yet:** 4: the runs' listing has no `workflow_id`
   (`skein-fake-forge-forgejo/src/routes.rs`).
-- **Not yet:** 4: a hook's patch sets the secret it sends
-  (`skein-fake-forge-forgejo/src/setup/repo_hooks.rs`, `edit_repo_hook`)
-  [in flight: change 1620].
 - **Not yet:** 4: conditional reads: a raw read answers no `ETag`, and no
   route answers `304` (`skein-fake-forge-forgejo/src/server.rs`,
   `src/response.rs`).
