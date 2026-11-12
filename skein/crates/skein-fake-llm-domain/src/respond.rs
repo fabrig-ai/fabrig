@@ -134,15 +134,16 @@ pub(crate) fn by_input(
     if let Some((script, turn_index)) = played.choose_by_input(query, rules) {
         let turns = &played.scripts.get(script).expect("found among the scripts").turns;
         if let Some(turn) = turns.get(turn_index) {
-            if !limits::fits(limits::scripted_answer(turn), config.answer_bytes) {
-                return Err((Error::ContextTooLong.into(), None));
+            if let Err(failure) = crate::take::check(turn, query, config.answer_bytes) {
+                return Err((failure, None));
             }
             let place = match turn.lines.first() {
                 Some(Line::Pieces { .. }) if turn.tokens <= u64::from(query.max_tokens) => {
                     Some(pieces::Place { script, turn: turn_index })
                 }
                 Some(
-                    Line::Fail { .. }
+                    Line::Take { .. }
+                    | Line::Fail { .. }
                     | Line::Pieces { .. }
                     | Line::Text { .. }
                     | Line::Opaque { .. }
@@ -216,11 +217,17 @@ fn no_script(played: &Played, selected: Option<usize>, query: &Query) -> Failure
         }
         None => copy_of(b"no cue matches"),
     };
+    let reason = bytes::concat(&[b"no script answers: ", &reason]);
+    invalid_script(b"no_script", &reason, query)
+}
+
+/// Shared Invalid evidence and last-request text for strict and take failures.
+pub(crate) fn invalid_script(code: &[u8], reason: &[u8], query: &Query) -> Failure {
     let request = last_request_text(&query.messages);
     Failure {
         error: Error::InvalidRequest,
-        report: crate::api::Report { code: copy_of(b"no_script"), ..crate::api::Report::none() },
-        message: bytes::concat(&[b"no script answers: ", &reason, b"; last request: \"", &request, b"\""]),
+        report: crate::api::Report { code: copy_of(code), ..crate::api::Report::none() },
+        message: bytes::concat(&[reason, b"; last request: \"", &request, b"\""]),
         parts: Box::new([]),
     }
 }
@@ -499,10 +506,18 @@ fn scripted(
     place: pieces::Place,
     now: Time,
 ) -> Result<Answer, Failure> {
-    let count = u32::try_from(turn.lines.len()).expect("a script's answer fits a u32");
+    let mut count = u32::try_from(turn.lines.len()).expect("a script's answer fits a u32");
+    for line in &turn.lines {
+        match line {
+            Line::Take { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
+            Line::Text { .. } | Line::Call { .. } | Line::Opaque { .. } | Line::Pieces { .. } | Line::Fail { .. } => {}
+        }
+    }
     let mut parts = List::with_capacity(count);
     for (index, line) in turn.lines.iter().enumerate() {
+        let earlier = turn.lines.get(..index).expect("line prefix");
         let part = match line {
+            Line::Take { .. } => continue,
             Line::Fail { error, report, credentials } => {
                 let named = match query.credential {
                     Some(index) => credentials.contains(&index),
@@ -525,11 +540,15 @@ fn scripted(
                 continue;
             }
             Line::Pieces { pieces } => Part::Text { text: pieces::join(pieces) },
-            Line::Text { text } => Part::Text { text: copy_of(text) },
+            Line::Text { text } => Part::Text { text: crate::take::expand(text, earlier, query, false) },
             Line::Opaque { bytes } => Part::Opaque { bytes: bytes.clone() },
             Line::Call { name, arguments } => {
                 *minted = minted.checked_add(1).ok_or(Error::InvalidRequest)?;
-                Part::ToolCall { id: call_id(*minted), name: copy_of(name), arguments: copy_of(arguments) }
+                Part::ToolCall {
+                    id: call_id(*minted),
+                    name: copy_of(name),
+                    arguments: crate::take::expand(arguments, earlier, query, true),
+                }
             }
         };
         parts.push(part).expect("room for every line");
@@ -1097,3 +1116,5 @@ mod played;
 
 #[cfg(test)]
 mod strict;
+#[cfg(test)]
+mod take;
