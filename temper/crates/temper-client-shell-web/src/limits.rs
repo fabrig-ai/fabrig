@@ -13,6 +13,8 @@ use temper_client_domain as client;
 pub const EXCHANGES: u32 = 8;
 /// Whole small-store and HTTP response bodies.
 pub const BODY_BYTES: u32 = 33_554_432;
+/// Recording bytes in memory (client/web/README.md, 2.1): two of `BODY_BYTES`.
+pub const RECORDING_BYTES: u32 = 67_108_864;
 /// Stream body chunk bytes.
 pub const PIECE: u32 = 4096;
 /// Field text and a person's conversation words (client/view.md, 4).

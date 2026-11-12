@@ -1,6 +1,6 @@
 # Known reds
 
-Failing on the goal branch and no live change's (goal 1720's note `known reds` says since when and why).
+Failing on the goal branch and no live change's (goal 1720's note `known reds` says since when and why; goal 1787's note `known reds` for the temper-engine-forge-world entry).
 
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
 - lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
@@ -8,3 +8,4 @@ Failing on the goal branch and no live change's (goal 1720's note `known reds` s
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
+- lint temper-engine-forge-world clippy::too_many_lines temper/tests/engine/forge/src/world.rs
