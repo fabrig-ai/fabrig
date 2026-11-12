@@ -128,6 +128,9 @@ pub use crate::unbuilt::Agent;
 #[cfg(feature = "worker")]
 pub use crate::worker_settings::Agent;
 
+#[cfg(feature = "worker")]
+pub use temper_worker_service::settings::Worker;
+#[cfg(not(feature = "worker"))]
 /// A worker's settings: jig's part and temper's (protocol/configuration/README.md,
 /// section 3); 09 builds the worker from it.
 #[derive(Debug)]

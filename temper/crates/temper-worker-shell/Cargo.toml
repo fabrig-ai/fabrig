@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 jig-domain-host.workspace = true
 temper-service-core.workspace = true
-temper-service = { workspace = true, features = ["worker"] }
+temper-worker-service.workspace = true
 temper-service-shell.workspace = true
 temper-shell.workspace = true
 temper-launcher.workspace = true

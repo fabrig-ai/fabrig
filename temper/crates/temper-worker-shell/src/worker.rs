@@ -1,7 +1,7 @@
 //! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
 use std::os::unix::ffi::OsStrExt;
-use temper_service as service;
+use temper_worker_service as service;
 use temper_service_shell::jig_directories;
 use temper_shell::directories::{Directories, EnvironmentEntry, private_root};
 /// Prepare a worker's own directories and program sources, with no deployment.
@@ -12,7 +12,7 @@ pub fn alone(
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
     let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;
     let user = skein_shell::effective_user();
     let files = temper_service_shell::read_files(core::mem::replace(&mut part.files, Box::new([])), user)?;
@@ -21,7 +21,7 @@ pub fn alone(
     let agent_program = part.named.program.clone();
     let configuration = part.named.agent.clone();
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     let sources =
         sources(&agent, path(&configuration), path(&agent_program), path(&directories.cache), user, environment)?;
     if sources.reuse {

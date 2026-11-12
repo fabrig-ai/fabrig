@@ -106,7 +106,6 @@ impl Service {
     pub fn pending(&self, now: Time) -> crate::diagnostics::Pending {
         crate::diagnostics::Pending {
             work_pending: self.work_pending(now),
-            worker_runs: true,
             io_ready: self.process.io().is_ready(),
             io_due: self.process.io().is_due(now),
             completions: self.process.completion_count(),
@@ -115,9 +114,7 @@ impl Service {
             ended: self.end().is_some(),
             signals: self.process.has_signals(),
             signals_closing: self.process.signals_closing(),
-            box_pipe_pending: false,
-            engine: None,
-            worker: Some(self.worker.pending(now)),
+            worker: self.worker.pending(now),
         }
     }
     /// The worker domain, for a world to inspect before requesting shutdown.
@@ -128,7 +125,6 @@ impl Service {
     #[must_use]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
         crate::diagnostics::Wait {
-            engine: None,
             worker_empty: self.worker.is_empty(),
             held_listeners: self.held_listeners.len(),
             listener_closes: self.listeners_closing,

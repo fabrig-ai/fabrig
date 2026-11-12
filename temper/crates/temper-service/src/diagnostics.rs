@@ -1,5 +1,4 @@
 //! Read-only, payload-free snapshots, constructed only when explicitly requested.
-use jig_domain_link::Hosting;
 use skein_lib::{List, Time};
 
 #[derive(Debug)]
@@ -67,58 +66,13 @@ pub enum EngineEvent {
     Stop,
 }
 
-#[derive(Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "each flag identifies a separate worker readiness gate")]
-pub struct Worker {
-    pub work_pending: bool,
-    pub started: bool,
-    pub aborted: bool,
-    pub root_ready: bool,
-    pub events: List<WorkerEvent>,
-    pub process_events: u32,
-    pub io: u32,
-    pub submitted: u32,
-    pub outputs: u32,
-    pub link_outputs: u32,
-    pub retained_turns: u32,
-    pub kept_answers: u32,
-    pub next_deadline: Option<Time>,
-    pub attempts: List<Hosting>,
-}
-
-#[derive(Debug)]
-pub enum WorkerEvent {
-    SourceAnswered,
-    Assign,
-    Link(LinkEvent),
-    Ready,
-    Lost,
-    GracePassed,
-    Resend,
-    RelayCancelled,
-    Process,
-    Live,
-    Decoded,
-    Encoded,
-    Activity,
-    Done,
-    Shutdown,
-}
-
-#[derive(Debug)]
-pub enum LinkEvent {
-    ReadList,
-    Sources,
-    Check,
-    SignOut,
-    Assign,
-    Message,
-    Relayed,
-    TurnKept,
-    Acknowledge,
-    Cancel,
-    Grant,
-}
+#[cfg(feature = "worker")]
+pub use temper_worker_service::diagnostics::{Worker, WorkerEvent, LinkEvent};
+#[cfg(not(feature = "worker"))]
+#[path = "unbuilt_diagnostics.rs"]
+mod unbuilt;
+#[cfg(not(feature = "worker"))]
+pub use unbuilt::{Worker, WorkerEvent, LinkEvent};
 
 /// Closure and queue ownership beside the shell's unbounded wait decision.
 #[derive(Debug)]
@@ -161,4 +115,14 @@ pub struct WaitAccounts {
     pub pending: bool,
     pub io: u32,
     pub empty: bool,
+}
+
+#[cfg(feature = "worker")]
+impl From<temper_worker_service::diagnostics::Pending> for Pending {
+ fn from(value: temper_worker_service::diagnostics::Pending) -> Self { Self {worker_runs: true, box_pipe_pending: false, engine: None, worker: Some(value.worker),work_pending: value.work_pending,io_ready: value.io_ready,io_due: value.io_due,completions: value.completions,told: value.told,raw_submissions: value.raw_submissions,ended: value.ended,signals: value.signals,signals_closing: value.signals_closing,} }
+}
+
+#[cfg(feature = "worker")]
+impl From<temper_worker_service::diagnostics::Wait> for Wait {
+ fn from(value: temper_worker_service::diagnostics::Wait) -> Self { Self {engine: None,worker_empty: value.worker_empty,held_listeners: value.held_listeners,listener_closes: value.listener_closes,signals_closing: value.signals_closing,operations: value.operations,submissions: value.submissions,} }
 }

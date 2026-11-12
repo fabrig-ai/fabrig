@@ -19,9 +19,9 @@ impl WorkerStand {
         Self { worker: super::worker(), below, seed: 7 }
     }
     pub fn turn(&mut self) -> bool {
-        self.worker.iterate(self.worker.env.now, self.worker.env.wall);
+        self.worker.iterate(super::NOW, skein_lib::Wall::EPOCH);
         self.drain();
-        self.input() || self.worker.work_pending(self.worker.env.now)
+        self.input() || self.worker.work_pending(super::NOW)
     }
     pub fn drain(&mut self) {
         for _ in 0..self.worker.io().len() {
@@ -38,15 +38,15 @@ impl WorkerStand {
     }
     pub fn input(&mut self) -> bool {
         match self.below.next(&mut self.seed) {
-            Some(Input::Io(event)) => self.worker.up(self.worker.env.now, event),
-            Some(Input::Kernel(complete)) => self.worker.complete(self.worker.env.now, complete).unwrap(),
+            Some(Input::Io(event)) => self.worker.up(super::NOW, event),
+            Some(Input::Kernel(complete)) => self.worker.complete(super::NOW, complete).unwrap(),
             None => return false,
         }
         true
     }
     pub fn answer_until_spawn(&mut self, command: &[u8]) -> (Token, kernel::Spawn) {
         for _ in 0_u16..1000 {
-            self.worker.iterate(self.worker.env.now, self.worker.env.wall);
+            self.worker.iterate(super::NOW, skein_lib::Wall::EPOCH);
             for _ in 0..self.worker.io().len() {
                 let request = self.worker.io().pop().unwrap();
                 if let io::Request::Spawn { owner, spawn } = request {
@@ -71,7 +71,7 @@ pub fn started_worker() -> WorkerStand {
     let mut stand = WorkerStand::new();
     for _ in 0_u16..1000 {
         if !stand.turn() {
-            assert!(stand.worker.git.ready);
+            assert!(stand.worker.refused().is_none());
             return stand;
         }
     }
@@ -166,7 +166,7 @@ impl WorkerStand {
         self.below.out.io.push(io::Request::Spawn { owner, spawn });
         for _ in 0_u16..1000 {
             self.drain();
-            if let Some(temper_worker_domain::Event::Done { done, .. }) = self.worker.events.pop() {
+            if let Some(temper_worker_domain::Event::Done { done, .. }) = self.worker.events().pop() {
                 return done;
             }
             assert!(self.input(), "git reaches its terminal");

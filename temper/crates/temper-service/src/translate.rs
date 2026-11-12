@@ -239,4 +239,4 @@ pub fn github_identity(
 }
 
 #[cfg(feature = "worker")]
-pub use crate::worker::translate::{Assigned, preparation, value, work, workspace};
+pub use temper_worker_service::worker_route::translate::{Assigned, preparation, value, work, workspace};

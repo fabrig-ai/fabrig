@@ -703,23 +703,17 @@ fn assigned_agent(worker: &mut crate::Worker, agent: &crate::settings::Agent) ->
 fn assigned_agent_with(worker: &mut crate::Worker, agent: &crate::settings::Agent, assignment: link::Request) -> Token {
     const OUTPUTS: u32 = 256; // A chat start's routing requests.
     let link::Request::Down { down, .. } = assignment else { panic!("assignment") };
-    let mut out = Queue::with_capacity(OUTPUTS);
-    root::step(&mut worker.root, &worker.env, root::Event::Link(down), &mut out);
-    let mut spawned = None;
-    while let Some(request) = out.pop() {
-        if let root::Request::Decode { agent: owner, run, start } = request {
-            let start = crate::worker_route::decode(run, *start, agent);
-            root::step(&mut worker.root, &worker.env, root::Event::Decoded { agent: owner, start }, &mut out);
-        } else {
-            if let root::Request::Process(ref process) = request
-                && let smith_host_domain::process::Request::Spawn { owner, .. } = process.as_ref()
-            {
-                spawned = Some(*owner);
-            }
-            worker.route(request);
+    worker.offer(root::Event::Link(down));
+    for _ in 0..worker.io().len() {
+        let request = worker.io().pop().unwrap();
+        if let io::Request::Spawn { owner, .. } = &request {
+            let owner = *owner;
+            worker.io().push(request);
+            return owner;
         }
+        worker.io().push(request);
     }
-    spawned.expect("the assigned chat spawns smith")
+    panic!("the assigned chat spawns smith");
 }
 
 pub(crate) fn socket_stand() -> fixtures::WorkerStand {
@@ -1099,18 +1093,11 @@ fn asking_worker_settings() -> (crate::settings::Worker, crate::settings::Agent)
 
 fn asking_grants(worker: &mut crate::Worker, grants: &[Grant]) {
     for grant in grants {
-        worker
-            .values
-            .granted(
-                grant.account,
-                grant.generation,
-                crate::worker::credentials::Value {
-                    scheme: crate::worker::credentials::Scheme::Key,
-                    token: skein_lib::Secret::new(b"fake-model-key".as_slice().into()),
-                },
-                Time::from_nanos(u64::MAX),
-            )
-            .unwrap();
+        worker.link(fixtures::NOW, link::Request::Value {
+            account: grant.account, generation: grant.generation,
+            expires: Time::from_nanos(u64::MAX),
+            value: link::GrantValue::Credential { scheme: jig_domain_link::Scheme::Key, token: skein_lib::Secret::new(b"fake-model-key".as_slice().into()) },
+        });
     }
 }
 

@@ -1,6 +1,6 @@
 //! The binary's service adapter (protocol/services.md, 7).
 use crate::lines;
-use temper_service::worker_alone as service;
+use temper_worker_service::worker_alone as service;
 use temper_service_shell::Served;
 pub const SERVED: Served<service::Service> = Served {
     stages: &service::STAGES,

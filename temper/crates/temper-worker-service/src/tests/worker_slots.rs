@@ -46,11 +46,11 @@ fn assigned(worker: &mut crate::Worker, agent: &crate::settings::Agent, run: Tok
         panic!("chat assignment")
     };
     assignment.assignment.run = run;
-    let encoding = fixtures::encoding(&fixtures::engine());
+    let fixture_agent = fixtures::worker_agent();
     let charter = smith_protocol_channel::decode_charter(
         &assignment.assignment.charter,
         &agent.limits.charter,
-        &encoding.endpoints,
+        &fixture_agent.endpoints,
     )
     .expect("fixture charter");
     assignment.assignment.charter =

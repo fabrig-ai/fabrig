@@ -1,5 +1,5 @@
 //! The worker's own lines (temper/docs/design/protocol/services.md, 7).
-use temper_service::worker_alone as service;
+use temper_worker_service::worker_alone as service;
 use temper_shell::directories::Directories;
 
 /// A worker alone has no listening diagnostic; its first drain carries its worker notes.
@@ -60,9 +60,9 @@ pub fn ending_with_binary(
     };
     (lines, u8::from(failed || end != Some(&service::End::Drained)))
 }
-fn worker_job_ending(ending: &temper_service::WorkerJobEnding) -> (String, &[u8]) {
+fn worker_job_ending(ending: &temper_worker_service::WorkerJobEnding) -> (String, &[u8]) {
     use jig_domain_host::{JobInvalid, JobRefusal};
-    use temper_service::WorkerJobEnding;
+    use temper_worker_service::WorkerJobEnding;
     match ending {
         WorkerJobEnding::Failed { failure, detail } => (format!("failed {failure:?}"), detail),
         WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
@@ -90,13 +90,13 @@ fn run_detail_line(mut line: String, detail: &[u8]) -> String {
 }
 fn loss_refusal(code: u16) -> String {
     refusal(match code {
-        2 => temper_service::Refusal::Terms,
-        3 => temper_service::Refusal::Malformed,
-        code => temper_service::Refusal::Peer(code),
+        2 => temper_worker_service::Refusal::Terms,
+        3 => temper_worker_service::Refusal::Malformed,
+        code => temper_worker_service::Refusal::Peer(code),
     })
 }
-fn worker_loss(why: temper_service::WorkerLoss) -> String {
-    use temper_service::{WorkerClosed as Closed, WorkerLoss as Loss};
+fn worker_loss(why: temper_worker_service::WorkerLoss) -> String {
+    use temper_worker_service::{WorkerClosed as Closed, WorkerLoss as Loss};
     match why {
         Loss::Closed(Closed::Stream) => "stream".into(),
         Loss::Closed(Closed::Truncated) => "truncated".into(),
@@ -114,12 +114,12 @@ fn worker_loss(why: temper_service::WorkerLoss) -> String {
     }
 }
 
-fn refusal(reason: temper_service::Refusal) -> String {
-    use temper_service::WorkerRefusalReason as Reason;
+fn refusal(reason: temper_worker_service::Refusal) -> String {
+    use temper_worker_service::WorkerRefusalReason as Reason;
     match reason {
-        temper_service::Refusal::Terms => "terms".into(),
-        temper_service::Refusal::Malformed => "malformed".into(),
-        temper_service::Refusal::Peer(code) => match Reason::from_code(code) {
+        temper_worker_service::Refusal::Terms => "terms".into(),
+        temper_worker_service::Refusal::Malformed => "malformed".into(),
+        temper_worker_service::Refusal::Peer(code) => match Reason::from_code(code) {
             Some(Reason::Unauthorized) => "unauthorized".into(),
             Some(Reason::Application) => "application".into(),
             Some(Reason::Busy) => "busy".into(),

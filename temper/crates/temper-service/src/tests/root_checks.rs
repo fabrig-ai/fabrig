@@ -124,6 +124,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
     }
 }
 
+
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =
@@ -133,19 +134,7 @@ fn the_hubs_accounts_past_the_agents_name_both_limits() {
         b"workers[0].limits.overrides.hub.accounts: must agree with the agent's accounts\n"
     );
 }
-#[test]
-fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
-    let mut agent = fixtures::startup_agent();
-    agent.host_limits.directories = 1;
-    let worker = fixtures::worker_settings();
-    let own = crate::limits::profile(crate::limits::Profile::Small);
-    let mut found = Problems::empty();
-    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&own)), &mut found);
-    assert_eq!(
-        &*lines(&found),
-        b"application.limits.overrides.checkout.repositories: must agree with the agent's directories\n"
-    );
-}
+
 #[test]
 fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
     assert_eq!(

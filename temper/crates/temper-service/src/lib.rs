@@ -4,11 +4,15 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
-#[path = "worker/job_ending.rs"]
-mod worker_job_ending;
-#[path = "worker_alone/vocabulary.rs"]
+
 mod worker_vocabulary;
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
+#[cfg(feature = "worker")]
+pub use temper_worker_service::WorkerJobEnding;
+#[cfg(not(feature = "worker"))]
+#[path = "unbuilt_job_ending.rs"]
+mod worker_job_ending;
+#[cfg(not(feature = "worker"))]
 pub use worker_job_ending::JobEnding as WorkerJobEnding;
 pub mod diagnostics;
 pub mod forge;
@@ -33,24 +37,23 @@ pub mod assignment;
 pub mod clients;
 pub mod family;
 #[cfg(feature = "worker")]
-pub mod identities;
+pub use temper_worker_service::identities;
 #[cfg(feature = "worker")]
-pub mod program_sources;
+pub use temper_worker_service::program_sources;
 pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
 #[cfg(feature = "worker")]
-mod worker;
+mod worker_joined;
 #[cfg(feature = "worker")]
-pub mod worker_alone;
+pub use temper_worker_service::worker_alone;
+
 #[cfg(feature = "worker")]
-mod worker_git;
+pub use temper_worker_service::worker_route;
 #[cfg(feature = "worker")]
-pub mod worker_route;
+pub use temper_worker_service::worker_settings;
 #[cfg(feature = "worker")]
-pub mod worker_settings;
-#[cfg(feature = "worker")]
-pub use worker::{Worker, WorkerRuntime};
+pub use temper_worker_service::{Worker, WorkerRuntime};
 #[cfg(not(feature = "worker"))]
 mod unbuilt;
 #[cfg(not(feature = "worker"))]

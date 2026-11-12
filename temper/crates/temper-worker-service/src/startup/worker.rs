@@ -1,7 +1,7 @@
 //! The worker's start and checks (protocol/services.md, 5).
 mod application;
-pub(super) mod checkout;
-pub(super) mod checks;
+pub mod checkout;
+pub mod checks;
 use crate::worker_settings::Limits;
 use crate::{Worker, WorkerRuntime, settings, worker_alone::Service};
 use alloc::boxed::Box;
@@ -27,7 +27,7 @@ fn problem(path: Path, what: What) -> Problems {
     problems.push(path, what);
     problems
 }
-pub(super) fn build(
+pub fn build(
     worker: Option<settings::Worker>,
     agent: Option<&settings::Agent>,
     limits: &Limits,
@@ -53,7 +53,7 @@ pub(super) fn build(
 
 /// Git's local rules are checked independently; the checkout's capacity
 /// reports stdout with the other carriers once both links' rooms are known.
-pub(super) fn git_limits<E>(limits: &Limits, git: &limits::GitComponent, problems: &mut SharedProblems<SharedWhat<E>>) {
+pub fn git_limits<E>(limits: &Limits, git: &limits::GitComponent, problems: &mut SharedProblems<SharedWhat<E>>) {
     use temper_worker_protocol_git::{Unfit, check};
     let mut checked = crate::worker_settings::git_component(*git);
     // Repair just the reported rule in the local copy, then ask for the next.
@@ -252,7 +252,7 @@ pub fn worker_alone(
     }
 }
 
-pub(super) fn check_worker_part(
+pub fn check_worker_part(
     part: &mut WorkerPart,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -362,7 +362,7 @@ fn validate(
     }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
-pub(super) fn application(
+pub fn application(
     document: &skein_json::Document,
     at: u32,
     directories: &config::Directories,
@@ -370,4 +370,15 @@ pub(super) fn application(
     let mut problems = Problems::empty();
     let _part = application::read(document, at, directories, &mut problems);
     if problems.is_empty() { Ok(()) } else { Err(problems) }
+}
+
+/// Validate the worker document before any named file is opened.
+pub fn shape(input: &[u8], directories: &config::Directories) -> Result<Shape, Problems> {
+    document(input, directories, true)?;
+    Ok(Shape::WorkerAlone)
+}
+/// Check a worker alone without constructing it.
+pub fn check(input: &[u8], directories: &config::Directories, files: &settings::Files, agent: &settings::Agent) -> Result<(), Problems> {
+    let mut part = worker_part(input, directories)?;
+    check_worker_part(&mut part, files, agent)
 }

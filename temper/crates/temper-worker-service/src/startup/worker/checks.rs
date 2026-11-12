@@ -4,7 +4,7 @@ use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire as payload;
 use temper_service_core::startup::problems::{Problems, What};
 use temper_service_core::startup::{at, own, short};
-pub(crate) fn bounded<E>(
+pub fn bounded<E>(
     bounds: &payload::Bounds,
     engine: bool,
     problems: &mut Problems<What<E>>,
@@ -52,12 +52,12 @@ pub(crate) fn bounded<E>(
     payload::limits(bounds)
 }
 
-pub(crate) fn channel<E>(bounds: &payload::Bounds, problems: &mut Problems<What<E>>) {
+pub fn channel<E>(bounds: &payload::Bounds, problems: &mut Problems<What<E>>) {
     if let Some(side) = bounded(bounds, false, problems) {
         let _largest = largest(&side, b"workers", problems);
     }
 }
-pub(crate) fn largest<E>(
+pub fn largest<E>(
     side: &payload::v1::Limits,
     prefix: &[u8],
     problems: &mut Problems<What<E>>,
@@ -80,7 +80,7 @@ pub(crate) fn largest<E>(
     Some(largest)
 }
 /// Only an agent running locally must hold the answer in its tool payload.
-pub(crate) fn agent_answer<E>(agent: &settings::Agent, problems: &mut Problems<What<E>>) {
+pub fn agent_answer<E>(agent: &settings::Agent, problems: &mut Problems<What<E>>) {
     short(
         problems,
         at(0, Path::root().member(b"workers"))
@@ -94,7 +94,7 @@ pub(crate) fn agent_answer<E>(agent: &settings::Agent, problems: &mut Problems<W
     );
 }
 
-pub(crate) fn turns<E>(workers: &[config::Worker], agent: &settings::Agent, problems: &mut Problems<What<E>>) {
+pub fn turns<E>(workers: &[config::Worker], agent: &settings::Agent, problems: &mut Problems<What<E>>) {
     for (index, worker) in workers.iter().enumerate() {
         let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
         short(
@@ -114,7 +114,7 @@ pub(crate) fn turns<E>(workers: &[config::Worker], agent: &settings::Agent, prob
     }
 }
 /// Check standalone's raw agent path before jig joins a configuration path.
-pub(crate) fn raw_worker<E>(document: &skein_json::Document, at: u32, path: &Path, problems: &mut Problems<What<E>>) {
+pub fn raw_worker<E>(document: &skein_json::Document, at: u32, path: &Path, problems: &mut Problems<What<E>>) {
     if let Ok(mut worker) = config::read::Object::new(document, at)
         && let Some(agent_at) = worker.member(document, b"agent")
         && let Ok(mut agent) = config::read::Object::new(document, agent_at)

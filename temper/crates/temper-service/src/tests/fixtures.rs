@@ -693,13 +693,13 @@ fn start_configured_worker(
     }
     service
 }
-mod agent;
+
 pub mod bundle;
 mod checks;
 mod clients;
 pub mod http;
 mod server;
-pub use agent::agent;
+pub use temper_worker_service_fixtures::agent;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};
 pub(super) mod system;
 pub use system::{Kernel, hello, one_process, until_hosting};
@@ -1858,6 +1858,3 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
     }
 }
 
-pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
-    let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
-}
