@@ -386,6 +386,10 @@ fn chat_document(revised: bool) -> Value {
 
 // The template delegates playground/widget: forge 1, repository 1, tag 4294967297.
 fn csv_chat() -> Value {
+    // The stock's scripted change takes 5K, with K = 4C at Fable's cache-write rate.
+    let c = (1_048_576_u64 * 12_500 + 8192 * 50_000).div_ceil(1_000_000);
+    let k = c.checked_mul(4).unwrap();
+    let change_spend = k.checked_mul(5).unwrap();
     json!([
         scripted_turn(json!([
             {"text": "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."},
@@ -398,7 +402,7 @@ fn csv_chat() -> Value {
                 "contract": {"kind": "change", "connector": 1, "change_kind": 1, "words": 128},
                 "authority": {"tools": 1, "grants": [demo_grant(2), demo_grant(3), demo_grant(4), demo_grant(10), demo_grant(11), demo_grant(12)],
                     "delegation": {"kinds": [{"kind": "agent", "number": 2}, {"kind": "agent", "number": 4}], "tasks": 4, "depth": 2},
-                    "budget": {"spend": 217_920}, "notes": 0}
+                    "budget": {"spend": change_spend}, "notes": 0}
             }]}}
         ])),
         scripted_turn(json!([{"call": "wait", "arguments": {}}])),
