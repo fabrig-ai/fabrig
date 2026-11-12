@@ -643,7 +643,9 @@ fn the_first_start_cut_at_each_operation_starts_again_whole() {
             &mut store,
             Request::Get {
                 owner: Token::new(2),
-                key: crate::Get::Jig(jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment)),
+                key: crate::Get::Jig(jig_domain_core_vocabulary::Key::Core(
+                    jig_domain_core_vocabulary::CoreKey::Deployment,
+                )),
             },
         );
         let [Event::Got { row: Some(crate::Row::Jig(row)), .. }] = &*events else {

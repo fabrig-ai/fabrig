@@ -42,10 +42,11 @@ fn project(record: &w::Me, at: usize) -> w::MeProject {
 #[test]
 fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     let mut frame = fixtures::frame_two_projects();
-    frame.projects.get_mut(0).unwrap().offer = skein_lib::List::from_boxed(Box::new([jig_domain_core_vocabulary::Offered {
-        model: 1,
-        accounts: skein_lib::List::from_boxed(Box::new([9, 7])),
-    }]));
+    frame.projects.get_mut(0).unwrap().offer =
+        skein_lib::List::from_boxed(Box::new([jig_domain_core_vocabulary::Offered {
+            model: 1,
+            accounts: skein_lib::List::from_boxed(Box::new([9, 7])),
+        }]));
     frame.projects.get_mut(1).unwrap().offer = skein_lib::List::from_boxed(Box::new([
         jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::from_boxed(Box::new([7])) },
         jig_domain_core_vocabulary::Offered { model: 1, accounts: skein_lib::List::from_boxed(Box::new([9, 7])) },
@@ -423,9 +424,9 @@ fn task_documents_keep_the_claimed_account_separate_from_the_preference() {
     task.run_wait = Some(jig_domain_core_vocabulary::documents::TaskRunWait::Account {
         account: Some(41),
         source: Some(91),
-        why: jig_domain_core_vocabulary::documents::TaskWaitWhy::Source(jig_domain_core_vocabulary::documents::TaskSourceState::Limited {
-            until: None,
-        }),
+        why: jig_domain_core_vocabulary::documents::TaskWaitWhy::Source(
+            jig_domain_core_vocabulary::documents::TaskSourceState::Limited { until: None },
+        ),
     });
     let record = translate::task::document(&task, &fixtures::models(), &l).unwrap();
     assert_eq!(*record.llm().as_ref().unwrap().account(), Some(42));

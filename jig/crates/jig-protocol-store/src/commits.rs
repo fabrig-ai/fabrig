@@ -222,7 +222,11 @@ pub(crate) fn most_ops(writes: u32, orphan_erases: u32) -> Option<u32> {
     writes.checked_mul(2)?.checked_add(3)?.checked_add(orphan_erases)
 }
 
-fn copy(store: &mut Store, from: jig_domain_core_vocabulary::Key, to: jig_domain_core_vocabulary::Key) -> Option<skein_kv::Op> {
+fn copy(
+    store: &mut Store,
+    from: jig_domain_core_vocabulary::Key,
+    to: jig_domain_core_vocabulary::Key,
+) -> Option<skein_kv::Op> {
     let from = keys::encode(&from, store.limits.store.key)?;
     let value = crate::open::get(store, Token::new(0), from).ok()??;
     Some(skein_kv::Op::Put { key: keys::encode(&to, store.limits.store.key)?, value })

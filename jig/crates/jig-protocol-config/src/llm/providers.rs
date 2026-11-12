@@ -232,7 +232,10 @@ fn patterns(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
             Ok(pattern) => {
                 let mut valid = !pattern.is_empty();
                 for &byte in &pattern {
-                    if byte != b'*' && byte != b'?' && !jig_domain_core_vocabulary::settings::catalogue::valid_name(&[byte]) {
+                    if byte != b'*'
+                        && byte != b'?'
+                        && !jig_domain_core_vocabulary::settings::catalogue::valid_name(&[byte])
+                    {
                         valid = false;
                     }
                 }

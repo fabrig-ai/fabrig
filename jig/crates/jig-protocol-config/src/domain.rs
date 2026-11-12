@@ -633,7 +633,10 @@ fn codec_admits(limits: &jig_domain_core_vocabulary::Limits) -> bool {
     jig_protocol_store::codec::people::limits(limits).is_some() && jig_protocol_store::codec::limits(limits).is_some()
 }
 
-fn binding_bound(edge: &jig_domain_core_vocabulary::Limits, configured: &jig_domain_core_vocabulary::Limits) -> Option<CodecBound> {
+fn binding_bound(
+    edge: &jig_domain_core_vocabulary::Limits,
+    configured: &jig_domain_core_vocabulary::Limits,
+) -> Option<CodecBound> {
     let edge = jig_protocol_store::codec::people::derived_limits(edge)?;
     let problem = jig_protocol_store::people_v15::check_limits(&edge).err()?;
     let configured = jig_protocol_store::codec::people::derived_limits(configured)?;

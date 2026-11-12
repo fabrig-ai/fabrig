@@ -815,9 +815,11 @@ fn secret_key(store: &Store, number: u64) -> Box<[u8]> {
     crate::secrets::application(&number.to_be_bytes(), store.limits.secrets.key).expect("application prefix")
 }
 fn accounts_key(store: &Store) -> Box<[u8]> {
-    let key =
-        crate::keys::encode(&jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Next), store.limits.store.key)
-            .expect("accounts counter key");
+    let key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Next),
+        store.limits.store.key,
+    )
+    .expect("accounts counter key");
     assert_eq!(key.as_ref(), &[1, 4, 0]);
     key
 }
@@ -834,7 +836,9 @@ fn secret_fixture() -> SecretFixture {
             number,
             Box::new([
                 fixtures::header(number),
-                Write::Save(jig_domain_core_vocabulary::Record::Accounts(jig_domain_accounts::Stored::Next { number: 97 })),
+                Write::Save(jig_domain_core_vocabulary::Record::Accounts(jig_domain_accounts::Stored::Next {
+                    number: 97,
+                })),
                 Write::Wires,
             ]),
         ),
@@ -1061,9 +1065,11 @@ fn fixture_rows(store: &mut Store, shelf_version: u16, note_version: u16) -> Vec
     rows
 }
 fn assert_sealed(store: &mut Store, last: u64) {
-    let header_key =
-        crate::keys::encode(&jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment), store.limits.store.key)
-            .expect("header key");
+    let header_key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        store.limits.store.key,
+    )
+    .expect("header key");
     let header = fixtures::get_kv(store, &header_key).expect("sealed header");
     let expected = fixtures::header_put(fixtures::DEPLOYMENT, last);
     let skein_kv::Op::Put { value, .. } = expected else { panic!("header put") };
@@ -1404,9 +1410,11 @@ fn a_patch_manifest_records_the_copys_secret_commit_and_write_clock() {
 }
 
 fn assert_page_rows(store: &mut Store, last: u64) {
-    let key =
-        crate::keys::encode(&jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment), store.limits.store.key)
-            .expect("header key");
+    let key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        store.limits.store.key,
+    )
+    .expect("header key");
     let bytes = fixtures::get_kv(store, &key).expect("page keeps header");
     let record = crate::codec::decode(
         &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
@@ -1648,7 +1656,9 @@ fn fresh_baseline() -> Vec<Item> {
             fixtures::header(task),
             fixtures::save(fixtures::live_task(task)),
             fixtures::save(fresh_record(task, false)),
-            fixtures::save(jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::Turn(turn))),
+            fixtures::save(jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::Turn(
+                turn,
+            ))),
         ]);
         let events = disk.request(&mut store, fixtures::commit(task, writes));
         let [Event::Committed { number, .. }] = events.as_ref() else { panic!("fresh fixture commit: {events:?}") };
@@ -1717,7 +1727,8 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
     let events = disk.open(&mut store);
     let Some(Event::Opened { .. }) = events.last() else { panic!("valid closing proof: {events:?}") };
-    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut expected)) = bounded_fresh_proof()
+    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut expected)) =
+        bounded_fresh_proof()
     else {
         panic!("proof fixture")
     };

@@ -70,7 +70,10 @@ fn valid_refuses_each_unrepresentable_limit() {
         ),
         (
             "reader addition",
-            crate::Limits { core: jig_domain_core_vocabulary::Limits { load_slots: u32::MAX, ..limits.core }, ..limits },
+            crate::Limits {
+                core: jig_domain_core_vocabulary::Limits { load_slots: u32::MAX, ..limits.core },
+                ..limits
+            },
             false,
         ),
     ] {

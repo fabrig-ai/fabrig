@@ -21,7 +21,10 @@ pub fn activity_page() -> reads::Page {
     ])));
     page.next = Some(reads::Cursor::Store {
         scope: reads::Scope::Activity { task: 7 },
-        after: Some(reads::Position::Owner(jig_domain_core_vocabulary::Key::Tasks(t::Key::Activity { task: 7, position: 7 }))),
+        after: Some(reads::Position::Owner(jig_domain_core_vocabulary::Key::Tasks(t::Key::Activity {
+            task: 7,
+            position: 7,
+        }))),
     });
     page
 }

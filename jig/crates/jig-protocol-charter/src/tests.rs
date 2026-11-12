@@ -338,7 +338,12 @@ fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
 
 // Run inputs from the roots' report fixtures, with workspace tools configured
 // off where their starts do not prepare a workspace (domain/hosts/charters.md).
-fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -> jig_domain_core_vocabulary::RunCharter {
+fn assignment_fixture(
+    instructions: &[u8],
+    words: u32,
+    spend: u64,
+    turns: u32,
+) -> jig_domain_core_vocabulary::RunCharter {
     use jig_domain_core_vocabulary as core;
     use jig_domain_tasks as tasks;
     core::RunCharter {

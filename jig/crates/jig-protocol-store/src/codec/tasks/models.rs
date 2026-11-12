@@ -128,7 +128,8 @@ fn referenced(row: &d::Stored) -> u64 {
 pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core_vocabulary::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (old, name) in kept.iter().enumerate() {
-        *moved.get_mut(old).expect("bounded names") = jig_domain_core_vocabulary::settings::model_bit(name.value(), names);
+        *moved.get_mut(old).expect("bounded names") =
+            jig_domain_core_vocabulary::settings::model_bit(name.value(), names);
     }
     moved
 }

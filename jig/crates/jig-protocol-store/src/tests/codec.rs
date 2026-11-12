@@ -865,7 +865,9 @@ fn a_call_record_of_each_part_reads_back() {
     }
 }
 fn a_refused_delegation_reads_back_with_its_problem() {
-    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(fixtures::calls::problem())));
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(
+        fixtures::calls::problem(),
+    )));
 }
 fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     use jig_domain_tasks::LlmFault;
@@ -1321,7 +1323,10 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
         let now = Box::new([
             names[0].clone(),
-            jig_domain_core_vocabulary::settings::ModelName { name: Box::from(b"new".as_slice()), efforts: Box::new([]) },
+            jig_domain_core_vocabulary::settings::ModelName {
+                name: Box::from(b"new".as_slice()),
+                efforts: Box::new([]),
+            },
         ]);
         let decoded = crate::codec::tasks::decode(&bytes, &limits, now.as_ref()).unwrap();
         let t::Stored::PersonProposal(proposal) = decoded else { panic!("proposal") };

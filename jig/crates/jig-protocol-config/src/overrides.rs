@@ -521,7 +521,11 @@ fn set_hub(limits: &mut jig_domain_host::Limits, name: &[u8], value: u64) -> Res
     Ok(())
 }
 
-fn set_documents(limits: &mut jig_domain_core_vocabulary::documents::DocumentLimits, name: &[u8], value: u64) -> Result<(), What> {
+fn set_documents(
+    limits: &mut jig_domain_core_vocabulary::documents::DocumentLimits,
+    name: &[u8],
+    value: u64,
+) -> Result<(), What> {
     let jig_domain_core_vocabulary::documents::DocumentLimits {
         roles: _,
         rows,
@@ -586,8 +590,16 @@ fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value:
         documents: _,
         views: _,
     } = limits;
-    let jig_domain_core_vocabulary::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes, preferences, now } =
-        brief_core_budgets;
+    let jig_domain_core_vocabulary::CoreBriefBudgets {
+        tail,
+        task,
+        dependencies,
+        attempts,
+        plan,
+        notes,
+        preferences,
+        now,
+    } = brief_core_budgets;
     match name {
         b"settings.proposals" => {
             if value == 0 {

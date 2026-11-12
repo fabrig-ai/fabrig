@@ -256,7 +256,10 @@ fn an_erased_accounts_row_is_not_restored() {
         &mut store,
         Box::new([
             fixtures::header(3),
-            Write::Erase(jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Source { account: 1, number: 2 })),
+            Write::Erase(jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Source {
+                account: 1,
+                number: 2,
+            })),
             Write::Erase(jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Account { number: 1 })),
         ]),
     );
