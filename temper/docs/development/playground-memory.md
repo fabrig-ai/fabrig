@@ -44,7 +44,7 @@ the composition still captures the sign-in line as its normal `step` does.
 
 Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
 `79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. This historical table is retained
-for comparison; the test binds the 2026-11-08 table below.
+for comparison; the test uses the later tables below.
 
 | Process | First step held | First step peak | Start held | Start peak | Story A high water |
 |---|---:|---:|---:|---:|---|
@@ -60,7 +60,8 @@ for comparison; the test binds the 2026-11-08 table below.
 
 Measured 2026-11-08 (`date -u +%F`), on a builder, at trunk commit
 `2c7e0d079e92266a03d667dba08dca3fd52ca062`. The focused playground test
-binds each figure in this table to `figure + figure / 4`. Start still takes
+binds each figure in this table to `figure + figure / 4`, except the exceeded
+rows replaced by the 2026-11-12 table below. Start still takes
 147 world steps. The visitor is process 3, so four processes are measured at
 the first step and five at start, with hosted git now process 4. The bounds
 are keyed by the test's process names, including `visitor` and `git`.
@@ -92,6 +93,32 @@ so the memory test remains ignored and its high water is not yet bound
 Measuring that figure needs a skein mechanism for a service world's observer
 to keep its storage outside the process's span first
 (`skein/docs/design/testing/README.md`, 5).
+
+Measured 2026-11-12 (`date -u +%F`), on a builder, on branch
+`temper6684/c748`. R2's stock charters' prompts/settings and the expanded
+inventory account for the growth. The focused playground test replaces
+only the exceeded service rows and fake disk's start row with these figures
+plus a quarter; every other bound keeps the 2026-11-08 baseline. Start
+now takes 150 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 187,703 | 295,333 | 306,622 | 391,748 |
+| 1: fake LLM | 27,449 | 27,449 | 28,185 | 28,185 |
+| 2: fake forge HTTP | 30,130 | 30,130 | 30,871 | 30,915 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,990 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 178,778 |
+| Shared forge before start | 7,061 | not separately measured at start |
+
+The one-process memory binary was run once by name with `--run-ignored only`.
+It completed the three requests at 45.8 simulated seconds, then failed the
+same exact-release check: process 0 freed 1,287,344 bytes against 1,863,104
+metered bytes. It returned no high-water row, so that row remains unmeasured
+and the test remains ignored; no one-process bound changed.
 
 ## Halving the knobs
 

@@ -353,7 +353,15 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
-        v1::Request::Reachable(_)
+        v1::Request::FileFinding(value) if value.title().is_empty() => return None,
+        v1::Request::HandFinding(value) if value.why().is_empty() => return None,
+        v1::Request::TriageFinding(value) => match value.act() {
+            v1::Triage::Drop(reason) if reason.reason().is_empty() => return None,
+            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog => {}
+        },
+        v1::Request::FileFinding(_)
+        | v1::Request::HandFinding(_)
+        | v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
         | v1::Request::DismissMaking(_)
@@ -620,3 +628,35 @@ pub const GOAL_SCOPE: &[u8] =
 /// A goal asks for agreement before changes (temper/docs/design/domain/agent/agents.md, 2).
 pub const GOAL_AGREED: &[u8] =
     b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";
+
+/// Encode a findings document (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn findings(record: &v1::Findings) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+
+/// Decode a complete findings document (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn decode_findings(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Findings> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Findings::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a finding read answer (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn finding_answer(record: &v1::FindingAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+
+/// Decode a complete finding read answer (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn decode_finding_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FindingAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::FindingAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}

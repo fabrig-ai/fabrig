@@ -1056,8 +1056,12 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
         CallAnswer::Finding(answer) => match answer.as_ref() {
-            crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref())).ok()?.checked_add(temper_engine_domain_forge::findings::reply_bytes(reply)?),
-            crate::FindingToolAnswer::List(_) | crate::FindingToolAnswer::Show { .. } => unreachable!("finding reads have no retained answer"),
+            crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
+                .ok()?
+                .checked_add(temper_engine_domain_forge::findings::reply_bytes(reply)?),
+            crate::FindingToolAnswer::List(_) | crate::FindingToolAnswer::Show { .. } => {
+                unreachable!("finding reads have no retained answer")
+            }
         },
         CallAnswer::Decided { took, .. } => Some(match took {
             Some(words) => skein_lib::len_u64(words.len()),

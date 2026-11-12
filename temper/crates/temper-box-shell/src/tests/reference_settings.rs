@@ -762,7 +762,9 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
 #[test]
 fn the_stock_settings_document_decodes_in_every_client() {
     use jig_domain_core::{reads, settings};
-    let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{}}));
+    let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{
+        "authority.executors":21,"tasks.executor_kinds":21,"tasks.charters":16
+    }}));
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 21);
     let source = reads::SettingDocument {

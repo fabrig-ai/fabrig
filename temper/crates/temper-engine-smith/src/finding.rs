@@ -1,13 +1,13 @@
 //! The finding tool (temper/docs/design/domain/agent/tools.md; domain/areas.md, 7).
-use alloc::boxed::Box;
 use crate::{Problem, calls::Spec, json::Value};
+use alloc::boxed::Box;
 use temper_engine_domain::FindingCall;
 use temper_engine_domain_forge as forge;
 
 pub(crate) const SPEC: Spec = Spec {
     name: b"finding",
-    description: b"File, hand on, route, backlog, drop, list or show findings in your task's project. Triage only your own findings.",
-    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"type":"string","enum":["file","hand","route","backlog","drop","list","show"]},"kind":{"type":"string","enum":["qa","flake","red","review","feedback"]},"severity":{"type":"string","enum":["low","medium","high"]},"area":{"type":"string","description":"An area of this project, 1 to 32 bytes."},"title":{"type":"string","description":"1 to 200 UTF-8 bytes, no control characters."},"body":{"type":"string","description":"At most 4,096 UTF-8 bytes."},"number":{"type":"integer","minimum":1,"maximum":4294967295},"why":{"type":"string","description":"Why hand it on: one line, 1 to 200 bytes."},"goal":{"type":"integer","minimum":1},"reason":{"type":"string","description":"Why drop it: 1 to 400 bytes."},"state":{"type":"string","enum":["new","routed","backlog","dropped"]},"mine":{"type":"boolean","default":false}},"required":["act"],"oneOf":[{"properties":{"act":{"const":"file"}},"required":["kind","severity","title","body"]},{"properties":{"act":{"const":"hand"}},"required":["number","area","why"]},{"properties":{"act":{"const":"route"}},"required":["number","goal"]},{"properties":{"act":{"const":"backlog"}},"required":["number"]},{"properties":{"act":{"const":"drop"}},"required":["number","reason"]},{"properties":{"act":{"const":"list"}}},{"properties":{"act":{"const":"show"}},"required":["number"]}]}"#,
+    description: b"file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number",
+    schema: br#"{"type":"object","properties":{"act":{"enum":["file","hand","route","backlog","drop","list","show"]},"kind":{"enum":["qa","flake","red","review","feedback"]},"severity":{"enum":["low","medium","high"]},"area":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"number":{"type":"integer"},"why":{"type":"string"},"goal":{"type":"integer"},"reason":{"type":"string"},"state":{"type":"string"},"mine":{"type":"boolean"}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
 };
 
@@ -46,19 +46,38 @@ pub(crate) fn decode(value: &Value) -> Result<FindingCall, Problem> {
             };
             let title = line(value, b"title", 200)?;
             let body = value.required(b"body")?.text(b"body")?;
-            if !forge::findings::body_fits(&body) { return Err(Problem::Range(b"body: at most 4,096 UTF-8 bytes")); }
-            Ok(FindingCall::File { kind, severity, area: match value.field(b"area")? { Some(_) => Some(line(value, b"area", 32)?), None => None }, title, body })
+            if !forge::findings::body_fits(&body) {
+                return Err(Problem::Range(b"body: at most 4,096 UTF-8 bytes"));
+            }
+            Ok(FindingCall::File {
+                kind,
+                severity,
+                area: match value.field(b"area")? {
+                    Some(_) => Some(line(value, b"area", 32)?),
+                    None => None,
+                },
+                title,
+                body,
+            })
         }
-        b"hand" => Ok(FindingCall::Hand { number: number(value)?, area: line(value, b"area", 32)?, why: line(value, b"why", 200)? }),
+        b"hand" => Ok(FindingCall::Hand {
+            number: number(value)?,
+            area: line(value, b"area", 32)?,
+            why: line(value, b"why", 200)?,
+        }),
         b"route" => {
             let goal = value.required(b"goal")?.number(b"goal")?;
-            if goal == 0 { return Err(Problem::Range(b"goal")); }
+            if goal == 0 {
+                return Err(Problem::Range(b"goal"));
+            }
             Ok(FindingCall::Triage { number: number(value)?, act: forge::Triage::Route(goal) })
         }
         b"backlog" => Ok(FindingCall::Triage { number: number(value)?, act: forge::Triage::Backlog }),
         b"drop" => {
             let reason = value.required(b"reason")?.text(b"reason")?;
-            if !forge::findings::reason_fits(&reason) { return Err(Problem::Range(b"reason: 1 to 400 UTF-8 bytes")); }
+            if !forge::findings::reason_fits(&reason) {
+                return Err(Problem::Range(b"reason: 1 to 400 UTF-8 bytes"));
+            }
             Ok(FindingCall::Triage { number: number(value)?, act: forge::Triage::Drop(reason) })
         }
         b"list" => {
@@ -70,7 +89,10 @@ pub(crate) fn decode(value: &Value) -> Result<FindingCall, Problem> {
                 None => None,
                 Some(_) => return Err(Problem::Range(b"state: new, routed, backlog or dropped")),
             };
-            let mine = match value.field(b"mine")? { Some(value) => value.boolean(b"mine")?, None => false };
+            let mine = match value.field(b"mine")? {
+                Some(value) => value.boolean(b"mine")?,
+                None => false,
+            };
             Ok(FindingCall::List { state, mine })
         }
         b"show" => Ok(FindingCall::Show { number: number(value)? }),
@@ -81,15 +103,28 @@ mod render;
 pub(crate) use render::render;
 
 fn optional_text(value: &Value, name: &'static [u8]) -> Result<Option<Box<[u8]>>, Problem> {
-    match value.field(name)? { Some(value) => Ok(Some(value.text(name)?)), None => Ok(None) }
+    match value.field(name)? {
+        Some(value) => Ok(Some(value.text(name)?)),
+        None => Ok(None),
+    }
 }
 fn number(value: &Value) -> Result<u32, Problem> {
     let number = value.required(b"number")?.small(b"number")?;
-    if number == 0 { return Err(Problem::Range(b"number")); }
+    if number == 0 {
+        return Err(Problem::Range(b"number"));
+    }
     Ok(number)
 }
 fn line(value: &Value, name: &'static [u8], bound: u32) -> Result<Box<[u8]>, Problem> {
     let text = value.required(name)?.text(name)?;
-    if !forge::settings::words_fit(&text, bound) { return Err(Problem::Range(name)); }
+    if !forge::settings::words_fit(&text, bound) {
+        let rule: &[u8] = match name {
+            b"area" => b"area: 1 to 32 UTF-8 bytes, no control characters",
+            b"title" => b"title: 1 to 200 UTF-8 bytes, no control characters",
+            b"why" => b"why: one line of 1 to 200 UTF-8 bytes, no control characters",
+            _ => unreachable!("finding line field"),
+        };
+        return Err(Problem::Range(rule));
+    }
     Ok(text)
 }

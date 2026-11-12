@@ -664,7 +664,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
-        (b"core.policy_bytes", 6074, Setting::Policy(1), "the stock's policy 1 needs 6074 bytes"),
+        (b"core.policy_bytes", 6110, Setting::Policy(1), "the stock's policy 1 needs 6110 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
         // The standing charters, closer procedure and close job are delegation targets.
@@ -793,7 +793,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6074 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6110 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -850,11 +850,20 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     }
 }
 
+fn chat_and_goal_use_asking() {
+    let words = include_str!("../stock/chat.txt");
+    for prefix in ["If your brief says you are a goal", "If neither line"] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("role paragraph");
+        assert!(paragraph.contains("Use Reports and Asking."));
+    }
+}
+
 // temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
+    chat_and_goal_use_asking();
     for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..]),
         (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
     ] {
         for prefix in prefixes {
@@ -885,8 +894,9 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
 
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
+    chat_and_goal_use_asking();
     for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..]),
         (
             include_str!("../stock/coordinator.md"),
             &["Where the draft leaves a choice:", "On a question a change relays"][..],
@@ -1010,7 +1020,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     }
     for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
-        assert!(paragraph.contains("Use Reports."), "{role} must retain reporting rules");
+        assert!(paragraph.contains("Use Reports and Asking."), "{role} must retain reporting rules");
     }
 }
 

@@ -140,7 +140,7 @@ fn a_fresh_init_names_the_standard_profiles() {
     for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
         let member = document.text(document.token(at).unwrap()).expect("override name");
         assert!(
-            !member.starts_with(b"people.") && !member.starts_with(b"authority."),
+            !member.starts_with(b"people.") && (!member.starts_with(b"authority.") || member == b"authority.executors"),
             "init overrides {} instead of taking standard",
             str::from_utf8(member).unwrap()
         );
@@ -149,7 +149,10 @@ fn a_fresh_init_names_the_standard_profiles() {
         }
     }
     task_overrides.sort_unstable();
-    assert_eq!(task_overrides.as_slice(), ["tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]);
+    assert_eq!(
+        task_overrides.as_slice(),
+        ["tasks.charters", "tasks.executor_kinds", "tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]
+    );
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
     assert_eq!(limits.tasks.message_bytes, 10_660);
@@ -432,7 +435,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
     // The standing charters each add an executor place in four policy authorities.
-    assert_eq!(bytes, 6074);
+    assert_eq!(bytes, 6110);
     std::eprintln!(
         "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes
