@@ -43,6 +43,7 @@ pub(crate) use problems::admission_words;
 pub use problems::{EngineWhat, Problem, Problems, What, lines};
 use skein_lib::List;
 
+use temper_service_core::agent::Declaration;
 use temper_service_core::startup::{CallAnswer, nearest_document};
 pub use temper_service_core::startup::{Shape, nearest};
 
@@ -190,7 +191,7 @@ pub struct StoreLimits {
 pub fn store_limits(
     document: &[u8],
     directories: &config::Directories,
-    agent: Option<&settings::Agent>,
+    agent: Option<&Declaration>,
 ) -> Result<StoreLimits, Problems> {
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
@@ -254,13 +255,13 @@ struct Parsed {
     worker_call_answers: Box<[CallAnswer]>,
 }
 impl Parsed {
-    fn compose(&mut self, agent: &settings::Agent) -> Result<(), Problems> {
+    fn compose(&mut self, agent: &Declaration) -> Result<(), Problems> {
         let mut problems = Problems::empty();
         if let Err(what) = self.engine_call_answer.compose(
             &mut self.engine.limits,
-            agent.tool_payload(),
-            agent.host_ask_input(),
-            agent.host_reply_text(),
+            agent.tool_payload,
+            agent.host_ask_input,
+            agent.host_reply_text,
         ) {
             problems.push(call_input_path(Path::root().member(b"engine")), what.extend());
         }
@@ -268,9 +269,9 @@ impl Parsed {
         for (index, worker) in self.workers.iter_mut().enumerate() {
             if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
                 &mut worker.limits,
-                agent.tool_payload(),
-                agent.host_ask_input(),
-                agent.host_reply_text(),
+                agent.tool_payload,
+                agent.host_ask_input,
+                agent.host_reply_text,
             ) {
                 problems.push(call_input_path(indexed(index)), what.extend());
             }
@@ -718,7 +719,11 @@ pub(crate) fn checked_start_with(
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,
     };
-    if let Some(agent) = agent {
+    let declaration = match agent {
+        Some(agent) => Some(agent.declaration()),
+        None => None,
+    };
+    if let Some(agent) = &declaration {
         parsed.compose(agent)?;
     }
     check_files(&parsed, files)?;
@@ -730,7 +735,7 @@ pub(crate) fn checked_start_with(
     let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
     checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
-    checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
+    checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
     let remote =
         u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
             .ok();
@@ -759,8 +764,8 @@ pub(crate) fn checked_start_with(
         &mut problems,
     );
     let mut host_part = None;
-    if let Some(agent) = agent {
-        let measured = temper_engine_smith::room::host_part(agent.run_limits());
+    if let Some(agent) = &declaration {
+        let measured = temper_engine_smith::room::host_part(&agent.run_limits);
         checks::agent(&parsed.engine, agent, &mut problems);
         checks::room(&parsed.engine, measured, &mut problems);
         host_part = Some(measured);
@@ -771,7 +776,7 @@ pub(crate) fn checked_start_with(
     let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
     core.jobs = crate::limits::jobs(&parsed.engine.limits);
     let mut warnings = Problems::empty();
-    if let Some(agent) = agent {
+    if let Some(agent) = &declaration {
         warnings = checks::admission(&core, &parsed.engine, agent, &mut problems);
         checks::agent_answer(agent, &mut problems);
     }
@@ -785,12 +790,12 @@ pub(crate) fn checked_start_with(
     #[cfg(not(feature = "worker"))]
     let worker: Option<settings::Worker> = None;
     let mut engine = settings::Engine {
-        host_reply_bytes: match agent {
-            Some(agent) => Some(agent.host_reply_text()),
+        host_reply_bytes: match &declaration {
+            Some(agent) => Some(agent.host_reply_text),
             None => None,
         },
-        agent_charter_bytes: match agent {
-            Some(agent) => Some(agent.charter_bytes()),
+        agent_charter_bytes: match &declaration {
+            Some(agent) => Some(agent.charter_bytes),
             None => None,
         },
         host_part,
@@ -822,8 +827,8 @@ pub(crate) fn checked_start_with(
         return Err(problems);
     }
     let mut turn = None;
-    if let Some(agent) = agent {
-        turn = Some(agent.turn_body());
+    if let Some(agent) = &declaration {
+        turn = Some(agent.turn_body);
     }
     checked_store(&root, &engine.jig.limits.store, turn)?;
     let io = match &worker {

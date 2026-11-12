@@ -894,16 +894,10 @@ fn route_events(service: &mut Service) {
     }
 }
 
-/// Kernel work in a worker-only process, independent of its domain's room.
-pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
-    // Allow staged successors beside io's in-flight operations. Every io entry
-    // point emits at most MAX_OUT_DOWN.submissions; the worker adds git's
-    // operations and closes counted by worker_settings.
-    io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(worker_operations)
-}
 fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     // Shared io successors, worker file operations and the three store drivers own the kernel credit.
-    worker_alone_operations(io, worker_operations)?.checked_add(store::KERNEL_HANDOFF_ENTRIES)
+    temper_service_core::process::Process::operations_for(io, worker_operations)?
+        .checked_add(store::KERNEL_HANDOFF_ENTRIES)
 }
 
 fn box_notes_full(service: &Service) -> bool {

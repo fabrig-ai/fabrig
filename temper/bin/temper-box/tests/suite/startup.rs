@@ -1815,7 +1815,7 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
     let store = temper_service::startup::store_limits(
         &bounded.document,
         &jig_protocol_config::Directories::working(),
-        Some(&bounded.agent),
+        Some(&bounded.agent.declaration()),
     )
     .expect("template store limits");
     let turn = u64::from(bounded.agent.limits.bodies.turn_body);
