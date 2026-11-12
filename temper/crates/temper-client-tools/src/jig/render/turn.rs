@@ -94,6 +94,27 @@ pub(super) fn text(
         }
     }
 }
+/// Only the role's text, retaining part offsets for the ordinary continuation calls.
+pub(super) fn reply(task: u64, name: c::TurnName, value: &c::TurnRead, limits: &Limits, out: &mut Text) {
+    let call = Call { tool: crate::jig::rows::CHAT_AT, form: 0, values: Box::default(), key: None };
+    let c::TurnRead::Decoded(turn) = value else {
+        text(task, name, value, &call, limits, out);
+        return;
+    };
+    let mut part = 0u64;
+    for message in &turn.messages {
+        for block in &message.blocks {
+            match block {
+                c::Block::Text(bytes) => words(task, name, &mut part, bytes.bytes(), &call, limits, out),
+                c::Block::Call(called) => {
+                    part = part.checked_add(if called.outcome.is_some() { 2 } else { 1 }).expect("bounded parts");
+                }
+                c::Block::Result { .. } => part = part.checked_add(1).expect("bounded parts"),
+                c::Block::Opaque { .. } => {},
+            }
+        }
+    }
+}
 fn part_bytes(turn: &c::Turn, selected: u64) -> Option<&[u8]> {
     let mut part = 0u64;
     for message in &turn.messages {

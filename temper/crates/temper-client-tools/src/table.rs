@@ -118,6 +118,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::ROLE_START,
     &rows::ROLE_LIST,
     &rows::ROLE_SHOW,
+    &rows::ROLE_TALK,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

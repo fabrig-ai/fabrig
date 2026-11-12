@@ -5,14 +5,71 @@ use alloc::boxed::Box;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 
-fn note(page: &c::NotePage) -> Option<&c::Note> {
+pub(crate) fn refusal(word: &[u8], refusal: &c::Refusal, me: Option<&c::Me>, out: &mut Text) -> bool {
+    match (word, refusal) {
+        (b"talk", c::Refusal::NotOffered) => out.put(b"not a standing role"),
+        (b"talk", c::Refusal::Taken { by }) => {
+            out.put(b"talking with ");
+            super::acts::party(*by, me, out);
+        }
+        (b"leave", c::Refusal::NotWaiting) => out.put(b"no talk to leave"),
+        _ => return false,
+    }
+    true
+}
+
+pub(crate) fn reply_page(thread: &jig_client::thread::Thread, from: u64, through: Option<u64>, limits: &Limits) -> Result<Box<[u8]>, Printed> {
+    let bound = u32::try_from(limits.result_bytes).expect("result bound");
+    let mut measure = Text::bounded(bound, 0);
+    reply_text(thread, from, through, limits, &mut measure);
+    if skein_lib::len_u64(measure.structural()) > limits.result_bytes {
+        return Err(super::failure(b"result limit", false, 1));
+    }
+    let mut out = measure.writing(bound, 0);
+    reply_text(thread, from, through, limits, &mut out);
+    Ok(out.finish())
+}
+fn reply_text(thread: &jig_client::thread::Thread, from: u64, through: Option<u64>, limits: &Limits, out: &mut Text) {
+    for row in thread.lines.rows.as_slice().iter().rev() {
+        if row.source.position > from && row.source.position <= through.unwrap_or(u64::MAX)
+            && let Some(turn) = &row.decoded
+        {
+            super::turn::reply(thread.task, turn.name, &turn.turn, limits, out);
+        }
+    }
+}
+pub(crate) fn reply(reply: &crate::jig::runner::talk::Reply, json: bool, limits: &Limits) -> Printed {
+    let mut measure = Text::measure();
+    for chunk in reply.chunks.values() { measure.put(chunk); }
+    let mut out = Text::writing_exact(measure);
+    for chunk in reply.chunks.values() { out.put(chunk); }
+    let text = out.finish();
+    let stdout = if json {
+        let bounds = JsonLimits { depth: 2, length: u32::try_from(limits.result_bytes).expect("result bound") };
+        let mut measure = Encoder::measure(&bounds);
+        encode_reply(&text, reply.met, &mut measure);
+        let Ok(size) = measure.measured() else { return super::failure(b"result limit", json, 1) };
+        let mut out = Encoder::write(size, &bounds);
+        encode_reply(&text, reply.met, &mut out);
+        out.finish()
+    } else { text };
+    Printed { file: crate::jig::FileEnd::Keep, status: if reply.met { 0 } else { 3 }, stdout, stderr: Box::default() }
+}
+fn encode_reply(text: &[u8], met: bool, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"reply"); out.string(text);
+    out.key(b"met"); out.boolean(met);
+    out.object_end();
+}
+
+fn note<'a>(page: &'a c::NotePage, description: &[u8]) -> Option<&'a c::Note> {
     let mut found: Option<&c::Note> = None;
     for row in &page.rows {
         let earlier = match found {
             Some(prior) => row.number < prior.number,
             None => true,
         };
-        if row.description.bytes() == b"now" && earlier {
+        if row.description.bytes() == description && earlier {
             found = Some(row);
         }
     }
@@ -25,7 +82,7 @@ fn page(read: Option<&Readout>) -> Option<&c::NotePage> {
     }
 }
 fn selected(read: Option<&Readout>) -> Option<&c::Note> {
-    note(page(read)?)
+    note(page(read)?, b"now")
 }
 fn first_line(body: &[u8]) -> &[u8] {
     match skein_lib::bytes::find(body, b"\n") {
@@ -124,12 +181,22 @@ fn encode_list(tasks: &c::TaskPage, reading: &Reading, out: &mut Encoder) {
     out.object_end();
 }
 
-pub(crate) fn show(task: Printed, read: Option<&Readout>, json: bool, limits: &Limits) -> Printed {
+pub(crate) fn show(task: Printed, reading: &Reading, me: Option<&c::Me>, limits: &Limits) -> Printed {
+    let json = reading.called.json;
+    let report = crate::jig::call::value(&reading.called.call, 1).is_some();
+    let talk = match reading.pages.get(&1) {
+        Some(Readout::Jig(c::ReadResult::Value(value))) => match super::read_task(value) {
+            Some((task, _)) => task.talk,
+            None => None,
+        },
+        _ => None,
+    };
+    let read = reading.pages.get(&8);
     if task.status != 0 {
         return task;
     }
-    let Some(page) = page(read) else { return super::failure(b"Now could not be read", json, 1) };
-    let now = note(page);
+    let Some(page) = page(read) else { return super::failure(if report { b"report could not be read" } else { b"Now could not be read" }, json, 1) };
+    let now = note(page, if report { b"report" } else { b"now" });
     let suffix = if json {
         let bounds = JsonLimits { depth: 4, length: u32::try_from(limits.result_bytes).expect("result bound") };
         let mut measure = Encoder::measure(&bounds);
@@ -140,25 +207,37 @@ pub(crate) fn show(task: Printed, read: Option<&Readout>, json: bool, limits: &L
         out.finish()
     } else {
         let mut measure = Text::measure();
-        now_text(now, &mut measure);
+        talk_text(talk, me, &mut measure);
+        now_text(now, report, &mut measure);
         let mut out = Text::writing_exact(measure);
-        now_text(now, &mut out);
+        talk_text(talk, me, &mut out);
+        now_text(now, report, &mut out);
         out.finish()
     };
+    let key = if report { b",\"report\":".as_slice() } else { b",\"now\":" };
     let parts: &[&[u8]] =
-        if json { &[b"{\"task\":", &task.stdout, b",\"now\":", &suffix, b"}"] } else { &[&task.stdout, &suffix] };
+        if json { &[b"{\"task\":", &task.stdout, key, &suffix, b"}"] } else { &[&task.stdout, &suffix] };
     let bytes = skein_lib::bytes::concat(parts);
     if skein_lib::len_u64(bytes.len()) > limits.result_bytes {
         return super::failure(b"result limit", json, 1);
     }
     Printed { stdout: bytes, ..task }
 }
-fn now_text(now: Option<&c::Note>, out: &mut Text) {
+fn talk_text(talk: Option<c::Talk>, me: Option<&c::Me>, out: &mut Text) {
+    if let Some(talk) = talk {
+        out.put(b"talking with ");
+        super::acts::party(talk.party, me, out);
+        out.put(b" since ");
+        super::document::clock::deadline(talk.opened, out);
+        out.put(b"\n");
+    }
+}
+fn now_text(now: Option<&c::Note>, report: bool, out: &mut Text) {
     let Some(now) = now else {
-        out.put(b"no Now yet\n");
+        out.put(if report { b"no report yet\n" } else { b"no Now yet\n" });
         return;
     };
-    out.put(b"Now: note ");
+    out.put(if report { b"report: note " } else { b"Now: note " });
     out.number(now.number);
     out.put(b" revision ");
     out.number(now.revision.value);
@@ -173,7 +252,7 @@ fn now_text(now: Option<&c::Note>, out: &mut Text) {
         out.put(b"\n");
     }
     if now.body.cut {
-        out.put(b"Now body cut; report it\n");
+        out.put(if report { b"report body cut; report it\n" } else { b"Now body cut; report it\n" });
     }
 }
 fn encode_now(now: Option<&c::Note>, out: &mut Encoder) {

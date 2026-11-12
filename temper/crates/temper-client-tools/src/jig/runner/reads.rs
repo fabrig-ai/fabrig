@@ -21,6 +21,7 @@ pub(crate) struct Reading {
     pub text: Option<c::RunText>,
     pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
+    pub talk: Option<super::talk::Reply>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
     pub person: Option<Box<c::PersonTask>>,
@@ -67,17 +68,22 @@ pub(crate) fn met_inbox(
     for value in called.call.values.iter_mut().skip(4) {
         *value = None;
     }
-    start_reading(runner, client, env, called, Some(fallback), out);
+    start_reading(runner, client, env, called, Some(After::Inbox(fallback)), out);
 }
 
+enum After { Inbox(Printed), Talk(super::talk::Reply) }
+pub(crate) fn talk_reply(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, reply: super::talk::Reply, out: &mut Queue<Out>) {
+    start_reading(runner, client, env, called, Some(After::Talk(reply)), out);
+}
 fn start_reading(
     runner: &mut Runner,
     client: &Client,
     env: &Env<Limits>,
     called: Called,
-    met_inbox: Option<Printed>,
+    after: Option<After>,
     out: &mut Queue<Out>,
 ) {
+    let (met_inbox, talk) = match after { Some(After::Inbox(fallback)) => (Some(fallback), None), Some(After::Talk(reply)) => (None, Some(reply)), None => (None, None) };
     let reading = Reading {
         called,
         command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
@@ -87,6 +93,7 @@ fn start_reading(
         text: None,
         specification: None,
         thread: None,
+        talk,
         questions: BTreeMap::new(),
         question: None,
         person: None,
@@ -154,7 +161,7 @@ fn start_overview(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut r
 fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
-        4 => thread_start(runner, env, &mut reading, task, out),
+        4 | rows::ROLE_TALK_AT => thread_start(runner, env, &mut reading, task, out),
         5 => {
             let before = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Activity { task, before }, out);
@@ -266,7 +273,7 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
             live: env.limits.text,
         },
     );
-    let next = match cursor(&reading.called.call, 1) {
+    let next = match if reading.talk.is_some() { None } else { cursor(&reading.called.call, 1) } {
         Some(cursor) => {
             thread.lines.edges.after = thread::window::Edge::More(cursor);
             thread.older()
@@ -277,7 +284,9 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
         read(runner, reading, 1, next, out);
     }
     reading.thread = Some(thread);
-    watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
+    if reading.talk.is_none() {
+        watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
+    }
 }
 pub(crate) fn project(call: &Call, me: &c::Me) -> Option<u32> {
     selected_project(value(call, 0), me)
@@ -365,7 +374,18 @@ fn accept_page(
         complete(runner, client, env, reading, out);
         return;
     }
-    if let Some(thread) = &mut reading.thread
+    if let Some(reply) = &mut reading.talk {
+        let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page else {
+            let printed = render::read(&page, client, runner.me(), reading.called.json, &env.limits, reading.parts);
+            finish(reading, printed, out);
+            return;
+        };
+        match reply.page(reading.thread.as_mut().expect("talk thread"), *page.clone(), &env.limits) {
+            Ok(Some(next)) => read(runner, &mut reading, local, next, out),
+            Ok(None) => {},
+            Err(printed) => { finish(reading, printed, out); return; }
+        }
+    } else if let Some(thread) = &mut reading.thread
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page
     {
         let mut next = thread.accept(*page.clone());
@@ -571,12 +591,18 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         super::accounts::resolved(runner, client, env, reading, out);
         return;
     }
-    let printed = if reading.called.call.tool == rows::ROLE_SHOW_AT {
+    let printed = if let Some(reply) = &reading.talk {
+        render::roles::reply(reply, reading.called.json, &env.limits)
+    } else if reading.called.call.tool == rows::ROLE_SHOW_AT {
         let now = reading.pages.remove(&8);
+        let report = reading.called.call.values.get_mut(1).expect("report flag").take();
         reading.called.call.tool = rows::TASK_AT;
         let task =
             render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
-        render::roles::show(task, now.as_ref(), reading.called.json, &env.limits)
+        reading.called.call.tool = rows::ROLE_SHOW_AT;
+        *reading.called.call.values.get_mut(1).expect("report flag") = report;
+        if let Some(now) = now { reading.pages.insert(8, now); }
+        render::roles::show(task, &reading, super::acts::me(runner, client), &env.limits)
     } else {
         render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall)
     };

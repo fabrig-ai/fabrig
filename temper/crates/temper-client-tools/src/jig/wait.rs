@@ -21,6 +21,7 @@ pub(crate) struct Wait {
     me: bool,
     stage: Stage,
     name: &'static [u8],
+    talk: Option<u64>,
 }
 #[derive(Debug)]
 enum Completion {
@@ -52,8 +53,18 @@ impl Wait {
     }
 }
 pub(crate) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
-    let subject = crate::jig::subject::of(&called.call).expect("watched read");
-    let row = crate::jig::rows::watched(called.call.tool).expect("watched read");
+    start_wait(runner, client, env, called, None, out);
+}
+pub(crate) fn talk(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, message: u64, out: &mut Queue<Out>) {
+    start_wait(runner, client, env, called, Some(message), out);
+}
+fn start_wait(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, talk: Option<u64>, out: &mut Queue<Out>) {
+    let subject = if talk.is_some() {
+        Subject::Task(crate::jig::call::number(&called.call, 0).expect("role task"))
+    } else {
+        crate::jig::subject::of(&called.call).expect("watched read")
+    };
+    let row = if talk.is_some() { &crate::jig::rows::ROLE_TALK } else { crate::jig::rows::watched(called.call.tool).expect("watched read") };
     let me = live_me(client, runner.me()).expect("signed-in call");
     let Some((subject, name)) = watch(&subject, &called.call, me, env.limits.rows) else {
         let printed = render::failure(b"unknown project", called.json, 1);
@@ -65,18 +76,20 @@ pub(crate) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     } else {
         Handle { asker: runner.asker, number: u64::from(called.call_number) << 32u32 }
     };
-    let until = match argument(row, &called.call, b"until") {
+    let until = if talk.is_some() { Some(Condition::Replied) } else { match argument(row, &called.call, b"until") {
         Some(Value::Condition(until)) => Some(*until),
         _ => None,
-    };
+    } };
     let since = match argument(row, &called.call, b"since") {
         Some(Value::Digest(bytes)) => Some(Digest::from_bytes(*bytes)),
         _ => None,
     };
-    let Some(Value::Duration(timeout)) = argument(row, &called.call, b"timeout") else {
-        unreachable!("checked timeout")
+    let timeout = match argument(row, &called.call, b"timeout") {
+        Some(Value::Duration(timeout)) => *timeout,
+        None if talk.is_some() => env.limits.wait,
+        _ => unreachable!("checked timeout"),
     };
-    let deadline = env.now.checked_add(*timeout).unwrap_or(Time::from_nanos(u64::MAX));
+    let deadline = env.now.checked_add(timeout).unwrap_or(Time::from_nanos(u64::MAX));
     let wait = Wait {
         called,
         handle,
@@ -88,6 +101,7 @@ pub(crate) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
             || (subject == c::Subject::Accounts && me.deployment_role == Some(c::HeldRole::Owner)),
         stage: Stage::Watching,
         name,
+        talk,
     };
     let number = wait.called.call_number;
     if runner.wait_timers.is_none() {
@@ -214,6 +228,13 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
         ),
         None => None,
     };
+    if wait.talk.is_some()
+        && let c::Delivery::Task(task) = delivery
+        && (task.chip.phase == c::Phase::Held || conditions::ended(task.chip.phase))
+    {
+        complete(runner, client, env, number, Err(b"held or ended"), out);
+        return;
+    }
     if wait.answers(digest, holds) {
         if wait.until == Some(Condition::Ended) && wait.name == b"task" {
             finishing(runner, number, out);
@@ -248,6 +269,12 @@ fn complete(
         Ok(Completion::Watch) => (true, b"".as_slice(), None, true),
         Err(why) => (false, why, None, false),
     };
+    if let Some(message) = wait.talk {
+        let through = match delivery { Some(c::Delivery::Task(task)) => Some(task.activity), _ => None };
+        close(&wait, runner.me(), out);
+        runner::reads::talk_reply(runner, client, env, wait.called, runner::talk::Reply::new(message, through, met), out);
+        return;
+    }
     if !wait.called.json
         && let Some(c::Delivery::Task(task)) = delivery
     {
@@ -457,6 +484,10 @@ fn terminal_page(
     let printed = match page {
         Readout::Jig(c::ReadResult::Value(value)) if final_task(expected, value).is_some() => {
             let (task, result) = final_task(expected, value).expect("matching terminal task read");
+            if let Some(message) = wait.talk {
+                runner::reads::talk_reply(runner, client, env, wait.called, runner::talk::Reply::new(message, Some(task.activity), false), out);
+                return;
+            }
             let latest = Latest::Jig(c::Delivery::Task(Box::new(task.clone())));
             let met = conditions::holds(
                 &wait.until.expect("finishing condition"),
