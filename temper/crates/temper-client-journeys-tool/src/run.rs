@@ -183,7 +183,7 @@ fn build(
         "smith-fake-claude",
     ]);
     if is_tui {
-        cargo.args(["-p", "temper-client", "--features", "temper-client-shell-tui/record"]);
+        cargo.args(["-p", "temper-client"]);
     }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
