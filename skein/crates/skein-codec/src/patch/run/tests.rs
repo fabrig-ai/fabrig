@@ -396,6 +396,204 @@ fn derived_conversions_emit_canonical_bytes_for_the_new_schema() {
 }
 
 #[test]
+fn opened_pieces_convert_items_and_reframe_their_bytes() {
+    let rows = [
+        (
+            "two widened items",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record D { p: bytes 32 pieces R }",
+                new: "record R { a: u16 } record D { p: bytes 32 pieces R }",
+                lines: "widen R.a u8 u16\n",
+                bytes: &[0, 0, 0, 10, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2],
+                expected: &[0, 0, 0, 12, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0, 2],
+            },
+        ),
+        (
+            "added item field",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record D { p: bytes 32 pieces R }",
+                new: "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+                lines: "add R.b bool false\n",
+                bytes: &[0, 0, 0, 10, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2],
+                expected: &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0],
+            },
+        ),
+        (
+            "empty pieces remain empty",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record D { p: bytes 32 pieces R }",
+                new: "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+                lines: "add R.b bool false\n",
+                bytes: &[0, 0, 0, 0],
+                expected: &[0, 0, 0, 0],
+            },
+        ),
+        (
+            "nested pieces convert both lengths",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record P { p: bytes 32 pieces R } record D { p: bytes 64 pieces P }",
+                new: "record R { a: u16 } record P { p: bytes 32 pieces R } record D { p: bytes 64 pieces P }",
+                lines: "widen R.a u8 u16\n",
+                bytes: &[0, 0, 0, 13, 0, 0, 0, 9, 0, 0, 0, 5, 0, 0, 0, 1, 2],
+                expected: &[0, 0, 0, 14, 0, 0, 0, 10, 0, 0, 0, 6, 0, 0, 0, 2, 0, 2],
+            },
+        ),
+        (
+            "pieces in list items and options",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record P { p: option bytes 32 pieces R } record D { ps: list 2 P after: u8 }",
+                new: "record R { a: u16 } record P { p: option bytes 32 pieces R } record D { ps: list 2 P after: u8 }",
+                lines: "widen R.a u8 u16\n",
+                bytes: &[0, 0, 0, 2, 1, 0, 0, 0, 5, 0, 0, 0, 1, 2, 0, 7],
+                expected: &[0, 0, 0, 2, 1, 0, 0, 0, 6, 0, 0, 0, 2, 0, 2, 0, 7],
+            },
+        ),
+        (
+            "versioned piece items",
+            Derived {
+                root: "D",
+                old: "versioned record R { a: u8 } record D { p: bytes 32 pieces R }",
+                new: "versioned record R { a: u8 } record D { p: bytes 32 pieces R }",
+                lines: "",
+                bytes: &[0, 0, 0, 7, 0, 0, 0, 3, 0, 1, 2],
+                expected: &[0, 0, 0, 7, 0, 0, 0, 3, 0, 2, 2],
+            },
+        ),
+        (
+            "secret pieces",
+            Derived {
+                root: "D",
+                old: "record R { a: u8 } record D { p: secret 32 pieces R }",
+                new: "record R { a: u16 } record D { p: secret 32 pieces R }",
+                lines: "widen R.a u8 u16\n",
+                bytes: &[0, 0, 0, 5, 0, 0, 0, 1, 2],
+                expected: &[0, 0, 0, 6, 0, 0, 0, 2, 0, 2],
+            },
+        ),
+    ];
+    skein_rows::check(rows, |row| {
+        let (mut patcher, _) = started(row.old, row.new, row.lines, row.root, row.bytes);
+        finished(&mut patcher, row.root, row.expected);
+    });
+    // The generated encoder writes the uint at its width, then its bytes field;
+    // piece::write supplies the item lengths (data/codec/README.md, 3).
+    let mut pieces = skein_lib::Writer::new(12);
+    for a in [1_u16, 2] {
+        crate::piece::write(&mut pieces, &a.to_be_bytes()).expect("piece fits");
+    }
+    let mut record = skein_lib::Writer::new(16);
+    record.put(&12_u32.to_be_bytes()).expect("field length");
+    record.put(&pieces.finish()).expect("pieces");
+    assert_eq!(record.finish().as_ref(), rows.first().expect("widen row").1.expected);
+}
+
+#[test]
+fn copied_pieces_do_not_decode_their_items() {
+    const OLD: &str = "record R { a: bool } record D { p: bytes 32 pieces R }";
+    const NEW: &str = "record R { a: bool } record D { p: bytes 32 pieces R after: bool }";
+    for bytes in [
+        &[0, 0, 0, 5, 0, 0, 0, 1, 2][..], // Invalid bool, valid framing.
+        &[0, 0, 0, 1, 255][..], // Invalid framing.
+    ] {
+        let (mut patcher, _) = started(OLD, NEW, "add D.after bool false\n", "D", bytes);
+        let mut expected = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small fixture"));
+        expected.put(bytes).expect("copied bytes");
+        expected.put(&[0]).expect("added bool");
+        finished(&mut patcher, "D", &expected.finish());
+    }
+}
+
+#[test]
+fn opened_pieces_obey_the_new_field_bound() {
+    const OLD: &str = "record R { a: u8 } record D { p: bytes 10 pieces R }";
+    const BYTES: &[u8] = &[0, 0, 0, 10, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2];
+    const EXPECTED: &[u8] = &[0, 0, 0, 12, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0, 2];
+    for bound in [12_u32, 11] {
+        let new = format!("record R {{ a: u16 }} record D {{ p: bytes {bound} pieces R }}");
+        let (mut patcher, _) = started(OLD, &new, "widen R.a u8 u16\n", "D", BYTES);
+        if bound == 12 {
+            finished(&mut patcher, "D", EXPECTED);
+        } else {
+            let path = Path { decl: DeclIx::new(1), part: Part::Field(FieldIx::new(1)) };
+            assert_eq!(patcher.next(), Err(Halt::Built(Problem { path, reason: Reason::Bound })));
+            assert_eq!(patcher.finish(), Err(Halt::Order));
+        }
+    }
+}
+
+#[test]
+fn opened_pieces_refuse_bad_framing_and_old_item_bytes() {
+    const OLD: &str = "record R { a: bool } record D { p: bytes 32 pieces R }";
+    const NEW: &str = "record R { a: option bool } record D { p: bytes 32 pieces R }";
+    const PIECES: Path = Path { decl: DeclIx::new(1), part: Part::Field(FieldIx::new(1)) };
+    for (bytes, path, reason) in [
+        (&[0, 0, 0, 1, 0][..], PIECES, Reason::Malformed),
+        (&[0, 0, 0, 4, 0, 0, 0, 1][..], PIECES, Reason::Malformed),
+        (&[0, 0, 0, 5, 0, 0, 0, 1, 2][..], FIELD, Reason::Bool),
+        (&[0, 0, 0, 4, 0, 0, 0, 0][..], FIELD, Reason::Short),
+        (&[0, 0, 0, 6, 0, 0, 0, 2, 1, 0][..], Path { decl: D, part: Part::Tail }, Reason::Trailing),
+    ] {
+        let (mut patcher, _) = started(OLD, NEW, "wrap R.a bool option bool\n", "D", bytes);
+        assert_eq!(patcher.next(), Err(Halt::Decode(Refusal::Problem(Problem { path, reason }))));
+        assert_eq!(patcher.finish(), Err(Halt::Order));
+    }
+}
+
+#[test]
+fn opened_pieces_count_old_and_new_nodes_and_output_bytes() {
+    const OLD: &str = "record R { a: u8 } record D { p: bytes 32 pieces R }";
+    const NEW: &str = "record R { a: u16 } record D { p: bytes 32 pieces R }";
+    const BYTES: &[u8] = &[0, 0, 0, 10, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2];
+    const WIDENED: &[u8] = &[0, 0, 0, 12, 0, 0, 0, 2, 0, 1, 0, 0, 0, 2, 0, 2];
+    for (capacity, new, lines, expected, fits) in [
+        (Capacity { nodes: 6, bytes: 16, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, true),
+        (Capacity { nodes: 5, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, false),
+        (Capacity { bytes: 15, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, false),
+        (Capacity { nodes: 8, ..CAPACITY }, "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+            "add R.b bool false\n", &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..], true),
+        (Capacity { nodes: 7, ..CAPACITY }, "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+            "add R.b bool false\n", &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..], false),
+    ] {
+        let (mut patcher, plan) = planned_at(capacity, OLD, new, lines);
+        patcher.start(plan, DeclIx::new(1), BYTES.into()).expect("opaque old field fits");
+        if fits {
+            finished(&mut patcher, "D", expected);
+        } else {
+            assert_eq!(patcher.next(), Err(Halt::Room));
+            assert_eq!(patcher.finish(), Err(Halt::Order));
+        }
+        assert_run_rooms(&patcher);
+    }
+    // Old decoded nodes count even when the conversion drops their fields.
+    let (mut patcher, plan) = planned_at(
+        Capacity { nodes: 5, ..CAPACITY }, OLD,
+        "record R {} record D { p: bytes 32 pieces R }", "drop R.a\n",
+    );
+    patcher.start(plan, DeclIx::new(1), BYTES.into()).expect("opaque old field fits");
+    assert_eq!(patcher.next(), Err(Halt::Room));
+}
+
+#[test]
+fn carrying_a_part_with_opened_pieces_halts_misbuilt() {
+    let (mut patcher, plan) = started(
+        "record R { a: u8 } record D { p: bytes 32 pieces R }",
+        "record R { a: u16 } record D { p: bytes 32 pieces R }",
+        "widen R.a u8 u16\nwritten D\n", "D", &[0, 0, 0, 5, 0, 0, 0, 1, 1],
+    );
+    let at = stopped(&mut patcher);
+    let (old, new) = patcher.parts();
+    let path = Path { decl: DeclIx::new(1), part: Part::Field(FieldIx::new(1)) };
+    assert_eq!(new.carry(old, at), Err(Halt::Misbuilt(path)));
+    assert_eq!(patcher.next(), Err(Halt::Order));
+    patcher.start(plan, DeclIx::new(1), Box::from([0, 0, 0, 0])).expect("restart after carry halt");
+}
+
+#[test]
 fn written_field_reads_old_fields_and_supplies_its_value() {
     let (mut patcher, _) =
         started("record D { a: u8 }", "record D { a: u8 f: u16 }", "add D.f u16 written\nwritten D.f\n", "D", &[7]);

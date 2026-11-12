@@ -1578,10 +1578,11 @@ fn reference_flags(
                 return Ok((copies && converted.copies, converted.stops));
             }
             Type::Bytes { held: Held::Pieces(at), .. } | Type::Secret { held: Held::Pieces(at), .. } => {
-                if !conversion(plan, at).copies {
+                let converted = conversion(plan, at);
+                if converted.stops {
                     return Err(PatchWrong::Pieces);
                 }
-                return Ok((copies, false));
+                return Ok((copies && converted.copies, false));
             }
             Type::Bytes { held: Held::Record { family: af, name: an }, .. }
             | Type::Secret { held: Held::Record { family: af, name: an }, .. } => match bv {

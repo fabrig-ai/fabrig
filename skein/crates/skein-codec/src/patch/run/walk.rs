@@ -2,7 +2,7 @@
 
 use super::{
     Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Part, Path, Shape, Site, Source, Span, State, Step,
-    Stop, Type, add, plan, spelled, ty,
+    Stop, Type, add, plan, spelled, ty, Problem, Refusal,
 };
 use skein_lib::Reader;
 
@@ -27,7 +27,7 @@ fn held_record(ty: Type) -> Option<(Span, Span)> {
 }
 
 impl Build {
-    pub(super) fn advance(&mut self, old: &Old) -> Result<Step, Halt> {
+    pub(super) fn advance(&mut self, old: &mut Old) -> Result<Step, Halt> {
         match self.state {
             State::Stopped => {
                 if !self.opened.is_empty() || self.pending.is_some() {
@@ -44,14 +44,22 @@ impl Build {
                 self.state = State::Done;
                 return Ok(Step::Done);
             };
-            if let Some(step) = self.turn(old, frame, false)? {
-                return Ok(step);
+            match frame {
+                Frame::Pieces { at, rest, item, new, length, piece } => {
+                    self.pieces(old, at, rest, item, new, length, piece)?;
+                }
+                Frame::Enter { .. } | Frame::Record { .. } | Frame::List { .. } => {
+                    if let Some(step) = self.turn(old, frame, false)? {
+                        return Ok(step);
+                    }
+                }
             }
         }
         Err(Halt::Room)
     }
     pub(super) fn turn(&mut self, old: &Old, frame: Frame, carrying: bool) -> Result<Option<Step>, Halt> {
         match frame {
+            Frame::Pieces { new, .. } => Err(Halt::Misbuilt(new.path)),
             Frame::Enter { at, new, ignore_site } => self.enter(old, at, new, ignore_site, carrying),
             Frame::Record { at, decl, next, end } => self.record(old, at, decl, next, end, carrying),
             Frame::List { mut items, item, path } => {
@@ -67,6 +75,63 @@ impl Build {
             }
         }
     }
+    #[expect(clippy::too_many_arguments, reason = "one opened pieces frame (data/codec/patches.md, 4)")]
+    fn pieces(
+        &mut self,
+        old: &mut Old,
+        at: Node,
+        rest: Span,
+        item: DeclIx,
+        new: Expected,
+        length: u32,
+        piece: Option<u32>,
+    ) -> Result<(), Halt> {
+        if let Some(piece) = piece {
+            self.write_length(piece, u32::MAX, new.path)?;
+        }
+        let bound = match ty(self.new_schema(), new.source) {
+            Type::Bytes { bound, .. } | Type::Secret { bound, .. } => bound,
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration
+            | Type::Fixed(_) | Type::Text(_) | Type::List { .. } | Type::Option(_) | Type::Named(_) => {
+                return Err(Halt::Misbuilt(new.path));
+            }
+        };
+        let mut reader = Reader::new(spelled(old.value.bytes(), rest));
+        match crate::piece::split_bytes(&mut reader) {
+            Ok(Some(_)) => {}
+            Ok(None) => return self.write_length(length, bound, new.path),
+            Err(reason) => {
+                let path = match old.value.path(at) {
+                    Ok(path) => path,
+                    Err(error) => return Err(Halt::Misread(error.node)),
+                };
+                return Err(Halt::Decode(Refusal::Problem(Problem { path, reason })));
+            }
+        }
+        let end = rest.end.checked_sub(reader.remaining()).expect("split stays within field");
+        let span = Span { start: add(rest.start, 4), end };
+        let schema = self.tables.schemas.get(self.current().old).expect("kept old schema");
+        let result = old.value.decode_piece(schema, item, at, span, &mut self.reserve);
+        self.old_room = old.value.room();
+        self.room_nodes(old.value.indexed_nodes());
+        let node = match result {
+            Ok(node) => node,
+            Err(Refusal::Room) => return Err(Halt::Room),
+            Err(refusal) => return Err(Halt::Decode(refusal)),
+        };
+        let decl = self.current().declarations.get(item.index()).expect("item conversion").new
+            .ok_or(Halt::Misbuilt(new.path))?;
+        let piece = self.out.len();
+        self.put(&0_u32.to_be_bytes())?;
+        self.push(Frame::Pieces {
+            at, rest: Span { start: end, end: rest.end }, item, new, length, piece: Some(piece),
+        })?;
+        self.push(Frame::Enter {
+            at: node,
+            new: Expected { source: Source::Declaration(decl), path: new.path },
+            ignore_site: false,
+        })
+    }
     fn stopped(&mut self, event: Step, new: Expected, stop: Stop, carrying: bool) -> Result<Option<Step>, Halt> {
         if carrying {
             return Err(Halt::Misbuilt(new.path));
@@ -76,6 +141,7 @@ impl Build {
         self.state = State::Stopped;
         Ok(Some(event))
     }
+    #[expect(clippy::too_many_lines, reason = "the conversion walk lists every terminal type (data/codec/patches.md, 4)")]
     fn enter(
         &mut self,
         old: &Old,
@@ -133,6 +199,36 @@ impl Build {
                     | Type::Option(_)
                     | Type::Named(_) => old.content(at)?,
                 };
+                match old_ty {
+                    Type::Bytes { held: Held::Pieces(item), .. }
+                    | Type::Secret { held: Held::Pieces(item), .. } => {
+                        let converted = self.current().declarations.get(item.index()).expect("pieces item conversion");
+                        if !converted.copies {
+                            if carrying {
+                                return Err(Halt::Misbuilt(new.path));
+                            }
+                            let span = match old.value.span(at) {
+                                Ok(span) => span,
+                                Err(error) => return Err(Halt::Misread(error.node)),
+                            };
+                            let length = self.out.len();
+                            self.put(&0_u32.to_be_bytes())?;
+                            self.push(Frame::Pieces {
+                                at,
+                                rest: Span { start: add(span.start, 4), end: span.end },
+                                item,
+                                new,
+                                length,
+                                piece: None,
+                            })?;
+                            return Ok(None);
+                        }
+                    }
+                    Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration
+                    | Type::Fixed(_) | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
+                    | Type::Text(_) | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. }
+                    | Type::List { .. } | Type::Option(_) | Type::Named(_) => {}
+                }
                 self.write_content(new, bytes)?;
             }
             Type::List { item, .. } => {
