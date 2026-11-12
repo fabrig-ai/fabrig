@@ -7,7 +7,8 @@ requirements and reads; a forge connected or not, and removed; adopting
 repositories, and what the picker offers; keeping up; a change's way to
 landing and the requirements its merge meets; landing queues, a forge's own merge
 queue among them; updates and conflicts; issues; following another
-project's branch (`follows.md`); and the ways temper takes part in what
+project's branch (`follows.md`); depending on another project
+(`dependencies.md`); and the ways temper takes part in what
 others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
 `../../protocol/forge/README.md`. What is still open is listed in section 11.

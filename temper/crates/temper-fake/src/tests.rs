@@ -16,6 +16,8 @@ use serde_json::{Value, json};
 use skein_fake_llm_domain::api;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
+mod scripts;
+
 fn llm_document() -> Value {
     json!({"listen":{"socket":"127.0.0.1:0"},"key":"/tmp/key","tls":null,
         "models":[{"name":"qa","window":4096,"output":1024}],"cued":[],"asked":[],"otherwise":["fallback"]})
@@ -144,7 +146,6 @@ fn llm_document_checks() {
         ("/asked", Value::Array((0..2).map(|_| scripts[0].clone()).collect()), "asked[1].cue: must be unique\n"),
         ("/cued", json!([{"cue":"x","turns":["x"],"extra":1}]), "cued[0].extra: unknown member\n"),
         ("/asked", json!([{"cue":"x","turns":[]}]), "asked[0].turns: must be non-empty\n"),
-        ("/otherwise", json!([]), "otherwise: must be non-empty\n"),
         ("/otherwise", json!(vec!["x"; 17]), "otherwise: past its bound\n"),
         ("/otherwise", json!([{"lines":[],"finish":"stop","tokens":1}]), "otherwise[0].lines: must be non-empty\n"),
         (

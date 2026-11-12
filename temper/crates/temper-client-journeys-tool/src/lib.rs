@@ -15,9 +15,13 @@ pub use table::TABLE;
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod again;
+pub mod drive;
+pub mod line;
 pub mod print;
+pub mod recipe;
 pub mod tui;
 pub mod tui_again;
+mod tui_driver;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
 pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
 /// Where the journeys live, by the manifest's path (client/web/journeys.md, 5.1).

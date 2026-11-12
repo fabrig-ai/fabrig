@@ -11,10 +11,19 @@ each draft landed in its repositories that its writer says is ready, by
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5). Landed QA's milestone Q1: `temper-qa`
+`draft/surfaces.status.md`, 5). QA's hands are landed-qa's milestone Q2,
+by goal 1000: a drive session on a fake box from a given build, taking a
+person's steps and looks a line at a time; recipes and their walk; the
+fake model's given scripts and strict switch; a store this build cannot
+read refused by name; and a box started again with a newer build, whose
+process-tier story runs after landing (`client/drive.md`;
+`client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
+5; `draft/landed-qa.status.md`).
+
+Landed QA's milestone Q1: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
-can need them, all in one ledger; its passes follow in Q2 and Q3
+can need them, all in one ledger; its passes follow in Q3
 (`testing/qa/README.md`; `draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
@@ -29,7 +38,21 @@ its change with the followed commit; and lag and parity in the forge's
 `follows` document. A standing role as owner waits on R1; the follow
 change's words carry no diff, and a person's follow's holds reach the
 project's escalation role, each asked of the user
-(`domain/forge/follows.status.md`; `draft/follows.status.md`).
+(`domain/forge/follows.status.md`; `draft/follows.status.md`). A
+project's dependency on another is milestone F2
+(`domain/forge/dependencies.md`): kind 13, naming another project of
+the deployment, carried in the `follows` document beside the follows
+and printed by `temper ctl follow list`, "dependency 1: fabrig depends
+on vsr-rs"; nothing acts on it, and Home's What follows what draws it
+with the follows (`draft/surfaces.status.md`, 3).
+
+T1's repair, goal 761, reads the launchpad's brief, Where you left off
+and Needs you across the person's projects, says why a walked need
+reached the person and when each need asked, dates a left-off row and
+draws the blank row under the header (`client/tui/pages/launchpad.md`).
+Its walk follows landing; team lines, `/talk` and `/tell` remain T3's,
+and Stop asking in the terminal remains the web's
+(`draft/surfaces.status.md`, 11).
 
 How work runs' What follows a landing and a role's budget are the whole
 story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box
@@ -49,6 +72,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/forge/deployment.md`](client/forge/deployment.status.md)
@@ -76,6 +100,7 @@ Design documents:
 - [`client/pages/team.md`](client/pages/team.status.md)
 - [`client/pages/welcome.md`](client/pages/welcome.status.md)
 - [`client/pages/work.md`](client/pages/work.status.md)
+- [`client/recipe.md`](client/recipe.status.md)
 - [`client/testing.md`](client/testing.status.md)
 - [`client/tui/README.md`](client/tui/README.status.md)
 - [`client/tui/box.md`](client/tui/box.status.md)
@@ -104,6 +129,7 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/dependencies.md`](domain/forge/dependencies.status.md)
 - [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)

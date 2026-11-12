@@ -961,6 +961,48 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
 }
 
 #[test]
+fn unreadable_temper_rows_refuse_restart_by_their_row_key_before_switch() {
+    use jig_protocol_store as store;
+    use temper_engine_domain_forge as forge;
+    let key = temper_protocol_store::keys::encode(&forge::Key::Flight { task: 3, entry: 8 }, u32::MAX).unwrap();
+    let valid = temper_protocol_store::records::encode(&forge::Stored::Flight { task: 3, entry: 8 });
+    let mut trailing = skein_lib::Writer::new(valid.len() + 1);
+    trailing.put(&valid).unwrap();
+    trailing.put(&[0]).unwrap();
+    let mismatched = temper_protocol_store::records::encode(&forge::Stored::Flight { task: 3, entry: 9 });
+    for value in [Box::from([255]), trailing.finish(), mismatched] {
+        let mut previous = fixtures::ready().engine.unwrap();
+        let mut header = previous.domain.deployment();
+        header.commits += 1;
+        previous.store.host.ask(store::Request::Commit {
+            number: header.commits,
+            writes: Box::new([
+                store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+                store::Write::Put { key: key.clone(), value },
+            ]),
+        });
+        let Some(store::Event::Committed { .. }) = previous.store.host.above.pop() else {
+            panic!("unreadable fixture committed")
+        };
+        let mut service = fixtures::restarting_from(previous);
+        service.engine.as_mut().unwrap().store.pending_generation = true;
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        let expected = crate::End::Stopped(crate::Stop::StoreRow { row: crate::UnreadableRow { key: key.clone() } });
+        assert_eq!(service.end(), Some(&expected));
+        let engine = service.engine.as_ref().unwrap();
+        assert!(!engine.domain.ready());
+        assert!(!engine.store.host.mark_durable());
+        assert!(engine.store.pending_generation, "refused before switch");
+        assert!(engine.store.routes.idle(), "no further load");
+    }
+}
+
+#[test]
 fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     use jig_protocol_store as store;
     use skein_lib::{Env, Queue, Token, Wall};

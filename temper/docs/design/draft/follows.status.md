@@ -1,6 +1,6 @@
 # follows: status
 
-2026-11-11. Where the design lags or departs from [follows.md](follows.md).
+2026-11-12. Where the design lags or departs from [follows.md](follows.md).
 
 - **Design lags:**
   - 2, 3 and 5: a standing role as a follow's owner, its tool for the
@@ -13,7 +13,10 @@
   - 5: `../client/README.md` draws no lag or parity: Home, Team and How
     work runs are `surfaces.md`'s, and draw them from the forge's
     `follows` document (`../domain/forge/follows.md`, section 7).
-  - 7: no design document holds a project's dependency on another.
+  - 7: `../client/README.md` draws no dependency: Home's What follows
+    what is `surfaces.md`'s, and draws a project's dependencies beside
+    its follows from the forge's `follows` document
+    (`../domain/forge/dependencies.md`, section 4).
   - 9: `../testing/README.md` has no world with a follow, and
     `../../development/acceptance.md` no follow story.
 - **Design departs:**

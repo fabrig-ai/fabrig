@@ -44,3 +44,9 @@
   An agent's task's Close is drawn at each width by its gallery state, the walk of the
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
+
+T1's repair, goal 761, carries the launchpad's brief, Where you left off
+and Needs you across the person's projects, a walked need's reason,
+need ages, dated left-off rows and the blank row under the header
+(`tui/pages/launchpad.md`). Its walk follows landing (`README.md`, 5);
+Stop asking stays on the web (`../draft/surfaces.status.md`, 11).
