@@ -1,6 +1,6 @@
 //! A goal's landing exhausts its repairs, stays held through a change into g,
 //! then checks and lands g's released head (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/README.md, 3
-//! ; temper/docs/design/draft/reference-landing.md, 3 and 9).
+//! ; temper/docs/design/draft/archive/reference-landing.md, 3 and 9).
 use super::goal_branch::{branch_tip, goal_request, writer};
 use super::goal_landing::{
     assert_goal_holds, ended, finish_run, land_into_goal, mine, producing_into_goal, row, status,
@@ -39,6 +39,7 @@ fn world_with_settings(brief: Option<engine::BriefLimits>, bound: Option<Duratio
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -52,6 +53,7 @@ fn world_with_settings(brief: Option<engine::BriefLimits>, bound: Option<Duratio
             approvals: Box::new([]),
         },
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,

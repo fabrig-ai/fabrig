@@ -442,3 +442,52 @@ entry's description, its body empty.
   absent from the brief of the same person's chat of charter 1; a
   turn read by another role of the project with the list and the calls
   withheld, and whole by its person.
+
+## 5. Open questions
+
+- **A `see` answer by its worker's reply bound** (`tools.md`). The protocol layer
+  renders a `see` answer within the local agent's bound alone, since its
+  hand-out (`HostDelivery::See`) names no call key, so a run on a remote
+  worker whose bound is smaller may meet smith's `TooLarge`. Default: the
+  local agent's bound.
+
+- **A document moved within one call** (`ask-temper.md`, 3): jig decides and records a
+  write refused as moved, so the root cannot read the newest and write again
+  under the same call, as `../../draft/ask-temper.md`, 5.3 has it. Default: the
+  call is refused naming its section, and the run's next call applies it to
+  the newest; a retry within the call once jig's notes take a section's splice
+  at the write, or leave an application's moved write unrecorded.
+
+- **Parts of a settings proposal across a restart** (`ask-temper.md`, 2): the engine holds
+  them in its memory, so a restart loses them, and a run that was running
+  across it is refused its next proposing call once, even with no part given.
+  Default: as it is; a durable store for them if a real chat meets a restart
+  mid-set often enough to matter.
+
+- **How the settings' addresses read** (`ask-temper.md`, 1): `../../draft/ask-temper.md`,
+  5.1's rules for how an answer reads hold the addresses read as the person; the
+  settings, their history and proposals still read as the settings' renderers
+  write them for ctl and the run's `settings` read, the history's "read on" line
+  among it. Default: as they are, until a walk shows a run misled by one; then
+  each takes the rules in its own read.
+
+- **A revision's values of temper's kinds through `see`** (`ask-temper.md`, 1): `revision N`
+  reads as the run's settings read does, which carries no value of temper's kinds
+  at that revision, where ctl's `revision show` reads a set landing rule or forge
+  charter from the forge at it, and the one it replaced. Default: as the run's
+  read is, until a person asks for one; then the root reads the forge's values at
+  the revision, as ctl does.
+
+- **A project's own policy through `see`** (`ask-temper.md`, 1): the draft's addresses name
+  no `settings project-policy`, which holds the forge's permission mapping
+  an approval rule's role follows (`agents.md`, 1). Default: none, since
+  `propose_settings` refuses at the call what too few eligible approvers would
+  fail (`ask-temper.md`, 2) and the inventory says who is eligible; M2 adds it if a person's
+  question needs the mapping.
+
+- **Ask temper before M3b** (`ask-temper.md`): M3b supplies
+  the other views, the Showing part's paragraph on sketches and the actors'
+  marks (`../../draft/ask-temper.execution.md`, section 3). The
+  ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
+  addresses, of the `view` block and of `remember`, and the user's judgement
+  of `ask.txt`, its Remembering part among it, follow landing.

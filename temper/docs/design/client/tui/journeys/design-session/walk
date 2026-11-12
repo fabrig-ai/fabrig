@@ -1,0 +1,38 @@
+walk 1
+see "then press Approve."
+approve
+see "Ask temper"
+mark
+key paste "/draft Plan a farewell line for hello."
+key enter
+see "Tell it something else"
+see "farewell-line.md"
+mark
+key control "p"
+see "Check README.md keeps its greeting and contains one farewell line."
+mark
+key control "p"
+see "I wrote the farewell draft beside us. Where should the farewell line go?"
+mark
+key control "p"
+see "farewell-line.md"
+see "Tell it something else"
+key char "1"
+key enter
+see "blocks the work."
+see "Open questions  new"
+mark
+key paste "/goal"
+key enter
+see "How should it run?"
+mark
+key enter
+key paste "/goal"
+see "pane: half"
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+mark
+end

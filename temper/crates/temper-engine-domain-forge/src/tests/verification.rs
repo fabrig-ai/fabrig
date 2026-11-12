@@ -82,6 +82,15 @@ const LIMITS: Limits = Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -96,6 +105,7 @@ const LIMITS: Limits = Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -157,6 +167,7 @@ fn configured() -> [Configured; 2] {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -243,15 +254,17 @@ fn opening_row() -> ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
-    d.repositories.insert(REPO, adopted()).expect("adoption");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("adoption");
     let mut tiers = List::uncapped();
     for (name, branch) in names {
         tiers

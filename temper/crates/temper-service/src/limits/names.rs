@@ -116,6 +116,19 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         }
         b"forge.judge_projects" => limits.forge.judge_projects = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.judge_criteria" => limits.forge.judge_criteria = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follows" => limits.forge.follows = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_paths" => limits.forge.follow_paths = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_queue" => limits.forge.follow_queue = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_merge" => limits.forge.follow_merge = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_commits" => limits.forge.follow_commits = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_files" => limits.forge.follow_files = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_message_bytes" => {
+            limits.forge.follow_message_bytes = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.follow_skips" => limits.forge.follow_skips = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.follow_reason_bytes" => {
+            limits.forge.follow_reason_bytes = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.landing_rules" => limits.forge.landing_rules = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.brief_sections" => limits.forge.brief_sections = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.brief_bytes" => limits.forge.brief_bytes = u32::try_from(value).or(Err(Refused::Range))?,
@@ -166,6 +179,9 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         }
         b"forge.change_policy.resolutions" => {
             limits.forge.change_policy.resolutions = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.change_policy.reruns" => {
+            limits.forge.change_policy.reruns = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge.change_policy.updates" => {
             limits.forge.change_policy.updates = u32::try_from(value).or(Err(Refused::Range))?;
@@ -330,7 +346,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 171] = [
+pub static NAMES: [Name; 181] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -716,6 +732,60 @@ pub static NAMES: [Name; 171] = [
         value: |limits| u64::from(limits.forge.judge_criteria),
     },
     Name {
+        name: "forge.follows",
+        unit: Unit::Count,
+        line: "Follows per project.",
+        value: |limits| u64::from(limits.forge.follows),
+    },
+    Name {
+        name: "forge.follow_paths",
+        unit: Unit::Count,
+        line: "Path prefixes per follow.",
+        value: |limits| u64::from(limits.forge.follow_paths),
+    },
+    Name {
+        name: "forge.follow_queue",
+        unit: Unit::Count,
+        line: "Queued landings per follow.",
+        value: |limits| u64::from(limits.forge.follow_queue),
+    },
+    Name {
+        name: "forge.follow_merge",
+        unit: Unit::Count,
+        line: "Landings per follow change.",
+        value: |limits| u64::from(limits.forge.follow_merge),
+    },
+    Name {
+        name: "forge.follow_commits",
+        unit: Unit::Count,
+        line: "Commits retained per follow entry.",
+        value: |limits| u64::from(limits.forge.follow_commits),
+    },
+    Name {
+        name: "forge.follow_files",
+        unit: Unit::Count,
+        line: "Files retained per follow entry.",
+        value: |limits| u64::from(limits.forge.follow_files),
+    },
+    Name {
+        name: "forge.follow_message_bytes",
+        unit: Unit::Bytes,
+        line: "Message bytes retained per follow commit.",
+        value: |limits| u64::from(limits.forge.follow_message_bytes),
+    },
+    Name {
+        name: "forge.follow_skips",
+        unit: Unit::Count,
+        line: "Skips retained per follow.",
+        value: |limits| u64::from(limits.forge.follow_skips),
+    },
+    Name {
+        name: "forge.follow_reason_bytes",
+        unit: Unit::Bytes,
+        line: "Bytes per follow skip reason.",
+        value: |limits| u64::from(limits.forge.follow_reason_bytes),
+    },
+    Name {
         name: "forge.landing_rules",
         unit: Unit::Count,
         line: "Bounds landing rules per scope.",
@@ -924,6 +994,12 @@ pub static NAMES: [Name; 171] = [
         unit: Unit::Count,
         line: "Bounds conflict resolution attempts in a change.",
         value: |limits| u64::from(limits.forge.change_policy.resolutions),
+    },
+    Name {
+        name: "forge.change_policy.reruns",
+        unit: Unit::Count,
+        line: "Bounds re-runs of a runner-failed job at one head.",
+        value: |limits| u64::from(limits.forge.change_policy.reruns),
     },
     Name {
         name: "forge.change_policy.updates",

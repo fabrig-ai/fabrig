@@ -77,6 +77,8 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         // Explicit titles fit the forge; the body retains the task words.
         change_row_title: 256,
         change_row_body: change_words,
+        follow_question_words: forge.client.op_bytes.max(change_words),
+        follow_question_answer_some: forge.client.op_bytes.max(change_words),
         change_failure_line: change_words,
         change_row_report: forge.client.op_bytes,
         held_answer: forge.client.op_bytes,
@@ -120,6 +122,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         adopted_name: forge.name_bytes,
         adopted_prefix: forge.name_bytes,
         adopted_checks: forge.change_policy.gates,
+        adopted_contexts: forge.judge_projects,
         retargeted_before: forge.name_bytes,
         retargeted_after: forge.name_bytes,
         names_resources: forge.resources_per_task,

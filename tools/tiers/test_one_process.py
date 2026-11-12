@@ -87,10 +87,11 @@ class RunnerFixture(unittest.TestCase):
         (self.root / '.config').mkdir()
         self.config = self.root / '.config/nextest.toml'
         self.config.write_text('[profile.default]\n')
-        for name in ('cargo', 'prefix'):
+        for name in ('cargo', 'prefix', 'hold'):
             shutil.copyfile(FIXTURES / f'{name}.py', self.root / name)
             (self.root / name).chmod(0o700)
         self.env = dict(os.environ, FIXTURE_CASE='pass', NEXTEST='1')
+        self.env.pop('TIERS_HOLD', None)
         self.command = [str(self.root / 'prefix'), str(self.root / 'cargo'), 'nextest', 'run',
                         '-p', 'fixture', '--profile', 'default', '--no-fail-fast']
         self.module = runpy.run_path(str(HERE / 'one_process.py'))
@@ -190,6 +191,89 @@ class EndToEndTests(RunnerFixture):
                                 stderr=subprocess.STDOUT, text=True, timeout=10)
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertEqual(json.loads((self.directory / 'results.json').read_text())['selected'], 0)
+
+
+class HoldTests(RunnerFixture):
+    def prepare_command(self, setting, *, out=False):
+        self.metadata['target_directory'] = str(self.root / 'target')
+        self.binary(names=())
+        self.prepare()
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'))
+        env.pop('TIERS_HOLD', None)
+        if setting is not None:
+            env['TIERS_HOLD'] = setting
+        command = [str(HERE / 'one-process')]
+        if out:
+            command += ['--out', str(self.directory)]
+        return command + ['default', '-p', 'fixture'], env
+
+    def events(self):
+        path = self.root / 'hold-events.jsonl'
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+    def test_hold_before_metadata_until_after_summary(self):
+        command, env = self.prepare_command(str(self.root / 'hold'))
+        self.binary(names=('a',))
+        self.prepare()
+        result = subprocess.run(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        events = self.events()
+        self.assertEqual(events[0], ['hold-start', [], os.getpgrp(), os.getsid(0)])
+        self.assertEqual(events[1][0:2], ['cargo', ['metadata', '--format-version', '1', '--no-deps']])
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
+        self.assertIn('default: 1 tests', result.stdout)
+
+    def test_unset_or_empty_hold_starts_none(self):
+        for setting in (None, ''):
+            with self.subTest(setting=setting):
+                command, env = self.prepare_command(setting, out=True)
+                if self.directory.exists():
+                    shutil.rmtree(self.directory)
+                result = subprocess.run(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 4, result.stderr)
+                self.assertTrue(self.events())
+                self.assertTrue(all(e[0] == 'cargo' for e in self.events()))
+
+    def test_early_hold_exit_warns_and_continues(self):
+        command, env = self.prepare_command(str(self.root / 'hold') + ' fail')
+        result = subprocess.run(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn('one-process: hold:', result.stderr)
+        self.assertIn('; going on unheld', result.stderr)
+        self.assertEqual(self.events()[0][0:2], ['hold-start', ['fail']])
+        self.assertEqual(self.events()[1][0], 'cargo')
+        self.assertIn('default: 0 tests', result.stdout)
+
+    def test_sigkill_releases_hold_by_eof(self):
+        command, env = self.prepare_command(str(self.root / 'hold'))
+        env['FIXTURE_HOLD_BLOCK'] = '1'
+        with subprocess.Popen(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
+            try:
+                deadline = time.monotonic() + 5
+                while not any(e[0] == 'cargo' for e in self.events()) and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(any(e[0] == 'cargo' for e in self.events()), 'cargo did not start')
+                self.assertFalse(any(e[0] == 'hold-end' for e in self.events()))
+                process.kill()
+                process.wait(timeout=5)
+                deadline = time.monotonic() + 5
+                while not any(e[0] == 'hold-end' for e in self.events()) and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertEqual(self.events()[-1], ['hold-end', None])
+            finally:
+                process.kill()
+                for event in self.events():
+                    if event[0] == 'cargo':
+                        try:
+                            os.kill(event[2], signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
 
 
 class RunnerTests(RunnerFixture):

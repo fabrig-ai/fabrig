@@ -70,7 +70,10 @@ watch's subject, its digest (4). It needs no key.
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
 | `finding list --project PROJECT [--state new\|routed\|backlog\|dropped]` | the project's findings: issue, kind, severity, area, state, signature, times seen, goal (`../../domain/findings.md`, section 2) | the forge's family |
 | `finding show FINDING` | one finding whole, its state as its word set | the forge's family |
+| `draft list --project PROJECT` | the project's landed drafts, newest first, each its repository and path, ready, not ready or its goal, its commit, branch and time, its chat and its title (`areas.md`, area 7) | the forge's family, the subject `drafts` |
 | `qa marks --project PROJECT` | the project's marks: landing, words, chosen, waiting or tested (`../../domain/findings.md`, section 8) | the forge's family |
+| `follow list --project PROJECT` | the project's follows, one line each: source and target with their branches, the lag and the parity, in `../../domain/forge/follows.md`, section 7's words | the forge's family |
+| `follow show --project PROJECT FOLLOW` | one follow whole: its setting, its task, its lag's entries oldest first, each with its change and state, its skips with their reasons and its parity (`../../domain/forge/follows.md`, section 7) | the forge's family |
 | `qa passes --project PROJECT` | the project's QA passes: the cleared main, the marks covered, the tester, its outcome and findings | the forge's family |
 | `hold list --project PROJECT` | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
@@ -207,6 +210,8 @@ agent must name.
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`../forge/family.md`, 4) | yes |
 | `repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until adopted] [--timeout DURATION]` | makes an empty repository, its starter workflow in it, and has it adopted into the project: owned, landing on its default branch, with CI, the project's home unless `--no-home` (`../../domain/forge/adoption.md`, 5) | the forge family's `MakeRepository` (`../forge/records.md`) | yes |
 | `repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until adopted] [--timeout DURATION]` | copies a public repository, `HOST/OWNER/NAME`, into `OWNER/NAME` on the forge, or `--as` where given, and has it adopted as `repository make` does; the address refused, naming the form to write, before anything is sent | the forge family's `MakeRepository` | yes |
+| `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH, landed on the repository's landing branch, is ready to start a goal (`areas.md`, area 7) | the forge family's `SetDraft` (`../forge/records.md`) | yes |
+| `draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH` | says the landed draft at PATH is not ready (`areas.md`, area 7) | the forge family's `SetDraft` | yes |
 | `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
@@ -219,6 +224,10 @@ agent must name.
 | `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks/changes.md`) | `Move` | yes |
 | `task succeed TASK --by TASK` | names a live task the successor of an ended one: its open questions, subscriptions and kept news go to it | `Succeed` | yes |
 | `finding route FINDING --goal TASK` | routes a finding to a goal: news to it, `state:routed` (`../../domain/findings.md`, section 6) | the forge's request | yes |
+| `follow start --project PROJECT FOLLOW COMMIT` | gives the owner's word to the follow change for the landing COMMIT, lifts its owner's hold, or makes it again after an end without landing (`../../domain/forge/follows.md`, section 5) | the forge's request | yes |
+| `follow hold --project PROJECT FOLLOW COMMIT --reason TEXT` | keeps the follow change for COMMIT from producing, its reason in the lag | the forge's request | yes |
+| `follow skip --project PROJECT FOLLOW COMMIT --reason TEXT` | counts the landing COMMIT followed with no change, cancelling its follow change and keeping the chain whole | the forge's request | yes |
+| `follow merge --project PROJECT FOLLOW COMMIT COMMIT...` | makes the first follow change of consecutive landings follow them all, cancelling the others' and keeping the chain whole | the forge's request | yes |
 | `finding backlog FINDING` | puts a finding in the backlog, `state:backlog` | the forge's request | yes |
 | `finding drop FINDING REASON` | drops a finding: `state:dropped`, its issue closed with the reason | the forge's request | yes |
 | `qa choose LANDING` | chooses a landing's mark for the next QA pass (`../../domain/findings.md`, section 8) | the forge's request | yes |
@@ -249,7 +258,10 @@ agent must name.
   `value` member `settings show … --json` prints: for a landing rule, `README.md`, section 3
   's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
-  (`../../protocol/configuration/settings.md`, 2), for the forge's charter a charter's
+  (`../../protocol/configuration/settings.md`, 2), its `sets` a list of
+  path sets' numbers, `[1]`, optional, `[]` left out, and printed only
+  where it names one, so a rule by none reads as it always has
+  (`../../protocol/configuration/engine.md`), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
   "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,

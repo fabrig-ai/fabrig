@@ -8,7 +8,7 @@
 #![expect(clippy::default_numeric_fallback, reason = "JSON fixture integers have no Rust arithmetic unit")]
 use super::{Documents, Paths, Peers, SEED, rewrite, steps};
 use crate::Refusal;
-use alloc::{vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use core::num::NonZeroU16;
 use serde_json::{Value, json};
 
@@ -221,6 +221,124 @@ fn the_fake_box_keeps_the_demos_two_document_turns() {
         }
         let found = scripts.iter().find(|script| script["cue"] == cue).expect("fake box document cue");
         assert_eq!(*found, expected, "write and revision calls agree: {cue}");
+    }
+}
+
+/// The TUI sends the chosen words, not the item's number or reason.
+#[test]
+fn the_fake_box_writes_and_settles_the_farewell_draft() {
+    const OPENING: &str = "Plan a farewell line for hello.\n\nWrite this up as a draft beside us.";
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    let model = crate::llm::Document::decode(&docs.llm).expect("design scripts fit the model format");
+    // An open chat cues from its request; a restored chat may retain its brief
+    // in system text. The browser's own request still cues the demo.
+    for (system, request, title) in [
+        ("", OPENING, "Farewell line"),
+        (OPENING, OPENING, "Farewell line"),
+        ("", "Write this up as a draft beside us.", "Away mode"),
+    ] {
+        let written = if title == "Away mode" { "Note 3 revision 1 written" } else { "Note 2 revision 1 written" };
+        let (first, question) = document_reply(&model, system, request, written);
+        let body = first["body"].as_str().expect("Markdown draft");
+        assert_eq!(body.lines().next(), Some(alloc::format!("# {title}").as_str()));
+        assert_eq!(first["scope"], json!({"kind":"goal", "project":1, "goal":2}));
+        assert!(first.get("name").is_none(), "first write creates the note");
+        if title == "Away mode" {
+            continue;
+        }
+        assert!(body.lines().filter(|line| line.starts_with("## ")).count() >= 3);
+        assert!(body.contains("README.md"));
+        // temper-fake has no TUI dependency: check the parser's trailing-list
+        // contract here, including the two nonempty words/reason pairs.
+        let question = core::str::from_utf8(&question).expect("reply UTF-8");
+        let (_, choices) = question.trim_end().rsplit_once("\n\n").expect("trailing list");
+        assert_eq!(
+            choices.lines().collect::<Vec<_>>(),
+            [
+                "1. At the end of README.md — it closes the page",
+                "2. In its own file — the greeting stays alone",
+                "3. Tell me something else",
+            ]
+        );
+        let (revision, ready) = document_reply(&model, system, "At the end of README.md", "Note 2 revision 2 written");
+        assert_eq!(revision["scope"], first["scope"]);
+        assert_eq!(revision["description"], first["description"]);
+        assert_eq!(revision["name"], 2);
+        assert_eq!(revision["recalled"], 1);
+        let start = usize::try_from(revision["first"].as_u64().expect("first line")).expect("line fits") - 1;
+        let removed = usize::try_from(revision["remove"].as_u64().expect("removed lines")).expect("lines fit");
+        let replacement = revision["body"].as_str().expect("replacement lines");
+        let mut lines = body.lines().collect::<Vec<_>>();
+        let before = lines[..start].iter().rposition(|line| line.starts_with("## ")).expect("inside a section");
+        assert_eq!(lines[before], "## Open questions");
+        assert!(lines[start..start + removed].iter().all(|line| !line.starts_with('#')));
+        assert!(!replacement.lines().any(|line| line.starts_with('#')), "no section boundary added");
+        lines.splice(start..start + removed, replacement.lines());
+        assert!(lines.contains(&"Put the farewell line at the end of README.md."));
+        assert!(!lines.contains(&"Where should the farewell line go?"));
+        assert_eq!(
+            ready.as_ref(),
+            b"I settled the location at the end of README.md. The draft is ready; nothing blocks the work."
+        );
+    }
+}
+
+fn document_reply(model: &crate::llm::Document, system: &str, request: &str, written: &str) -> (Value, Box<[u8]>) {
+    use skein_fake_llm_domain::api::{Finish, Message, Part, Role};
+    let mut query = skein_fake_llm_domain::api::Query {
+        credential: Some(0),
+        model: b"gpt-6.1-sol".as_slice().into(),
+        system: system.as_bytes().into(),
+        messages: Box::new([Message {
+            role: Role::User,
+            parts: Box::new([Part::Text { text: request.as_bytes().into() }]),
+        }]),
+        tools: Box::new([]),
+        choice: skein_fake_llm_domain::api::ToolChoice::None,
+        max_tokens: 8192,
+        caching: skein_fake_llm_domain::api::Caching::Unscoped,
+    };
+    let call = document_answer(model, query.clone());
+    assert_eq!(call.finish, Finish::ToolCalls);
+    let [Part::ToolCall { id, name, arguments }] = call.parts.as_ref() else { panic!("one note call: {call:?}") };
+    assert_eq!(name.as_ref(), b"note");
+    let note = json(arguments);
+    let mut messages = query.messages.into_vec();
+    messages.push(Message { role: Role::Assistant, parts: call.parts.clone() });
+    messages.push(Message {
+        role: Role::User,
+        parts: Box::new([Part::ToolOutput { id: id.clone(), output: written.as_bytes().into(), is_error: false }]),
+    });
+    query.messages = messages.into_boxed_slice();
+    let reply = document_answer(model, query);
+    assert_eq!(reply.finish, Finish::Stop);
+    let [Part::Text { text }] = reply.parts.as_ref() else { panic!("one text reply: {reply:?}") };
+    (note, text.clone())
+}
+
+fn document_answer(
+    model: &crate::llm::Document,
+    query: skein_fake_llm_domain::api::Query,
+) -> skein_fake_llm_domain::api::Answer {
+    use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+    let mut domain = model.domain(SEED);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::llm::LIMITS };
+    let mut out = Queue::with_capacity(1);
+    skein_fake_llm_domain::step(
+        &mut domain,
+        &env,
+        skein_fake_llm_domain::Event::Call { reply_to: ReplyTo::new(Token::new(1)), call: Token::new(2), query },
+        &mut out,
+    );
+    if out.is_empty() {
+        skein_fake_llm_domain::fire(&mut domain, &env, &mut out);
+    }
+    match out.pop().expect("model answer") {
+        skein_fake_llm_domain::Request::Reply { result, .. } => result.expect("successful answer"),
+        skein_fake_llm_domain::Request::Piece { .. } | skein_fake_llm_domain::Request::Hold { .. } => {
+            panic!("whole answer")
+        }
     }
 }
 
@@ -523,16 +641,16 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     let Some(Need::Read(Item::AdminToken)) = out.pop() else { panic!("read the admin token") };
     reachable::step(&mut machine, Event::Read(Some(Secret::new(token.as_slice().into()))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
-    reachable::step(&mut machine, Event::Reply(Reply::Document(Document::User(user))), &mut out);
+    reachable::step(&mut machine, Event::Reply(Reply::Document(Box::new(Document::User(user)))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else {
         panic!("ordinary reachability must accept the seeded admin despite its different login")
     };
     reachable::step(
         &mut machine,
-        Event::Reply(Reply::Document(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
+        Event::Reply(Reply::Document(Box::new(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
             max_response_items: 32,
             default_paging_num: 30,
-        }))),
+        })))),
         &mut out,
     );
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };

@@ -13,7 +13,16 @@ pub mod v1;
 /// (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
-    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7 || kind == 8 || kind == 9 || kind == 10 || kind == 11
+    kind == 1
+        || kind == 2
+        || kind == 3
+        || kind == 6
+        || kind == 7
+        || kind == 8
+        || kind == 9
+        || kind == 10
+        || kind == 11
+        || kind == 12
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
@@ -124,6 +133,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         landing_pattern_segments_item: bounds.segment_bytes,
         landing_rule_gates: bounds.gates,
         landing_rule_approvals: bounds.approvals,
+        landing_rule_sets: 6,
         adoption_owner: bounds.field_bytes,
         adoption_name: bounds.field_bytes,
         forge_row_host: ADDRESS_BYTES,
@@ -206,6 +216,21 @@ pub fn answer(record: &v1::Answer) -> Box<[u8]> {
 
 #[cfg(test)]
 mod tests;
+
+/// Encode a project's follows (temper/docs/design/domain/forge/follows.md, 7).
+#[must_use]
+pub fn follows_panel(record: &v1::FollowsPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete follows document.
+#[must_use]
+pub fn decode_follows_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FollowsPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::FollowsPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
 
 /// Encode which of the family's reads is requested.
 #[must_use]
@@ -349,6 +374,8 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::DismissMaking(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
+        | v1::Request::SetDraft(_)
+        | v1::Request::FollowAct(_)
         | v1::Request::TryAccount(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)
@@ -482,6 +509,21 @@ pub fn changes_panel(record: &v1::ChangesPanel) -> Box<[u8]> {
 pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangesPanel> {
     let mut reader = Reader::new(bytes);
     let record = v1::ChangesPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a project's landed drafts (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn drafts_panel(record: &v1::DraftsPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete landed-drafts view (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn decode_drafts_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DraftsPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::DraftsPanel::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
 

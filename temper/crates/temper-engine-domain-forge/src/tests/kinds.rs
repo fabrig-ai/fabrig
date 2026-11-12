@@ -12,12 +12,23 @@ use skein_lib::List;
 
 const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
 
-const BOUNDS: Bounds =
-    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32, templates: 4 };
+const BOUNDS: Bounds = Bounds {
+    landing_rules: 4,
+    gates: 2,
+    roles: 2,
+    charters: 8,
+    segments: 8,
+    segment_bytes: 32,
+    templates: 4,
+    follows: 2,
+    follow_paths: 2,
+    name_bytes: 32,
+};
 
 fn rule(ci: bool) -> SizedValue {
     SizedValue {
         value: Value::Rule(LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: GateLast::Open(Box::new([])),
@@ -119,6 +130,7 @@ fn project_rules(d: &Domain, project: u32) -> Box<[Held]> {
 fn given_rule() -> SizedValue {
     SizedValue {
         value: Value::Rule(LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([b"branch".as_slice().into()]),
                 last: GateLast::Open(Box::new([])),
@@ -932,4 +944,52 @@ fn dropped_defaults_name_the_stored_ones_the_stock_no_longer_gives() {
     }
     d.give_settings_defaults(stock());
     assert_eq!(d.dropped_settings_defaults().as_ref(), &[(1, 0, 2)]);
+}
+
+#[test]
+fn follows_keep_only_accepted_values_in_number_order_and_restore_remove_and_reset() {
+    let mut d = domain();
+    let value = SizedValue { value: Value::Follow(settings::follow()), size: 128 };
+    let first = item(12, 1, 1, Edit::Set(value.clone()));
+    let second = item(12, 1, 2, Edit::Set(value));
+    assert!(d.follow(1, 1).is_none());
+    assert!(d.follows(1).is_empty());
+    let mut out = Queue::uncapped();
+    d.keep_proposal_settings(7, from_ref(&first), &mut out);
+    assert!(d.follow(1, 1).is_none(), "a proposal is not the current change");
+    assert_eq!(d.judge_settings(&BOUNDS, from_ref(&first)).as_ref(), &[Judged::Accept { size: 128, charter: None }]);
+    out.clear();
+    d.keep_settings(&env(), 2, Some(7), from_ref(&first), &mut out);
+    assert_eq!(out.pop(), Some(save(&first, SettingSlot::Change)));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(&first, SettingSlot::Proposal(7))) }));
+    let row = d.follow_row(1, 1).expect("accepted follow record");
+    assert_eq!(
+        out.pop(),
+        Some(Request::Save { read_afresh: None, release: None, record: Stored::Follow(row.clone()) })
+    );
+    assert!(row.heard.is_none() && row.queue.is_empty(), "acceptance has no historical landings");
+    assert_eq!(out.pop(), Some(Request::Marked { tasks: Box::new([follows_subject(1)]) }));
+    assert_eq!(out.pop(), Some(Request::FollowRun { project: 1, follow: 1 }));
+    assert!(out.is_empty(), "acceptance starts the standing task, not a change");
+    d.keep_settings(&env(), 3, None, from_ref(&second), &mut out);
+    assert_eq!(d.follow(1, 1), Some(&settings::follow()));
+    assert_eq!(d.follows(1).as_ref(), &[(1, &settings::follow()), (2, &settings::follow())]);
+    assert!(d.follows(2).is_empty());
+    let mut restarted = domain();
+    restore(&mut restarted, &second, SettingSlot::Change);
+    restore(&mut restarted, &first, SettingSlot::Change);
+    assert_eq!(restarted.follows(1), d.follows(1));
+    for edit in [Edit::Remove, Edit::Reset] {
+        let asked = Asked { edit, ..first.clone() };
+        assert_eq!(
+            restarted.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(),
+            &[Judged::Accept { size: 0, charter: None }]
+        );
+        restarted.keep_settings(&env(), 4, None, from_ref(&asked), &mut out);
+        assert!(restarted.follow(1, 1).is_none());
+        assert_eq!(restarted.follows(1).len(), 1);
+        restarted.keep_settings(&env(), 5, None, from_ref(&first), &mut out);
+    }
+    restarted.erase_project_settings(1, &mut out);
+    assert!(restarted.follows(1).is_empty());
 }

@@ -468,7 +468,18 @@ By name; the code holds the fields.
   merge commit, whether it is mergeable, its reviewers, its `Ci`, and
   `queued`, its position in a merge queue when it is in one, and
   `dequeued`, the forge's words for why a queue last ejected it, at most
-  `DEQUEUED_BYTES` (256) bytes.
+  `DEQUEUED_BYTES` (256) bytes, and `size`, its `Size` at the head the
+  same answer gives, none where the forge's answer gives none.
+- **`Size`:** a pull request's size as the forge counts it at its head:
+  `files`, the files it changes, and `additions` and `deletions`, the
+  lines it adds and removes, each a `u64`. They are the forge's own
+  counts, read from its answer about the pull request, never counted
+  from the files or a listing. An answer that lacks one of the three,
+  or gives one that is no whole number within 64 bits, gives no `Size`,
+  and the pull request reads as it does without one: a size never fails
+  a read. They are kept as given: no fact on record caps them, as the
+  files' listings are capped (`github.md`, 4.1), so a reader that keeps
+  them narrower says where it cut one.
 - **`Review`:** a review, with its `Verdict`, its commit, its key, its
   `Provenance`, its `revision`, its time and whether it is official.
 - **`Remark`:** a comment attached to a review at a path and a line.

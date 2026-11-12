@@ -107,7 +107,7 @@ say what it covers.
   its rules with the parts for why it runs, its Now whole and what woke
   it, and no transcript. An engine restart ends no session: temper's
   workers and their agent processes keep running and reconnect
-  (`../worker.md`).
+  (`../worker/README.md`).
 - **The stock's models declare their cache's life** (`cache_life_ms`;
   `../../protocol/configuration/stock.md`): five minutes, each provider's
   default, for every stock model but the scripted one, which declares

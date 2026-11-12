@@ -27,7 +27,7 @@ pub fn encode(value: Encodable, agent: &crate::settings::Agent) -> Encoded {
     }
 }
 
-/// Decode the hub start, including its live ask (domain/worker.md, 4.1 and 7).
+/// Decode the hub start, including its live ask (domain/worker/README.md, 4.1 and 6).
 pub fn decode(
     run: Token,
     source: hub::Start,
@@ -62,7 +62,7 @@ pub fn items(
     }
     Ok(crate::worker::translate::workspace(Some(&items)))
 }
-/// A job's workspace uses the run's items family (temper/docs/design/domain/worker.md, 4.4).
+/// A job's workspace uses the run's items family (temper/docs/design/domain/worker/jobs.md).
 pub fn job_items(
     job: &hub::JobAssignment,
     parts: &[jig_protocol_worker_wire::Part],

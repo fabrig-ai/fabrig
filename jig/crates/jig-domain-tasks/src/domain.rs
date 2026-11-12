@@ -886,6 +886,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Retained { task, root, holding } => crate::holds::retained(domain, env, task, root, &holding, out),
         Event::Settled { task } => crate::closing::settled(domain, env, task, out),
         Event::QuestionOwedNotice { task, message } => crate::questions::owed(domain, env, task, message, out),
+        Event::QuestionParked { task, question, reason } => {
+            crate::run::question_parked(domain, env, task, question, &reason, out);
+        }
         Event::NothingAwaitedNotice { task, message } => {
             crate::run::nothing_awaited_notice(domain, env, task, message, out);
         }
@@ -1125,7 +1128,11 @@ impl Domain {
         Some(Box::new(crate::RunContext {
             session_wake: task.flags.ended_by == crate::EndedBy::Standing && !task.activation_open,
             session_kinds: crate::wake::session_kinds(domain, number, inbox.as_slice()),
-            reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
+            reasons: if self.open_questions(number).is_empty() {
+                crate::wake::reasons(domain, number, inbox.as_slice())
+            } else {
+                crate::wake::reasons(domain, number, inbox.as_slice()).union(crate::Reasons::QUESTION)
+            },
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
             payer: domain.payer(number).expect("admitted financial chain has a payer"),

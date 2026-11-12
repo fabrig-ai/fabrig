@@ -41,7 +41,12 @@ pub enum GateKind {
     Person,
     /// A configured check supplies a verdict.
     Check,
+    /// The follow workflow dispatched by the change itself.
+    Follow,
 }
+
+/// The follow gate is outside the configured gates' u32 namespace.
+pub const FOLLOW_CHECK_GATE: u64 = u64::MAX;
 
 /// One gate the change or its project asks for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -304,6 +309,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
+    pub fault: Fault,
     /// Pending dependencies in the order of the change's dependencies.
     pub pending: Box<[Pending]>,
     /// Its landing's current request; absent under queue.
@@ -316,6 +323,8 @@ pub struct Facts {
     pub ci: Ci,
     pub base_ci: Ci,
     pub base_tip: Commit,
+    /// Whether the head contains `Updating.base` while updating, otherwise `base_tip`.
+    /// The asked base remains the update's even when its landing branch moves on.
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
@@ -326,6 +335,8 @@ pub struct Facts {
     pub delegate: Option<Delegate>,
     /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
     pub catch_up: Option<Commit>,
+    /// This change follows source landings and never starts early (domain/forge/follows.md, 4).
+    pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).
@@ -353,6 +364,16 @@ pub struct Facts {
     pub verification: Verification,
     /// The project's `verification_bound` (temper/docs/design/protocol/configuration/engine.md).
     pub verification_bound: Duration,
+}
+
+/// Whose failure the head's failed checks establish (change/README.md, 2, step 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fault {
+    Change,
+    /// Every failed check is the runner's; the most any job was run again at this head.
+    Runner {
+        reruns: u32,
+    },
 }
 
 /// Committed delegate and effect results supplied by the top.
@@ -422,6 +443,10 @@ pub enum Delegate {
 /// The effect the top should commit after checking authority.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
+    /// Dispatch or retry the follow check at this head.
+    FollowCheck { head: Commit },
+    /// Run the next failed runner job again without moving the head.
+    Rerun { head: Commit },
     /// Open a pull request for the pushed branch.
     Open,
     /// Recreate a deleted held branch at its last known head.
@@ -484,6 +509,8 @@ pub struct Stepped {
 /// (temper/docs/design/domain/agent/tools.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Re-runs of a job the runner failed at one head, counted by the forge's attempts.
+    pub reruns: u32,
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,

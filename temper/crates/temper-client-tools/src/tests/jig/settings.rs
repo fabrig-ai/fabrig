@@ -2154,6 +2154,8 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
     } else if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
+    } else if kind == 12 {
+        br#"{"items":[{"setting":{"kind":"follow","project":7,"number":1},"set":{"source":{"forge":1,"repository":12,"branch":"main","paths":["src"]},"target":{"forge":1,"repository":13,"branch":"stable"},"owner":{"person":4},"start":"owner","check":{"workflow":"tests.yml","artifact":"results","format":"junit"}}}]}"#.as_slice()
     } else if kind == 11 {
         br#"{"items":[{"setting":{"kind":"template-goal","number":1},"set":{"design":true,"close_out":true}}]}"#
             .as_slice()
@@ -2208,6 +2210,10 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     })))
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the setting read table covers current and historical values in both formats"
+)]
 fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json() {
     use temper_client_protocol_wire::v1 as w;
     for (argv, kind, scope, label, stock) in [
@@ -2226,6 +2232,14 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
+        (vec!["settings", "show", "follow", "1", "--project", "7"], 12, 7, "follow 1 --project 7", false),
+        (
+            vec!["settings", "show", "follow", "1", "--project", "shop", "--revision", "5"],
+            12,
+            fixtures::PROJECT,
+            "follow 1 --project",
+            false,
+        ),
         (vec!["settings", "show", "project-questions", "7"], 6, 7, "project-questions 7", false),
         (vec!["settings", "show", "project-ways", "7"], 7, 7, "project-ways 7", false),
         (vec!["settings", "show", "project-classes", "7"], 8, 7, "project-classes 7", false),
@@ -2274,6 +2288,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     9 => "\"value\":\"reviews every change\"",
                     10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
                     11 => "\"design\":true,\"close_out\":true",
+                    12 => "\"workflow\":\"tests.yml\"",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2356,6 +2371,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 9 => "reviews every change",
                 10 => "We review every change.",
                 11 => "\"design\":true,\"close_out\":true",
+                12 => "\"workflow\":\"tests.yml\"",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");

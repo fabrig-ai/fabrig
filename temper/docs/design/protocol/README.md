@@ -367,7 +367,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the
-  work it saved last (`../domain/worker.md`, 4.2 and 5). After a crash,
+  work it saved last (`../domain/worker/README.md`, 4.2 and `../domain/worker/checkouts.md`). After a crash,
   the next start settles them at once, lost or not started (jig's
   `domain/engine/restart.md`; `../domain/root.md`, 8.1). Job claims
   remain for restart recovery even after a drain, since their effects
@@ -675,7 +675,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 - **Step tests:** every codec against golden bytes, at its bounds and by
   fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
-  real git (`tools/git-transcripts`); `skein-forge`'s decoders against
+  real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
   `skein/docs/design/testing/fakes/forge.md`, section 7);
   temper's pages as skein's text shell prints them (`../client/testing.md`

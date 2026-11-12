@@ -5,6 +5,7 @@ use skein_lib::List;
 
 fn template(repository: &Repository, last: GateLast, requires: Requires) -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),
@@ -26,7 +27,7 @@ fn template(repository: &Repository, last: GateLast, requires: Requires) -> sett
 #[test]
 fn requires_both_where_no_rule_covers_the_branch() {
     let d = domain();
-    assert_eq!(d.requires(&adopted(), b"main"), Requires { ci: true, up_to_date: true });
+    assert_eq!(d.requires(&adopted(), b"main", Touched::UNKNOWN), Requires { ci: true, up_to_date: true });
 }
 
 #[test]
@@ -45,8 +46,8 @@ fn requires_neither_under_a_rule_asking_neither() {
         ))
         .unwrap();
     d.give_settings_defaults(stock.into_boxed());
-    assert_eq!(d.requires(&repository, b"temper/7/g7"), Requires { ci: false, up_to_date: false });
-    assert_eq!(d.requires(&repository, b"main"), Requires { ci: true, up_to_date: true });
+    assert_eq!(d.requires(&repository, b"temper/7/g7", Touched::UNKNOWN), Requires { ci: false, up_to_date: false });
+    assert_eq!(d.requires(&repository, b"main", Touched::UNKNOWN), Requires { ci: true, up_to_date: true });
 }
 
 #[test]
@@ -61,15 +62,15 @@ fn requires_the_union_of_the_covering_rules() {
     stock.push(stock_rule(0, ci.clone())).unwrap();
     stock.push(stock_rule(repository.project + 1, up_to_date.clone())).unwrap();
     d.give_settings_defaults(stock.into_boxed());
-    assert_eq!(d.requires(&repository, b"main"), Requires { ci: true, up_to_date: false });
-    assert_eq!(d.requires(&repository, b"main/child"), Requires { ci: true, up_to_date: true });
+    assert_eq!(d.requires(&repository, b"main", Touched::UNKNOWN), Requires { ci: true, up_to_date: false });
+    assert_eq!(d.requires(&repository, b"main/child", Touched::UNKNOWN), Requires { ci: true, up_to_date: true });
 
     let mut stock = List::uncapped();
     stock.push(stock_rule(0, ci)).unwrap();
     stock.push(stock_rule(repository.project, up_to_date.clone())).unwrap();
     stock.push(stock_rule(repository.project + 1, up_to_date)).unwrap();
     d.give_settings_defaults(stock.into_boxed());
-    assert_eq!(d.requires(&repository, b"main"), Requires { ci: true, up_to_date: true });
+    assert_eq!(d.requires(&repository, b"main", Touched::UNKNOWN), Requires { ci: true, up_to_date: true });
 }
 
 #[test]
@@ -84,9 +85,9 @@ fn requires_a_branch_with_no_name_keeps_the_waits() {
         ))
         .unwrap();
     d.give_settings_defaults(stock.into_boxed());
-    assert_eq!(d.requires(&repository, b"a/b"), Requires { ci: false, up_to_date: false });
+    assert_eq!(d.requires(&repository, b"a/b", Touched::UNKNOWN), Requires { ci: false, up_to_date: false });
     for branch in [b"a//b".as_slice(), b"", b"/a", b"a/"] {
-        assert_eq!(d.requires(&repository, branch), Requires { ci: true, up_to_date: true });
+        assert_eq!(d.requires(&repository, branch, Touched::UNKNOWN), Requires { ci: true, up_to_date: true });
     }
 }
 

@@ -57,7 +57,7 @@ fn decode_pattern(value: w::RulePattern, bounds: &Bounds) -> Result<GatePattern,
     Err(Undecodable)
 }
 fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
-    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals } = value;
+    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value;
     let mut encoded_gates = List::with_capacity(u32::try_from(gates.len()).expect("bounded gates"));
     for gate in gates {
         let d::RuleGate { number, blocking, freshness } = gate;
@@ -93,12 +93,13 @@ fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
             up_to_date: *up_to_date,
             gates: encoded_gates,
             approvals: encoded_approvals,
+            sets: List::from_boxed(sets.clone()),
         },
     )
     .expect(FITS)
 }
 fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule, Undecodable> {
-    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals } = value.into_parts();
+    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value.into_parts();
     let mut decoded_gates = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
         let w::RuleGateParts { number, blocking, freshness } = gate.into_parts();
@@ -114,6 +115,7 @@ fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule,
             .expect("same count");
     }
     Ok(d::LandingRule {
+        sets: sets.into_boxed(),
         pattern: decode_pattern(pattern, bounds)?,
         enforce,
         ci,
@@ -144,6 +146,15 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     w::SettingValue::Classes(
                         w::ProjectClasses::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
                             .expect("matching table records"),
+                    )
+                }
+                d::Value::Follow(follow) => {
+                    let record = d::follow_record(follow).expect(FITS);
+                    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured follow length"));
+                    record.encode(&mut writer).expect("measured follow room");
+                    w::SettingValue::Follow(
+                        w::Follow::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .expect("matching follow records"),
                     )
                 }
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
@@ -216,6 +227,14 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
         w::SettingEdit::Set(value) => {
             let w::SizedValueParts { value, size } = value.into_parts();
             let value = match value {
+                w::SettingValue::Follow(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+                    record.encode(&mut writer).or(Err(Undecodable))?;
+                    let record =
+                        v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+                    d::Value::Follow(d::follow_from(record))
+                }
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),
                 w::SettingValue::Questions(value) => d::Value::Questions(match value.into_parts().route {
                     w::Route::None => temper_engine_domain_forge_change::Route::None,

@@ -62,9 +62,11 @@ fn change_row() -> top::ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -553,6 +555,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
@@ -596,6 +599,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }

@@ -1,5 +1,5 @@
 //! A domain world for the worker's checkout child domain
-//! (programming-model.md, 4.5; testing-strategy.md, 2.2; domain/worker.md, 10):
+//! (programming-model.md, 4.5; testing-strategy.md, 2.2; domain/worker/README.md, 9):
 //! the checkout, with the world as its parent, against a fake forge and a fake
 //! disk, driven by one loop, deterministically from a seed.
 //!

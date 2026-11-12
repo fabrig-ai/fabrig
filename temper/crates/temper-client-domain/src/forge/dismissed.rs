@@ -298,6 +298,9 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::Reset
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)

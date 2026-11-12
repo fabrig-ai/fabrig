@@ -1,6 +1,6 @@
 # attention: status
 
-2026-11-10. Where the tree's code lags or departs from [attention.md](attention.md).
+2026-11-11. Where the tree's code lags or departs from [attention.md](attention.md).
 
 - **Not yet:** 3: the live standing roles' Nows in the status run's words, *The roles' Nows* [in flight: change 777].
 
@@ -112,3 +112,9 @@ table holds the reference's two tiers described
   - 5: the caller's person is found through its chat, where the request has
     `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
     the root takes jig's `served_chat`, then the chat's person.
+
+- **Design departs:** 3, from the request `ui-walk-large` of 2026-11-06, decided by its
+  plan's cut: the room that request has a stock project keep for its brief is no
+  brief's own, so a member's first spend or the forge's repairs can take it and the
+  brief falls back to the computed sentence, because a shared project's owners can
+  fund their period (`README.md`, section 11).

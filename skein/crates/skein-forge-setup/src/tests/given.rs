@@ -21,7 +21,7 @@ fn other_word() -> Run {
     Run::with_given(given)
 }
 fn other_bot() -> Event {
-    Event::Reply(Reply::Document(Document::User(fixtures::person(b"kit", b"other:bot"))))
+    Event::Reply(Reply::Document(Box::new(Document::User(fixtures::person(b"kit", b"other:bot")))))
 }
 #[test]
 fn the_given_names_are_used_verbatim() {
@@ -47,10 +47,10 @@ fn the_given_names_are_used_verbatim() {
             run.step(event);
         }
         run.step(Event::Read(None));
-        run.step(Event::Reply(Reply::Document(Document::ApiSettings(ApiSettings {
+        run.step(Event::Reply(Reply::Document(Box::new(Document::ApiSettings(ApiSettings {
             max_response_items: 2,
             default_paging_num: 30,
-        }))));
+        })))));
         let Need::Send { request: Call::Forgejo(Request::CreateToken { name: found, .. }), .. } =
             run.step(Event::Reply(Reply::Rows(Box::new([]))))
         else {

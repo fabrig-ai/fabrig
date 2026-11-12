@@ -41,6 +41,16 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
                 return;
             }
+            if connector == domain.config.forge_connector
+                && forge_route::follow_route::refused(domain, task, step, &why)
+            {
+                if let core::StepRefusal::Refused(problem) = &why
+                    && domain.facts.try_push(crate::Fact::StepRefused { task, step, problem: problem.clone() }).is_err()
+                {
+                    domain.facts_lost = domain.facts_lost.saturating_add(1);
+                }
+                return;
+            }
             let pending = domain.forge_delegating.remove(&(task, step));
             let delegation = match &pending {
                 Some(pending) => pending.delegate,
@@ -529,6 +539,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 forge_route::start_closer_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {
+                forge_route::follow_route::step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
                 forge_route::start_tier_step(domain, env, &context);
             } else {
@@ -570,7 +582,7 @@ fn hold_changed_charter(
             match kind {
                 Some(GateKind::Agent) => (b"review", row.review_charter),
                 Some(GateKind::Check) => (b"producer", row.producing_charter),
-                Some(GateKind::Person) | None => return false,
+                Some(GateKind::Person | GateKind::Follow) | None => return false,
             }
         }
         Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
@@ -657,6 +669,7 @@ fn step_made(
     step: u64,
     child: Option<u64>,
 ) {
+    forge_route::follow_route::made(domain, task, step, child);
     forge_route::closer_made(domain, task, child);
     if domain.forge.tier_task(task).is_some()
         && let Some(row) = domain.core.tasks.task(task)

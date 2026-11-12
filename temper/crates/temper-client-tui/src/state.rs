@@ -1,4 +1,4 @@
-//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
 use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
@@ -26,6 +26,7 @@ pub struct Tui {
     columns: u16,
     aside: Option<ObjectKey>,
     reply_aside: Option<TurnName>,
+    start_chat: Option<u64>,
     notice: Option<Notice>,
     focus: u64,
     box_written: u64,
@@ -52,7 +53,7 @@ pub enum BoxState<'a> {
     Restarting { step: &'a [u8] },
     GaveUp { step: &'a [u8] },
 }
-/// The sign-in from the engine's link (temper/docs/design/client/tui/pages.md).
+/// The sign-in from the engine's link (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Local {
     Idle,
@@ -77,11 +78,12 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
-/// A one-line notice on the quiet line (temper/docs/design/client/tui/pages.md).
+/// A one-line notice on the quiet line (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
     Unknown { words: Box<[u8]> },
     SigningIn,
+    Proposed,
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -101,6 +103,9 @@ pub enum Told {
         columns: u16,
     },
     Went,
+    Starting {
+        chat: Option<u64>,
+    },
     LeftOff {
         task: Option<u64>,
     },
@@ -177,6 +182,7 @@ impl Tui {
             columns: 0,
             aside: None,
             reply_aside: None,
+            start_chat: None,
             notice: None,
             focus: 1,
             box_written: 0,
@@ -256,6 +262,11 @@ impl Tui {
     #[must_use]
     pub const fn reply_aside(&self) -> Option<TurnName> {
         self.reply_aside
+    }
+    /// The chat kept while its goal's start sheet stands (client/tui/pages/design-session.md).
+    #[must_use]
+    pub const fn start_chat(&self) -> Option<u64> {
+        self.start_chat
     }
     #[must_use]
     pub fn notice(&self) -> Option<&Notice> {
@@ -498,7 +509,13 @@ impl Tui {
                 self.columns = columns;
                 changed
             }
+            Told::Starting { chat } => {
+                let changed = self.start_chat != chat;
+                self.start_chat = chat;
+                changed
+            }
             Told::Went => {
+                self.start_chat = None;
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);
                 let changed =
@@ -626,7 +643,7 @@ impl Tui {
     }
 }
 
-/// The needs already shown during this walk (temper/docs/design/client/tui/pages.md).
+/// The needs already shown during this walk (temper/docs/design/client/tui/pages/README.md).
 #[derive(Debug)]
 pub struct Walk {
     shown: List<ObjectKey>,

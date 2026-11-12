@@ -42,10 +42,14 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
     assert_eq!(limits.forge.change_policy.questions, 4);
-    let rows: [(&[u8], u64); 16] = [
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        assert_eq!(limits::profile(profile).forge.change_policy.reruns, 1);
+    }
+    let rows: [(&[u8], u64); 17] = [
         (b"forge.repositories", 3),
         (b"forge.sitting_ms", 3000),
         (b"forge.change_policy.questions", 7),
+        (b"forge.change_policy.reruns", 2),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
         (b"checkout.remote_timeout_ms", 7_000),
@@ -66,6 +70,8 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge.repositories, 3);
     assert_eq!(limits.forge.sitting, Duration::from_secs(3));
     assert_eq!(limits.forge.change_policy.questions, 7);
+    assert_eq!(limits.forge.change_policy.reruns, 2);
+    assert_eq!((limits::find(b"forge.change_policy.reruns").expect("listed re-run bound").value)(&limits), 2);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
     assert_eq!(limits.checkout.remote_timeout, Duration::from_millis(7_000));
@@ -138,7 +144,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43644525 bytes, past its bound of 3419252 bytes\n",
+            b"engine.limits.store: the store's map value, 43648982 bytes, past its bound of 3419252 bytes\n",
         );
     }
 }
@@ -216,6 +222,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
     let standard = limits::profile(limits::Profile::Standard);
     let expected = limits::Limits {
         forge: temper_engine_domain_forge::Limits {
+            follows: 8,
+            follow_queue: 64,
             brief_bytes: 131_584,
             tasks: 128,
             holds: 128,
@@ -224,6 +232,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             landings: 32,
             client: skein_forge_client::Limits { resources: 128, op_bytes: 262_144, ..small.forge.client },
             change_policy: temper_engine_domain_forge_change::Limits {
+                reruns: 1,
                 questions: 80,
                 tasks: 80,
                 repairs: 80,
@@ -911,4 +920,32 @@ fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
         overrides.put(part).expect("override map fits its measured length");
     }
     fixtures::with(&document, b"engine.limits.overrides", &overrides.finish())
+}
+
+#[test]
+fn follow_limits_have_their_profile_values_and_dotted_overrides() {
+    let small = limits::profile(limits::Profile::Small);
+    let standard = limits::profile(limits::Profile::Standard);
+    for (name, tiny, normal, unit) in [
+        ("forge.follows", 2, 8, limits::Unit::Count),
+        ("forge.follow_paths", 8, 8, limits::Unit::Count),
+        ("forge.follow_queue", 16, 64, limits::Unit::Count),
+        ("forge.follow_merge", 8, 8, limits::Unit::Count),
+        ("forge.follow_commits", 8, 8, limits::Unit::Count),
+        ("forge.follow_files", 32, 32, limits::Unit::Count),
+        ("forge.follow_message_bytes", 512, 512, limits::Unit::Bytes),
+        ("forge.follow_skips", 8, 8, limits::Unit::Count),
+        ("forge.follow_reason_bytes", 256, 256, limits::Unit::Bytes),
+    ] {
+        let field = limits::find(name.as_bytes()).expect("follow limit named");
+        assert_eq!(field.unit, unit);
+        assert_eq!((field.value)(&small), tiny, "{name} in small");
+        assert_eq!((field.value)(&standard), normal, "{name} in standard");
+        let mut changed = small;
+        limits::apply(&mut changed, name.as_bytes(), tiny + 1).unwrap();
+        assert_eq!((field.value)(&changed), tiny + 1, "{name} override");
+        assert_eq!(limits::apply(&mut changed, name.as_bytes(), u64::from(u32::MAX) + 1), Err(limits::Refused::Range));
+    }
+    assert_eq!(small.forge.follows, 2);
+    assert_eq!(standard.forge.follows, 8);
 }

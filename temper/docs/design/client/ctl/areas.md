@@ -458,7 +458,34 @@ The table grows area by area, each with its stories (`testing.md`).
      2, with what would make it reachable, the installation's page among
      it (`../forge/family.md`, 6; `../forge/repositories.md`, 4).
 
-- **Areas 1, 5 and 6 are designed here in full.** Areas 2 to 4 name their
+7. **Landed drafts** (`../../domain/forge/drafts.md`): a writer saying
+   that a draft landed in one of a project's repositories is ready to
+   start a goal, or no longer is, and the project's landed drafts listed,
+   as Work draws the ready ones (`../pages/work.md`, 1). The group
+   `draft`. Each act is the FORGE request `SetDraft`
+   (`../forge/records.md`), made through `jig-client` as `repository
+   adopt`'s is; OWNER and NAME name a repository adopted into PROJECT,
+   both or neither, the project's home with neither.
+
+   | Tool | What it does | temper's | K |
+   |---|---|---|---|
+   | `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH is ready to start a goal: temper reads it at the head of the repository's landing branch and keeps it, with TASK the chat it was written in; prints `ready: OWNER/NAME PATH at COMMIT on BRANCH`, COMMIT its first 12 digits, then its title where it has one, exit 0 | `SetDraft { change: ready { chat } }` | yes |
+   | `draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH` | says it no longer is; Work stops listing it; prints `not ready: OWNER/NAME PATH`, exit 0 | `SetDraft { change: not_ready }` | yes |
+   | `draft list --project PROJECT` | the project's landed drafts, a watched read of the subject `drafts`: a line each, newest first, `OWNER/NAME PATH`, then `ready`, `not ready` or `goal G`, COMMIT's first 12 digits, BRANCH, when it was said ready in the clock form, `chat T` where it names one, and its title; "No landed drafts." with none, exit 0 | the subject `drafts` | |
+
+   - **The refusals,** exit 2, each saying what to do: `no repository`,
+     "no repository OWNER/NAME in PROJECT", or "PROJECT has no home
+     repository: name one with --owner and --name"; `path`, "PATH is no
+     draft's path: a relative path ending .md"; `missing`, "no PATH at
+     the head of the landing branch: land it first"; `not a file`, "PATH
+     is a directory"; `unreachable`, "the forge did not answer: try
+     again"; `unknown`, "no landed draft at PATH"; `full`, "PROJECT keeps
+     64 landed drafts, every one listed: say one not ready first". A
+     refusal at admission is jig's, as for `repository adopt`.
+   - **`--json`** prints the outcome's row, or the panel's rows, as the
+     wire has them, a commit whole.
+
+- **Areas 1, 5, 6 and 7 are designed here in full.** Areas 2 to 4 name their
   tools and jig's operations; each area's arguments are checked against
   jig's operations as they stand when the area is built.
 - **A tool no area names** is a design question, and joins the table as

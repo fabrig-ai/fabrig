@@ -21,7 +21,7 @@ pub(crate) fn inputs(
     let repositories = domain.forge.readable_repositories(project);
     let repository = match repository.or(domain.forge.home(project)) {
         Some(home) => Some(home),
-        None => repositories.first().copied(),
+        None => repositories.first(),
     };
     let landing = match repository {
         Some(repository) => repository.settings.default_branch.clone(),
@@ -156,6 +156,7 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::Questions(_)
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
+                | settings::Value::Follow(_)
                 | settings::Value::ProjectWords(_),
             ..
         })
@@ -330,7 +331,9 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Making(_)
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
+        | forge::Key::LandedDraft { .. }
         | forge::Key::Away { .. }
+        | forge::Key::Follow { .. }
         | forge::Key::Decided { .. } => {}
     }
 }

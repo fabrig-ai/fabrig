@@ -271,6 +271,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
 
 fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,
@@ -732,6 +733,8 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
+                touched: forge::Touched::UNKNOWN,
+                size: None,
                 prior,
                 head: Some(SHA1),
                 base_tip: SHA1,
@@ -901,6 +904,8 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
+            touched: forge::Touched::UNKNOWN,
+            size: None,
             prior: row.change.clone(),
             head: Some(SHA1),
             base_tip: SHA1,
@@ -1246,9 +1251,11 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -2659,6 +2666,69 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
 }
 
 #[test]
+fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
+    use super::{forge_change as change, tasks};
+    let expected = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    let found = [
+        0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    for (was, why, words) in [
+        (
+            change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::BranchMoved,
+            b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
+        ),
+        (
+            change::State::Checking { head: expected },
+            change::Hold::BranchMoved,
+            b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
+        ),
+        (
+            change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::Stalled,
+            b"no progress at updating for 30 minutes: waiting for its update of 0123456789ab with main at 89abcdef0123"
+                .as_slice(),
+        ),
+        (
+            change::State::Checking { head: expected },
+            change::Hold::Stalled,
+            b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
+        ),
+        (
+            change::State::First { head: expected, ready_since: skein_lib::Wall::EPOCH },
+            change::Hold::Stalled,
+            b"no progress at first for 30 minutes: waiting for the forge to settle whether 0123456789ab merges"
+                .as_slice(),
+        ),
+        (
+            change::State::Landing { head: expected },
+            change::Hold::Stalled,
+            b"no progress at landing for 30 minutes: waiting for its merge of 0123456789ab".as_slice(),
+        ),
+    ] {
+        let mut row = change_row(Some(1));
+        row.change.last_head = Some(expected);
+        row.ci = Some(change::Ci { head: found, status: change::Status::Pending });
+        row.change.state = change::State::Held { was: Box::new(was), why };
+        let (domain, mut env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
+        env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
+        let decision = super::hold_change_decision(&domain, &env, 7, why);
+        let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: category,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
+}
+
+#[test]
 fn a_hold_past_questions_names_its_bound() {
     use super::{forge_change, tasks};
     for (open, words) in [
@@ -2807,7 +2877,7 @@ fn malformed_repairs_refuses_a_change_start() {
     }
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
+/// temper/docs/design/domain/worker/jobs.md: the root writes R1's repository-relative command.
 #[test]
 #[expect(
     clippy::disallowed_macros,
@@ -3366,6 +3436,76 @@ fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<
         &mut skein_lib::Queue::uncapped(),
     );
     (domain, env, context)
+}
+
+fn follows_start(text: &[u8], route: Option<u64>) -> (bool, skein_lib::Queue<super::Work>) {
+    use super::tasks;
+    let (mut domain, mut env, mut context) = change_start_fixture();
+    env.limits.forge.follow_merge = 2;
+    context.requester = tasks::Party::Task(33);
+    let mut parameters = skein_lib::List::with_capacity(4);
+    for parameter in &context.spec.parameters {
+        parameters.push(parameter.clone()).unwrap();
+    }
+    parameters.push(tasks::Parameter::Bytes { name: 18, value: text.into() }).unwrap();
+    if let Some(value) = route {
+        parameters.push(tasks::Parameter::Number { name: 14, value }).unwrap();
+    }
+    context.spec.parameters = parameters.into_boxed();
+    if let Some(follows) = super::change_follows(text, env.limits.forge.follow_merge) {
+        follow_fixture(&mut domain, &env, context.project, &follows.commits);
+    }
+    (super::start_change(&mut domain, &env, &context), domain.work)
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "parameter fixtures join text fragments at both commit widths")]
+fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
+    use super::{Work, forge, forge_change};
+    let mut first = [0_u8; 32];
+    first[..20].fill(0xaa);
+    let mut second = [0_u8; 32];
+    second[..20].fill(0xbb);
+    for (text, expected, route, questions) in [
+        (
+            [b"3:".as_slice(), &[b'a'; 40], b",", &[b'b'; 40]].concat(),
+            Box::<[_]>::from([first, second]),
+            None,
+            forge_change::Route::Up,
+        ),
+        (
+            [b"3:".as_slice(), &[b'c'; 64]].concat(),
+            Box::<[_]>::from([[0xcc; 32]]),
+            Some(1),
+            forge_change::Route::Foreman,
+        ),
+    ] {
+        let (accepted, mut work) = follows_start(&text, route);
+        assert!(accepted, "{text:?}");
+        let Some(Work::Forge(forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        assert_eq!(row.follows, Some(forge::ChangeFollows { follow: 3, commits: expected }));
+        assert_eq!(row.questions.route, questions);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "malformed parameter fixtures join bounded text fragments")]
+fn malformed_follows_refuses_the_change_start_without_queuing_work() {
+    let commit = [b'a'; 40];
+    for text in [
+        commit.to_vec(), // no colon
+        b"3:".to_vec(),
+        [b"x:".as_slice(), &commit].concat(),
+        [b"3:".as_slice(), &[b'A'; 40]].concat(),
+        [b"3:".as_slice(), &[b'a'; 39]].concat(),
+        [b"3:".as_slice(), &commit, b",", &commit, b",", &commit].concat(),
+        [b"4294967296:".as_slice(), &commit].concat(),
+        [b"3:".as_slice(), &commit, b","].concat(),
+    ] {
+        let (accepted, work) = follows_start(&text, None);
+        assert!(!accepted, "malformed follows: {text:?}");
+        assert!(work.is_empty(), "no row or step for malformed parameter 18");
+    }
 }
 
 #[test]
@@ -4189,7 +4329,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: preserve the close request whole.
+/// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1;
@@ -4203,6 +4343,83 @@ fn a_close_jobs_spec_is_its_command_and_its_request() {
     assert_eq!(
         super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
         None
+    );
+}
+
+fn follow_fixture(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, project: u32, commits: &[[u8; 32]]) {
+    use super::forge;
+    let mut queue = skein_lib::List::uncapped();
+    for commit in commits {
+        queue
+            .push(forge::FollowEntry {
+                before: SHA1,
+                after: *commit,
+                pull: None,
+                commits: Box::new([]),
+                more_commits: 0,
+                files: None,
+                more_files: 0,
+                change: None,
+                state: forge::FollowState::NotMade,
+                word: true,
+                remake: false,
+            })
+            .unwrap();
+    }
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore {
+            record: forge::Stored::Follow(forge::FollowRow {
+                project,
+                follow: 3,
+                source: skein_forge::api::Repository { forge: 1, repository: 1 },
+                branch: b"main".as_slice().into(),
+                heard: Some(SHA1),
+                task: Some(33),
+                stopped: None,
+                queue: queue.into_boxed(),
+                skips: Box::new([]),
+                parity: None,
+                questions: Box::new([]),
+                pending: None,
+            }),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+#[test]
+fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
+    use super::{follow_route, forge, tasks};
+    let (mut domain, env, context) = change_start_fixture();
+    follow_fixture(&mut domain, &env, context.project, &[SHA1, SHA256]);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([SHA1]) };
+    let missing = forge::ChangeFollows { follow: 3, commits: Box::new([[0x11; 32]]) };
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &missing, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: 111111111111") && words.ends_with(b"the follow's queue lacks this commit"));
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(34), &follows, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: abcdef012345") && words.ends_with(b"the requester is not that follow's task"));
+    let mut change = change_row(None);
+    change.task = context.task;
+    change.repository = skein_forge::api::Repository { forge: 1, repository: 1 };
+    change.follows = Some(follows.clone());
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[]).unwrap_err();
+    assert!(
+        words.starts_with(b"follows: abcdef012345") && words.ends_with(b"another live follow change names this commit")
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[context.task]),
+        Ok(())
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, Some(context.task), &[]),
+        Ok(())
     );
 }
 
@@ -4239,4 +4456,52 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
         }
         assert!(found, "missing {text:?} in {words:?}");
     }
+}
+
+#[test]
+fn a_change_rerun_is_kind_17_on_its_own_branch() {
+    use super::{forge, forge_change, tasks};
+    let (mut domain, mut env) = goal_holds_branch();
+    env.limits.authority.segments = 8;
+    make_goal_task(&mut domain, &env, GOAL_CHANGE, tasks::Party::Task(GOAL_TASK), Box::new([]));
+    let mut row = change_row(Some(1));
+    row.task = GOAL_CHANGE;
+    row.change.task = GOAL_CHANGE;
+    row.repository = adopted(1).provider;
+    let expected = super::resource_name(
+        &adopted(1),
+        &super::branch_what(&row.branch, env.limits.forge.name_bytes).unwrap(),
+        env.limits.authority.segments,
+    )
+    .unwrap();
+    let evidence = forge::ChangeEvidence {
+        touched: forge::Touched::UNKNOWN,
+        size: None,
+        prior: row.change.clone(),
+        head: Some(SHA1),
+        base_tip: SHA1,
+        contains_base: forge_change::Status::Passed,
+        ci: forge_change::Status::Failed,
+        gates: Box::new([]),
+        reviews: Box::new([]),
+        reviews_complete: true,
+    };
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let description = super::describe_change_effect(
+        &domain,
+        &env,
+        GOAL_CHANGE,
+        forge_change::Effect::Rerun { head: SHA1 },
+        &evidence,
+    )
+    .expect("re-run description");
+    assert_eq!(description.effect.kind, 17);
+    assert_eq!(description.effect.name, expected);
+    assert_eq!(description.effect.state, SHA1);
+    assert_eq!(description.recovery, super::Recovery::Unrecoverable);
 }

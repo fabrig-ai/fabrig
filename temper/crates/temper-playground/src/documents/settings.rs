@@ -178,6 +178,14 @@ fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
                 });
             }
             rules.push(LandingRule {
+                sets: rule["sets"]
+                    .as_array()
+                    .map(|sets| {
+                        sets.iter()
+                            .map(|set| u8::try_from(set.as_u64().expect("world path set")).expect("path set number"))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 connector: 1,
                 kind: 4,
                 pattern: jig_domain_authority::Pattern {

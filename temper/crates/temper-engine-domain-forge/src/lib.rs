@@ -16,16 +16,16 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
-/// The merge job (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job (temper/docs/design/domain/worker/jobs.md).
 pub const MERGE_KIND: u32 = 3;
-/// The close job (temper/docs/design/domain/worker.md, 4.4).
+/// The close job (temper/docs/design/domain/worker/jobs.md).
 pub const CLOSE_KIND: u32 = 4;
 use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
 mod approvals;
-pub use approvals::ApprovalWait;
+pub use approvals::{ApprovalWait, ShortApproval};
 pub mod boundary;
 mod brief;
 mod brief_ci;
@@ -45,6 +45,11 @@ pub use status::{
     BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
     StatusView, status_paragraphs, status_subject,
 };
+mod drafts;
+pub use drafts::{
+    DRAFTS, DraftChange, DraftRefusal, DraftRepository, DraftView, DraftsView, LandedDraft, SetDraft, SetDraftAnswer,
+    draft_path, drafts_subject,
+};
 mod away;
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
@@ -53,17 +58,24 @@ pub use away::{
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
+mod change_ci;
 mod domain;
 pub use domain::make::{BOT_EMAIL, BOT_LOGIN};
 mod effect_words;
 mod forge_user;
 mod forges;
 pub use forge_user::{FORGE_PROVIDER, key_user, user_key};
+mod follow_check;
+pub mod follows;
 mod gates;
 mod held;
 pub mod items;
 mod judge;
 mod kinds;
+pub use follows::{
+    FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
+    FollowSkip, FollowState, FollowVerdict, followed,
+};
 mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;
@@ -108,7 +120,7 @@ pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
-pub use gates::{GateCandidate, GateLast, GatePattern, Requires, covers_branch};
+pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
     BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
@@ -121,8 +133,9 @@ pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
 pub use verification::LandingRed;
 pub use views::{
-    APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate,
-    LandingLine, LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
+    APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, FollowLagEntry, FollowView,
+    FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, changes_subject,
+    follows_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -288,10 +301,12 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
+        Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
@@ -439,7 +454,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(
                         skein_lib::len_u64(rule.approvals.len())
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
-                    )
+                    )?
+                    .checked_add(bytes(&rule.sets))
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Classes(classes), .. }) => {
                 let mut held = skein_lib::len_u64(classes.items.len())
@@ -462,6 +478,23 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 }
                 Some(held)
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Follow(follow), .. }) => {
+                let mut held = bytes(&follow.source.branch)
+                    .checked_add(bytes(&follow.target.branch))?
+                    .checked_add(bytes(&follow.check.workflow))?
+                    .checked_add(bytes(&follow.check.artifact))?
+                    .checked_add(
+                        skein_lib::len_u64(follow.source.paths.len())
+                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                for path in &follow.source.paths {
+                    held = held.checked_add(bytes(path))?;
+                }
+                if let Some(producer) = &follow.producer {
+                    held = held.checked_add(bytes(producer))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
                 Some(bytes(line))
             }
@@ -479,6 +512,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             | settings::Edit::Remove
             | settings::Edit::Reset => Some(0),
         },
+        Stored::Follow(row) => follows::row_bytes(row),
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
@@ -509,7 +543,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             },
         },
         Stored::Repository(row) => {
-            let mut held = bytes(&row.host)
+            let mut held = skein_lib::len_u64(row.contexts.len())
+                .checked_mul(u64::try_from(size_of::<u32>()).ok()?)?
+                .checked_add(bytes(&row.host))?
                 .checked_add(bytes(&row.owner))?
                 .checked_add(bytes(&row.name))?
                 .checked_add(bytes(&row.prefix))?
@@ -535,6 +571,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Application { outcome, .. } => match outcome {
+            ApplicationOutcome::Follow(words) => Some(match words {
+                Some(words) => bytes(words),
+                None => 0,
+            }),
             ApplicationOutcome::CoreRefused(_)
             | ApplicationOutcome::ForgeRefused(_)
             | ApplicationOutcome::MakeKept
@@ -593,6 +633,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
+        Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
         Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }
@@ -657,6 +698,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.title))?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
+            .checked_add(match &row.follows {
+                Some(follows) => skein_lib::len_u64(follows.commits.len()).checked_mul(32)?,
+                None => 0,
+            })?
+            .checked_add(match &row.follow_check {
+                Some(check) => follow_check::stored_bytes(check)?,
+                None => 0,
+            })?
             .checked_add(
                 skein_lib::len_u64(row.change.gates.len())
                     .checked_mul(u64::try_from(size_of::<change::Gate>()).ok()?)?,

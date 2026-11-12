@@ -78,9 +78,8 @@ fn a_second_fake_shares_names_replies_and_time() {
         .observations()
         .iter()
         .find_map(|record| {
-            if let forge::Observation::Call {
-                result: Ok(skein_fake_forge_domain::api::Answer::Commit(commit)), ..
-            } = record
+            if let forge::Observation::Call { result, .. } = record
+                && let Ok(skein_fake_forge_domain::api::Answer::Commit(commit)) = &**result
             {
                 Some(*commit)
             } else {

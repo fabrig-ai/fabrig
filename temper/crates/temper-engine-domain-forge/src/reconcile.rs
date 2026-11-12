@@ -30,6 +30,7 @@ pub enum RecordKind {
     Flight,
     Landing,
     Receipt,
+    Follow,
     Tier,
     Verification,
     LandingLog,
@@ -39,6 +40,7 @@ pub enum RecordKind {
     Looked,
     Away,
     Decided,
+    LandedDraft,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -83,6 +85,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
         .checked_add(l.repositories.checked_mul(l.tiers.tiers)?.checked_mul(2)?)?
+        .checked_add(crate::follows::capacity(l)?.checked_mul(2)?)? // Follow: source and task.
         .checked_add(l.changes)? // Verification: repository.
         .checked_add(l.repositories)? // LandingLog: repository.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
@@ -155,6 +158,13 @@ impl Reconciliation {
                         RecordKind::Landing,
                         Repository { forge: member.repository.forge, repository: member.repository.repository },
                     )?;
+                }
+                Ok(())
+            }
+            Stored::Follow(row) => {
+                self.repository(RecordKind::Follow, row.source)?;
+                if let Some(task) = row.task {
+                    self.task(RecordKind::Follow, task, Some(row.source.forge))?;
                 }
                 Ok(())
             }
@@ -244,6 +254,7 @@ impl Reconciliation {
                 crate::ApplicationOutcome::CoreRefused(_)
                 | crate::ApplicationOutcome::ForgeRefused(_)
                 | crate::ApplicationOutcome::MakeKept
+                | crate::ApplicationOutcome::Follow(_)
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
@@ -258,6 +269,7 @@ impl Reconciliation {
             | Stored::Binding { .. }
             | Stored::Making(_)
             | Stored::ProjectFacts(_)
+            | Stored::LandedDraft(_)
             | Stored::Away(_)
             | Stored::Decided(_)
             | Stored::Looked(_)
@@ -352,6 +364,7 @@ impl Domain {
             | RecordKind::Application
             | RecordKind::Landing
             | RecordKind::Receipt
+            | RecordKind::Follow
             | RecordKind::Tier
             | RecordKind::Verification
             | RecordKind::LandingLog => true,
@@ -371,6 +384,7 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Binding
             | RecordKind::ProjectFacts
+            | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided
             | RecordKind::Looked

@@ -11,7 +11,6 @@ publish.workspace = true
 temper-test-env.workspace = true
 temper-shell.workspace = true
 temper-fixtures.workspace = true
-skein-fail-stop.workspace = true
 temper-playground.workspace = true
 skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true

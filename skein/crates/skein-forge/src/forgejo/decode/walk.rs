@@ -44,6 +44,7 @@ pub(crate) enum Kind {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Read {
     Number,
+    Count,
     Text,
     Boolean,
     Body,
@@ -107,6 +108,9 @@ fn fields(kind: Kind) -> &'static [Field] {
         Kind::Item(Item::Pull) => {
             const {
                 &[
+                    optional(b"changed_files", Read::Count),
+                    optional(b"additions", Read::Count),
+                    optional(b"deletions", Read::Count),
                     field(b"number", Read::Number),
                     field(b"state", Read::Text),
                     field(b"head", Read::Object(Kind::Item(Item::Head))),
@@ -221,6 +225,7 @@ enum Want {
     Key,
     Value { field: Field, bit: u64 },
     Skip,
+    Ignore(u32),
     Element,
     Done,
     Terminal,
@@ -356,6 +361,7 @@ impl Walk {
                 | tokenizer::Event::Failed(_)
                 | tokenizer::Event::Closed => Err(Malformed::Shape { field: b"" }),
             },
+            Want::Ignore(depth) => self.ignore(event, depth),
             Want::Done => {
                 if event == &tokenizer::Event::Done {
                     Ok(Move::Done)
@@ -417,7 +423,9 @@ impl Walk {
                                     limits.body_bytes
                                 },
                             ),
-                            Read::Number | Read::Boolean | Read::Object(_) | Read::Array(_) => tokenizer::Request::Next,
+                            Read::Count | Read::Number | Read::Boolean | Read::Object(_) | Read::Array(_) => {
+                                tokenizer::Request::Next
+                            }
                         };
                         return Ok(Move::Demand(demand));
                     }
@@ -442,7 +450,39 @@ impl Walk {
             | tokenizer::Event::Closed => Err(Malformed::Shape { field: b"" }),
         }
     }
+    fn ignore(&mut self, event: &tokenizer::Event, depth: u32) -> Result<Move, Malformed> {
+        let depth = match event {
+            tokenizer::Event::Token(Token::ObjectStart | Token::ArrayStart) => {
+                depth.checked_add(1).expect("JSON depth bound")
+            }
+            tokenizer::Event::Token(Token::ObjectEnd | Token::ArrayEnd) => {
+                depth.checked_sub(1).expect("ignored container")
+            }
+            tokenizer::Event::Token(Token::Key(_)) => {
+                self.want = Want::Ignore(depth);
+                return Ok(Move::Demand(tokenizer::Request::Text(0)));
+            }
+            tokenizer::Event::Token(Token::String(_) | Token::Number(_) | Token::True | Token::False | Token::Null)
+            | tokenizer::Event::Long(_) => depth,
+            tokenizer::Event::Skipped(_)
+            | tokenizer::Event::Done
+            | tokenizer::Event::Failed(_)
+            | tokenizer::Event::Closed => return Err(Malformed::Shape { field: b"" }),
+        };
+        self.want = if depth == 0 { Want::Key } else { Want::Ignore(depth) };
+        Ok(Move::Demand(if depth == 0 { tokenizer::Request::Next } else { tokenizer::Request::Text(0) }))
+    }
     fn value(&mut self, field: Field, bit: u64, event: &tokenizer::Event) -> Result<Move, Malformed> {
+        if field.read == Read::Count {
+            if let tokenizer::Event::Token(Token::Number(text)) = event
+                && let Some(number) = crate::forgejo::id::unsigned(text)
+            {
+                let kind = self.open.top().expect("count inside object").kind;
+                self.want = Want::Key;
+                return Ok(Move::Scalar { kind, key: field.key, value: Value::Number(number) });
+            }
+            return self.ignore(event, 0);
+        }
         let frame = self.open.top_mut().expect("value inside object");
         let kind = frame.kind;
         if event == &tokenizer::Event::Token(Token::Null) {
@@ -465,7 +505,7 @@ impl Walk {
                 Err(Malformed::Shape { .. }) => Err(Malformed::Shape { field: field.key }),
                 Err(error) => Err(error),
             },
-            Read::Number | Read::Text | Read::Boolean | Read::Body | Read::Time | Read::Id { .. } => {
+            Read::Count | Read::Number | Read::Text | Read::Boolean | Read::Body | Read::Time | Read::Id { .. } => {
                 let value = scalar(field, event)?;
                 self.want = Want::Key;
                 Ok(Move::Scalar { kind, key: field.key, value })
@@ -518,7 +558,7 @@ fn scalar(field: Field, event: &tokenizer::Event) -> Result<Value, Malformed> {
                 };
                 Ok(Value::Id(value))
             }
-            Read::Number | Read::Boolean | Read::Object(_) | Read::Array(_) => Err(wrong),
+            Read::Count | Read::Number | Read::Boolean | Read::Object(_) | Read::Array(_) => Err(wrong),
         },
         tokenizer::Event::Token(Token::True | Token::False) => {
             if field.read != Read::Boolean {

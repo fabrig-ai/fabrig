@@ -252,7 +252,7 @@ fn a_reply_of_another_kind_is_unexpected_at_each_request() {
     for phase in [MINT, PAGE] {
         for reply in [
             Reply::Empty,
-            Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
+            Reply::Document(Box::new(skein_forge::forgejo::document::Document::RepoSearch { ok: true })),
             Reply::Rows(Box::new([])),
             Reply::GitHubDocument(Document::Done),
         ] {

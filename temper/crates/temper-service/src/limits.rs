@@ -246,6 +246,15 @@ const FORGE: forge::Limits = forge::Limits {
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -270,6 +279,7 @@ const FORGE: forge::Limits = forge::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Repair attempts, from the engine forge world fixture.
         repairs: 3,
         // Resolution attempts, from the engine forge world fixture.
@@ -293,6 +303,8 @@ const FORGE: forge::Limits = forge::Limits {
 };
 // A project of fabrig's scale (temper/docs/design/protocol/configuration/stock.md).
 const STANDARD_FORGE: forge::Limits = forge::Limits {
+    follows: 8,
+    follow_queue: 64,
     // One gathered section shares the root task section's read bound.
     brief_bytes: STANDARD_BRIEF.budgets.task,
     // Tasks following live changes in a project, 18 changes seen.
@@ -313,6 +325,7 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
         ..CLIENT
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Questions per change or task, 15 seen.
         questions: 80,
         // Tasks across a change's runs and retries, 14 runs seen.
@@ -621,20 +634,20 @@ pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
 pub(crate) const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 
-/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const MERGE_KIND: u32 = 3;
 pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
 pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
 pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
     JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
 }
 
 /// Declare merge only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = merge_bound();
@@ -645,12 +658,12 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The close job's bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const CLOSE_SPEC_BYTES: u32 = 16_384;
 pub(crate) const CLOSE_RESULT_BYTES: u32 = 512;
 pub(crate) const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The close job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_bound() -> JobBound {
     JobBound {
@@ -662,7 +675,7 @@ pub fn close_bound() -> JobBound {
 }
 
 /// Declare close only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = close_bound();
@@ -673,7 +686,7 @@ pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The engine's declared kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The engine's declared kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let mut jobs = List::with_capacity(2);
@@ -683,7 +696,7 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     jobs.into_boxed()
 }
 
-/// The worker root's job kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The worker root's job kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[cfg(feature = "worker")]
 #[must_use]
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
