@@ -1,13 +1,12 @@
 # surfaces: status
 
-2026-11-11. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-12. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
-    Now on a project's row, no tiers, follow's parity or "owned" chip, and
-    no What follows what, drawing each follow and dependency from the
-    forge's `follows` document (`../domain/forge/dependencies.md`, 4),
-    which is P2's repair, a goal of its own; its Decided for you rows name the task, not who
+    Now on a project's row, and no tiers, follow's parity or "owned"
+    chip; its What follows what reads the first four projects' `follows`
+    documents alone (`../client/pages/home.md`, 2); its Decided for you rows name the task, not who
     decided, and its cards, as a project's Home's, name no asker (4). `../domain/forge/attention.md`,
     3, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
@@ -133,6 +132,23 @@
     because each project's brief is written in that project's own words
     and its first sentence need not name it (15's default). Decided by the
     cut of `ui-p2-home`.
+  - 3 and 13: `../client/pages/home.md`, 1, *What follows what*, draws a
+    box a follow or a dependency of a project read, whichever project its
+    other end is, titled with the holding project's name: a follow's chip
+    "follows SOURCE", SOURCE its source repository, `OWNER/NAME`, code's
+    mark, and its line `temper ctl follow list`'s "LAG · PARITY", "2
+    behind · check passes at 9c04d7e1a2b3"; a dependency's chip "depends
+    on DEPENDENCY", with no mark, and its line "Nothing follows its
+    landings.". `home.html` draws the chain a box a project: vsr first,
+    "C, the source of truth", then vsr-rs, "follows · port per landing",
+    "2 behind · checked by vsr's C tests", then fabrig, "depends on",
+    code's mark, "skein-kv's replication, on vsr-rs". The `follows`
+    document names a follow's source by its repository, not its project;
+    no setting holds a project's line, what a check checks or a
+    dependency's why (`../domain/forge/dependencies.md`, 6); and nothing
+    acts on a dependency (`../domain/forge/dependencies.md`, 3). Decided
+    by goal 1243's design, 2026-11-12: the page draws what the engine
+    holds.
   - 4 and 13: `../client/pages/README.md`, **Only you**, gives its item
     the act "Sign in again", where `needs.html` has "Sign in", so that the
     act says what its question asks, as the run wait's link to Accounts

@@ -92,7 +92,7 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
-| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
+| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red, and What follows what, vsr-rs following vsr's repository two behind with its check passing and fabrig depending on vsr-rs; the whole story's `home.html`, and `phone-home.html` at a phone's width |
 | `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
 | `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
 | `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`../pages/README.md`, *Away*, *On All projects*) |
