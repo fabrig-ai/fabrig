@@ -929,7 +929,7 @@ pub struct ChangeRow {
     pub pull: Option<u64>,
     pub pending: Option<u64>,
     pub effect: change::EffectResult,
-    /// The one child requested by this procedure, and its latest result.
+    /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
     /// Bounded current verdict per gate, retained through clean updates.
@@ -1803,7 +1803,7 @@ pub enum Event {
         title: Box<[u8]>,
         report: Box<[u8]>,
     },
-    /// Resolve the named child's terminal result before stepping again.
+    /// Resolve the named child's terminal result or close job's failure hold before stepping again.
     DelegateResult {
         task: u64,
         child: u64,
