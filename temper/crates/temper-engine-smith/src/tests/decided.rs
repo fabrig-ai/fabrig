@@ -133,7 +133,7 @@ fn its_answers_read_as_the_design_says() {
     use temper_protocol_reaches::{Class, Kind, Reach, Reason};
     for (took, reach, reason) in [
         (Some(Box::from(b"A".as_slice())), None, ""),
-        (None, None, "no person is asked through you: ask your requester"),
+        (None, None, "no person is asked through you"),
         (None, Some((Kind::Money, Class::Wait, Reason::Kind, true)), "money always waits for your person"),
         (
             None,
@@ -167,21 +167,31 @@ fn its_answers_read_as_the_design_says() {
             "your person's decided list is full for today",
         ),
     ] {
-        let words = if took.is_some() {
-            "Decided: carry on with A.".into()
-        } else {
-            format!(
-                "Ask: {reason}. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
-            )
-        };
         let reach = match reach {
             Some((kind, class, reason, away)) => {
                 Some(Reach { kind, class, reason, under: 0, sets: 0, matched: 0, away })
             }
             None => None,
         };
-        let answer = crate::answer(&engine::CallAnswer::Decided { took, reach });
-        assert_eq!(answer.text(), words.as_bytes());
-        assert!(!answer.error());
+        for how in [engine::AskHow::Message, engine::AskHow::Person(17), engine::AskHow::None] {
+            let words = if took.is_some() {
+                "Decided: carry on with A.".into()
+            } else {
+                match how {
+                    engine::AskHow::Message => {
+                        format!("Ask: {reason}. Ask your requester with message, as a question.")
+                    }
+                    engine::AskHow::Person(person) => {
+                        format!("Ask: {reason}. Ask person {person} with delegate, a person task addressed to them.")
+                    }
+                    engine::AskHow::None => format!(
+                        "Not decided: {reason}. Nothing you hold asks anyone: decide within your brief, or leave the choice and your recommendation in your result."
+                    ),
+                }
+            };
+            let answer = crate::answer_for_decided(&engine::CallAnswer::Decided { took: took.clone(), reach }, how);
+            assert_eq!(answer.text(), words.as_bytes());
+            assert!(!answer.error());
+        }
     }
 }

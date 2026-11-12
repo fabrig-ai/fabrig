@@ -879,7 +879,7 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -890,6 +890,7 @@ impl World {
                             self.worker_env.limits.reply_bytes,
                             job,
                             page,
+                            ask,
                         ),
                     }
                 }
