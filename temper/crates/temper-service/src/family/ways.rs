@@ -32,6 +32,12 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                 )
                 .ok()?;
         }
+        let mut roles = List::with_capacity(limits.stock_way_roles);
+        for entry in way.roles {
+            roles.push(w::WayRole::new(limits, w::WayRoleParts {
+                charter: entry.role.charter, words: entry.role.words, budget: entry.role.budget, running: entry.running,
+            }).ok()?).ok()?;
+        }
         entries
             .push(
                 w::StockWay::new(
@@ -43,6 +49,7 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                         path: path(way.path, limits)?,
                         items,
                         delegation: way.delegation,
+                        roles,
                     },
                 )
                 .ok()?,

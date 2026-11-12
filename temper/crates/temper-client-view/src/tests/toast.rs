@@ -89,6 +89,7 @@ fn way_answer(kept: bool) -> d::Domain {
             )
             .unwrap()])),
             delegation: false,
+                        roles: List::with_capacity(0),
         },
     )
     .unwrap();

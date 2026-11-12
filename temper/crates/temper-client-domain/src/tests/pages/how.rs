@@ -201,6 +201,7 @@ fn fixture(
                         path: path.clone(),
                         items: List::with_capacity(0),
                         delegation: false,
+                        roles: List::with_capacity(0),
                     },
                 )
                 .unwrap(),

@@ -366,7 +366,10 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
         reviewer(&models),
         coordinator(&models),
-        standing_role(&models),
+        standing_role(13, include_bytes!("stock/role.md"), &models),
+        standing_role(14, include_bytes!("stock/triager.md"), &models),
+        standing_role(15, include_bytes!("stock/prover.md"), &models),
+        standing_role(16, include_bytes!("stock/porter.md"), &models),
         foreman(&models),
         status(&models),
         trial(&models),
@@ -546,7 +549,7 @@ fn charter(
                 10 => TRIAL_TOOLS,
                 11 => ASK_TOOLS,
                 12 => DRAFTER_TOOLS,
-                13 => jig_domain_tasks::Tools(2047),
+                13..=16 => jig_domain_tasks::Tools(2047),
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -601,9 +604,9 @@ fn coordinator(models: &[CatalogueModel]) -> Charter {
 // temper/docs/design/domain/agent/standing.md, 2: every delegate's result concerns the role.
 const ROLE_WAKE: WakePolicy = WakePolicy { results: ResultsWake::Each, ..COORDINATOR_WAKE };
 
-fn standing_role(models: &[CatalogueModel]) -> Charter {
-    let (shared, parts) = sections(include_bytes!("stock/role.md"));
-    let mut value = charter(13, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
+fn standing_role(number: u32, instructions: &'static [u8], models: &[CatalogueModel]) -> Charter {
+    let (shared, parts) = sections(instructions);
+    let mut value = charter(number, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
     value.parts = parts;
     value.policy.waiting = Duration::ZERO;
     value.policy.inspect = false;
@@ -689,6 +692,9 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(11),
                 authority::Executor::Charter(12),
                 authority::Executor::Charter(13),
+                authority::Executor::Charter(14),
+                authority::Executor::Charter(15),
+                authority::Executor::Charter(16),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
@@ -843,12 +849,15 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             13,
             settings::Value::CharterWords(bytes::copy_of(b"owns its work for the project's life and keeps its Now")),
         ),
+        (9, 14, settings::Value::CharterWords(bytes::copy_of(ways::TRIAGER_WORDS))),
+        (9, 15, settings::Value::CharterWords(bytes::copy_of(b"Owns its area's tests: triages their reds and flakes and makes the repairs."))),
+        (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
     ];
-    let mut stock = List::with_capacity(14);
+    let mut stock = List::with_capacity(17);
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, ten charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, thirteen charter lines and one goal template's work");
     }
     stock.into_boxed()
 }

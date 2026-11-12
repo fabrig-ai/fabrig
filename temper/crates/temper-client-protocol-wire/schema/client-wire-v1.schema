@@ -159,7 +159,8 @@ record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list
 # A project's stock ways, watched (client/forge/records.md; protocol/configuration/settings.md, 8).
 record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
-record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
+record WayRole { charter: u32 words: text 480 budget: u64 running: bool }
+record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 10 ProposalItem delegation: bool roles: list 4 WayRole }
 record WaysSubject { project: u32 }
 versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
 # A view, read when shown (client/forge/records.md and client/pages/chat/conversation.md, 3).

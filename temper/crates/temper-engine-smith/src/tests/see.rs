@@ -417,6 +417,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
                     path: branch_path(),
                     items: Box::new([]),
                     delegation: false,
+                    roles: Box::default(),
                 })
                 .into(),
             current,

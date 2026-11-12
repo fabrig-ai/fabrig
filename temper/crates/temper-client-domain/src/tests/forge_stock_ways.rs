@@ -211,6 +211,7 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
                     path: path(branch),
                     items,
                     delegation,
+                    roles: List::with_capacity(0),
                 },
             )
             .unwrap(),

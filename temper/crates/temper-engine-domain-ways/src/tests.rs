@@ -48,6 +48,8 @@ fn stock_ways() -> [StockWay; 3] {
             ways: None,
             classes: Some(Classes::stock(Way::YouApprove)),
             delegation: false,
+            triager: None,
+            roles: Box::default(),
         },
         StockWay {
             name: b"Agents review".as_slice().into(),
@@ -57,6 +59,8 @@ fn stock_ways() -> [StockWay; 3] {
             ways: None,
             classes: Some(Classes::stock(Way::AgentsReview)),
             delegation: false,
+            triager: None,
+            roles: Box::default(),
         },
         StockWay {
             name: b"Draft first".as_slice().into(),
@@ -71,6 +75,8 @@ fn stock_ways() -> [StockWay; 3] {
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
             classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
+            triager: Some(temper_engine_domain_forge::settings::AreaOwner::Charter(14)),
+            roles: Box::default(),
         },
     ]
 }
@@ -142,6 +148,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 4, Edit::Remove),
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: false, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
+                (13, 1, Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14) }))),
             ]),
         ),
         (
@@ -154,6 +161,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 4, Edit::Remove),
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
+                (13, 1, Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14) }))),
             ]),
         ),
         (

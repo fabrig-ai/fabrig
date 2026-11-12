@@ -14,6 +14,15 @@ pub struct StockWay {
     pub classes: Option<temper_protocol_reaches::Classes>,
     /// Whether the way needs charter 5, role 0 and job 3 in the project's policy's delegation.
     pub delegation: bool,
+    pub triager: Option<temper_engine_domain_forge::settings::AreaOwner>,
+    pub roles: Box<[WayRole]>,
+}
+/// A standing role a way brings (protocol/configuration/settings.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WayRole {
+    pub charter: u32,
+    pub words: Box<[u8]>,
+    pub budget: u64,
 }
 /// The members of kind 7 a way lays over the project's own.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -46,6 +55,12 @@ pub struct WayEntry {
     pub path: Path,
     pub items: Box<[Item]>,
     pub delegation: bool,
+    pub roles: Box<[WayRoleEntry]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WayRoleEntry {
+    pub role: WayRole,
+    pub running: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WaysDocument {
@@ -72,7 +87,7 @@ pub enum View {
 use skein_lib::{List, Map};
 use temper_engine_domain_forge::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
 
-/// The way's rules in number order, then kind 7 and kind 8 where the way lays them.
+/// The way's rules in number order, then kinds 7, 8 and 13 where the way lays them.
 #[must_use]
 pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[Item]> {
     let mut items = List::uncapped();
@@ -99,6 +114,12 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
         items
             .push(Item { kind: 8, scope: project, number: 1, edit: Edit::Set(Value::Classes(table.clone())) })
             .expect("one classes item");
+    }
+    if let Some(owner) = &way.triager {
+        items
+            .push(Item { kind: 13, scope: project, number: 1,
+                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: owner.clone() })) })
+            .expect("one triager item");
     }
     items.into_boxed()
 }

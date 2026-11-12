@@ -3097,6 +3097,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
+                roles: Box::default(),
                 items: Box::new([
                     ways::Item {
                         kind: 3,
@@ -3641,6 +3642,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
                 path: path.clone(),
                 items,
                 delegation: way.delegation,
+                roles: way.roles.into_iter().map(|role| ways::WayRoleEntry { role, running: false }).collect(),
             })
             .unwrap();
     }
