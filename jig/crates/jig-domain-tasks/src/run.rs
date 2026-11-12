@@ -426,8 +426,8 @@ pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
         return false;
     }
     match end {
-        End::Parked | End::FinishedWithFollowups { .. } | End::Exceeded(_) | End::Recheck => true,
-        End::Finished { .. } | End::Failed(_) | End::FailedWithReason { .. } | End::Refused => false,
+        End::Parked | End::FinishedWithFollowups { .. } | End::Exceeded(_) => true,
+        End::Finished { .. } | End::Failed(_) | End::FailedWithReason { .. } | End::Refused | End::Recheck => false,
     }
 }
 

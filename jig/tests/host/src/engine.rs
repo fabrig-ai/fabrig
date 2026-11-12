@@ -229,6 +229,7 @@ impl Engine {
                 ToAgent::Start { .. }
                 | ToAgent::Message { .. }
                 | ToAgent::Answer { .. }
+                | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
                 | ToAgent::Grant { .. },
             )
