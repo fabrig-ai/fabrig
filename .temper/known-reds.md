@@ -8,5 +8,3 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-real-loop-world::suite terminal::a_person_at_the_terminal_reads_a_run_of_calls
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
-- test temper-service tests::ask_bound::asks_first_request_fits_both_shapes
-- test temper-service tests::ask_bound::a_design_session_runs_the_drafter_with_no_change_or_goal

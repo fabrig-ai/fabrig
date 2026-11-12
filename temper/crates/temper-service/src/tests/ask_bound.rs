@@ -132,26 +132,39 @@ fn shape_accounts(settings: &core::Settings) -> Box<[engine::Record]> {
     use jig_domain_accounts::{Holder, Kind, Stored};
     let mut rows = temper_engine_domain_world::fixtures::account_rows(&settings.llm_providers).into_vec();
     let provider = settings.models.iter().find(|model| model.program.is_some()).expect("stock program model").provider;
-    let account = rows.iter().find_map(|row| {
-        if let engine::Record::Core(core::Record::Accounts(Stored::Account { number, provider: candidate, .. })) = row
-            && *candidate == provider
-        {
-            Some(*number)
-        } else {
-            None
-        }
-    }).expect("stock program account");
-    let source = rows.iter_mut().find_map(|row| {
-        if let engine::Record::Core(core::Record::Accounts(Stored::Source { account: candidate, number, kind, name, .. })) = row
-            && *candidate == account
-        {
-            *kind = Kind::Program;
-            *name = PROGRAM_SOURCE.into();
-            Some(*number)
-        } else {
-            None
-        }
-    }).expect("stock program source");
+    let account = rows
+        .iter()
+        .find_map(|row| {
+            if let engine::Record::Core(core::Record::Accounts(Stored::Account { number, provider: candidate, .. })) =
+                row
+                && *candidate == provider
+            {
+                Some(*number)
+            } else {
+                None
+            }
+        })
+        .expect("stock program account");
+    let source = rows
+        .iter_mut()
+        .find_map(|row| {
+            if let engine::Record::Core(core::Record::Accounts(Stored::Source {
+                account: candidate,
+                number,
+                kind,
+                name,
+                ..
+            })) = row
+                && *candidate == account
+            {
+                *kind = Kind::Program;
+                *name = PROGRAM_SOURCE.into();
+                Some(*number)
+            } else {
+                None
+            }
+        })
+        .expect("stock program source");
     rows.push(engine::Record::Core(core::Record::Accounts(Stored::Issued {
         number: source,
         holder: Holder::Deployment,
@@ -161,11 +174,7 @@ fn shape_accounts(settings: &core::Settings) -> Box<[engine::Record]> {
     rows.into_boxed_slice()
 }
 
-fn connect(
-    driver: &mut Driver,
-    models: &[core::settings::CatalogueModel],
-    endpoints: &[core::EndpointFacts],
-) {
+fn connect(driver: &mut Driver, models: &[core::settings::CatalogueModel], endpoints: &[core::EndpointFacts]) {
     let limits = driver.env.limits;
     let sources: Box<[_]> = driver
         .store
@@ -173,7 +182,9 @@ fn connect(
         .values()
         .filter_map(|row| {
             if let engine::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
-                number, kind: jig_domain_accounts::Kind::Key, ..
+                number,
+                kind: jig_domain_accounts::Kind::Key,
+                ..
             })) = row
             {
                 Some(*number)
@@ -195,14 +206,12 @@ fn connect(
     else {
         panic!("worker greeting")
     };
-    let mut programs = Vec::new();
-    for endpoint in endpoints {
-        if endpoint.program.is_some() {
-            programs.push(endpoint.number);
-        }
-    }
     hello.bounds = jig_domain_link::Bounds {
-        program_endpoints: programs.into_boxed_slice(),
+        program_endpoints: endpoints
+            .iter()
+            .filter(|endpoint| endpoint.program.is_some())
+            .map(|endpoint| endpoint.number)
+            .collect(),
         endpoints: models
             .iter()
             .flat_map(|model| {
@@ -211,9 +220,10 @@ fn connect(
                     window: model.model.window,
                     output: model.model.output,
                 };
-                let direct = endpoints.iter().find(|endpoint| endpoint.direct.contains(&model.model.provider)).map(|endpoint| {
-                    jig_domain_link::EndpointBound { endpoint: endpoint.number, ..bound }
-                });
+                let direct = endpoints
+                    .iter()
+                    .find(|endpoint| endpoint.direct.contains(&model.model.provider))
+                    .map(|endpoint| jig_domain_link::EndpointBound { endpoint: endpoint.number, ..bound });
                 [Some(bound), direct].into_iter().flatten()
             })
             .collect(),
@@ -228,11 +238,13 @@ fn connect(
     driver.send(greeting);
     // The shared protocol answers with no logins. This worker serves the
     // fixture's program source, so replace each queued whole inventory.
-    for _ in 0..200 {
+    for _ in 0_u32..200 {
         for event in &mut driver.events {
             if let engine::Event::Worker(engine::WorkerInput::Link {
-                link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins }, .. }, ..
-            }) = event {
+                link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins }, .. },
+                ..
+            }) = event
+            {
                 *logins = Box::new([jig_domain_link::Login {
                     name: jig_domain_link::SourceName::new(PROGRAM_SOURCE).expect("fixture program source name"),
                     state: jig_domain_link::LoginState::Usable,
