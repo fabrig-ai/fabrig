@@ -5,7 +5,7 @@ use std::{fs, path::Path};
 use smith_domain_run::HostEffect;
 
 use crate::{
-    calls::{SPECS, Spec},
+    calls::{Offer, SPECS, Spec},
     wire::{self, render},
 };
 
@@ -52,10 +52,10 @@ fn schema_changes_require_a_version_but_descriptions_do_not() {
 #[test]
 fn contract_lines_sort_names_keep_ties_and_escape_schema_bytes() {
     let specs = [
-        Spec { name: b"z", description: b"not in the contract", schema: b"{}", effect: HostEffect::Read },
-        Spec { name: b"a", description: b"", schema: b"{\n\"x\":\"\\\"\t\r\x01\"}", effect: HostEffect::Write },
-        Spec { name: b"a", description: b"", schema: b"{}", effect: HostEffect::Read },
-        Spec { name: b"a", description: b"duplicate offering", schema: b"{}", effect: HostEffect::Read },
+        Spec { name: b"z", description: b"not in the contract", schema: b"{}", effect: HostEffect::Read, offer: Offer::Every },
+        Spec { name: b"a", description: b"", schema: b"{\n\"x\":\"\\\"\t\r\x01\"}", effect: HostEffect::Write, offer: Offer::Every },
+        Spec { name: b"a", description: b"", schema: b"{}", effect: HostEffect::Read, offer: Offer::Every },
+        Spec { name: b"a", description: b"duplicate offering", schema: b"{}", effect: HostEffect::Read, offer: Offer::Every },
     ];
     let expected = concat!(
         "{\"name\":\"a\",\"effect\":\"write\",\"input\":\"{\\n\\\"x\\\":\\\"\\\\\\\"\\t\\r\\u0001\\\"}\"}\n",

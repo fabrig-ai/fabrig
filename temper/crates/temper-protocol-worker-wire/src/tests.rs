@@ -4,7 +4,7 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;
 
-/// Another family's version is distinct from a malformed Items body (protocol/wires.md, 5).
+/// Another version is distinct from a malformed Items body (protocol/wires.md, 5).
 #[test]
 fn items_refuse_another_version_before_reading_the_body() {
     use skein_codec::Reason;

@@ -174,10 +174,13 @@ impl Store {
             return Err(OpenRefusal::Failed);
         }
         let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
-        let page = pages::reader::walk(self, &ranges, after, rows).map_err(|failure| {
-            self.open_failed(restore::OpenFailure::Data(failure));
-            OpenRefusal::Failed
-        })?;
+        let page = match pages::reader::walk(self, &ranges, after, rows) {
+            Ok(page) => page,
+            Err(failure) => {
+                self.open_failed(restore::OpenFailure::Data(failure));
+                return Err(OpenRefusal::Failed);
+            }
+        };
         let mut found = skein_lib::List::with_capacity(rows);
         for row in page.rows {
             let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
