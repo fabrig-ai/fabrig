@@ -19,9 +19,3 @@ clock) and passes alone. The person listed it on 2026-11-12. A separate
 health goal makes it hold under load and removes this entry when it lands.
 
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
-
-The test below fails because the host tools' contract test names an
-undeclared variable, `TEMPER_CONTRACT_WRITE` (from the goal's own change
-1738). Change 1954 renames it to `SKEIN_CODEGEN_WRITE` and removes this entry.
-
-- test fabrig-boundary::cli_names every_name_is_declared
