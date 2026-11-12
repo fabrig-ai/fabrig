@@ -646,6 +646,7 @@ impl World {
                 };
                 Taken::Finished { owner: *owner, word }
             }
+            Event::Drain => Taken::Shutdown,
             Event::CancelAll { reason } => {
                 self.stats.cancel_alls += 1;
                 match reason {
@@ -802,6 +803,7 @@ impl World {
                 | ToAgent::Start { .. }
                 | ToAgent::Message { .. }
                 | ToAgent::Answer { .. }
+                | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
                 | ToAgent::Acknowledge { .. },
             )
@@ -921,6 +923,9 @@ impl World {
                     CallAnswer::Relayed { .. } | CallAnswer::Delivered(_) | CallAnswer::Withdrawn => {}
                 }
                 self.parcel(request);
+            }
+            Request::Agent(ToAgent::Drain { agent }) => {
+                self.parcel(Request::Agent(ToAgent::Cancel { agent }));
             }
             Request::Agent(ToAgent::Cancel { agent }) => {
                 assert!(self.left.contains(&agent), "a stop is of a run that leaves live");

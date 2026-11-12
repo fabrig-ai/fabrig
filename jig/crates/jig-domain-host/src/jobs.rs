@@ -11,6 +11,7 @@ use skein_lib::{Duration, Env, Id, Queue, Token};
 #[derive(Debug)]
 pub(crate) struct Job {
     result_bound: u32,
+    stopped: bool,
     left: Option<Token>,
     state: State,
 }
@@ -86,7 +87,7 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, job: JobAssignment, ou
     }
     let result_bound = bound.expect("validated kind").result;
     let JobAssignment { run, attempt, kind, spec, deadline, workspace, grants: _ } = job;
-    let job = Job { result_bound, left: None, state: State::Preparing { kind, spec, deadline } };
+    let job = Job { result_bound, stopped: false, left: None, state: State::Preparing { kind, spec, deadline } };
     let id = domain.hosted.insert(Hosted::job(run, attempt, job)).expect("checked slot capacity");
     domain.names.insert(run, id).expect("one name per slot");
     match workspace {
@@ -230,13 +231,17 @@ pub(crate) fn stop(domain: &mut Hub, id: Id<Hosted>, reason: Reason, out: &mut Q
                 },
                 Some(Ending::Finished { .. } | Ending::Refused { .. }) | None => false,
             };
-            if !gone && !was_cancelled {
+            if !gone && !job.stopped {
+                job.stopped = true;
                 out.push(Request::Job(ToJob::Stop { owner: id.token() }));
             }
+            // Shutdown may interrupt only work whose delivery has not begun
+            // (domain/hosts/hub.md, 9). A begun delivery owns its answer.
+            let keep_ending = was_cancelled || reason == Reason::Shutdown && delivering;
             State::Running {
                 workspace,
                 started,
-                ending: if was_cancelled { ending } else { Some(cancelled(reason)) },
+                ending: if keep_ending { ending } else { Some(cancelled(reason)) },
                 gone,
                 delivering,
             }

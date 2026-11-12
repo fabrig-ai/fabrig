@@ -174,7 +174,7 @@ impl Agents {
                     agent.ready = true;
                 }
             }
-            host::ToAgent::Cancel { agent: owner } => {
+            host::ToAgent::Drain { agent: owner } | host::ToAgent::Cancel { agent: owner } => {
                 if let Some(agent) = self.live.remove(&owner) {
                     if !agent.finished {
                         out.push(host::FromAgent::Finished {
