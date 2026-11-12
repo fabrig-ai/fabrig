@@ -4451,6 +4451,49 @@ fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
 }
 
 #[test]
+fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
+    use super::{Work, forge, tasks};
+    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources = 2; required usage 3; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    for concerned in [false, true] {
+        let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+        let repository = adopted(1);
+        forge::step(&mut domain.forge, &env.with(env.limits.forge),
+            forge::Event::Restore { record: forge::Stored::Repository(repository.clone()) },
+            &mut skein_lib::Queue::uncapped());
+        let task = if concerned { Some(task) } else { None };
+        let mut out = skein_lib::Queue::uncapped();
+        out.push(forge::Request::HeadRefused {
+            task,
+            resource: forge::Name { forge: repository.provider.forge, repository: repository.provider.repository,
+                what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"2".as_slice().into(), b"c2".as_slice().into()])),
+            },
+            configured: 2, needed: 3,
+        });
+        let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+        super::outputs(&mut domain, &env, &mut decision, &mut out);
+        let Some(crate::Fact::HeadRefused { task: fact_task, words }) = domain.pop_fact() else {
+            panic!("one head refusal fact");
+        };
+        assert_eq!(fact_task, task);
+        assert_eq!(words.as_ref(), WORDS);
+        assert!(domain.pop_fact().is_none());
+        if let Some(task) = task {
+            let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+                panic!("the concerned task is held");
+            };
+            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+            let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+                panic!("retained resource hold");
+            };
+            assert_eq!(*why, tasks::Hold::ResourceUnavailable);
+            let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+            assert!(words.starts_with(WORDS));
+        }
+        assert!(domain.work.is_empty(), "no unrelated work is held");
+    }
+}
+
+#[test]
 fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     use super::{Work, forge, tasks};
     let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
