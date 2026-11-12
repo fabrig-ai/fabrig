@@ -2100,6 +2100,56 @@ fn a_proposal_reaches_its_covering_task_and_is_accepted() {
 }
 
 #[test]
+fn an_amend_proposal_without_authority_keeps_the_targets_whole_authority() {
+    let (mut driver, root) = batch_fixture_with(3, 3);
+    let mut target = report_delegate(b"original plan", Box::new([]));
+    target.authority.budget.spend = 50;
+    target.authority.delegation.kinds = Box::new([tasks::AuthorityExecutor::Charter(1)]);
+    target.authority.delegation.tasks = 1;
+    target.authority.delegation.depth = 1;
+    let target = call_batch(&mut driver, &root, 904, Box::new([target]))[0];
+    let target_run = assigned_task(&driver, target);
+    let proposer = call_batch(&mut driver, &target_run, 905, Box::new([report_delegate(b"delegate", Box::new([]))]))[0];
+    let proposer_run = assigned_task(&driver, proposer);
+    let before = live(&driver, target).clone();
+    let amendment = task_amendment(Some(b"revised plan"), None, b"plan needs revision");
+    assert_eq!(live(&driver, proposer).requester, tasks::Party::Task(target));
+    tool_call(
+        &mut driver,
+        &proposer_run,
+        907,
+        engine::Tool::Propose {
+            action: engine::ProposedAction::Amend { task: target, revision: before.revisions.spec, amendment },
+            reason: b"please revise the plan".as_slice().into(),
+            as_holder: false,
+        },
+    );
+    let proposal = proposal_of(&driver, 907);
+    let rendered = temper_engine_smith::answer(driver.answered(907).expect("proposal answered"));
+    assert!(!rendered.error());
+    assert!(rendered.text().starts_with(b"Proposed as "));
+    assert!(proposal_waits_at(&driver, proposer, tasks::ProposalHolder::Task(root.task)));
+    assert_eq!(live(&driver, target).authority, before.authority);
+    assert_eq!(live(&driver, target).spec, before.spec);
+    tool_call(
+        &mut driver,
+        &root,
+        908,
+        engine::Tool::Decide { proposer, proposal, decision: engine::ProposalChoice::Accept },
+    );
+    assert_eq!(
+        driver.answered(908),
+        Some(&engine::CallAnswer::ProposalDecided { proposal, outcome: tasks::ProposalOutcome::Accepted })
+    );
+    let after = live(&driver, target);
+    assert_eq!(after.spec.words.as_ref(), b"revised plan");
+    assert_eq!(after.revisions.spec, before.revisions.spec + 1);
+    assert_eq!(after.authority, before.authority);
+    assert_eq!(after.funder, tasks::Funder::Task(root.task));
+    assert!(live(&driver, proposer).proposal.is_none());
+}
+
+#[test]
 fn a_chats_goal_accepted_as_its_persons_outlives_the_chat() {
     let (mut driver, parent) = batch_fixture_with(3, 2);
     let child = call_batch(&mut driver, &parent, 64, Box::new([report_delegate(b"chat work", Box::new([]))]))[0];
