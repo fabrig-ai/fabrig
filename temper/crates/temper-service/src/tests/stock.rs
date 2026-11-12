@@ -2274,3 +2274,58 @@ fn the_stock_has_no_foreman() {
     );
     assert!(!include_str!("../stock/ask.txt").contains("answer change questions"));
 }
+
+// temper/docs/design/protocol/configuration/settings.md, 1 and 5.
+#[test]
+fn a_standard_document_seeds_project_one_from_stock_policy_one() {
+    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
+    document["engine"]["limits"] = serde_json::json!({"profile": "standard"});
+    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
+    let bytes = serde_json::to_vec(&document["engine"]).unwrap();
+    let parsed = config::document(&bytes, &config::DocumentLimits { bytes: 65_536, tokens: 8192, depth: 32 }).unwrap();
+    let mut engine = config::engine(&parsed, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let policy = defaults.policies.get(&1).unwrap();
+    let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
+    let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
+    assert_eq!(bytes, 6078);
+    assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 20);
+    assert!(bytes <= engine.limits.core.policy_bytes, "snapshot {bytes}, limit {}", engine.limits.core.policy_bytes);
+    assert_eq!(
+        jig_domain_authority::policy_refusal(&defaults.rules, &engine.limits.core.authority, &policy.policy),
+        None,
+        "snapshot {bytes}, executors {}, limit {}",
+        policy.policy.ceiling.delegation.kinds.len(),
+        engine.limits.core.authority.executors
+    );
+    config::pass(&mut engine, defaults).expect("a standard deployment seeds stock policy 1");
+    assert_eq!(engine.projects.len(), 1);
+    assert_eq!(engine.projects[0].number, 1);
+    assert_eq!(engine.projects[0].policy, engine.policies[0].policy);
+    let core = config::core(&engine, [1; 16], 7);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
+    let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
+    assert_eq!(
+        jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_seeded_stock_document_names_the_executor_limit() {
+    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
+    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
+    document["engine"]["limits"]["overrides"]["authority.executors"] = 18.into();
+    let document = serde_json::to_vec(&document).unwrap();
+    let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
+    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.projects[0].policy.ceiling.delegation.kinds: policy has 20 executor kinds; authority.executors limit is 18.\n");
+}
+
+#[test]
+fn inits_document_can_seed_stock_policy_one() {
+    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
+    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
+    let document = serde_json::to_vec(&document).unwrap();
+    crate::named(&document, &config::Directories::working()).expect("init's limits admit a seeded stock project");
+}

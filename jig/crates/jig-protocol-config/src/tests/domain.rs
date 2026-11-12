@@ -362,7 +362,7 @@ fn a_project_policy_past_the_deployment_ceiling_is_refused() {
     refuses(
         br#""escalation_role": 1, "period_spend": 100"#,
         br#""escalation_role": 1, "period_spend": 101"#,
-        What::Bound,
+        What::Because(b"policy authority or period spend exceeds deployment rules"),
     );
 }
 #[test]
@@ -493,7 +493,15 @@ fn the_larger_carried_value_bound_keeps_the_catalogue_key_bound() {
 #[test]
 fn a_seed_policy_whose_whole_value_exceeds_its_byte_limit_refuses_start() {
     // Permission mappings fit 256 bytes, but the role and whole ceiling do not.
-    refuses(br#""profile": "small""#, br#""profile": "small", "overrides": {"core.policy_bytes": 256}"#, What::Bound);
+    let engine = engine();
+    let project = &engine.projects[0];
+    let snapshot = jig_domain_core::policy_snapshot(&project.policy, &project.roles, &project.templates).unwrap();
+    let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
+    refuses(
+        br#""profile": "small""#,
+        br#""profile": "small", "overrides": {"core.policy_bytes": 256}"#,
+        What::PolicyBytes { bytes, limit: 256 },
+    );
 }
 
 // Current people-v13 envelope, protocol/limits.md.
