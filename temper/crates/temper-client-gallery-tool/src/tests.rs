@@ -525,7 +525,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "Reproduced finding 91; asked you about its fix." },
             Part::Named { role: Role::Paragraph, name: "Its weekly report · written Mon 06:00" },
             Part::Named { role: Role::Paragraph, name: "Week of 26 October." },
-            Part::Named { role: Role::Item, name: "Triaged three findings: two routed to you, one repaired and landed." },
+            Part::Named {
+                role: Role::Item,
+                name: "Triaged three findings: two routed to you, one repaired and landed.",
+            },
             Part::Named { role: Role::Item, name: "Waiting on you: finding 91's protocol fix." },
             Part::Named { role: Role::Paragraph, name: "Spent 21 of 40 this period." },
             Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },
@@ -566,7 +569,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "Reproduced finding 91; asked you about its fix." },
             Part::Named { role: Role::Paragraph, name: "Its weekly report · written Mon 06:00" },
             Part::Named { role: Role::Paragraph, name: "Week of 26 October." },
-            Part::Named { role: Role::Item, name: "Triaged three findings: two routed to you, one repaired and landed." },
+            Part::Named {
+                role: Role::Item,
+                name: "Triaged three findings: two routed to you, one repaired and landed.",
+            },
             Part::Named { role: Role::Item, name: "Waiting on you: finding 91's protocol fix." },
             Part::Named { role: Role::Paragraph, name: "Spent 21 of 40 this period." },
             Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },

@@ -1553,12 +1553,20 @@ fn report_parts_need_a_nonempty_read_in_the_shown_card() {
 }
 
 fn report_answer(f: &mut Reads, handle: Handle, notes: Box<[c::Note]>) {
-    page(f, Event::Told { told: Told::Page {
-        handle,
-        page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-            rows: List::from_boxed(notes), cut: false, before: None, after: None,
-        })))),
-    }});
+    page(
+        f,
+        Event::Told {
+            told: Told::Page {
+                handle,
+                page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+                    rows: List::from_boxed(notes),
+                    cut: false,
+                    before: None,
+                    after: None,
+                })))),
+            },
+        },
+    );
 }
 fn report(f: &Reads) -> Option<team::Now> {
     team::shown(&f.root, PROJECT).facts().unwrap().card.as_ref().unwrap().report.clone()
@@ -1611,9 +1619,12 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     let stale = f.reports.last().unwrap().1;
     let mut other = line.clone();
     other.chip.task = 41;
-    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks {
-        rows: List::from_boxed(Box::new([line, other])), more: false,
-    })));
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line, other])), more: false })),
+    );
     page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(41) } });
     assert_eq!(f.reports.last().unwrap().0, 41, "changing cards reads the new role's report");
     assert!(f.closed.as_slice().contains(&stale));

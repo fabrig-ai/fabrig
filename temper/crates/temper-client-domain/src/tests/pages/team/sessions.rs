@@ -315,14 +315,8 @@ fn sessions_parts_need_rows_in_the_shown_card() {
 #[test]
 fn sessions_prefer_their_last_now_line_without_lending_it() {
     let mut f = opening();
-    let now = |attempt, line: &[u8]| c::Activity::NowWritten {
-        attempt,
-        line: c::Text::new(line.into(), 512).unwrap(),
-    };
-    let stood = |attempt, words: &[u8]| c::Activity::Stood {
-        attempt,
-        words: c::Text::new(words.into(), 512).unwrap(),
-    };
+    let now = |attempt, line: &[u8]| c::Activity::NowWritten { attempt, line: c::Text::new(line.into(), 512).unwrap() };
+    let stood = |attempt, words: &[u8]| c::Activity::Stood { attempt, words: c::Text::new(words.into(), 512).unwrap() };
     let lines = vec![
         activity(1, at(980), began(1)),
         activity(2, at(981), stood(1, b"done")),
@@ -343,7 +337,10 @@ fn sessions_prefer_their_last_now_line_without_lending_it() {
     answer(&mut f, lines[..6].iter().rev().cloned().collect(), None, false);
     let rows = rows(&f);
     assert_eq!(rows.len(), 3);
-    assert_eq!(rows.get(2).unwrap().words.as_deref(), Some(b"Reproduced finding 91; asked you about its fix.".as_slice()));
+    assert_eq!(
+        rows.get(2).unwrap().words.as_deref(),
+        Some(b"Reproduced finding 91; asked you about its fix.".as_slice())
+    );
     assert_eq!(rows.get(1).unwrap().words.as_deref(), Some(b"Fallback words".as_slice()));
     assert_eq!(rows.get(0).unwrap().words, None, "an earlier session lends no Now line");
 }

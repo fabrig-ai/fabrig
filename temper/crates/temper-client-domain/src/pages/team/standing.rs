@@ -171,7 +171,10 @@ impl Standing {
             }
         }
         // The card's report has its own in-flight slot so it never delays a Now.
-        if self.report.refresh && self.report.handle.is_none() && let Some(task) = wanted {
+        if self.report.refresh
+            && self.report.handle.is_none()
+            && let Some(task) = wanted
+        {
             let handle = new_handle(next);
             self.report.handle = Some(handle);
             self.report.refresh = false;

@@ -329,7 +329,9 @@ fn card(
             if parts.sessions {
                 sessions::draw(b, w, &facts.sessions);
             }
-            if parts.report && let Some(report) = &facts.report {
+            if parts.report
+                && let Some(report) = &facts.report
+            {
                 draw_report(b, w, report);
             }
             b.close();
