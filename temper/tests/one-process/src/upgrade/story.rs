@@ -55,6 +55,8 @@ struct State {
     epoch: u32,
     epoch_floor: Option<u64>,
     transport: Option<temper_fake_git_hosted::Typed>,
+    end_after_kill: bool,
+    killed: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 struct Observer { inner: ServiceObserver, cuts: cuts::Capture }
@@ -220,7 +222,19 @@ impl skein_world::Referee<Proc> for Judge {
         let epoch = STATE.with(|s| s.borrow().epoch);
         if epoch != self.epoch { self.epoch=epoch; self.client_started=false; self.stopped=false; self.finished=false; self.released=false; }
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
+        let Proc::Service(service) = &mut first[0] else {
+            assert!(STATE.with(|s| s.borrow().killed),"only a killed service is replaced by a closer");
+            for proc in others.iter_mut() {
+                if let Proc::Other(HarnessProcess::Client(person)) = proc {person.finish();}
+                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {caller.closed=true;}
+                if let Proc::Other(HarnessProcess::Ctl(caller)) = proc {caller.drain();}
+            }
+            self.stopped=true;
+            self.stop_peers(others);
+            self.finished=first[0].is_empty() && others.iter().all(Host::is_empty);
+            return;
+        };
+        if !self.upgrade { for proc in others.iter() { if let Proc::Other(HarnessProcess::Calls(caller)) = proc && let Some(answer) = caller.answers.first() { STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&answer.output)); } } }
         if !self.upgrade && let Some(link) = service.service.links().pop() {
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc { person.sign_in(&link); }
@@ -278,6 +292,10 @@ impl skein_world::Referee<Proc> for Judge {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc { person.finish(); }
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc { caller.closed = true; }
             }
+            if !self.upgrade {
+                assert!(self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task)))),"write still in flight at the stop boundary");
+                STATE.with(|s| s.borrow_mut().write_at=Some(service.observer.inner.submitted));
+            }
             self.controls.signal(0, ServiceSignal::Terminate);
             self.stopped = true;
         }
@@ -303,22 +321,28 @@ impl skein_world::Referee<Proc> for Judge {
     }
     fn next_deadline(&self) -> Option<Time> { Some(Time::from_nanos(60_000_000_000)) }
     fn overdue(&self, now: Time) -> Option<String> {
-        (!self.stopped && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: checked {}, issue {}, tasks {:?}", STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
+        (!self.finished && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: checked {}, issue {}, tasks {:?}", STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
     }
     fn passed(&self) -> bool { self.finished }
 }
 
 /// The service stops settled, then starts with the mark-only fixture sets.
-pub fn settled() { run(None); }
+pub fn settled() { run(None,None); }
+/// Kill the service with its sent write still in flight.
+pub fn unsettled() {
+    run(None,None);
+    let before=STATE.with(|s| s.borrow().write_at.expect("write in flight"));
+    run(None,Some(before));
+}
 
 /// A fixed completed operation during the copy-to-wires interval.
-pub fn power_loss(point: usize) { run(Some(Selection::Fixed(point))); }
+pub fn power_loss(point: usize) { run(Some(Selection::Fixed(point)),None); }
 /// A seed draws one service submission across the whole upgrade start.
-pub fn drawn_power_loss(seed: u64) { run(Some(Selection::Drawn(seed))); }
+pub fn drawn_power_loss(seed: u64) { run(Some(Selection::Drawn(seed)),None); }
 enum Selection { Fixed(usize), Drawn(u64) }
 
-fn run(selection: Option<Selection>) {
-    STATE.with(|s| *s.borrow_mut() = State::default());
+fn run(selection: Option<Selection>, kill: Option<u32>) {
+    STATE.with(|s| *s.borrow_mut() = State {end_after_kill:kill.is_some(),..State::default()});
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
@@ -327,8 +351,10 @@ fn run(selection: Option<Selection>) {
     temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
     let store = Rc::new(RefCell::new(referee::Store::new()));
     let ledger = Rc::new(RefCell::new(Vec::new()));
-    let disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, false,None);
-    assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
+    let disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, false,kill.map(|before| (before,skein_world::Cut::Kill)));
+    if kill.is_none() { assert!(store.borrow().pending.is_empty(),"settled stop has no pending commit"); }
+    else { assert!(STATE.with(|s| s.borrow().killed),"the service was killed, not drained"); }
+    STATE.with(|s| s.borrow_mut().end_after_kill=false);
     let mut disk = disk;
     let before = Maps::read(&mut disk);
     STATE.with(|s| {
@@ -355,7 +381,7 @@ fn run(selection: Option<Selection>) {
         store.borrow_mut().agent_records.clear();
         let disk = image.restore(&mut store.borrow_mut());
         STATE.with(|s| {let mut s=s.borrow_mut(); s.checked=false; s.points=cuts::Points::default();});
-        let _disk = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,Some(before));
+        let _disk = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,Some((before,skein_world::Cut::PowerLoss)));
         assert_eq!(STATE.with(|s| s.borrow().epoch),2,"power loss restarted the service");
     } else {
         let _disk = phase(disk,&configuration,&start.fakes.forge,&store,&ledger,true,None);
@@ -366,7 +392,7 @@ fn run(selection: Option<Selection>) {
     STORE.with(|s| *s.borrow_mut() = None);
 }
 
-fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &temper_fake_git_hosted::Typed, store: &Rc<RefCell<referee::Store>>, ledger: &Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>, upgrade: bool, cut: Option<u32>) -> skein_fake_machine::Machine {
+fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &temper_fake_git_hosted::Typed, store: &Rc<RefCell<referee::Store>>, ledger: &Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>, upgrade: bool, cut: Option<(u32,skein_world::Cut)>) -> skein_fake_machine::Machine {
     world::lower_store(Some(store.clone()));
     STORE.with(|s| *s.borrow_mut() = Some(store.clone()));
     let mut disk = disk;
@@ -387,7 +413,14 @@ fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &te
         let mut world = skein_world::World::new_controlled(fixtures::SEED, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(), transport: transport.clone(), upgrade, stopped:false, released:false, client_started:false, ledger:ledger.clone(), finished:false, epoch:0 }).with_machine(machine);
         for (program, roots) in programs::programs::<Upgrade>() { world.host_roots(program, roots); }
         world.host_roots(ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn,inherited))))), ctl::roots);
-        world.spawn_restartable(programs::service_roots(), programs::service::<Upgrade>);
+        world.spawn_restartable(programs::service_roots(), |inherited| {
+            if STATE.with(|s| s.borrow().end_after_kill && s.borrow().epoch > 0) {
+                STATE.with(|s| s.borrow_mut().killed=true);
+                let mut closer=ctl::Caller::scripted_restartable(inherited);
+                closer.closed=true;
+                Proc::Other(HarnessProcess::Calls(Box::new(closer)))
+            } else {programs::service::<Upgrade>(inherited)}
+        });
         world.spawn_restartable(vec![skein_world::StartupRoot { name:b"private".as_slice().into(),path:b"client".as_slice().into() }],|inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))));
         if !upgrade {
             world.spawn_root(skein_sim::Handle::new(client.expect("first client").raw()), |root| Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::welcome(root, golden::person_steps()).with_account_after(7),None)))));
@@ -397,7 +430,7 @@ fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &te
             let transport = STATE.with(|s| s.borrow().transport.as_ref().expect("forge").clone());
             programs::fake_forge(forge_peer(&transport),inherited)
         });
-        if let Some(before) = cut { world.cut(0,before,skein_world::Cut::PowerLoss); }
+        if let Some((before,kind)) = cut { world.cut(0,before,kind); }
         world.run()
     });
     for proc in &mut outcome.procs {
@@ -409,8 +442,8 @@ fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &te
             });
         }
     }
-    let Proc::Service(service) = &outcome.procs[0] else { panic!("service") };
-    assert!(service.service.is_empty(), "settled service stop");
+    if let Proc::Service(service) = &outcome.procs[0] { assert!(service.service.is_empty(),"settled service stop"); }
+    else { assert!(STATE.with(|s| s.borrow().killed)); }
     std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh())
 }
 

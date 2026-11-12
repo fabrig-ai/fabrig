@@ -125,6 +125,7 @@ impl Caller {
     pub(crate) fn scripted_restartable(inherited: &Inherited) -> Self {
         let mut caller = Self::scripted(inherited.roots[0].1);
         caller.submit(Op::Close { fd: inherited.signal });
+        for (_,fd) in inherited.roots.iter().skip(1) { caller.submit(Op::Close {fd:*fd}); }
         caller
     }
     pub(crate) fn restartable(inherited: &Inherited) -> Self {

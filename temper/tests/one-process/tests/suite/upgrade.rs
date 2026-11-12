@@ -30,3 +30,8 @@ fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
 fn a_mark_only_upgrade_closes_a_signal_stopped_chats_window_and_opens_again_at_equal_levels() {
     temper_one_process_world::upgrade::fresh_windows();
 }
+
+#[test]
+fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
+    temper_one_process_world::upgrade::story::unsettled();
+}
