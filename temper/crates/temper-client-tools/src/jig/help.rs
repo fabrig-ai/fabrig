@@ -39,7 +39,7 @@ fn form_usage(tool: &Tool, form: &[Argument], out: &mut Writer) -> Result<(), Ov
 
 fn argument_usage(argument: &Argument, out: &mut Writer) -> Result<(), Overflow> {
     out.put(b" ")?;
-    let optional = argument.occurs != Occurs::Required;
+    let optional = !super::table::required(argument);
     if optional {
         out.put(b"[")?;
     }

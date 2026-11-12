@@ -7,6 +7,8 @@ use super::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::List;
+/// Input files stacked by one apply call, separate from delegate counts.
+pub const FILES: u32 = 128;
 pub(crate) fn selector(call: &Call) -> c::Setting {
     if call.form == 1 {
         return c::Setting::Rules;

@@ -8,8 +8,12 @@ fn every_call_goes_from_argv_to_json_and_back_unchanged() {
     for words in fixtures::EVERY_TOOL {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
-            *call.values.get_mut(0).expect("FILE") =
-                Some(jig::call::Values::One(jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into())));
+            let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
+            *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
+                jig::call::Values::Many(Box::new([value]))
+            } else {
+                jig::call::Values::One(value)
+            });
         }
         let json = jig::json::write_call(table::TOOLS, &call).expect("a call's JSON within its bound");
         fixtures::unique_keys(&json).expect("call JSON has unique keys");

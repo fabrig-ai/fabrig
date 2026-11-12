@@ -260,3 +260,24 @@ fn shown_overlay_marks_and_literal_json_apply_back_and_inventory_origin() {
     let json = read(&["settings", "show", "--json"], inventory);
     assert!(String::from_utf8_lossy(&json.stdout).contains("\"follows\":\"overlay\""));
 }
+
+#[test]
+fn apply_files_repeat_in_argv_round_trip_and_take_stdin_once() {
+    for argv in [
+        vec!["settings", "apply", "a.json", "b.json", "--against", "5", "--key", "stack"],
+        vec!["settings", "apply", "a.json", "-", "b.json", "--against", "5", "--key", "stack"],
+        vec!["settings", "apply", "--against", "5", "--key", "stack", "--", "--file", "second.json"],
+    ] {
+        let call = fixtures::call(&argv);
+        assert_eq!(fixtures::printed(&call), jig::call::Parsed::Call { call: call.clone(), json: false });
+        let Some(Values::Many(files)) = &call.values[0] else { panic!("repeated files") };
+        assert!(files.len() >= 2);
+    }
+    for argv in [
+        vec!["settings", "apply", "--against", "5", "--key", "empty"],
+        vec!["settings", "apply", "-", "-", "--against", "5", "--key", "stdin"],
+        vec!["settings", "propose", "a.json", "b.json", "c.json", "--against", "5", "--key", "proposal"],
+    ] {
+        assert!(fixtures::parse(&argv).is_err(), "{argv:?}");
+    }
+}

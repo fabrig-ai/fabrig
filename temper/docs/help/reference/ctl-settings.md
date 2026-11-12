@@ -62,8 +62,8 @@ The JSON value is what a settings file's `set` takes.
 ## settings apply
 
 ```
-settings apply [FILE...]... --against REVISION [--running stays|moves] --key KEY
-  FILE... (items): a file, at most 1048576 bytes; repeated, at most 128. The settings files in order, JSON, with - at most once
+settings apply FILE... --against REVISION [--running stays|moves] --key KEY
+  FILE (items): a file, at most 1048576 bytes; repeated, at most 128. The settings files in order, JSON, with - at most once
   --against REVISION: a number from 0 to 4294967295; required. The newest revision you read
   --running stays|moves: one of stays or moves; optional. Running work stays on its revision, or moves to the new one; stays when absent
 Change the deployment's settings in one decision

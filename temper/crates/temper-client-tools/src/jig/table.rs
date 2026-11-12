@@ -167,9 +167,18 @@ pub const fn repeated(
     flag(name, shown, kind, Occurs::Repeated { most }, line)
 }
 
+/// A repeated settings-file input takes at least one file; other repeats may be absent.
+#[must_use]
+pub fn required(argument: &Argument) -> bool {
+    match argument.occurs {
+        Occurs::Required => true,
+        Occurs::Optional => false,
+        Occurs::Repeated { .. } => argument.place == Place::Positional && argument.kind == Kind::File,
+    }
+}
+
 /// The published vocabulary of argument placeholders.
 pub const PLACEHOLDERS: &[&[u8]] = &[
-    b"FILE...",
     b"HOLD",
     b"FOLLOW",
     b"TASK",

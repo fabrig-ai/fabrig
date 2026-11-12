@@ -714,7 +714,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     prints: b"`revision R`, the new revision",
     result: b"change_settings",
     forms: &[&[
-        positional(b"items", b"FILE...", Kind::File, Repeated { most: 128 }, b"The settings files in order, JSON, with - at most once"),
+        positional(b"items", b"FILE", Kind::File, Repeated { most: super::settings_file::FILES }, b"The settings files in order, JSON, with - at most once"),
         flag(b"against", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The newest revision you read"),
         flag(
             b"running",
