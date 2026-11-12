@@ -415,6 +415,13 @@
   "Yours", at 760 px and under the tabs stand two by two, as the whole
   story's `whole-story.css` has them, so that "Agents review" keeps its
   words whole on a phone.
+  Ask temper's lede reads "Choose how work runs, or describe how you work
+  below.", naming no project. Its acts row holds "How does temper work?"
+  before the way's act, alone where the way has none; the button has no
+  style token of its own, taking `.temper-ways-acts > button`'s outlined
+  look. Its hint names the fixed message it sends (`../pages/ask-temper.md`, 1).
+  The row's buttons wrap on a phone. This button is Ask's opening's alone,
+  never How work runs' (`ask-opening`, 2026-11-12).
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui/web/README.md`, 10) gives way under `.temper-ways-path` by one rule of the

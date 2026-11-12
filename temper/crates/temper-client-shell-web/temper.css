@@ -3053,6 +3053,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-settings .temper-ways-legend > .temper-ways-kind-line::before { width: 18px; height: 0; border-top: 1px dotted var(--gf-line-2); vertical-align: 3px; }
 #app > .temper-session .temper-ways-acts,
 #app > .temper-settings .temper-ways-acts { display: flex; gap: 8px; margin-left: auto; }
+#app > .temper-session .temper-ways-acts { flex-wrap: wrap; }
 #app > .temper-session .temper-ways-acts > button,
 #app > .temper-settings .temper-ways-acts > button { min-height: 36px; padding: 5px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 500 13.5px/1.6 var(--gf-sans); white-space: nowrap; cursor: pointer; box-shadow: none; }
 #app > .temper-session .temper-ways-acts > .temper-ways-use,

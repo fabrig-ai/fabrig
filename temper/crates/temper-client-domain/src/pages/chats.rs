@@ -45,6 +45,7 @@ pub struct Chats {
     pub outcome: Option<jig_client::Outcome>,
     pub(crate) opening: Option<(u64, Mode)>,
     starting_mode: Mode,
+    keep_words: bool,
     query: Option<TaskQuery>,
     first: bool,
     page_delivered: bool,
@@ -73,6 +74,7 @@ impl Chats {
             outcome: None,
             opening: None,
             starting_mode: Mode::Chat,
+            keep_words: false,
             query: None,
             first: true,
             page_delivered: false,
@@ -401,7 +403,7 @@ impl Chats {
         env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
-        words: Box<[u8]>,
+        how: bool,
         choice: &super::choice::Draft,
         serial: &mut u64,
         out: &mut Queue<Request>,
@@ -410,17 +412,21 @@ impl Chats {
             return;
         }
         let Some(me) = me else { return };
-        if super::composer::over(&words, self.beyond, me.words_bytes) > 0 {
+        let words = if how { super::chat::document::HOW_TEMPER_WORKS.into() } else { self.words.clone() };
+        let beyond = if how { 0 } else { self.beyond };
+        if super::composer::over(&words, beyond, me.words_bytes) > 0 {
             return;
         }
-        self.words = words;
         let template = ASKING_TEMPLATE;
         if let Some(project) = project
             && jig_client::shapes::template(me, project, template).is_none()
         {
             return;
         }
-        self.send(env, Some(me), project, template, self.words.clone(), Some(choice), serial, out);
+        self.send(env, Some(me), project, template, words, Some(choice), serial, out);
+        if self.start.is_some() {
+            self.keep_words = how;
+        }
     }
     #[expect(
         clippy::too_many_arguments,
@@ -466,6 +472,7 @@ impl Chats {
                 let key = Key { asker: Owner::Pages.asker(), number: *serial };
                 self.start = Some(key);
                 self.starting_mode = Mode::Chat;
+                self.keep_words = false;
                 self.refusal = None;
                 self.outcome = None;
                 out.push(Request::Client(jig_client::Event::Send {
@@ -507,15 +514,19 @@ impl Chats {
                     if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
                         self.opening = Some((*first, self.starting_mode));
                         show_chat(*first, address, out);
-                        self.words = Box::default();
-                        self.beyond = 0;
+                        if !self.keep_words {
+                            self.words = Box::default();
+                            self.beyond = 0;
+                        }
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)
                     {
                         self.opening = Some((*task, self.starting_mode));
                         show_chat(*task, address, out);
-                        self.words = Box::default();
-                        self.beyond = 0;
+                        if !self.keep_words {
+                            self.words = Box::default();
+                            self.beyond = 0;
+                        }
                     }
                 }
                 self.outcome = Some(outcome);

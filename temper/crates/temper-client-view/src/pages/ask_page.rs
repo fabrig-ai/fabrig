@@ -5,7 +5,7 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State};
 use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
 
@@ -69,21 +69,17 @@ pub(crate) fn main(
     b.style(look::THREAD);
     b.open(Role::Slot);
     b.style(look::STARTER);
-    let name = match super::project_name(root.pages().me(root.client()), project) {
-        Some(name) => name,
-        None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
-    };
     b.open(Role::Paragraph);
     b.style(look::STARTER_LEDE);
     b.style(look::WAYS_LEDE);
-    b.text(Run::Plain, &w.say(Word::WaysLede, &[Hole::Name(name)]));
+    b.text(Run::Plain, &w.say(Word::WaysLede, &[]));
     b.close();
     b.open(Role::Region);
     b.name(&w.say(Word::WaysTitle, &[]));
     b.style(look::STARTER_WAYS);
     b.style(look::WAYS);
     if let Some(ways) = root.pages().stock_ways() {
-        opening(b, ways, w, bindings, project);
+        opening(b, root, ways, w, bindings, project);
     }
     b.close();
     b.close();
@@ -107,7 +103,7 @@ fn paragraph(b: &mut Builder, words: &[u8], style: skein_ui::Style) {
     b.close();
 }
 
-fn opening(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
     match ways.state() {
         WaysState::Loading => return,
         WaysState::Ended => {
@@ -133,17 +129,40 @@ fn opening(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings
         {
             super::ways::card(b, stop, w, bindings, project);
         }
-        foot(b, ways, index, w, bindings, project);
+        foot(b, root, ways, index, w, bindings, project);
         super::ways::refused(b, ways, w);
         b.close();
     }
 }
 
-fn foot(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
+fn foot(
+    b: &mut Builder,
+    root: &Domain,
+    ways: &StockWays,
+    index: u32,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
     b.open(Role::Slot);
     b.style(look::WAYS_FOOT);
     super::ways::legend(b, w);
-    super::ways::act(b, ways, index, w, bindings, project);
+    b.open(Role::Slot);
+    b.style(look::WAYS_ACTS);
+    b.open(Role::Button);
+    b.name(&w.say(Word::AskHow, &[]));
+    b.hint(&w.say(Word::AskHowHint, &[]));
+    let pending = match root.pages().chats() {
+        Some(chats) => chats.start.is_some(),
+        None => false,
+    };
+    if !readiness(root).0 || pending {
+        b.state(State::Disabled);
+    }
+    b.bind(bindings.insert(Act::AskHow));
+    b.close();
+    super::ways::act_button(b, ways, index, w, bindings, project);
+    b.close();
     b.close();
 }
 
