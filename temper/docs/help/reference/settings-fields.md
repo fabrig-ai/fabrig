@@ -53,7 +53,7 @@ An agent run's instructions, models, tools, hosts and budget. Runs use the chart
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
 - `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
 - `documents`: list of at most 8, each `document`. The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`.
-- `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. A charter that resumes takes no parts.
+- `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts.
 
 ## charter-part
 

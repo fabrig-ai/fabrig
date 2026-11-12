@@ -9,6 +9,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
+    (Some(jig::rows::ROLE_TALK_AT), "help_role_talk"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -296,7 +297,8 @@ const USAGES: &[&[u8]] = &[
     b"project remove PROJECT --key KEY\n",
     b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
     b"role list --project PROJECT [--after CURSOR]\n",
-    b"role show TASK\n",
+    b"role show TASK [--report]\n",
+    b"role talk TASK TEXT [--timeout DURATION] --key KEY\nrole talk TASK --leave --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

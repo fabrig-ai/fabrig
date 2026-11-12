@@ -225,6 +225,10 @@ fn start_goal(spec: &[u8]) -> (Ctl, u64) {
 fn role_configuration() -> engine::Config {
     use jig_domain_authority::{Executor, Scopes};
     let mut config = temper_engine_domain_world::walking::config(fixtures::SEED);
+    config.core.owners = Box::new([
+        config.core.owners[0].clone(),
+        jig_domain_people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
+    ]);
     let models = config
         .core
         .settings
@@ -266,7 +270,12 @@ fn start_standing_role() -> (Ctl, u64) {
     use temper_engine_domain_world::{protocol, store::Store};
     let mut bounds = engine_limits();
     bounds.tasks.charters = 13;
+    bounds.people.initial_owners = 2;
+    // Start, three talks, the rule's acceptance and leaving each retain an answer.
+    bounds.people.requests = 6;
     bounds.journal.run_bytes = 16_384;
+    // Keep room for the talk's unread words and its proposal's decision reservation.
+    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * bounds.tasks.inbox_messages;
     let front = Joint::with_engine(
         fixtures::SEED,
         &fixtures::domain_limits(),
@@ -325,6 +334,174 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     }), "next brief: {:?}", next.sections);
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
     assert!(shown.contains(NOW));
+}
+
+// domain/agent/standing.md, 7: the person, tools and scripted role share the real engine.
+#[test]
+fn a_person_talks_with_a_role_accepts_its_rule_and_leaves() {
+    use jig_domain_core::reads::{Answer, PageRow, Read};
+    const NOW: &str = "Discussed flaky labels; waiting on the owner's rule decision.";
+    const RULE: &str = "Label flaky tests.";
+    let (mut ctl, task) = start_standing_role();
+    let initial = ctl.front.assignments.last().expect("initial run").clone();
+    role_park(&mut ctl, &initial);
+    let first = pending_talk(&mut ctl, task, b"From now on, label flaky tests.", b"talk-rule");
+    let run = ctl.front.assignments.last().expect("talk assigned").clone();
+    assert!(run.messages.iter().any(|word| word.words.as_ref() == b"From now on, label flaky tests."));
+    assert_ne!(run.attempt, initial.attempt);
+    assert!(run.transcript.is_empty(), "a talk begins fresh");
+    role_turn(&mut ctl, &run, b"Add it to my rules?");
+    role_now(&mut ctl, &run, NOW);
+    role_park(&mut ctl, &run);
+    account_acts::settle(&mut ctl.front, &mut ctl.root);
+    assert_eq!(role_reply(&ctl, first), "Add it to my rules?\n");
+
+    let second = pending_talk(&mut ctl, task, b"Yes, add it.", b"talk-yes");
+    let resumed = ctl.front.assignments.last().expect("talk resumed").clone();
+    assert_eq!(resumed.conversation, run.conversation);
+    assert!(!resumed.transcript.is_empty(), "later words resume the talk");
+    assert!(resumed.messages.iter().any(|word| word.words.as_ref() == b"Yes, add it."));
+    let (charter, failed) = temper_engine_domain_world::host_tool::host_tool(
+        &mut ctl.front.engine,
+        &resumed,
+        10,
+        b"settings",
+        br#"{"setting":{"kind":"charter","number":13},"revision":1}"#,
+    );
+    assert!(!failed, "{}", String::from_utf8_lossy(&charter));
+    let (_, value) = std::str::from_utf8(&charter).expect("charter UTF-8").split_once('\n').expect("value line");
+    let value = value.lines().next().expect("whole charter JSON");
+    let value = value.replacen("\"instructions\":\"", &format!("\"instructions\":\"{RULE} "), 1);
+    let input = format!(
+        r#"{{"against":1,"reason":"The person asked during our talk to label flaky tests.","items":[{{"setting":{{"kind":"charter","number":13}},"set":{value}}}]}}"#
+    );
+    let (proposed, failed) = temper_engine_domain_world::host_tool::host_tool(
+        &mut ctl.front.engine,
+        &resumed,
+        11,
+        b"propose_settings",
+        input.as_bytes(),
+    );
+    let proposed = String::from_utf8(proposed.into_vec()).expect("proposal text");
+    assert!(!failed, "{proposed}");
+    let key =
+        proposed.strip_prefix("proposed as ").expect("proposal made").split_whitespace().next().expect("proposal key");
+    let reply = format!("An owner of the deployment accepts proposal {key} to add the rule.");
+    role_turn(&mut ctl, &resumed, reply.as_bytes());
+    role_now(&mut ctl, &resumed, NOW);
+    role_park(&mut ctl, &resumed);
+    account_acts::settle(&mut ctl.front, &mut ctl.root);
+    assert_eq!(role_reply(&ctl, second), format!("{reply}\n"));
+    let accepted = ctl.text(&[
+        b"proposal",
+        b"decide",
+        key.as_bytes(),
+        b"accept",
+        b"--running",
+        b"moves",
+        b"--key",
+        b"accept-rule",
+    ]);
+    assert!(accepted.starts_with("done:"), "{accepted}");
+
+    let third = pending_talk(&mut ctl, task, b"What rule do you follow?", b"talk-fresh");
+    let fresh = ctl.front.assignments.last().expect("fresh rules run").clone();
+    assert_ne!(fresh.conversation, resumed.conversation);
+    assert!(fresh.transcript.is_empty());
+    assert!(fresh.run.policy.instructions.windows(RULE.len()).any(|part| part == RULE.as_bytes()));
+    assert!(fresh.sections.iter().any(|section| matches!(&section.body, engine::BriefBody::Text(text) if text.windows(NOW.len()).any(|part| part == NOW.as_bytes()))));
+    role_turn(&mut ctl, &fresh, RULE.as_bytes());
+    role_park(&mut ctl, &fresh);
+    account_acts::settle(&mut ctl.front, &mut ctl.root);
+    assert_eq!(role_reply(&ctl, third), format!("{RULE}\n"));
+    let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
+    assert!(shown.contains("talking with you since"), "{shown}");
+    let left = ctl.text(&[b"role", b"talk", task.to_string().as_bytes(), b"--leave", b"--key", b"leave-talk"]);
+    assert_eq!(left, format!("left: task {task}\n"));
+    let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
+    assert!(!shown.contains("talking with"), "{shown}");
+    let mut before = None;
+    let mut rules = false;
+    let mut ended = false;
+    let mut left = false;
+    loop {
+        let Answer::Page(page) = role_read(&mut ctl, Read::Activity { task, before }) else { panic!("activity") };
+        rules |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Rules, .. })));
+        ended |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::TalkEnded { lapsed: false, .. })));
+        left |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Left, .. })));
+        before = page.next;
+        if before.is_none() {
+            break;
+        }
+    }
+    assert!(rules, "the accepted rule ends its session");
+    assert!(ended, "leaving ends the talk");
+    assert!(left, "leaving ends its session");
+}
+fn pending_talk(ctl: &mut Ctl, task: u64, words: &[u8], key: &[u8]) -> u32 {
+    let Parsed::Call { call, json } =
+        temper_client_tools::table::parse(&[b"role", b"talk", task.to_string().as_bytes(), words, b"--key", key])
+            .expect("talk call")
+    else {
+        panic!("call")
+    };
+    ctl.number += 1;
+    account_acts::event(&mut ctl.front, &mut ctl.root, Event::Call { number: ctl.number, call, json, value: None });
+    assert!(ctl.root.agent().printed(ctl.number).is_none(), "talk waits for the role");
+    ctl.number
+}
+fn role_reply(ctl: &Ctl, number: u32) -> String {
+    let printed = ctl.root.agent().printed(number).expect("role replied");
+    assert_eq!(printed.status, 0, "{printed:?}");
+    String::from_utf8(printed.stdout.to_vec()).expect("reply UTF-8")
+}
+fn role_now(ctl: &mut Ctl, run: &engine::Assignment, words: &str) {
+    use jig_domain_core::reads::{Answer, PageRow, Read};
+    let Answer::Page(page) = role_read(
+        ctl,
+        Read::ScopedNotes {
+            scope: jig_domain_notes::Scope::Goal { project: 1, goal: run.task },
+            description: Some(b"now".as_slice().into()),
+            from: None,
+        },
+    ) else {
+        panic!("Now notes")
+    };
+    let revise = match page.rows.get(0) {
+        Some(PageRow::Note(note)) => format!(r#", "name":{},"recalled":{}"#, note.number, note.revision),
+        None => String::new(),
+        Some(row) => panic!("Now note: {row:?}"),
+    };
+    let input = format!(
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{}}},"description":"now","body":"{words}"{revise}}}"#,
+        run.task
+    );
+    let (answer, failed) =
+        temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, run, 20, b"note", input.as_bytes());
+    assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+}
+fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
+    use temper_engine_domain_world::protocol;
+    let task = ctl.front.engine.task(run.task).expect("role run");
+    let number = task.turn + 1;
+    let spent = task.run_spent.max(3);
+    // A live run also reads words delivered after its assignment, such as after the rules move.
+    let read = Some(task.last_message);
+    let mut turn = temper_worker_domain_world::protocol::session_turn(number, spent, words.len(), number == 1);
+    turn.messages[0].content = Box::new([smith_domain_session::llm::Block::Text { text: words.into(), replay: None }]);
+    let body = smith_protocol_channel::encode_turn(
+        &turn,
+        &smith_transcript::CEILINGS,
+        &temper_worker_domain_world::protocol::endpoints(),
+    )
+    .expect("role reply encodes");
+    ctl.front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
+    ctl.front.engine.settle();
+}
+fn role_park(ctl: &mut Ctl, run: &engine::Assignment) {
+    let spent = ctl.front.engine.task(run.task).expect("standing role").run_spent;
+    ctl.front.engine.answer(WORKER, run.task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    ctl.front.engine.settle();
 }
 
 fn role_read(ctl: &mut Ctl, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {

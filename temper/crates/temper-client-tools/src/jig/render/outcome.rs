@@ -385,6 +385,11 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
+        out.put(b"left: task ");
+        out.number(*task);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));
@@ -675,6 +680,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
         rows::ROLE_START_AT => &rows::ROLE_START,
+        rows::ROLE_TALK_AT => &rows::ROLE_TALK,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
@@ -853,6 +859,9 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if super::roles::refusal(operation.word, refusal, me, out) {
+        return;
+    }
     if operation.proposal_decision && *refusal == c::Refusal::Unknown {
         out.put(operation.tool_name());
         out.put(b": this proposal isn't waiting; it may have been decided or replaced");
