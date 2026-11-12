@@ -4279,7 +4279,9 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4308,7 +4310,9 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4352,6 +4356,7 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-tools",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -6372,7 +6377,9 @@ name = "temper-protocol-worker-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]

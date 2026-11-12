@@ -54,7 +54,7 @@ pub struct Part {
 
 /// The magic and one version this release speaks (protocol/channel/README.md, 4.1).
 pub const MAGIC: [u8; 4] = *b"jigw";
-pub const VERSION: u16 = 9;
+pub const VERSION: u16 = wire::VERSION;
 
 /// Jig's refusal reasons, above skein's reserved range (protocol/channel/README.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -114,3 +114,42 @@ pub use v9::{
     ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
     ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
 };
+
+/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+pub mod wire {
+    /// The family named by the current schema's header.
+    pub const FAMILY: &str = "jig-worker-wire";
+
+    /// The version named by the current schema's header.
+    pub const VERSION: u16 = wire::VERSION;
+
+    const TEXT: &str = include_str!("../schema/worker-wire-v9.schema");
+
+    /// The current schema's family fingerprint.
+    #[must_use]
+    pub fn layout() -> [u8; 32] {
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{FAMILY, TEXT, VERSION, layout};
+
+        #[test]
+        fn identity_tracks_schema() {
+            let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
+            assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
+            assert_eq!(VERSION, schema.version());
+            assert_eq!(layout(), schema.fingerprints().family().digest());
+
+            let changed = TEXT.replacen("spec: u32", "spec: u64", 1);
+            assert_ne!(changed, TEXT, "the mutation changes a field's type");
+            let changed = skein_codec::schema::parse(changed.as_bytes()).expect("changed schema");
+            assert_ne!(layout(), changed.fingerprints().family().digest());
+        }
+    }
+}

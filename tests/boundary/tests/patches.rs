@@ -13,10 +13,13 @@ use skein_scratch::{Scratch, paths};
 const OWNERS: &[&str] = &[
     "skein/crates/skein-oauth",
     "smith/crates/smith-transcript",
+    "smith/crates/smith-charter",
+    "smith/crates/smith-channel",
     "jig/crates/jig-protocol-store",
     "jig/crates/jig-protocol-accounts",
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-records",
+    "temper/crates/temper-protocol-worker-wire",
 ];
 const RECORDS: &str = "temper/crates/temper-protocol-records";
 
