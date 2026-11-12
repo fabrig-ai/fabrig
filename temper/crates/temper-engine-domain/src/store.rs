@@ -80,6 +80,7 @@ pub enum CallAnswer {
     ToolDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
     /// Finding snapshots for the agent tool (domain/agent/tools.md).
     Finding(Box<crate::FindingToolAnswer>),
+    Follow(Box<crate::FollowToolAnswer>),
     /// One fresh bounded forge read, retained for named-call replay.
     ForgeRead(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
     /// One held descendant decision reached its semantic terminal.
@@ -280,7 +281,7 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::Finding(_)
+            CallAnswer::Follow(_) | CallAnswer::Finding(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::ForgeEffectRefused(_)
@@ -1058,6 +1059,10 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
 #[expect(clippy::too_many_lines, reason = "exhaustive answer sizing includes project-only findings topics")]
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::Follow(answer) => match answer.as_ref() {
+            crate::FollowToolAnswer::Write { refusal, .. } => Some(match refusal { Some(words) => skein_lib::len_u64(words.len()), None => 0 }),
+            crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => unreachable!("follow reads have no retained answer"),
+        },
         CallAnswer::Finding(answer) => match answer.as_ref() {
             crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
                 .ok()?

@@ -134,6 +134,7 @@ pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Resu
 
 fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
     match value {
+        top::CallPayload::Follow { follow, refusal } => w::CallPayload::Follow(w::CallFollow::new(&w::CEILINGS, w::CallFollowParts { follow: *follow, refusal: refusal.clone() }).expect(FITS)),
         top::CallPayload::Finding(reply) => w::CallPayload::Finding(Box::new(super::findings::encode_reply(reply))),
         top::CallPayload::Decided { took, reach } => {
             let reach = match reach {
@@ -178,6 +179,7 @@ fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
 }
 fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPayload, Undecodable> {
     Ok(match value {
+        w::CallPayload::Follow(value) => { let w::CallFollowParts { follow, refusal } = value.into_parts(); top::CallPayload::Follow { follow, refusal } },
         w::CallPayload::Finding(reply) => top::CallPayload::Finding(Box::new(super::findings::decode_reply(*reply))),
         w::CallPayload::Decided(value) => {
             let w::CallDecidedParts { took, reach } = value.into_parts();

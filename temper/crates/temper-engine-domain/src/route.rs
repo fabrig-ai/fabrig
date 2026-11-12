@@ -17,6 +17,7 @@ pub use host_route::{
 mod decided;
 pub(crate) mod document;
 mod finding_tool;
+mod follow_tool;
 pub(crate) mod findings;
 mod goal;
 mod kinds;

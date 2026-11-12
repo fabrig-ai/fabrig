@@ -152,7 +152,7 @@ pub(crate) struct Flight {
 pub(crate) enum FlightRender {
     Plain,
     TaskRead,
-    FindingRead,
+    ProjectRead,
     ForgeRead,
     Settings {
         see: Option<Box<super::see::SeeFlight>>,
@@ -170,7 +170,7 @@ pub(crate) enum FlightRender {
 impl FlightRender {
     fn is_core_read(&self) -> bool {
         match self {
-            Self::TaskRead | Self::FindingRead | Self::Settings { .. } => true,
+            Self::TaskRead | Self::ProjectRead | Self::Settings { .. } => true,
             Self::Plain
             | Self::ForgeRead
             | Self::Amended(_)
@@ -314,8 +314,9 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let mut job = None;
     let mut page = None;
     let render =
-        if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. }) = &body.tool {
-            FlightRender::FindingRead
+        if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. })
+            | crate::Tool::Follow(crate::FollowCall::List | crate::FollowCall::Show { .. }) = &body.tool {
+            FlightRender::ProjectRead
         } else if let crate::Tool::ReadTask { .. } = &body.tool {
             FlightRender::TaskRead
         } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
@@ -552,7 +553,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
         }
         FlightRender::Plain
         | FlightRender::TaskRead
-        | FlightRender::FindingRead
+        | FlightRender::ProjectRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { .. }
         | FlightRender::PersonRoles(_) => answer,
@@ -623,7 +624,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             }
             FlightRender::Plain
             | FlightRender::TaskRead
-            | FlightRender::FindingRead
+            | FlightRender::ProjectRead
             | FlightRender::Settings { .. }
             | FlightRender::Amended(_)
             | FlightRender::Change(_)

@@ -180,6 +180,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
                 && tool.name.as_ref() != b"change"
                 && tool.name.as_ref() != b"delegate"
                 && tool.name.as_ref() != b"finding"
+                && tool.name.as_ref() != b"follow"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -204,6 +205,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             && tool.name.as_ref() != b"change"
             && tool.name.as_ref() != b"delegate"
             && tool.name.as_ref() != b"finding"
+                && tool.name.as_ref() != b"follow"
         {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
         }
@@ -277,7 +279,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
                     && (tool.name.as_ref() == b"goal"
                         || tool.name.as_ref() == b"change"
                         || tool.name.as_ref() == b"delegate"
-                        || tool.name.as_ref() == b"finding")
+                        || tool.name.as_ref() == b"finding" || tool.name.as_ref() == b"follow")
                 {
                     continue;
                 }
@@ -608,6 +610,8 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
 
 #[path = "finding/tests.rs"]
 mod finding;
+#[path = "follow/tests.rs"]
+mod follow;
 
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[

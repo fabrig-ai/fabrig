@@ -181,6 +181,7 @@ pub enum Tool {
     Decided(forge::DecidedCall),
     /// File, triage or read findings in the caller's project (domain/agent/tools.md).
     Finding(FindingCall),
+    Follow(FollowCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
@@ -270,6 +271,20 @@ pub enum Tool {
     RejectedNote(jig_domain_notes::Refusal),
     /// The engine records an unavailable answer for a route not yet installed.
     Unavailable,
+}
+
+/// A task acts only on its own follows (domain/forge/follows.md, 5 and 7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FollowCall {
+    Act { follow: u32, act: forge::follows::FollowAct },
+    List,
+    Show { follow: u32 },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FollowToolAnswer {
+    Write { follow: u32, refusal: Option<Box<[u8]>> },
+    List(forge::FollowsView),
+    Show { follow: u32, view: Option<forge::FollowView> },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).

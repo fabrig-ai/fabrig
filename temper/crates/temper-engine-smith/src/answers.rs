@@ -270,6 +270,9 @@ fn bounded(
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
     }
+    if let CallAnswer::Follow(answer) = answer {
+        return crate::follow::render(answer, cap);
+    }
     if let CallAnswer::Finding(answer) = answer {
         return crate::finding::render(answer, cap);
     }
@@ -700,6 +703,7 @@ fn rendered(
     let mut text = Text::new();
     let error = match answer {
         CallAnswer::Finding(answer) => return Ok(crate::finding::render(answer, HostAnswer::CAPACITY)),
+        CallAnswer::Follow(answer) => return Ok(crate::follow::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Decided { took: choice, reach } => {
             match choice {
                 Some(words) => {
