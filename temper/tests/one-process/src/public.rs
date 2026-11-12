@@ -86,6 +86,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
+    temper_playground::documents::turn_bounds::apply(value, service::agent_settings().limits.bodies.turn_body);
     previous::configure(value);
 
 }
