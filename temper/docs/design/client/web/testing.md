@@ -151,12 +151,18 @@ real key in that restored form.
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** is the shipped page's, built apart
-  (`scripts/bundle.sh`). Each address the tier loads carries the page's
+  (`scripts/bundle.sh`). Each address of the page the tier loads, from
+  a printed or a command's link or a person's own load, carries the page's
   internal settings (`README.md`, 2.1), `internal-loopback-navigation=1`
   and `internal-small-window=1`, which the page honours on the tier's
   loopback origin: so a sign-in's tab (2) can go to the fake issuer on
   plaintext loopback (skein's `ui/web/README.md`, section 8), and a
   reload, a load without them, is loaded again by the tier with them.
+  The service's own routes, `/forges/N/github/manifest`, `redirect` and
+  `setup` (`../forge/served.md`, 1), aren't the page and carry none:
+  each reads a closed query and answers `400` to any other field, so
+  ctl's manifest link opens as ctl prints it. A page the browser
+  reaches from one of them, by a redirect, loads without them.
   The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (`README.md`, 2.6). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
