@@ -12,6 +12,7 @@ mod live_input;
 mod live_text;
 pub mod program_sources;
 
+pub mod both_ways;
 pub mod program_runs;
 
 pub mod worker_orders;
