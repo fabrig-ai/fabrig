@@ -1355,10 +1355,6 @@ fn goal_host() -> Host {
         if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some()) {
             break;
         }
-        let due = root::next_deadline(&host.root).expect("goal watch retry");
-        host.clocks(due, Wall::EPOCH);
-        let again = host.report(Report::Due);
-        duties.asked.extend(admit(&mut host, again).asked);
     }
     host.frame();
     host
@@ -1746,8 +1742,10 @@ fn reply_host_draft(draft: bool) -> Host {
     template.encode(&mut writer).unwrap();
     project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
     me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap())]);
-    delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    let duties = delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    admit(&mut host, duties);
     let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
+    let duties = admit_watches(&mut host, duties);
     let task_watch =
         watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
     let activity = read_exchange(&duties, "activity");
@@ -1789,6 +1787,7 @@ fn reply_host_draft(draft: bool) -> Host {
     task.acts = pieces(&[writer.finish()]);
     let duties =
         delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let duties = admit_watches(&mut host, duties);
     if draft {
         let read = read_exchange(&duties, "notes");
         let page = pane_document();
@@ -3075,6 +3074,24 @@ fn waiting_at(chat: bool) -> Host {
     question.acts = pieces(&[writer.finish()]);
     read_reply(&mut host, query, &w::ReadValue::Question(w::Question::new(&w::CEILINGS, question).expect("question")));
     host
+}
+
+// Watch terminals free credit for the fixture's reads, whose values it supplies separately.
+fn admit_watches(host: &mut Host, mut duties: Duties) -> Duties {
+    let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
+    while let Some(request) = pending.pop_front() {
+        if matches!(
+            &request,
+            Request::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. }
+                | Request::Save { .. }
+                | Request::Erase { .. }
+        ) && let Some(report) = background_reply(&request)
+        {
+            pending.extend(host.report(report).asked);
+        }
+        duties.asked.push(request);
+    }
+    duties
 }
 
 fn admit(host: &mut Host, mut duties: Duties) -> Duties {
