@@ -40,7 +40,9 @@ fn the_rows_repeats_are_within_the_client_limits() {
     use crate::jig::table::Occurs;
     let limits = limits::client();
     for row in crate::table::TOOLS {
-        let most = if row.name == crate::adopt::ROW.name {
+        let most = if row.name == crate::jig::rows::CHANGE_SETTINGS.name {
+            crate::jig::settings_file::FILES
+        } else if row.name == crate::adopt::ROW.name {
             limits.forge.checks
         } else if row.name == crate::jig::rows::AMEND.name {
             limits.client.domain.rows

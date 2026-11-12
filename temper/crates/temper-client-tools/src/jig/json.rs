@@ -288,7 +288,8 @@ fn encode_value(table: &[&Tool], spec: &Argument, value: &Value, out: &mut Encod
         Value::Number(n) => out.unsigned(*n),
         Value::Project(crate::jig::call::Project::Number(n)) => out.unsigned(u64::from(*n)),
         Value::Duration(d) => out.unsigned(d.as_nanos().checked_div(1_000_000_000).ok_or(Refusal::Text)?),
-        Value::Word(_)
+        Value::SettingsFile(_)
+        | Value::Word(_)
         | Value::Text(_)
         | Value::Stdin
         | Value::File(_)

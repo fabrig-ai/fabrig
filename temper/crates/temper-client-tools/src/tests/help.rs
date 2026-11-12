@@ -269,7 +269,7 @@ const USAGES: &[&[u8]] = &[
     b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
-    b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
+    b"settings apply FILE... --against REVISION [--running stays|moves] --key KEY\n",
     b"settings propose FILE [REASON] --against REVISION --key KEY\n",
     b"proposal show PROPOSAL\n",
     b"change show TASK [--project PROJECT] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
@@ -321,8 +321,12 @@ fn each_derivation_names_every_tool() {
     for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
-            *call.values.get_mut(0).expect("FILE") =
-                Some(jig::call::Values::One(jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into())));
+            let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
+            *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
+                jig::call::Values::Many(Box::new([value]))
+            } else {
+                jig::call::Values::One(value)
+            });
         }
         forms.push((call.tool, call.form)).expect("all table forms");
         let json = jig::json::write_call(table::TOOLS, &call).expect("call JSON");

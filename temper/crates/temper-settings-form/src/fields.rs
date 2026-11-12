@@ -12,6 +12,7 @@ pub enum Shape {
     Item,
     Setting,
     Charter,
+    Overlay,
     CharterPart,
     Document,
     Model,

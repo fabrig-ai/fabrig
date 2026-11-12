@@ -5277,6 +5277,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",
+ "temper-settings-form",
 ]
 
 [[package]]
@@ -5484,6 +5485,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-protocol-reaches",
  "temper-service",
+ "temper-settings-form",
  "temper-worker-domain-world",
 ]
 
@@ -6567,6 +6569,7 @@ dependencies = [
  "skein-codec",
  "skein-json",
  "skein-lib",
+ "temper-charter-set",
  "temper-client-protocol-wire",
  "temper-protocol-reaches",
 ]

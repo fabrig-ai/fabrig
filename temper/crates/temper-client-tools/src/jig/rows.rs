@@ -1,7 +1,7 @@
 //! The read and host-tool records, in their published order.
 use super::table::{
     Keyed, Kind,
-    Occurs::{Optional, Required},
+    Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
 pub const ME: Tool = Tool {
@@ -714,7 +714,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     prints: b"`revision R`, the new revision",
     result: b"change_settings",
     forms: &[&[
-        positional(b"items", b"FILE", Kind::File, Required, b"The settings file, JSON, or -"),
+        positional(b"items", b"FILE", Kind::File, Repeated { most: super::settings_file::FILES }, b"The settings files in order, JSON, with - at most once"),
         flag(b"against", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The newest revision you read"),
         flag(
             b"running",

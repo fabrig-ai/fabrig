@@ -177,6 +177,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -206,6 +207,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
         assert_eq!(rule.sets().as_slice(), expected);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -760,6 +762,7 @@ fn the_settings_form_round_trips_a_model() {
     assert_eq!(model.model.input_price, 3);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: item.setting,
         revision: 2,
         value: Some(set.value.clone()),
@@ -885,6 +888,7 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         assert_eq!(record.producer().is_none(), optional);
         assert!(record.target().branch().is_empty());
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -921,6 +925,7 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
     assert_eq!(item.setting, c::Setting::Application { kind: 13, scope: 3, number: 1 });
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: item.setting,
         revision: 1,
         value: Some(set.value.clone()),

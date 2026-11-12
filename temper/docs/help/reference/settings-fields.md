@@ -14,10 +14,11 @@ A settings file, as `settings apply` and `settings propose` read it.
 
 ## item
 
-One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
+One setting, and what becomes of it: `setting`, then exactly one of `set`, `edit` and `overlay`.
 
 - `setting`: `setting`. The setting the item changes.
 - `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`. Its new value, whole, which replaces the one before.
+- `overlay`: `overlay`. A charter overlay, instead of set or edit.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
@@ -54,6 +55,32 @@ An agent run's instructions, models, tools, hosts and budget. Runs use the chart
 - `wake`: `wake`, or null. Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
 - `documents`: list of at most 8, each `document`. Documents each run reads as separate brief sections; at most `tasks.charter_documents`, else `shape` refusal.
 - `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. A charter that resumes takes no parts.
+
+## overlay
+
+Optional replacements over a charter default, plus text. Omitted fields follow the default; charters or literal instructions and parts, never both.
+
+- `rest`: true or false. Optional; replaces the default whole, following it when absent.
+- `instructions`: text, at most 1,048,576 bytes. Optional added text, empty when absent; not beside charters.
+- `waiting`: nanoseconds. Optional; replaces the default whole, following it when absent.
+- `resume`: true or false. Optional; replaces the default whole, following it when absent.
+- `turns`: integer, 0 to 4,294,967,295. Optional; replaces the default whole, following it when absent.
+- `time`: nanoseconds. Optional; replaces the default whole, following it when absent.
+- `reserve_turns`: integer, 0 to 4,294,967,295. Optional; replaces the default whole, following it when absent.
+- `reserve_time`: nanoseconds. Optional; replaces the default whole, following it when absent.
+- `model`: `model`. Optional; replaces the default whole, following it when absent.
+- `alternatives`: list of at most 32, each `model`. Optional; replaces the default whole, following it when absent.
+- `inspect`: true or false. Optional; replaces the default whole, following it when absent.
+- `modify`: true or false. Optional; replaces the default whole, following it when absent.
+- `shell`: true or false. Optional; replaces the default whole, following it when absent.
+- `agents`: true or false. Optional; replaces the default whole, following it when absent.
+- `call_timeout`: nanoseconds. Optional; replaces the default whole, following it when absent.
+- `tools`: integer. Optional; replaces the default whole, following it when absent.
+- `hosts`: `"workers"`, `"engine"` or `"both"`. Optional; replaces the default whole, following it when absent. `"workers"`: Optional; replaces the default whole, following it when absent. `"engine"`: Optional; replaces the default whole, following it when absent. `"both"`: Optional; replaces the default whole, following it when absent.
+- `spend`: integer. Optional; replaces the default whole, following it when absent.
+- `documents`: list of at most 8, each `document`. Optional; replaces the default whole, following it when absent.
+- `parts`: list of at most 8, each `charter-part`. Optional added text, empty when absent; not beside charters.
+- `charters`: list of at most 4,294,967,295, each text, at most 4,294,967,295 bytes. Nonempty list of directories relative to this settings file. Optional, instead of instructions and parts; only charters 5 and 2. Markdown counts toward the file bound.
 
 ## charter-part
 

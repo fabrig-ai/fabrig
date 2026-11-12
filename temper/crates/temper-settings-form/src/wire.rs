@@ -201,9 +201,7 @@ pub(crate) fn settings_restore_setting_value(
     limits: &Limits,
 ) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
-        w::SettingValue::Overlay(_) => {
-            return Err(w::Problem { path: w::Path::SettingSetValue, reason: skein_codec::Reason::Bound });
-        }
+        w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item, limits)?)),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item, limits)?)),
         w::SettingValue::Template(item) => c::SettingValue::Template(Box::new(documents_me_template(item, limits)?)),
         w::SettingValue::Policy(item) => {
@@ -727,6 +725,139 @@ pub(crate) fn root_text_problem(_: Box<[u8]>) -> w::Problem {
     root_too_large()
 }
 
+pub fn restore_overlay(value: &w::Overlay, limits: &Limits) -> Result<c::Overlay, w::Problem> {
+    let mut parts = List::with_capacity(value.parts().len());
+    for item in value.parts() {
+        parts
+            .push(c::CharterPart {
+                on: item.on(),
+                instructions: settings_text(item.instructions(), w::CEILINGS.charter_part_instructions)?,
+            })
+            .expect("same count");
+    }
+    Ok(c::Overlay {
+        charters: List::with_capacity(0),
+        parts,
+        instructions: settings_text(value.instructions(), w::CEILINGS.charter_instructions)?,
+        rest: *value.rest(),
+        model: match value.model() {
+            Some(v) => Some(settings_restore_setting_model(v, limits)?),
+            None => None,
+        },
+        alternatives: match value.alternatives() {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(settings_restore_setting_model(item, limits)?).expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+        inspect: *value.inspect(),
+        modify: *value.modify(),
+        shell: *value.shell(),
+        agents: *value.agents(),
+        tools: *value.tools(),
+        hosts: match value.hosts() {
+            Some(v) => Some(settings_restore_setting_hosts(v, limits)),
+            None => None,
+        },
+        waiting: *value.waiting(),
+        resume: *value.resume(),
+        turns: *value.turns(),
+        time: *value.time(),
+        reserve_turns: *value.reserve_turns(),
+        reserve_time: *value.reserve_time(),
+        call_timeout: *value.call_timeout(),
+        spend: *value.spend(),
+        documents: match value.documents() {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(c::CharterDocument {
+                        connector: item.connector(),
+                        name: item.name().clone(),
+                        path: item.path().into(),
+                        heading: item.heading().clone(),
+                    })
+                    .expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+    })
+}
+pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
+    let mut parts = List::with_capacity(value.parts.len());
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) },
+            )?)
+            .expect("same count");
+    }
+    w::Overlay::new(
+        limits,
+        w::OverlayParts {
+            parts,
+            instructions: bytes::copy_of(value.instructions.bytes()),
+            rest: value.rest,
+            model: match &value.model {
+                Some(v) => Some(settings_wire_setting_model(v, limits)?),
+                None => None,
+            },
+            alternatives: match &value.alternatives {
+                Some(v) => {
+                    let mut out = List::with_capacity(v.len());
+                    for item in v {
+                        out.push(settings_wire_setting_model(item, limits)?).expect("same count");
+                    }
+                    Some(out)
+                }
+                None => None,
+            },
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            tools: value.tools,
+            hosts: match &value.hosts {
+                Some(v) => Some(settings_wire_setting_hosts(v, limits)),
+                None => None,
+            },
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            documents: match &value.documents {
+                Some(v) => {
+                    let mut out = List::with_capacity(v.len());
+                    for item in v {
+                        out.push(w::CharterDocument::new(
+                            limits,
+                            w::CharterDocumentParts {
+                                connector: item.connector,
+                                name: item.name.clone(),
+                                path: item.path.clone(),
+                                heading: item.heading.clone(),
+                            },
+                        )?)
+                        .expect("same count");
+                    }
+                    Some(out)
+                }
+                None => None,
+            },
+        },
+    )
+}
 pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> Result<c::Charter, w::Problem> {
     let mut alternatives = List::with_capacity(value.alternatives().len());
     for item in value.alternatives() {
@@ -840,6 +971,10 @@ pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32,
 
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
+        overlay: match value.overlay() {
+            Some(v) => Some(Box::new(restore_overlay(v, limits)?)),
+            None => None,
+        },
         setting: settings_restore_setting(value.setting(), limits),
         revision: value.revision(),
         value: match value.value() {
@@ -905,8 +1040,9 @@ pub(crate) fn settings_restore_setting_line(
 
 pub(crate) fn settings_restore_setting_follows(value: &w::SettingFollows, _limits: &Limits) -> c::SettingFollows {
     match value {
+        w::SettingFollows::Overlay => c::SettingFollows::Overlay,
         w::SettingFollows::Default => c::SettingFollows::Default,
-        w::SettingFollows::Overlay | w::SettingFollows::Change => c::SettingFollows::Change,
+        w::SettingFollows::Change => c::SettingFollows::Change,
     }
 }
 
@@ -989,9 +1125,7 @@ pub(crate) fn settings_wire_setting_value(
     limits: &w::Limits,
 ) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
-        c::SettingValue::Overlay => {
-            return Err(w::Problem { path: w::Path::SettingSetValue, reason: skein_codec::Reason::Bound });
-        }
+        c::SettingValue::Overlay(item) => w::SettingValue::Overlay(Box::new(wire_overlay(item, limits)?)),
         c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item, limits)?)),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(settings_wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(settings_wire_setting_policy(item, limits)?)),

@@ -98,7 +98,7 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
 fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
-        SettingValue::Overlay => out.null(),
+        SettingValue::Overlay(value) => values::encode_overlay(value, out),
         SettingValue::Model(value) => values::encode_catalogue(value, out),
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),

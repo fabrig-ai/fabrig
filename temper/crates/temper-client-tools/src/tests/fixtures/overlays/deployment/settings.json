@@ -1,0 +1,168 @@
+{
+  "items": [
+    {
+      "setting": {
+        "kind": "charter",
+        "number": 5
+      },
+      "overlay": {
+        "shell": true,
+        "turns": 800,
+        "time": 86400000000000,
+        "reserve_turns": 1,
+        "reserve_time": 300000000000,
+        "spend": 1000000000,
+        "charters": [
+          "."
+        ],
+        "model": {
+          "provider": 1,
+          "dialect": 1,
+          "endpoint": 2,
+          "program": null,
+          "name": "claude-opus-5-5",
+          "window": 4096,
+          "output": 1024,
+          "input_price": 1,
+          "cached_price": 2,
+          "cache_write_price": null,
+          "output_price": 4,
+          "price_unit": 1000,
+          "efforts": [
+            "high",
+            "xhigh"
+          ],
+          "effort": "xhigh"
+        },
+        "alternatives": [
+          {
+            "provider": 1,
+            "dialect": 1,
+            "endpoint": 2,
+            "program": null,
+            "name": "gpt-6-1-sol",
+            "window": 4096,
+            "output": 1024,
+            "input_price": 1,
+            "cached_price": 2,
+            "cache_write_price": null,
+            "output_price": 4,
+            "price_unit": 1000,
+            "efforts": [
+              "high",
+              "xhigh"
+            ],
+            "effort": "high"
+          }
+        ],
+        "agents": true,
+        "resume": false,
+        "waiting": 0
+      }
+    },
+    {
+      "setting": {
+        "kind": "charter",
+        "number": 2
+      },
+      "overlay": {
+        "shell": true,
+        "turns": 800,
+        "time": 86400000000000,
+        "reserve_turns": 1,
+        "reserve_time": 300000000000,
+        "spend": 1000000000,
+        "charters": [
+          "."
+        ],
+        "model": {
+          "provider": 1,
+          "dialect": 1,
+          "endpoint": 2,
+          "program": null,
+          "name": "gpt-6-1-sol",
+          "window": 4096,
+          "output": 1024,
+          "input_price": 1,
+          "cached_price": 2,
+          "cache_write_price": null,
+          "output_price": 4,
+          "price_unit": 1000,
+          "efforts": [
+            "high",
+            "xhigh"
+          ],
+          "effort": "high"
+        },
+        "agents": false,
+        "resume": true,
+        "waiting": 10000000000
+      }
+    },
+    {
+      "setting": {
+        "kind": "template",
+        "number": 4
+      },
+      "set": {
+        "resources": [],
+        "number": 4,
+        "name": {
+          "bytes": "work",
+          "cut": false
+        },
+        "executor": {
+          "charter": 5
+        },
+        "contract": {
+          "report": {
+            "words": 1024
+          }
+        },
+        "shallower": 1,
+        "budget": {
+          "as_allowed": {
+            "cap": 1000
+          }
+        },
+        "deadline": {
+          "span": 10000000000
+        },
+        "tracked": 5,
+        "flags": {
+          "conversation": false,
+          "listed": true,
+          "retention": "kept",
+          "ended_by": "result"
+        },
+        "label": 1,
+        "grace": 1000000000,
+        "llm": {
+          "main": {
+            "model": "claude-opus-5-5",
+            "effort": "xhigh"
+          },
+          "subagents": [
+            {
+              "model": "gpt-6-1-sol",
+              "effort": "high"
+            }
+          ],
+          "later": {
+            "main": {
+              "model": "claude-opus-5-5",
+              "effort": "high"
+            },
+            "subagents": [
+              {
+                "model": "gpt-6-1-sol",
+                "effort": "high"
+              }
+            ]
+          },
+          "account": null
+        }
+      }
+    }
+  ]
+}

@@ -21,6 +21,7 @@ use skein_lib::{
 use skein_shell::Host;
 use temper_client_tools::{jig::call::Parsed, root};
 mod input;
+mod settings_input;
 mod sign_in;
 const TAG: u64 = 1 << 61;
 const FILES: u64 = 1 << 62;
@@ -76,6 +77,7 @@ pub struct OneShot {
     signals: Option<Token>,
     stdin: Option<Token>,
     input: Option<Vec<u8>>,
+    settings_input: Option<settings_input::SettingsInput>,
     stdin_ended: Option<()>,
     value: Option<skein_lib::Secret>,
     preparing: bool,
@@ -168,6 +170,7 @@ impl OneShot {
             signals,
             stdin,
             input: None,
+            settings_input: None,
             stdin_ended: None,
             value: None,
             preparing: true,

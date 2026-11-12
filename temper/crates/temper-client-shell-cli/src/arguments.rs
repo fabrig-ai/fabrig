@@ -116,13 +116,21 @@ pub fn text_files(parsed: &Parsed) -> Vec<(u8, Box<[u8]>)> {
         return files;
     }
     for (index, slot) in call.values.iter().enumerate() {
-        if let Some(Values::One(Value::File(path))) = slot {
-            let parent = match path.iter().rposition(|byte| *byte == b'/') {
-                Some(0) => b"/".as_slice(),
-                Some(at) => &path[..at],
-                None => b".",
-            };
-            files.push((u8::try_from(index).expect("argument index"), parent.into()));
+        let values = match slot {
+            Some(Values::One(value)) => core::slice::from_ref(value),
+            Some(Values::Many(values)) => values,
+            None => continue,
+        };
+        for (ordinal, value) in values.iter().enumerate() {
+            if let Value::File(path) = value {
+                let parent = match path.iter().rposition(|byte| *byte == b'/') {
+                    Some(0) => b"/".as_slice(),
+                    Some(at) => &path[..at],
+                    None => b".",
+                };
+                let id = if name == b"settings apply" { ordinal } else { index };
+                files.push((u8::try_from(id).expect("input index"), parent.into()));
+            }
         }
     }
     files

@@ -8,6 +8,7 @@ pub mod fields;
 pub mod file;
 mod json;
 mod kinds;
+pub mod overlay;
 pub mod page;
 pub mod proposal;
 pub mod render;
