@@ -98,6 +98,24 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
 }
 
 #[test]
+fn tui_chat_waits_for_the_answer_but_checks_the_fresh_launchpad() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let chain = Chain::read(&setups, "tui-chat").expect("tui-chat chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing", "tui-chat"]);
+    let recipe = chain.recipes.last().expect("tui-chat");
+    assert_eq!(
+        recipe.steps.iter().rev().take(2).map(|line| line.line.print()).collect::<Vec<_>>(),
+        [br#"web reload "/""#.as_slice(), br#"tui see "Hello from the local fake model.""#.as_slice()]
+    );
+    assert_eq!(
+        recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
+        [br#"tui see "/chats 1""#.as_slice()]
+    );
+    assert_ne!(chain.hash(), [0; 32]);
+    assert!(!setups.join("tui-chat/scripts.json").exists());
+}
+
+#[test]
 fn refuses_forbidden_records_and_requires_a_trailing_check() {
     let mut files = Files::new();
     for (record, why) in [
@@ -307,6 +325,8 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
             "/bundle",
             "--scratch",
             "/scratch",
+            "--ports",
+            "1,2,3,4,5,6,7,8,9",
             "--from",
             "middle",
             "--strict",
@@ -324,6 +344,12 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     let [drive::Action::Start { process: drive::Process::Box, program }] = actions.as_slice() else {
         panic!("{actions:?}")
     };
+    assert!(
+        program
+            .environment
+            .iter()
+            .any(|(name, value)| name == "TEMPER_INTERNAL_FAKE_BOX_PORTS" && value == "1,2,3,4,5,6,7,8,9")
+    );
     let script_args = program.args.iter().skip_while(|arg| *arg != "--scripts").cloned().collect::<Vec<_>>();
     assert_eq!(
         script_args,

@@ -4,8 +4,8 @@ Provisional, 2026-11-12. QA's hands on the web client and the TUI
 (`../draft/landed-qa.md`, 7 and 10): `temper-client-journeys drive`, a
 session that starts a fake box from a given build in a given scratch
 directory, then takes lines on standard input, each a step a person
-takes in the browser, the TUI or ctl, or a look at what they are shown,
-and answers each. It runs no build and writes nothing outside its
+takes in the browser, the TUI, ctl or the forge, or a look at what they
+are shown, and answers each. It runs no build and writes nothing outside its
 scratch directory. Recipes are walked through it (`recipe.md`). The
 journeys' `again` (`web/journeys.md`, 8.1; `tui/journeys.md`, 8.2) stays
 a person's command that builds from the checkout: it records into the
@@ -24,11 +24,12 @@ open.
   is opened, and the TUI, when a line first needs it, by the browser's
   approval (2.3 and 3.3). No line signs in.
 - **Lines are the recipes' words:** `web` and a journeys' setup record,
-  `tui` and a walk's record, `ctl` and a ctl act, and `look`, which
+  `tui` and a walk's record, `ctl` and a ctl act, `forge` and a commit
+  or a wait on the box's own Forgejo as the person, and `look`, which
   answers the page's accessible text and a screenshot, or the TUI's
   rows (section 3).
 - **Each line answered,** `ok` or `failed: WHY`, what it shows prefixed
-  `| `; a failed line never ends the session (3.6).
+  `| `; a failed line never ends the session (3.7).
 - **Kept lines:** every line but `look`, in order, in `session/lines`,
   so a case's steps become a recipe's and a finding's reproduction
   (section 4).
@@ -43,7 +44,7 @@ open.
 ### 2.1 Its command
 
 ```text
-temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict]
+temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST]
 ```
 
 - **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper-client`,
@@ -59,6 +60,12 @@ temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FIL
 - **`--scripts FILE`, `--strict`** are given to the box as they are
   (`../protocol/setup/box.md`, 5), its fake model's scripts and strict
   switch; a recipe's walk gives its chain's scripts (`recipe.md`, 5).
+- **`--ports LIST`,** nine ports, each nonzero and distinct, joined by
+  commas: given to the box as `TEMPER_INTERNAL_FAKE_BOX_PORTS` in its
+  environment (`../protocol/setup/box.md`, 5), so a new sandbox binds
+  them and a retained one keeps its own; a QA place's
+  (`../testing/qa/places.md`, 2). A list that is not nine distinct
+  nonzero ports refuses the session, naming it, before anything starts.
 - **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
   `again` take it.
 - **Each path** is taken relative to the working directory and made
@@ -86,7 +93,8 @@ temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FIL
 | `session/lines` | the kept lines (section 4) | |
 
 The box's own environment is the session's: the `PATH` the session was
-given, and the directories above. The TUI's is `tui/journeys.md`, 8.2's,
+given, the directories above, and `TEMPER_INTERNAL_FAKE_BOX_PORTS` where
+`--ports` gives it. The TUI's is `tui/journeys.md`, 8.2's,
 in the session's directories.
 
 ### 2.3 Its start
@@ -147,7 +155,7 @@ temper (`../draft/landed-qa.md`, 7).
 ### 3.1 Their form
 
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
-  `web`, `tui` or `ctl`, then its record and its fields, as the
+  `web`, `tui`, `ctl` or `forge`, then its record and its fields, as the
   journeys' file writes fields (`web/journeys.md`, 3.2): each after one
   space, a word bare, bytes in double quotes. Or a look (3.2 to 3.3), or
   `end`.
@@ -209,7 +217,56 @@ ctl task show 3 --until ended
 A ctl line's bound is its own: a wait's timeout, and 10 seconds past
 it, and a call with none 60 seconds.
 
-### 3.5 What a line answers
+### 3.5 The forge's lines
+
+A person's own act on the box's owned Forgejo that no client makes: a
+commit through the forge's write API, as `../../development/acceptance.md`,
+7 commits its gate, and the wait on that commit's checks.
+
+| Line | What the session does | Bound |
+|---|---|---|
+| `forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]...` | one commit of the files to REPOSITORY's default branch, MESSAGE its message: each PATH's CONTENT, created where the branch lacks PATH and replaced where it holds it; answers the new commit's id | 60 s |
+| `forge checks FORGE REPOSITORY` | waits until the combined status at the default branch's head is `success`; answers the head and each status's context and state | 300 s |
+
+- **FORGE** is the owned forge's number, as temper numbers it (`ctl
+  forge list`); **REPOSITORY** is `OWNER/NAME`, a word; MESSAGE, each
+  PATH and each CONTENT are bytes. One to 16 files, each PATH relative,
+  1 to 256 bytes, with no empty, `.` or `..` segment and no two alike;
+  each CONTENT at most 64 KiB. A line out of these bounds does not
+  parse (3.1).
+- **The forge's hands** are read at each line: its API from the newest
+  `Forgejo: api http://ADDRESS/api/v1` line of its Forgejo step's log,
+  `SCRATCH/data/box/logs/forgejo-FORGE.log`
+  (`../protocol/setup/box.md`, 2), and the person's write header from
+  `SCRATCH/data/forge-FORGE/person_write.header`, the forge's directory
+  (`../protocol/setup/README.md`, 3; `temper help box`). A forge with no
+  such log, line or file, a managed, connected or fake one, fails the
+  line, naming the file and what it lacks.
+- **As the person:** every request carries the write header's line, read
+  from its file at each request and never printed, kept, logged or
+  given as an argument; only the file's path is named.
+- **The commit:** the repository read (`GET /repos/OWNER/NAME`) for its
+  default branch; each PATH read at that branch (`GET
+  /repos/OWNER/NAME/contents/PATH?ref=BRANCH`), absent (404) making it a
+  `create` and present an `update` with its blob's `sha`; then one
+  request (`POST /repos/OWNER/NAME/contents`) with the branch, MESSAGE
+  and every file, its content in base64, so that the branch gains one
+  commit, the person its author. It answers `| ` and the commit's id
+  from the response.
+- **The checks:** the combined status (`GET
+  /repos/OWNER/NAME/commits/BRANCH/status`) read every 2 seconds until
+  its state is `success`, answering `| ` the head, then a line per
+  status, `CONTEXT STATE`; `failure` or `error` fails the line at once,
+  naming each status; still pending, statuses or none, at the bound,
+  fails it, naming what the last read held.
+- **A request refused** fails the line, naming the method, the path,
+  the HTTP status and the response's body, cut at 4096 bytes; a forge
+  that does not answer within the line's bound fails it as the bound.
+- **Its HTTP** is skein's: `skein-http`'s client in the session's io
+  loop, with `skein-forge`'s Forgejo requests where they serve, never a
+  new dependency and never another program.
+
+### 3.6 What a line answers
 
 For each line, in order, on stdout: what it shows, each line prefixed
 `| `, then one line, `ok` or `failed: WHY`. A caller writes a line and
@@ -218,7 +275,7 @@ what the page or the frame showed instead, where it can: for a control
 not found, the controls of that role on the page with their names; for
 a `see`, the page's text or the frame's rows, cut at 4096 bytes.
 
-### 3.6 A failed line
+### 3.7 A failed line
 
 A failed line never ends the session: the next line is read
 (`../draft/landed-qa.md`, 7, a finding never stops a pass). A session
@@ -248,9 +305,10 @@ exited`, and ends with status 4 (2.5).
 - **Its logic without io,** as `again`'s walk has it
   (`web/journeys.md`, 8.1): a state machine that takes each event, a
   line read, a face's answer, a save's bytes, a process's line or exit,
-  a deadline, and answers what to do: start this program with these
-  arguments and this environment, find this control and act, take a
-  snapshot, a screenshot or a save, write this answer, stop. The io is
+  a deadline, a forge's response, and answers what to do: start this
+  program with these arguments and this environment, find this control
+  and act, take a snapshot, a screenshot or a save, read this file, send
+  this request to the forge, write this answer, stop. The io is
   a thin loop around it over skein's harness, the fake person's browser
   face, the pseudo-terminal and the processes, as `again`'s is.
 - **The browser kit's snapshot, viewport and screenshot** (skein's
@@ -277,6 +335,13 @@ Focused, with no browser, no box and no Chromium:
   their arguments and their environments name no `cargo` and no
   `scripts/bundle.sh`, and every path they write is under the scratch
   directory.
+- **The forge's lines:** given a forge log and a header file, `forge
+  commit` asks for the repository, each path, then one change of files
+  holding `create` for a path the branch lacks and `update` with its
+  `sha` for one it holds, its contents in base64, and answers the
+  commit's id; `forge checks` waits through pending to `success`, fails
+  on `failure`, and fails at its bound; a forge with no log fails,
+  naming it; the header's line is in no answer and no kept line.
 - **Its exits:** a serve log holding a store's refusal ends with status
   3 and its line; a box that exits before its link, with 4.
 
