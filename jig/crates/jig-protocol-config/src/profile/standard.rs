@@ -27,7 +27,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     resource_reports: 256,
     pools: 128,
     hold_waiters: 128,
-    charters: 12,
+    charters: 16,
     charter_documents: 2,
     charter_parts: 8,
     facts: 128,
@@ -42,8 +42,8 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 8,
     authority_grants: 16,
     authority_bytes: 4_096,
-    // Eighteen executor places hold the development delegation.
-    executor_kinds: 18,
+    // Twenty-one executor places hold the development delegation.
+    executor_kinds: 21,
     depth: 32,
     inbox_messages: 82,
     run_inbox: 82,
@@ -103,8 +103,8 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     roles: 8,
     requirements: 8,
     grants: 16,
-    // Eighteen executor places hold the development delegation.
-    executors: 18,
+    // Twenty-one executor places hold the development delegation.
+    executors: 21,
     segments: 8,
     batch: 32,
     writes: 8,
@@ -204,6 +204,8 @@ pub(super) const LIMITS: Limits = Limits {
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
     public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 8,
+    // A full web page holds this many watches (protocol/limits.md).
+    watches_per_stream: 31,
     exchanges: 32,
     mints: 16,
     provider_codes: 256,
@@ -243,3 +245,22 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     reads: 48,
     ..small::STORE
 };
+
+/// Size stream edges from the wire, without reserving their byte ceilings.
+pub(super) fn limits() -> Limits {
+    let mut limits = LIMITS;
+    limits.clients.queued_bytes = jig_protocol_engine_clients::limits::stream_queue_bytes(
+        limits.clients.watches_per_stream,
+        &limits.clients.wire,
+    )
+    .expect("standard's first deliveries fit a u32 byte bound");
+    let record = jig_client_protocol_wire::v20::StreamEvent::encoded_bound(&limits.clients.wire)
+        .expect("standard stream record");
+    let record = u32::try_from(record).expect("standard stream record fits u32");
+    // Base64 data has one `data: ` prefix and two line feeds.
+    limits.clients_http.event = skein_lib::base64::encoded_len(skein_lib::base64::Alphabet::Standard, record)
+        .expect("standard base64 record")
+        .checked_add(8)
+        .expect("standard SSE frame");
+    limits
+}

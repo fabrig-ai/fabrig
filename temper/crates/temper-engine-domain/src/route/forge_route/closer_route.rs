@@ -1,6 +1,13 @@
 //! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use temper_engine_domain_forge_closer as c;
+mod relay;
+#[derive(Hash, Debug)]
+pub(crate) struct Pending {
+    relay: c::relay::Relay,
+    asked: bool,
+    more: bool,
+}
 
 #[expect(clippy::too_many_lines, reason = "the procedure gathers its goal and submits one exhaustive step decision")]
 pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
@@ -36,20 +43,21 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         making: None,
         close_changes: Box::new([]),
         landing_changes: Box::new([]),
+        relay: c::relay::Relay::new(),
         done: false,
     });
     row.done = false;
     // Its creation answer owns the pending change. A wake before that answer
     // must not delegate the same close or landing step again.
     if row.making.is_some() {
-        submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+        submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
         return;
     }
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => Some(contains),
         Some(Err(_)) => {
-            submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
             return;
         }
         None => None,
@@ -76,12 +84,12 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
                 Err(short) => {
                     row.closer = stepped.closer;
                     row.closer.retry = Some(kind);
-                    domain.work.push(Work::Forge(forge::Event::Closer { row }));
-                    if short.is_spend() && goal_run_live(domain, goal) {
-                        submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+                    let decision = if short.is_spend() && goal_run_live(domain, goal) {
+                        ProcedureStep::new(StepEnd::Wait)
                     } else {
-                        super::holds::hold(domain, task, &short_words(short));
-                    }
+                        super::holds::decision(domain, env, task, short_words(short))
+                    };
+                    submit(domain, env, row, decision);
                     return;
                 }
             };
@@ -121,8 +129,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words: c::words(&report, bound) }))
         }
     };
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
-    submit(domain, task, decision);
+    submit(domain, env, row, decision);
 }
 
 fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_holds: Option<bool>) -> c::Facts {
@@ -161,8 +168,17 @@ fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_ho
     }
 }
 
-fn submit(domain: &mut Domain, task: u64, decision: ProcedureStep) {
+fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut decision: ProcedureStep) {
+    let task = row.task;
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let previous = row.relay.clone();
+    let (asked, more) = relay::apply(domain, env, &mut row, &mut decision);
+    let relay = core::mem::replace(&mut row.relay, previous);
+    // Step progress keeps its creation marker; only the relay waits for admission.
+    if domain.forge.closer(task) != Some(&row) {
+        domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    }
+    domain.closer_steps.insert((task, step), Pending { relay, asked, more }).expect("one pending step per closer");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
@@ -480,7 +496,8 @@ fn delegate(
         }
         c::Step::Land => (landing_words(goal_words), repository.settings.default_branch.clone(), Some(branch.into())),
     };
-    let change = crate::ChangeCall::words(words, None);
+    let mut change = crate::ChangeCall::words(words, None);
+    change.questions = Some(crate::ChangeQuestions::Up);
     let mut delegate = match super::chat_change(domain, env, &context, &change, repository, base, own, spend) {
         Ok(delegate) => delegate,
         Err(why) => return Err(short_refusal(why, available, minimum, room)),
@@ -689,10 +706,12 @@ fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<
     words.into_boxed()
 }
 
-pub(crate) fn made(domain: &mut Domain, task: u64, child: Option<u64>) {
+pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
+    let pending = domain.closer_steps.remove(&(task, step));
     let Some(mut row) = domain.forge.closer(task).cloned() else { return };
-    let Some(kind) = row.making.take() else { return };
-    if let Some(child) = child {
+    if let Some(child) = child
+        && let Some(kind) = row.making.take()
+    {
         row.closer.running = Some(c::Running { step: kind, change: child });
         let prior = match kind {
             c::Step::Close => &row.close_changes,
@@ -710,15 +729,34 @@ pub(crate) fn made(domain: &mut Domain, task: u64, child: Option<u64>) {
                 row.closer.landing = Some(child);
             }
         }
+        domain.work.push(Work::Forge(forge::Event::Closer { row: row.clone() }));
     }
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    let Some(mut pending) = pending else { return };
+    if pending.asked {
+        let record = domain.core.tasks.task(task).expect("admitted closer step");
+        let mut number = None;
+        for credit in &record.questions {
+            if credit.asked == tasks::Party::Task(row.goal) {
+                number = Some(credit.number);
+                break;
+            }
+        }
+        c::relay::asked(&mut pending.relay, number.expect("admitted question has its credit"));
+    }
+    if pending.relay != row.relay {
+        domain.work.push(Work::Forge(forge::Event::CloserRelayed { task, relay: pending.relay }));
+    }
+    if pending.more {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+    }
 }
 
-pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::StepRefusal) -> bool {
+pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domain_core::StepRefusal) -> bool {
     let Some((connector, code, _)) = domain.core.tasks.procedure_due(task) else { return false };
     if connector != domain.config.forge_connector || code != super::GOAL_CLOSER_CODE {
         return false;
     }
+    domain.closer_steps.remove(&(task, step));
     match why {
         jig_domain_core::StepRefusal::Moved { .. } => false,
         jig_domain_core::StepRefusal::Denied { .. } | jig_domain_core::StepRefusal::Refused(_) => {
@@ -733,7 +771,14 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
             if let Some(record) = domain.core.tasks.task(task)
                 && !record.waiting_on.is_empty()
             {
-                submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+                let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
+                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                    task,
+                    step,
+                    connector,
+                    code,
+                    decision: ProcedureStep::new(StepEnd::Wait),
+                }));
                 return true;
             }
             super::holds::hold(domain, task, b"the goal closer's next change was refused");

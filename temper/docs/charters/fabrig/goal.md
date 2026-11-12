@@ -1,0 +1,5 @@
+- **A coding change** also carries `"producer": 2` and `"llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}, "sub_agents": []}}`.
+- **Editing:** edit a file only after reading it with Read; a shell `cat` doesn't count.
+- **Status** follows `DESIGN.md`, section 2. A draft's status says **Design lags**, **Design departs** and **Open**; write it, and `STATUS.md`'s summaries, as they will stand once the goal lands.
+- **Known reds:** a goal note `known reds` holds each one's since and why, under the same keys as g's `.temper/known-reds.md`. Drop one once fixed. Specs list those in their packages.
+- **A spec** gives each requirement's tier, focused or fuzzy; a slow tier's story only compiles. It keeps a branch in its tree, but for a required field: the producer's branch carries the other tree's lines that name it, each edited only in the field's name, type path or value. It repeats the standing rules: fakes, fixtures, what not to touch. It stays within about 60 KB, leaving room in the 63,740-byte payload.

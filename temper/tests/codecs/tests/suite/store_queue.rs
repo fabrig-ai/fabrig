@@ -1,4 +1,4 @@
-//! The runtime-30 merge queue is durable at v12 (protocol/store.md, 4).
+//! The runtime-30 merge queue is durable at v15 (protocol/store.md, 4).
 use crate::fixture;
 use skein_forge::api::{Answer, Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
@@ -24,15 +24,15 @@ fn entry(queued: bool) -> Stored {
     }
 }
 #[test]
-fn queued_and_unqueued_entries_have_v12_golden_bytes_and_round_trip() {
+fn queued_and_unqueued_entries_have_v15_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(STORE_VERSION, 12);
+    assert_eq!(STORE_VERSION, 15);
     for queued in [false, true] {
         let value = entry(queued);
         let bytes = records::encode(&value);
         let name = if queued { "merge-queued.bin" } else { "merge-unqueued.bin" };
-        let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden/v12").join(name);
+        let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden/v15").join(name);
         if temper_test_env::rewrite() {
             std::fs::write(&path, &bytes).expect("write queue golden");
         }
@@ -68,7 +68,7 @@ fn queued_effect_outcomes_and_merge_answers_round_trip_durably() {
 }
 
 #[test]
-fn not_installed_call_and_application_reasons_round_trip_distinctly_at_v12() {
+fn not_installed_call_and_application_reasons_round_trip_distinctly_at_v15() {
     use temper_engine_domain_forge::{AdoptionRefusal, ApplicationOutcome};
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -84,7 +84,7 @@ fn not_installed_call_and_application_reasons_round_trip_distinctly_at_v12() {
         },
     ] {
         let bytes = records::encode(&value);
-        assert_eq!(STORE_VERSION, 12);
+        assert_eq!(STORE_VERSION, 15);
         assert_eq!(records::decode(&bytes, &bounds), Ok(value));
     }
 }

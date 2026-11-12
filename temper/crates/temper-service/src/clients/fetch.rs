@@ -39,6 +39,10 @@ enum Phase {
     Closed,
 }
 
+enum ReadResponse {
+    Body,
+    Status,
+}
 pub(crate) struct Web {
     pub(crate) deadline: Time,
     pub(crate) socket: Option<Token>,
@@ -60,6 +64,7 @@ pub(crate) struct Web {
     id: u64,
     pub(crate) sent: bool,
     abort: bool,
+    read_response: ReadResponse,
 }
 
 impl Web {
@@ -95,8 +100,7 @@ impl Web {
                 .push(Header { name: bytes::copy_of(b"content-type"), value: bytes::copy_of(request.content_type) })
                 .expect("two headers");
         }
-        let mut requests = Queue::with_capacity(ROUTES);
-        requests.push(http::Request::Call(http::Call {
+        let call = http::Call {
             method,
             target,
             headers: headers.into_boxed(),
@@ -106,16 +110,62 @@ impl Web {
                 http::Body::None
             },
             close: true,
-        }));
-        if method == Method::Post {
+        };
+        Some(Self::call(
+            request.id,
+            request.deadline,
+            call,
+            request.body,
+            &endpoint.transport,
+            limits,
+            ReadResponse::Body,
+        ))
+    }
+
+    /// A push needs the status and Retry-After, never the response's body (attention.md, 7.3).
+    pub(crate) fn push(sealed: skein_push::Sealed, transport: &Transport, deadline: Time, limits: &Limits) -> Self {
+        let mut headers = List::with_capacity(8);
+        let start = bytes::find(&sealed.origin, b"://").expect("sealed origin").checked_add(3).expect("origin bound");
+        headers
+            .push(Header {
+                name: bytes::copy_of(b"host"),
+                value: bytes::copy_of(sealed.origin.get(start..).expect("origin authority")),
+            })
+            .expect("push headers");
+        for (name, value) in sealed.headers {
+            headers.push(Header { name, value }).expect("push headers");
+        }
+        let call = http::Call {
+            method: Method::Post,
+            target: sealed.target,
+            headers: headers.into_boxed(),
+            body: http::Body::Length(skein_lib::len_u64(sealed.body.len())),
+            close: true,
+        };
+        Self::call(0, deadline, call, sealed.body, transport, limits, ReadResponse::Status)
+    }
+
+    fn call(
+        id: u64,
+        deadline: Time,
+        call: http::Call,
+        upload: Box<[u8]>,
+        transport: &Transport,
+        limits: &Limits,
+        read_response: ReadResponse,
+    ) -> Self {
+        let post = call.method == Method::Post;
+        let mut requests = Queue::with_capacity(ROUTES);
+        requests.push(http::Request::Call(call));
+        if post {
             requests.push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: limits.http.send }));
         }
-        let tls = match &endpoint.transport {
+        let tls = match transport {
             Transport::Tls { server_name, trust } => Some(tls::Client::new(trust, server_name.clone(), &limits.tls)),
             Transport::Plaintext => None,
         };
-        Some(Web {
-            deadline: request.deadline,
+        Web {
+            deadline,
             socket: None,
             phase: Phase::Connecting,
             tls,
@@ -125,17 +175,18 @@ impl Web {
             plain: Queue::with_capacity(ROUTES),
             tls_events: Queue::with_capacity(ROUTES),
             cipher: Queue::with_capacity(ROUTES),
-            upload: request.body,
+            upload,
             offset: 0,
             document: List::with_capacity(limits.body),
             response: None,
             answer: None,
             failure: None,
             close_sent: false,
-            id: request.id,
+            id,
             sent: false,
             abort: false,
-        })
+            read_response,
+        }
     }
 
     pub(crate) fn up(&mut self, env: &Env<Limits>, event: IoEvent, io: &mut Queue<IoRequest>) {
@@ -282,6 +333,19 @@ impl Web {
     fn http_event(&mut self, env: &Env<Limits>, event: http::Event) {
         match event {
             http::Event::Response(response) => {
+                if let ReadResponse::Status = self.read_response {
+                    self.answer = Some(oauth::HttpResponse {
+                        id: self.id,
+                        status: response.status,
+                        body: Box::new([]),
+                        retry_after: retry_after(&response),
+                        evidence: oauth::HttpEvidence::Response,
+                        now: env.now,
+                        wall: env.wall,
+                    });
+                    self.phase = Phase::Answered;
+                    return;
+                }
                 self.response = Some(response);
                 self.requests.push(http::Request::Body(Down::Demand {
                     read: Read::Arrived { max: self.document.room().saturating_add(1) },

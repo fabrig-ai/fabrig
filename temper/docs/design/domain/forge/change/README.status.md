@@ -11,11 +11,6 @@
 
 - **Not yet:** 1, `reruns`, and 2, step 3, *The runner's failures run again*, with step 7's attempt in the landed result: a change's CI failed by the runner is repaired like any other, and no configuration names `forge.change_policy.reruns` (`temper-engine-domain-forge-change/src/domain.rs`, `checking`, `gating`).
 
-- **Not yet:** 7, and 5's panel kept until its room is needed: no change's record ever leaves the table, so once `forge.changes` changes have been made every new one is refused, before it registers, with words naming no bound; nothing drops a settled change, nor what the forge keeps by its task.
-
-- **Not yet:** 7, "Its landed commits are bounded alike": the forge's `landed` table leaves only with a dropped change, and a merge finding it full skips its `Landed` row, its landing branch's head, `Pushed` and its tiers' observation, so a goal is held on its own merge.
-
-- **Not yet:** 7, "Dropped last": an `Uncleared`, `Landed` or `Red` change whose task has ended is never dropped, so a tier runner down for long fills the table.
 
 - **Not yet:** 2, a change whose pushed head its landing branch already contains: it lives on, and only a contained catch-up ends with no change; nothing reads whether the base's tip contains a change's head.
 

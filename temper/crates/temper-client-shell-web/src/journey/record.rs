@@ -11,11 +11,19 @@ pub struct Recorder {
     file: Vec<u8>,
     turn: Option<(Time, Wall)>,
     kept: bool,
+    ended: bool,
+    bound: u64,
 }
 impl Recorder {
     #[must_use]
     pub fn new(facts: &Facts) -> Self {
-        let mut this = Self { file: Vec::new(), turn: None, kept: false };
+        let mut this = Self {
+            file: Vec::new(),
+            turn: None,
+            kept: false,
+            ended: false,
+            bound: u64::from(crate::limits::RECORDING_BYTES),
+        };
         for line in [
             Line::Journey { version: 2 },
             Line::Seed(facts.seed),
@@ -42,32 +50,42 @@ impl Recorder {
         }
         this
     }
+    /// Set the recording's byte bound; the start's facts are always kept whole.
+    #[must_use]
+    pub fn with_bound(mut self, bytes: u64) -> Self {
+        self.bound = bytes;
+        self
+    }
     pub fn turn(&mut self, now: Time, wall: Wall) {
         self.turn = Some((now, wall));
         self.kept = false;
     }
     /// Give one report and keep its duties in order.
     pub fn report(&mut self, host: &mut Host, page: &Page<'_>, report: Report) -> Duties {
+        if self.ended {
+            return host.report(report);
+        }
+        let mut lines = Vec::new();
         match &report {
-            Report::Screen(_) => {}
-            Report::Start => self.keep(&Line::Start),
-            Report::Copied { token, written } => self.keep(&Line::Copied { token: *token, written: *written }),
-            Report::Due => self.keep(&Line::Due),
-            Report::TabRefused => self.keep(&Line::TabRefused),
-            Report::Place { path } => self.keep(&Line::Place(path.clone())),
-            Report::Heard(heard) => self.keep(&Line::Heard(clone_heard(heard))),
+            Report::Push(_) | Report::Screen(_) => {}
+            Report::Start => lines.push(Line::Start),
+            Report::Copied { token, written } => lines.push(Line::Copied { token: *token, written: *written }),
+            Report::Due => lines.push(Line::Due),
+            Report::TabRefused => lines.push(Line::TabRefused),
+            Report::Place { path } => lines.push(Line::Place(path.clone())),
+            Report::Heard(heard) => lines.push(Line::Heard(clone_heard(heard))),
             Report::Act { node, act } => {
                 let Some(event) = super::event(host, *node, act) else {
                     let duties = host.report(report);
                     assert!(asked(&duties).is_empty(), "an act with no event unexpectedly has duties");
                     return duties;
                 };
-                self.act(page, act, event, super::name(host.tree(), *node));
+                lines.extend(acted(page, act, event, super::name(host.tree(), *node)));
             }
             Report::Carried { reports, writes } => {
-                self.keep(&Line::Carried { writes: *writes });
+                lines.push(Line::Carried { writes: *writes });
                 for report in reports {
-                    self.keep(&match report {
+                    lines.push(match report {
                         Carried::Written { key } => Line::Written(key.clone()),
                         Carried::Refused { key } => Line::Unwritten(key.clone()),
                         Carried::Failed { exchange } => Line::Lost(*exchange),
@@ -76,13 +94,12 @@ impl Recorder {
             }
         }
         let duties = host.report(report);
-        for line in asked(&duties) {
-            self.keep(&line);
-        }
+        lines.extend(asked(&duties));
+        self.keep_call(page, &lines);
         duties
     }
     pub fn deadline(&mut self, deadline: Option<Time>) {
-        if self.kept {
+        if !self.ended && self.kept {
             Line::Deadline(deadline).write(&mut self.file);
             self.kept = false;
         }
@@ -90,35 +107,65 @@ impl Recorder {
     }
     /// Mark the page as drawn, without drawing it again.
     pub fn mark(&mut self, page: &Page<'_>) {
-        self.keep(&Line::Mark(Some(page.html().into_bytes().into())));
+        if !self.ended {
+            self.keep_call(page, &[Line::Mark(Some(page.html().into_bytes().into()))]);
+        }
     }
     /// The recording as it is now, closed by an end mark; recording goes on
     /// (client/web/journeys.md, 3.1).
     #[must_use]
     pub fn save(&self, page: &Page<'_>) -> Box<[u8]> {
         let mut file = self.file.clone();
-        Line::End(Some(page.html().into_bytes().into())).write(&mut file);
+        if !self.ended {
+            Line::End(Some(page.html().into_bytes().into())).write(&mut file);
+        }
         file.into()
     }
     /// Keep the end mark and consume the recorder.
     #[must_use]
     pub fn end(mut self, page: &Page<'_>) -> Box<[u8]> {
-        Line::End(Some(page.html().into_bytes().into())).write(&mut self.file);
+        if !self.ended {
+            Line::End(Some(page.html().into_bytes().into())).write(&mut self.file);
+        }
         self.file.into()
     }
     fn keep(&mut self, line: &Line) {
-        if let Some((now, wall)) = self.turn.take() {
-            Line::Turn { now, wall }.write(&mut self.file);
-            self.kept = true;
-        }
         line.write(&mut self.file);
     }
-    pub(super) fn act(&mut self, page: &Page<'_>, act: &Act, event: Box<[u8]>, name: Box<[u8]>) {
-        if !matches!(act, Act::Input { .. } | Act::Near { .. }) {
-            self.mark(page);
+    fn keep_call(&mut self, page: &Page<'_>, lines: &[Line]) {
+        if self.ended || lines.is_empty() {
+            return;
         }
-        self.keep(&Line::Act { act: clone_act(act), event, name });
+        let mut pending = Vec::new();
+        if let Some((now, wall)) = self.turn {
+            Line::Turn { now, wall }.write(&mut pending);
+        }
+        for line in lines {
+            line.write(&mut pending);
+        }
+        let bytes = self.file.len().checked_add(pending.len()).expect("recording size fits usize");
+        if u64::try_from(bytes).expect("recording size fits u64") > self.bound {
+            Line::End(Some(page.html().into_bytes().into())).write(&mut self.file);
+            self.ended = true;
+        } else {
+            if self.turn.take().is_some() {
+                self.kept = true;
+            }
+            self.file.extend_from_slice(&pending);
+        }
     }
+    #[cfg(test)]
+    pub(super) fn act(&mut self, page: &Page<'_>, act: &Act, event: Box<[u8]>, name: Box<[u8]>) {
+        self.keep_call(page, &acted(page, act, event, name));
+    }
+}
+fn acted(page: &Page<'_>, act: &Act, event: Box<[u8]>, name: Box<[u8]>) -> Vec<Line> {
+    let mut lines = Vec::new();
+    if !matches!(act, Act::Input { .. } | Act::Near { .. }) {
+        lines.push(Line::Mark(Some(page.html().into_bytes().into())));
+    }
+    lines.push(Line::Act { act: clone_act(act), event, name });
+    lines
 }
 pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     let mut lines = Vec::new();

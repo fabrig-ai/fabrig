@@ -108,6 +108,30 @@ pub struct Charter {
     pub spend: u64,
     pub wake: WakePolicy,
 }
+/// Fields replaced and text appended over a charter's default (domain/engine/overlays.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Overlay {
+    pub rest: Option<bool>,
+    pub model: Option<SettingModel>,
+    pub alternatives: Option<List<SettingModel>>,
+    pub inspect: Option<bool>,
+    pub modify: Option<bool>,
+    pub shell: Option<bool>,
+    pub agents: Option<bool>,
+    pub tools: Option<u64>,
+    pub hosts: Option<SettingHosts>,
+    pub waiting: Option<Duration>,
+    pub resume: Option<bool>,
+    pub turns: Option<u32>,
+    pub time: Option<Duration>,
+    pub reserve_turns: Option<u32>,
+    pub reserve_time: Option<Duration>,
+    pub call_timeout: Option<Duration>,
+    pub spend: Option<u64>,
+    pub documents: Option<List<CharterDocument>>,
+    pub instructions: Text,
+    pub parts: List<CharterPart>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
     pub escalation_role: Option<u32>,
@@ -131,6 +155,7 @@ pub struct Rules {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Charter(Box<Charter>),
+    Overlay(Box<Overlay>),
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
@@ -210,6 +235,7 @@ pub struct ReadRevisions {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFollows {
+    Overlay,
     Default,
     Change,
 }
@@ -272,6 +298,7 @@ pub struct SettingsDocument {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {
+    pub overlay: Option<Box<Overlay>>,
     pub setting: Setting,
     pub revision: u32,
     pub value: Option<SettingValue>,

@@ -174,10 +174,11 @@ filter = "package(=temper-box) & binary(=process) & test(=fake_backends::walk::s
 test-group = "temper-sign-in-callback"
 
 # The after-landing tier, under --run-ignored only: the owned-forge landing pair on the
-# sign-ins the tier takes as inputs (temper/docs/design/testing/live-tier.md). The owner's
-# scripts ignore this filter and name their own story.
+# Anthropic key and Claude Code login the tier takes as inputs
+# (temper/docs/design/testing/live-tier.md). The owner's scripts ignore this filter
+# and name their own story.
 [profile.live-temper]
-default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)"
+default-filter = "(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)"
 global-timeout = "50m"
 test-threads = 1
 retries = 0

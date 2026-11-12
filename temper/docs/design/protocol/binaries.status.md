@@ -1,6 +1,7 @@
 # binaries: status
 
-2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
+2026-11-12. Where the tree's code lags or departs from [binaries.md](binaries.md).
+
 
 - **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
 
@@ -34,16 +35,16 @@ for its `box` limits and `demo` member, as the box's does (`components.md`;
 `../draft/deployment-binaries.status.md`).
 
 
-`binaries.md`'s deployment client, `temper-client`, is present: its table
-of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,
-its help and refusals naming `temper-client`, and `--version`, in step
-tests of its package. `components.md`'s
-`temper-shell` holds the table's types and printing, the shared rows,
-`help`'s answers, the three directories and the engine's link file, and
-the box's `temper-box` prints from it. Built alone, the client links none of
-the engine's, the worker's, smith's agent, the box or the forge's setup,
-and of the forges' records their codecs alone (`cargo tree -p
-temper-client`), but the five crates its row in `binaries.md`, 4 names as
-exceptions. `binaries.md`'s client story is written and compiled in the
+`binaries.md`'s deployment client is `temper`, with its thin binary
+under `bin/temper` and its table in `temper-client-shell`: public
+`[ADDRESS]` and `help`, internal `ctl`, help and refusals naming `temper`,
+and `--version` from `temper-version`. Its capture passes arguments,
+environment and working directory to its dispatch and the TUI's start.
+`temper-shell` holds the shared table rows and renderings, help's answers,
+the three directories and the engine's link file. Built alone, the client
+links none of the engine's, the worker's, smith's agent, the box or the
+forge's setup, and of the forges' records their codecs alone, `temper-protocol-records`
+(`cargo tree -p temper`), but the five crates its row in `binaries.md`, 4
+names as exceptions. Its client story is written and compiled in the
 process tier, and runs after landing.
 

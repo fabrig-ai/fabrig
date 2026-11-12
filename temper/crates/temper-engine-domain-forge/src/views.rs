@@ -33,6 +33,7 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
     )
 )]
 pub enum Document {
+    Findings(crate::Findings),
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
@@ -42,6 +43,7 @@ pub enum Document {
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
+    Devices(crate::DevicesView),
     Drafts(crate::DraftsView),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
@@ -115,6 +117,8 @@ impl Domain {
             ApplicationScope::Own => {
                 return if subject == DISMISSED_SUBJECT {
                     Some(Document::Dismissals(self.dismissals(party)))
+                } else if subject == crate::DEVICES_SUBJECT {
+                    Some(Document::Devices(self.devices_view(party)))
                 } else if subject == crate::AWAY_SUBJECT {
                     Some(Document::Aways(self.aways_view(party)))
                 } else {
@@ -348,6 +352,7 @@ impl Document {
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Findings(view) => size = size.saturating_add(findings_bytes(view)),
             Self::Drafts(view) => {
                 size = size.saturating_add(size_of_val(view.rows.as_ref()));
                 for draft in &view.rows {
@@ -384,6 +389,12 @@ impl Document {
                 for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
                     size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
+                }
+            }
+            Self::Devices(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for row in &view.rows {
+                    size = size.saturating_add(row.label.len()).saturating_add(row.endpoint.len());
                 }
             }
             Self::Aways(view) => {
@@ -454,6 +465,19 @@ impl Document {
         }
         size
     }
+}
+fn findings_bytes(view: &crate::Findings) -> usize {
+    let mut size = size_of_val(view.rows.as_ref()).saturating_add(size_of_val(view.areas.as_ref()));
+    for row in &view.rows {
+        size = size.saturating_add(row.title.len());
+        for field in [&row.area, &row.why].into_iter().flatten() {
+            size = size.saturating_add(field.len());
+        }
+    }
+    for area in &view.areas {
+        size = size.saturating_add(area.name.len()).saturating_add(area.words.len());
+    }
+    size
 }
 fn phase_bytes(phase: &policy::Phase) -> usize {
     match phase {

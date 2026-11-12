@@ -72,7 +72,8 @@ fn text_arg<'a>(call: &'a Call, name: &[u8]) -> Option<&'a [u8]> {
     match arg(call, name) {
         Some(Value::Text(text)) => Some(text),
         Some(
-            Value::Word(_)
+            Value::SettingsFile(_)
+            | Value::Word(_)
             | Value::Number(_)
             | Value::Stdin
             | Value::File(_)
@@ -228,7 +229,8 @@ fn prepare(call: &Call, project: u32) -> Result<w::MakeRepository, &'static [u8]
     let forge = match arg(call, b"forge") {
         Some(Value::Number(number)) => u16::try_from(*number).expect("checked forge"),
         Some(
-            Value::Word(_)
+            Value::SettingsFile(_)
+            | Value::Word(_)
             | Value::Text(_)
             | Value::Stdin
             | Value::File(_)
@@ -440,8 +442,15 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
         }
         Some(
             w::Outcome::Unknown
+            | w::Outcome::DeviceAdded(_)
+            | w::Outcome::DeviceRemoved
+            | w::Outcome::DeviceRefused(_)
             | w::Outcome::Away
             | w::Outcome::Tried
+            | w::Outcome::Filed(_)
+            | w::Outcome::Handed
+            | w::Outcome::Triaged
+            | w::Outcome::FindingRefused(_)
             | w::Outcome::Drafted(_)
             | w::Outcome::DraftRefused(_)
             | w::Outcome::Follow(_)

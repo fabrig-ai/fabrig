@@ -21,6 +21,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             making: None,
             close_changes: Box::new([]),
             landing_changes: Box::new([]),
+            relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
         }),
         RecordKind::Making => Stored::Making(making::row(number)),
@@ -200,6 +201,31 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 matched: 0,
                 away: false,
             },
+        }),
+        RecordKind::Device => Stored::Device(Device {
+            party: n,
+            number: 1,
+            endpoint: b"https://push.test/sub".as_slice().into(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: b"phone".as_slice().into(),
+            at: Wall::EPOCH,
+        }),
+        RecordKind::Finding => Stored::Finding(Finding {
+            project: 1,
+            number: u32::try_from(n).expect("fixture number"),
+            kind: FindingKind::Qa,
+            severity: Severity::Low,
+            area: None,
+            state: FindingState::New,
+            title: b"finding".as_slice().into(),
+            body: Box::default(),
+            filer: Filer::Party(1),
+            at: Wall::EPOCH,
+            why: None,
+            hander: None,
+            goal: None,
+            reason: None,
         }),
         RecordKind::Client => panic!("no own table"),
     }
@@ -735,7 +761,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
         let mut d = Domain::new(
             &limits,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[],
             false,
@@ -857,7 +883,10 @@ fn unknown_tier_events_keep_state_and_hold_the_step() {
     ] {
         assert!(outputs(&mut d, event).is_empty());
     }
-    let out = outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true } });
+    let out = outputs(
+        &mut d,
+        Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, message_bytes: 4096 } },
+    );
     let [Request::TierDecision { task, decision, entry, projection: _ }] = out.as_ref() else {
         panic!("one tier decision")
     };
@@ -906,7 +935,7 @@ fn receipts_keep_tier_room_when_no_gates_are_configured() {
     let mut d = Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
         &[],
         &[],
         false,

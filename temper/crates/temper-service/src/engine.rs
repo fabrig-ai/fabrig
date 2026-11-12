@@ -133,7 +133,7 @@ impl Engine {
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
-        store.routes.patch_context.executors = config.core.defaults.rules.ceiling.delegation.kinds.clone();
+        store.routes.patch_context.executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
             Err(problem) => {
@@ -327,6 +327,9 @@ impl Engine {
                 }
                 root::Fact::BriefReadRefused { task, section, stage, reason, heads, error } => {
                     self.notes.push(crate::Note::BriefReadRefused { task, section, stage, reason, heads, error });
+                }
+                root::Fact::HeadRefused { task, words } => {
+                    self.notes.push(crate::Note::HeadRefused { task, words });
                 }
                 root::Fact::BriefFailed { task, counts, reason } => {
                     self.notes.push(crate::Note::BriefFailed { task, counts, reason });
@@ -718,6 +721,13 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.installation = installation;
             }
             jig_protocol_store::Event::OpenRefused { why, .. } => open_refused(engine, why),
+            jig_protocol_store::Event::Corrupt { .. } if !engine.store.opened => {
+                // Opening has no load route; corruption is the open's terminal.
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.open_failure = engine.store.host.component.start_open_failure().cloned();
+                }
+                stop::open(engine, &jig_protocol_store::OpenRefusal::Failed);
+            }
             event @ (jig_protocol_store::Event::Decoded { .. }
             | jig_protocol_store::Event::Undecodable { .. }
             | jig_protocol_store::Event::Rehearsing { .. }

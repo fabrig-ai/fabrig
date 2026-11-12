@@ -1,4 +1,6 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
+#[path = "suite/box_binary.rs"]
+mod box_binary;
 #[path = "suite/box_kinds.rs"]
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]
@@ -12,6 +14,8 @@ mod fake_backends;
 #[path = "suite/startover.rs"]
 mod startover;
 pub mod support;
+#[path = "suite/tui_box.rs"]
+mod tui_box;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
 use support::forge_land::{

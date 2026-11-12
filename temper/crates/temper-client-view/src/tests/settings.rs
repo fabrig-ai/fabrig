@@ -1745,6 +1745,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .unwrap();

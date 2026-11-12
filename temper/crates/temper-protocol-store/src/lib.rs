@@ -14,18 +14,27 @@ pub mod keys;
 pub mod records;
 #[rustfmt::skip]
 #[expect(clippy::similar_names, reason = "the generated change fields ending and pending name distinct durable facts")]
+#[path = "generated/v15.rs"]
+pub mod v15;
+#[cfg(test)]
+#[rustfmt::skip]
+#[path = "generated/v14.rs"]
+pub mod v14;
+#[rustfmt::skip]
+#[expect(clippy::similar_names, reason = "the generated change fields ending and pending name distinct durable facts")]
+#[cfg(test)]
 #[path = "generated/v12.rs"]
 pub mod v12;
 #[cfg(test)]
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 12;
+pub const STORE_VERSION: u32 = 15;
 
 /// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
-    v12::CEILINGS.tier_row_pending.min(v12::CEILINGS.tier_run_landings).min(v12::CEILINGS.tier_finding_blamed)
+    v15::CEILINGS.tier_row_pending.min(v15::CEILINGS.tier_run_landings).min(v15::CEILINGS.tier_finding_blamed)
 }
 
 /// The most `forge.changes` the tier rows hold at two landings per change plus one.
@@ -44,7 +53,7 @@ pub fn application(
     Some(jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: keys::largest(limits)?,
-        value: u32::try_from(v12::Row::encoded_bound(bounds.limits())?).ok()?,
+        value: u32::try_from(v15::Row::encoded_bound(bounds.limits())?).ok()?,
     })
 }
 
@@ -60,13 +69,13 @@ pub enum Undecodable {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
-    limits: Box<v12::Limits>,
+    limits: Box<v15::Limits>,
     forge: temper_engine_domain_forge::Limits,
 }
 impl Bounds {
     /// The generated decoder's limits.
     #[must_use]
-    pub const fn limits(&self) -> &v12::Limits {
+    pub const fn limits(&self) -> &v15::Limits {
         &self.limits
     }
     /// The domain limits for names and key decoding.
@@ -79,8 +88,12 @@ impl Bounds {
 /// Make schema bounds from the forge and task spec bytes, refusing any ceiling overflow.
 #[must_use]
 pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
-    let limits = v12::Limits {
+    let limits = v15::Limits {
         closer_selections: forge.tasks,
+        closing_question_words: forge.client.op_bytes.max(change_words),
+        closing_asked_answer_some: forge.client.op_bytes.max(change_words),
+        // A change's notices/accounts fit 512 bytes; `Change ` + u64 + `: ` adds 29.
+        closing_message_words: jig_domain_tasks::HOLD_ACCOUNT_BYTES.checked_add(29)?,
         status_brief_sentence: 200,
         status_brief_lede: 600,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
@@ -143,7 +156,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         subscriber_paths_item: forge.name_bytes,
         ..records::limits(forge)?
     };
-    v12::check_limits(&limits).ok()?;
+    v15::check_limits(&limits).ok()?;
     Some(Bounds { limits: Box::new(limits), forge: *forge })
 }
 

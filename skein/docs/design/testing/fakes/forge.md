@@ -142,11 +142,22 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   steps and logs (4); every other context, and a `File` or `Message`
   cue, keeps the generic step and text. Templates are bounded by their
   expansion at a full 64-bit number (20 digits per `{pull}`).
+- **`Cue::Declared { path }`** judges a head by what its own tree
+  declares at `path`, as a repository's workflow file says what its
+  checks do, so that whoever commits decides a head's verdict by what it
+  holds (temper's `draft/landed-qa.md`, 6): with no file at `path`, the
+  context passes; else the file's first line, its trailing newline
+  aside, is the rule: `pass` passes; `fail` fails; `pull-file TEMPLATE`
+  judges as `Cue::PullFile { path: TEMPLATE, no_pull: Skipped, step:
+  CONTEXT, log: Missing TEMPLATE }`, CONTEXT the context's name; any
+  other line, or a file past the content limit, fails, the job's log
+  ending `unreadable PATH`. The declaration is read from the commit
+  judged, at its verdict.
 - **The pull binding** is the one exception to CI once per commit: a
-  commit judged by a pull-file cue runs again when it becomes a pull
-  request's head after it was pushed, binding that number, as a forge's
-  `pull_request` event runs on a commit its `push` already did. The
-  commit keeps its latest run alone.
+  commit judged by a pull-file cue, or by a declared one, runs again
+  when it becomes a pull request's head after it was pushed, binding
+  that number, as a forge's `pull_request` event runs on a commit its
+  `push` already did. The commit keeps its latest run alone.
 - **`Skipped`,** a check's settled state beside passed and failed, counts
   as a pass in a combined status and as neither pending nor failed in a
   head's verdict; the protocol layer serves it as `skipped` and reads a
@@ -600,7 +611,10 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   A repository read by id answers the domain's settings when the host
   lends the domain. A site admin's read of a configured repository by its
   path is answered the same way, with no domain call, as Forgejo shows a
-  site admin every repository.
+  site admin every repository. A hook's patch sets its URL, events and
+  active and keeps the secret the hook was made with, ignoring the one it
+  sends, as Forgejo does (../../forge/setup/forgejo.md, section 2), so its
+  deliveries are still signed with that secret.
 - **A first repository is made in the domain** (../../forge/setup/forgejo.md, 1.9).
   The setup's `CreateRepository` in an org the setup store keeps makes
   a domain repository owned by that org, private, whose `main` is one
@@ -609,7 +623,12 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   branch, its author and committer the request's, and answers its
   commit; a path already there is `422`. Its git serves both commits,
   and its branch, raw and repository reads find them, as they find a
-  seeded repository's.
+  seeded repository's. **Its CI** is `Config.made_checks`, the forge's
+  CI for every repository it makes, this one and a copy's destination
+  (2.6) alike, as a Forgejo whose runner takes every repository runs a
+  new one's checks; `made_checks` with no contexts, its default, makes
+  them report none, as before. A made repository keeps the checks it was
+  made with across an image (2.7).
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.

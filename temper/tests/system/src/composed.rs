@@ -879,7 +879,7 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -890,6 +890,7 @@ impl World {
                             self.worker_env.limits.reply_bytes,
                             job,
                             page,
+                            ask,
                         ),
                     }
                 }
@@ -1005,7 +1006,7 @@ impl World {
             }
             Err(error) => Err(api::error(
                 error,
-                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::CONFIG, self.env.now),
+                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
         self.root_events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
@@ -1079,6 +1080,7 @@ impl World {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
             Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
             Delivery::Application { to, outcome } => {
                 assert_eq!(to.into_token(), ADOPTION);
@@ -1126,6 +1128,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

@@ -1,6 +1,14 @@
 # forgejo: status
 
-2026-11-11. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-12. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+
+- **Not yet:** 2: no fact records that a hook's patch keeps the secret
+  the hook was made with: `skein/tests/forge/conformance/src/repo_setup.rs`,
+  `record`, patches a hook with a new secret, but
+  `setup-repository-hook-patch-and-delete-leave-the-others` checks
+  neither the secret nor a delivery's signature, so 1.5's making a hook
+  again, and the fake's patch keeping its secret, stand on a deployment's
+  observation alone.
 
 - **Not yet:** 2: `skein/tests/forge/conformance/src/migrate.rs`,
   `ordinary`, judges a missing source's refusal under its earlier name, by

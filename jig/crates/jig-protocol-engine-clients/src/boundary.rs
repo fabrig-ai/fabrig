@@ -80,6 +80,11 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
+    /// A stream closes after an edge or translation refusal; no document bytes.
+    StreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     Transport(ToTransport),
     Core(Box<core::Event>),
     Application(ToApplication),
@@ -388,4 +393,12 @@ impl ::core::fmt::Debug for Reply {
             Self::StreamsFull { size } => f.debug_struct("StreamsFull").field("size", size).finish(),
         }
     }
+}
+
+/// Why an engine stream cannot carry its next record
+/// (jig/docs/design/protocol/client/README.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamFailure {
+    QueueBound { queued_bytes: u32 },
+    Translation(jig_client_protocol_wire::v20::Problem),
 }

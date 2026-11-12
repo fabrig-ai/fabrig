@@ -80,6 +80,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -128,7 +129,8 @@ fn domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -437,7 +439,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
         ended: env().wall,
     });
     let mut out = Queue::uncapped();
-    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false }, &mut out);
+    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false, message_bytes: 4096 }, &mut out);
     out
 }
 

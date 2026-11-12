@@ -63,6 +63,7 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
             landing_changes: List::from_boxed(row.landing_changes.clone()),
             selections: encode_selections(&row.closer.selections),
             done: row.done,
+            relay: encode_relay(&row.relay),
         },
     )
     .expect(FITS)
@@ -81,6 +82,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         landing_changes,
         selections,
         done,
+        relay,
     } = row.into_parts();
     let closed = match closed {
         Some(tasks) => Some(tasks.into_parts().tasks.into_boxed()),
@@ -112,8 +114,94 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         making,
         close_changes: close_changes.into_boxed(),
         landing_changes: landing_changes.into_boxed(),
+        relay: decode_relay(relay),
         done,
     }
+}
+
+fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
+    use c::relay::{Form, Stands};
+    if relay.open.is_none() && relay.replies.is_empty() {
+        return None;
+    }
+    let open = match &relay.open {
+        None => None,
+        Some(open) => {
+            let stands = match &open.stands {
+                Stands::Taken => w::ClosingStands::Taken,
+                Stands::Asked { question, answer } => w::ClosingStands::Asked(
+                    w::ClosingAsked::new(
+                        &w::CEILINGS,
+                        w::ClosingAskedParts { question: *question, answer: answer.clone() },
+                    )
+                    .expect(FITS),
+                ),
+            };
+            Some(
+                w::ClosingQuestion::new(
+                    &w::CEILINGS,
+                    w::ClosingQuestionParts {
+                        asker: open.asker,
+                        number: open.number,
+                        step: encode_step(open.step),
+                        words: open.words.clone(),
+                        stands,
+                    },
+                )
+                .expect(FITS),
+            )
+        }
+    };
+    let mut replies = List::with_capacity(u32::try_from(relay.replies.len()).expect(FITS));
+    for message in &relay.replies {
+        let form = match message.form {
+            Form::Words => w::ClosingForm::Words,
+            Form::Question => w::ClosingForm::Question,
+            Form::Answer { question } => {
+                w::ClosingForm::Answer(w::Number::new(&w::CEILINGS, w::NumberParts { number: question }).expect(FITS))
+            }
+        };
+        replies
+            .push(
+                w::ClosingMessage::new(
+                    &w::CEILINGS,
+                    w::ClosingMessageParts { target: message.target, form, words: message.words.clone() },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    Some(w::ClosingRelay::new(&w::CEILINGS, w::ClosingRelayParts { open, replies }).expect(FITS))
+}
+fn decode_relay(relay: Option<w::ClosingRelay>) -> c::relay::Relay {
+    use c::relay::{Form, Message, Question, Relay, Stands};
+    let Some(relay) = relay else { return Relay::new() };
+    let w::ClosingRelayParts { open, replies } = relay.into_parts();
+    let open = match open {
+        None => None,
+        Some(open) => {
+            let w::ClosingQuestionParts { asker, number, step, words, stands } = open.into_parts();
+            let stands = match stands {
+                w::ClosingStands::Taken => Stands::Taken,
+                w::ClosingStands::Asked(asked) => {
+                    let w::ClosingAskedParts { question, answer } = asked.into_parts();
+                    Stands::Asked { question, answer }
+                }
+            };
+            Some(Question { asker, number, step: decode_step(step), words, stands })
+        }
+    };
+    let mut messages = List::with_capacity(replies.len());
+    for message in replies.into_boxed() {
+        let w::ClosingMessageParts { target, form, words } = message.into_parts();
+        let form = match form {
+            w::ClosingForm::Words => Form::Words,
+            w::ClosingForm::Question => Form::Question,
+            w::ClosingForm::Answer(question) => Form::Answer { question: question.into_parts().number },
+        };
+        messages.push(Message { target, form, words }).expect(FITS);
+    }
+    Relay { open, replies: messages.into_boxed() }
 }
 
 fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelection> {

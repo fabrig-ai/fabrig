@@ -664,3 +664,85 @@ fn the_theme_list_steps() {
         );
     }
 }
+
+#[test]
+fn the_box_stages_and_terminal_precedence_hold() {
+    use crate::{BoxEnd, BoxLine, BoxStage, BoxState};
+    use skein_lib::bytes::copy_of;
+    let ended = BoxStage::Ended { end: BoxEnd::Exited { code: 1 } };
+    let failed = BoxStage::Failed { why: copy_of(b"no link") };
+    let stages = [
+        BoxStage::Finding,
+        BoxStage::Fetching { done: 5, total: None },
+        BoxStage::Fetching { done: 12, total: Some(24) },
+        BoxStage::Starting,
+        BoxStage::Running,
+        BoxStage::Stopping,
+        ended.clone(),
+    ];
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Front);
+    for (index, stage) in stages.iter().enumerate() {
+        tui.step(Told::Stage { stage: stage.clone() });
+        assert_eq!(tui.box_stage(), stage);
+        assert_eq!(tui.revision(), u64::try_from(index).unwrap() + 1);
+        tui.step(Told::Stage { stage: stage.clone() });
+        assert_eq!(tui.revision(), u64::try_from(index).unwrap() + 1, "same stage");
+    }
+    for terminal in [&ended, &failed] {
+        for next in stages.iter().chain(core::iter::once(&failed)) {
+            let mut tui = Tui::new(f::ADDRESS);
+            tui.step(Told::Stage { stage: terminal.clone() });
+            let revision = tui.revision();
+            tui.step(Told::Stage { stage: next.clone() });
+            let accepted = terminal == &failed && next == &ended;
+            assert_eq!(tui.box_stage(), if accepted { next } else { terminal });
+            assert_eq!(tui.revision(), revision + u64::from(accepted));
+        }
+    }
+    let restarting = Told::BoxLine { line: BoxLine::Restarting { step: copy_of(b"serve") } };
+    let gave_up = Told::BoxLine { line: BoxLine::GaveUp { step: copy_of(b"serve") } };
+    let stopping = Told::Stage { stage: BoxStage::Stopping };
+    let end = Told::Stage { stage: ended };
+    for (steps, want, note) in [
+        (&[][..], BoxState::Running, None),
+        (&[restarting.clone()][..], BoxState::Restarting { step: b"serve" }, None),
+        (&[restarting.clone(), stopping.clone()][..], BoxState::Stopping, None),
+        (&[stopping.clone(), restarting.clone()][..], BoxState::Stopping, None),
+        (&[restarting, stopping.clone(), end.clone()][..], BoxState::Stopped { end: BoxEnd::Exited { code: 1 } }, None),
+        (
+            &[end.clone()][..],
+            BoxState::Stopped { end: BoxEnd::Exited { code: 1 } },
+            Some(b"The box stopped: exited 1. /log shows why; Ctrl+C closes.".as_slice()),
+        ),
+        (
+            &[gave_up.clone(), stopping, end.clone()][..],
+            BoxState::GaveUp { step: b"serve" },
+            Some(b"The box gave up: serve. /log shows why; Ctrl+C closes.".as_slice()),
+        ),
+        (
+            &[end, gave_up][..],
+            BoxState::GaveUp { step: b"serve" },
+            Some(b"The box gave up: serve. /log shows why; Ctrl+C closes.".as_slice()),
+        ),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front);
+        for told in steps {
+            tui.step(told.clone());
+        }
+        assert_eq!(tui.box_state(), want, "{steps:?}");
+        assert_eq!(crate::view::front::gave_up_note(&tui, &f::words()).as_deref(), note, "{steps:?}");
+    }
+    // The bound is on the kept bytes, before invalid UTF-8 is replaced for display.
+    let bound = usize::try_from(crate::limits::LOG_LINE).unwrap();
+    let oversized = [0xff; 513];
+    for size in [bound - 1, bound, bound + 1] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Stage { stage: BoxStage::Failed { why: copy_of(&oversized[..size]) } });
+        assert_eq!(tui.box_stage(), &BoxStage::Failed { why: copy_of(&oversized[..size.min(bound)]) });
+    }
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Stage { stage: BoxStage::Failed { why: copy_of(b"first\nsecond") } });
+    assert_eq!(tui.box_stage(), &BoxStage::Failed { why: copy_of(b"first") });
+}

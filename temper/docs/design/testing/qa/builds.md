@@ -36,18 +36,16 @@ deleted once no pass can need them.
   - `bin/temper-box`: the box, its client and its embedded bundle;
   - `bin/fake-claude`: the fake coding agent the box finds beside itself
     (`../../protocol/setup/box.md`, 5);
-  - `bin/temper-client`: the TUI's recording build, whose saves the
+  - `bin/temper`: the TUI, with its recorder built in, whose saves the
     drive session's TUI lines read (`../../client/drive.md`, 2.1;
     `../../client/tui/journeys.md`, 2);
   - `bin/temper-client-journeys`: the drive session and the recipe walk
     (`../../client/drive.md`, 2; `../../client/recipe.md`, 5), so that a
     pass drives each build with that build's own grammar;
   - those four from one debug build, `cargo build -p temper-box -p
-    smith-fake-claude -p temper-client-journeys -p temper-client
-    --features temper-client-shell-tui/record`, as the journeys' `again`
-    builds its set: the client's `record` feature gives the box no
-    recording, which only `temper-box-shell`'s own feature does
-    (`../../client/tui/journeys.md`, 2); any other executable a later
+    smith-fake-claude -p temper-client-journeys -p temper`, as the journeys'
+    `again` builds its set. The drive session sets `TEMPER_INTERNAL_RECORD=1`
+    for the TUI (`../../client/tui/journeys.md`, 2); any other executable a later
     milestone names goes directly in `bin/` too;
   - `bundle/`: the web bundle, `temper/scripts/bundle.sh --loopback
     STAGE/bundle`, which the drive session gives the box
@@ -72,7 +70,7 @@ check that fails, with nothing moved or recorded:
    `build COMMIT12 is kept already`; a deleted one may be kept again,
    its record kept anew.
 3. **DIR holds the build:** `bin/temper-box`, `bin/fake-claude`,
-   `bin/temper-client`, `bin/temper-client-journeys`,
+   `bin/temper`, `bin/temper-client-journeys`,
    `bundle/index.html` and `bundle-record/index.html`, each a regular
    file: `DIR lacks PATH`, each missing path named. Every entry under
    DIR is a directory or a regular file: `DIR holds PATH, neither a file

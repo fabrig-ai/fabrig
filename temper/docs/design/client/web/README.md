@@ -124,15 +124,18 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`journeys.md`, section 2);
   - `journey`: a recording's records and file, its recorder and its
     replay (`journeys.md`, sections 3 and 4), on every target; the
-    recorder's keys and save are in `lib`, installed only when the page's
-    `internal-record` is on;
+    recorder's keys and save are in `lib`, installed only when the page
+    records, by its `internal-record` or its `temper-record` meta (below);
   - `records`: the small store's records, `jig-client`'s and a sign-in's
     address (`../README.md`, section 4); from the
     adoption form, a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
     (`../forge/records.md`);
   - `limits`: the client's limits in a browser, derived as the
-    terminal's are (`../README.md`, section 2), and their sum.
+    terminal's are (`../README.md`, section 2), and their sum; and
+    `RECORDING_BYTES`, 67,108,864, a recording's bound in memory
+    (`journeys.md`, 3.1): two of `BODY_BYTES`, so that a recording
+    holds a whole body's answer beside what came before it.
 - **A page is an entry crate on the shell:** the library holds no wasm
   start, since a module has one and a page's crate links the library.
   `temper-client-web-page`, a `cdylib`, is the shipped page: its start
@@ -149,7 +152,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   then, with the history's replace the sign-in part uses, so that no
   route, recording or link sees them. Each is on when its value is `1`,
   and off when absent or anything else:
-  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1);
+  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1),
+    on any origin, `http` or `https`;
   - `internal-small-window`: the client's limits name a conversation's
     window of 32,768 bytes, with `long_text` and `turn_text` 32,768
     (`testing.md`, 3, The tier's window), where they name none and
@@ -157,11 +161,28 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   - `internal-loopback-navigation`: skein's platform follows a
     navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
 
-  They're honoured only on a loopback origin, the page's host
-  `127.0.0.1` or `[::1]`, as the browser tier and the journeys tool
-  serve it, and ignored elsewhere. A reload is a load without them. The
-  shell's limits are given at its host's start, which the replay gives
-  the ordinary ones.
+  `internal-small-window` and `internal-loopback-navigation` are
+  honoured only on a loopback origin, the page's host `127.0.0.1` or
+  `[::1]`, as the browser tier and the journeys tool serve it, and
+  ignored elsewhere: loopback navigation elsewhere would let a page
+  send a person's browser to plaintext services on their own machine,
+  and the small window is the browser tier's. `internal-record` is
+  honoured everywhere: the recorder adds no node, no style and no
+  request, and a recording leaves the browser only by the person's own
+  Alt+Shift+S, or the save before a departure, into their own downloads
+  (`journeys.md`, 3.1), so a link that sets it on someone else's page
+  takes nothing from them. Each of the three is taken out of the
+  address wherever it is given, honoured or not. A reload is a load
+  without them. The shell's limits are given at its host's start, which
+  the replay gives the ordinary ones.
+- **The page's `temper-record` meta:** a page made with `<meta
+  name="temper-record" content="on">` (2.2) records as if its address
+  had `internal-record=1`, on any origin, at every load: a reload, or a
+  return from a departure, starts a new recording (`journeys.md`, 3.1).
+  The shell reads it at start, beside `temper-sign-in`; a meta of any
+  other content, or none, turns nothing on. The address's setting and
+  the meta are read once each and joined: either turns the recorder on,
+  and neither turns it off.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
   platform's work (jig's `protocol/browser/README.md`, 3.1).
@@ -217,14 +238,31 @@ replay says the same clocks (`../view.md`, 6).
   5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
      3.3, step 5; jig's `protocol/browser/README.md`, section 12), disallowing
      every path;
-  6. any other `GET`, the printed link's route among them: the page,
+  6. `/sw.js` and `/manifest.webmanifest`, temper's two root files,
+     fixed in its binary, `no-cache` (2.7): the service worker,
+     `Content-Type: text/javascript`, and the web app's manifest,
+     `application/manifest+json`;
+  7. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
+- **The page's metas,** made into the bundle's page at start, before
+  its `</head>` and before its ETag is taken: `temper-sign-in`
+  (`../../protocol/sign-in.md`, 7); then, when the command that serves
+  was given `--record` (`../../protocol/binaries.md`), `<meta
+  name="temper-record" content="on">`, so that every page the
+  deployment serves records from its load (2.1), in each person's own
+  browser, signed in or not; and the forges' `temper-forge-sign-in`
+  metas, made once their records load
+  (`../../protocol/openid-provider.md`, 7). Without `--record` the page
+  has no `temper-record` meta. Nothing of a recording reaches the
+  deployment.
 - **The page's policy,** on every answer temper gives: jig's reference
   policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
   'self'; font-src 'self'; connect-src 'self'; base-uri 'none';
-  form-action 'none'; frame-ancestors 'none'`, with `nosniff`,
+  form-action 'none'; frame-ancestors 'none'`, and temper's two
+  sources beside it, `worker-src 'self'; manifest-src 'self'`, for its
+  root files (2.7), with `nosniff`,
   `Cross-Origin-Opener-Policy: same-origin`,
   `Cross-Origin-Resource-Policy: same-origin` and `Referrer-Policy:
   no-referrer`. skein-http's own refusals, `400`, `413` and `431`, given
@@ -656,6 +694,50 @@ without it.
   itself is a person's build, which fails loudly when its steps do; a
   change to it checks it with `TEMPER_INTERNAL_BUNDLE=embed cargo nextest
   run -p temper-box`, which the gate does not run.
+
+### 2.7 Being pushed
+
+What the browser does for Telling you (`../pages/told.md`;
+`../../domain/forge/attention.md`, section 7). Push is the browser's,
+through its push service (Web Push); the page and the module stay as
+they are, and two small root files carry the rest.
+
+- **The service worker,** `/sw.js` (2.2, step 6): a fixed script of
+  temper's, hand-written, its scope the origin's root. It does two
+  things and nothing else, with no fetch handler and no cache, so the
+  page loads as it does without it:
+  - *a push* shows a notification: its payload's JSON (`../../domain/forge/attention.md`,
+    7.2), its `title` the notification's title and its `body` its body,
+    its tag `project-N` so that a newer count replaces an older one, its
+    data the project; a payload it can't read shows "temper" and
+    "Something needs you.", since a browser shows one for every push;
+  - *a press on a notification* closes it and opens Needs you filtered
+    by its project, `Inbox { project }`'s path (`../view.md`, 3): an open
+    window of the origin, focused and sent there, or a new one.
+- **The manifest,** `/manifest.webmanifest`: `name` and `short_name`
+  "temper", `start_url` `/`, `display` `standalone`, and the paper's
+  colour of the day look as `background_color` and `theme_color`
+  (`look.md`), so that a phone may add temper to its Home Screen, which
+  iOS asks before it pushes to a web app. The page links it, `<link
+  rel="manifest">`, in its head: from skein's bundler's page if it takes
+  one, otherwise added by the shell at its start.
+- **The shell's part,** in `temper-client-shell-web`, through web-sys's
+  service worker, push and notification bindings: it reports this
+  browser's state to the domain at start and after each act (whether a
+  service worker and a push manager exist, the permission, the current
+  subscription's endpoint); and on "Turn on" it asks the permission,
+  registers `/sw.js`, subscribes with `userVisibleOnly` and the
+  deployment's key, and gives the domain the subscription's endpoint and
+  keys, which the domain sends as `AddDevice`; on "Turn off", once
+  `RemoveDevice` is answered, it drops the subscription. A browser asks
+  permission only within a person's gesture: the shell asks it inside
+  the press's own event, before anything waits.
+- **Tested** below the browser where it can be: the page and its acts
+  in the domain's and the view's tests, this browser's states given as
+  the shell would report them; the two root files' routes and headers
+  in `temper-service`'s; the shell's push calls and the service worker
+  in a browser-tier story, written and compiled, and run after landing
+  (`testing.md`).
 
 ## 3. Open questions
 

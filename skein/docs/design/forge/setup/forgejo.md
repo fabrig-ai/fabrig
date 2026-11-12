@@ -200,7 +200,8 @@ answers `204` with no body, `404` when the repository is not there.
 ### 1.4 Converging, bounds and failures
 
 - **From Forgejo, every time.** A second run with nothing changed
-  writes nothing to the host and only the hooks' patches to the forge.
+  writes nothing to the host, and to the forge only each adopted
+  repository's hook, deleted and made again (1.5).
   A bot deleted, a token revoked, a hook deleted or a collaborator
   removed is made again at the next run.
 - **Bounded:** the orgs at most `orgs`, the repositories at most
@@ -276,13 +277,19 @@ are ids.
      `127.x.y.z:port` or `[::1]:port`.
    - The secret is asked for once. When the host has none, the plan
      draws 32 bytes, renders 64 lowercase hex digits and writes them.
-   - The repository's hooks are listed (`GET .../hooks`, paged). Of
-     those with that URL the lowest id is kept and each other is deleted
-     (a 404 is as good), since each would deliver every change again. A
-     hook of another URL is left alone.
-   - The kept hook is patched at every run, or made when none is kept:
-     the URL, the secret, the subscribed events (../README.md, section 6),
-     JSON and active. Forgejo never shows a hook's secret.
+   - The repository's hooks are listed (`GET .../hooks`, paged). Each
+     with that URL is deleted (a 404 is as good), and the page it was on
+     is read again. A hook of another URL is left alone.
+   - Then one is made: the URL, the secret, the subscribed events
+     (../README.md, section 6), JSON and active. A hook is made again at
+     every run, never patched: Forgejo keeps the secret a hook was made
+     with and ignores one a patch sends (section 2), so a hook left with
+     another secret, whose every delivery the listener refuses, is
+     repaired only by being made again. Forgejo never shows a hook's
+     secret.
+   - A deletion or the making that fails stops the plan (1.4), and the
+     next run finishes it: it lists the hooks again, deletes each left
+     with that URL, and makes the one.
 
 A collaborator or a hook on a listing's second page is found there,
 neither repeated nor passed over.
@@ -634,6 +641,9 @@ pin (../README.md, section 4.3), and named by the fact's name.
   `setup-repository-hook-listing-pages-by-limit`,
   `delivery-loopback-is-refused-by-default`,
   `delivery-loopback-is-allowed-when-named`.
+  A patch leaves the secret its hook was made with, whatever secret it
+  sends: a deployment at the pin showed it (2026-11-12), a hook signing
+  with an old secret after every patch, and no fact records it.
 - **The admin's search** (1.8): it lists to a site admin every owner's
   repositories, the private ones too; answers `ok` and `data`; and pages
   by `page` and `limit` in id order:

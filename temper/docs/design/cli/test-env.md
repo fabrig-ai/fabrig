@@ -81,6 +81,15 @@ Generated from the tree's test table (`skein/docs/design/runtime/shell.md`, 14.3
 - Name a held ChatGPT account record for a live story; a developer sets it for proof-live.sh.
 - **Notes:** A regular 0600 file, moved into a fresh store by account import; a kept store cannot import it again.
 
+### `TEMPER_TEST_LIVE_ANTHROPIC_KEY`
+
+- **Set:** test
+- **Reads**
+- **Form:** FILE
+- **Absent:** The key landing story skips, saying why.
+- Name the Anthropic key file for forge-land-claude-key; the after-landing tier or a developer for proof-live.sh sets it.
+- **Notes:** A nonempty regular 0600 file of the test's user, not a link; passed to account add-key by path, never read, printed or copied by the story.
+
 ### `TEMPER_TEST_LIVE_CLAUDE`
 
 - **Set:** test

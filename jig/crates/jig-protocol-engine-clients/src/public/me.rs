@@ -101,17 +101,7 @@ impl Component {
         watch.delivery_pending = true;
         let value =
             delivery(frame, watch.name, watch.version, &self.settings.models, self.public.names(), &env.limits.wire);
-        match value {
-            Ok(value) => {
-                if !stream.queue(
-                    crate::stream::packet(value, crate::stream::Taken::Delivery(watcher)),
-                    env.limits.queued_bytes,
-                ) {
-                    stream.phase = crate::stream::Phase::Closing;
-                }
-            }
-            Err(_) => stream.phase = crate::stream::Phase::Closing,
-        }
+        self.queue_packet(env, watcher, value, crate::stream::Taken::Delivery(watcher), out);
     }
 }
 fn read(

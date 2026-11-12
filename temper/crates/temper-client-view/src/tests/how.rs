@@ -207,6 +207,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
                         )
                         .unwrap()])),
                         delegation: false,
+                        roles: List::with_capacity(0),
                     },
                 )
                 .unwrap()

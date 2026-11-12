@@ -16,6 +16,13 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         Err(held) => held,
     };
     match held {
+        core::Held::NeedArrived { party, project, needs, .. } => {
+            let name = domain.core.project_name(project).expect("a need belongs to a project");
+            let (topic, payload) = crate::push::words(project, needs, name);
+            for push in domain.forge.pushes(party, &topic, &payload) {
+                emit(decision, &env.limits, Delivery::Push(push));
+            }
+        }
         core::Held::PublicRead { .. } => {}
         core::Held::PublicWait { read } => emit(decision, &env.limits, Delivery::PublicWait { read }),
         core::Held::ReadList { channel, read, endpoint, grant } => {

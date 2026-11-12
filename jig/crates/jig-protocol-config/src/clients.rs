@@ -161,7 +161,7 @@ pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
     }
 }
 
-/// Refuse configurations whose admitted settings exceed client wire 19.
+/// Refuse configurations whose admitted settings exceed client wire 20.
 pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     let core = &limits.core;
     let wire = &limits.clients.wire;
@@ -359,23 +359,23 @@ mod proposal_settings_tests {
     fn proposal_heads_and_review_fit_their_wire_ceilings() {
         // settings-v1's proposal holds 128 heads; the review shares Owned.record's document ceiling.
         for (proposal, retained, review, expected) in [
-            (128, 128, jig_client_protocol_wire::v19::CEILINGS.owned_record, None),
+            (128, 128, jig_client_protocol_wire::v20::CEILINGS.owned_record, None),
             (
                 127,
                 128,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record,
+                jig_client_protocol_wire::v20::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 127,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record,
+                jig_client_protocol_wire::v20::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 128,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record - 1,
+                jig_client_protocol_wire::v20::CEILINGS.owned_record - 1,
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {

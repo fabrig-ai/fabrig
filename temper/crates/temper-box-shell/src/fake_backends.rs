@@ -118,7 +118,8 @@ pub(crate) fn run(
     source: &Directories,
     options: &Options,
     echo: temper_box_machine::host::Echo,
-    no_tui: bool,
+    front: bool,
+    record: bool,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
@@ -136,7 +137,8 @@ pub(crate) fn run(
         std::mem::take(&mut listeners.0),
         steps,
         echo,
-        no_tui,
+        front,
+        record,
         opening,
         environment,
     );

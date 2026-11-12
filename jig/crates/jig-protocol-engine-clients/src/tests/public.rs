@@ -129,7 +129,7 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
         let PublicReply::NotServed { record } = step.reply(exchange) else {
             panic!("not served");
         };
-        let record = wire::v19::NotServed::decode(&step.env.limits.wire, &mut Reader::new(&record)).unwrap();
+        let record = wire::v20::NotServed::decode(&step.env.limits.wire, &mut Reader::new(&record)).unwrap();
         assert_eq!(record.served().len(), 1);
         let served = record.served().get(0).unwrap();
         assert_eq!((served.first(), served.last()), (1, 1));
@@ -301,14 +301,14 @@ fn me_gives_a_public_projects_identifier_and_none_for_a_private_one() {
                 &mut exchange.out,
             );
         }
-        let (owner, reply, _) = exchange.read(&wire::v19::Read::Me);
+        let (owner, reply, _) = exchange.read(&wire::v20::Read::Me);
         exchange
             .release_read(reply, c::reads::Answer::Document(Box::new(c::documents::Document::Frame(frame.clone()))));
-        let wire::v19::ReadAnswer::Value(value) = exchange.read_answer(owner) else {
+        let wire::v20::ReadAnswer::Value(value) = exchange.read_answer(owner) else {
             panic!("me value");
         };
-        let wire::v19::ReadValue::Me(value) =
-            wire::v19::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record())).unwrap()
+        let wire::v20::ReadValue::Me(value) =
+            wire::v20::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record())).unwrap()
         else {
             panic!("me");
         };
@@ -382,7 +382,7 @@ fn a_me_watch_maps_its_public_project_identifier() {
         &mut exchange.out,
     );
     let stream = exchange.open_stream();
-    exchange.open_record(stream, 17, f::owned_subject(&wire::v19::Subject::Me));
+    exchange.open_record(stream, 17, f::owned_subject(&wire::v20::Subject::Me));
     let watcher = exchange.take_watch();
     exchange.component.down(&exchange.env, Event::Admitted { watcher }, &mut exchange.out);
     let mut frame = f::frame_two_projects();
@@ -393,13 +393,13 @@ fn a_me_watch_maps_its_public_project_identifier() {
         &mut exchange.out,
     );
     let packet = &exchange.stream().watches.get(&watcher).unwrap().delivery.as_ref().unwrap().event;
-    let wire::v19::StreamEvent::Delivery(value) =
-        wire::v19::StreamEvent::decode(&exchange.env.limits.wire, &mut Reader::new(packet)).unwrap()
+    let wire::v20::StreamEvent::Delivery(value) =
+        wire::v20::StreamEvent::decode(&exchange.env.limits.wire, &mut Reader::new(packet)).unwrap()
     else {
         panic!("me delivery");
     };
-    let wire::v19::DeliveryValue::Me(value) =
-        wire::v19::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document().record()))
+    let wire::v20::DeliveryValue::Me(value) =
+        wire::v20::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document().record()))
             .unwrap()
     else {
         panic!("me value");

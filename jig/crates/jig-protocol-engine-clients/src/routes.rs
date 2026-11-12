@@ -1,6 +1,6 @@
 //! Method and route dispatch (protocol/client/wire.md, section 2).
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
     ApprovalAsk,

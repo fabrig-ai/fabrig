@@ -52,6 +52,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     part of item 4's focused suite. Rule: `temper/docs/design/protocol/baseline.md`, 7,
     and `tests/boundary/tests/patches.rs`: every stored owner passes `check` against
     git's landed files and `current`, and the owner list covers every kept crate.
+12. **The size check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.1, and
+    `tests/boundary/tests/sizes.rs`'s module doc: library and shared-family lines,
+    with their shrinking exceptions.
 
 ## The gate's lists
 
@@ -90,9 +94,9 @@ Each list has one entry per line; `#` starts a comment line.
   owned-forge landing pair (`temper/docs/design/testing/live-tier.md`).
   The inputs for `live-smith` are `SMITH_LIVE`, the directory holding smith's
   ChatGPT record and Claude Code's login (smith's section 2.3); for `live-temper`,
-  `TEMPER_TEST_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_TEST_LIVE_CLAUDE` (Claude Code's
+  `TEMPER_TEST_LIVE_ANTHROPIC_KEY` (the key's file), `TEMPER_TEST_LIVE_CLAUDE` (Claude Code's
   login), `claude` on `PATH`, `TEMPER_TEST_LIVE_STORE` and a private `TMPDIR` (temper's
-  section 2.7). No API key is among these inputs.
+  section 2.7).
   On fabrig's own Forgejo, temper dispatches `.forgejo/workflows/tier-main.yml`
   at each move of main: it runs the runner's `$CI_TIER` at `temper_commit`, with
   `temper_tests` as `CI_TIER_TESTS`, and uploads `junit.xml` as the artifact `junit`.

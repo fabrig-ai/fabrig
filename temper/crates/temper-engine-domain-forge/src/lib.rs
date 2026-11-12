@@ -51,10 +51,29 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 mod away;
+mod devices;
+pub use devices::{
+    AddDevice, DEVICES, DEVICES_SUBJECT, Device, DeviceAnswer, DeviceRefusal, DeviceView, DevicesView, Push, PushAnswer,
+};
+/// Connector configuration (temper/docs/design/protocol/configuration/engine.md, Config).
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub namespace: Box<[u8]>,
+    pub writers: Box<[skein_forge_client::Writer]>,
+    /// Allowed push service origins, none when push is off.
+    pub push: Option<Box<[Box<[u8]>]>>,
+}
+
+pub mod findings;
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
     DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
     OverturnAnswer, SetAwayAnswer, decided_subject,
+};
+pub use findings::{
+    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
+    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
+    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
@@ -92,7 +111,7 @@ pub use public::{PublicAsk, PublicMade, PublicTask};
 mod playground;
 pub mod purpose;
 mod red;
-pub use red::{JobLog, RedNews, RedOn};
+pub use red::{JobLog, RedNews, RedOn, red_news_words};
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
@@ -308,9 +327,11 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
+        Stored::Finding(row) => Key::Finding { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
@@ -379,7 +400,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
     fn topic(value: &Topic) -> u64 {
         match value {
             Topic::Landings { branch, .. } => bytes(branch),
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => 0,
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => 0,
         }
     }
     match record {
@@ -481,6 +502,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 }
                 Some(held)
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectAreas(value), .. }) => {
+                let mut held = skein_lib::len_u64(value.areas.len())
+                    .checked_mul(u64::try_from(size_of::<settings::Area>()).ok()?)?;
+                for area in &value.areas {
+                    held = held.checked_add(bytes(&area.name))?.checked_add(bytes(&area.words))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Follow(follow), .. }) => {
                 let mut held = bytes(&follow.source.branch)
                     .checked_add(bytes(&follow.target.branch))?
@@ -510,6 +539,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | settings::Value::Charter(_)
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
+                    | settings::Value::ProjectTriager(_)
                     | settings::Value::Goal(_),
                 ..
             })
@@ -520,6 +550,13 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Finding(row) => {
+            let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
+            for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
+                bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
+            }
+            Some(bytes)
+        }
         Stored::Decided(row) => {
             let mut bytes = skein_lib::len_u64(row.question.len()).checked_add(skein_lib::len_u64(row.why.len()))?;
             for option in &row.options {
@@ -536,6 +573,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Finding(reply) => {
+                u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
+            }
             CallPayload::Decided { took, .. } => Some(match took {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
@@ -634,6 +674,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Device(row) => bytes(&row.endpoint).checked_add(bytes(&row.label)),
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
@@ -688,7 +729,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 };
                 total = total.checked_add(held)?;
             }
-            Some(total)
+            total.checked_add(row.relay.held_bytes()?)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?

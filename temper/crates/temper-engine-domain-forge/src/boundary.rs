@@ -300,6 +300,10 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    Device(crate::DeviceAnswer),
+    FileFinding(crate::FileFindingAnswer),
+    HandFinding(crate::HandFindingAnswer),
+    TriageFinding(crate::TriageFindingAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
@@ -842,13 +846,28 @@ pub enum Writer {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
-    Landings { repository: skein_forge::api::Repository, branch: Box<[u8]> },
+    Landings {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+    },
     /// CI changed on one commit.
-    Ci { repository: skein_forge::api::Repository, head: skein_forge::api::Commit },
+    Ci {
+        repository: skein_forge::api::Repository,
+        head: skein_forge::api::Commit,
+    },
     /// A pull's state changed.
-    Pull { repository: skein_forge::api::Repository, number: u64 },
+    Pull {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
     /// A participant wrote on an object.
-    Participation { repository: skein_forge::api::Repository, number: u64 },
+    Participation {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
+    Findings {
+        project: u32,
+    },
 }
 /// A subscriber's classification of observed news.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1202,6 +1221,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Finding(Box<crate::FindingReply>),
     Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
@@ -1305,6 +1325,8 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    Device(crate::Device),
+    Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
@@ -1347,6 +1369,7 @@ pub enum Key {
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
     LandingLog { repository: skein_forge::api::Repository },
+    Finding { project: u32, number: u32 },
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
@@ -1354,6 +1377,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
 }
@@ -1450,6 +1474,13 @@ pub enum Event {
     Signed {
         task: u64,
         signed: Box<[SignOff]>,
+    },
+    /// The service's terminal for a push (attention.md, 7.2).
+    Pushed {
+        party: u64,
+        device: u32,
+        endpoint: Box<[u8]>,
+        answer: crate::PushAnswer,
     },
     SetDraft {
         request: Token,
@@ -1945,6 +1976,11 @@ pub enum Event {
     Closer {
         row: crate::CloserRow,
     },
+    /// Commit the admitted relay without replacing concurrent step progress.
+    CloserRelayed {
+        task: u64,
+        relay: temper_engine_domain_forge_closer::relay::Relay,
+    },
     /// Read the next pending CI selection for the closer report.
     ReadCloserSelection {
         task: u64,
@@ -2073,6 +2109,19 @@ pub enum Event {
         forge: u16,
         answer: PersonAnswer,
     },
+    AddDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        person: bool,
+        call: crate::AddDevice,
+    },
+    RemoveDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        number: u32,
+    },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five
 /// bits, the serial below 2^59; `None` past that (temper/docs/design/domain/forge/keeping-up.md, 3).
@@ -2130,6 +2179,11 @@ pub enum Request {
         tier: Box<[u8]>,
         number: u64,
         tip: skein_forge::api::Commit,
+    },
+    /// File a red of no goal's in the decision keeping its verdict.
+    FileRedFinding {
+        task: u64,
+        finding: crate::FileFinding,
     },
     TierDecision {
         task: u64,
@@ -2332,6 +2386,13 @@ pub enum Request {
         resource: Option<Name>,
         cause: crate::RefusalCause,
     },
+    /// A new head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        resource: Name,
+        configured: u64,
+        needed: u64,
+    },
     /// A goal's own branch could not be made (domain/forge/branches.md, 1).
     MakeFailed {
         task: u64,
@@ -2489,6 +2550,8 @@ pub enum TierDecision {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
+    /// The root's `tasks.message_bytes`, for the red finding's news body.
+    pub message_bytes: u32,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

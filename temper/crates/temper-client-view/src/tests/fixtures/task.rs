@@ -4,7 +4,7 @@ const EXCHANGES: u32 = 8;
 const SPENT: u64 = 7;
 const BELOW: u64 = 2;
 pub fn document() -> c::Task {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let mut record = jig_client_test_records::task_record().into_parts();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = w::Task::new(&w::CEILINGS, record).expect("checked fixture");
@@ -287,6 +287,7 @@ pub fn agent_root_with_page(
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

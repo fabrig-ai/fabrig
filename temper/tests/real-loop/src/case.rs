@@ -233,7 +233,7 @@ mod identity_tests {
 
     #[test]
     fn draft_identity_matches_the_seeded_repository() {
-        let config = temper_worker_checkout_world::hosted::CONFIG;
+        let config = temper_worker_checkout_world::hosted::config();
         let mut domain = domain::Domain::new(&config, fixtures::SEED);
         let first = domain::repository(&mut domain, &config, (fixture().setup)());
         let object = skein_fake_forge_forgejo::routes::object(first);

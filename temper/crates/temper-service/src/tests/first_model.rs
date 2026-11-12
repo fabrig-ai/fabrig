@@ -6,7 +6,7 @@
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
 use super::{fixtures, stock};
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -76,7 +76,7 @@ fn stock_box(account: OneAccount) -> StockBox {
         landings: application.landings,
         kinds_stock: crate::stock::forge(&limits),
         ways_stock: Box::default(),
-        forge: skein_forge_client::Config { namespace: Box::new([31; 16]), writers: Box::new([]) },
+        forge: temper_engine_domain_forge::Config { push: None, namespace: Box::new([31; 16]), writers: Box::new([]) },
         identities: Box::new([]),
         machine: None,
         forges: Box::new([]),

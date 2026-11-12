@@ -303,6 +303,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Work { .. }
+        | crate::Address::Told
         | crate::Address::Remembered
         | crate::Address::Members
         | crate::Address::Limits
@@ -367,9 +368,11 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter == Filter::ALL && inbox.known() => Needs::Count {
-            count: u32::try_from(root.pages().needs().needs(inbox, root.forge().approvals()).len())
+            count: u32::try_from(root.pages().needs().all(inbox, root.forge().approvals()).len())
                 .expect("inbox cards fit"),
-            cut: *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() > 0,
+            cut: *inbox.cut.first().expect("needs cut")
+                || root.forge().approvals().more() > 0
+                || root.pages().needs().findings().cut_for(inbox.filter),
         },
         Some(_) | None => Needs::Unknown,
     };
@@ -456,7 +459,8 @@ pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded project requests") {
             Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Screen { .. }
+            Request::Push(_)
+            | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::Show { .. }
             | Request::Replace { .. }

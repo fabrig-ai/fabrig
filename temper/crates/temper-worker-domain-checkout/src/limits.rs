@@ -11,6 +11,9 @@ pub struct Limits {
     /// Workspaces on the worker's disk: the cache's bound, and the most that
     /// may be held at once. A prepare that finds every one held is refused.
     pub workspaces: u32,
+    /// Preparations active at once, including those waiting for a store.
+    /// The rest wait in arrival order (domain/worker/checkouts.md).
+    pub preparations: u32,
     /// Repositories a spec names: at least one.
     pub repositories: u32,
     /// The longest workstream key, repository name or remote, or branch.
@@ -34,11 +37,15 @@ pub struct Limits {
     pub facts: u32,
 }
 
-/// Whether workspaces and repositories are nonzero and the hold-slot count
+/// Whether workspaces, preparations and repositories are nonzero and the hold-slot count
 /// needed by construction is representable.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    limits.workspaces != 0 && limits.repositories != 0 && holds(limits).is_some() && stores(limits).is_some()
+    limits.workspaces != 0
+        && limits.preparations != 0
+        && limits.repositories != 0
+        && holds(limits).is_some()
+        && stores(limits).is_some()
 }
 
 /// The hold slab's capacity: two for each workspace. A hold holds one

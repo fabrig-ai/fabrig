@@ -184,6 +184,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A client stream closed on its queue or translation bound (client/engine.md).
+    ClientStreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,
@@ -237,6 +242,11 @@ pub enum Note {
         reason: &'static str,
         heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
+    },
+    /// A branch head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        words: Box<[u8]>,
     },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed {
@@ -372,10 +382,25 @@ impl Service {
         if let Some(engine) = &mut self.engine {
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
             engine.forge.github = Some(github);
+            engine.clients.pushes.roots = Some(roots.clone());
             engine.forge.roots = Some(roots);
         }
     }
 
+    /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
+    pub fn unresolved_pushes(&self) -> Box<[(skein_lib::Token, Box<[u8]>, u16)]> {
+        match &self.engine {
+            Some(engine) => engine.clients.pushes.unresolved(),
+            None => Box::new([]),
+        }
+    }
+    pub fn resolved_push(&mut self, token: skein_lib::Token, address: Option<core::net::SocketAddr>) {
+        if let Some(engine) = &mut self.engine {
+            engine.clients.pushes.resolved(token, address, engine.env.now, &mut engine.clients.io);
+        }
+    }
     /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge/engine.md, 2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
@@ -422,3 +447,6 @@ impl Service {
         }
     }
 }
+
+/// A stream edge or translation refusal (jig/docs/design/protocol/client/README.md, 5).
+pub use jig_protocol_engine_clients::StreamFailure;

@@ -9,7 +9,7 @@ use temper_client_shell_tui::{
     host::{Duties, Host, Report, Settings, Start},
     limits,
 };
-use temper_client_tui::{BoxLine, Note, Scheme};
+use temper_client_tui::{BoxLine, BoxStage, Note, Scheme};
 
 pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
 
@@ -34,7 +34,7 @@ pub struct Tui {
     pub frames: Vec<String>,
     pub sign_in_sends: usize,
     file: File,
-    handed: Option<Secret>,
+    waiting: bool,
 }
 
 impl Tui {
@@ -65,13 +65,28 @@ impl Tui {
 
     /// Starts in front of a box with its handed local link.
     pub fn front(world: &mut World<Temper, Joint>, who: ClientId, credential: Option<Secret>) -> Self {
-        Self::build(world, who, credential, File::Engine, None, true)
+        let mut tui = Self::build(world, who, credential, File::Engine, None, true);
+        assert!(tui.waiting, "Start asks for the link, but no link has arrived");
+        assert_eq!(tui.sign_in_sends, 0, "no sign-in before the handed link");
+        tui.stage(world, BoxStage::Starting);
+        let link = world.front().local_link().map(Secret::new);
+        tui.stage(world, BoxStage::Running);
+        tui.waiting = false;
+        tui.reads += 1;
+        tui.report(world, Report::Local { link });
+        tui
     }
 
     /// Carries a line read from the box through the shipped host's seam.
     pub fn boxed(&mut self, world: &mut World<Temper, Joint>, line: BoxLine) {
         self.clocks(world);
         self.report(world, Report::Front(line));
+    }
+
+    /// Carries the box's stage through the shipped host's seam.
+    pub fn stage(&mut self, world: &mut World<Temper, Joint>, stage: BoxStage) {
+        self.clocks(world);
+        self.report(world, Report::Stage(stage));
     }
 
     /// Starts with the supplied file and the address's retained sign-in note.
@@ -93,7 +108,6 @@ impl Tui {
         note: Option<Note>,
         front: bool,
     ) -> Self {
-        let handed = front.then(|| Secret::new(world.front().local_link().expect("the box's handed local link")));
         let limits = limits::tui();
         world.front().link_client(who, limits.native.client.client.domain);
         let now = world.now();
@@ -114,7 +128,7 @@ impl Tui {
             frames: Vec::new(),
             sign_in_sends: 0,
             file,
-            handed,
+            waiting: front,
         };
         tui.report(
             world,
@@ -219,13 +233,13 @@ impl Tui {
         if let Some(note) = duties.note {
             self.notes.push(note);
         }
-        if duties.local {
+        if duties.local && !self.waiting {
             self.reads += 1;
-            let link = self.handed.take().or_else(|| match &self.file {
+            let link = match &self.file {
                 File::Absent => None,
                 File::Bytes(link) => Some(link.clone()),
                 File::Engine => world.front().local_link().map(Secret::new),
-            });
+            };
             self.report(world, Report::Local { link });
         }
         if let Some(address) = duties.address {

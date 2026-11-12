@@ -44,7 +44,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         },
         Application::Forge(forge::Ask::SetDraft(call)) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Try { .. } => people::ApplicationScope::Own,
+        Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => {
+            people::ApplicationScope::Own
+        }
         Application::Dismiss {
             what:
                 forge::PersonFact::ToBegin { project }
@@ -54,7 +56,12 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Follow { project, .. }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
-        | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
+        | Application::Overturn { project, .. }
+        | Application::FileFinding(forge::FileFinding { project, .. })
+        | Application::HandFinding(forge::HandFinding { project, .. })
+        | Application::TriageFinding(forge::TriageFinding { project, .. }) => {
+            people::ApplicationScope::Project(*project)
+        }
     };
     let carried = match &request {
         Application::Try { .. } => {
@@ -76,7 +83,12 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
-        | Application::Overturn { .. } => carried,
+        | Application::Overturn { .. }
+        | Application::AddDevice(_)
+        | Application::RemoveDevice { .. }
+        | Application::FileFinding(_)
+        | Application::HandFinding(_)
+        | Application::TriageFinding(_) => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -105,11 +117,30 @@ pub(super) fn admitted(
     role: Option<people::Role>,
     person: u64,
     env: &skein_lib::Env<crate::Limits>,
+    decision: &mut crate::Decision,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::FileFinding(call) => {
+            let answer = super::findings::file_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::FileFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::HandFinding(call) => {
+            let answer = super::findings::hand_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::HandFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::TriageFinding(call) => {
+            let answer = super::findings::triage_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::TriageFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
         Application::Follow { project, follow, act } => {
             let authorized = match domain.forge.follow(project, follow) {
                 Some(setting) => match setting.owner {
@@ -142,6 +173,10 @@ pub(super) fn admitted(
                 )
                 .expect("one marker per retained key");
             finished(domain, request, Ok(token));
+        }
+        Application::AddDevice(call) => add_device(domain, request, token, person, call),
+        Application::RemoveDevice { number } => {
+            domain.work.push(Work::Forge(forge::Event::RemoveDevice { request, token, party: person, number }));
         }
         Application::SetAway { project, on, until } => {
             domain.work.push(Work::Forge(forge::Event::SetAway { request, token, party: person, project, on, until }));
@@ -180,6 +215,14 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
     }
+}
+
+fn add_device(domain: &mut Domain, request: Token, token: Token, person: u64, call: forge::AddDevice) {
+    let person_kind = match domain.core.people.kind(person) {
+        Some(people::Kind::Person) => true,
+        Some(people::Kind::Service) | None => false,
+    };
+    domain.work.push(Work::Forge(forge::Event::AddDevice { request, token, party: person, person: person_kind, call }));
 }
 
 pub(super) fn drop(domain: &mut Domain, owner: Token) {
@@ -231,6 +274,10 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::SetDraft(answer)) => Some(ApplicationAnswer::SetDraft(answer)),
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
+        Some(forge::Answered::Device(answer)) => Some(ApplicationAnswer::Device(answer)),
+        Some(forge::Answered::FileFinding(answer)) => Some(ApplicationAnswer::FileFinding(answer)),
+        Some(forge::Answered::HandFinding(answer)) => Some(ApplicationAnswer::HandFinding(answer)),
+        Some(forge::Answered::TriageFinding(answer)) => Some(ApplicationAnswer::TriageFinding(answer)),
         None => None,
     }
 }

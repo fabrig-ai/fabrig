@@ -12,10 +12,12 @@ mod making;
 pub(crate) mod playground;
 pub(crate) mod standing;
 pub use host_route::{
-    ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
+    AskHow, ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
 mod decided;
 pub(crate) mod document;
+mod finding_tool;
+pub(crate) mod findings;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
@@ -163,7 +165,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            match room_refusal(domain.host_part, &change.items) {
+            match room_refusal(domain, &change.items) {
                 Some(why) => {
                     let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
                         to: reply_to,
@@ -185,7 +187,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            match room_refusal(domain.host_part, &change.items) {
+            match room_refusal(domain, &change.items) {
                 Some(why) => {
                     let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
                         to: reply_to,
@@ -739,21 +741,35 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
 
 /// Only charter values set at an entrance are checked; resets and stored
 /// proposal acceptances retain their admitted values (temper/docs/design/domain/agent/tools.md).
-pub(crate) fn room_refusal(
-    host: Option<crate::room::HostPart>,
-    items: &[core::settings::Item],
-) -> Option<people::Refusal> {
-    let host = host?;
+pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> Option<people::Refusal> {
+    use core::settings::{Edit, Setting, Value};
+    let host = domain.host_part?;
     for (index, item) in items.iter().enumerate() {
-        if let core::settings::Setting::Charter(number) = item.setting
-            && let core::settings::Edit::Set(core::settings::Value::Charter(charter)) = &item.edit
-            && let Err(short) = host.check(number, &charter.policy)
+        if let Setting::Charter(_) = item.setting
+            && let Edit::Set(value) = &item.edit
         {
-            return Some(people::Refusal::Judged {
-                at: u32::try_from(index).expect("bounded settings items"),
-                setting: item.setting,
-                why: short.words(),
-            });
+            let made;
+            let charter = match value {
+                Value::Charter(charter) => charter,
+                Value::Overlay(overlay) => {
+                    let Some(Value::Charter(default)) = domain.core.current.default_value(item.setting) else {
+                        // Jig refuses an overlay without a default as reference.
+                        continue;
+                    };
+                    made = core::settings::overlaid(default, overlay);
+                    &made
+                }
+                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
+                    continue;
+                }
+            };
+            if let Err(short) = host.check(charter) {
+                return Some(people::Refusal::Judged {
+                    at: u32::try_from(index).expect("bounded settings items"),
+                    setting: item.setting,
+                    why: short.words(),
+                });
+            }
         }
     }
     None

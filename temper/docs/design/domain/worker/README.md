@@ -310,7 +310,8 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
 `domain/hosts/hub.md`, 2). What the worker puts in them:
 
 - **Step 2, prepare:** the checkout prepares the workspace from the items
-  (`checkouts.md`).
+  (`checkouts.md`), a few preparations at a time, runs' and jobs' alike:
+  one queued for its turn holds its run's slot and nothing in flight.
 - **Step 3, start:** smith's agent process (section 5), with the charter
   and the transcript decoded by hand-out, and the workspace as the
   checkout prepared it.
@@ -587,8 +588,10 @@ table and the git component.
   (`../../protocol/configuration/README.md`, section 3). Making one empties it
   first, so what the cache evicted, or a worker left behind before a
   restart, cannot fail a prepare. The stores sit beside them, one bare
-  repository each, set aside at every start as the workspaces are
-  (`../../protocol/git.md`, section 2): the worker keeps nothing durable.
+  repository each, and outlive a restart (`../../protocol/git.md`,
+  section 2), a cache as the workspaces are: what must survive still lives
+  in the engine's store or on the forge, and a store removed is made again
+  from the forge (`checkouts.md`).
 
 ## 9. The world
 

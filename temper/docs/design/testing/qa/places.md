@@ -66,9 +66,14 @@ this document is how a pass uses them.
   the deployment empties its `copies/` with the change. A copy is
   restored only at the place that made it, since its copies live in
   that place's directory.
-- **The cache stays:** `box/cache/` is kept across copies and builds, as
-  `../../client/drive.md`, 7 has it for a newer build's Forgejo; a copy
-  holds `config/` and `data/` alone.
+- **The cache stays:** `box/cache/` is kept across copies and builds; a
+  copy holds `config/` and `data/` alone, the fake forges' state among
+  them (`../../protocol/setup/box.md`, 5).
+- **No Forgejo and no runner:** every setup's forge is the box's fake
+  Forgejo (`setups.md`, 2), so no box at a place sets up its own
+  Forgejo, and the place's cache holds none of its binaries; a case
+  that would set one up is blocked, naming it (`passes.md`, 4;
+  `../../draft/landed-qa.md`, 6 and 12).
 
 ## 3. Installing a build
 
@@ -170,7 +175,9 @@ holder keeps the session between them.
   --bin bin --bundle bundle --scratch box`, with `--scripts F` for each
   `scripts.json` of the setup's chain, root first, from the pass's
   setups, none for `fresh`, `--strict` (`../../draft/landed-qa.md`,
-  6), and `--ports P` where the place has ports, as a walk is given
+  6), `--files` the pass's `files/` (`passes.md`, 2), which its `forge
+  commit` lines read (`../../client/drive.md`, 3.5), and `--ports P`
+  where the place has ports, as a walk is given
   them (section 4); and listens on `drive.sock`, a Unix stream socket,
   0o600, any old one removed first, since the lock is its.
   - **One request per connection:** one line, the start's, a drive line,
@@ -217,8 +224,12 @@ reached has run (`../../draft/landed-qa.md`, 5):
   (`../../client/recipe.md`, 2) not among the build's setups: a recipe
   the pass itself added may be written again.
 - **Written** to `passes/P/setups/NAME/`: `recipe`, `recipe 1`, then
-  `after PARENT` unless `fresh`, then the lines; `README.md`; and
-  `scripts.json` where given. A recipe that does not read
+  `after PARENT` unless `fresh`, then the lines; `README.md`;
+  `scripts.json` where given; and `files/`, where its `forge commit`
+  lines name any, each PATH they name copied from the pass's `files/`
+  (`passes.md`, 2) to `files/PATH`, so that the recipe holds all it
+  gives (`../../client/recipe.md`, 2). A PATH the pass's `files/` lacks
+  refuses, naming it, exit 1. A recipe that does not read
   (`recipe hash`) is removed, its refusal printed, exit 1.
 - **Proven:** walked from its parent on the same build, as section 4
   restores NAME: its parent's copy restored, or made again, then `recipe

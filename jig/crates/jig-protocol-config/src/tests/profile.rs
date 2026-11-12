@@ -109,7 +109,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 3_421_331), (Profile::Standard, 262_144, 100_883_575)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 4_270_667), (Profile::Standard, 262_144, 100_883_575)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -136,9 +136,9 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(tasks.spec_bytes, 131_072);
     assert_eq!(tasks.result_bytes, 262_144);
     assert_eq!(tasks.message_bytes, 262_144);
-    assert_eq!(tasks.charters, 12);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(tasks.executor_kinds, 18);
+    assert_eq!(tasks.charters, 16);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(tasks.executor_kinds, 21);
     assert_eq!(tasks.authority_grants, 16);
     assert_eq!(tasks.authority_segments, 8);
     assert_eq!(tasks.hold_segments, 8);
@@ -154,8 +154,8 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.people.inbox_recipients, 176);
     assert_eq!(limits.core.people.words, 8_192);
     assert_eq!(limits.core.authority.grants, 16);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(limits.core.authority.executors, 18);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(limits.core.authority.executors, 21);
     assert_eq!(limits.core.authority.segments, 8);
     assert_eq!(limits.core.authority.batch, 32);
     assert_eq!(limits.hub.charter_bytes, 262_144);
@@ -187,7 +187,7 @@ fn small_is_unchanged() {
     assert_eq!(tasks.batch, 2);
     assert_eq!(tasks.spec_bytes, 4_096);
     assert_eq!(tasks.result_bytes, 512);
-    assert_eq!(limits.store.store.value, 3_419_252);
+    assert_eq!(limits.store.store.value, 4_268_588);
 }
 
 #[test]
@@ -223,5 +223,77 @@ fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
         let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
         assert!(limits.clients_http.calls >= minimum, "{selected:?} HTTP calls carry streams and ordinary exchanges");
         assert!(limits.clients.exchanges >= limits.clients_http.calls, "{selected:?} component carries HTTP calls");
+    }
+}
+
+// jig/docs/design/protocol/limits.md: first deliveries and the HTTP frame carrying each.
+#[test]
+fn standard_stream_edges_hold_every_first_delivery() {
+    use jig_client_protocol_wire::v20 as w;
+    let limits = profile(Profile::Standard);
+    let clients = limits.clients;
+    let delivery = w::Delivery::encoded_bound(&clients.wire).expect("delivery bound") + 1;
+    assert_eq!(clients.watches_per_stream, 31);
+    assert_eq!(delivery, u64::from(clients.wire.owned_record) + 20);
+    assert_eq!(
+        u64::from(clients.queued_bytes),
+        u64::from(clients.watches_per_stream) * delivery + w::Hello::encoded_bound(&clients.wire).expect("hello") + 1
+    );
+    assert_eq!(clients.queued_bytes, 520_094_521);
+    let record =
+        u32::try_from(w::StreamEvent::encoded_bound(&clients.wire).expect("stream bound")).expect("u32 record");
+    let base64 = skein_lib::base64::encoded_len(skein_lib::base64::Alphabet::Standard, record).expect("base64");
+    assert_eq!(limits.clients_http.event, base64 + 8);
+    assert!(jig_protocol_engine_clients::valid(&clients));
+    assert_eq!(jig_protocol_engine_clients::limits::stream_queue_bytes(u32::MAX, &clients.wire), None);
+    let small = profile(Profile::Small);
+    assert_eq!((small.clients.watches_per_stream, small.clients.queued_bytes), (4, 65_536));
+}
+
+#[test]
+fn standard_sse_edge_accepts_the_largest_stream_frame() {
+    const PIECE: [u8; 1024] = [b'A'; 1024];
+    use skein_http::sse::writer as sse;
+    use skein_lib::{Env, Queue, Time, Wall};
+    let limits = profile(Profile::Standard);
+    let record =
+        jig_client_protocol_wire::v20::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
+    let data_bytes = skein_lib::base64::encoded_len(
+        skein_lib::base64::Alphabet::Standard,
+        u32::try_from(record).expect("u32 stream record"),
+    )
+    .expect("base64");
+    for short in [false, true] {
+        let mut data = skein_lib::Writer::new(usize::try_from(data_bytes).expect("data length"));
+        for _ in 0..data_bytes / 1024 {
+            data.put(&PIECE).expect("whole base64 pieces");
+        }
+        let remainder = usize::try_from(data_bytes % 1024).expect("piece remainder");
+        data.put(PIECE.get(..remainder).expect("partial piece")).expect("last base64 piece");
+        let env = Env {
+            now: Time::ZERO,
+            wall: Wall::EPOCH,
+            limits: sse::Limits {
+                event: limits.clients_http.event - u32::from(short),
+                chunk: limits.clients_http.send,
+            },
+        };
+        let mut writer = sse::Writer::new(&env.limits);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        sse::down(
+            &mut writer,
+            &env,
+            sse::Request::Event(sse::Outgoing { name: Box::new([]), data: data.finish(), id: None, retry: None }),
+            &mut above,
+            &mut below,
+        );
+        if short {
+            assert_eq!(above.pop(), Some(sse::Event::Refused(sse::Refusal::TooLong)));
+            assert!(below.is_empty());
+        } else {
+            assert!(above.is_empty());
+            assert!(below.pop().is_some(), "accepted frame asks for transport room");
+        }
     }
 }

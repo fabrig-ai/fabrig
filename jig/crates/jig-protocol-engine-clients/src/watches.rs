@@ -231,7 +231,7 @@ impl Component {
             self.streams.get_mut(&owner).expect("watch stream").watches.get_mut(&watcher).expect("new watch").unwatch =
                 true;
             self.watch_answer(env, watcher, None);
-            self.watch_ended(env, watcher, jig_domain_views::End::Stopping);
+            self.watch_ended(env, watcher, jig_domain_views::End::Stopping, out);
         } else {
             out.push(request);
         }
@@ -282,25 +282,32 @@ impl Component {
             self.streams.get_mut(&owner).expect("watch stream").watches.remove(&watcher);
         }
     }
-    fn queue_packet(
+    pub(crate) fn queue_packet(
         &mut self,
         env: &Env<Limits>,
         watcher: Token,
         value: Result<w::StreamEvent, w::Problem>,
         taken: Taken,
+        out: &mut Queue<Request>,
     ) {
         let Some(owner) = self.watcher_owner(watcher) else {
             return;
         };
         let stream = self.streams.get_mut(&owner).expect("watch stream");
-        match value {
-            Ok(value) => {
-                if !stream.queue(stream::packet(value, taken), env.limits.queued_bytes) {
-                    stream.phase = stream::Phase::Closing;
-                }
-            }
-            Err(_) => stream.phase = stream::Phase::Closing,
+        if stream.closing() {
+            return;
         }
+        let why = match value {
+            Ok(value) => {
+                if stream.queue(stream::packet(value, taken), env.limits.queued_bytes) {
+                    return;
+                }
+                crate::StreamFailure::QueueBound { queued_bytes: env.limits.queued_bytes }
+            }
+            Err(problem) => crate::StreamFailure::Translation(problem),
+        };
+        stream.phase = stream::Phase::Closing;
+        out.push(Request::StreamFailed { sign_in: stream.sign_in, why });
     }
     pub(super) fn delivery(
         &mut self,
@@ -330,7 +337,7 @@ impl Component {
             &self.settings.models,
             &env.limits.wire,
         );
-        self.queue_packet(env, watcher, value, Taken::Delivery(watcher));
+        self.queue_packet(env, watcher, value, Taken::Delivery(watcher), out);
     }
     pub(super) fn application_delivery(
         &mut self,
@@ -353,7 +360,7 @@ impl Component {
         }
         watch.delivery_pending = true;
         let value = translate::application_packet(family, watch.version, record, watch.name, &env.limits.wire);
-        self.queue_packet(env, watcher, value, Taken::Delivery(watcher));
+        self.queue_packet(env, watcher, value, Taken::Delivery(watcher), out);
     }
     pub(super) fn run_text(
         &mut self,
@@ -375,9 +382,15 @@ impl Component {
         }
         watch.text_pending = true;
         let value = translate::text_packet(&writing, watch.name, &env.limits.wire);
-        self.queue_packet(env, watcher, value, Taken::Text(watcher));
+        self.queue_packet(env, watcher, value, Taken::Text(watcher), out);
     }
-    pub(super) fn watch_ended(&mut self, env: &Env<Limits>, watcher: Token, why: jig_domain_views::End) {
+    pub(super) fn watch_ended(
+        &mut self,
+        env: &Env<Limits>,
+        watcher: Token,
+        why: jig_domain_views::End,
+        out: &mut Queue<Request>,
+    ) {
         let Some(owner) = self.watcher_owner(watcher) else {
             return;
         };
@@ -401,6 +414,7 @@ impl Component {
             watcher,
             translate::end_packet(why, name, &env.limits.wire),
             Taken::Ended { watcher, signed_out: why == jig_domain_views::End::SignedOut },
+            out,
         );
     }
     pub(super) fn end_streams(&mut self, sign_in: Option<u64>) {

@@ -1,0 +1,9 @@
+# fabrig
+
+These lines add fabrig's rules to the ones above.
+
+- **Its rules for agents:** the root `AGENTS.md` and each tree's `AGENTS.md`; whoever writes or reviews design reads `DESIGN.md` too.
+- **Before v0.1.0** a stored format, protocol or codec changes in place, with no version bump or migration: an additive change that every existing row still decodes isn't hard to reverse, and the change's report says so.
+- **Suites:** a plan's runs use the focused and fuzzy suites alone: never `tools/tiers/run`, a `<tier>-<tree>` profile or `scripts/browser.sh`, even where a spec says to. A story in a slow tier is written and compiled (`--no-run`), not run, and the report says so; after-landing runs it, and a red comes back as a repair, which may run the flagged test, by name, alone. No walk, render check or throwaway driver: a plan is complete when it lands. `temper-client-journeys again` is generation, not a walk: a branch that leaves a journey stale runs it, and on `a key mark caught a moving page` retries it at most three times.
+- **Budgets and timeouts are the user's,** never raised by a role. Over budget is red (`skein/docs/foundation/testing-strategy.md`, 8.1), repaired by asking, in order: does the test belong to its tier (moving it to escape a budget is raising it, forbidden); can it be made faster; if neither, the measurements go up as a question. The wall hard limit is a backstop: a run past it is starved, a warning, never red on that account; the tests it didn't run are unobserved, never passed, and the report names them.
+- **Known reds,** failing on g and owned by no live change, are listed in g's `.temper/known-reds.md` (`- test <binary_id> <name>`, `- lint <package> <code> <file>`), at most 64, which delivery's checks pass.

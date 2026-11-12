@@ -237,7 +237,7 @@ pub fn run(
     }
     result
 }
-struct Connection {
+pub(crate) struct Connection {
     io: Io,
     limits: skein_io::Limits,
     kernel: Kernel,
@@ -258,7 +258,7 @@ struct Connection {
     url: Box<[u8]>,
 }
 impl Connection {
-    fn new(
+    pub(crate) fn new(
         limits: &skein_io::Limits,
         config: &skein_tls::Config,
         origin: &Origin,
@@ -324,7 +324,7 @@ impl Connection {
         let now = self.clock.now();
         skein_io::down(&mut self.io, &now.with(self.limits), request, &mut self.subs);
     }
-    fn demand(&mut self) {
+    pub(crate) fn demand(&mut self) {
         let now = self.clock.now();
         http::down(
             &mut self.http,
@@ -334,7 +334,7 @@ impl Connection {
             &mut self.plain,
         );
     }
-    fn answer(&mut self) -> Result<Event, Failed> {
+    pub(crate) fn answer(&mut self) -> Result<Event, Failed> {
         loop {
             self.poll_io(false);
             while self.result.is_none() && self.pump() {}
@@ -458,7 +458,7 @@ impl Connection {
         };
         self.kernel.submit(&mut self.subs, wait);
     }
-    fn close(&mut self) {
+    pub(crate) fn close(&mut self) {
         if let Some(socket) = self.socket {
             self.io_down(skein_io::Request::Abort { entity: socket });
         }

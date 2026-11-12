@@ -58,7 +58,7 @@ fn copied(result: Result<Answer, Error>) -> u32 {
 
 #[test]
 fn a_copy_is_there_and_empty_from_its_call_and_whole_at_its_end() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let commit = h.commit(FIRST, &[(b"second", b"contents")]);
     h.push(ENGINE, b"work", commit).unwrap();
     let objects = h.domain.room().commits;
@@ -83,7 +83,7 @@ fn a_copy_is_there_and_empty_from_its_call_and_whole_at_its_end() {
 
 #[test]
 fn a_slow_copy_lasts_its_fill() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let token = begin(&mut h, REPOSITORY, ENGINE, copying(Fill::Slow(Duration::from_secs(10))));
     h.until(Time::ZERO.saturating_add(Duration::from_secs(10)));
     empty(&h);
@@ -95,7 +95,7 @@ fn a_slow_copy_lasts_its_fill() {
 
 #[test]
 fn a_cut_copy_times_out_and_stays_empty() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.call(ENGINE, copying(Fill::Cut)), Err(Error::Timeout));
     empty(&h);
     h.settle();
@@ -105,9 +105,9 @@ fn a_cut_copy_times_out_and_stays_empty() {
 
 #[test]
 fn a_copy_takes_the_domains_faults() {
-    let mut h = Harness::new(Config { unavailable: 1000, ..CALM });
+    let mut h = Harness::new(Config { unavailable: 1000, ..calm() });
     assert_eq!(h.call(ENGINE, copying(Fill::Whole)), Err(Error::Unavailable));
-    assert_eq!(h.domain.inspect(&CALM, COPY, &Read::Locate), Err(Error::Missing(What::Repository)));
+    assert_eq!(h.domain.inspect(&calm(), COPY, &Read::Locate), Err(Error::Missing(What::Repository)));
     assert_eq!(h.domain.repositories.len(), 1);
     assert_eq!(h.domain.tally().unavailable, 1);
     h.env.limits.unavailable = 0;
@@ -117,7 +117,7 @@ fn a_copy_takes_the_domains_faults() {
     h.settle();
     empty(&h);
     assert_eq!(h.domain.tally().timeouts, 1);
-    let mut h = Harness::new(Config { landing: 1000, ..CALM });
+    let mut h = Harness::new(Config { landing: 1000, ..calm() });
     copied(h.call(ENGINE, copying(Fill::Whole)));
     h.settle();
     assert_eq!(h.domain.tally().landed, 0, "copy uses fill, never late landing");
@@ -125,22 +125,22 @@ fn a_copy_takes_the_domains_faults() {
 
 #[test]
 fn a_copy_of_a_name_taken_is_exists_and_makes_nothing() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let id = copied(h.call(ENGINE, copying(Fill::Whole)));
     let objects = h.domain.room().commits;
     assert_eq!(h.call(ENGINE, copying(Fill::Whole)), Err(Error::Exists));
-    assert_eq!(h.domain.inspect(&CALM, COPY, &Read::Locate), Ok(Answer::Located { id }));
+    assert_eq!(h.domain.inspect(&calm(), COPY, &Read::Locate), Ok(Answer::Located { id }));
     assert_eq!(h.domain.repositories.len(), 2);
     assert_eq!(h.domain.room().commits, objects);
     assert_eq!(h.domain.branch(COPY, MAIN), Some(FIRST));
     let other = write(Write::Copy { owner: copy_of(b"org"), name: copy_of(b"other"), fill: Fill::Whole });
     assert_eq!(h.call(ENGINE, other), Err(Error::Full));
-    assert_eq!(h.domain.inspect(&CALM, b"org/other", &Read::Locate), Err(Error::Missing(What::Repository)));
+    assert_eq!(h.domain.inspect(&calm(), b"org/other", &Read::Locate), Err(Error::Missing(What::Repository)));
 }
 
 #[test]
 fn the_source_hears_nothing() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     copied(h.call(ENGINE, copying(Fill::Whole)));
     // Even refused copies must not produce a refusal naming the source.
     assert_eq!(h.call(ENGINE, copying(Fill::Whole)), Err(Error::Exists));
@@ -155,9 +155,9 @@ fn the_source_hears_nothing() {
 
 #[test]
 fn a_deleted_repository_frees_its_name_and_reads_nothing() {
-    let mut config = CALM;
+    let mut config = calm();
     config.limits.repositories = 3;
-    let mut h = Harness::new(config);
+    let mut h = Harness::new(config.clone());
     let id = copied(h.call(ENGINE, copying(Fill::Whole)));
     let slot = h.domain.id(COPY);
     assert_eq!(h.call_on(COPY, PERSON, write(Write::DeleteRepository)), Err(Error::Forbidden));
@@ -176,7 +176,7 @@ fn a_deleted_repository_frees_its_name_and_reads_nothing() {
 
 #[test]
 fn a_deleted_copy_ends_its_call() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let token = begin(&mut h, REPOSITORY, ENGINE, copying(Fill::Slow(Duration::from_secs(10))));
     let slot = h.domain.id(COPY);
     assert_eq!(h.call_on(COPY, ENGINE, write(Write::DeleteRepository)), Ok(Answer::Done));
@@ -185,12 +185,12 @@ fn a_deleted_copy_ends_its_call() {
     assert_eq!(h.domain.calls(), 0);
     assert!(h.domain.repositories.get(slot).unwrap().branches.is_empty());
     assert!(h.domain.repositories.get(slot).unwrap().has.is_empty());
-    assert_eq!(h.domain.inspect(&CALM, COPY, &Read::Locate), Err(Error::Missing(What::Repository)));
+    assert_eq!(h.domain.inspect(&calm(), COPY, &Read::Locate), Err(Error::Missing(What::Repository)));
 }
 
 #[test]
 fn a_deleted_source_is_passed_over_by_pending_alarms() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.push(ENGINE, b"work", FIRST).unwrap();
     while h.domain.pop_observation().is_some() {}
     assert_eq!(h.call(ADMIN, write(Write::DeleteRepository)), Ok(Answer::Done));

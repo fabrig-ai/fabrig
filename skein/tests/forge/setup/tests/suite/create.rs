@@ -63,7 +63,7 @@ fn creation_makes_the_org_repository_access_hook_and_bot_authored_file() {
     let bot = world.store().find(b"kit").expect("bot").id;
     let (domain, config) = world.domain_mut();
     let mut out = skein_lib::Queue::uncapped();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *config };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() };
     domain::step(
         domain,
         &env,
@@ -81,14 +81,14 @@ fn creation_makes_the_org_repository_access_hook_and_bot_authored_file() {
     );
 }
 #[test]
-fn a_second_creation_only_patches_the_existing_hook() {
+fn a_second_creation_only_deletes_and_creates_the_hook() {
     let mut world = world();
     run(&mut world);
     let since = world.requests().len();
     let result = run(&mut world);
     assert_eq!(result, Ended::Done);
     assert_eq!(world.outcome(), Some(&created()));
-    assert_eq!(fixtures::write_routes(&world, since), [Route::EditRepoHook]);
+    assert_eq!(fixtures::write_routes(&world, since), [Route::DeleteRepoHook, Route::CreateRepoHook]);
     assert_eq!(world.domain().branch(FULL, b"main"), Some(FILE_COMMIT));
 }
 #[test]
@@ -111,7 +111,7 @@ fn an_existing_org_and_person_edited_file_are_left_alone() {
     world.store_mut().account(b"someone-else", false, b"");
     run(&mut world);
     let (domain, config) = world.domain_mut();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *config };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() };
     let edited = domain::advance(domain, &env, FULL, b"main", PATH, b"the person's bytes\n", 1).expect("person edit");
     let result = run(&mut world);
     assert_eq!(result, Ended::Done);

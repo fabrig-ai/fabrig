@@ -128,7 +128,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 37);
+    assert_eq!(charter.grants.host_tools.len(), 38);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
@@ -179,6 +179,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
                 && tool.name.as_ref() != b"goal"
                 && tool.name.as_ref() != b"change"
                 && tool.name.as_ref() != b"delegate"
+                && tool.name.as_ref() != b"finding"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -202,6 +203,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             && tool.name.as_ref() != b"goal"
             && tool.name.as_ref() != b"change"
             && tool.name.as_ref() != b"delegate"
+            && tool.name.as_ref() != b"finding"
         {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
         }
@@ -274,7 +276,8 @@ fn settings_and_delegate_tools_need_the_charters_family() {
                 if charter & 1 == 0
                     && (tool.name.as_ref() == b"goal"
                         || tool.name.as_ref() == b"change"
-                        || tool.name.as_ref() == b"delegate")
+                        || tool.name.as_ref() == b"delegate"
+                        || tool.name.as_ref() == b"finding")
                 {
                     continue;
                 }
@@ -332,11 +335,43 @@ fn message_is_offered_only_with_the_runs_message_family() {
                 assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
             }
             assert_eq!(offered.next(), None, "{role}: no additional tools");
-            assert_eq!(
-                charter.grants.host_tools.len(),
-                37 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
-            );
         }
+    }
+}
+
+#[test]
+fn declarations_name_no_asking_tool_the_caller_lacks() {
+    let tools = crate::calls::tools_for(
+        Duration::from_secs(10),
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0),
+    );
+    let mut decided = None;
+    let mut read = None;
+    for tool in &tools {
+        assert_ne!(tool.name.as_ref(), b"message");
+        if tool.name.as_ref() == b"decided" {
+            decided = Some(tool);
+        }
+        if tool.name.as_ref() == b"read_task" {
+            read = Some(tool);
+        }
+    }
+    let decided = decided.expect("decided declared");
+    assert_eq!(decided.description.as_ref(), b"Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.");
+    let schema = crate::json::parse(&decided.schema).expect("schema");
+    let under = schema.required(b"properties").unwrap().required(b"under").unwrap().required(b"description").unwrap();
+    assert_eq!(
+        under.text(b"description").unwrap().as_ref(),
+        b"The item with words of the project's classes that covers this choice."
+    );
+    let read = read.expect("task read declared");
+    assert_eq!(
+        read.description.as_ref(),
+        b"Specs/results, from=next. Durable question numbers and answerers, for an answer."
+    );
+    for text in [&decided.description, &decided.schema, &read.description] {
+        assert!(skein_lib::bytes::find(text, b"message").is_none());
     }
 }
 
@@ -571,6 +606,9 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
+#[path = "finding/tests.rs"]
+mod finding;
+
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
         (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),
@@ -600,6 +638,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
+        (b"finding", br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"..."}"#, br#"{"act":"file"}"#),
         (b"decided", br#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#, br"{}"),
         (b"goal", br#"{"words":"plan"}"#, br"{}"),
         (b"delegate", br#"{"batch":[]}"#, br#"{"batch":{}}"#),
@@ -1473,7 +1512,30 @@ fn amend_and_release_calls_name_their_revision() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "the answer table allocates boxed task-read cases at runtime")]
 fn each_of_jigs_new_call_answers_renders_its_task_and_value() {
+    let live = jig_domain_core::reads::run_task::TaskRead {
+        task: 7,
+        state: jig_domain_core::reads::run_task::TaskState::Active(tasks::Active::Due),
+        spec_revision: 2,
+        dependencies: Box::new([]),
+        questions: Box::new([]),
+        words: jig_domain_core::reads::TaskText {
+            task: 7,
+            field: jig_domain_core::reads::TaskTextField::Specification,
+            from: 0,
+            total: 5,
+            next: None,
+            bytes: b"hello".as_slice().into(),
+        },
+        verdict_code: None,
+        result_pending: true,
+        hold: None,
+    };
     let answer_cases: &[(engine::CallAnswer, &[u8], bool)] = &[
+        (
+            engine::CallAnswer::TaskRead(Box::new(Ok(live))),
+            b"Task 7, spec revision 2\nState: active\nDependencies:\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.\nWords from 0:\nhello",
+            false,
+        ),
         (
             engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Unknown))),
             b"Task read refused: unknown: no such task, no result yet, or no text at that offset. A task has a result only once it has ended, and its requester hears it then as a result message; while it runs, read its specification (leave out field) for its state, holds and questions.",
@@ -3626,6 +3688,7 @@ fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
     jig_domain_core::reads::run_task::TaskRead {
         task: 23,
         verdict_code: None,
+        result_pending: false,
         questions: Box::new([]),
         state: jig_domain_core::reads::run_task::TaskState::Held,
         spec_revision: 8,

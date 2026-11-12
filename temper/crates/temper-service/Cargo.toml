@@ -42,6 +42,7 @@ temper-client-protocol-wire.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-protocol-engine-clients-http.workspace = true
 skein-http.workspace = true
+skein-push.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-lib.workspace = true
 skein-channel.workspace = true
@@ -92,6 +93,7 @@ jig-protocol-worker-link = { workspace = true, optional = true }
 jig-protocol-worker-agents = { workspace = true, optional = true }
 
 [dev-dependencies]
+jig-client-protocol-link.workspace = true
 temper-test-env.workspace = true
 smith-protocol-llm.workspace = true
 serde_json.workspace = true

@@ -220,6 +220,11 @@ fn restored(request: &Ask) -> bool {
         | w::Request::SetAway(_)
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
+        | w::Request::AddDevice(_)
+        | w::Request::RemoveDevice(_)
+        | w::Request::FileFinding(_)
+        | w::Request::HandFinding(_)
+        | w::Request::TriageFinding(_)
         | w::Request::TryAccount(_) => false,
     }
 }

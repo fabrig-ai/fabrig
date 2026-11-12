@@ -4,7 +4,7 @@ use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::{VERSION, v19 as w};
+use jig_client_protocol_wire::{VERSION, v20 as w};
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
 pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {

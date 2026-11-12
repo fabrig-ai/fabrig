@@ -60,6 +60,36 @@ pub fn charter_owned_bytes(charter: &crate::Charter) -> Option<u64> {
     Some(bytes)
 }
 
+/// Deep owned allocations of an overlay, excluding its struct (domain/engine/overlays.md, 7).
+#[must_use]
+pub fn overlay_owned_bytes(overlay: &crate::settings::Overlay) -> Option<u64> {
+    let mut bytes = len_u64(overlay.instructions.len()).checked_add(parts_owned_bytes(&overlay.parts)?)?;
+    if let Some(model) = &overlay.model {
+        bytes = bytes.checked_add(model_owned_bytes(model)?)?;
+    }
+    if let Some(models) = &overlay.alternatives {
+        bytes = bytes.checked_add(sizeof(models.len())?.checked_mul(sizeof(size_of::<crate::Model>())?)?)?;
+        for model in models {
+            bytes = bytes.checked_add(model_owned_bytes(model)?)?;
+        }
+    }
+    if let Some(documents) = &overlay.documents {
+        bytes = bytes.checked_add(sizeof(documents.len())?.checked_mul(sizeof(size_of::<crate::Document>())?)?)?;
+        for document in documents {
+            bytes = bytes
+                .checked_add(sizeof(document.name.segments.len())?.checked_mul(sizeof(size_of::<Box<[u8]>>())?)?)?
+                .checked_add(sizeof(document.path.len())?)?;
+            for segment in &document.name.segments {
+                bytes = bytes.checked_add(sizeof(segment.len())?)?;
+            }
+            if let Some(heading) = &document.heading {
+                bytes = bytes.checked_add(sizeof(heading.len())?)?;
+            }
+        }
+    }
+    Some(bytes)
+}
+
 /// The bytes a charter's parts add to its stored policy: each part's own size, its
 /// instructions and the two bytes of the blank line that joins them
 /// (jig/docs/design/protocol/limits.md).
@@ -113,6 +143,27 @@ pub fn policy_owned_bytes(policy: &crate::RunPolicy) -> Option<u64> {
         let owned = model_owned_bytes(model)?;
         bytes = bytes.checked_add(owned)?;
         largest = largest.max(owned);
+    }
+    bytes.checked_add(largest)
+}
+
+/// Stored overlay policy and parts, bounded as a charter's (domain/engine/overlays.md, 7).
+#[must_use]
+pub fn overlay_policy_bytes(overlay: &crate::settings::Overlay) -> Option<u64> {
+    let mut bytes = sizeof(size_of::<crate::RunPolicy>())?
+        .checked_add(len_u64(overlay.instructions.len()))?
+        .checked_add(parts_owned_bytes(&overlay.parts)?)?;
+    let mut largest = 0;
+    if let Some(model) = &overlay.model {
+        largest = model_owned_bytes(model)?;
+        bytes = bytes.checked_add(sizeof(size_of::<crate::Model>())?)?.checked_add(largest)?;
+    }
+    if let Some(models) = &overlay.alternatives {
+        for model in models {
+            let owned = model_owned_bytes(model)?;
+            bytes = bytes.checked_add(sizeof(size_of::<crate::Model>())?)?.checked_add(owned)?;
+            largest = largest.max(owned);
+        }
     }
     bytes.checked_add(largest)
 }

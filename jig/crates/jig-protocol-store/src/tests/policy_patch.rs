@@ -50,7 +50,7 @@ fn narrowed(executors: &[Executor]) -> jig_domain_people::PolicyValue {
         }
     }
     let bytes = patcher.finish().expect("current policy row");
-    let Stored::Policy { project, name, value: result } = people::decode(&bytes, &limits, &[]).expect("current row")
+    let Stored::Policy { project, name, value: result } = people::decode(bytes, &limits, &[]).expect("current row")
     else {
         panic!("policy row")
     };

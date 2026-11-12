@@ -134,6 +134,7 @@ pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Resu
 
 fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
     match value {
+        top::CallPayload::Finding(reply) => w::CallPayload::Finding(Box::new(super::findings::encode_reply(reply))),
         top::CallPayload::Decided { took, reach } => {
             let reach = match reach {
                 Some(reach) => Some(super::away::encode_reach(*reach)),
@@ -177,6 +178,7 @@ fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
 }
 fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPayload, Undecodable> {
     Ok(match value {
+        w::CallPayload::Finding(reply) => top::CallPayload::Finding(Box::new(super::findings::decode_reply(*reply))),
         w::CallPayload::Decided(value) => {
             let w::CallDecidedParts { took, reach } = value.into_parts();
             let reach = match reach {

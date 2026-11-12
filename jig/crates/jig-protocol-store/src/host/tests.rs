@@ -227,6 +227,11 @@ fn debug_of_the_hosted_store_counts_its_terminals() {
     let debug = alloc::fmt::format(format_args!("{hosted:?}"));
     assert!(!debug.contains("171"));
     assert!(debug.contains("above: 1"));
+    let wait = hosted.wait_state();
+    assert!(!wait.adopted && !wait.started && !wait.root_pending);
+    assert_eq!(wait.opening, "idle");
+    let debug = alloc::fmt::format(format_args!("{wait:?}"));
+    assert!(!debug.contains("171"), "opening diagnostics contain no terminal payloads");
 }
 
 #[test]

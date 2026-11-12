@@ -105,6 +105,10 @@ impl Session {
             Ok(session)
         }
     }
+    /// A walk selects the current recipe's files before its next line.
+    pub(crate) fn files(&mut self, directory: Option<PathBuf>) {
+        self.machine.plan.options.files = directory;
+    }
     pub fn line(&mut self, source: &[u8]) -> Result<Answer, Exit> {
         self.event(Event::Line(source.into()));
         loop {
@@ -352,13 +356,16 @@ impl Session {
                 break;
             }
             match action {
-                Action::ReadForgeLog { path } => self.event(Event::ForgeLog(forge::read_log(&path))),
-                Action::ForgeRequest { api, header, method, path, body, until } => {
+                Action::ReadBoxLog { path } => self.event(Event::BoxLog(forge::read_log(&path))),
+                Action::ReadForgeFiles { directory, paths } => {
+                    self.event(Event::ForgeFiles(forge::read_files(&directory, &paths)));
+                }
+                Action::ForgeRequest { api, token_file, method, path, body, until } => {
                     if self.pump.now() >= until {
                         self.event(Event::Deadline);
                         continue;
                     }
-                    match forge::prepare(&api, &header, method, &path, body) {
+                    match forge::prepare(&api, &token_file, method, &path, body) {
                         Ok(prepared) => {
                             self.serial = self.serial.checked_add(1).expect("forge identities fit");
                             let (connection, requests) = forge::Connection::start(Token::new(self.serial), prepared);

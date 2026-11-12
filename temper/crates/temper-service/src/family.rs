@@ -7,6 +7,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
+mod findings;
 mod refusals;
 mod ways;
 pub use ways::ways_panel;
@@ -30,6 +31,7 @@ pub struct Deployment {
     pub welcome: bool,
     pub owned: bool,
     pub program_login: Option<Box<[u8]>>,
+    pub push: Option<[u8; 65]>,
 }
 
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
@@ -209,9 +211,14 @@ pub fn to_root(
                         | w::Request::FollowAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
+                        | w::Request::FileFinding(_)
+                        | w::Request::HandFinding(_)
+                        | w::Request::TriageFinding(_)
                         | w::Request::SetDraft(_)
                         | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
+                        | w::Request::AddDevice(_)
+                        | w::Request::RemoveDevice(_)
                         | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
                         | w::Request::Looked(_)
@@ -388,6 +395,29 @@ pub fn to_root(
                         request: root::Application::Looked { project: value.project() },
                     }));
                 }
+                w::Request::AddDevice(value) => {
+                    let w::AddDeviceParts { endpoint, p256dh, auth, label } = value.into_parts();
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::AddDevice(forge::AddDevice { endpoint, p256dh, auth, label }),
+                    }));
+                }
+                w::Request::RemoveDevice(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::RemoveDevice { number: value.number() },
+                    }));
+                }
                 w::Request::SetAway(value) => {
                     let value = value.into_parts();
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -416,6 +446,17 @@ pub fn to_root(
                         digest,
                         carried,
                         request: root::Application::Overturn { project: value.project(), number: value.number() },
+                    }));
+                }
+                value @ (w::Request::FileFinding(_) | w::Request::HandFinding(_) | w::Request::TriageFinding(_)) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: findings::request(value).expect("findings request"),
                     }));
                 }
                 w::Request::Adopt(value) => value,
@@ -463,6 +504,13 @@ pub fn to_root(
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    w::Read::Finding(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::Finding(read))
+                        } else {
+                            None
+                        }
                     }
                     w::Read::View(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
@@ -547,10 +595,24 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::status_subject(subject.project())),
                     },
+                    w::Watch::Devices => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::DEVICES_SUBJECT),
+                    },
                     w::Watch::Away => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
                         subject: Token::new(forge::AWAY_SUBJECT),
+                    },
+                    w::Watch::Findings(subject) => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::findings_subject(
+                            subject.project(),
+                            findings::state(subject.state().as_ref()),
+                            subject.mine(),
+                        )),
                     },
                     w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
@@ -885,7 +947,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v19::Limits,
+    jig: &jig_client_protocol_wire::v20::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
@@ -927,13 +989,38 @@ pub fn answer(
                 w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
             }
         },
-        Some(temper_engine_domain::ApplicationAnswer::Adopt(
+        Some(root::ApplicationAnswer::Adopt(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
+        Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value, limits)?,
+        Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value, limits)?,
+        Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value, limits)?,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
+        Some(root::ApplicationAnswer::Device(answer)) => match answer {
+            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(
+                w::DeviceAdded::new(limits, w::DeviceAddedParts { number }).expect("device number"),
+            ),
+            forge::DeviceAnswer::Removed => w::Outcome::DeviceRemoved,
+            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(
+                w::DeviceRefused::new(
+                    limits,
+                    w::DeviceRefusedParts {
+                        reason: match why {
+                            forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
+                            forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
+                            forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
+                            forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
+                            forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
+                            forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
+                        },
+                    },
+                )
+                .expect("device refusal"),
+            ),
+        },
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
         Some(root::ApplicationAnswer::SetDraft(answer)) => match answer {
             forge::SetDraftAnswer::Kept(view) => w::Outcome::Drafted(landed_draft(view, limits)?),
@@ -1664,6 +1751,8 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Devices(value) => devices(value, limits),
+        forge::Document::Findings(value) => findings::document(value, limits),
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -2038,6 +2127,7 @@ fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
             welcome: deployment.welcome,
             owned: deployment.owned,
             program_login: deployment.program_login.clone(),
+            push: deployment.push,
         },
     )
     .expect("checked deployment facts fit the wire");
@@ -2084,6 +2174,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(
@@ -2134,6 +2225,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
 
 fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
+        w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
         w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {
             Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
@@ -2336,4 +2428,25 @@ fn approval_people(people: Box<[root::ApprovalPerson]>, limits: &w::Limits) -> O
             .ok()?;
     }
     Some(values)
+}
+
+fn devices(value: forge::DevicesView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut rows = List::with_capacity(forge::DEVICES);
+    for row in value.rows {
+        rows.push(
+            w::DeviceRow::new(
+                limits,
+                w::DeviceRowParts {
+                    number: row.number,
+                    label: row.label,
+                    at: row.at.as_nanos(),
+                    endpoint: row.endpoint,
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    let document = w::Devices::new(limits, w::DevicesParts { rows }).ok()?;
+    Some(wire::devices(&document))
 }

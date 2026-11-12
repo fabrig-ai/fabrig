@@ -1,0 +1,8 @@
+charter 3, revision 5
+{"rest":false,"number":3,"instructions":"Default\n\ncommon\n\ngoal","waiting":1000000000,"resume":false,"turns":800,"time":2000000000,"reserve_turns":1,"reserve_time":1000000000,"model":{"provider":1,"dialect":1,"endpoint":2,"program":"program","name":"model","window":4096,"output":1024,"input_price":1,"cached_price":2,"cache_write_price":3,"output_price":4,"price_unit":1000,"efforts":["high"],"effort":"high"},"alternatives":[{"provider":1,"dialect":1,"endpoint":2,"program":"program","name":"model","window":4096,"output":1024,"input_price":1,"cached_price":2,"cache_write_price":3,"output_price":4,"price_unit":1000,"efforts":["high"],"effort":"high"}],"inspect":true,"modify":true,"shell":true,"agents":false,"call_timeout":3000000000,"tools":1536,"hosts":"both","spend":900,"wake":{"words":"immediate","notices":"immediate","news":"immediate","results":"last_or_failure","questions":true,"answers":true,"timers":true},"documents":[{"forge":"code.example","repository":"team/rules","branch":"main","path":"AGENTS.md","heading":"Rules"},{"forge":"code.example","repository":"team/rules","branch":"topic/rules","path":"docs/rules.md","heading":null}],"parts":[{"on":["first"],"instructions":"default part"},{"on":["first"],"instructions":"designer"},{"on":["first","question"],"instructions":"questions"},{"on":["result"],"instructions":"results"}]}
+overlay replaces: turns, shell
+overlay adds: 12 bytes of instructions
+parts[0]: on first; 12 bytes
+parts[1]: on first; 8 bytes; overlay
+parts[2]: on first question; 9 bytes; overlay
+parts[3]: on result; 7 bytes; overlay

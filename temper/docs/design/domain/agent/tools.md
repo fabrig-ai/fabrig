@@ -108,9 +108,20 @@
 - **A coordinator's task reads.** `read_task {task, field?, from?}` returns a
   related task's specification by default, state, dependencies and spec revision,
   and its hold revision, reason and connector-supplied account. Retained ended
-  direct delegates remain readable. `field=result` reads kept terminal reports,
-  including descendants reached through a proven same-project requester chain
-  of live or retained intermediate tasks (jig's `domain/engine/executors.md`, 3).
+  direct delegates remain readable, and so is every task below the run's task,
+  at any depth, reached through a proven same-project requester chain of live
+  or retained intermediate tasks, its specification and its result alike: a
+  goal reads the coding agent under one of its changes, or a task under its
+  closer, by the number its messages name. The dependencies of the run's
+  task's requester, live or retained, are read too, read only: a change's
+  coding agent, and a repair or resolution under that change, read the changes
+  its `after` names (1) (jig's `domain/engine/executors.md`, 3).
+  `field=result` reads kept terminal reports. A live task's `field=result`
+  read answers as its specification read does: its header, with its state,
+  hold and questions, then the line `Result: none yet; it comes when the task
+  ends. Its specification follows; continue it with field left out.` and the
+  specification's first page. At an offset past 0 it is unknown, as an ended
+  task's missing report is.
   One answer holds as much of the words as the run's reply takes, whatever a
   client's `documents.text_bytes`, so a spec within that room comes back in one
   call: the reply bound its worker names in its hello, else the local agent's.
@@ -198,9 +209,16 @@
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
   `propose_settings`), temper sums each charter's offered tools, its
-  instructions and the fixed parts, and refuses one that leaves its
+  instructions with every one of its parts joined to them, the most any
+  of its runs can select, and the fixed parts, and refuses one that leaves its
   brief less than 2,048 bytes, naming the charter and both figures
-  (`../../protocol/configuration/limits.md`). A stored proposal's
+  (`../../protocol/configuration/limits.md`). An item setting an
+  overlay is judged on the charter it makes over the charter's current
+  default (jig's `domain/engine/overlays.md`, 1), and the start's check,
+  over the defaults and again once the stored settings are restored,
+  judges each overlaid charter as its runs read it, so that a release
+  whose new default leaves an overlaid charter too little room stops
+  the start, naming the charter. A stored proposal's
   acceptance, a restore and a reset carry values that passed an
   entrance or the start, and the bound does not move while the engine
   runs. The sum is a table of each host family's declaration bytes and
@@ -351,22 +369,82 @@
   `question` at most 400 bytes, each option 120, `why` 400, a call past
   those refused at decoding, saying so. The forge judges it (`../forge/attention.md`,
   5 and 6): "Decided: carry on with TOOK." with a `Decided` row
-  saved, or "Ask: REASON. Ask with message, as a question; if your brief
-  says [Requested by person N], with delegate, a person task addressed to
-  person N.", REASON from its reach: "money always waits for your
+  saved, or "Ask: REASON. HOW", REASON from its reach: "money always waits for your
   person", "implementation asks your person, even when away",
   "implementation asks your person while they are here", "changes to
   path set N ask your person, even when away", whose name `settings
   project-classes` reads (`ask-temper.md`, 1), "your words say Asks: always", "your person's decided list is full for today" where the
   class decided and no row had room, and, for a caller with no person,
-  "no person is asked through you: ask your requester". Named and decided
-  once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
-  anything hard to reverse are `money` or `irreversible` and always wait,
-  by the charter's words (`../../protocol/configuration/stock.md`); a change
-  to the classes, a landing rule or a standing role's rules is `rules`.
-  A task that overturned words reach (`../../client/pages/README.md`) asks it
-  by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
-  answers a question for it, and one that skips the tool waits as ever.
+  "no person is asked through you". Named and decided
+  once, as `change`.
+  - **HOW names the one way its caller can ask,** never a tool it
+    lacks. The root reads it from the caller's task as it renders the
+    answer, and passes it to the renderer beside the answer (the
+    decision, `took` and `reach`, stays as stored): `Ask your requester
+    with message, as a question.` where the caller's requester is a task
+    and its authority holds the Message family; `Ask person N with
+    delegate, a person task addressed to them.` where its requester is
+    person N and its charter names the delegate family (`agents.md`, 2);
+    and, where neither holds, the answer reads "Not decided: REASON.
+    Nothing you hold asks anyone: decide within your brief, or leave
+    the choice and your recommendation in your result." in place of
+    the `Ask:` form. So a change's review, or an agent of a change with
+    questions `none` (`../forge/change/README.md`, 1), is never told to
+    call `message`; a repair of a change with questions `up` is told to
+    ask its change.
+  - Funds, sign-ins, machines, a plan's go-ahead and
+    anything hard to reverse are `money` or `irreversible` and always wait,
+    by the charter's words (`../../protocol/configuration/stock.md`); a change
+    to the classes, a landing rule or a standing role's rules is `rules`.
+    A task that overturned words reach (`../../client/pages/README.md`) asks it
+    by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
+    answers a question for it, and one that skips the tool waits as ever.
+- **What a run reads names what it holds.** A declaration's description,
+  or a member's, names another host tool as the way for the run to do
+  something only where every run offered the first is offered the
+  second; elsewhere it says what to do in words that name no tool. A
+  member that takes another tool's shape (`propose`'s `amendment`, "as
+  amend's amendment") names no call, nor does a tool's effect on other
+  tasks (`introduce`'s). So `decided` reads "Ask whether you may decide
+  this for your person. Carry on only if decided; otherwise its answer
+  says how you can ask.", its `under` "The item with words of the
+  project's classes that covers this choice.", and `read_task`, offered
+  with the read family alone, "Specs/results, from=next. Durable
+  question numbers and answerers, for an answer."
+- **A proposed `amend` takes `amend`'s amendment** (jig's
+  `domain/tasks/proposals.md`): one naming no authority proposes the
+  target's authority kept, as `amend` takes it, and what it needs is
+  read from the target's authority; `authority shape` refuses only an
+  authority it names that is malformed.
+- **`finding`,** of the delegate family, declared where `goal` and
+  `change` are, so that a chat, a goal's coordinator and a standing role
+  file and triage findings in their task's project (`../findings.md`,
+  sections 4 and 6; `../areas.md`, sections 5 and 7). One tool, its
+  `act` saying which:
+  - `{"act": "file", "kind", "severity", "area", "title", "body"}`,
+    `kind` one of `qa`, `flake`, `red`, `review` and `feedback`,
+    `severity` one of `low`, `medium` and `high`, `area` optional, title
+    and body within `../findings.md`, section 2's bounds: "Filed finding
+    P/N; it is HOLDER's.";
+  - `{"act": "hand", "number", "area", "why"}`: "Handed finding P/N to
+    area NAME; it is HOLDER's.";
+  - `{"act": "route", "number", "goal"}`, `{"act": "backlog",
+    "number"}` and `{"act": "drop", "number", "reason"}`: "Routed
+    finding P/N to task G.", "Finding P/N is in the backlog.", "Dropped
+    finding P/N.";
+  - `{"act": "list", "state", "mine"}`, both optional: the project's
+    areas, a line each, `NAME (OWNER, HOLDER): WORDS`, its triager's
+    line, then its findings newest first, a line each, `P/N STATE KIND
+    SEVERITY AREA HOLDER: TITLE`, cut to the answer's bound with `and K
+    more`;
+  - `{"act": "show", "number"}`: one finding whole, as `temper ctl
+    finding show` prints it.
+
+  `HOLDER` is `task N`, `party N` or `role N`, by `../areas.md`, section
+  4. Its refusals are `../areas.md`, section 7's words, marked an error,
+  and the run goes on. The writes are named and decided once, as
+  `change`; `list` and `show` are reads.
+
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and
@@ -525,7 +603,10 @@ delegate from what it knows:
   the `name` of an earlier change in the same call. The change waits on
   them as any task does, so it starts once each has ended done; a name
   the call does not give before it, or a task jig refuses, refuses the
-  call, naming it.
+  call, naming it. Its producer, and every other task it delegates to, may
+  read each of them with `read_task`, live or retained, read only (jig's
+  `domain/engine/executors.md`, 3): a dependency is no reference, and
+  carries no message.
 - **`merge`:** a catch-up (../forge/README.md, section 6): the commit to take, as
   40 or 64 hexadecimal digits, which the merge job merges into a branch
   made at the landing branch's tip, as the change's producer in place of

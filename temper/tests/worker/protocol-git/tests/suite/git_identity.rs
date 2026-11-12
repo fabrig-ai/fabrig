@@ -31,3 +31,13 @@ fn commits_without_an_author_identity_never_run_git() {
         refuses_without_git(fixtures::commit(merging));
     }
 }
+
+#[test]
+fn lazy_fetch_operations_without_an_identity_never_run_git() {
+    for (_, scenario) in fixtures::operations()
+        .into_iter()
+        .filter(|(_, scenario)| matches!(scenario.op, git::Op::CheckOut { .. } | git::Op::Merge { .. }))
+    {
+        refuses_without_git(scenario);
+    }
+}

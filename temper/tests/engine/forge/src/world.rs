@@ -66,6 +66,7 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -121,6 +122,7 @@ struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
+    files_page: Option<u32>,
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
@@ -384,6 +386,13 @@ impl World {
     /// Script a dialect's measured refusal of pull-file sides.
     pub fn reject_file_sides(&mut self, excess: skein_forge::api::Excess) {
         self.read_script.files_excess = Some(excess);
+        self.read_script.files_page = None;
+    }
+
+    /// Refuse only the seeded page, allowing earlier pages to reach the fake.
+    pub fn reject_file_page(&mut self, page: u32, excess: skein_forge::api::Excess) {
+        self.read_script.files_excess = Some(excess);
+        self.read_script.files_page = Some(page);
     }
 
     /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
@@ -447,7 +456,7 @@ impl World {
         branches: u32,
         turn: bool,
         tier: Option<raw::Workflow>,
-        mut config: forge::Config,
+        config: forge::Config,
         passes: Option<u32>,
     ) -> World {
         let tiered = tier.is_some();
@@ -457,23 +466,7 @@ impl World {
             client: skein_forge_client::Limits { facts, ..CLIENT },
             ..LIMITS
         };
-        config.limits.branches = branches;
-        if tiered {
-            config.limits.statuses = 16;
-            config.limits.content_bytes = 512;
-            config.limits.commits = 32;
-        }
-        config.limits.workflows = u32::from(turn || tiered);
-        config.limits.workflow_runs = if tiered {
-            16
-        } else if turn {
-            4
-        } else {
-            0
-        };
-        config.limits.bypassing_users = protection
-            .as_ref()
-            .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+        let config = scenario_config(config, branches, turn, tiered, protection.as_ref());
         let mut fake = forge::Domain::new(&config, seed);
         forge::repository(
             &mut fake,
@@ -504,7 +497,11 @@ impl World {
         let top = top::Domain::new(
             &limits,
             seed,
-            skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
+            temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::from(&b"world"[..]),
+                writers: writer.into_iter().collect(),
+            },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[configured_forge()],
             false,
@@ -538,7 +535,12 @@ impl World {
             signatures,
             pull_snapshot: None,
             held_compares: None,
-            read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
+            read_script: ReadScript {
+                ancestry: None,
+                comparisons_too_large: false,
+                files_excess: None,
+                files_page: None,
+            },
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -890,8 +892,23 @@ impl World {
     }
 
     pub fn slow_calls(&mut self, delay: Duration) {
-        self.forge_env.limits.latency_min = delay;
-        self.forge_env.limits.latency_max = delay;
+        self.call_latencies(delay, delay);
+    }
+
+    /// Each fake call draws its latency from this seeded range.
+    pub fn call_latencies(&mut self, min: Duration, max: Duration) {
+        self.forge_env.limits.latency_min = min;
+        self.forge_env.limits.latency_max = max;
+    }
+
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.env.now
+    }
+
+    /// One world step, with no time advance beyond the given horizon.
+    pub fn step_until(&mut self, end: Time) -> bool {
+        self.iterate(end)
     }
     /// Stop with the forge's reply still pending delivery to the connector.
     pub fn run_until_posted(&mut self) {
@@ -939,7 +956,8 @@ impl World {
         self.top = top::Domain::new(
             &self.env.limits,
             self.seed,
-            skein_forge_client::Config {
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },
@@ -1028,7 +1046,7 @@ impl World {
         self.push_as(branch, path, content, 1);
     }
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
@@ -1125,7 +1143,7 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
-        let mut config = self.forge_env.limits;
+        let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
@@ -1296,6 +1314,7 @@ impl World {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
+                | top::Request::HeadRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -1320,6 +1339,7 @@ impl World {
                 | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
+                | top::Request::FileRedFinding { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
@@ -1402,8 +1422,9 @@ impl World {
         op: &skein_forge::api::Op,
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
-            skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { .. })
-                if self.read_script.files_excess.is_some() =>
+            skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
+                if self.read_script.files_excess.is_some()
+                    && self.read_script.files_page.is_none_or(|refused| refused == *page) =>
             {
                 Some(Err(skein_forge::api::Error::TooLarge(self.read_script.files_excess.expect("scripted refusal"))))
             }
@@ -1569,13 +1590,41 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
+        top::Stored::Finding(row) => top::Key::Finding { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
+}
+
+fn scenario_config(
+    mut config: forge::Config,
+    branches: u32,
+    turn: bool,
+    tiered: bool,
+    protection: Option<&raw::Protection>,
+) -> forge::Config {
+    config.limits.branches = branches;
+    if tiered {
+        config.limits.statuses = 16;
+        config.limits.content_bytes = 512;
+        config.limits.commits = 32;
+    }
+    config.limits.workflows = u32::from(turn || tiered);
+    config.limits.workflow_runs = if tiered {
+        16
+    } else if turn {
+        4
+    } else {
+        0
+    };
+    config.limits.bypassing_users =
+        protection.map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+    config
 }
 
 fn repository_config(repositories: u32) -> forge::Config {
@@ -1631,6 +1680,7 @@ pub fn fake_config() -> forge::Config {
         rate_limit: 0,
         rate_window: Duration::from_secs(10),
         ci: 3,
+        made_checks: forge::Config::test().made_checks,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

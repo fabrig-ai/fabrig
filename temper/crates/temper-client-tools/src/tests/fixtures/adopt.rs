@@ -85,9 +85,14 @@ impl Harness {
             | w::Request::DismissMaking(_)
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
+            | w::Request::AddDevice(_)
+            | w::Request::RemoveDevice(_)
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
+            | w::Request::FileFinding(_)
+            | w::Request::HandFinding(_)
+            | w::Request::TriageFinding(_)
             | w::Request::SetDraft(_)
             | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
@@ -187,7 +192,7 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
     let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
-    let refusal = jig_client_protocol_wire::v19::Refusal::KeyConflict;
+    let refusal = jig_client_protocol_wire::v20::Refusal::KeyConflict;
     let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
     refusal.encode(&mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(

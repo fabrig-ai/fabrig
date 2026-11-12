@@ -575,6 +575,20 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     }
                     found
                 }
+                w::SettingValue::Overlay(value) => {
+                    let mut found = None;
+                    if let Some(model) = value.model() {
+                        found = settings_model(model, models);
+                    }
+                    if let Some(alternatives) = value.alternatives() {
+                        for model in alternatives {
+                            if found.is_none() {
+                                found = settings_model(model, models);
+                            }
+                        }
+                    }
+                    found
+                }
                 w::SettingValue::Policy(value) => {
                     let mut found = settings_selector(value.ceiling().models().as_ref(), models);
                     for role in value.roles() {

@@ -191,6 +191,7 @@ const FORGE: forge::Limits = forge::Limits {
     // Project judge tables, from the engine forge world fixture.
     judge_projects: 2,
     decided_per_project: 1024,
+    findings_per_project: 256,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,
@@ -307,7 +308,8 @@ const ROOT: Root = Root {
         writes: 12288,
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
-        // At least row_bound, including forge.client.answer_bytes: the root's worst case.
+        // The 65,536-byte forge answer dominates small's deep task row,
+        // including its four AuthorityExecutor values (engine::row_bound).
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
@@ -396,13 +398,10 @@ const STANDARD_ROOT: Root = Root {
     },
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
-        // Deep task row at jig standard's bounds, including its inbox, later choice
-        // and two reason sets (engine::row_bound).
-        // The task's closer adds 32 bytes to the task owner.
-        // Two added executor places retain two 8-byte AuthorityExecutor values.
-        // A standing task's session adds 32 bytes to the task record (TaskRecord.session).
-        // A talk adds 32 bytes to the task record (TaskRecord.talk).
-        transcript_bytes: 22_467_808,
+        // Deep task row at jig standard's bounds (engine::row_bound):
+        // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
+        // plus 21 executor places * 8 bytes per AuthorityExecutor = 22,467,832.
+        transcript_bytes: 22_467_832,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

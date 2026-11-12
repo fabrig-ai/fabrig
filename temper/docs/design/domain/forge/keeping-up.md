@@ -79,6 +79,50 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   repository and branch (`follows.md`, section 3) to the same union, for
   as long as its setting lives; accepting or removing a follow rebuilds
   it, and admission checks the union's bounds before the follow is kept.
+- **The branch heads:** the forge keeps each branch's last tip as temper
+  pushed, wrote or last observed it, and whether temper made it
+  (`owned`), a `BranchHead` row per branch (`../../protocol/store.md`,
+  2). A drift's baseline, a landing's `before`, a change's and a goal's
+  start, and the making a later adoption checks (`adoption.md`, 1) are
+  read from them.
+  - *Their bound* is `forge.client.resources`, the working set's own,
+    since a head is kept for what live work names. A head replaced
+    always fits; a new branch's head takes a free row.
+  - *Freed once no live work needs them.* A head stays while a hold
+    names its branch (a change's, a goal's or its run's, a design
+    writer's), a live task names it, the watch union holds it (the
+    landing subscriptions, follows and tiers, above), a change not
+    ended names it as its branch or its base, a tier's live run or
+    probe branch is it, or an outbox entry not yet settled writes it.
+    Every other head is erased, its row with it, in the decision that
+    completes a task's release, its named resources cleaned up
+    (`README.md`, 4), and in the one
+    that finds the table full, before the record is refused. So heads
+    leave as changes and goals end, a removed forge's and a repository's
+    no longer adopted among them, and a head temper made stays no
+    longer than the work that needs it.
+  - *At the bound,* a record that would add a head to a table still
+    full once freed is refused, never a stop: no row and no save. The
+    step goes on as it does for a branch it has no head for, a push's
+    report freeing its writer, recording the change's last head and
+    telling the client the push; an observation that finds the table
+    full is dropped, and the next one is taken. The refusal names the
+    branch and the limit, as every limit's refusal does
+    (`../../protocol/configuration/limits.md`, "A limit's refusal names
+    it"): `record branch head on branch temper/7/c42 in acme/widget:
+    forge.client.resources = 512; required usage 513; reduce the named
+    work or raise this limit in the deployment configuration, restart,
+    then release`. The root logs it, as `BINARY serve: branch head
+    refused task=T: WORDS` (` task=T` left out when no task is
+    concerned), and holds the task it concerns `ResourceUnavailable`
+    with those words (*Its capacity*, above): the change whose branch
+    it is, else the task the step works for (the branch's holder, the
+    outbox entry's task, the read's task). A record no task concerns,
+    an observation of a base or a landing branch, is logged alone:
+    holding one of the many changes on a shared base would name the
+    wrong work. A restart that replays the step refuses it again: a full
+    table never stops the engine. Released, the change goes on, and its
+    branch's head is recorded at its next push or read.
 
 ## 2. Keeping up
 

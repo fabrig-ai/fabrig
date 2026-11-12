@@ -51,7 +51,9 @@ does with all of it is ../root.md. The mechanics are those of skein's
   them** (`settings.md`): charters, templates, the policies projects are
   made from, the rules, and an application's own kinds. An owner's
   change is one decision and makes a revision; a task records the
-  revision it was made in, and its runs read their charter from it.
+  revision it was made in, and its runs read their charter from it. A
+  charter's change may be an overlay kept over its default
+  (`overlays.md`).
 - **The domain is complete** (skein/docs/foundation/programming-model.md, section 4): a world
   of domains and fakes runs everything the core does, with no protocol
   and no io (section 9).

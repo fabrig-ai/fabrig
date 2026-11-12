@@ -5,6 +5,39 @@ use skein_lib::Time;
 use temper_engine_domain as engine;
 
 #[test]
+fn settings_history_room_follows_effective_capacities() {
+    let (mut root, _, mut profile) = fixtures::store_limits();
+    // Force the settings envelope to bind instead of the profile's fixed value.
+    profile.store.value = 1;
+    for (charters, run_bytes) in [(16, 32_768), (16, 65_536), (17, 65_536)] {
+        root.tasks.charters = charters;
+        root.journal.run_bytes = run_bytes;
+        let core = engine::core_limits(&root);
+        let revision = jig_protocol_store::sizes::settings_value(&core).unwrap();
+        let checked = store::layout(&root, &root.forge, &profile).expect("settings room follows capacities");
+        assert_eq!(checked.store.value, revision);
+        assert_eq!(checked.store.chunk, skein_kv::chunk_bytes(checked.store.key, revision).unwrap());
+        assert!(checked.store.page.bytes >= checked.store.key + revision);
+        assert_eq!(checked.store.budget, profile.store.budget);
+        assert_eq!(checked.store.page.rows, profile.store.page.rows);
+        assert_eq!(checked.store, checked.secrets);
+    }
+}
+
+#[test]
+fn task_values_still_refuse_the_profiles_ceiling() {
+    let (mut root, _, profile) = fixtures::store_limits();
+    root.tasks.batch_bytes = 4_194_304;
+    let Err(store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has })) =
+        store::layout(&root, &root.forge, &profile)
+    else {
+        panic!("the task value exceeds the profile's ceiling")
+    };
+    assert!(needs > has);
+    assert_eq!(has, profile.store.value);
+}
+
+#[test]
 fn the_store_opens_over_memory_and_answers_a_commit() {
     let mut store = fixtures::memory_store();
     fixtures::commit(&mut store, 1, Box::new([]));
@@ -25,11 +58,10 @@ fn sizes_past_skein_kvs_limits_refuse_the_store() {
         checked.commits,
         jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes }
     );
-    for field in ["key", "value", "ops", "commit", "page", "queue", "queued bytes"] {
+    for field in ["key", "ops", "commit", "page", "queue", "queued bytes"] {
         let mut short = profile;
         match field {
             "key" => short.store.key = checked.store.key.checked_sub(1).unwrap(),
-            "value" => short.store.value = checked.store.value.checked_sub(1).unwrap(),
             "ops" => short.store.ops = checked.store.ops.checked_sub(1).unwrap(),
             "commit" => short.store.commit = checked.store.commit.checked_sub(1).unwrap(),
             "page" => short.store.page.bytes = checked.store.page.bytes.checked_sub(1).unwrap(),
@@ -85,7 +117,7 @@ fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
 #[test]
 fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
     let (mut root, _, profile) = fixtures::store_limits();
-    root.loads.transcript_bytes = 3_421_267;
+    root.loads.transcript_bytes = 4_270_603;
     // Model startup's turn-plus-record and decoded read-row load bounds.
     root.loads.bytes =
         root.loads.transcript_bytes.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();
@@ -95,7 +127,7 @@ fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
         .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
         .unwrap();
     let checked = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
-    assert_eq!(checked.store.page.bytes, 3_421_331);
+    assert_eq!(checked.store.page.bytes, 4_270_667);
     assert_eq!(checked.store.page.bytes, profile.store.page.bytes);
     for transcript in [jig_protocol_store::core_v6::CEILINGS.turn_record_transcript + 1, u32::MAX] {
         root.loads.transcript_bytes = transcript;

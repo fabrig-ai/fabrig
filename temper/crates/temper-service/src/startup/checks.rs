@@ -22,7 +22,7 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
 /// (temper/docs/design/domain/agent/tools.md).
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
-        if let Err(short) = host.check(charter.number, &charter.policy) {
+        if let Err(short) = host.check(charter) {
             problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(short)));
         }
     }
@@ -929,6 +929,9 @@ fn socket_count(
     let mut required = u64::from(limits::server(&engine.limits).connections).checked_add(1)?.checked_add(2)?;
     if members.webhooks.is_some() {
         required = required.checked_add(1)?.checked_add(u64::from(members.limits.forge_component.hooks))?;
+    }
+    if members.push.is_some() {
+        required = required.checked_add(u64::from(crate::clients::push::PUSHES_IN_FLIGHT))?;
     }
     if members.sign_in.is_some() {
         required = required.checked_add(u64::from(members.limits.sign_in.fetches))?;

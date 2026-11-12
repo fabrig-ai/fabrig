@@ -58,7 +58,6 @@ pub(crate) struct Logs {
     files: List<Log>,
     data: Box<[u8]>,
     bound: u32,
-    front: Option<usize>,
     phase: Phase,
     waiting: bool,
     box_dir: Option<Fd>,
@@ -75,10 +74,9 @@ pub(crate) struct Logs {
     done: bool,
 }
 impl Logs {
-    pub fn new(steps: &[Placed], data: &[u8], bound: u32, front: bool) -> Self {
-        let mut logs = List::with_capacity(
-            u32::try_from(steps.len()).expect("bounded steps").checked_add(2).expect("front and box logs"),
-        );
+    pub fn new(steps: &[Placed], data: &[u8], bound: u32) -> Self {
+        let mut logs =
+            List::with_capacity(u32::try_from(steps.len()).expect("bounded steps").checked_add(1).expect("box log"));
         for placed in steps {
             let mut name = bytes::copy_of(placed.step.name());
             for byte in &mut name {
@@ -101,17 +99,6 @@ impl Logs {
             })
             .expect("one log per step");
         }
-        if front {
-            logs.push(Log {
-                name: bytes::copy_of(b"tui.log"),
-                enabled: true,
-                retiring: None,
-                fd: None,
-                size: 0,
-                failed: false,
-            })
-            .expect("front log after steps");
-        }
         logs.push(Log {
             name: bytes::copy_of(b"box.log"),
             enabled: true,
@@ -121,12 +108,10 @@ impl Logs {
             failed: false,
         })
         .expect("box log after steps");
-        let front = if front { Some(steps.len()) } else { None };
         Self {
             files: logs,
             data: bytes::copy_of(data),
             bound,
-            front,
             phase: Phase::BoxMake,
             waiting: false,
             box_dir: None,
@@ -145,9 +130,6 @@ impl Logs {
     }
     pub fn box_step(&self) -> usize {
         usize::try_from(self.files.len().checked_sub(1).expect("box log")).expect("log index")
-    }
-    pub fn front_step(&self) -> Option<usize> {
-        self.front
     }
     pub fn rebind(&mut self, step: usize, name: &[u8]) {
         let log = self.files.get_mut(u32::try_from(step).expect("step index")).expect("log step");

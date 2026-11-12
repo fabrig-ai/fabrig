@@ -57,13 +57,6 @@
     allowance again at the next: the release is that step's alone, and
     `next_act` (`temper-engine-domain-forge-change/src/relay.rs`) holds the
     change.
-  - 1: a repair's or a resolution's question, relayed as a producer's
-    is (`temper-engine-domain/src/route/forge_route/relay.rs`,
-    `asking_delegate`), and its words, refused as a producer's are, are
-    unobserved in stories: every relay story runs the change's producing
-    task only
-    (`tests/engine/domain/tests/suite/forge_routes/questions.rs` and
-    `goal_questions.rs`).
   -  the tier-branch CI gap remains `../queues.status.md` (Not yet, the whole document).
   -  the issue milestones remain `../issues.status.md` (Not yet, the whole document).
   -  the forge questions remain `../issues.status.md`, 1.

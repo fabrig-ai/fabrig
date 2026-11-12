@@ -35,6 +35,10 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
 - **Thin command line.** `temper ctl DIRECTORY GROUP VERB ...` makes one
   call per process, in `jig-client`'s one-shot mode, over jig's native
   transport, and prints its result (section 6).
+- **A charter's overlay** comes from a settings file's overlay item,
+  its text from directories of charter files, several files stacked in
+  one `settings apply`, and `settings show` marks what it replaced and
+  added (`overlays.md`).
 - **The deployment under test is a box** (`../../protocol/setup/box.md`
   ): the agent's harness starts it, signs in by its printed link, adds
   the deployment's LLM key, and throws it away (`README.md`, section 8).
