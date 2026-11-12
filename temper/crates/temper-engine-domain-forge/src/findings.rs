@@ -4,7 +4,7 @@ use crate::{
     settings::{AreaOwner, ProjectAreas},
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{List, Map, Queue, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Holder {
     Task(u64),
@@ -304,7 +304,20 @@ pub struct FindingWrite {
     pub row: Finding,
     pub erase: Option<u32>,
 }
+static NO_FINDINGS: Map<(u32, u32), Finding> = Map::with_capacity(0);
 impl Domain {
+    pub(crate) fn finding_rows(&self) -> &Map<(u32, u32), Finding> {
+        match &self.findings {
+            Some(rows) => rows,
+            None => &NO_FINDINGS,
+        }
+    }
+    pub(crate) fn finding_rows_mut(&mut self, limits: &Limits) -> &mut Map<(u32, u32), Finding> {
+        if self.findings.is_none() {
+            self.findings = Some(Box::new(Map::with_capacity(limits.findings())));
+        }
+        self.findings.as_deref_mut().expect("finding table opened")
+    }
     #[must_use]
     pub fn project_areas(&self, project: u32) -> ProjectAreas {
         if let Some(crate::settings::SizedValue { value: crate::settings::Value::ProjectAreas(areas), .. }) =
@@ -325,11 +338,11 @@ impl Domain {
     }
     #[must_use]
     pub fn finding(&self, project: u32, number: u32) -> Option<&Finding> {
-        self.findings.get(&(project, number))
+        self.finding_rows().get(&(project, number))
     }
     #[must_use]
     pub fn findings(&self, project: u32) -> impl DoubleEndedIterator<Item = (&(u32, u32), &Finding)> {
-        self.findings.range((project, 0)..=(project, u32::MAX))
+        self.finding_rows().range((project, 0)..=(project, u32::MAX))
     }
     fn finding_area(&self, project: u32, name: &[u8]) -> Result<(), FindingRefusal> {
         let areas = self.project_areas(project);
@@ -383,7 +396,7 @@ impl Domain {
         } else {
             None
         };
-        if erase.is_none() && self.findings.len() == self.findings.capacity() {
+        if erase.is_none() && self.finding_rows().len() >= limits.findings() {
             return Err(FindingRefusal::Full(new));
         }
         let Some(number) = highest.checked_add(1) else {
@@ -446,14 +459,14 @@ impl Domain {
         }
         Ok(FindingWrite { row, erase: None })
     }
-    pub fn commit_finding(&mut self, write: FindingWrite, out: &mut Queue<Request>) {
+    pub fn commit_finding(&mut self, limits: &Limits, write: FindingWrite, out: &mut Queue<Request>) {
         let FindingWrite { row, erase } = write;
         if let Some(number) = erase {
-            self.findings.remove(&(row.project, number));
+            self.finding_rows_mut(limits).remove(&(row.project, number));
             out.push(Request::Erase { key: Key::Finding { project: row.project, number } });
         }
         let project = row.project;
-        self.findings.insert((project, row.number), row.clone()).expect("judged finding room");
+        self.finding_rows_mut(limits).insert((project, row.number), row.clone()).expect("judged finding room");
         out.push(Request::Save { record: Stored::Finding(row), release: None, read_afresh: None });
         mark_findings(project, out);
     }
@@ -477,7 +490,7 @@ pub fn reason_fits(reason: &[u8]) -> bool {
     !reason.is_empty() && reason.len() <= 400 && body_fits(reason)
 }
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
-    let mut numbers = List::with_capacity(d.findings.len());
+    let mut numbers = List::with_capacity(d.finding_rows().len());
     for (_, row) in d.findings(project) {
         numbers.push(row.number).expect("bounded findings");
     }
@@ -485,8 +498,11 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
         return;
     }
     for number in numbers.into_boxed() {
-        d.findings.remove(&(project, number));
+        d.findings.as_mut().expect("erasing held findings").remove(&(project, number));
         out.push(Request::Erase { key: Key::Finding { project, number } });
+    }
+    if d.finding_rows().is_empty() {
+        d.findings = None;
     }
     mark_findings(project, out);
 }

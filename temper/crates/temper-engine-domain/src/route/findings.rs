@@ -192,7 +192,7 @@ fn commit(
     }
     let number = row.number;
     let mut output = Queue::uncapped();
-    domain.forge.commit_finding(write, &mut output);
+    domain.forge.commit_finding(&env.limits.forge, write, &mut output);
     forge_route::outputs(domain, env, decision, &mut output);
     Ok(number)
 }

@@ -40,7 +40,7 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     let mut out = Queue::uncapped();
     for number in 1..=3 {
         let write = d.prepare_file_finding(&limits, Wall::from_nanos(number), Filer::Party(7), call()).unwrap();
-        d.commit_finding(write, &mut out);
+        d.commit_finding(&limits, write, &mut out);
     }
     assert_eq!(
         d.prepare_file_finding(&limits, Wall::EPOCH, Filer::Task(40), call()).unwrap_err(),
@@ -53,11 +53,11 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
             act: Triage::Drop(b"duplicate".as_slice().into()),
         })
         .unwrap();
-    d.commit_finding(ended, &mut out);
+    d.commit_finding(&limits, ended, &mut out);
     let write = d.prepare_file_finding(&limits, Wall::EPOCH, Filer::Task(40), call()).unwrap();
     assert_eq!(write.erase, Some(2));
     assert_eq!(write.row.number, 4);
-    d.commit_finding(write, &mut out);
+    d.commit_finding(&limits, write, &mut out);
     assert!(d.finding(1, 1).is_some());
     assert!(d.finding(1, 2).is_none());
     let mut restored = domain_with_limits(&limits);
