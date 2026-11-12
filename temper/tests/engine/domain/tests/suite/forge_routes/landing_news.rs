@@ -1,9 +1,10 @@
 //! The member's goal hears every committed transition (domain/landing.md, 4.2).
 use super::*;
 
-fn produced_goal() -> (World, u64, u64) {
+fn produced_goal() -> (World, u64, u64) { produced_goal_with_checks(1000) }
+fn produced_goal_with_checks(passes: u32) -> (World, u64, u64) {
     let world = World::configured_limits(true, true, false, 1000, Gate::default(), None,
-        StoryLimits { turn: true, ..StoryLimits::default() });
+        StoryLimits { turn: true, dispatch_passes: Some(passes), ..StoryLimits::default() });
     let (mut world, goal, producer, _) = change_world_in(world, Change { tracked: true, ..Change::default() });
     world.send(hello_prepare(2));
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change requester") };
@@ -73,4 +74,19 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
     assert_eq!(news(&world, goal, landing), [joined(landing, change), proving(row, change), format!("landing {landing}: held: {why}")]);
     let tasks::Phase::Held { source: Some(source), .. } = &task_row(&world, landing).expect("held task").phase else { panic!("held task") };
     assert!(matches!(source.as_ref(), tasks::HoldSource::Account { words, .. } if words.as_ref() == why.as_bytes()));
+}
+
+#[test]
+fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs() {
+    let (mut world, _, change) = produced_goal_with_checks(0);
+    for _ in 0..1200 { world.prepare_tick(); if world.assigned.iter().any(|run| task_row(&world, run.task).is_some_and(|row| row.spec.words.starts_with(b"Repair landing gate 0 at "))) { break; } }
+    let repair = world.assigned.iter().find(|run| task_row(&world, run.task).is_some_and(|row| row.spec.words.starts_with(b"Repair landing gate 0 at ")))
+        .unwrap_or_else(|| panic!("candidate failure assigned a repair: {:?}", world.assigned.iter().map(|run| task_row(&world, run.task).map(|row| &row.spec.words)).collect::<Vec<_>>()));
+    assert!(live_task(&world, repair.task).spec.words.starts_with(b"Repair landing gate 0 at "));
+    let context = std::str::from_utf8(ci_words(repair)).expect("failure context");
+    for words in ["Gate: gate", "Run: ", "Candidate: ", "Base: ", "Failed job: test", "Failed step: ", "End of its log:"] { assert!(context.contains(words), "{words}: {context}"); }
+    let row = super::super::light_rules::change_row(&world, change);
+    let own_head = row.change.last_head.expect("own head");
+    assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Repairing { why: temper_engine_domain_forge_change::Repair::LandingAt { candidate, .. }, .. } if candidate != own_head));
+    assert!(matches!(&repair.workspace.repositories[0].start, engine::ForgeStart::Branch(branch) if *branch == row.branch));
 }

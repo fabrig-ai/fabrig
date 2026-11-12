@@ -6,10 +6,13 @@ use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{World, changes, landings::{self, CHANGE, LANDING}, translate};
 const MEMBER: &[u8] = b"temper/51";
 const GATE: u64 = 9;
-fn reviewed(kind: change::GateKind, freshness: change::Freshness) -> World {
+fn reviewed(kind: change::GateKind, freshness: change::Freshness) -> World { reviewed_history(kind, freshness, false) }
+fn reviewed_history(kind: change::GateKind, freshness: change::Freshness, history: bool) -> World {
     let mut world = landings::turn_world();
     world.produce(MEMBER);
+    let earlier = translate::commit(world.branch(MEMBER));
     world.push_file(b"main", b"base", b"base moved");
+    if history { world.resolve(MEMBER, b"change"); }
     let head = translate::commit(world.branch(MEMBER));
     let mut row = changes::change_row();
     row.pull = Some(world.open_pull(MEMBER, b"main"));
@@ -17,7 +20,8 @@ fn reviewed(kind: change::GateKind, freshness: change::Freshness) -> World {
     row.change.ready_since = Some(world.wall());
     row.change.state = change::State::Ready { head, ready_since: world.wall() };
     row.change.gates = Box::new([change::Gate { number: GATE, kind, blocking: true, freshness, eager: true }]);
-    row.verdicts = Box::new([change::GateReport { number: GATE, head, status: change::Status::Passed }]);
+    row.change.clean = if history { Box::new([earlier]) } else { Box::new([]) };
+    row.verdicts = Box::new([change::GateReport { number: GATE, head: if history { earlier } else { head }, status: change::Status::Passed }]);
     world.event(top::Event::Change { row });
     assert_eq!(world.change(CHANGE).change.gates.len(), 1);
     let row = landings::landing_row(world.change(CHANGE));
@@ -121,4 +125,15 @@ fn a_prefix_rebuilt_in_a_new_round_asks_for_its_exact_review_again() {
     assert_ne!(second, first);
     ask_gate(&mut world, second, 400);
     assert_eq!(world.landing(LANDING).landing.preparation, 2);
+}
+
+#[test]
+fn a_clean_review_carried_through_a_clean_update_counts_at_the_prefix() {
+    let mut world = reviewed_history(change::GateKind::Agent, change::Freshness::Clean, true);
+    for entry in 100..160 {
+        let decision = landings::step_landing(&mut world, LANDING, entry);
+        assert_ne!(decision, landing::Decision::Judge { member: 0 }, "clean predecessor carries to the prefix");
+        if decision == landing::Decision::Finish { assert!(world.landing(LANDING).landing.members[0].landed.is_some()); return; }
+    }
+    panic!("clean predecessor never landed");
 }
