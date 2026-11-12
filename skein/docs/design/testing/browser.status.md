@@ -14,5 +14,3 @@ lookups, and the memory suite runs it under its ceilings (section 8).
 
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
-- **Not yet:** 9: the real tab story reads the tabs once after each press,
-  rather than asking again each poll until they settle. [in flight: change 1331]
