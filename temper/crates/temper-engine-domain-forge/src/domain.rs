@@ -23,6 +23,7 @@ mod ci_news;
 mod connection_wait;
 #[path = "goal_branch.rs"]
 mod goal_branch;
+pub(crate) mod heads;
 mod hints;
 mod landed;
 #[path = "make.rs"]
@@ -2384,7 +2385,8 @@ fn outcome_facts(
                     };
                     if let Some(name) = from_client(&resource, &env.limits) {
                         let head = BranchHead { name: name.clone(), commit, owned: true };
-                        if d.heads.insert(name, head.clone()).is_ok() {
+                        let concerning = heads::concerning(d, &name, Some(task));
+                        if heads::record(d, env, head.clone(), concerning, out) {
                             emit(
                                 out,
                                 Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) },
@@ -2438,7 +2440,7 @@ fn outcome_facts(
                 if let Some(name) = name
                     && (d.holds.contains_key(&name) || owned)
                 {
-                    record_written_head(d, env, resource, name, commit, out);
+                    record_written_head(d, env, resource, name, commit, task, out);
                 }
                 crate::tiers::observed(d, env, repository, &branch, before, commit, out);
             }
@@ -2852,14 +2854,18 @@ fn answered(
         let saved = row.clone();
         save_hold(out, saved);
         let undrifted = row.drift.is_none();
+        let holder = row.task;
         if let Some(resource) = to_client(name, &env.limits) {
             for (pushed_name, commit) in pushed {
                 if pushed_name == name && undrifted {
                     let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
                     let previous = d.branch_head(name);
-                    d.heads.insert(name.clone(), head.clone()).expect("reported head was a live resource");
+                    let concerning = heads::concerning(d, name, Some(holder));
+                    let recorded = heads::record(d, env, head.clone(), concerning, out);
                     wake_head_dependents(d, name, previous, *commit);
-                    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+                    if recorded {
+                        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+                    }
                     record_delegate_head(d, task, name, *commit, out);
                     child(
                         d,
@@ -3142,12 +3148,12 @@ fn lost_read(
     if undrifted && let Some(commit) = observed {
         let previous = d.branch_head(&pending.name);
         let head = BranchHead { name: pending.name.clone(), commit, owned: true };
-        if d.heads.insert(pending.name.clone(), head.clone()).is_err() {
-            lost_failed(d, pending.task, pending.attempt, &pending.name, b"branch head capacity exhausted", out);
-            return;
-        }
+        let concerning = heads::concerning(d, &pending.name, Some(pending.task));
+        let recorded = heads::record(d, env, head.clone(), concerning, out);
         wake_head_dependents(d, &pending.name, previous, commit);
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+        if recorded {
+            emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+        }
         record_delegate_head(d, pending.task, &pending.name, commit, out);
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
@@ -5708,13 +5714,15 @@ fn record_written_head(
     resource: skein_forge_client::Resource,
     name: Name,
     commit: skein_forge::api::Commit,
+    task: u64,
     out: &mut Queue<Request>,
 ) {
     let head = BranchHead { name: name.clone(), commit, owned: true };
-    if d.heads.insert(name, head.clone()).is_ok() {
+    let concerning = heads::concerning(d, &name, Some(task));
+    if heads::record(d, env, head.clone(), concerning, out) {
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
-        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
     }
+    child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
 }
 
 fn record_change_head(
@@ -5735,7 +5743,7 @@ fn record_change_head(
     {
         return;
     }
-    record_written_head(d, env, resource, name, commit, out);
+    record_written_head(d, env, resource, name, commit, row.task, out);
 }
 
 /// A release adopts an observed head, including the client's drift baseline.
@@ -5757,8 +5765,9 @@ fn accept_released_branch(
         save_hold(out, hold.clone());
     }
     let head = BranchHead { name: name.clone(), commit: head, owned: true };
-    d.heads.insert(name, head.clone()).expect("the held branch has a head slot");
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
+    if heads::record(d, env, head.clone(), Some(row.task), out) {
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
+    }
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
@@ -6171,6 +6180,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
+        heads::free(d, env, out);
         d.releases.remove(&task);
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });
@@ -7309,7 +7319,8 @@ fn branch_changed(
         None => false,
     };
     let row = BranchHead { name: name.clone(), commit, owned: recorded };
-    if d.heads.insert(name, row.clone()).is_err() {
+    let concerning = heads::concerning(d, &name, None);
+    if !heads::record(d, env, row.clone(), concerning, out) {
         return;
     }
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row.clone()) });

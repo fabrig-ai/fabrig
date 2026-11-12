@@ -136,9 +136,9 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(tasks.spec_bytes, 131_072);
     assert_eq!(tasks.result_bytes, 262_144);
     assert_eq!(tasks.message_bytes, 262_144);
-    assert_eq!(tasks.charters, 12);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(tasks.executor_kinds, 18);
+    assert_eq!(tasks.charters, 16);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(tasks.executor_kinds, 21);
     assert_eq!(tasks.authority_grants, 16);
     assert_eq!(tasks.authority_segments, 8);
     assert_eq!(tasks.hold_segments, 8);
@@ -154,8 +154,8 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.people.inbox_recipients, 176);
     assert_eq!(limits.core.people.words, 8_192);
     assert_eq!(limits.core.authority.grants, 16);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(limits.core.authority.executors, 18);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(limits.core.authority.executors, 21);
     assert_eq!(limits.core.authority.segments, 8);
     assert_eq!(limits.core.authority.batch, 32);
     assert_eq!(limits.hub.charter_bytes, 262_144);

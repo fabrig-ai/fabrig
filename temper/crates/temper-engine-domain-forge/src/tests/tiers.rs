@@ -1235,3 +1235,33 @@ fn tier_keys_distinguish_follows_and_ignore_the_span() {
         assert_eq!(definition_key(&spaced), key);
     }
 }
+
+#[test]
+fn a_head_sweep_keeps_a_tiers_live_run_and_retained_probe() {
+    let mut d = configured(None);
+    seen(&mut d, None, BASE);
+    baseline_answer(&mut d, Ok(api::Answer::Commit(BASE)));
+    key_trees(&mut d);
+    let row = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+    assert_eq!(row.record.run.as_ref().unwrap().number, 1);
+    row.branch = TierBranch::Made;
+    row.probe = Some(TierProbeBranch { landing: 0, branch: TierBranch::Made });
+    let run = crate::tiers::name(REPO, b"temper/tier/browser.1");
+    let probe = crate::tiers::name(REPO, b"temper/tier/browser.1.0");
+    for name in [&run, &probe] {
+        d.heads.insert(name.clone(), BranchHead { name: name.clone(), commit: HEAD, owned: true }).unwrap();
+    }
+    let mut out = Queue::uncapped();
+    domain::heads::free(&mut d, &env(), &mut out);
+    assert!(d.heads.contains_key(&run));
+    assert!(d.heads.contains_key(&probe));
+    assert!(out.is_empty());
+    let row = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+    row.record.run = None;
+    row.branch = TierBranch::Absent;
+    row.probe = None;
+    domain::heads::free(&mut d, &env(), &mut out);
+    assert!(!d.heads.contains_key(&run));
+    assert!(!d.heads.contains_key(&probe));
+    assert_eq!(out.len(), 2);
+}

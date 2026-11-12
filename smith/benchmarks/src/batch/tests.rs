@@ -1,6 +1,9 @@
 use super::*;
 use std::path::PathBuf;
 
+/// No test here proves these bounds; the attempt's exit is expected to come first.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 fn retried_total() -> AttemptResult {
     let mut result =
         crate::read_result(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"))
@@ -268,7 +271,7 @@ fn missing_result_recovery_archives_evidence_and_removes_settled_scratch() {
     // result. Settlement must precede recovery and owned scratch deletion;
     // dispatcher resource counts never become agent measurements.
     let (_, requests) = block_requests();
-    let request = &requests[0];
+    let request = &Request { settlement_ms: HANG_GUARD.as_millis(), ..requests[0].clone() };
     let scratch = skein_scratch::Scratch::new("bench-batch");
     let state = scratch.path().to_path_buf().join(format!("smith-bench-dispatch-{}", std::process::id()));
     let guard = Guard::new(&state.join("user-home"), &state.join("config"), &state.join("state"), &[])
@@ -283,8 +286,9 @@ fn missing_result_recovery_archives_evidence_and_removes_settled_scratch() {
     )
     .expect("fake attempt program");
     let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-    let recovered = dispatch(&guard, &machine, &state, &Clock::new(), Path::new("/bin/sh"), request, 1_000_000_000)
-        .expect("settled missing result");
+    let recovered =
+        dispatch(&guard, &machine, &state, &Clock::new(), Path::new("/bin/sh"), request, HANG_GUARD.as_nanos())
+            .expect("settled missing result");
     assert!(matches!(recovered.outcome.end, End::HarnessError { .. }));
     assert!(matches!(recovered.resources.cpu_ms, Measure::Unavailable { .. }));
     let directory = state.join("runs").join(&request.identity.run).join(&request.identity.attempt);

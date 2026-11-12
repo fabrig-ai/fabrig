@@ -1,6 +1,7 @@
 # live-tier: status
 
-2026-11-11. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-12. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).

@@ -94,6 +94,16 @@ pub const LIVE_ACCOUNT: Variable = Variable {
     way: Way::Reads,
 };
 
+pub const LIVE_ANTHROPIC_KEY: Variable = Variable {
+    name: "TEMPER_TEST_LIVE_ANTHROPIC_KEY",
+    set: Set::Test,
+    form: "FILE",
+    line: "Name the Anthropic key file for forge-land-claude-key; the after-landing tier or a developer for proof-live.sh sets it.",
+    absent: "The key landing story skips, saying why.",
+    notes: "A nonempty regular 0600 file of the test's user, not a link; passed to account add-key by path, never read, printed or copied by the story.",
+    way: Way::Reads,
+};
+
 pub const LIVE_CLAUDE: Variable = Variable {
     name: "TEMPER_TEST_LIVE_CLAUDE",
     set: Set::Test,
@@ -297,6 +307,7 @@ pub const TESTS: TestTable = TestTable {
         FORGEJO_RUNNER,
         FORGE_PARENT_HELPER,
         LIVE_ACCOUNT,
+        LIVE_ANTHROPIC_KEY,
         LIVE_CLAUDE,
         LIVE_GITHUB_FIXTURES,
         LIVE_GITHUB_KEEP,

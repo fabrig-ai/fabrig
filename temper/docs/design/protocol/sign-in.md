@@ -474,7 +474,12 @@ its sockets tagged as the server's are.
   offers no way. Further facts of a
   signed-out page come as further `temper-` metas: the forges that sign
   in through temper, for "to continue to" and the signed-out note (`openid-provider.md`, 3),
-  made once the forge's records load (`openid-provider.md`, 7).
+  made once the forge's records load (`openid-provider.md`, 7). One
+  more is the page's alone, not the view's: with `--record`
+  (`binaries.md`), `<meta name="temper-record" content="on">`, made
+  at start after `temper-sign-in`, before the forges' metas, the `ETag`
+  the page's so made, so that the page records
+  (`../client/web/README.md`, 2.1 and 2.2).
 - **The signed-out main** (`../client/view.md`, 1), in the browser
   with a way: temper's mark, the level-1 heading "Sign in", and a link
   for each way, "Continue with Google" to

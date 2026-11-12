@@ -278,3 +278,36 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     refresh(engine);
     assert_eq!(engine.clients.bundle.as_ref().unwrap().page.as_ref(), b"<head></head>");
 }
+
+#[test]
+fn recording_meta_follows_sign_in_and_survives_forge_metas_with_its_own_etag() {
+    let mut bundle = fixtures::bundle::bundle();
+    assert!(bundle.fill_record().is_none(), "missing head refused");
+    bundle.page = b"<html><head></head><body></body></html>".as_slice().into();
+    bundle.fill_sign_in(false).unwrap();
+    let without = bundle.etag.clone();
+    assert_eq!(
+        bundle.page.as_ref(),
+        b"<html><head><meta name=\"temper-sign-in\" content=\"\"></head><body></body></html>"
+    );
+    bundle.fill_record().unwrap();
+    assert_eq!(bundle.page.as_ref(), b"<html><head><meta name=\"temper-sign-in\" content=\"\"><meta name=\"temper-record\" content=\"on\"></head><body></body></html>");
+    assert_ne!(bundle.etag, without);
+    let hash = bundle
+        .page
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3));
+    assert_eq!(bundle.etag.as_ref(), format!("\"{hash:016x}\"").as_bytes());
+    for metas in [
+        b"<meta name=\"temper-forge-sign-in\" content=\"one\">".as_slice(),
+        b"<meta name=\"temper-forge-sign-in\" content=\"two\">",
+        b"",
+    ] {
+        bundle.set_forge_metas(metas).unwrap();
+        let expected = format!(
+            "<html><head><meta name=\"temper-sign-in\" content=\"\"><meta name=\"temper-record\" content=\"on\">{}</head><body></body></html>",
+            core::str::from_utf8(metas).unwrap()
+        );
+        assert_eq!(bundle.page.as_ref(), expected.as_bytes());
+    }
+}

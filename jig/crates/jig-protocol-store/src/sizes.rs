@@ -24,6 +24,22 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
     body.checked_add(crate::transcripts::frame::WRAPPER_BYTES)
 }
 
+/// Settings history with replaced values, framing and the model-name table
+/// (protocol/store/records.md, 4).
+#[must_use]
+pub fn settings_value(domain: &core::Limits) -> Option<u32> {
+    u32::try_from(
+        core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
+            u64::from(jig_domain_tasks::MODELS)
+                .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
+                    u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
+                )?)?
+                .checked_add(4)?,
+        )?,
+    )
+    .ok()
+}
+
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts
 /// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening.md, 3, and protocol/store/README.md, 8).
 pub const MANIFEST_BYTES: u32 = {
@@ -159,15 +175,7 @@ fn largest(
             .max(notes_v1::Row::encoded_bound(&limits.notes)?)
             .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
             .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)
-            .max(
-                core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
-                    u64::from(jig_domain_tasks::MODELS)
-                        .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
-                            u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
-                        )?)?
-                        .checked_add(4)?,
-                )?,
-            )
+            .max(u64::from(settings_value(domain)?))
             .max(u64::from(application.value)),
     )
     .ok()?;

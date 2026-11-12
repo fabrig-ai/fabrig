@@ -528,6 +528,13 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
                 String::from_utf8_lossy(section)
             )
         }
+        temper_service::Note::HeadRefused { task, words } => {
+            let task = match task {
+                Some(task) => format!(" task={task}"),
+                None => String::new(),
+            };
+            format!("{binary} serve: branch head refused{task}: {}\n", String::from_utf8_lossy(&words))
+        }
         temper_service::Note::BriefFailed { task, counts, reason } => {
             format!(
                 "{binary} serve: brief failed task={task} counts={counts} reason={}\n",
@@ -1842,6 +1849,19 @@ fn read_job_refusal_line_names_the_asked_attempt() {
             "ab".repeat(32)
         )
     );
+}
+
+#[test]
+fn head_refusal_line_names_the_task_only_when_concerned() {
+    for (task, expected) in [
+        (Some(7), "temper-engine serve: branch head refused task=7: WORDS\n"),
+        (None, "temper-engine serve: branch head refused: WORDS\n"),
+    ] {
+        assert_eq!(
+            note_line("temper-engine", temper_service::Note::HeadRefused { task, words: b"WORDS".as_slice().into() }),
+            expected
+        );
+    }
 }
 
 #[test]

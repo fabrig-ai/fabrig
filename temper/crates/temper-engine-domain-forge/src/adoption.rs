@@ -422,7 +422,11 @@ pub(crate) fn adoption_read(
                     return;
                 }
                 pending.permission = Some(permission.permission);
-                let check_prefix = pending.request.role != Role::Context;
+                let already_adopted = match d.repositories.get(&repository) {
+                    Some(row) => row.role != Role::Context,
+                    None => false,
+                };
+                let check_prefix = pending.request.role != Role::Context && !already_adopted;
                 pending.stage = if check_prefix { AdoptionStage::Branches } else { AdoptionStage::Settings };
                 let read = if check_prefix {
                     api::Read::Branches { prefix: pending.request.prefix.clone() }
