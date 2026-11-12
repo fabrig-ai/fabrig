@@ -139,13 +139,7 @@ fn run_inner(
             return Err(why.to_string());
         }
     };
-    let mut host = temper_service_shell::Host::for_upgrade(
-        binary,
-        service,
-        crate::served::SERVED,
-        directories.clone(),
-        source.clone(),
-    );
+    let mut host = temper_service_shell::Host::for_upgrade(binary, service, crate::served::SERVED, directories.clone(), source.clone());
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch {
         let _removed = std::fs::remove_dir(scratch);

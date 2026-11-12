@@ -4,11 +4,8 @@ use skein_codec::patch::{Capacity, Patcher, Step};
 fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::jig_store_tasks::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 2,
-        patches: 1,
-        text: skein_codec::schema::MAX_TEXT,
-        bytes: 131_072,
-        nodes: 16_384,
+        versions: 2, patches: 1, text: skein_codec::schema::MAX_TEXT,
+        bytes: 131_072, nodes: 16_384,
     });
     for text in texts {
         patcher.keep(text.as_bytes()).expect("kept schema");
@@ -35,7 +32,8 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
 
 fn baseline_golden(name: &str) -> Vec<u8> {
     let schema = skein_codegen::parse(crate::patches::kept::jig_store_tasks::TEXTS[0]).expect("old schema");
-    skein_codegen::generate(&schema).goldens.into_iter().find(|golden| golden.name == name).expect("old golden").bytes
+    skein_codegen::generate(&schema).goldens.into_iter().find(|golden| golden.name == name)
+        .expect("old golden").bytes
 }
 
 #[test]
