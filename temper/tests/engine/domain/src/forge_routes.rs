@@ -186,6 +186,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub forge_commits: Option<u32>,
     pub kinds: bool,
+    /// Two stock standing roles with the world's scripted model, beside a tier.
+    pub standing_roles: bool,
     pub questions: Option<u32>,
     pub merge_kind: bool,
     pub resolutions: Option<u32>,
@@ -357,6 +359,7 @@ impl World {
             forge_charter,
             forge_commits: _,
             kinds,
+            standing_roles,
             questions,
             merge_kind,
             merge_authority,
@@ -841,6 +844,65 @@ impl World {
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
+            }
+            if standing_roles {
+                let model = walking::charter().policy.model;
+                let defaults = temper_service::stock::with_models(
+                    Box::new([jig_domain_core::settings::CatalogueModel {
+                        number: 1,
+                        model,
+                        first_read: None,
+                        shown: None,
+                        description: None,
+                        picker: true,
+                        withdrawn: false,
+                        source: jig_domain_core::settings::ModelSource::Stock,
+                        estimated: false,
+                    }]),
+                    limits.tasks.result_bytes,
+                );
+                let mut charters = config.core.defaults.charters.into_vec();
+                for mut charter in defaults.charters.into_vec().into_iter().filter(|row| [14, 15].contains(&row.number))
+                {
+                    // Small scripted runs retain the stock instructions, parts and wakes.
+                    let scripted = walking::charter();
+                    charter.spend = scripted.spend;
+                    charter.policy.turns = scripted.policy.turns;
+                    charter.policy.time = scripted.policy.time;
+                    charter.policy.reserve_turns = scripted.policy.reserve_turns;
+                    charter.policy.reserve_time = scripted.policy.reserve_time;
+                    charters.push(charter);
+                }
+                config.core.defaults.charters = charters.into_boxed_slice();
+                let mut templates = config.core.defaults.templates.into_vec();
+                templates.push(
+                    defaults
+                        .templates
+                        .into_vec()
+                        .into_iter()
+                        .find(|row| row.number == 7)
+                        .expect("stock standing template"),
+                );
+                config.core.defaults.templates = templates.into_boxed_slice();
+                limits.tasks.charters = 16;
+                limits.authority.executors += 2;
+                limits.tasks.executor_kinds += 2;
+                let rules = &mut config.core.defaults.rules;
+                rules.period_spend = 2000;
+                let policy = &mut config.core.seed_projects[0].policy.policy;
+                policy.period_spend = 2000;
+                for role in &mut policy.roles {
+                    role.period_spend = 2000;
+                }
+                for authority in std::iter::once(&mut rules.ceiling)
+                    .chain(std::iter::once(&mut policy.ceiling))
+                    .chain(policy.roles.iter_mut().map(|role| &mut role.authority))
+                {
+                    let mut kinds = authority.delegation.kinds.clone().into_vec();
+                    kinds.extend([authority::Executor::Charter(14), authority::Executor::Charter(15)]);
+                    authority.delegation.kinds = kinds.into_boxed_slice();
+                    authority.notes = authority::Scopes::GOAL;
+                }
             }
             if !charter_documents.is_empty() {
                 // Core sections and the two documents admitted by these stories
@@ -1399,11 +1461,9 @@ impl World {
         let mut codec = self.env.limits;
         codec.tasks = self.env.limits.tasks;
         codec.authority = self.env.limits.authority;
-        self.store = crate::fixtures::restored_over(
-            Store::with_limits(&codec),
-            crate::oracle::config::copy(&self.restart_config),
-            &self.env.limits,
-        );
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&codec), bootstrap, &self.env.limits);
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid closer configuration");
@@ -1437,6 +1497,29 @@ impl World {
     #[must_use]
     pub fn chat(&self, project: u32, words: &[u8]) -> people::Ask {
         walking::configured_chat(&self.creating, &self.store.rows, self.env.limits.tasks.tree_tasks, project, words)
+    }
+
+    /// Fill stock template 7 with the scripted person's chosen charter and period budget.
+    #[must_use]
+    pub fn standing(&self, project: u32, charter: u32, budget: u64, words: &[u8]) -> people::Ask {
+        let template =
+            self.restart_config.core.defaults.templates.iter().find(|row| row.number == 7).expect("standing template");
+        let people::Ask::Create { project, mut batch } = self.chat(project, words) else { panic!("creation fixture") };
+        let tasks::Contract::Report { words } = template.contract else { panic!("standing report") };
+        batch[0].executor = people::TaskExecutor::Agent { charter };
+        batch[0].contract = people::Contract::Report { words };
+        batch[0].flags = people::Flags {
+            ended_by: people::EndedBy::Standing,
+            conversation: template.flags.conversation,
+            listed: template.flags.listed,
+            retention: people::Retention::Kept,
+        };
+        batch[0].label = template.label;
+        batch[0].tracked = template.tracked;
+        batch[0].budget = people::Budget::Named;
+        batch[0].authority.spend = budget;
+        // Immediate news isolates routing from the standing charter's batching policy.
+        people::Ask::Create { project, batch }
     }
 
     pub fn send(&mut self, event: engine::Event) {
