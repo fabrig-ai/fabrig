@@ -125,6 +125,7 @@ fn process_name(process: &Proc) -> &'static str {
         Proc::Other(HarnessProcess::Client(_)) => "terminal client + person",
         Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => "ctl",
         Proc::Other(HarnessProcess::ProgramSource(_)) => "fake program provider",
+        Proc::Other(HarnessProcess::Push(_)) => "fake push service",
     }
 }
 // Smaller than the fixture's stored stock policy, while its shape still decodes.
@@ -362,6 +363,7 @@ pub(crate) enum HarnessProcess {
     Calls(Box<crate::ctl::Caller>),
     Client(Box<SignalHost<Person>>),
     ProgramSource(Box<smith_fake_claude::Fake>),
+    Push(Box<skein_fake_peers::push::Peer>),
 }
 impl HarnessProcess {
     fn host(&self) -> &dyn Host {
@@ -370,6 +372,7 @@ impl HarnessProcess {
             Self::Calls(h) => h.as_ref(),
             Self::Client(h) => h.as_ref(),
             Self::ProgramSource(h) => h.as_ref(),
+            Self::Push(h) => h.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
@@ -378,6 +381,7 @@ impl HarnessProcess {
             Self::Calls(h) => h.as_mut(),
             Self::Client(h) => h.as_mut(),
             Self::ProgramSource(h) => h.as_mut(),
+            Self::Push(h) => h.as_mut(),
         }
     }
 }
@@ -390,7 +394,7 @@ impl Host for HarnessProcess {
             use crate::m15::observer::{self, Role};
             let role = match self {
                 Self::Ctl(_) => Role::Ctl,
-                Self::Calls(_) => Role::Caller,
+                Self::Calls(_) | Self::Push(_) => Role::Caller,
                 Self::Client(_) => Role::Client,
                 Self::ProgramSource(_) => Role::Agent,
             };
@@ -1252,7 +1256,12 @@ fn run_phase(
             | Proc::Peer(_)
             | Proc::Forge(_)
             | Proc::Visitor(_)
-            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_) | HarnessProcess::ProgramSource(_)) => None,
+            | Proc::Other(
+                HarnessProcess::Ctl(_)
+                | HarnessProcess::Calls(_)
+                | HarnessProcess::ProgramSource(_)
+                | HarnessProcess::Push(_),
+            ) => None,
         })
         .sum();
     let chats_answered = if matches!(scenario, Story::ChatReadThenWait { .. }) {

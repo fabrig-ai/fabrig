@@ -42,6 +42,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("me watch");
@@ -99,6 +100,7 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("forges watch");
@@ -157,6 +159,7 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("account request left the host")

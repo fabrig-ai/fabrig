@@ -178,6 +178,15 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   The `Change` family's row keeps a follow change's `follows`, its
   follow's number and the commits it follows (`../domain/forge/follows.md`,
   section 4), as it keeps `repairs`; family 20 keeps kind 12's values.
+- **A person's devices,** after the follows' family, byte 42:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 43 | `Device` | `Device { party, number }`: the party, then the device's number | a browser's push subscription that the person turned push on with: `endpoint`, 1 to 1,024 bytes; `p256dh`, 65 bytes; `auth`, 16 bytes; `label`, 1 to 60 bytes; `at` (`../domain/forge/attention.md`, 7.1). Written by the party's `AddDevice`; erased by their `RemoveDevice`, by another party's `AddDevice` of the same endpoint, and by a push its service answers gone (`../domain/forge/attention.md`, 7.2); never with a project. A family of the forge connector's though it is people's, as `Binding` is | 8 times `bindings` |
+
+  Its record, `Device`, is the schema's `Value`'s last variant, after
+  `follow`, so a store written before it reads as it did: a new family
+  and a new variant at the end, with `STORE_VERSION` where it stands.
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/forge/family.md`).

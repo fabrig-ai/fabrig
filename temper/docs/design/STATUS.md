@@ -27,6 +27,14 @@ proposals. A role reports through its Now, a line per session and a weekly
 `report` note, with its Now in Home's brief's words; areas and routing remain
 a later milestone, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
+Being told is the whole story's milestone N3b, goal 492, built
+against fakes alone: a person's devices, jig's need's arrival, the
+root's pushes and the service's Web Push, `temper ctl push add`, and
+Telling you in the browser, its service worker and manifest; mail and
+the digest are designed and not built, and a real push needs a deployment
+at a name over HTTPS and its VAPID key (`domain/forge/attention.status.md`,
+7.4; `draft/what-reaches-you.status.md`, 9).
+
 
 QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a

@@ -390,6 +390,7 @@ fn all_projects(
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -681,6 +682,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             for (word, act) in [
                 (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
                 (Word::RememberedTitle, PageAct::Go { address: Address::Remembered }),
+                (Word::ToldTitle, PageAct::Go { address: Address::Told }),
                 (Word::SignOut, PageAct::SignOut),
             ] {
                 b.open(Role::MenuItem);
@@ -843,6 +845,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -1030,7 +1033,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Limits
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. } => true,
-        Address::Remembered
+        Address::Told
+        | Address::Remembered
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Work { .. }

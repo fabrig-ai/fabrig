@@ -837,6 +837,7 @@ impl Host {
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits

@@ -74,6 +74,7 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

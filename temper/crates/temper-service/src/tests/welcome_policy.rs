@@ -68,6 +68,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
+        push: resolved.push,
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,

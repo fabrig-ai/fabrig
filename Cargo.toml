@@ -27,6 +27,8 @@ members = [
     "skein/crates/skein-fake-machine",
     "skein/crates/skein-fake-oauth",
     "skein/crates/skein-fake-peers",
+    "skein/crates/skein-fake-push",
+    "skein/crates/skein-push",
     "skein/crates/skein-forge",
     "skein/crates/skein-forge-client",
     "skein/crates/skein-forge-connection",
@@ -406,7 +408,7 @@ skein-ui-example-server = { path = "skein/examples/ui/server" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
-web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions"] }
+web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "HtmlHeadElement", "Navigator", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
@@ -438,6 +440,8 @@ skein-fake-forge-http = { path = "skein/crates/skein-fake-forge-http" }
 skein-fake-llm-domain = { path = "skein/crates/skein-fake-llm-domain" }
 skein-fake-llm-protocol = { path = "skein/crates/skein-fake-llm-protocol" }
 skein-fake-peers = { path = "skein/crates/skein-fake-peers" }
+skein-fake-push = { path = "skein/crates/skein-fake-push" }
+skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
 skein-shell = { path = "skein/crates/skein-shell" }

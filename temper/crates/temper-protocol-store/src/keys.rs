@@ -41,6 +41,8 @@ pub const CLOSER: u8 = 40;
 pub const LANDED_DRAFT: u8 = 41;
 /// A follow record (temper/docs/design/protocol/store.md, 2).
 pub const FOLLOW: u8 = 42;
+/// A person's devices (temper/docs/design/protocol/store.md, 2).
+pub const DEVICE: u8 = 43;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -243,6 +245,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::ProjectFacts { project } => {
             writer.tag(PROJECT_FACTS).u64(u64::from(*project));
         }
+        forge::Key::Device { party, number } => {
+            writer.tag(DEVICE).u64(*party).u64(u64::from(*number));
+        }
         forge::Key::LandedDraft { repository, path } => {
             writer.tag(LANDED_DRAFT).u64(u64::from(repository.forge)).u64(u64::from(repository.repository)).bytes(path);
         }
@@ -374,6 +379,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             name: read_branch(&mut reader, limits)?,
         }),
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
+        DEVICE => forge::Key::Device { party: reader.u64()?, number: u32::try_from(reader.u64()?).ok()? },
         LANDED_DRAFT => {
             let repository = read_repository(&mut reader)?;
             let path = reader.bytes()?;

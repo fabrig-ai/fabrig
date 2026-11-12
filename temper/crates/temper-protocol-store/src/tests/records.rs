@@ -23,7 +23,7 @@ fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
     let mut restarted = forge::Domain::new(
         &limits,
         91,
-        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        forge::Config { namespace: Box::new([7; 16]), writers: Box::new([]), push: None },
         &[],
         &[],
         false,
@@ -1445,7 +1445,7 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
     let mut domain = forge::Domain::new(
         &env.limits,
         91,
-        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        temper_engine_domain_forge::Config { push: None, namespace: Box::new([7; 16]), writers: Box::new([]) },
         &[],
         &[],
         false,
@@ -2298,6 +2298,79 @@ fn sign_offs_round_trip_on_changes_and_landing_logs() {
         for row in [forge::Stored::Change(Box::new(change)), log] {
             assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "ordinary codec assertions build and mutate bounded byte fixtures"
+)]
+fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (endpoint, label) in [(1, 1), (1024, 60)] {
+        let row = forge::Stored::Device(forge::Device {
+            party: u64::MAX,
+            number: u32::MAX,
+            endpoint: vec![b'e'; endpoint].into_boxed_slice(),
+            label: vec![b'l'; label].into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            at: skein_lib::Wall::from_nanos(u64::MAX),
+        });
+        let bytes = records::encode(&row);
+        assert_eq!(bytes.get(2), Some(&37), "Device is Value's appended tag");
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+        let key = forge::stored_key(&row);
+        let encoded = crate::keys::encode(&key, u32::MAX).unwrap();
+        assert_eq!(encoded.first(), Some(&43));
+        assert!(encoded.as_ref() > crate::keys::encode(&forge::Key::Closer(u64::MAX), u32::MAX).unwrap().as_ref());
+        assert_eq!(records::row(&encoded, &bytes, &bounds), Ok(row));
+        for end in 0..bytes.len() {
+            records::decode(&bytes[..end], &bounds).unwrap_err();
+        }
+        for end in 0..encoded.len() {
+            assert!(crate::keys::decode(&encoded[..end], &fixtures::LIMITS).is_none());
+        }
+        let mut tail = bytes.to_vec();
+        tail.push(0);
+        records::decode(&tail, &bounds).unwrap_err();
+        let mut tail = encoded.to_vec();
+        tail.push(0);
+        assert!(crate::keys::decode(&tail, &fixtures::LIMITS).is_none());
+    }
+    for (endpoint, label) in [(vec![], vec![b'l']), (vec![b'e'], vec![]), (vec![b'e'], vec![255])] {
+        let row = forge::Stored::Device(forge::Device {
+            party: 1,
+            number: 1,
+            endpoint: endpoint.into_boxed_slice(),
+            label: label.into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            at: skein_lib::Wall::EPOCH,
+        });
+        records::decode(&records::encode(&row), &bounds).unwrap_err();
+    }
+    let mut oversized = vec![43];
+    oversized.extend_from_slice(&1_u64.to_be_bytes());
+    oversized.extend_from_slice(&(u64::from(u32::MAX) + 1).to_be_bytes());
+    assert!(crate::keys::decode(&oversized, &fixtures::LIMITS).is_none());
+    for (endpoint, label) in [(1025, 60), (1024, 61)] {
+        v11::Device::new(
+            &v11::CEILINGS,
+            v11::DeviceParts {
+                party: 1,
+                number: 1,
+                endpoint: vec![b'e'; endpoint].into_boxed_slice(),
+                label: vec![b'l'; label].into_boxed_slice(),
+                p256dh: [4; 65],
+                auth: [7; 16],
+                at: 0,
+            },
+        )
+        .unwrap_err();
     }
 }
 

@@ -206,6 +206,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
@@ -770,7 +771,7 @@ impl Domain {
     pub fn new(
         l: &Limits,
         seed: u64,
-        config: skein_forge_client::Config,
+        config: crate::Config,
         identities: &[crate::GitIdentity],
         forges: &[crate::Configured],
         under_box: bool,
@@ -825,6 +826,10 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            devices: match config.push {
+                Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
+                None => None,
+            },
             drafts: None,
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
@@ -911,7 +916,11 @@ impl Domain {
             reconciliation: crate::reconcile::Reconciliation::new(l),
             restore_started: None,
             restore_fit: None,
-            client: skein_forge_client::Domain::configured(&l.client, seed, config)?,
+            client: skein_forge_client::Domain::configured(
+                &l.client,
+                seed,
+                skein_forge_client::Config { namespace: config.namespace, writers: config.writers },
+            )?,
             client_out: Queue::uncapped(),
             brief_reclaim: 0,
             brief_fetches: Map::with_capacity(l.brief_sections),
@@ -1422,6 +1431,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, saved);
             }
         }
+        Event::Pushed { party, device, endpoint, answer } => {
+            crate::devices::pushed(d, party, device, &endpoint, answer, out);
+        }
         Event::Closer { row } => crate::closer::save(d, row, out),
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
@@ -1664,6 +1676,21 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
+        }
+        Event::AddDevice { request, token, party, person, call } => {
+            if person {
+                crate::devices::add(d, env, request, token, party, call, out);
+            } else {
+                d.connect.answer(
+                    request,
+                    token,
+                    crate::Answered::Device(crate::DeviceAnswer::Refused(crate::DeviceRefusal::Person)),
+                    out,
+                );
+            }
+        }
+        Event::RemoveDevice { request, token, party, number } => {
+            crate::devices::remove(d, request, token, party, number, out);
         }
         Event::SetDraft { request, token, party, call } => {
             crate::drafts::start(d, env, request, token, party, call, out);
@@ -7824,6 +7851,17 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
+        Stored::Device(row) => {
+            if d.devices.is_none() {
+                d.devices = Some(Box::new(crate::devices::State::new(None, env.limits.devices())));
+            }
+            d.devices
+                .as_mut()
+                .expect("restoring a device retains its state")
+                .rows
+                .insert((row.party, row.number), row)
+                .expect("restored device room checked");
+        }
         Stored::LandedDraft(row) => {
             crate::drafts::restore(d, &env.limits, row);
         }
@@ -8584,6 +8622,7 @@ impl Domain {
             | RecordKind::Setting
             | RecordKind::Making
             | RecordKind::ProjectFacts
+            | RecordKind::Device
             | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided
