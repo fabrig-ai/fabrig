@@ -67,6 +67,7 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let crate::tasks_v11::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
     assert!(!record.activation_open());
     assert_eq!(record.session(), &None);
+    assert_eq!(record.outcome().tries().infrastructure(), 0);
 }
 
 #[test]
