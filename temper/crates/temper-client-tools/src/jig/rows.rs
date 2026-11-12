@@ -1,7 +1,7 @@
 //! The read and host-tool records, in their published order.
 use super::table::{
     Keyed, Kind,
-    Occurs::{Optional, Required, Repeated},
+    Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
 pub const ME: Tool = Tool {

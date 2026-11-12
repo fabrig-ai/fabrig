@@ -4,25 +4,64 @@ use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::Kind;
 use skein_lib::{Duration, List, Wall, bytes};
+#[expect(
+    clippy::too_many_lines,
+    reason = "one overlay schema keeps every optional charter member in its declared form"
+)]
 pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overlay, Error> {
-    let fields = d.object(at, &[b"rest",b"model",b"alternatives",b"inspect",b"modify",b"shell",b"agents",b"tools",b"hosts",b"waiting",b"resume",b"turns",b"time",b"reserve_turns",b"reserve_time",b"call_timeout",b"spend",b"documents",b"instructions",b"parts",b"charters"])?;
-    if optional(&fields, b"charters").is_some() && (optional(&fields, b"instructions").is_some() || optional(&fields, b"parts").is_some()) {
+    let fields = d.object(
+        at,
+        &[
+            b"rest",
+            b"model",
+            b"alternatives",
+            b"inspect",
+            b"modify",
+            b"shell",
+            b"agents",
+            b"tools",
+            b"hosts",
+            b"waiting",
+            b"resume",
+            b"turns",
+            b"time",
+            b"reserve_turns",
+            b"reserve_time",
+            b"call_timeout",
+            b"spend",
+            b"documents",
+            b"instructions",
+            b"parts",
+            b"charters",
+        ],
+    )?;
+    if optional(&fields, b"charters").is_some()
+        && (optional(&fields, b"instructions").is_some() || optional(&fields, b"parts").is_some())
+    {
         return Err(error(b"overlay", b"charters or instructions and parts, not both"));
     }
     let mut charters = List::uncapped();
     if let Some(at) = optional(&fields, b"charters") {
-        if number != 5 && number != 2 { return Err(error(b"overlay.charters", b"sets are charters 5 and 2's")); }
+        if number != 5 && number != 2 {
+            return Err(error(b"overlay.charters", b"sets are charters 5 and 2's"));
+        }
         let positions = d.array(at, d.doc.len(), b"overlay.charters")?;
-        if positions.is_empty() { return Err(error(b"overlay.charters", b"nonempty list required")); }
+        if positions.is_empty() {
+            return Err(error(b"overlay.charters", b"nonempty list required"));
+        }
         for at in &positions {
             let name = d.string(*at)?;
-            if name.is_empty() { return Err(error(b"overlay.charters", b"directory must not be empty")); }
+            if name.is_empty() {
+                return Err(error(b"overlay.charters", b"directory must not be empty"));
+            }
             charters.push(name.into()).expect("bounded names");
         }
     }
     let parts = charter_parts(d, optional(&fields, b"parts"))?;
     if let Some(at) = optional(&fields, b"resume")
-        && d.boolean(at)? && !parts.is_empty() {
+        && d.boolean(at)?
+        && !parts.is_empty()
+    {
         return Err(error(b"overlay.parts", b"a charter that resumes takes no parts"));
     }
     Ok(c::Overlay {
@@ -32,26 +71,85 @@ pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overla
             None => c::Text::new(Box::from(b"".as_slice()), d.limits.charter_instructions).expect("empty text"),
         },
         parts,
-        rest: match optional(&fields, b"rest") { Some(at) => Some(d.boolean(at)?), None => None },
-        model: match optional(&fields, b"model") { Some(at) => Some(setting_model(d, at)?), None => None },
-        alternatives: match optional(&fields, b"alternatives") { Some(at) => Some({ let positions = d.array(at, d.limits.charter_alternatives, b"overlay.alternatives")?;
- let mut values = List::with_capacity(positions.len());
- for at in &positions { values.push(setting_model(d, *at)?).expect("bounded alternatives"); } values }), None => None },
-        inspect: match optional(&fields, b"inspect") { Some(at) => Some(d.boolean(at)?), None => None },
-        modify: match optional(&fields, b"modify") { Some(at) => Some(d.boolean(at)?), None => None },
-        shell: match optional(&fields, b"shell") { Some(at) => Some(d.boolean(at)?), None => None },
-        agents: match optional(&fields, b"agents") { Some(at) => Some(d.boolean(at)?), None => None },
-        tools: match optional(&fields, b"tools") { Some(at) => Some(d.number(at)?), None => None },
-        hosts: match optional(&fields, b"hosts") { Some(at) => Some(setting_hosts(d, at)?), None => None },
-        waiting: match optional(&fields, b"waiting") { Some(at) => Some(Duration::from_nanos(d.number(at)?)), None => None },
-        resume: match optional(&fields, b"resume") { Some(at) => Some(d.boolean(at)?), None => None },
-        turns: match optional(&fields, b"turns") { Some(at) => Some(u32::try_from(d.number(at)?).or(Err(error(b"overlay.turns", b"integer bound")))?), None => None },
-        time: match optional(&fields, b"time") { Some(at) => Some(Duration::from_nanos(d.number(at)?)), None => None },
-        reserve_turns: match optional(&fields, b"reserve_turns") { Some(at) => Some(u32::try_from(d.number(at)?).or(Err(error(b"overlay.reserve_turns", b"integer bound")))?), None => None },
-        reserve_time: match optional(&fields, b"reserve_time") { Some(at) => Some(Duration::from_nanos(d.number(at)?)), None => None },
-        call_timeout: match optional(&fields, b"call_timeout") { Some(at) => Some(Duration::from_nanos(d.number(at)?)), None => None },
-        spend: match optional(&fields, b"spend") { Some(at) => Some(d.number(at)?), None => None },
-        documents: match optional(&fields, b"documents") { Some(at) => Some(documents(d, at)?), None => None },
+        rest: match optional(&fields, b"rest") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        model: match optional(&fields, b"model") {
+            Some(at) => Some(setting_model(d, at)?),
+            None => None,
+        },
+        alternatives: match optional(&fields, b"alternatives") {
+            Some(at) => Some({
+                let positions = d.array(at, d.limits.charter_alternatives, b"overlay.alternatives")?;
+                let mut values = List::with_capacity(positions.len());
+                for at in &positions {
+                    values.push(setting_model(d, *at)?).expect("bounded alternatives");
+                }
+                values
+            }),
+            None => None,
+        },
+        inspect: match optional(&fields, b"inspect") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        modify: match optional(&fields, b"modify") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        shell: match optional(&fields, b"shell") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        agents: match optional(&fields, b"agents") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        tools: match optional(&fields, b"tools") {
+            Some(at) => Some(d.number(at)?),
+            None => None,
+        },
+        hosts: match optional(&fields, b"hosts") {
+            Some(at) => Some(setting_hosts(d, at)?),
+            None => None,
+        },
+        waiting: match optional(&fields, b"waiting") {
+            Some(at) => Some(Duration::from_nanos(d.number(at)?)),
+            None => None,
+        },
+        resume: match optional(&fields, b"resume") {
+            Some(at) => Some(d.boolean(at)?),
+            None => None,
+        },
+        turns: match optional(&fields, b"turns") {
+            Some(at) => Some(u32::try_from(d.number(at)?).or(Err(error(b"overlay.turns", b"integer bound")))?),
+            None => None,
+        },
+        time: match optional(&fields, b"time") {
+            Some(at) => Some(Duration::from_nanos(d.number(at)?)),
+            None => None,
+        },
+        reserve_turns: match optional(&fields, b"reserve_turns") {
+            Some(at) => Some(u32::try_from(d.number(at)?).or(Err(error(b"overlay.reserve_turns", b"integer bound")))?),
+            None => None,
+        },
+        reserve_time: match optional(&fields, b"reserve_time") {
+            Some(at) => Some(Duration::from_nanos(d.number(at)?)),
+            None => None,
+        },
+        call_timeout: match optional(&fields, b"call_timeout") {
+            Some(at) => Some(Duration::from_nanos(d.number(at)?)),
+            None => None,
+        },
+        spend: match optional(&fields, b"spend") {
+            Some(at) => Some(d.number(at)?),
+            None => None,
+        },
+        documents: match optional(&fields, b"documents") {
+            Some(at) => Some(documents(d, at)?),
+            None => None,
+        },
     })
 }
 pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {

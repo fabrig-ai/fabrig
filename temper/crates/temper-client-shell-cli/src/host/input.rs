@@ -73,10 +73,15 @@ impl OneShot {
             }
             return;
         }
-        if self.finish_settings_input() { return; }
+        if self.finish_settings_input() {
+            return;
+        }
         let Some(bytes) = self.directory.link.take() else { return };
-        if let Some(Parsed::Call { call, .. }) = &self.call && super::settings_input::settings(call) {
-            self.settings_input_bytes(bytes); return;
+        if let Some(Parsed::Call { call, .. }) = &self.call
+            && super::settings_input::settings(call)
+        {
+            self.settings_input_bytes(bytes);
+            return;
         }
         match self.call.take().expect("input's call") {
             Parsed::File { file, json } => match jig::json::call(TOOLS, &bytes, file, &self.root_env.limits.tools) {
@@ -370,19 +375,21 @@ mod settings_input_tests {
     fn loaded(frame: &Frame) -> &[u8] {
         let Some(Parsed::Call { call, .. }) = &frame.host.call else { panic!("prepared call") };
         let value = match call.values.first().expect("items").as_ref().expect("input") {
-            Values::One(value) => value, Values::Many(values) => values.first().expect("one file"),
+            Values::One(value) => value,
+            Values::Many(values) => values.first().expect("one file"),
         };
         let Value::SettingsFile(input) = value else { panic!("loaded settings file") };
         &input.bytes
     }
     #[test]
     fn stdin_relative_overlay_directories_are_refused_before_directory() {
-        let mut frame=Frame::read(&["settings","apply","-","--against","5","--key","overlay"]);
-        frame.input=br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["relative"]}}]}"#;
+        let mut frame = Frame::read(&["settings", "apply", "-", "--against", "5", "--key", "overlay"]);
+        frame.input = br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["relative"]}}]}"#;
         frame.drain();
-        let text=String::from_utf8_lossy(&frame.stderr()).into_owned();
+        let text = String::from_utf8_lossy(frame.stderr()).into_owned();
         assert!(text.contains("settings file item 1: overlay.charters[0]: \"relative\": is relative, and standard input has no directory; name it absolutely"),"{text}");
-        assert!(!frame.opened(b"directory")); assert_eq!(frame.requests(),0);
+        assert!(!frame.opened(b"directory"));
+        assert_eq!(frame.requests(), 0);
     }
     #[test]
     fn settings_acts_read_their_file_before_directory() {

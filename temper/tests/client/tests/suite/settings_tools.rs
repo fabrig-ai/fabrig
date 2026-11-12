@@ -33,9 +33,9 @@ fn configuration() -> engine::Config {
 }
 
 fn world() -> ClientWorld {
-    configured_world([configuration(),configuration()])
+    configured_world([configuration(), configuration()])
 }
-fn configured_world(configs: [engine::Config;2]) -> ClientWorld {
+fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
     let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
     let mut limits = front.engine.env.limits;
     limits.people.initial_owners = 2;
@@ -908,41 +908,71 @@ fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name(
 }
 
 fn overlay_configuration(new_default: bool) -> engine::Config {
-    let mut config=configuration();
-    let mut charter=config.core.defaults.charters[0].clone();
-    charter.number=2; charter.policy.instructions=if new_default { b"new default".as_slice() } else { b"old default".as_slice() }.into();
-    let mut charters=config.core.defaults.charters.into_vec(); charters.push(charter); config.core.defaults.charters=charters.into_boxed_slice();
+    let mut config = configuration();
+    let mut charter = config.core.defaults.charters[0].clone();
+    charter.number = 2;
+    charter.policy.instructions =
+        if new_default { b"new default".as_slice() } else { b"old default".as_slice() }.into();
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(charter);
+    config.core.defaults.charters = charters.into_boxed_slice();
     config
 }
 #[test]
 fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_restart() {
-    use temper_client_tools::jig::call::{SettingsFile,Value};
-    let mut world=configured_world([overlay_configuration(false),overlay_configuration(false)]);
-    let agent=fixtures::agent(&mut world);
-    let file=br#"{"items":[{"setting":{"kind":"charter","number":2},"overlay":{"charters":["set"],"shell":false}}]}"#;
-    let mut files=skein_lib::List::uncapped();
-    for (name,text) in [(b"common.md".as_slice(),b"common".as_slice()),(b"implementer.md",b"our implementation rules")] {
-        files.push(settings_form::overlay::Markdown{name:name.into(),text:text.into()}).expect("set file");
+    use temper_client_tools::jig::call::{SettingsFile, Value};
+    let mut world = configured_world([overlay_configuration(false), overlay_configuration(false)]);
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"charter","number":2},"overlay":{"charters":["set"],"shell":false}}]}"#;
+    let mut files = skein_lib::List::uncapped();
+    for (name, text) in
+        [(b"common.md".as_slice(), b"common".as_slice()), (b"implementer.md", b"our implementation rules")]
+    {
+        files.push(settings_form::overlay::Markdown { name: name.into(), text: text.into() }).expect("set file");
     }
-    let mut directories=skein_lib::List::uncapped(); directories.push(settings_form::overlay::Directory{path:b"set".as_slice().into(),files}).expect("set");
-    let number=fixtures::give_with_loaded_file(&mut world,agent,&[b"settings",b"apply",b"settings.json",b"--against",b"1",b"--key",b"overlay-set"],&Value::SettingsFile(Box::new(SettingsFile{name:b"settings.json".as_slice().into(),bytes:file.as_slice().into(),directories})));
-    let answer=fixtures::answered(&mut world,agent,number); assert_eq!(answer.status,0,"{answer:?}");
-    let shown=call(&mut world,agent,&[b"settings",b"show",b"charter",b"2"]);
-    assert!(shown.contains("old default\\n\\ncommon\\n\\nour implementation rules"),"{shown}");
-    assert!(shown.contains("overlay replaces: shell"),"{shown}");
-    let json=call(&mut world,agent,&[b"settings",b"show",b"charter",b"2",b"--json"]);
-    assert!(!json.contains("charters"),"{json}");
-    let literal=json.rsplit_once(",\"overlay\":").expect("exported overlay").1.strip_suffix('}').expect("JSON end");
-    let reset=br#"{"items":[{"setting":{"kind":"charter","number":2},"edit":"reset"}]}"#;
-    let number=fixtures::give_with_file(&mut world,agent,&[b"settings",b"apply",b"reset.json",b"--against",b"2",b"--key",b"reset-overlay"],reset);
-    assert_eq!(fixtures::answered(&mut world,agent,number).status,0);
-    let file=format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"overlay":{literal}}}]}}"#);
-    let number=fixtures::give_with_file(&mut world,agent,&[b"settings",b"apply",b"copy.json",b"--against",b"3",b"--key",b"copy-overlay"],file.as_bytes());
-    assert_eq!(fixtures::answered(&mut world,agent,number).status,0);
-    let inventory=call(&mut world,agent,&[b"settings",b"show"]); assert!(inventory.contains("charter 2: overlay"),"{inventory}");
-    world.front().engine.reopen(overlay_configuration(true)); world.front().engine.settle();
-    let agent=fixtures::agent(&mut world);
-    let shown=call(&mut world,agent,&[b"settings",b"show",b"charter",b"2"]);
-    assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"),"{shown}");
-    let inventory=call(&mut world,agent,&[b"settings",b"show"]); assert!(inventory.contains("charter 2: overlay"),"{inventory}");
+    let mut directories = skein_lib::List::uncapped();
+    directories.push(settings_form::overlay::Directory { path: b"set".as_slice().into(), files }).expect("set");
+    let number = fixtures::give_with_loaded_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"settings.json", b"--against", b"1", b"--key", b"overlay-set"],
+        &Value::SettingsFile(Box::new(SettingsFile {
+            name: b"settings.json".as_slice().into(),
+            bytes: file.as_slice().into(),
+            directories,
+        })),
+    );
+    let answer = fixtures::answered(&mut world, agent, number);
+    assert_eq!(answer.status, 0, "{answer:?}");
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2"]);
+    assert!(shown.contains("old default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
+    assert!(shown.contains("overlay replaces: shell"), "{shown}");
+    let json = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2", b"--json"]);
+    assert!(!json.contains("charters"), "{json}");
+    let literal = json.rsplit_once(",\"overlay\":").expect("exported overlay").1.strip_suffix('}').expect("JSON end");
+    let reset = br#"{"items":[{"setting":{"kind":"charter","number":2},"edit":"reset"}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"reset.json", b"--against", b"2", b"--key", b"reset-overlay"],
+        reset,
+    );
+    assert_eq!(fixtures::answered(&mut world, agent, number).status, 0);
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"overlay":{literal}}}]}}"#);
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"copy.json", b"--against", b"3", b"--key", b"copy-overlay"],
+        file.as_bytes(),
+    );
+    assert_eq!(fixtures::answered(&mut world, agent, number).status, 0);
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("charter 2: overlay"), "{inventory}");
+    world.front().engine.reopen(overlay_configuration(true));
+    world.front().engine.settle();
+    let agent = fixtures::agent(&mut world);
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2"]);
+    assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("charter 2: overlay"), "{inventory}");
 }

@@ -153,7 +153,13 @@ fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut En
     }
     encode_value(value, out);
 }
-fn named_value_text(setting: c::Setting, value: &c::SettingValue, overlay: Option<&c::Overlay>, limits: &Limits, out: &mut Text) {
+fn named_value_text(
+    setting: c::Setting,
+    value: &c::SettingValue,
+    overlay: Option<&c::Overlay>,
+    limits: &Limits,
+    out: &mut Text,
+) {
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -196,8 +202,13 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
 fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out: &mut Text) {
     match value {
         c::SettingValue::Charter(charter) => {
-            if let Some(overlay) = overlay { overlay_marks(overlay, out); }
-            let first_overlay = match overlay { Some(overlay) => charter.parts.len().saturating_sub(overlay.parts.len()), None => charter.parts.len() };
+            if let Some(overlay) = overlay {
+                overlay_marks(overlay, out);
+            }
+            let first_overlay = match overlay {
+                Some(overlay) => charter.parts.len().saturating_sub(overlay.parts.len()),
+                None => charter.parts.len(),
+            };
             for (index, part) in charter.parts.iter().enumerate() {
                 out.put(b"parts[");
                 out.number(u64::try_from(index).expect("part index fits"));
@@ -212,7 +223,9 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
                 out.put(b"; ");
                 out.number(u64::try_from(part.instructions.bytes().len()).expect("instruction bytes fit"));
                 out.put(b" bytes");
-                if index >= usize::try_from(first_overlay).expect("part count") { out.put(b"; overlay"); }
+                if index >= usize::try_from(first_overlay).expect("part count") {
+                    out.put(b"; overlay");
+                }
                 out.put(b"\n");
             }
         }
@@ -413,7 +426,10 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
                 Some(value) => encode_named_value(document.setting, value, out),
                 None => out.null(),
             }
-            if let Some(overlay) = &document.overlay { out.key(b"overlay"); values::encode_overlay(overlay, out); }
+            if let Some(overlay) = &document.overlay {
+                out.key(b"overlay");
+                values::encode_overlay(overlay, out);
+            }
             if let Some(state) = &document.application {
                 out.key(b"application");
                 encode_application(state, out);
@@ -934,13 +950,22 @@ fn overlay_marks(overlay: &c::Overlay, out: &mut Text) {
     let mut any = false;
     for field in crate::fields::members(crate::fields::Shape::Overlay) {
         if overlay.replaces(field.name) {
-            if any { out.put(b", "); } any = true; out.put(field.name);
+            if any {
+                out.put(b", ");
+            }
+            any = true;
+            out.put(field.name);
         }
     }
-    if !any { out.put(b"nothing"); }
+    if !any {
+        out.put(b"nothing");
+    }
     out.put(b"\noverlay adds: ");
-    if overlay.instructions.bytes().is_empty() { out.put(b"no instructions"); } else {
-        out.number(skein_lib::len_u64(overlay.instructions.bytes().len())); out.put(b" bytes of instructions");
+    if overlay.instructions.bytes().is_empty() {
+        out.put(b"no instructions");
+    } else {
+        out.number(skein_lib::len_u64(overlay.instructions.bytes().len()));
+        out.put(b" bytes of instructions");
     }
     out.put(b"\n");
 }

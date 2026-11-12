@@ -762,7 +762,7 @@ fn the_settings_form_round_trips_a_model() {
     assert_eq!(model.model.input_price, 3);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
+        overlay: None,
         setting: item.setting,
         revision: 2,
         value: Some(set.value.clone()),
@@ -925,7 +925,7 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
     assert_eq!(item.setting, c::Setting::Application { kind: 13, scope: 3, number: 1 });
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
+        overlay: None,
         setting: item.setting,
         revision: 1,
         value: Some(set.value.clone()),

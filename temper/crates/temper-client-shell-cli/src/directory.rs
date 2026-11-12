@@ -82,7 +82,13 @@ impl Directory {
     pub(crate) fn new(startup: Startup, leaf: Box<[u8]>, class: Class, files: Vec<(u8, Fd)>, ask_bytes: u32) -> Self {
         let Startup { parent, file_parent, user, seed, .. } = startup;
         let timeout = Duration::from_secs(30);
-        let limits = Limits { files: FILE_SLOTS + u32::try_from(files.len()).expect("input files"), read: ask_bytes, entries: 64, whole: ask_bytes, timeout };
+        let limits = Limits {
+            files: FILE_SLOTS + u32::try_from(files.len()).expect("input files"),
+            read: ask_bytes,
+            entries: 64,
+            whole: ask_bytes,
+            timeout,
+        };
         let mut io = FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
         let root = parent.map(|fd| io.adopt_root(fd).expect("parent slot"));
@@ -172,7 +178,10 @@ impl Directory {
         self.close();
     }
     fn answer(&mut self, now: Time, event: file::Event) {
-        if self.stage == Stage::Overlay && !self.closing { self.sets_answer(event); return; }
+        if self.stage == Stage::Overlay && !self.closing {
+            self.sets_answer(event);
+            return;
+        }
         if let file::Event::Opened { file, .. } = &event {
             if self.stage == Stage::RecordCreate {
                 self.record = Some(*file);
@@ -361,6 +370,7 @@ impl Directory {
             | file::Event::Cancelled { .. } => self.fail(b"key file could not be read: unexpected answer"),
         }
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive file-stage projection includes the overlay input stage")]
     pub(crate) fn progress(&mut self, now: Time) {
         if self.io.is_due(now) {
             let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
@@ -383,7 +393,10 @@ impl Directory {
             self.stage = if self.class == Class::SignIn { Stage::Private } else { Stage::Exists };
         }
         let request = match self.stage {
-            Stage::Overlay => { let Some(request) = self.sets_request() else { return }; request },
+            Stage::Overlay => {
+                let Some(request) = self.sets_request() else { return };
+                request
+            }
             Stage::Exists => file::Request::OpenDirectory {
                 owner: OWNER,
                 root: self.io.descriptor(root).expect("parent"),

@@ -1458,8 +1458,10 @@ pub fn give_with_file(
 }
 /// Supply an input-step settings file, including its already-read directories.
 pub fn give_with_loaded_file(
-    world: &mut World<Temper, Joint>, agent: jig_client_kit::harness::ClientId,
-    words: &[&[u8]], input: &temper_client_tools::jig::call::Value,
+    world: &mut World<Temper, Joint>,
+    agent: jig_client_kit::harness::ClientId,
+    words: &[&[u8]],
+    input: &temper_client_tools::jig::call::Value,
 ) -> u32 {
     use jig_client_kit::harness::Until;
     use temper_client_tools::jig::call::{Value, Values};
@@ -1477,10 +1479,18 @@ pub fn give_with_loaded_file(
     let mut files = 0;
     for slot in &mut call.values {
         match slot {
-            Some(Values::One(value @ Value::File(_))) => { *value = input.clone(); files += 1; }
-            Some(Values::Many(values)) => for value in values {
-                if let Value::File(_) = value { *value = input.clone(); files += 1; }
-            },
+            Some(Values::One(value @ Value::File(_))) => {
+                *value = input.clone();
+                files += 1;
+            }
+            Some(Values::Many(values)) => {
+                for value in values {
+                    if let Value::File(_) = value {
+                        *value = input.clone();
+                        files += 1;
+                    }
+                }
+            }
             _ => {}
         }
     }

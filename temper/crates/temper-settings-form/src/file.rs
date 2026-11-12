@@ -313,9 +313,14 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
         if optional(&fields, b"set").is_some() || optional(&fields, b"edit").is_some() {
             return Err(error(b"item", b"exactly one of set, edit or overlay required"));
         }
-        let c::Setting::Charter(n) = setting else { return Err(error(b"overlay", b"charter required")); };
+        let c::Setting::Charter(n) = setting else {
+            return Err(error(b"overlay", b"charter required"));
+        };
         let overlay = values::overlay(d, at, n.number)?;
-        return Ok(c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(overlay)) }) });
+        return Ok(c::SettingItem {
+            setting,
+            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(overlay)) }),
+        });
     }
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
@@ -443,6 +448,12 @@ fn decode_root(
             return Err(message(Some(index), bound(b"encoded items bytes", limits.settings.change_settings_items)));
         }
         items.push(next).expect("counted items");
+    }
+    if proposal {
+        let directories = crate::overlay::directories(&items);
+        if let Some(name) = directories.get(0) {
+            return Err(crate::overlay::refusal(name, "directory: ctl file input required"));
+        }
     }
     let ask = c::ChangeSettings { against: 0, items, running: c::Running::Stays };
     let wire = crate::wire::wire_change_settings(&ask, &limits.settings)

@@ -24,7 +24,11 @@ pub fn encode_overlay(value: &c::Overlay, out: &mut Encoder) {
     }
     if let Some(value) = &value.alternatives {
         out.key(b"alternatives");
-        out.array_start(); for value in value { encode_setting_model(value, out); } out.array_end();
+        out.array_start();
+        for value in value {
+            encode_setting_model(value, out);
+        }
+        out.array_end();
     }
     if let Some(value) = &value.inspect {
         out.key(b"inspect");
@@ -84,21 +88,38 @@ pub fn encode_overlay(value: &c::Overlay, out: &mut Encoder) {
     }
     if let Some(value) = &value.documents {
         out.key(b"documents");
-        out.array_start(); for value in value { encode_document(value, out); } out.array_end();
+        out.array_start();
+        for value in value {
+            encode_document(value, out);
+        }
+        out.array_end();
     }
-    if !value.instructions.bytes().is_empty() { out.key(b"instructions"); encode_text(&value.instructions, out); }
-    if !value.parts.is_empty() { out.key(b"parts"); encode_parts(&value.parts, out); }
+    if !value.instructions.bytes().is_empty() {
+        out.key(b"instructions");
+        encode_text(&value.instructions, out);
+    }
+    if !value.parts.is_empty() {
+        out.key(b"parts");
+        encode_parts(&value.parts, out);
+    }
     out.object_end();
 }
 fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
     out.array_start();
     for part in parts {
-        out.object_start(); out.key(b"on"); out.array_start();
+        out.object_start();
+        out.key(b"on");
+        out.array_start();
         for (index, name) in c::REASON_NAMES.iter().enumerate() {
             let bit = 1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit");
-            if part.on & bit != 0 { out.string(name); }
+            if part.on & bit != 0 {
+                out.string(name);
+            }
         }
-        out.array_end(); out.key(b"instructions"); encode_text(&part.instructions, out); out.object_end();
+        out.array_end();
+        out.key(b"instructions");
+        encode_text(&part.instructions, out);
+        out.object_end();
     }
     out.array_end();
 }

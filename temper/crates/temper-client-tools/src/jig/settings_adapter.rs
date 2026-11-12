@@ -32,14 +32,29 @@ pub fn form_overlay(v: &c::Overlay) -> n::Overlay {
     n::Overlay {
         charters: List::with_capacity(0),
         rest: v.rest,
-        model: match &v.model { Some(v) => Some(form_setting_model(v)), None => None },
-        alternatives: match &v.alternatives { Some(v) => { let mut out = List::with_capacity(v.len()); for item in v { out.push(form_setting_model(item)).expect("same count"); } Some(out) }, None => None },
+        model: match &v.model {
+            Some(v) => Some(form_setting_model(v)),
+            None => None,
+        },
+        alternatives: match &v.alternatives {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(form_setting_model(item)).expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
         inspect: v.inspect,
         modify: v.modify,
         shell: v.shell,
         agents: v.agents,
         tools: v.tools,
-        hosts: match &v.hosts { Some(v) => Some(form_setting_hosts(v)), None => None },
+        hosts: match &v.hosts {
+            Some(v) => Some(form_setting_hosts(v)),
+            None => None,
+        },
         waiting: v.waiting,
         resume: v.resume,
         turns: v.turns,
@@ -48,22 +63,58 @@ pub fn form_overlay(v: &c::Overlay) -> n::Overlay {
         reserve_time: v.reserve_time,
         call_timeout: v.call_timeout,
         spend: v.spend,
-        documents: match &v.documents { Some(v) => { let mut out = List::with_capacity(v.len()); for item in v { out.push(n::CharterDocument { connector: item.connector, name: item.name.clone(), path: item.path.clone(), heading: item.heading.clone() }).expect("same count"); } Some(out) }, None => None },
+        documents: match &v.documents {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(n::CharterDocument {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
+                    .expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
         instructions: form_text(&v.instructions),
-        parts: { let mut out = List::with_capacity(v.parts.len()); for p in &v.parts { out.push(n::CharterPart { on: p.on, instructions: form_text(&p.instructions) }).expect("same count"); } out },
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for p in &v.parts {
+                out.push(n::CharterPart { on: p.on, instructions: form_text(&p.instructions) }).expect("same count");
+            }
+            out
+        },
     }
 }
 pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
     c::Overlay {
         rest: v.rest,
-        model: match &v.model { Some(v) => Some(client_setting_model(v)), None => None },
-        alternatives: match &v.alternatives { Some(v) => { let mut out = List::with_capacity(v.len()); for item in v { out.push(client_setting_model(item)).expect("same count"); } Some(out) }, None => None },
+        model: match &v.model {
+            Some(v) => Some(client_setting_model(v)),
+            None => None,
+        },
+        alternatives: match &v.alternatives {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(client_setting_model(item)).expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
         inspect: v.inspect,
         modify: v.modify,
         shell: v.shell,
         agents: v.agents,
         tools: v.tools,
-        hosts: match &v.hosts { Some(v) => Some(client_setting_hosts(v)), None => None },
+        hosts: match &v.hosts {
+            Some(v) => Some(client_setting_hosts(v)),
+            None => None,
+        },
         waiting: v.waiting,
         resume: v.resume,
         turns: v.turns,
@@ -72,9 +123,30 @@ pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
         reserve_time: v.reserve_time,
         call_timeout: v.call_timeout,
         spend: v.spend,
-        documents: match &v.documents { Some(v) => { let mut out = List::with_capacity(v.len()); for item in v { out.push(c::CharterDocument { connector: item.connector, name: item.name.clone(), path: item.path.clone(), heading: item.heading.clone() }).expect("same count"); } Some(out) }, None => None },
+        documents: match &v.documents {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(c::CharterDocument {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
+                    .expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
         instructions: client_text(&v.instructions),
-        parts: { let mut out = List::with_capacity(v.parts.len()); for p in &v.parts { out.push(c::CharterPart { on: p.on, instructions: client_text(&p.instructions) }).expect("same count"); } out },
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for p in &v.parts {
+                out.push(c::CharterPart { on: p.on, instructions: client_text(&p.instructions) }).expect("same count");
+            }
+            out
+        },
     }
 }
 pub fn form_charter(v: &c::Charter) -> n::Charter {
@@ -723,7 +795,10 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
 }
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
-        overlay: match &v.overlay { Some(v) => Some(Box::new(form_overlay(v))), None => None },
+        overlay: match &v.overlay {
+            Some(v) => Some(Box::new(form_overlay(v))),
+            None => None,
+        },
         setting: form_setting(v.setting),
         revision: v.revision,
         value: match &v.value {
