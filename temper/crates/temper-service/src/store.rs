@@ -126,7 +126,8 @@ pub(crate) fn layout(
 ) -> Result<protocol::Limits, Refusal> {
     let arithmetic = Refusal::Map(protocol::sizes::SizeRefusal::Ceiling);
     let core = root::core_limits(root);
-    let mut kv = profile.store;
+    let mut kv = settings_room(&core, profile.store).ok_or(arithmetic)?;
+    let page_ceiling = kv.page.bytes;
     let transcript = root.loads.transcript_bytes;
     let ceiling = protocol::core_v6::CEILINGS.turn_record_transcript;
     if transcript > ceiling {
@@ -144,9 +145,9 @@ pub(crate) fn layout(
     };
     protocol::sizes::fill(&mut kv, &sizes).ok_or(arithmetic)?;
     kv.page.bytes = page_bytes(&core, transcript, sizes.key, sizes.value).ok_or(arithmetic)?;
-    if kv.page.bytes > profile.store.page.bytes {
+    if kv.page.bytes > page_ceiling {
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
-        return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: profile.store.page.bytes });
+        return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: page_ceiling });
     }
     Ok(protocol::Limits {
         core,
@@ -160,6 +161,17 @@ pub(crate) fn layout(
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
         orphan_erases: profile.orphan_erases,
     })
+}
+
+// Settings carry a whole revision, including replaced values and model names.
+// Their room follows the effective capacities (protocol/store.md, 4).
+fn settings_room(core: &jig_domain_core::Limits, mut kv: skein_kv::Limits) -> Option<skein_kv::Limits> {
+    let value = protocol::sizes::settings_value(core)?;
+    if value > kv.value {
+        kv.value = value;
+        kv.page.bytes = kv.page.bytes.max(kv.key.checked_add(value)?);
+    }
+    Some(kv)
 }
 
 // protocol/store.md, 4; jig owns current full-frame sizing.
