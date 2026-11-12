@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 7: `temper-worker-wire` and `temper-host-tools` as wires, both components given temper's statement, and the store keeping every wire of `temper_service::wires()` [in flight: change 1756].
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
