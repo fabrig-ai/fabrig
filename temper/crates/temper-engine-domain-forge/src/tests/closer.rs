@@ -10,6 +10,7 @@ fn closer(task: u64, goal: u64, done: bool) -> CloserRow {
         close_changes: Box::new([]),
         landing_changes: Box::new([]),
         done,
+        relay: temper_engine_domain_forge_closer::relay::Relay::new(),
     }
 }
 

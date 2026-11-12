@@ -179,11 +179,9 @@ fn a_disk_upgrade_patches_the_model_before_loading_its_catalogue() {
     let mut store = disk.store();
     store.patch_sets(SETS);
     let events = disk.open(&mut store);
-    assert!(
-        matches!(events.last(), Some(Event::Opened { pending: true, .. })),
-        "{events:?}; {:?}",
-        store.start_open_failure()
-    );
+    let Some(Event::Opened { pending: true, .. }) = events.last() else {
+        panic!("{events:?}; {:?}", store.start_open_failure());
+    };
     assert_eq!(disk.bytes(b"active").as_ref(), b"1\n", "the patched copy awaits its switch");
     let events = disk.request(&mut store, crate::Request::Get { owner: Token::new(2), key: crate::Get::Jig(key()) });
     let [Event::Got { row: Some(crate::Row::Jig(core::Record::Core(core::CoreRecord::Settings(found)))), .. }] =
