@@ -10,6 +10,7 @@ pub(crate) mod host_rule;
 pub(crate) mod live;
 pub(crate) mod llm;
 pub(crate) mod model_names;
+mod model_ways;
 pub(crate) mod retained;
 pub(crate) mod run_choice;
 pub(crate) mod state;

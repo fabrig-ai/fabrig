@@ -60,18 +60,22 @@ fn delegate(ctl: &mut Ctl, goal: u64, completion: u32) -> u64 {
     delegate_choices(ctl, goal, completion, &[BLUE])
 }
 fn delegate_choices(ctl: &mut Ctl, goal: u64, completion: u32, codes: &[u32]) -> u64 {
+    let contract = tasks::Contract::Verdict {
+        choices: codes
+            .iter()
+            .map(|code| tasks::Verdict { code: *code, words: RESULT_WORDS, followups: 0, fields: Box::new([]) })
+            .collect(),
+    };
+    delegate_contract(ctl, goal, completion, contract)
+}
+fn delegate_contract(ctl: &mut Ctl, goal: u64, completion: u32, contract: tasks::Contract) -> u64 {
     let driver = &mut ctl.front.engine;
     let attempt = driver.task(goal).expect("running goal").attempt;
     let mut child = temper_engine_domain_world::fixtures::report_delegate(b"Choose a colour: blue", Box::new([]));
     child.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
     child.authority.tools = tasks::Tools(0);
     child.authority.budget.spend = 0;
-    child.contract = tasks::Contract::Verdict {
-        choices: codes
-            .iter()
-            .map(|code| tasks::Verdict { code: *code, words: RESULT_WORDS, followups: 0, fields: Box::new([]) })
-            .collect(),
-    };
+    child.contract = contract;
     driver.call(
         WORKER,
         goal,
@@ -757,6 +761,31 @@ fn a_reason_past_its_choice_names_the_bound() {
     assert!(
         matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Verdict { code: BLUE, words, .. })) if words.as_ref() == reason)
     );
+}
+
+#[test]
+fn a_choice_for_a_report_names_words_and_leaves_the_task_live() {
+    const REPORT_WORDS: u32 = 4096;
+    let (mut ctl, goal) = start_goal(b"Ask me a colour");
+    let child = delegate_contract(&mut ctl, goal, 28, tasks::Contract::Report { words: REPORT_WORDS });
+    let number = child.to_string();
+    ctl.text(&[b"task", b"take", number.as_bytes(), b"--key", b"take-colour"]);
+    let revision = ctl.front.engine.task(child).expect("person task").revisions.person.to_string();
+    let refused =
+        ctl.call(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"1", b"blue"], None);
+    assert_eq!(refused.status, 2);
+    assert_eq!(refused.stderr.as_ref(), format!("task answer: Limit reached: task {child} takes words, at most {REPORT_WORDS} bytes, not a choice\nanswer instead: task answer {child} --rev {revision} TEXT\n").as_bytes());
+    assert!(ctl.front.engine.task(child).expect("refused task stays live").person_answer.is_none());
+    ctl.text(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"blue"]);
+    let stored =
+        ctl.front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+        panic!("completed person task: {stored:?}");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == b"blue")
+    );
+    assert!(ctl.front.engine.task(child).is_none());
 }
 
 fn result_projections(ctl: &mut Ctl, goal: u64, child: u64) {

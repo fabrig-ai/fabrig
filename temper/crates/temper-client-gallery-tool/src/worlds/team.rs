@@ -124,6 +124,27 @@ pub(super) fn world(name: &str) -> Domain {
                     &mut out,
                 );
             }
+            Down::Open { watch, subject: Watchable::Family { record, .. } }
+                if wire::decode_watching(&record.bytes, &w::CEILINGS)
+                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Changes(_))) =>
+            {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::changes_panel(&changes(reader, alone)),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
             Down::Read { .. }
             | Down::Open { .. }
             | Down::Continue { .. }
@@ -134,6 +155,46 @@ pub(super) fn world(name: &str) -> Domain {
         }
     }
     root
+}
+
+fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
+    let mut rows = List::with_capacity(5);
+    if !alone {
+        let at = super::now(crate::samples::World::Solo).as_nanos().saturating_sub(86_400_000_000_000);
+        let both = [reader, SAM];
+        let sam = [SAM];
+        for task in 1..=5 {
+            rows.push(
+                w::ChangesLanded::new(
+                    &w::CEILINGS,
+                    w::ChangesLandedParts {
+                        task,
+                        title: b"A signed change".as_slice().into(),
+                        at,
+                        commit: [0xab; 32],
+                        default_branch: true,
+                        signed: crate::samples::signoffs(if task <= 4 { both.as_slice() } else { sam.as_slice() }, at),
+                    },
+                )
+                .expect("signed sample landing"),
+            )
+            .expect("five sample landings");
+        }
+    }
+    w::ChangesPanel::new(
+        &w::CEILINGS,
+        w::ChangesPanelParts {
+            project: PROJECT,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: rows.clone(),
+            landed_more: 0,
+            landed_default: rows,
+            landed_default_more: 0,
+        },
+    )
+    .expect("sample changes")
 }
 
 fn member(party: u64, kind: c::PartyKind, name: &str, role: c::HeldRole) -> c::ProjectMember {

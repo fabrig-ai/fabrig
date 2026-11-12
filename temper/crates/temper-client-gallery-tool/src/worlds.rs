@@ -4922,6 +4922,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
                             task,
@@ -4939,6 +4940,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 107,

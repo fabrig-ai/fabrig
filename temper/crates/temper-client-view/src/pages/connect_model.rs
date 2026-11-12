@@ -74,6 +74,16 @@ pub(super) fn button(b: &mut Builder, bindings: &mut Bindings, name: &[u8], act:
         flow::control(b, if primary { Control::PrimaryButton { name, to } } else { Control::Button { name, to } });
     }
 }
+pub(super) fn key_heading(brand: &[u8], w: &Words) -> Box<[u8]> {
+    named(
+        w,
+        match brand.first() {
+            Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyTitle,
+            _ => W::KeyTitleA,
+        },
+        brand,
+    )
+}
 pub(super) fn choice(
     b: &mut Builder,
     root: &Domain,
@@ -86,14 +96,7 @@ pub(super) fn choice(
     let (brand, plan) = names(me, way);
     let label = label(me, way, ways, w);
     let heading = match way {
-        Way::Key { .. } => named(
-            w,
-            match brand.first() {
-                Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyTitle,
-                _ => W::KeyTitleA,
-            },
-            brand,
-        ),
+        Way::Key { .. } => key_heading(brand, w),
         Way::Program { .. } => named(w, W::SubscriptionWay, plan),
         Way::SignIn { .. } => crate::choice::shown(plan, w),
     };
@@ -432,14 +435,7 @@ fn way_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
         Way::SignIn { plan: true, .. } => named(w, W::YourPlan, plan),
         Way::SignIn { plan: false, .. } => signing_heading(root, w, way),
         Way::Program { .. } => w.say(Word::ModelProgramTitle, &[Hole::Name(crate::choice::shown(plan, w))]),
-        Way::Key { .. } => named(
-            w,
-            match brand.first() {
-                Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyTitle,
-                _ => W::KeyTitleA,
-            },
-            brand,
-        ),
+        Way::Key { .. } => key_heading(brand, w),
     }
 }
 
@@ -690,11 +686,7 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     let Some(me) = accounts::current_me(root.client()) else { return };
     let Some(page) = root.pages().connect_model() else { return };
     let (brand, _) = names(me, way);
-    crate::cards::text(
-        b,
-        Role::Paragraph,
-        &w.say(Word::ModelKeyDescription, &[Hole::Name(crate::choice::shown(brand, w))]),
-    );
+    crate::cards::text(b, Role::Paragraph, &words::key_description(brand, w));
     b.open(Role::Form);
     b.name(&say(w, W::Details));
     key_field(b, root, bindings, busy, &w.say(Word::ModelKeyField, &[]));

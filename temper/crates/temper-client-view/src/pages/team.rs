@@ -80,11 +80,12 @@ pub(crate) fn draw(
             paragraph(b, &w.say(Word::TeamUnreadable, &[]), look::SETTINGS_EMPTY);
         }
         team::Shown::Read(facts) => {
-            if team::parts(facts).people {
+            let parts = team::parts(facts);
+            if parts.people {
                 b.open(Role::Slot);
                 b.style(look::TEAM_PEOPLE);
                 for person in &facts.people {
-                    person_box(b, w, person);
+                    person_box(b, w, person, parts.signed(person.party));
                 }
                 b.close();
             }
@@ -115,7 +116,7 @@ fn lede(w: &Words, facts: &team::Facts) -> Box<[u8]> {
     w.say(if you { Word::TeamOfYou } else { Word::TeamPeopleCount }, &[Hole::Name(count)])
 }
 
-fn person_box(b: &mut Builder, w: &Words, person: &team::Person) {
+fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<&[u8]>) {
     b.open(Role::Slot);
     b.style(look::TEAM_PERSON);
     let name = if person.you { w.say(Word::TeamYou, &[]) } else { person.name.clone() };
@@ -134,6 +135,9 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person) {
     if let Some(waits) = person.waits {
         let whom = if person.you { w.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
         paragraph(b, &line(w, &waits, whom), look::TEAM_LINE);
+    }
+    if let Some(signed) = signed {
+        paragraph(b, signed, look::TEAM_LINE);
     }
     b.close();
 }

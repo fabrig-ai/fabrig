@@ -55,7 +55,16 @@ fn a_deleted_projects_use_leaves_an_account_with_others() {
         });
         for preferred in [None, Some(1)] {
             assert_eq!(
-                world.domain.select(Use::Project(PROJECT), PROVIDER, None, preferred, None, &coverage, &[], world.now),
+                world.domain.select(
+                    Use::Project(PROJECT),
+                    PROVIDER,
+                    jig_domain_accounts::Ways { program: false, direct: true },
+                    preferred,
+                    None,
+                    &coverage,
+                    &[],
+                    world.now
+                ),
                 Selection::NoAccount
             );
         }
@@ -71,7 +80,16 @@ fn an_account_whose_only_use_is_the_project_keeps_it() {
     // The core's current coverage excludes a project that cannot be a payer again.
     let coverage = [Coverage { account: 1, serves: false }];
     assert_eq!(
-        world.domain.select(Use::Project(PROJECT), PROVIDER, None, Some(1), None, &coverage, &[], world.now),
+        world.domain.select(
+            Use::Project(PROJECT),
+            PROVIDER,
+            jig_domain_accounts::Ways { program: false, direct: true },
+            Some(1),
+            None,
+            &coverage,
+            &[],
+            world.now
+        ),
         Selection::NoAccount
     );
 }

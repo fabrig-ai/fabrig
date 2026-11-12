@@ -318,7 +318,7 @@ fn sessions_failed_reads_hide_rows_and_retry_with_activity_asking() {
 }
 #[test]
 fn sessions_parts_need_rows_in_the_shown_card() {
-    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[]);
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[], None, Wall::EPOCH);
     facts.roles = List::from_boxed(Box::new([role(52)]));
     facts.card = Some(Box::new(card(52)));
     assert!(!team::parts(&facts).sessions);

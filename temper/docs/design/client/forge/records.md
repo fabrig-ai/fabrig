@@ -539,8 +539,13 @@
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
-    landing's, 32 bytes; and `default_branch`, whether the branch the
-    landing moved is its repository's default branch;
+    landing's, 32 bytes; `default_branch`, whether the branch the
+    landing moved is its repository's default branch; and `signed`, at
+    most 8, the landing log's sign-offs of the change, in its order, each
+    a `ChangesSigned`: `party`; `head`, the commit their review named, 32
+    bytes; and `at`, when they reviewed, nanoseconds since the epoch
+    (`../../domain/forge/change/gates.md`, 2, *Sign-offs kept at
+    landing*);
   - `landed_more`, what `landed` cut;
   - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
     set, at most `forge.changes_landed`, newest first, so that landings

@@ -4,8 +4,9 @@ use super::Request;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
-use skein_lib::List;
 use skein_lib::Queue;
+use skein_lib::{Decimal, Duration, List, Set, Wall};
+use temper_client_protocol_wire::v1 as w;
 
 mod rules;
 mod standing;
@@ -60,6 +61,15 @@ pub struct Person {
     pub role: c::HeldRole,
     /// What waits on them; `None` while unread or past `OTHERS`: no line is drawn.
     pub waits: Option<Waits>,
+    /// Sign-offs in the week; `None` while the changes watch is unread or unavailable.
+    pub signed: Option<Signed>,
+}
+
+/// A person's distinct changes signed in the inclusive seven-day window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Signed {
+    pub count: u32,
+    pub floor: bool,
 }
 
 /// Team's facts: plain values its reads give.
@@ -81,7 +91,7 @@ pub struct Facts {
 /// What Team draws (temper/docs/design/client/pages/team.md, 1, Its parts).
 /// The head names a shared built-in role only for two or more people in a whole
 /// document. A person's line is drawn while their `waits` is `Some`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[expect(clippy::struct_excessive_bools, reason = "one flag per independently drawn Team part")]
 pub struct Parts {
     /// People: a person is listed.
@@ -90,6 +100,8 @@ pub struct Parts {
     pub shared: Option<c::HeldRole>,
     /// The triager's line: a triager is read.
     pub triager: bool,
+    /// Positive sign-off counts, in words, by party.
+    pub signed: List<(u64, Box<[u8]>)>,
     pub standing_roles: bool,
     pub roles_cut: bool,
     pub card: Option<u64>,
@@ -103,10 +115,10 @@ pub struct Parts {
     pub right: bool,
 }
 
-#[expect(clippy::derivable_impls, reason = "parts name each undrawn default explicitly in the step subset")]
 impl Default for Parts {
     fn default() -> Self {
         Self {
+            signed: List::with_capacity(0),
             people: false,
             shared: None,
             triager: false,
@@ -122,6 +134,19 @@ impl Default for Parts {
             wakes_cut: false,
             right: false,
         }
+    }
+}
+
+impl Parts {
+    /// A person's positive sign-off count, in words.
+    #[must_use]
+    pub fn signed(&self, party: u64) -> Option<&[u8]> {
+        for (whom, words) in &self.signed {
+            if *whom == party {
+                return Some(words);
+            }
+        }
+        None
     }
 }
 
@@ -150,12 +175,28 @@ impl Shown {
 
 #[must_use]
 pub fn parts(facts: &Facts) -> Parts {
+    let mut signed = List::with_capacity(facts.people.len());
+    for person in &facts.people {
+        if let Some(count) = person.signed
+            && count.count > 0
+        {
+            let number = if count.floor {
+                super::signing::join(&[Decimal::of(u64::from(count.count)).as_bytes(), b"+"])
+            } else {
+                super::signing::count(count.count)
+            };
+            signed
+                .push((person.party, super::signing::join(&[b"Signed ", &number, b" last week."])))
+                .expect("one sentence per person");
+        }
+    }
     let card = selected(&facts.roles, facts.selected);
     let detail = match &facts.card {
         Some(detail) if Some(detail.task) == card => Some(detail),
         Some(_) | None => None,
     };
     let mut parts = Parts {
+        signed,
         people: !facts.people.is_empty(),
         shared: shared(facts),
         triager: facts.triager.is_some(),
@@ -209,9 +250,16 @@ fn shared(facts: &Facts) -> Option<c::HeldRole> {
 }
 
 /// Team's facts from the project's document, the reader's party, what waits on
-/// the reader, and what waits on others by party; pure.
+/// the reader, what waits on others by party, and the landed changes at the wall; pure.
 #[must_use]
-pub fn gather(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u64, Waits)]) -> Facts {
+pub fn gather(
+    project: &c::Project,
+    you: u64,
+    yours: Option<Waits>,
+    others: &[(u64, Waits)],
+    changes: Option<&w::ChangesPanel>,
+    wall: Wall,
+) -> Facts {
     let mut people: List<Person> = List::with_capacity(project.members.len());
     for reader in [true, false] {
         for member in &project.members {
@@ -245,7 +293,14 @@ pub fn gather(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u
             }
             let name = if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() };
             people
-                .push(Person { party: member.party, you: reader, name: name.into(), role: member.role, waits })
+                .push(Person {
+                    party: member.party,
+                    you: reader,
+                    name: name.into(),
+                    role: member.role,
+                    waits,
+                    signed: signed_count(changes, member.party, wall),
+                })
                 .expect("at most one person per document member");
         }
     }
@@ -260,6 +315,35 @@ pub fn gather(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u
     }
 }
 
+fn signed_count(changes: Option<&w::ChangesPanel>, party: u64, wall: Wall) -> Option<Signed> {
+    let changes = changes?;
+    let start = Wall::from_nanos(wall.as_nanos().saturating_sub(Duration::from_secs(604_800).as_nanos()));
+    let mut tasks = Set::with_capacity(changes.landed_default().len());
+    let mut oldest = None;
+    for row in changes.landed_default() {
+        let at = Wall::from_nanos(row.at());
+        oldest = Some(match oldest {
+            Some(held) => at.min(held),
+            None => at,
+        });
+        if at < start || at > wall {
+            continue;
+        }
+        for signer in row.signed() {
+            if signer.party() == party {
+                tasks.insert(row.task()).expect("one key per listed change");
+                break;
+            }
+        }
+    }
+    let floor = changes.landed_default_more() > 0
+        && match oldest {
+            Some(at) => at >= start && at <= wall,
+            None => false,
+        };
+    Some(Signed { count: tasks.len(), floor })
+}
+
 /// Team's open project and its bounded reads (client/pages/README.md, Team, Its reads).
 #[derive(Debug)]
 pub struct Team {
@@ -270,6 +354,8 @@ pub struct Team {
     others: List<Other>,
     standing: standing::Standing,
     sessions: sessions::Reader,
+    changes_handle: Option<Handle>,
+    changes: Option<Box<w::ChangesPanel>>,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Reading {
@@ -295,6 +381,8 @@ impl Default for Team {
             others: List::with_capacity(OTHERS),
             standing: standing::Standing::default(),
             sessions: sessions::Reader::default(),
+            changes_handle: None,
+            changes: None,
         }
     }
 }
@@ -337,6 +425,18 @@ impl Team {
             }));
         }
         let on_team = if let Address::Team { .. } = address { true } else { false };
+        if on_team && self.changes_handle.is_none() {
+            if let Some(subject) = crate::forge::changes::watch(project, &env.limits.forge) {
+                let handle = new_handle(next);
+                self.changes_handle = Some(handle);
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+            }
+        } else if !on_team {
+            if let Some(handle) = self.changes_handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            self.changes = None;
+        }
         self.configure_others(you, on_team, &env.limits, next, out);
         self.standing.configure(project, address, next, out);
         let wanted = if on_team { self.standing.activity(client) } else { None };
@@ -346,7 +446,7 @@ impl Team {
     fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
         if on_team && let Some(document) = &self.document {
-            for person in &gather(document, you, None, &[]).people {
+            for person in &gather(document, you, None, &[], None, Wall::EPOCH).people {
                 if !person.you && wanted.len() < OTHERS {
                     wanted.push(person.party).expect("at most OTHERS people");
                 }
@@ -400,6 +500,9 @@ impl Team {
         }
         self.sessions.close(out);
         self.standing.leave(out);
+        if let Some(handle) = self.changes_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
         *self = Self::default();
     }
     pub(super) fn told(
@@ -419,6 +522,26 @@ impl Team {
             return true;
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.changes_handle => {
+                let panel = match client.document(*handle) {
+                    Some(document) if document.state == jig_client::State::Ended => None,
+                    Some(document) => match document.latest {
+                        Some(Latest::Family(record)) => crate::forge::changes::panel(record, env.limits.forge),
+                        Some(Latest::Jig(_)) => None,
+                        None => return true,
+                    },
+                    None => return true,
+                };
+                self.changes = match panel {
+                    Some(panel) if Some(panel.project()) == self.project => Some(Box::new(panel)),
+                    Some(_) | None => None,
+                };
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.changes_handle => {
+                self.changes = None;
+                true
+            }
             Told::Changed { handle } if *handle == super::me_handle() && self.project.is_some() => {
                 if self.reading != Reading::Asked
                     && let Some(me) = super::accounts::current_me(client)
@@ -513,7 +636,7 @@ pub fn shown(root: &crate::Domain, project: u32) -> Shown {
 }
 /// Project the card's sessions at the view's wall, including week expiry between deliveries.
 #[must_use]
-pub fn shown_at(root: &crate::Domain, project: u32, wall: skein_lib::Wall) -> Shown {
+pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
     let state = &root.pages.team;
     if state.project != Some(project) {
         return Shown::Reading;
@@ -529,7 +652,7 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: skein_lib::Wall) -> Sh
         }
     }
     let mut facts = if let Some(document) = &state.document {
-        gather(document, you, yours(root, project), others.as_slice())
+        gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall)
     } else {
         Facts {
             people: List::with_capacity(0),
@@ -594,7 +717,7 @@ pub fn people(root: &crate::Domain, project: u32) -> Option<u32> {
         Some(me) => me.party.number,
         None => 0,
     };
-    Some(gather(state.document.as_deref()?, you, None, &[]).people.len())
+    Some(gather(state.document.as_deref()?, you, None, &[], None, Wall::EPOCH).people.len())
 }
 fn yours(root: &crate::Domain, project: u32) -> Option<Waits> {
     let client = root.client();

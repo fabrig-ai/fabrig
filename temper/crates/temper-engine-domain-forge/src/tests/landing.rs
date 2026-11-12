@@ -681,11 +681,23 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
         let reviewer_cases: [(Box<[Reviewer]>, JudgeVerdict); 3] = [
             (Box::new([]), if covered { JudgeVerdict::Wait } else { JudgeVerdict::Met }),
             (
-                Box::new([Reviewer { person: 7, role: 1, head: fixtures::BASE, verdict: Verdict::Approve }]),
+                Box::new([Reviewer {
+                    at: Wall::from_nanos(0),
+                    person: 7,
+                    role: 1,
+                    head: fixtures::BASE,
+                    verdict: Verdict::Approve,
+                }]),
                 if covered { JudgeVerdict::Wait } else { JudgeVerdict::Met },
             ),
             (
-                Box::new([Reviewer { person: 7, role: 1, head: fixtures::HEAD, verdict: Verdict::Approve }]),
+                Box::new([Reviewer {
+                    at: Wall::from_nanos(0),
+                    person: 7,
+                    role: 1,
+                    head: fixtures::HEAD,
+                    verdict: Verdict::Approve,
+                }]),
                 JudgeVerdict::Met,
             ),
         ];

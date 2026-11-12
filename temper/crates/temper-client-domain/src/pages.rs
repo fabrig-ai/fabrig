@@ -57,6 +57,7 @@ pub mod only_you;
 pub mod parts;
 pub mod rail;
 pub mod report;
+mod signing;
 pub mod start_goal;
 pub mod stop_asking;
 pub mod switcher;

@@ -202,7 +202,16 @@ fn a_limited_candidate_does_not_hide_a_program_host_wait() {
     drop(step(&mut core, &env, Event::Account(accounts::Event::Limited { account: FIRST_SOURCE, reset: None })));
     let coverage = core.account_coverage(tasks::Payer::Party(ALICE), None);
     assert_eq!(
-        core.accounts.candidates(Use::Party(ALICE), PROVIDER, None, None, None, coverage.as_slice()).get(0),
+        core.accounts
+            .candidates(
+                Use::Party(ALICE),
+                PROVIDER,
+                accounts::Ways { program: false, direct: true },
+                None,
+                None,
+                coverage.as_slice()
+            )
+            .get(0),
         Some(&OWN)
     );
     assert_eq!(own(&core, &env, ALICE).readiness, Readiness::Unknown);

@@ -169,14 +169,7 @@ impl Domain {
         requested
     }
 
-    fn held_landing_verdict(
-        &self,
-        up_to_date: bool,
-        task: u64,
-        head: skein_forge::api::Commit,
-        evidence: &ChangeEvidence,
-        reviewers: &[Reviewer],
-    ) -> Option<(JudgeVerdict, Option<Criterion>)> {
+    fn landing_change(&self, task: u64, head: skein_forge::api::Commit) -> Option<&crate::ChangeRow> {
         let landing = self.landing.rows.get(&task);
         let mut change_task = task;
         if let Some(row) = landing {
@@ -192,7 +185,39 @@ impl Domain {
                 return None;
             }
         }
-        let row = self.changes.get(&change_task)?;
+        self.changes.get(&change_task)
+    }
+
+    /// The enforcing approvals covering the exact merge evidence, including a turn member's.
+    #[must_use]
+    pub fn landing_sign_offs(
+        &self,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Box<[crate::SignOff]> {
+        let Some(row) = self.landing_change(task, head) else { return Box::new([]) };
+        let Some(criteria) = self.landing_criteria(row, head, evidence, false) else { return Box::new([]) };
+        let mut approvals = List::uncapped();
+        for criterion in criteria {
+            match criterion {
+                Criterion::Approval { role, freshness, .. } => {
+                    approvals.push((role, freshness)).expect("admitted criteria");
+                }
+                Criterion::Ci | Criterion::UpToDate | Criterion::Gate { .. } => {}
+            }
+        }
+        judge::sign_offs(&approvals.into_boxed(), head, &row.change.clean, reviewers)
+    }
+
+    fn landing_criteria(
+        &self,
+        row: &crate::ChangeRow,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        up_to_date: bool,
+    ) -> Option<Box<[Criterion]>> {
         let repository = self.repositories.get(&row.repository)?;
         branch_resource_name(repository, &row.base)?;
         let rules = self.landing_rules(repository.project);
@@ -228,8 +253,23 @@ impl Domain {
                     .ok()?;
             }
         }
+        Some(criteria.into_boxed())
+    }
+
+    fn held_landing_verdict(
+        &self,
+        up_to_date: bool,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Option<(JudgeVerdict, Option<Criterion>)> {
+        let landing = self.landing.rows.get(&task);
+        let row = self.landing_change(task, head)?;
+        let repository = self.repositories.get(&row.repository)?;
+        let criteria = self.landing_criteria(row, head, evidence, up_to_date)?;
         let mut result = JudgeVerdict::Met;
-        for criterion in criteria.into_boxed() {
+        for criterion in criteria {
             let verdict = match landing {
                 Some(landing) => landing::judge(self, landing, criterion, head, evidence, reviewers)?,
                 None => judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers),

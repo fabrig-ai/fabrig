@@ -100,8 +100,9 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Twelve delegates fill one stream's room beside the chat's session watches and Home.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 12;
+/// Ten delegates fill one stream's room beside the chat's session watches and
+/// Home, including each page's standing-role watch.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 10;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
@@ -208,9 +209,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 19, // Holds four projects' decided watches.
+                handles: 20, // Holds four projects' decided watches and the open project's standing roles.
                 // Closing page watches overlap the session watches.
-                watches: 18, // Holds four projects' decided watches.
+                watches: 19, // Holds four projects' decided watches and the open project's standing roles.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

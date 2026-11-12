@@ -20,7 +20,7 @@ pub(super) fn member(party: u64, kind: c::PartyKind, name: &[u8], role: c::HeldR
     c::ProjectMember { party, kind, role, login: text(b"login"), name: text(name) }
 }
 fn person(party: u64, you: bool, name: &[u8], role: c::HeldRole, waits: Option<Waits>) -> Person {
-    Person { party, you, name: name.into(), role, waits }
+    Person { party, you, name: name.into(), role, waits, signed: None }
 }
 pub(super) fn project(members: Box<[c::ProjectMember]>, cut: bool) -> c::Project {
     c::Project {
@@ -139,7 +139,7 @@ fn gather_lists_each_person_once_the_reader_first() {
         ("cut copied", Box::<[_]>::from([you]), None, Box::<[_]>::from([]), true, Box::<[_]>::from([reader])),
     ] {
         assert_eq!(
-            team::gather(&project(members, cut), YOU, yours, &others),
+            team::gather(&project(members, cut), YOU, yours, &others, None, Wall::EPOCH),
             Facts {
                 people: List::from_boxed(expected),
                 cut,
@@ -428,7 +428,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
             Request::Client(jig_client::Event::Watch {
                 handle,
                 subject: Watchable::Jig(c::Subject::Tasks { query, window }),
-            }) if query.label == Some(3) => {
+            }) if query.label == Some(3) && window == team::ROLES => {
                 assert_eq!(window, team::ROLES);
                 assert!(query.project == Some(PROJECT) || query.project == Some(OTHER_PROJECT));
                 assert_eq!(query.order, c::QueryOrder::Number);
@@ -650,7 +650,7 @@ fn waiting(whom: c::Whom, kind: c::WaitedFor, ended: bool) -> c::TaskLine {
     line.requester = c::Requester::Person(SAM);
     line.waits_on = c::WaitsOn::Party { whom, entries: 2, task: line.chip.task, kind };
     if ended {
-        line.ended_at = Some(skein_lib::Wall::EPOCH);
+        line.ended_at = Some(Wall::EPOCH);
     }
     line
 }
@@ -973,9 +973,13 @@ fn team_reads_the_project_and_what_waits_on_each() {
             Effects { reads: List::from_boxed(reads), watches: List::from_boxed(watches), closed },
             "{name}: effects"
         );
-        assert_eq!(team::shown(&f.root, PROJECT), shown, "{name}: shown");
+        assert_eq!(team::shown_at(&f.root, PROJECT, fixtures::NOW), shown, "{name}: shown");
         assert_eq!(team::people(&f.root, PROJECT), people, "{name}: people");
-        assert_eq!(team::shown(&f.root, OTHER_PROJECT), team::Shown::Reading, "{name}: other project");
+        assert_eq!(
+            team::shown_at(&f.root, OTHER_PROJECT, fixtures::NOW),
+            team::Shown::Reading,
+            "{name}: other project"
+        );
         assert_eq!(team::people(&f.root, OTHER_PROJECT), None, "{name}: other project's people");
     }
 }
@@ -987,7 +991,7 @@ fn card(task: u64) -> team::Card {
     team::Card {
         task,
         name: b"Prover".as_slice().into(),
-        made: Some(skein_lib::Wall::EPOCH),
+        made: Some(Wall::EPOCH),
         requester: Some(team::StartedBy::You),
         hold: None,
         paused: false,
@@ -1002,7 +1006,7 @@ fn card(task: u64) -> team::Card {
 }
 #[test]
 fn standing_parts_select_a_listed_card_and_only_read_parts() {
-    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[]);
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[], None, Wall::EPOCH);
     facts.roles_cut = true;
     facts.selected = Some(52);
     facts.card = Some(Box::new(card(52)));
@@ -1045,7 +1049,7 @@ fn note(number: u64, description: &[u8], body: &[u8]) -> c::Note {
         body: text(body),
         writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
         tasks: List::with_capacity(0),
-        changed: Some(skein_lib::Wall::EPOCH),
+        changed: Some(Wall::EPOCH),
         acts: List::with_capacity(0),
         cut: false,
     }
@@ -1130,7 +1134,7 @@ fn standing_reads_each_now_again_on_line_delivery() {
     let rows = List::from_boxed(Box::new([first.clone(), second.clone()]));
     delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
     assert_eq!(f.nows.len(), 3, "a delivered line reads Now even when last activity is unchanged");
-    second.last_activity = skein_lib::Wall::from_nanos(second.last_activity.as_nanos().saturating_add(1));
+    second.last_activity = Wall::from_nanos(second.last_activity.as_nanos().saturating_add(1));
     let rows = List::from_boxed(Box::new([second]));
     delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
     assert_eq!(f.nows.len(), 4, "the removed role’s pending read gives way to the remaining role");
@@ -1167,7 +1171,7 @@ fn charter_view(charter: u32, label: &[u8], value: &[u8]) -> temper_client_proto
 fn rules_and_wakes_parts_need_the_selected_cards_reads() {
     use crate::pages::roles::Read;
     use skein_lib::{Duration, Wall};
-    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[]);
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[], None, Wall::EPOCH);
     facts.roles = List::from_boxed(Box::new([role(52)]));
     facts.card = Some(Box::new(card(52)));
     let asked = charter_view(13, b"Asked to", b"Reproduce before routing.");
@@ -1346,4 +1350,183 @@ fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
         c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
     );
     assert!(f.closed.as_slice().contains(&charter_handle), "switching cards closes the old charter");
+}
+
+use skein_lib::Wall;
+use temper_client_protocol_wire::{self as wire, v1 as w};
+const DAY: u64 = 86_400_000_000_000;
+const WALL: Wall = Wall::from_nanos(20 * DAY);
+
+pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
+    let mut signed = List::with_capacity(u32::try_from(parties.len()).unwrap());
+    for party in parties {
+        signed
+            .push(
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [3; 32], at: 0 })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    w::ChangesLanded::new(
+        &w::CEILINGS,
+        w::ChangesLandedParts {
+            task,
+            at,
+            signed,
+            title: b"Change".as_slice().into(),
+            commit: [4; 32],
+            default_branch: true,
+        },
+    )
+    .unwrap()
+}
+pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
+    w::ChangesPanel::new(
+        &w::CEILINGS,
+        w::ChangesPanelParts {
+            project: PROJECT,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: List::with_capacity(0),
+            landed_more: 0,
+            landed_default: List::from_boxed(rows.into()),
+            landed_default_more: more,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn signoffs_count_distinct_changes_in_the_week_with_a_floor_only_when_cut_inside_it() {
+    let document = read_people(&[YOU, SAM, UNLISTED]);
+    let one = landing(1, WALL.as_nanos() - DAY, &[SAM]);
+    let two = landing(2, WALL.as_nanos() - 3 * DAY, &[SAM, YOU]);
+    let old = landing(3, WALL.as_nanos() - 8 * DAY, &[SAM]);
+    for (rows, more, reader, sam) in [
+        (
+            Box::<[_]>::from([one.clone(), two.clone(), old.clone()]),
+            0,
+            "Signed one last week.",
+            "Signed two last week.",
+        ),
+        (
+            Box::<[_]>::from([one.clone(), two.clone(), two.clone()]),
+            0,
+            "Signed one last week.",
+            "Signed two last week.",
+        ),
+        (Box::<[_]>::from([one.clone(), two.clone()]), 1, "Signed 1+ last week.", "Signed 2+ last week."),
+        (Box::<[_]>::from([one, two, old]), 1, "Signed one last week.", "Signed two last week."),
+        (
+            Box::<[_]>::from([
+                landing(4, WALL.as_nanos() - 7 * DAY, &[SAM]),
+                landing(5, WALL.as_nanos(), &[YOU]),
+                landing(6, WALL.as_nanos() + 1, &[SAM]),
+            ]),
+            0,
+            "Signed one last week.",
+            "Signed one last week.",
+        ),
+    ] {
+        let panel = changes(&rows, more);
+        let facts = team::gather(&document, YOU, None, &[], Some(&panel), WALL);
+        let parts = team::parts(&facts);
+        assert_eq!(parts.signed(YOU), Some(reader.as_bytes()));
+        assert_eq!(parts.signed(SAM), Some(sam.as_bytes()));
+        assert_eq!(parts.signed(UNLISTED), None, "zero is silent");
+    }
+    let facts = team::gather(&document, YOU, None, &[], None, WALL);
+    assert!(team::parts(&facts).signed.is_empty(), "changes unread");
+    let mut members = List::uncapped();
+    for party in 1..=10 {
+        members.push(party).unwrap();
+    }
+    let panel = changes(&[landing(7, WALL.as_nanos(), &[10])], 0);
+    let facts = team::gather(&read_people(members.as_slice()), 1, None, &[], Some(&panel), WALL);
+    assert_eq!(facts.people.get(9).unwrap().waits, None);
+    assert_eq!(team::parts(&facts).signed(10), Some(b"Signed one last week.".as_slice()), "past eight others");
+    for (count, floor, expected) in [
+        (9, false, "Signed nine last week."),
+        (10, false, "Signed 10 last week."),
+        (1, true, "Signed 1+ last week."),
+        (0, true, ""),
+    ] {
+        let mut facts = facts.clone();
+        facts.people.get_mut(9).unwrap().signed = Some(team::Signed { count, floor });
+        assert_eq!(team::parts(&facts).signed(10).unwrap_or(b""), expected.as_bytes());
+    }
+}
+
+#[test]
+fn team_watches_signoffs_delivers_counts_and_closes_the_watch_on_leaving() {
+    let mut f = reads_fixture();
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &fixtures::env(&fixtures::limits()),
+        &f.root.client,
+        Event::Went { address: Address::Team { project: PROJECT, role: None } },
+        &mut out,
+    );
+    let mut changes_watch = None;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Project { .. }) }) =
+            request
+        {
+            f.read = Some(*handle);
+        }
+        if let Request::Client(jig_client::Event::Watch { handle, subject }) = request
+            && Some(subject.clone()) == crate::forge::changes::watch(PROJECT, &fixtures::limits().forge)
+        {
+            assert!(changes_watch.is_none(), "one changes watch");
+            changes_watch = Some((*handle, subject.clone()));
+        }
+    }
+    let (handle, subject) = changes_watch.expect("Team watches changes");
+    let opened = client(&mut f, jig_client::Event::Watch { handle, subject });
+    let mut watch = None;
+    for request in &opened {
+        if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch: token, .. } } = request {
+            watch = Some(*token);
+        }
+    }
+    feed(&mut f, Feed::Project(Box::new(read_people(&[YOU, SAM]))));
+    let panel = changes(&[landing(1, fixtures::NOW.as_nanos(), &[SAM])], 0);
+    client(
+        &mut f,
+        jig_client::Event::Up {
+            up: jig_client::Up::FamilyDelivered {
+                watch: watch.unwrap(),
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::changes_panel(&panel),
+                },
+            },
+        },
+    );
+    page(&mut f, Event::Told { told: Told::Changed { handle } });
+    let team::Shown::Read(facts) = team::shown_at(&f.root, PROJECT, fixtures::NOW) else { panic!("people read") };
+    assert_eq!(team::parts(&facts).signed(SAM), Some(b"Signed one last week.".as_slice()));
+    page(&mut f, Event::Told { told: Told::Ended { handle, why: jig_client::Why::Unknown } });
+    let team::Shown::Read(facts) = team::shown_at(&f.root, PROJECT, fixtures::NOW) else { panic!("people stay read") };
+    assert!(team::parts(&facts).signed.is_empty(), "failed changes do not claim counts");
+    out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &fixtures::env(&fixtures::limits()),
+        &f.root.client,
+        Event::Went { address: Address::Models { project: PROJECT } },
+        &mut out,
+    );
+    let mut closed = 0_u32;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Unwatch { handle: ended }) = request
+            && *ended == handle
+        {
+            closed += 1;
+        }
+    }
+    assert_eq!(closed, 1, "leaving Team closes its changes watch");
 }

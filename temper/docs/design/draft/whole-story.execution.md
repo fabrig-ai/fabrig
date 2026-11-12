@@ -87,7 +87,7 @@ or the nearest thing, and says so in that draft's status.
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
 | N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge/change/gates.md`, 1; its entry below | | temper/migration | should | done |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
-| N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
+| N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | landed; its render check and walk follow (section 5) |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | landed; its walk follows R2's and R3's (*R1 to R3*, below) |
 | R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
 | R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | in flight: goal 712 |
@@ -303,6 +303,7 @@ R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
 P1's, P4b's and P4c's that day, as goal 713, P4b, landed, and
 R3's that day, as goal 712 designed it, and
 N1's, N2's, N5's, N6's and P3c's that day, as N2 retired, and
+P4a's and N6's that day, as goal 837, N6, landed, and
 P3c's that day, as goal 835 cut it, and
 F1's, F2's and P3d's on 2026-11-11, as F1 landed, and
 P7's that day, as goal 493 landed, and
@@ -325,7 +326,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P3d | landed; its render check and walk follow | goal 1016 draws `surfaces.md`, 7's What follows a landing on How work runs: a box a follow of the project's, from the forge's `follows` document, its words made from its setting, its lag and parity, and who acts' chips, then a box of its path's tiers after landing; Budgets' rows for the project's live standing roles, each its title, what it has left and its budget, under the project's open period, "a week · renews DAY", then "Goals"; and Roles the charters its standing roles and follows run (`../domain/forge/change/branch-path.md`, *The project's roles*). Where they depart from `how.html` is `surfaces.status.md`, 7 and 13; their render check and walk follow landing (`../client/pages/settings.md`, 3) |
 | P3e | landed; its render check follows | `ui-p3e-words` keeps a charter's words, kind 9, and a project's, kind 10, which Ask temper writes with what it proposes, the stock's for each stock charter, a headline for each stock way, which How work runs' heading and lede say, the project's own where it runs none, and a tier's description, which its card says; the stock holds no tier, so none of its words. Its repair, goal 310, carries kind 9 on the `roles` view's cards, after when the role runs, its instructions' first sentence where none is kept, as `how.html` does, and has `see ways` say each way's headline; its render check follows landing |
 | P3f | done | |
-| P4a | landed and repaired; its render check and walk follow | `ui-p4a-team` drew Team's people, and its repair gives a box the role "Owner", People's head the role its people share, "owners of shop", and a line's count in words (`../client/pages/team.md`, 1); the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
+| P4a | landed and repaired; its render check and walk follow | `ui-p4a-team` drew Team's people, and its repair gives a box the role "Owner", People's head the role its people share, "owners of shop", and a line's count in words (`../client/pages/team.md`, 1); the triager as Who routes, under the areas, is P4c's; what a line can still sign waits on N5, what each signed having landed with N6 (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
 | P4b | landed; its render check and walk follow | goal 713 drew a project's standing roles on Team, a row each with its Now's first line and its period's spend, and a role's card: its head with Pause and Resume, its Now, its rules, what wakes it and its sessions this week, and Team in the rail for a standing role (`../client/pages/team.md`, 1); a card's "owns AREA", "Talk to it", "Give the area back" and weekly report are P4c's, and a forge topic's words, a charter's kept words and a session's line wait for reads no milestone above builds (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
 | P4c | waits | R2 and R3, by its needs, P4b having landed |
 | P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 5). Tell temper is designed and drawn nowhere: it waits for the engine to file a person's word as a finding and for a setting naming the project's triager, which no milestone above builds, and follows as a milestone of its own once they land (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
@@ -338,7 +339,8 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
 | N3b | starts | |
 | N4 | done | goal 147, PR #41 |
-| N5, N6 | start | |
+| N5 | starts | |
+| N6 | landed; its render check and walk follow | goal 837 keeps the sign-offs a merge's judgement counted, each person, head and time, with the change from its admission and in its landing log entry (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*); the changes' landed rows carry them, Work's landed rows say "signed by", Team's people "Signed four last week." and the status agent's words who signed each landing (`../client/pages/work.md`, 1; `../client/pages/team.md`, 1; `../domain/forge/attention.md`, 3); their render check and walk follow landing (`../client/README.md`, 5) |
 | R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
 | R2 | starts | R1 has landed |
 | R3 | in flight | goal 712: jig's talk (jig's `domain/tasks/standing.md`, 5.6), the Now's `NowWritten` line and period, and temper's talk, `role talk`, the weekly report and the roles' Nows in Home's brief's words (`../domain/agent/standing.md`, sections 7 and 8); Team's and the terminal's drawing of them are P4c's and T3's |
@@ -352,4 +354,4 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** N3b, must; N5 and N6, N2 having landed.
+- **Next to start:** N3b, must; N5, N2 having landed.

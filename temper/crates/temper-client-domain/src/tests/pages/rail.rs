@@ -305,7 +305,7 @@ fn a_live_standing_role_alone_puts_team_in_the_rail() {
                     jig_client::UnlinkedRequest::Down {
                         down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, window }) },
                     },
-            } if query.label == Some(3) => {
+            } if query.label == Some(3) && *window == crate::pages::team::ROLES => {
                 assert_eq!(query.project, Some(OTHER));
                 assert_eq!(query.order, c::QueryOrder::Number);
                 assert_eq!(*window, 16);

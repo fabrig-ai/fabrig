@@ -2406,8 +2406,8 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-work-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; }
 .temper-work-card .temper-work-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
 .temper-work-row > p { margin: 0; }
-.temper-work-row > a { color: inherit; text-decoration: none; }
-.temper-work-row > a:hover { text-decoration: underline; }
+.temper-work-row > a, .temper-work-row > p > a { color: inherit; text-decoration: none; }
+.temper-work-row > a:hover, .temper-work-row > p > a:hover { text-decoration: underline; }
 .temper-work-row > .temper-work-byline { text-align: right; font-size: 13px; color: var(--gf-muted); }
 .temper-work-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 .temper-work-mono { font-family: var(--gf-mono); color: var(--gf-muted); }
@@ -3435,6 +3435,7 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
   #app > .temper-work-page .temper-work-chip,
   #app > .temper-work-page .temper-work-card a,
   #app > .temper-work-page .temper-work-row > a,
+  #app > .temper-work-page .temper-work-row > p > a,
   #app > .temper-work-page .temper-work-section-head > a,
   #app > .temper-needs .temper-needs-bar > a { position: relative; }
   #app > .temper-home .temper-home-acts > :is(a, button)::after,
@@ -3451,6 +3452,7 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
   #app > .temper-work-page .temper-work-chip::after,
   #app > .temper-work-page .temper-work-card a::after,
   #app > .temper-work-page .temper-work-row > a::after,
+  #app > .temper-work-page .temper-work-row > p > a::after,
   #app > .temper-work-page .temper-work-section-head > a::after,
   #app > .temper-needs .temper-needs-bar > a::after { content: ''; position: absolute; inset: 50% 0 auto; min-height: 44px; transform: translateY(-50%); }
   #app > .temper-home > .temper-home-phone > a,
