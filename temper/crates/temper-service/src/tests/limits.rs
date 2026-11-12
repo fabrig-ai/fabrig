@@ -173,7 +173,10 @@ fn the_small_profile_passes_each_domains_validity() {
     }
     assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(settings.limits.checkout)));
     assert_eq!(
-        temper_worker_protocol_git::check(&crate::worker_settings::git_component(settings.limits.git_component), &crate::worker_settings::checkout(settings.limits.checkout)),
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(settings.limits.git_component),
+            &crate::worker_settings::checkout(settings.limits.checkout)
+        ),
         Ok(())
     );
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -263,7 +266,13 @@ fn the_standard_profile_passes_each_domains_validity() {
     let own = limits::profile(limits::Profile::Standard);
     assert!(temper_engine_domain_forge::valid(&own.forge));
     assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(own.checkout)));
-    assert_eq!(temper_worker_protocol_git::check(&crate::worker_settings::git_component(own.git_component), &crate::worker_settings::checkout(own.checkout)), Ok(()));
+    assert_eq!(
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout)
+        ),
+        Ok(())
+    );
     for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
         let jig = jig_protocol_config::profile(profile);
         let root = limits::engine(&jig, &own).expect("coherent root profile");
@@ -408,7 +417,14 @@ fn each_git_component_limit_has_its_dotted_override() {
             expected,
             "{name:?}"
         );
-        assert_eq!(temper_worker_protocol_git::check(&crate::worker_settings::git_component(git), &crate::worker_settings::checkout(limits.checkout)), Ok(()), "{name:?}");
+        assert_eq!(
+            temper_worker_protocol_git::check(
+                &crate::worker_settings::git_component(git),
+                &crate::worker_settings::checkout(limits.checkout)
+            ),
+            Ok(()),
+            "{name:?}"
+        );
     }
 }
 

@@ -27,8 +27,8 @@ pub(crate) use problems::admission_words;
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
 
-pub use temper_service_core::startup::{Shape, nearest};
 use temper_service_core::startup::nearest_document;
+pub use temper_service_core::startup::{Shape, nearest};
 
 /// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
 #[must_use]

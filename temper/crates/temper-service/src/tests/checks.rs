@@ -794,7 +794,6 @@ fn each_document_shape_is_read_from_its_members() {
     ] {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
     }
-
 }
 
 type ShapeRow = (&'static [u8], &'static [u8], Vec<(Path, What)>);

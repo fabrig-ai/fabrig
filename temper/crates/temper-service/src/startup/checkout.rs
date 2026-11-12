@@ -62,7 +62,8 @@ pub(super) fn capacity(
 ) {
     let checkout = &own.checkout;
     #[cfg(feature = "worker")]
-    let stdout = match temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(*checkout)) {
+    let stdout = match temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(*checkout))
+    {
         Some(needs) => short(u64::from(own.git_component.stdout_bytes), u64::from(needs)),
         None => None, // The payload ceiling check names the checkout field.
     };

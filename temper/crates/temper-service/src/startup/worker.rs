@@ -73,7 +73,9 @@ pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, pr
                 checked.operations = limits.checkout.workspaces;
             }
             Err(Unfit::StdoutBytes) => {
-                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(limits.checkout)) else {
+                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(
+                    &crate::worker_settings::checkout(limits.checkout),
+                ) else {
                     break;
                 };
                 checked.stdout_bytes = bytes;

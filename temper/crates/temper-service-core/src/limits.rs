@@ -75,4 +75,3 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 pub const CLOSE_SPEC_BYTES: u32 = 16_384;
 pub const CLOSE_RESULT_BYTES: u32 = 512;
 pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
-

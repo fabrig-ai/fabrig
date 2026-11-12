@@ -578,12 +578,12 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
     }
 }
 
-#[cfg(feature = "worker")]
-pub use temper_service_core::limits::{TOOLING_FILE_BYTES, TOOLING_LOG_BYTES, TOOLING_PATH_BYTES};
 pub use temper_service_core::limits::{
     CLOSE_DEADLINE, CLOSE_RESULT_BYTES, CLOSE_SPEC_BYTES, MERGE_DEADLINE, MERGE_KIND, MERGE_RESULT_BYTES,
     MERGE_SPEC_BYTES, TOOLING_PATH, merge_bound, merge_jobs,
 };
+#[cfg(feature = "worker")]
+pub use temper_service_core::limits::{TOOLING_FILE_BYTES, TOOLING_LOG_BYTES, TOOLING_PATH_BYTES};
 
 /// The close job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]

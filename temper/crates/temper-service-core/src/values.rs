@@ -15,4 +15,3 @@ pub fn grant_bytes(credential: u32, identity: u32) -> Option<u32> {
 pub fn token_credential_bytes(token: u32) -> u32 {
     token
 }
-

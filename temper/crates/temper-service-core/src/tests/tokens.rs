@@ -31,4 +31,3 @@ fn no_two_component_prefixes_meet() {
         assert_eq!(tokens::git(index), None, "{index}");
     }
 }
-

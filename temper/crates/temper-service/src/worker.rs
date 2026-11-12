@@ -1275,6 +1275,4 @@ mod merge_tests {
         jig.core.tasks.result_bytes = bound.result;
         assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
     }
-
-
 }
