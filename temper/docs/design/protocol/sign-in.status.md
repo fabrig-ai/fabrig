@@ -2,7 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
-- **Not yet:** 7: the `temper-record` meta with `--record` [in flight: change 1799]
 
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain
