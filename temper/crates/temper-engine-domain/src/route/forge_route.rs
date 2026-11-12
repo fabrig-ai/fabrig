@@ -2775,10 +2775,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
         domain
             .forge_delegating
-            .insert(
-                (task, step),
-                ChangeStep { delegate: None, relayed: None, refusal: None, released: true },
-            )
+            .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
             .expect("one released relay per change step");
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
@@ -4732,10 +4729,7 @@ fn delegate_change_step(
     } else {
         domain
             .forge_delegating
-            .insert(
-                (task, step),
-                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false },
-            )
+            .insert((task, step), ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false })
             .expect("one forge procedure delegate");
     }
     let decision = append_change_replies(

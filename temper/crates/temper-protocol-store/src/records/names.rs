@@ -49,10 +49,17 @@ fn decode_segments(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Un
         let Some(segment) = item else {
             return Ok(segments.into_boxed());
         };
-        let segment =
-            w::Segment::decode(bounds.limits(), &mut Reader::new(&segment)).or(Err(Undecodable::Malformed))?.into_parts().name;
+        let segment = w::Segment::decode(bounds.limits(), &mut Reader::new(&segment))
+            .or(Err(Undecodable::Malformed))?
+            .into_parts()
+            .name;
         size = size
-            .checked_add(u32::try_from(segment.len()).or(Err(Undecodable::Malformed))?.checked_add(1).ok_or(Undecodable::Malformed)?)
+            .checked_add(
+                u32::try_from(segment.len())
+                    .or(Err(Undecodable::Malformed))?
+                    .checked_add(1)
+                    .ok_or(Undecodable::Malformed)?,
+            )
             .ok_or(Undecodable::Malformed)?;
         if size > bounds.forge().name_bytes {
             return Err(Undecodable::Malformed);
@@ -128,8 +135,10 @@ fn decode_names(bytes: &[u8], bounds: &Bounds, capacity: u32) -> Result<Box<[Box
         let Some(item) = item else {
             return Ok(contexts.into_boxed());
         };
-        let item =
-            w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?.into_parts().name;
+        let item = w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item))
+            .or(Err(Undecodable::Malformed))?
+            .into_parts()
+            .name;
         contexts.push(item).or(Err(Undecodable::Malformed))?;
     }
     Err(Undecodable::Malformed)

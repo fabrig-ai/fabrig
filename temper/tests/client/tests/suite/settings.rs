@@ -208,10 +208,7 @@ fn a_projects_questions_set_on_the_tab_reach_its_next_change() {
         .tree(person)
         .nodes()
         .iter()
-        .find(|node| {
-            node.role == Role::Option
-                && node.name.as_deref() == Some(b"Asked of me too".as_slice())
-        })
+        .find(|node| node.role == Role::Option && node.name.as_deref() == Some(b"Asked of me too".as_slice()))
         .expect("up option")
         .id;
     world.act(person, option, skein_ui::Act::Press);

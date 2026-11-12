@@ -233,7 +233,11 @@ fn malformed_answer_item_pieces_fail_to_decode() {
     ];
     for (name, piece) in cases {
         let row = fixtures::item_piece_row(piece);
-        assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed), "{name}");
+        assert_eq!(
+            records::decode(&fixtures::encoded_row(&row), &bounds),
+            Err(crate::Undecodable::Malformed),
+            "{name}"
+        );
     }
 }
 #[test]
@@ -1909,7 +1913,10 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         ] {
             let bytes = records::encode(&row);
             let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-            assert_eq!(records::row(&key, &bytes, &bounds), if extra == 0 { Ok(row) } else { Err(crate::Undecodable::Malformed) });
+            assert_eq!(
+                records::row(&key, &bytes, &bounds),
+                if extra == 0 { Ok(row) } else { Err(crate::Undecodable::Malformed) }
+            );
         }
     }
     let mut row = landing_log(1, 1, 1);
@@ -2260,8 +2267,8 @@ fn pull_size_is_omitted_without_changing_the_stored_pull() {
 
 #[test]
 fn a_change_holding_a_retired_route_or_state_never_decodes() {
-    use temper_engine_domain_forge_change::State;
     use crate::v11 as w;
+    use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Producing { requested: true })));
     let encoded = records::encode(&row);
@@ -2271,14 +2278,31 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
         let mut parts = change.into_parts();
         let mut open = skein_lib::List::with_capacity(1);
         if !route {
-            open.push(w::Open::new(&w::CEILINGS, w::OpenParts {
-                asker: 7, number: 1, line: Box::new([]), words: Box::new([]), stands: w::Stands::Retired,
-            }).unwrap()).unwrap();
+            open.push(
+                w::Open::new(
+                    &w::CEILINGS,
+                    w::OpenParts {
+                        asker: 7,
+                        number: 1,
+                        line: Box::new([]),
+                        words: Box::new([]),
+                        stands: w::Stands::Retired,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
         }
-        parts.questions = w::Questions::new(&w::CEILINGS, w::QuestionsParts {
-            route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open,
-        }).unwrap();
-        let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Change(Box::new(w::ChangeRow::new(&w::CEILINGS, parts).unwrap())) }).unwrap();
+        parts.questions = w::Questions::new(
+            &w::CEILINGS,
+            w::QuestionsParts { route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open },
+        )
+        .unwrap();
+        let row = w::Row::new(
+            &w::CEILINGS,
+            w::RowParts { value: w::Value::Change(Box::new(w::ChangeRow::new(&w::CEILINGS, parts).unwrap())) },
+        )
+        .unwrap();
         let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
         row.encode(&mut bytes).unwrap();
         assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));

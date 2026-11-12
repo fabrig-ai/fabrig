@@ -92,8 +92,10 @@ fn start(bound: Option<u32>) -> Story {
     world.until(Until::Ready);
     // Keep the goal's inbox credit distinct from its producer's question credit.
     world.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]), reply_to: skein_lib::ReplyTo::new(Token::new(96)),
-        sign_in: world.signed_in.expect("owner"), key: [96; 16],
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(Token::new(96)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [96; 16],
         ask: people::Ask::Say { project: 1, task: goal.task, words: b"Follow the plan.".as_slice().into() },
     }));
     world.until(Until::Ready);

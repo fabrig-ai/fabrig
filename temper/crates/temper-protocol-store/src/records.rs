@@ -195,7 +195,11 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
         Ok(row) => row,
         Err(Undecodable::Setting(setting)) => {
             let encoded = crate::keys::encode(&d::Key::Setting(setting), u32::MAX).ok_or(Undecodable::Malformed)?;
-            return if encoded.as_ref() == key { Err(Undecodable::Setting(setting)) } else { Err(Undecodable::Malformed) };
+            return if encoded.as_ref() == key {
+                Err(Undecodable::Setting(setting))
+            } else {
+                Err(Undecodable::Malformed)
+            };
         }
         Err(Undecodable::Malformed) => return Err(Undecodable::Malformed),
     };
@@ -353,6 +357,7 @@ fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::S
     use temper_client_protocol_wire::v1;
     let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
     record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
-    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
+    let record =
+        v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
     Ok(temper_protocol_reaches::subject_from(&record))
 }

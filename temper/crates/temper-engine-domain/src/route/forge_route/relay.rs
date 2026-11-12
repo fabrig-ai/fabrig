@@ -1,7 +1,6 @@
 //! The root's half of a change's relay (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::{
-    Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, takes_no_messages,
-    tasks,
+    Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, takes_no_messages, tasks,
 };
 use jig_domain_core::StepMessage;
 
@@ -138,12 +137,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                 .forge_delegating
                 .insert(
                     (task, step),
-                    ChangeStep {
-                        delegate: None,
-                        relayed: Some(relayed),
-                        refusal: None,
-                        released: false,
-                    },
+                    ChangeStep { delegate: None, relayed: Some(relayed), refusal: None, released: false },
                 )
                 .expect("one pending relay per change");
         }
@@ -255,12 +249,7 @@ pub(crate) fn refused(
         .forge_delegating
         .insert(
             (task, step),
-            ChangeStep {
-                delegate: None,
-                relayed: Some(relayed),
-                refusal: Some(words),
-                released: false,
-            },
+            ChangeStep { delegate: None, relayed: Some(relayed), refusal: Some(words), released: false },
         )
         .expect("the refused step's slot is free");
     domain.work.push(super::Work::Core(jig_domain_core::Event::ProcedureStep {
@@ -361,9 +350,7 @@ fn has_ask(acts: &[change::RelayAct]) -> bool {
     for act in acts {
         match act {
             change::RelayAct::Ask { .. } => return true,
-            change::RelayAct::Answer { .. }
-            | change::RelayAct::Left { .. }
-            | change::RelayAct::Hold => {}
+            change::RelayAct::Answer { .. } | change::RelayAct::Left { .. } | change::RelayAct::Hold => {}
         }
     }
     false

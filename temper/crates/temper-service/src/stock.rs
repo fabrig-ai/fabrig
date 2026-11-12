@@ -815,7 +815,9 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (
             9,
             5,
-            settings::Value::CharterWords(bytes::copy_of(b"designs a goal's draft, cuts it into changes, and answers what they ask")),
+            settings::Value::CharterWords(bytes::copy_of(
+                b"designs a goal's draft, cuts it into changes, and answers what they ask",
+            )),
         ),
         (
             9,

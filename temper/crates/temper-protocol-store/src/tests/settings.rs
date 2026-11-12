@@ -224,7 +224,11 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
             key: d::SettingKey { kind, scope: 0, number: 1, slot: d::SettingSlot::Default },
             edit: d::Edit::Set(d::SizedValue { value, size: 1 }),
         });
-        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(Undecodable::Malformed), "invalid words for kind {kind}");
+        assert_eq!(
+            records::decode(&records::encode(&row), &bounds),
+            Err(Undecodable::Malformed),
+            "invalid words for kind {kind}"
+        );
     }
     let mut bytes = records::encode(&row(d::Edit::Remove));
     bytes[15] = 4; // Version, Value tag, kind, scope and number precede the slot.
@@ -305,24 +309,45 @@ fn retired_setting_tags_refuse_with_the_setting_identity() {
     w::Route::Up.encode(&mut tag).unwrap();
     assert_eq!(tag.finish().as_ref(), &[2], "up is never read as the retired route");
     for (kind, scope, number, value) in [
-        (6, 2, 1, w::SettingValue::Questions(w::ProjectQuestions::new(
-            &w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired },
-        ).unwrap())),
-        (3, 0, 3, w::SettingValue::Charter(w::CharterValue::new(
-            &w::CEILINGS, w::CharterValueParts { number: 6 },
-        ).unwrap())),
+        (
+            6,
+            2,
+            1,
+            w::SettingValue::Questions(
+                w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
+            ),
+        ),
+        (
+            3,
+            0,
+            3,
+            w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap()),
+        ),
     ] {
         for slot in [d::SettingSlot::Change, d::SettingSlot::Replaced(2)] {
             let key = d::SettingKey { kind, scope, number, slot };
             let stored_slot = match slot {
                 d::SettingSlot::Change => w::SettingSlot::Change,
-                d::SettingSlot::Replaced(number) => w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap()),
-                d::SettingSlot::Default | d::SettingSlot::Proposal(_) => unreachable!("the test exercises current and replaced rows"),
+                d::SettingSlot::Replaced(number) => {
+                    w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+                }
+                d::SettingSlot::Default | d::SettingSlot::Proposal(_) => {
+                    unreachable!("the test exercises current and replaced rows")
+                }
             };
-            let row = w::SettingRow::new(&w::CEILINGS, w::SettingRowParts {
-                kind, scope, number, slot: stored_slot,
-                edit: w::SettingEdit::Set(w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value: value.clone(), size: 1 }).unwrap()),
-            }).unwrap();
+            let row = w::SettingRow::new(
+                &w::CEILINGS,
+                w::SettingRowParts {
+                    kind,
+                    scope,
+                    number,
+                    slot: stored_slot,
+                    edit: w::SettingEdit::Set(
+                        w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value: value.clone(), size: 1 }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap();
             let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
             let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
             row.encode(&mut bytes).unwrap();

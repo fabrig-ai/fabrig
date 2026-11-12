@@ -1972,14 +1972,14 @@ pub fn ending(
 #[test]
 fn retired_settings_name_the_ctl_setting_at_start() {
     use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
-    let arguments = [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
-    for (kind, scope, number, words) in [
-        (6, 2, 1, "project-questions 2"),
-        (3, 0, 3, "forge-charter 3"),
-    ] {
+    for (kind, scope, number, words) in [(6, 2, 1, "project-questions 2"), (3, 0, 3, "forge-charter 3")] {
         let end = End::Stopped(Stop::Setting(SettingKey { kind, scope, number, slot: SettingSlot::Change }));
-        assert_eq!(ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
-            (format!("temper serve: restart refused: {words}: retired stored setting\n"), 1));
+        assert_eq!(
+            ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
+            (format!("temper serve: restart refused: {words}: retired stored setting\n"), 1)
+        );
     }
 }

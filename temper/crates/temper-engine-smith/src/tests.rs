@@ -2018,10 +2018,7 @@ fn change_refuses_a_branch_other_than_mine() {
 
 #[test]
 fn change_decodes_its_questions() {
-    for (questions, expected) in [
-        ("up", engine::ChangeQuestions::Up),
-        ("none", engine::ChangeQuestions::None),
-    ] {
+    for (questions, expected) in [("up", engine::ChangeQuestions::Up), ("none", engine::ChangeQuestions::None)] {
         let member = format!(r#"{{"words":"a","questions":"{questions}"}}"#);
         for input in [member.clone(), format!(r#"{{"changes":[{{"words":"first"}},{member}]}}"#)] {
             let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("questions").tool else {
@@ -2242,7 +2239,8 @@ fn change_refuses_a_producer_or_llm_out_of_range() {
 #[test]
 fn change_batch_refuses_outer_options() {
     let members = r#"{"name":"lexer","words":"lex"},{"name":"parser","words":"parse"},{"name":"checks","words":"check"},{"name":"docs","words":"document"}"#;
-    let options = r#""landing":"goal","producer":2,"questions":"up","llm":{"producer":{"main":{"model":"sol","effort":"high"}}}"#;
+    let options =
+        r#""landing":"goal","producer":2,"questions":"up","llm":{"producer":{"main":{"model":"sol","effort":"high"}}}"#;
     let input = format!(r#"{{"changes":[{members}],{options}}}"#);
     assert_eq!(
         configured_change(input.as_bytes()),

@@ -138,7 +138,11 @@ fn tier_decoding_checks_names_policy_invariants_and_configured_bounds() {
             },
             _ => unreachable!(),
         }
-        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable::Malformed), "case {case}");
+        assert_eq!(
+            records::decode(&records::encode(&d::Stored::Tier(row)), &bounds),
+            Err(Undecodable::Malformed),
+            "case {case}"
+        );
     }
     let full = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     for field in 0_u8..3 {
@@ -296,7 +300,11 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
             }
             _ => unreachable!(),
         }
-        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable::Malformed), "case {case}");
+        assert_eq!(
+            records::decode(&records::encode(&d::Stored::Tier(row)), &bounds),
+            Err(Undecodable::Malformed),
+            "case {case}"
+        );
     }
     let mut limits = fixtures::LIMITS;
     limits.holds = crate::v11::CEILINGS.tier_row_goals;

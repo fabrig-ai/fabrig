@@ -477,13 +477,13 @@ fn page_failed(routes: &Routes, flight: &Flight, into: &mut Queue<Up>) {
 fn decode(row: store::Row, bounds: &families::Bounds) -> Option<engine::Record> {
     Some(match row {
         store::Row::Jig(row) => engine::Record::Core(row),
-        store::Row::Application { key, value } => {
-            engine::Record::Forge { row: Box::new(match families::records::row(&key, &value, bounds) {
+        store::Row::Application { key, value } => engine::Record::Forge {
+            row: Box::new(match families::records::row(&key, &value, bounds) {
                 Ok(row) => row,
                 Err(families::Undecodable::Setting(key)) => temper_engine_domain_forge::Stored::RefusedSetting(key),
                 Err(families::Undecodable::Malformed) => return None,
-            }) }
-        }
+            }),
+        },
     })
 }
 

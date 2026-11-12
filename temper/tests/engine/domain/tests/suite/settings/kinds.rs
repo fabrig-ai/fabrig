@@ -796,9 +796,14 @@ fn the_retired_forge_charter_number_is_refused_for_changes_and_proposals() {
             };
             driver.send(event);
             driver.settle();
-            assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
-                Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Refused(_)), .. }
-            )), "unknown forge-charter {number}: {:?}", driver.delivered);
+            assert!(
+                driver.delivered.iter().any(|delivery| matches!(
+                    delivery,
+                    Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Refused(_)), .. }
+                )),
+                "unknown forge-charter {number}: {:?}",
+                driver.delivered
+            );
             assert_eq!(kinds::revision(&driver.store.rows), before);
             assert_eq!(kept(&driver, 3, 0, number, settings::SettingSlot::Change), None);
         }

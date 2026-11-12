@@ -46,7 +46,8 @@ fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64
     let tasks::Party::Task(task) = live_task(&world, producer.task).requester else { panic!("change's producer") };
     if questions_up {
         fund_concurrent_gate(&mut world, &chat, task);
-        producer = world.assigned.iter().rev().find(|run| run.task == producer.task).expect("producer's current run").clone();
+        producer =
+            world.assigned.iter().rev().find(|run| run.task == producer.task).expect("producer's current run").clone();
     }
     world.external(2, raw::Op::Git(raw::Git::Create { branch: BRANCH.into(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer", 2)
@@ -103,18 +104,32 @@ fn fund_concurrent_gate(world: &mut World, chat: &engine::Assignment, task: u64)
     let mut authority = live_task(world, task).authority.clone();
     authority.budget.spend = 40;
     let revision = live_task(world, task).revisions.spec;
-    let event = world.protocol.call(CHANNEL, chat.task, chat.attempt, 95, engine::Call {
-        completion: 95, position: 1, tool: engine::Tool::Amend {
-            keep_parameters: false, target: task, revision,
-            amendment: temper_engine_domain_world::fixtures::task_amendment(
-                None, Some(authority), b"fund the concurrent gate after the producer starts",
-            ),
+    let event = world.protocol.call(
+        CHANNEL,
+        chat.task,
+        chat.attempt,
+        95,
+        engine::Call {
+            completion: 95,
+            position: 1,
+            tool: engine::Tool::Amend {
+                keep_parameters: false,
+                target: task,
+                revision,
+                amendment: temper_engine_domain_world::fixtures::task_amendment(
+                    None,
+                    Some(authority),
+                    b"fund the concurrent gate after the producer starts",
+                ),
+            },
         },
-    });
+    );
     world.send(event);
     for _ in 0..STEPS {
         world.tick();
-        if live_task(world, task).revisions.spec > revision && world.store.pending.is_empty() { break; }
+        if live_task(world, task).revisions.spec > revision && world.store.pending.is_empty() {
+            break;
+        }
     }
     assert!(live_task(world, task).revisions.spec > revision, "{:?}", world.answers);
     world.until(Until::Ready);
@@ -317,7 +332,10 @@ fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
         world.tick();
         if let Some((child, change::Delegate::Gate { .. })) = change_row(&world, task).delegate
             && let Some(run) = world.assigned.iter().find(|run| run.task == child)
-        { gate = Some(run.clone()); break; }
+        {
+            gate = Some(run.clone());
+            break;
+        }
     }
     let gate = gate.unwrap_or_else(|| panic!("gate assigned: {:?}", change_row(&world, task)));
     let assignments = world.assigned.len();

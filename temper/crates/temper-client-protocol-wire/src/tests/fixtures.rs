@@ -418,14 +418,7 @@ fn tier_lines() -> List<Box<[u8]>> {
 pub fn questions() -> v1::Questions {
     let limits = limits();
     let mut open = List::with_capacity(5);
-    for (index, stands) in [
-        v1::Stands::Taken,
-        v1::Stands::Asked,
-        v1::Stands::Held,
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, stands) in [v1::Stands::Taken, v1::Stands::Asked, v1::Stands::Held].into_iter().enumerate() {
         open.push(
             v1::Question::new(
                 &limits,

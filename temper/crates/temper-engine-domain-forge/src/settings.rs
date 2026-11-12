@@ -714,7 +714,12 @@ pub fn retired_words(key: SettingKey) -> Box<[u8]> {
     };
     let number = skein_lib::Decimal::of(u64::from(number));
     let reason = b": retired stored setting";
-    let length = name.len().checked_add(number.as_bytes().len()).expect("bounded setting identity").checked_add(reason.len()).expect("bounded refusal");
+    let length = name
+        .len()
+        .checked_add(number.as_bytes().len())
+        .expect("bounded setting identity")
+        .checked_add(reason.len())
+        .expect("bounded refusal");
     let mut words = skein_lib::Writer::new(length);
     words.put(name).expect("sized setting name");
     words.put(number.as_bytes()).expect("sized setting number");

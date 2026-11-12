@@ -99,6 +99,7 @@ pub(super) fn decode_reach(record: w::Reach) -> Result<temper_protocol_reaches::
     use temper_client_protocol_wire::v1;
     let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
     record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
-    let record = v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
+    let record =
+        v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
     temper_protocol_reaches::reach_from(&record).ok_or(Undecodable::Malformed)
 }

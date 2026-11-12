@@ -1388,14 +1388,17 @@ fn questions_are_a_plans_member() {
 fn questions_foreman_is_refused_alone_and_in_a_batch() {
     for input in [
         br#"{"words":"Small fix","questions":"foreman"}"#.as_slice(),
-        br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#.as_slice(),
+        br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#
+            .as_slice(),
     ] {
         let input = smith_domain_run::HostInput::attested(input.into()).expect("change input");
         assert_eq!(
             temper_engine_smith::call(
                 smith_domain_run::CallName { activation: 1, completion: 1, position: 1 },
-                b"change", &input,
-            ).expect_err("retired route"),
+                b"change",
+                &input,
+            )
+            .expect_err("retired route"),
             temper_engine_smith::Problem::Range(b"questions"),
         );
     }

@@ -217,7 +217,10 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
     let w::SettingRowParts { kind, scope, number, slot, edit } = value.into_parts();
     d::Kind::of(kind).ok_or(Undecodable::Malformed)?;
     let refused = Undecodable::Setting(d::SettingKey {
-        kind, scope, number, slot: match &slot {
+        kind,
+        scope,
+        number,
+        slot: match &slot {
             w::SettingSlot::Default => d::SettingSlot::Default,
             w::SettingSlot::Change => d::SettingSlot::Change,
             w::SettingSlot::Replaced(value) => d::SettingSlot::Replaced(value.number()),
@@ -241,8 +244,8 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     use temper_client_protocol_wire::v1;
                     let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
                     record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
-                    let record =
-                        v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
+                    let record = v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
+                        .or(Err(Undecodable::Malformed))?;
                     d::Value::Follow(d::follow_from(record))
                 }
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),

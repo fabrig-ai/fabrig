@@ -480,9 +480,7 @@ pub(super) fn questions(b: &mut Builder, root: &Domain, w: &Words, bindings: &mu
     if stored.is_none() || root.forge().ways_asked(Control::Questions).is_some() {
         b.state(State::Disabled);
     }
-    for (route, word) in
-        [(Route::Up, Word::SettingsUp), (Route::None, Word::SettingsAlone)]
-    {
+    for (route, word) in [(Route::Up, Word::SettingsUp), (Route::None, Word::SettingsAlone)] {
         b.open(Role::Option);
         b.name(&w.say(word, &[]));
         b.bind(bindings.insert(Meaning::Ways(ways::Act::Set { project, asked: Asked::Questions(route) })));

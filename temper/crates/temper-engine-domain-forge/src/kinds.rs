@@ -164,7 +164,8 @@ impl Domain {
                         slot: SettingSlot::Replaced(revision),
                     };
                     if self.refused_settings.contains_key(&key) {
-                        judged.push(settings::Judged::Refuse(settings::Refusal::Retired))
+                        judged
+                            .push(settings::Judged::Refuse(settings::Refusal::Retired))
                             .expect("one judgement per item");
                         continue;
                     }
@@ -221,7 +222,9 @@ impl Domain {
             }
         }
         for (key, ()) in &self.refused_settings {
-            if let SettingSlot::Replaced(revision) = key.slot && revision < before {
+            if let SettingSlot::Replaced(revision) = key.slot
+                && revision < before
+            {
                 erases.push(*key).expect("bounded refused setting identities");
             }
         }
@@ -240,7 +243,9 @@ impl Domain {
                 refused.push(*key).expect("bounded refused proposal identities");
             }
         }
-        for key in &refused { self.erase_setting(*key, out); }
+        for key in &refused {
+            self.erase_setting(*key, out);
+        }
         self.rebuild_settings();
     }
 

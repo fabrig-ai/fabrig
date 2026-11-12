@@ -672,9 +672,13 @@ fn decode_directory(bytes: &[u8], bounds: &Bounds, mut room: u32) -> Result<Box<
         let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::DirectoryEntry::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
+        let item =
+            w::DirectoryEntry::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let w::DirectoryEntryParts { name, kind } = item.into_parts();
-        let charge = u32::try_from(name.len()).or(Err(Undecodable::Malformed))?.checked_add(width).ok_or(Undecodable::Malformed)?;
+        let charge = u32::try_from(name.len())
+            .or(Err(Undecodable::Malformed))?
+            .checked_add(width)
+            .ok_or(Undecodable::Malformed)?;
         room = room.checked_sub(charge).ok_or(Undecodable::Malformed)?;
         let kind = match kind {
             w::DirectoryKind::File => d::EntryKind::File,

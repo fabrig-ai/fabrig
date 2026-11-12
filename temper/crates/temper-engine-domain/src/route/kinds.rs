@@ -76,7 +76,9 @@ fn restore(
         let mut answer = match *answer {
             settings::Judged::Refuse(settings::Refusal::Retired) => connector::Judged::Refuse {
                 why: settings::retired_words(settings::SettingKey {
-                    kind: item.kind, scope: item.scope, number: item.number,
+                    kind: item.kind,
+                    scope: item.scope,
+                    number: item.number,
                     slot: settings::SettingSlot::Change,
                 }),
             },

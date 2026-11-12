@@ -2461,10 +2461,7 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
 
 #[test]
 fn a_panels_questions_map_field_for_field() {
-    for (route, expected_route) in [
-        (change::Route::None, w::Route::None),
-        (change::Route::Up, w::Route::Up),
-    ] {
+    for (route, expected_route) in [(change::Route::None, w::Route::None), (change::Route::Up, w::Route::Up)] {
         let mut value = panel();
         let mut open = List::with_capacity(5);
         let mut expected = List::with_capacity(5);

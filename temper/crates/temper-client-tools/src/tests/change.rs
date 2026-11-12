@@ -933,15 +933,9 @@ fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
 fn question_parts() -> w::ChangePanelParts {
     let mut parts = panel(w::Step::Checking).into_parts();
     let mut open = List::with_capacity(2);
-    for (asker, number, line, stands) in [
-        (
-            7,
-            1,
-            b"Which branch?".as_slice(),
-            w::Stands::Asked,
-        ),
-        (8, 2, b"Which check?".as_slice(), w::Stands::Taken),
-    ] {
+    for (asker, number, line, stands) in
+        [(7, 1, b"Which branch?".as_slice(), w::Stands::Asked), (8, 2, b"Which check?".as_slice(), w::Stands::Taken)]
+    {
         open.push(
             w::Question::new(&w::CEILINGS, w::QuestionParts { asker, number, line: Box::from(line), stands }).unwrap(),
         )

@@ -1361,7 +1361,10 @@ fn reference_person_escalation(world: &mut PersonWorld, goal: &engine::Assignmen
             .find(|word| word.from == tasks::Party::Task(change) && word.kind == tasks::MessageKind::Question)
             && world.store.pending.is_empty()
         {
-            assert!(String::from_utf8_lossy(&question.words).contains("Choose 1: keep the design, or 2: widen it. Recommend 1."));
+            assert!(
+                String::from_utf8_lossy(&question.words)
+                    .contains("Choose 1: keep the design, or 2: widen it. Recommend 1.")
+            );
             assert!(
                 world.root.tasks().task(producer.task).expect("producer").questions.iter().any(|q| q.number == message)
             );

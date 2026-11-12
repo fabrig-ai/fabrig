@@ -2613,11 +2613,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
     const BASE_AUTHORITY_SEGMENTS: u32 = 6;
     for (parameter, requester, expected) in [
         (None, tasks::Party::Task(91), Some(forge_change::Route::None)),
-        (
-            Some(tasks::Parameter::Number { name: 14, value: 1 }),
-            tasks::Party::Task(91),
-            None,
-        ),
+        (Some(tasks::Parameter::Number { name: 14, value: 1 }), tasks::Party::Task(91), None),
         (Some(tasks::Parameter::Number { name: 14, value: 2 }), tasks::Party::Task(91), Some(forge_change::Route::Up)),
         (Some(tasks::Parameter::Number { name: 14, value: 3 }), tasks::Party::Task(91), None),
         (Some(tasks::Parameter::Number { name: 14, value: 0 }), tasks::Party::Task(91), None),
@@ -2628,11 +2624,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
             tasks::Party::Person(1),
             Some(forge_change::Route::None),
         ),
-        (
-            Some(tasks::Parameter::Number { name: 14, value: 1 }),
-            tasks::Party::Deployment { project: 1 },
-            None,
-        ),
+        (Some(tasks::Parameter::Number { name: 14, value: 1 }), tasks::Party::Deployment { project: 1 }, None),
     ] {
         let (mut domain, mut env) = procedure_root();
         env.limits.authority.segments = BASE_AUTHORITY_SEGMENTS;
@@ -3214,10 +3206,9 @@ fn change_family(questions: &[Option<crate::ChangeQuestions>]) -> Box<[crate::Ch
 fn mixed_change_routes_share_room_within_each_policy_cap() {
     use crate::ChangeQuestions::{None as NoQuestions, Up};
     use temper_engine_domain_forge_change::Route;
-    for (project_route, routes, tasks_left, expected) in [
-        (Route::None, [Some(Up), Some(NoQuestions)], 200, [80, 80]),
-        (Route::Up, [None, Some(Up)], 4, [1, 1]),
-    ] {
+    for (project_route, routes, tasks_left, expected) in
+        [(Route::None, [Some(Up), Some(NoQuestions)], 200, [80, 80]), (Route::Up, [None, Some(Up)], 4, [1, 1])]
+    {
         let (mut domain, mut env, mut context) = change_choice_world();
         env.limits.forge.change_policy.tasks = 80;
         env.limits.forge.change_policy.questions = 80;
@@ -3266,11 +3257,9 @@ fn insufficient_change_room_names_capacity_and_whether_smaller_calls_help() {
 fn a_changes_delegation_uses_its_task_limit_and_leaves_room_for_foremen() {
     use crate::ChangeQuestions;
     for (tasks, questions, tasks_left, expected) in [
-        
         (6, Some(ChangeQuestions::None), 20, 6),
         (6, None, 20, 6),
         (8, Some(ChangeQuestions::Up), 20, 8),
-        
         (u32::MAX, Some(ChangeQuestions::Up), 20, 19),
     ] {
         let (domain, mut env, mut context) = change_choice_world();
@@ -3438,12 +3427,7 @@ fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
             None,
             forge_change::Route::Up,
         ),
-        (
-            [b"3:".as_slice(), &[b'c'; 64]].concat(),
-            Box::<[_]>::from([[0xcc; 32]]),
-            Some(1),
-            forge_change::Route::Up,
-        ),
+        ([b"3:".as_slice(), &[b'c'; 64]].concat(), Box::<[_]>::from([[0xcc; 32]]), Some(1), forge_change::Route::Up),
     ] {
         let (accepted, mut work) = follows_start(&text, route);
         assert!(accepted, "{text:?}");
@@ -3677,12 +3661,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             .forge_delegating
             .insert(
                 (task, step),
-                super::ChangeStep {
-                    delegate: Some(kind),
-                        relayed: None,
-                    refusal: None,
-                    released: false,
-                },
+                super::ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false },
             )
             .unwrap();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -4165,10 +4144,7 @@ fn a_change_naming_no_route_takes_its_projects_questions() {
 #[test]
 fn a_named_route_wins_over_the_projects() {
     use temper_engine_domain_forge_change::Route;
-    for (named, expected) in [
-        (crate::ChangeQuestions::None, Route::None),
-        (crate::ChangeQuestions::Up, Route::Up),
-    ] {
+    for (named, expected) in [(crate::ChangeQuestions::None, Route::None), (crate::ChangeQuestions::Up, Route::Up)] {
         let (mut domain, env, context) = change_choice_world();
         set_project_questions(&mut domain, &env, Route::Up);
         let delegate = questions_delegate(&domain, &env, &context, Some(named));

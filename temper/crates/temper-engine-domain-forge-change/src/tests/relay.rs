@@ -1,7 +1,5 @@
 //! The relay's policy alone (temper/docs/design/domain/forge/change/questions.md, 1).
-use crate::{
-    Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Stands, relay,
-};
+use crate::{Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Stands, relay};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
@@ -127,10 +125,8 @@ fn left(answered: bool) -> RelayAct {
 
 #[test]
 fn an_ended_asker_reports_each_question() {
-    for (stands, answered) in [
-        (Stands::Taken, false),
-        (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true),
-    ] {
+    for (stands, answered) in [(Stands::Taken, false), (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true)]
+    {
         let result = relay(&head(stands), &RelayHeard { ended: &[ASKER], kept: true, ..heard() }, &super::LIMITS, 1);
         let expected = vec![left(answered)];
         assert_eq!(result.acts.as_ref(), expected);
@@ -162,11 +158,7 @@ fn an_asked_question_of_an_ended_asker_reports_at_its_answer() {
 
 #[test]
 fn no_room_keeps_an_ended_question_until_it_can_be_reported_once() {
-    for stands in [
-        Stands::Taken,
-        Stands::Asked,
-        Stands::Held { answer: Box::from(b"Unused".as_slice()) },
-    ] {
+    for stands in [Stands::Taken, Stands::Asked, Stands::Held { answer: Box::from(b"Unused".as_slice()) }] {
         let q = head(stands.clone());
         let result = relay(&q, &RelayHeard { ended: &[ASKER], answer: Some(b"Unused"), ..heard() }, &super::LIMITS, 0);
         let (expected, answered) = match stands {
@@ -202,19 +194,13 @@ fn an_ended_question_shares_message_room_with_the_next_question() {
 
 #[test]
 fn a_live_askers_question_is_never_reported_as_ended() {
-    for stands in [
-        Stands::Taken,
-        Stands::Asked,
-        Stands::Held { answer: Box::from(b"Use the path.".as_slice()) },
-    ] {
+    for stands in [Stands::Taken, Stands::Asked, Stands::Held { answer: Box::from(b"Use the path.".as_slice()) }] {
         let result = relay(&head(stands), &RelayHeard { ended: &[NEXT_ASKER], ..heard() }, &super::LIMITS, ROOM);
         let mut reported = false;
         for act in &result.acts {
             match act {
                 RelayAct::Left { .. } => reported = true,
-                RelayAct::Answer { .. }
-                | RelayAct::Ask { .. }
-                | RelayAct::Hold => {}
+                RelayAct::Answer { .. } | RelayAct::Ask { .. } | RelayAct::Hold => {}
             }
         }
         assert!(!reported);
@@ -272,13 +258,7 @@ fn route_none_relays_nothing() {
     let q = Questions { route: Route::None, ..head(Stands::Asked) };
     let result = relay(
         &q,
-        &RelayHeard {
-            asked: &[asked()],
-            answer: Some(b"Unused"),
-            ended: &[ASKER],
-            released: true,
-            ..heard()
-        },
+        &RelayHeard { asked: &[asked()], answer: Some(b"Unused"), ended: &[ASKER], released: true, ..heard() },
         &super::LIMITS,
         ROOM,
     );

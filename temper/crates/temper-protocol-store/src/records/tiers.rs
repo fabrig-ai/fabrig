@@ -426,7 +426,9 @@ fn decode_probe(
     match probe {
         Some(probe) => {
             let w::TierProbeBranchParts { landing, branch } = probe.into_parts();
-            if usize::try_from(landing).or(Err(Undecodable::Malformed))? >= run.ok_or(Undecodable::Malformed)?.landings.len() {
+            if usize::try_from(landing).or(Err(Undecodable::Malformed))?
+                >= run.ok_or(Undecodable::Malformed)?.landings.len()
+            {
                 return Err(Undecodable::Malformed);
             }
             Ok(Some(d::TierProbeBranch { landing, branch: decode_branch(branch) }))

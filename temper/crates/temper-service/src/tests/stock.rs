@@ -2121,9 +2121,17 @@ fn the_stock_has_no_foreman() {
     assert!(!defaults.charters.iter().any(|charter| charter.number == 6));
     assert!(!defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
     let stock = crate::stock::forge(&limits);
-    assert_eq!(stock.iter().filter(|item| item.kind == 3).map(|item| item.number).collect::<Box<[_]>>().as_ref(), [1, 2]);
+    assert_eq!(
+        stock.iter().filter(|item| item.kind == 3).map(|item| item.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2]
+    );
     assert!(!stock.iter().any(|item| item.kind == 9 && item.number == 6));
     let goal = stock.iter().find(|item| item.kind == 9 && item.number == 5).expect("goal's words");
-    assert_eq!(goal.value.value, Value::CharterWords(b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice().into()));
+    assert_eq!(
+        goal.value.value,
+        Value::CharterWords(
+            b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice().into()
+        )
+    );
     assert!(!include_str!("../stock/ask.txt").contains("answer change questions"));
 }

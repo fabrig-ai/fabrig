@@ -1329,11 +1329,8 @@ impl Joint {
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
                 limits.people.initial_owners = SETTINGS_OWNERS;
-                rules.ceiling.delegation.kinds = Box::new([
-                    a::Executor::Charter(1),
-                    a::Executor::Charter(4),
-                    a::Executor::Procedure(2),
-                ]);
+                rules.ceiling.delegation.kinds =
+                    Box::new([a::Executor::Charter(1), a::Executor::Charter(4), a::Executor::Procedure(2)]);
                 policy.ceiling.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 policy.roles[0].authority.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 rules.ceiling.delegation.depth = SETTINGS_DEPTH;
