@@ -103,7 +103,12 @@ fn exec_on_claude_refuses_a_writing_sub_agent() {
         cued: vec![Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![Step::Text(ALPHA.into())])] }],
         ..Story::default()
     });
-    let ran = support::run_product(&scratch, &["exec", "Ask a writing inspector for a report"], b"", None);
+    // A program run, so the program story's budget: the refusal is the subject, not its speed.
+    let ran = support::run_product_scripted(
+        &scratch,
+        &["exec", "Ask a writing inspector for a report"],
+        vec![smith_local_process_world::terminal::Action::Eof],
+    );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert_eq!(ran.stdout, report.as_bytes());
     let calls = invocations(&scratch);
