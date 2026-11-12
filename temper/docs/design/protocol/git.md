@@ -86,7 +86,8 @@ io                              processes (skein's `runtime/io/processes.md`) an
 the worker's root directory     workers[].root
 ├── workspaces/<token>/         a workspace, named by the checkout's token in decimal
 │   └── <repository>/           a repository's working tree and its .git, side by side with the others
-├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11)
+├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11), kept across starts
+├── making/<m>/                 a store being made, moved into `stores` once whole (4.11)
 ├── trash/<n>/                  what Make set aside, emptied by the sweep
 └── home/                       git's HOME: empty, private
 ```
@@ -112,10 +113,14 @@ the worker's root directory     workers[].root
 - **The worker's root directory** is opened once at start by the
   worker's service and is the root every spawn and file operation
   resolves beneath (skein's `runtime/io/files.md`). At every start the
-  component renames `workspaces`, `stores` and `home` into `trash` if they
-  exist, and makes them afresh, private (0o700), with `trash` if it is absent:
-  the worker keeps nothing durable (`../domain/worker/README.md`, section 1),
-  and git's `HOME` must be empty.
+  component renames `workspaces`, `making` and `home` into `trash` if they
+  exist, and makes them afresh, private (0o700), with `trash` and `stores`
+  if they are absent. `stores` stays: a cache whose loss costs only clones
+  made again, so a restart finds each remote's store made
+  (`../domain/worker/checkouts.md`), while what must survive is never on
+  the worker (`../domain/worker/README.md`, section 1). A store half made
+  when the worker stopped is in `making`, and goes with it; git's `HOME`
+  must be empty.
 - **What it depends on:** `skein-lib`, `skein-io` and the checkout's
   vocabulary. It never decodes a channel record or reads configuration.
 
@@ -126,7 +131,7 @@ Every invocation has this shape:
 ```
 program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
 argv       git -c <setting> … <command> <options> [--] <operands>
-directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `stores` for Store's clone
+directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `making` for Store's clone
 environment  given whole (section 5)
 pipes      stdin (written, then closed), stdout, stderr
 ```
@@ -627,27 +632,35 @@ git push --porcelain --force-with-lease=refs/heads/<branch>:<e> -- <url> <commit
 `Store { store, aside, remote, identity, account, git }`, `git` the
 program (section 3): `stores/<store>` a bare clone of the remote's default
 branch, unless one is there, made whole before it is moved into place, so
-that two `Store`s of one store at once leave one, each `Succeeded`, and a
-fetch that follows either finds it whole (`../domain/worker/checkouts.md`).
+that a store there is always whole, a fetch that follows finds it so, and
+two `Store`s of one store at once, which the cache never starts
+(`../domain/worker/checkouts.md`), would still leave one.
 
 1. Where `aside` names a store (one no workspace borrows, whose slot the
    cache gives another remote), `Rename` `stores/<aside>` to `trash/<n>`;
    one that does not exist is nothing to move.
-2. `MakeDirectory` `stores/new-<m>`, mode 0o700, `<m>` the component's next
-   serial number, the one `trash` names take, and in `stores`:
+2. Where `stores/<store>` is there, a directory, `Succeeded`, with no clone
+   and no invocation: a store kept from before the worker's start, or made
+   since, is whole and its remote's, since its token is its remote's
+   (`../domain/worker/checkouts.md`), and the fetches that follow bring it
+   up to date. Something there that is not a directory is `Broken`.
+3. `MakeDirectory` `making/<m>`, mode 0o700, `<m>` the component's next
+   serial number, the one `trash` names take, and in `making`:
    ```
-   git clone --bare --single-branch --no-tags --quiet -- <url> new-<m>
+   git clone --bare --single-branch --no-tags --quiet -- <url> <m>
    ```
    which git accepts into the empty directory.
-3. `Rename` `stores/new-<m>` to `stores/<store>`, never replacing: where
-   `stores/<store>` is there already, `stores/new-<m>` is renamed to
+4. `Rename` `making/<m>` to `stores/<store>`, never replacing: where
+   `stores/<store>` is there already, `making/<m>` is renamed to
    `trash/<m>` instead.
 
 - **Exit 0 and the file operations done:** `Succeeded`, whichever rename
-  took. A failed clone is classified by section 6's table, as a fetch is (a
-  repository the forge lacks is `Missing { Repository }`, a token it
-  refused `Refused`); any other failed file operation is `Broken`; and
-  what step 2 made is renamed to `trash` if it can be.
+  took, or at step 2 with nothing made. A failed clone is classified by
+  section 6's table, as a fetch is (a repository the forge lacks is
+  `Missing { Repository }`, a token it refused `Refused`); any other
+  failed file operation is `Broken`; and what step 3 made is renamed to
+  `trash` if it can be. A worker stopped mid-clone leaves it in `making`,
+  which its next start sets aside (section 2).
 - **A clone, for the object format.** `git init` makes a SHA-1 repository,
   and git 2.47's fetch from a SHA-256 remote into it fails (`fatal:
   mismatched algorithms: client sha1; server sha256`); a clone takes the
@@ -844,8 +857,8 @@ checks this document's contract:
   - **the builders:** for each operation and case (each `Want`, a push
     with and without an expected head, a commit with and without a second
     parent), the exact argument vector, directory and environment of
-    sections 3 to 5, a fetch's store and repository and a store's `new-<m>`
-    among them; that no value of an identity appears in an argument; the
+    sections 3 to 5, a fetch's store and repository and a store's `<m>` in
+    `making` among them; that no value of an identity appears in an argument; the
     message's bytes; the alternates file's bytes;
   - **the parsers:** fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions

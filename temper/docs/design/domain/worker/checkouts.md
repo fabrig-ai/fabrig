@@ -33,11 +33,21 @@ runs as contained processes and whose output it parses.
   its workspace, as a bare clone of the forge's default branch alone, the
   one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
   refuses a remote of another format, and a checkout borrowing a store
-  takes the store's); two prepares making one store at once leave one. The cache keeps at most
+  takes the store's). One prepare makes a store: another that needs it
+  meanwhile waits, with no operation of its own, and goes on with it once
+  it is made, and a making that fails or is cancelled passes to the one
+  prepare that has waited longest, not to every one. Stores outlive a
+  restart: a start keeps them, and the making of a store already there
+  clones nothing (`../../protocol/git.md`, 4.11), so the first prepares
+  after a restart fetch only what each store lacks, while the workspaces
+  still start empty. A store's token is its remote's, the first eight
+  bytes of the SHA-256 digest of the remote's bytes read big-endian, so a
+  restart finds each remote's store under the name it had, whatever order
+  prepares name remotes in. The cache keeps at most
   `checkout.workspaces` times `checkout.repositories` stores
   (`../../protocol/configuration/limits.md`), the most its checkouts can
-  borrow at once; a remote that finds them all taken gets the slot of
-  one no workspace borrows, made again under a new token. A store is never
+  borrow at once; a remote that finds them all taken takes the slot of
+  one no workspace borrows, whose store is set aside. A store is never
   made again for a fault: git writes each object whole, under its name, so
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
@@ -48,7 +58,8 @@ runs as contained processes and whose output it parses.
   agent's write authority is the list of writable ones.
 - **One operation at a time.** A run holds its checkout from the moment
   its prepare is admitted, so a cancel aborts a prepare rather than
-  waiting it out. A checkout runs one operation at a time (a prepare, a
+  waiting it out; one waiting for another's store has nothing in flight,
+  and ends aborted at once. A checkout runs one operation at a time (a prepare, a
   push or a save), each a sequence of git operations with deadlines as
   data, one for the forge and one for the disk; the checkout arms no
   timers.
@@ -291,14 +302,23 @@ ID (2026-11-04).
   one after another.
 - **A store's upkeep.** Each fetch leaves what it received in the store as
   git wrote it, a pack or loose objects, and nothing repacks or prunes
-  them, so a store grows for the worker's life and goes at its next start.
-  Default: none; a repack that keeps every object a checkout may borrow,
+  them, so a store grows across the worker's starts, since stores outlive a
+  restart; and a store whose remote no prepare names since the start stays
+  on disk, since the cache sets aside only the stores it knows. Default:
+  none, and an operator who wants the space removes `stores` with the
+  worker stopped; a repack that keeps every object a checkout may borrow,
   reachable or not, if a deployment shows a store's size or lookups.
 - **A store damaged past its references.** A corrupt pack would break
-  every prepare of its repository until the worker's next start: nothing
-  seen suggests one, and making a store again on any broken operation would
+  every prepare of its repository until its store is removed by hand,
+  with the worker stopped, since stores outlive a restart: nothing seen
+  suggests one, and making a store again on any broken operation would
   cost a whole fetch each time. Default: a store is never made again for a
   fault (`checkouts.md`).
+- **Two remotes of one token.** A store's token is 64 bits of its remote's
+  digest (`checkouts.md`), so two remotes could share one; among the few
+  remotes a worker serves that is not expected, and nothing checks it.
+  Sharing would mix their objects in one store, which every fetch still
+  names by its own remote. Default: unchecked.
 - **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:
