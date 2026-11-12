@@ -161,6 +161,7 @@ pub struct Machine {
     save_until: Option<Time>,
     frame: Box<[u8]>,
     return_address: Option<Box<[u8]>>,
+    tui_browse: Option<Box<[u8]>>,
 }
 impl Machine {
     #[must_use]
@@ -185,6 +186,7 @@ impl Machine {
                 save_until: None,
                 frame: Box::new([]),
                 return_address: None,
+                tui_browse: None,
             },
             vec![action],
         )
@@ -226,6 +228,7 @@ impl Machine {
                 self.phase = Phase::Finished;
                 self.until = None;
                 self.poll = None;
+                self.save_until = None;
                 out.extend([Action::StopTui, Action::CancelFace, Action::StopCtl, Action::KillBox, Action::Finished(Exit::own(why))]);
             }
             Event::Snapshot(_) | Event::Description(_) | Event::Logs { .. } => {}

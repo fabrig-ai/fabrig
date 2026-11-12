@@ -32,6 +32,7 @@ impl Machine {
             Some(Record::Tui(Tui::Key(key))) => {
                 let bytes = key_bytes(key);
                 self.wait(Phase::TuiKey, now, LOOK);
+                self.until = None;
                 out.push(Action::WriteTui(bytes));
             }
             Some(Record::Tui(Tui::See(_))) => {
@@ -63,7 +64,7 @@ impl Machine {
             Event::BrowserAddress(address) if self.phase == Phase::TuiAddress => {
                 self.return_address = Some(address);
                 self.phase = Phase::TuiOpening;
-                out.push(Action::Open(std::mem::take(&mut self.frame)));
+                out.push(Action::Open(self.tui_browse.take().expect("saved browse before reading the browser address")));
             }
             Event::TuiWritten if self.phase == Phase::TuiKey => self.answer(None, out),
             Event::TuiStopped => {
@@ -89,7 +90,7 @@ impl Machine {
     fn tui_saved(&mut self, bytes: &[u8], now: Time, out: &mut Vec<Action>) -> Result<(), String> {
         if self.phase == Phase::TuiBrowse {
             if let Some(address) = journey::browsed(bytes).map_err(|why| format!("unreadable TUI save: {why:?}"))? {
-                self.frame = address;
+                self.tui_browse = Some(address);
                 self.phase = Phase::TuiAddress;
                 out.push(Action::BrowserAddress);
             } else { self.poll = Some(now.saturating_add(POLL)); }

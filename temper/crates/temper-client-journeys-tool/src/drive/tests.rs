@@ -367,8 +367,13 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     let environment = vec![(
         b"SKEIN_TEST_CHROMIUM".as_slice().into(),
         root.join("bin/chromium").as_os_str().as_encoded_bytes().into(),
-    )];
-    super::options::prepare(options, &environment).expect("preflight only");
+    ), (b"DISPLAY".as_slice().into(), b":7".as_slice().into())];
+    let plan = super::options::prepare(options, &environment).expect("preflight only");
+    let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
+    assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
+    for opener in ["xdg-open", "open"] {
+        assert_eq!(fs::read_link(root.join("session/bin").join(opener)).expect("opener link"), Path::new("/usr/bin/true"));
+    }
     assert_eq!(fs::read(root.join("session/lines")).expect("fresh lines"), b"");
     for dir in ["config", "data", "cache"] {
         assert_eq!(fs::read(root.join(dir).join("kept")).expect("unchanged"), dir.as_bytes());

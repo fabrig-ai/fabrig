@@ -38,6 +38,8 @@ fn first_tui_line_starts_confined_and_approves_before_acting() {
     let lookup = |key: &str| program.environment.iter().find(|(name, _)| name == key).map(|(_, v)| v.as_os_str());
     for (key, value) in [("HOME", "/scratch/session/home"), ("XDG_STATE_HOME", "/scratch/session/state"),
         ("XDG_RUNTIME_DIR", "/scratch/session/tui-runtime"), ("TERM", "xterm-256color"),
+        ("XDG_CONFIG_HOME", "/scratch/session/home/config"), ("XDG_CACHE_HOME", "/scratch/session/home/cache"),
+        ("XDG_DATA_HOME", "/scratch/session/home/data"),
         ("PATH", "/scratch/session/bin:/bin"), ("DISPLAY", ":0")] {
         assert_eq!(lookup(key), Some(OsStr::new(value)), "{key}");
     }
