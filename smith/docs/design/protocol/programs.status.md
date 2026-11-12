@@ -45,14 +45,6 @@ fake status supplies it; this does not establish a real-login render check.
 
 ## Gaps and departures
 
-- **Not yet:** 4.2: no test names `ANTHROPIC_PROFILE`, the federation
-  variables or `ANTHROPIC_BASE_URL`, which `keeps` drops with every
-  `ANTHROPIC_` name, nor a status naming a profile's or a gateway's
-  method as signed in otherwise. [in flight: change 1912]
-- **Not yet:** 4.2: a source's commands do not set `ANTHROPIC_CONFIG_DIR`
-  to the source's `anthropic` directory: `environment` and `sign_in` set
-  `CLAUDE_CONFIG_DIR` alone, so a profile in the host's
-  `~/.config/anthropic` reaches them. [in flight: change 1915]
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
