@@ -16,7 +16,7 @@ fn an_exec_chat_crosses_from_direct_to_a_program_and_back() {
             "[programs]\nclaude_code='{}'\n\
              [accounts.claude]\nprovider='anthropic'\nsource='program'\n\
              [endpoints.anthropic]\naccount='claude'\nprogram='claude_code'\n",
-            skein_scratch::paths::binary("fake-claude").display()
+            support::fake_claude().display()
         )
         .as_bytes(),
     );

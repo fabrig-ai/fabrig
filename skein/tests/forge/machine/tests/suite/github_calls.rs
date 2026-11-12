@@ -1,5 +1,6 @@
 use skein_forge::api::{self, Answer as Value, Error, Op, Read};
-use skein_forge_connection::{Access, Request, fixtures::header, settings::Kind};
+use skein_forge_connection::{Access, Request, settings::Kind};
+use skein_forge_connection_fixtures::header;
 use skein_forge_machine_world::{
     fixtures::{self, FORGE},
     github,
