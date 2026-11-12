@@ -30,4 +30,4 @@ remain `README.md`, section 9's deferred work.
 
 - **Design departs:** from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (`reference.md`), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says, but for the settings and delegate families', which charter 9 doesn't name (`../../domain/agent/tools.md`).
 
-- **Not yet:** charter 13's row: in a talk, its rule question's numbered choices.
+- **Not yet:** charter 13's row: in a talk, its rule question's numbered choices [in flight: change 2022].
