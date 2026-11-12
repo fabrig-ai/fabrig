@@ -1,15 +1,19 @@
 # Known reds
 
-Failures on the goal branch that no live change of goal 1706 owns; delivery
-checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+Failing on the goal branch, inherited from main, owned by no live change.
 
-- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
-- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
-- lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
+The test below fails under load (it asserts settling within 180 ms of wall
+clock) and passes alone. The person listed it on 2026-11-12. A separate
+health goal makes it hold under load and removes this entry when it lands.
 
-Inherited from main at the goal's start, 2026-11-12.
+- test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
 
-Failing on this goal's branch and no live change's; delivery checks pass them. Each is dropped once fixed.
+The entries below come with main at 37bc4d2488, which pins the dated nightly
+toolchain (rust-toolchain.toml), and reach the goal branch through change
+1737's merge of main, 2026-11-12. The first group is main's own known-reds
+list at that commit, still standing there. The second group is what nightly
+clippy flags on main and no list names; change 1737 reported it.
+
 - test temper-real-loop-world::suite lost::a_lost_answer_reaches_its_name_from_another_directory
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
 - test temper-real-loop-world::suite terminal::up_down_and_the_page_up_line_read_the_conversation
@@ -22,21 +26,17 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
 - test temper-box::suite support_tests::github_file_scan_excludes_only_jigs_generation_secrets_store
-- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
-- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
-- lint jig-protocol-store clippy::disallowed_types jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
-
-Inherited from main, raised by change 1766 on 2026-11-12.
-
-- lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
-
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
-- test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
+
+- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
+- lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
