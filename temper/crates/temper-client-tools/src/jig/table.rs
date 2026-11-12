@@ -169,6 +169,7 @@ pub const fn repeated(
 
 /// The published vocabulary of argument placeholders.
 pub const PLACEHOLDERS: &[&[u8]] = &[
+    b"FILE...",
     b"HOLD",
     b"FOLLOW",
     b"TASK",

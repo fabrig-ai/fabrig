@@ -1,6 +1,0 @@
-    Checking jig-test-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/34359738368/fabrig/jig/testing/jig-test-domain)
-    Checking temper-client-shell-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/34359738368/fabrig/temper/crates/temper-client-shell-terminal)
-    Checking temper-client-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/34359738368/fabrig/temper/crates/temper-client-tools)
-    Checking jig-protocol-engine-clients v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/34359738368/fabrig/jig/crates/jig-protocol-engine-clients)
-    Checking jig-test-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/34359738368/fabrig/jig/testing/jig-test-profile)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.64s

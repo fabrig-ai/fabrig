@@ -5,11 +5,12 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 71] = [
+const SHAPES: [Shape; 72] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
+    Shape::Overlay,
     Shape::CharterPart,
     Shape::Document,
     Shape::Model,
@@ -289,20 +290,15 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         continue;
                     }
                     if shape == Shape::Item {
+                        let overlay = kind == b"charter" && target(edit) == Shape::Overlay;
                         let edit_only = match edit {
                             Edit::Word(chosen, _) => chosen.shape == Shape::Item && chosen.name == b"edit",
                             Edit::Base | Edit::Alternative(..) | Edit::Null(_) | Edit::Omit(_) => false,
                         };
-                        if field.name
-                            == if edit_only && kind != b"project-policy" {
-                                b"set".as_slice()
-                            } else {
-                                b"edit".as_slice()
-                            }
-                        {
-                            continue;
-                        }
+                        let selected = if overlay { b"overlay".as_slice() } else if edit_only && kind != b"project-policy" { b"edit".as_slice() } else { b"set".as_slice() };
+                        if field.name != b"setting" && field.name != selected { continue; }
                     }
+                    if shape == Shape::Overlay && field.name == b"charters" { continue; }
                     if shape == Shape::Setting
                         && field.name == b"project"
                         && kind != b"landing-rule"
@@ -451,7 +447,8 @@ fn every_generated_file_decodes() {
         if field.null {
             decodes(Edit::Null(field));
         }
-        if (field.shape == Shape::Charter && field.name == b"parts")
+        if (field.shape == Shape::Overlay && field.name != b"charters")
+            || (field.shape == Shape::Charter && field.name == b"parts")
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
@@ -474,7 +471,8 @@ fn every_generated_file_decodes() {
 #[test]
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
-        if field.shape == Shape::Item
+        if field.shape == Shape::Overlay
+            || field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
             || (field.shape == Shape::LandingRule && field.name == b"sets")

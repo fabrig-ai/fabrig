@@ -766,3 +766,30 @@ pub enum ModelSource {
     List,
     Person,
 }
+
+impl Overlay {
+    #[must_use]
+    pub fn replaces(&self, name: &[u8]) -> bool {
+        match name {
+            b"rest" => self.rest.is_some(),
+            b"model" => self.model.is_some(),
+            b"alternatives" => self.alternatives.is_some(),
+            b"inspect" => self.inspect.is_some(),
+            b"modify" => self.modify.is_some(),
+            b"shell" => self.shell.is_some(),
+            b"agents" => self.agents.is_some(),
+            b"tools" => self.tools.is_some(),
+            b"hosts" => self.hosts.is_some(),
+            b"waiting" => self.waiting.is_some(),
+            b"resume" => self.resume.is_some(),
+            b"turns" => self.turns.is_some(),
+            b"time" => self.time.is_some(),
+            b"reserve_turns" => self.reserve_turns.is_some(),
+            b"reserve_time" => self.reserve_time.is_some(),
+            b"call_timeout" => self.call_timeout.is_some(),
+            b"spend" => self.spend.is_some(),
+            b"documents" => self.documents.is_some(),
+            _ => false,
+        }
+    }
+}

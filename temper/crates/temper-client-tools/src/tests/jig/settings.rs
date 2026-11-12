@@ -3772,3 +3772,6 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let text = core::str::from_utf8(&bytes).unwrap();
     assert!(text.contains("model 4") && text.contains("GPT-6.1 Terra"), "{text}");
 }
+
+#[path = "settings_overlays.rs"]
+mod overlays;

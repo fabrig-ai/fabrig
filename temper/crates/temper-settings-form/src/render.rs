@@ -153,7 +153,7 @@ fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut En
     }
     encode_value(value, out);
 }
-fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limits, out: &mut Text) {
+fn named_value_text(setting: c::Setting, value: &c::SettingValue, overlay: Option<&c::Overlay>, limits: &Limits, out: &mut Text) {
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -162,7 +162,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
     encode_named_value(setting, value, &mut write);
     out.put(&write.finish());
     out.put(b"\n");
-    value_details_text(value, out);
+    value_details_text(value, overlay, out);
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
@@ -193,9 +193,11 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
     out.put(&write.finish());
 }
 /// Text details after a setting's JSON (temper/docs/design/client/ctl/tools.md, 3).
-fn value_details_text(value: &c::SettingValue, out: &mut Text) {
+fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out: &mut Text) {
     match value {
         c::SettingValue::Charter(charter) => {
+            if let Some(overlay) = overlay { overlay_marks(overlay, out); }
+            let first_overlay = match overlay { Some(overlay) => charter.parts.len().saturating_sub(overlay.parts.len()), None => charter.parts.len() };
             for (index, part) in charter.parts.iter().enumerate() {
                 out.put(b"parts[");
                 out.number(u64::try_from(index).expect("part index fits"));
@@ -209,7 +211,9 @@ fn value_details_text(value: &c::SettingValue, out: &mut Text) {
                 }
                 out.put(b"; ");
                 out.number(u64::try_from(part.instructions.bytes().len()).expect("instruction bytes fit"));
-                out.put(b" bytes\n");
+                out.put(b" bytes");
+                if index >= usize::try_from(first_overlay).expect("part count") { out.put(b"; overlay"); }
+                out.put(b"\n");
             }
         }
         c::SettingValue::Template(template) => {
@@ -328,7 +332,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
             out.number(u64::from(document.revision));
             out.put(b"\n");
             if let Some(value) = &document.value {
-                named_value_text(document.setting, value, limits, out);
+                named_value_text(document.setting, value, document.overlay.as_deref(), limits, out);
             }
             if document.value.is_none() {
                 match document.setting {
@@ -528,7 +532,7 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                 match &item.edit {
                     c::RevisionEdit::Set(set) => {
                         out.put(b"set\n");
-                        named_value_text(item.setting, &set.value, limits, out);
+                        named_value_text(item.setting, &set.value, None, limits, out);
                     }
                     c::RevisionEdit::TooLarge(size) => {
                         revision_size_text(item.setting, document.head.number, size, out);
@@ -600,7 +604,7 @@ fn encode_revision_read(setting: c::Setting, revision: u32, out: &mut Encoder) {
 fn replaced_text(setting: c::Setting, replaced: &c::RevisionReplaced, limits: &Limits, out: &mut Text) {
     out.put(b"    was: ");
     match replaced {
-        c::RevisionReplaced::Value(set) => named_value_text(setting, &set.value, limits, out),
+        c::RevisionReplaced::Value(set) => named_value_text(setting, &set.value, None, limits, out),
         c::RevisionReplaced::TooLarge(size) => {
             out.put(b"too large, ");
             out.number(size.bytes);
@@ -683,7 +687,7 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
                 encode_setting(item.setting, out);
                 match &item.edit {
                     c::RevisionEdit::Set(set) => {
-                        out.key(b"set");
+                        out.key(if let c::SettingValue::Overlay(_) = &set.value { b"overlay" } else { b"set" });
                         encode_named_value(item.setting, &set.value, out);
                     }
                     c::RevisionEdit::TooLarge(size) => {
@@ -923,4 +927,20 @@ pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
     }
     out.put(b"Always waits: money, irreversible, rules, other.");
     true
+}
+
+fn overlay_marks(overlay: &c::Overlay, out: &mut Text) {
+    out.put(b"overlay replaces: ");
+    let mut any = false;
+    for field in crate::fields::members(crate::fields::Shape::Overlay) {
+        if overlay.replaces(field.name) {
+            if any { out.put(b", "); } any = true; out.put(field.name);
+        }
+    }
+    if !any { out.put(b"nothing"); }
+    out.put(b"\noverlay adds: ");
+    if overlay.instructions.bytes().is_empty() { out.put(b"no instructions"); } else {
+        out.number(skein_lib::len_u64(overlay.instructions.bytes().len())); out.put(b" bytes of instructions");
+    }
+    out.put(b"\n");
 }
