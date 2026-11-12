@@ -1691,6 +1691,8 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             commit,
             clean: !nth(holding, repository).start.is_saved(),
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
         },
         PrepareStep::PointBase { repository, base, .. } => {
             Op::Point { at: place(workspace, nth(holding, repository)), into: Into::Fetched, commit: base }
@@ -1708,9 +1710,13 @@ fn prepare_step(
                 account: repository.account,
             }
         }
-        PrepareStep::CheckOutMerge { repository, ours, .. } => {
-            Op::CheckOut { at: place(workspace, nth(holding, repository)), commit: ours, clean: true }
-        }
+        PrepareStep::CheckOutMerge { repository, ours, .. } => Op::CheckOut {
+            at: place(workspace, nth(holding, repository)),
+            commit: ours,
+            clean: true,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
+        },
         PrepareStep::CompareBase { repository, ours, base } => {
             Op::IsAncestor { at: place(workspace, nth(holding, repository)), ancestor: base, commit: ours }
         }
@@ -1719,9 +1725,12 @@ fn prepare_step(
             ancestor: merged_head(holding, repository, head),
             commit: tips(holding, repository).head,
         },
-        PrepareStep::Merge { repository, theirs, .. } => {
-            Op::Merge { at: place(workspace, nth(holding, repository)), theirs }
-        }
+        PrepareStep::Merge { repository, theirs, .. } => Op::Merge {
+            at: place(workspace, nth(holding, repository)),
+            theirs,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
+        },
         PrepareStep::CommitHead { repository, head } => {
             commit_merge(holding, workspace, repository, merged_head(holding, repository, head))
         }
@@ -1730,6 +1739,8 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             commit: tips(holding, repository).head,
             clean: true,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
         },
     };
     io(id, op, env, out);

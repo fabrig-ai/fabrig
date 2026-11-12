@@ -46,7 +46,17 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
         (Command::Remote { remote: remote.clone() }, &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE]),
         (
             Command::Store { remote: remote.clone(), directory: Box::from(&b"1"[..]) },
-            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", fixtures::REMOTE, b"1"],
+            &[
+                b"clone",
+                b"--bare",
+                b"--filter=blob:none",
+                b"--single-branch",
+                b"--no-tags",
+                b"--quiet",
+                b"--",
+                fixtures::REMOTE,
+                b"1",
+            ],
         ),
         (Command::Format, &[b"rev-parse", b"--show-object-format"]),
         (
@@ -74,6 +84,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"fetch",
                 b"--porcelain",
                 b"--verbose",
+                b"--filter=blob:none",
                 b"--no-tags",
                 b"--no-write-fetch-head",
                 b"--no-recurse-submodules",
@@ -93,6 +104,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"fetch",
                 b"--porcelain",
                 b"--verbose",
+                b"--filter=blob:none",
                 b"--no-tags",
                 b"--no-write-fetch-head",
                 b"--no-recurse-submodules",
@@ -112,6 +124,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"fetch",
                 b"--porcelain",
                 b"--verbose",
+                b"--filter=blob:none",
                 b"--no-tags",
                 b"--no-write-fetch-head",
                 b"--no-recurse-submodules",
@@ -131,6 +144,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"fetch",
                 b"--porcelain",
                 b"--verbose",
+                b"--filter=blob:none",
                 b"--no-tags",
                 b"--no-write-fetch-head",
                 b"--no-recurse-submodules",
@@ -150,9 +164,15 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"abababababababababababababababababababab:refs/heads/temper/7",
             ],
         ),
-        (Command::CheckOut { commit }, &[b"checkout", b"--force", b"--detach", ID]),
+        (
+            Command::CheckOut { commit },
+            &[b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", ID],
+        ),
         (Command::Clean, &[b"clean", b"-ffdxq"]),
-        (Command::Merge { theirs: commit }, &[b"merge", b"--no-commit", b"--no-ff", b"--", ID]),
+        (
+            Command::Merge { theirs: commit },
+            &[b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", ID],
+        ),
         (Command::Unmerged, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
         (Command::Add, &[b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"]),
         (Command::DiffIndex { parent: commit }, &[b"diff-index", b"--cached", b"--quiet", ID, b"--"]),
@@ -221,9 +241,13 @@ fn each_command_s_arguments_are_git_md_s_vector() {
 #[test]
 fn a_remote_operation_carries_the_token_only_in_its_header() {
     let identity = fixtures::identity();
-    for kind in [git::Kind::Store, git::Kind::Fetch, git::Kind::Create, git::Kind::Push] {
+    for kind in
+        [git::Kind::Store, git::Kind::Fetch, git::Kind::Create, git::Kind::Push, git::Kind::CheckOut, git::Kind::Merge]
+    {
         let environment = invocation::environment(fixtures::HOME, Some(kind), Some(&identity));
         assert_eq!(environment.len(), 12);
+        assert!(environment.contains(&Box::from(b"GIT_COMMITTER_NAME=Temper Bot".as_slice())));
+        assert!(environment.contains(&Box::from(b"GIT_COMMITTER_EMAIL=bot@example.test".as_slice())));
         for expected in [
             &b"GIT_CONFIG_COUNT=1"[..],
             b"GIT_CONFIG_KEY_0=http.extraHeader",
@@ -267,15 +291,9 @@ fn a_commit_is_authored_and_committed_as_the_identity() {
 #[test]
 fn an_operation_naming_no_identity_commits_as_the_placeholder() {
     let identity = fixtures::identity();
-    for kind in [
-        Some(git::Kind::Look),
-        Some(git::Kind::Clone),
-        None,
-        Some(git::Kind::Make),
-        Some(git::Kind::CheckOut),
-        Some(git::Kind::Merge),
-        Some(git::Kind::IsAncestor),
-    ] {
+    for kind in
+        [Some(git::Kind::Look), Some(git::Kind::Clone), None, Some(git::Kind::Make), Some(git::Kind::IsAncestor)]
+    {
         let environment = invocation::environment(fixtures::HOME, kind, None);
         let expected = [
             b"HOME=/srv/worker/home".as_slice(),

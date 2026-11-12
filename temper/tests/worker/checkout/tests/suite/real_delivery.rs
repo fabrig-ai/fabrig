@@ -30,6 +30,24 @@ struct World {
 }
 
 impl World {
+    fn inspect(&self, directory: &str, args: &[&str]) -> String {
+        let output = Command::new("/usr/bin/git")
+            .current_dir(self.root.join(directory))
+            .env_clear()
+            .args(args)
+            .output()
+            .expect("inspection git ran");
+        assert!(output.status.success(), "inspection: {:?}", output.stderr);
+        String::from_utf8(output.stdout).expect("git ids and settings")
+    }
+
+    fn missing(&self, directory: &str, revision: &str) -> Vec<String> {
+        self.inspect(directory, &["rev-list", "--objects", "--missing=print", revision])
+            .lines()
+            .filter_map(|line| line.strip_prefix('?').map(str::to_owned))
+            .collect()
+    }
+
     fn advance_goal(&self, workspace: Token, remote: &[u8]) -> git::Commit {
         let at = git::Place { workspace, repository: b"peer".as_slice().into(), git: None };
         assert_eq!(
@@ -48,7 +66,7 @@ impl World {
             panic!("goal fetched")
         };
         assert_eq!(
-            self.perform(git::Op::CheckOut { at: at.clone(), commit: parent, clean: true }),
+            self.perform(git::Op::CheckOut { at: at.clone(), commit: parent, clean: true, identity: 1, account: None }),
             git::Done::Succeeded
         );
         fs::write(self.root.join(format!("workspaces/{}/peer/code.rs", workspace.raw())), b"inherited code\n")
@@ -87,6 +105,13 @@ impl World {
         kind: Option<git::Kind>,
         message: &[u8],
     ) -> std::process::Output {
+        let kind = if matches!(command, invocation::Command::UpdateRef { .. } | invocation::Command::Clean)
+            || (matches!(command, invocation::Command::Unmerged) && kind == Some(git::Kind::Merge))
+        {
+            None
+        } else {
+            kind
+        };
         let mut process = Command::new("/usr/bin/git");
         process.current_dir(self.root.join(directory)).env_clear();
         for entry in invocation::environment(self.root.as_os_str().as_bytes(), kind, Some(&self.identity)) {
@@ -97,7 +122,15 @@ impl World {
         process.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = process.spawn().expect("git ran");
         child.stdin.take().expect("stdin").write_all(message).expect("message");
-        child.wait_with_output().expect("git output")
+        let output = child.wait_with_output().expect("git output");
+        if matches!(command, invocation::Command::CheckOut { .. } | invocation::Command::Merge { .. }) {
+            assert!(
+                output.status.success(),
+                "lazy-fetch invocation failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        output
     }
 
     fn perform(&self, mut op: git::Op) -> git::Done {
@@ -162,7 +195,6 @@ impl World {
                         }
                         _ => repository.clone(),
                     };
-                    let kind = if matches!(command, invocation::Command::UpdateRef { .. }) { None } else { kind };
                     let output = self.command(&directory, &command, kind, &message);
                     sequence::after(
                         &op,
@@ -221,6 +253,10 @@ impl World {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one Forgejo scenario proves blob-less stores and both authenticated lazy-fetch paths"
+)]
 fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
     let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
@@ -230,6 +266,23 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     let mut instance = forgejo.start(&scratch.path().join("forge"), &settings).expect("started");
     let writer = instance.admin().clone();
     let repository = instance.create_repository(&writer, "specimen", Init::Readme).expect("repository");
+    let target = format!("/api/v1/repos/{}/{}", writer.login, repository.name);
+    let response = instance
+        .exchange(&skein_throwaway_forgejo::Outgoing::json(
+            "PATCH",
+            &target,
+            Some(&writer.token),
+            br#"{"private":true}"#,
+        ))
+        .expect("private repository");
+    assert_eq!(response.status, 200);
+    let readme = instance
+        .exchange(&skein_throwaway_forgejo::Outgoing::get(
+            &format!("{target}/raw/README.md?ref=main"),
+            Some(&writer.token),
+        ))
+        .expect("remote README");
+    assert_eq!(readme.status, 200);
     let root = scratch.path().join("worker");
     fs::create_dir_all(&root).expect("worker root");
     let mut world = World {
@@ -267,6 +320,21 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             panic!("prepared")
         };
         let directory = format!("workspaces/{}/specimen", workspace.raw());
+        let store = format!("stores/{}", store_token(&remote).raw());
+        if design {
+            let readme_blob = world.inspect(&directory, &["rev-parse", "HEAD:README.md"]);
+            assert!(
+                world.missing(&store, "--all").contains(&readme_blob.trim().to_owned()),
+                "store lacks README contents"
+            );
+            assert_eq!(world.inspect(&store, &["config", "--get", "remote.origin.promisor"]), "true\n");
+            assert_eq!(
+                fs::read(world.root.join(&directory).join("README.md")).expect("checked-out README"),
+                readme.body
+            );
+            let checked_out = world.inspect(&directory, &["rev-parse", "HEAD"]);
+            assert!(world.missing(&directory, checked_out.trim()).is_empty(), "checkout owns all missing contents");
+        }
         for index in 0..=LIMITS.conflicts {
             fs::write(
                 world.root.join(&directory).join(format!("design{index}.md")),
@@ -310,6 +378,17 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             assert_eq!(
                 fs::read(world.root.join(&directory).join("code.rs")).expect("merged code"),
                 b"inherited code\n"
+            );
+            let code_blob = world.inspect(
+                &directory,
+                &[
+                    "rev-parse",
+                    &format!("{}:code.rs", String::from_utf8(invocation::hex(moved).into_vec()).expect("id")),
+                ],
+            );
+            assert!(
+                world.missing(&store, "--all").contains(&code_blob.trim().to_owned()),
+                "merge contents never enter store"
             );
         }
         let hold = world.hold.take().expect("held");
