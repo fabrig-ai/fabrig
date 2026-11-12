@@ -357,7 +357,7 @@ impl needs::Session {
                 }
             }
         }
-        // Insert findings by wait without changing the inbox's order or its Later marks.
+        // The browser list is oldest wait first, with Later marks last.
         for index in 1..rows.len() {
             let mut at = index;
             while at > 0 {
@@ -366,13 +366,7 @@ impl needs::Session {
                 let right = *rows.get(at).expect("bounded needs");
                 let left_later = if let Need::Existing(need) = left { self.later(need.object()) } else { false };
                 let right_later = if let Need::Existing(need) = right { self.later(need.object()) } else { false };
-                let existing = match (left, right) {
-                    (Need::Existing(_), Need::Existing(_)) => true,
-                    (Need::Finding(_), Need::Finding(_) | Need::Existing(_))
-                    | (Need::Existing(_), Need::Finding(_)) => false,
-                };
-                if (!left_later && right_later) || (left_later == right_later && (left.at() <= right.at() || existing))
-                {
+                if (!left_later && right_later) || (left_later == right_later && left.at() <= right.at()) {
                     break;
                 }
                 *rows.get_mut(previous).expect("bounded needs") = right;
