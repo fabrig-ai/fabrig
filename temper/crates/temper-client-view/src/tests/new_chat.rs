@@ -153,13 +153,9 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
                 continue;
             }
             let trail = children(styled(tree, look::TRAIL));
-            assert_eq!(trail.len(), if project.is_some() { 2 } else { 1 });
+            assert_eq!(trail.len(), 1);
             let mut links = vec![(styled(tree, look::BACK)[0].id, Address::Chats { filter: d::ChatsFilter::All })];
             assert_eq!(styled(tree, look::BACK)[0].name.as_deref(), Some(b"Chats".as_slice()));
-            if let Some(project) = project {
-                assert_eq!(trail[0].name.as_deref(), Some(b"Shop".as_slice()));
-                links.push((trail[0].id, Address::Home { project }));
-            }
             assert_eq!(trail.last().unwrap().name.as_deref(), Some(b"Chats".as_slice()));
             links.push((trail.last().unwrap().id, Address::Chats { filter: d::ChatsFilter::All }));
             for (node, address) in links {
@@ -167,6 +163,27 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
                 assert_eq!(crate::act(&mut view, node, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
             }
         }
+    }
+    // With no selected project the frame offers project creation; the session's
+    // own path still leads through Chats when drawn without a project.
+    for words in [f::words(), f::browser_words()] {
+        let root = f::no_project_root();
+        let mut b = skein_ui::Builder::new(&f::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(f::tree_limits().bindings);
+        crate::pages::session::top(
+            &mut b,
+            &root,
+            &words,
+            &mut bindings,
+            None,
+            crate::pages::session::Path::Chats,
+            crate::pages::session::Heading::Words(b"New chat"),
+        );
+        b.close();
+        let tree = b.finish();
+        let trail = children(styled(&tree, look::TRAIL));
+        assert_eq!(trail.len(), 1);
+        assert_eq!(trail[0].name.as_deref(), Some(b"Chats".as_slice()));
     }
 }
 

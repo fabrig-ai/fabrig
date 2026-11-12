@@ -1792,6 +1792,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 320px; font-size: 14px; color: var(--gf-muted); }
 #app > .temper-session .temper-crumbs > .temper-back { display: none; }
 #app > .temper-session .temper-trail { display: flex; align-items: center; gap: 4px; }
+#app > .temper-session .temper-trail { flex: none; white-space: nowrap; }
 #app > .temper-session .temper-trail > a::after { content: '/'; margin-left: 4px; color: var(--gf-muted); }
 #app > .temper-session .temper-crumbs a:hover { color: var(--gf-ink); }
 #app > .temper-session .temper-crumbs > h1 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }

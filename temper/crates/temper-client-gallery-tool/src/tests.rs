@@ -4039,6 +4039,8 @@ static HOLDS: [Holds; samples::N] = [
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Named { role: Role::Navigation, name: "Where" },
+            Part::Links { style: temper_client_view::look::CRUMBS, names: &["Ask temper", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TRAIL, names: &["Ask temper"] },
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Absent { role: Role::Disclosure, name: "Model" },
