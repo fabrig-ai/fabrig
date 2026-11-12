@@ -87,7 +87,7 @@ A whole numbered model setting: its runtime model, display facts, availability a
 
 ## model
 
-Runtime model. Charter members except `effort` must match its configured row, else `reference`; model settings supply whole rows.
+Runtime model. In charters, members except `effort` must match its configured row, else `reference`; model settings supply whole rows.
 
 - `provider`: integer, 0 to 4,294,967,295. The configured LLM provider that serves it; 1 when absent.
 - `dialect`: integer, 0 to 4,294,967,295. The protocol the model is spoken to in, as configured.

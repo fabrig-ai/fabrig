@@ -7,7 +7,7 @@ pub static FORMS: [Form; 69] = [
     Form { shape: Shape::CharterPart, name: b"charter-part", choice: Choice::Every, line: b"Instructions after the shared charter text, read when run reasons meet this part's on." },
     Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"File in each run's brief, read at branch head during preparation; landed rules reach the next run." },
     Form { shape: Shape::Catalogue, name: b"catalogue", choice: Choice::Every, line: b"A whole numbered model setting: its runtime model, display facts, availability and origin." },
-    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"Runtime model. Charter members except `effort` must match its configured row, else `reference`; model settings supply whole rows." },
+    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"Runtime model. In charters, members except `effort` must match its configured row, else `reference`; model settings supply whole rows." },
     Form { shape: Shape::Wake, name: b"wake", choice: Choice::Every, line: b"What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it." },
     Form { shape: Shape::WakeRule, name: b"wake_rule", choice: Choice::One { words: &[Word { word: b"never", line: b"It waits for the task's next run." }, Word { word: b"immediate", line: b"It wakes the task at once." }] }, line: b"How a kind of message wakes a task: a word or one-member object." },
     Form { shape: Shape::WakeBatch, name: b"wake_batch", choice: Choice::Every, line: b"A batch of messages that wakes a task once." },
