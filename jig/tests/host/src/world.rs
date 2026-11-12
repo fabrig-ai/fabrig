@@ -530,7 +530,7 @@ impl World {
                     // the step answers it is judged as such.
                     let mut left = Vec::from_iter(leaving);
                     for request in &requests {
-                        if let Request::Agent(ToAgent::Cancel { agent }) = request {
+                        if let Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) = request {
                             self.leave(*agent);
                             left.push(*agent);
                             if let Taken::Started { owner, agent: started } = taken
@@ -924,10 +924,7 @@ impl World {
                 }
                 self.parcel(request);
             }
-            Request::Agent(ToAgent::Drain { agent }) => {
-                self.parcel(Request::Agent(ToAgent::Cancel { agent }));
-            }
-            Request::Agent(ToAgent::Cancel { agent }) => {
+            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => {
                 assert!(self.left.contains(&agent), "a stop is of a run that leaves live");
                 self.parcel(Request::Agent(ToAgent::Cancel { agent }));
             }

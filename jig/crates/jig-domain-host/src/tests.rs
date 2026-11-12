@@ -1061,8 +1061,8 @@ fn admission_classifies_calls_and_link_work_separately_from_completions() {
     assert!(!Event::Saved { owner: Token::new(1), at: None }.new_work());
 }
 
-mod jobs;
 mod drain;
+mod jobs;
 
 #[test]
 fn a_starting_fault_keeps_its_class_until_gone_without_admission() {

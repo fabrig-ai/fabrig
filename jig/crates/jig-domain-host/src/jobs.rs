@@ -89,7 +89,13 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, job: JobAssignment, ou
     }
     let result_bound = bound.expect("validated kind").result;
     let JobAssignment { run, attempt, kind, spec, deadline, workspace, grants: _ } = job;
-    let job = Job { result_bound, stopped: false, delivery_began: false, left: None, state: State::Preparing { kind, spec, deadline } };
+    let job = Job {
+        result_bound,
+        stopped: false,
+        delivery_began: false,
+        left: None,
+        state: State::Preparing { kind, spec, deadline },
+    };
     let id = domain.hosted.insert(Hosted::job(run, attempt, job)).expect("checked slot capacity");
     domain.names.insert(run, id).expect("one name per slot");
     match workspace {

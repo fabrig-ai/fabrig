@@ -445,8 +445,12 @@ fn a_job_recheck_releases_its_attempt_due_without_spending_a_try() {
         let tries = crate::Tries { lost: 1, ..crate::Tries::NONE };
         crate::domain::task_mut(&mut h.domain, 2).unwrap().record.tries = tries;
         h.send(Event::Activation {
-            reply_to: super::revisions::to(), task: 2, attempt: 1, end: crate::End::Recheck,
-            saved: None, cause,
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt: 1,
+            end: crate::End::Recheck,
+            saved: None,
+            cause,
         });
         let row = h.domain.task(2).unwrap();
         assert_eq!(row.phase, crate::Phase::Active(crate::Active::Due));

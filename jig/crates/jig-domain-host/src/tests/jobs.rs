@@ -207,25 +207,25 @@ fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
 #[test]
 fn a_cancelled_job_waits_for_its_delivery() {
     for reason in [Reason::Engine, Reason::Contact] {
-    let mut h = harness();
-    let owner = active(&mut h);
-    let call = delivering(&mut h, owner);
-    assert!(h.step(Event::CancelAll { reason }).is_empty());
-    crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
-    assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
-    assert!(h.out.is_empty());
-    assert!(h.step(gone(owner)).is_empty());
-    assert_eq!(
-        &*h.step(delivery(call, DeliveryOutcome::Delivered)),
-        [
-            Request::Release { workspace: SPACE },
-            answer(JobEnding::Failed {
-                failure: JobFailure::Cancelled(reason),
-                detail: Box::new([]),
-                work: Work { left: Some(SPACE), saved: None }
-            })
-        ]
-    );
+        let mut h = harness();
+        let owner = active(&mut h);
+        let call = delivering(&mut h, owner);
+        assert!(h.step(Event::CancelAll { reason }).is_empty());
+        crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+        assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
+        assert!(h.out.is_empty());
+        assert!(h.step(gone(owner)).is_empty());
+        assert_eq!(
+            &*h.step(delivery(call, DeliveryOutcome::Delivered)),
+            [
+                Request::Release { workspace: SPACE },
+                answer(JobEnding::Failed {
+                    failure: JobFailure::Cancelled(reason),
+                    detail: Box::new([]),
+                    work: Work { left: Some(SPACE), saved: None }
+                })
+            ]
+        );
     }
 }
 
@@ -439,14 +439,23 @@ fn a_job_runs_on_through_a_drain_but_shutdown_before_delivery_cancels_it() {
             assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
             assert!(h.out.is_empty());
             assert!(h.step(finished(owner, Some(Box::new([])))).is_empty(), "no delivery after cancel");
-            assert_eq!(h.step(gone(owner)).as_ref(), [Request::Release { workspace: SPACE }, answer(failed(JobFailure::Cancelled(Reason::Shutdown)))]);
+            assert_eq!(
+                h.step(gone(owner)).as_ref(),
+                [Request::Release { workspace: SPACE }, answer(failed(JobFailure::Cancelled(Reason::Shutdown)))]
+            );
         } else {
             let call = delivering(&mut h, owner);
             assert!(h.step(gone(owner)).is_empty());
-            assert_eq!(h.step(delivery(call, DeliveryOutcome::Delivered)).as_ref(), [
-                Request::Release { workspace: SPACE },
-                answer(JobEnding::Finished { result: b"r".as_slice().into(), work: Work { left: Some(SPACE), saved: None } }),
-            ]);
+            assert_eq!(
+                h.step(delivery(call, DeliveryOutcome::Delivered)).as_ref(),
+                [
+                    Request::Release { workspace: SPACE },
+                    answer(JobEnding::Finished {
+                        result: b"r".as_slice().into(),
+                        work: Work { left: Some(SPACE), saved: None }
+                    }),
+                ]
+            );
         }
     }
 }
@@ -454,8 +463,11 @@ fn a_job_runs_on_through_a_drain_but_shutdown_before_delivery_cancels_it() {
 #[test]
 fn shutdown_during_a_job_delivery_keeps_the_deliverys_result_not_cancellation() {
     for (outcome, gone_first) in [
-        (DeliveryOutcome::Delivered, true), (DeliveryOutcome::Nothing, false),
-        (DeliveryOutcome::Stale, true), (DeliveryOutcome::Refused, false), (DeliveryOutcome::Failed, true),
+        (DeliveryOutcome::Delivered, true),
+        (DeliveryOutcome::Nothing, false),
+        (DeliveryOutcome::Stale, true),
+        (DeliveryOutcome::Refused, false),
+        (DeliveryOutcome::Failed, true),
     ] {
         let mut h = harness();
         let owner = active(&mut h);
@@ -477,10 +489,12 @@ fn shutdown_during_a_job_delivery_keeps_the_deliverys_result_not_cancellation() 
         };
         let work = Work { left: (outcome == DeliveryOutcome::Delivered).then_some(SPACE), saved: None };
         let ending = match outcome {
-            DeliveryOutcome::Delivered | DeliveryOutcome::Nothing => JobEnding::Finished { result: b"r".as_slice().into(), work },
-            DeliveryOutcome::Stale | DeliveryOutcome::Refused | DeliveryOutcome::Failed => JobEnding::Failed {
-                failure: JobFailure::Undelivered(outcome), detail: Box::new([]), work,
-            },
+            DeliveryOutcome::Delivered | DeliveryOutcome::Nothing => {
+                JobEnding::Finished { result: b"r".as_slice().into(), work }
+            }
+            DeliveryOutcome::Stale | DeliveryOutcome::Refused | DeliveryOutcome::Failed => {
+                JobEnding::Failed { failure: JobFailure::Undelivered(outcome), detail: Box::new([]), work }
+            }
         };
         assert_eq!(requests.as_ref(), [Request::Release { workspace: SPACE }, answer(ending)]);
     }

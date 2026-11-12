@@ -186,7 +186,9 @@ pub enum ToAgent {
     },
     /// Ask the run to stop at the end of its current turn, then answer and
     /// report `Gone` as for a cancel (domain/hosts/hub.md, 7).
-    Drain { agent: Token },
+    Drain {
+        agent: Token,
+    },
     /// Cancel the run and end what remains past its grace. The start reports
     /// `Gone` once the agent and everything it started have ended.
     Cancel {

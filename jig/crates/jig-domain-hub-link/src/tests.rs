@@ -464,7 +464,8 @@ fn job_failures_keep_their_contract_classes() {
         assert_eq!(payload::job_end(&ending), tasks::End::Failed(expected));
     }
     let shutdown = host::JobEnding::Failed {
-        failure: F::Cancelled(R::Shutdown), detail: b"interrupted".as_slice().into(),
+        failure: F::Cancelled(R::Shutdown),
+        detail: b"interrupted".as_slice().into(),
         work: host::Work { left: None, saved: None },
     };
     assert_eq!(payload::job_end(&shutdown), tasks::End::Recheck);
