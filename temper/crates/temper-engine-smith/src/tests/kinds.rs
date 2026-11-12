@@ -94,6 +94,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::CharterWords(_) => 9,
             settings::Value::ProjectWords(_) => 10,
             settings::Value::Follow(_) => 12,
+            settings::Value::Dependency(_) => 13,
             settings::Value::Goal(_) => 11,
         };
         let bytes = encode(&value);

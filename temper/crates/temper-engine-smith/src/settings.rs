@@ -60,6 +60,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"charter-words",
             b"template-goal",
             b"follow",
+            b"dependency",
         ] {
             if kind.as_ref() == name {
                 numbered = Some(name);
@@ -73,7 +74,12 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
                 by_project = Some(name);
             }
         }
-        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"follow" && by_project.is_none() {
+        if project.is_some()
+            && kind.as_ref() != b"landing-rule"
+            && kind.as_ref() != b"follow"
+            && kind.as_ref() != b"dependency"
+            && by_project.is_none()
+        {
             return Err(Problem::Range(b"project"));
         }
         if kind.as_ref() == b"rules" || by_project.is_some() {
@@ -87,6 +93,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         if let Some(project) = project {
             positive(project, b"project")?;
+        } else if kind.as_ref() == b"dependency" {
+            return Err(Problem::Needs { kind: b"dependency", member: b"project" });
         } else if kind.as_ref() == b"follow" {
             return Err(Problem::Needs { kind: b"follow", member: b"project" });
         } else if let Some(kind) = by_project {
