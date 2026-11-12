@@ -1,37 +1,6 @@
 use super::fixtures;
-use crate::{limits, tokens};
+use crate::limits;
 use skein_lib::{Duration, Token};
-
-#[test]
-fn no_two_component_prefixes_meet() {
-    let owners = [
-        tokens::WORKER_LISTENERS,
-        tokens::WORKER_CONNECTIONS,
-        tokens::ACCOUNTS,
-        tokens::CLIENTS,
-        tokens::SERVER,
-        tokens::FORGE,
-        tokens::GIT,
-        tokens::STORE[0],
-        tokens::STORE[1],
-        tokens::STORE[2],
-    ];
-    for (index, owner) in owners.iter().enumerate() {
-        for other in owners.iter().skip(index + 1) {
-            assert_ne!(tokens::prefix(Token::new(*owner)), tokens::prefix(Token::new(*other)), "{owner:x}, {other:x}");
-        }
-    }
-    assert_eq!(tokens::prefix(Token::new(tokens::SIGNALS)), 0);
-    for index in [0, 1, 4094] {
-        assert_eq!(tokens::worker(index), Some((3_u64 << 60_u32) + (u64::from(index + 1) << 48_u32)));
-        assert_eq!(tokens::git(index), Some((6_u64 << 60_u32) + (u64::from(index + 1) << 48_u32)));
-    }
-    assert_ne!(tokens::worker(0), Some(tokens::ACCOUNTS));
-    for index in [4095, 4096, u32::MAX] {
-        assert_eq!(tokens::worker(index), None, "{index}");
-        assert_eq!(tokens::git(index), None, "{index}");
-    }
-}
 
 #[test]
 fn an_override_sets_the_field_its_dotted_name_names() {
@@ -202,9 +171,12 @@ fn the_small_profile_passes_each_domains_validity() {
         bounds.sitting = Duration::from_millis(1);
         assert!(temper_engine_domain_forge::valid(&bounds));
     }
-    assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout.into()));
+    assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(settings.limits.checkout)));
     assert_eq!(
-        temper_worker_protocol_git::check(&settings.limits.git_component.into(), &settings.limits.checkout.into()),
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(settings.limits.git_component),
+            &crate::worker_settings::checkout(settings.limits.checkout)
+        ),
         Ok(())
     );
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -296,8 +268,14 @@ fn the_standard_brief_and_its_carriers_share_their_bounds() {
 fn the_standard_profile_passes_each_domains_validity() {
     let own = limits::profile(limits::Profile::Standard);
     assert!(temper_engine_domain_forge::valid(&own.forge));
-    assert!(temper_worker_domain_checkout::valid(&own.checkout.into()));
-    assert_eq!(temper_worker_protocol_git::check(&own.git_component.into(), &own.checkout.into()), Ok(()));
+    assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(own.checkout)));
+    assert_eq!(
+        temper_worker_protocol_git::check(
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout)
+        ),
+        Ok(())
+    );
     for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
         let jig = jig_protocol_config::profile(profile);
         let root = limits::engine(&jig, &own).expect("coherent root profile");
@@ -442,7 +420,14 @@ fn each_git_component_limit_has_its_dotted_override() {
             expected,
             "{name:?}"
         );
-        assert_eq!(temper_worker_protocol_git::check(&git.into(), &limits.checkout.into()), Ok(()), "{name:?}");
+        assert_eq!(
+            temper_worker_protocol_git::check(
+                &crate::worker_settings::git_component(git),
+                &crate::worker_settings::checkout(limits.checkout)
+            ),
+            Ok(()),
+            "{name:?}"
+        );
     }
 }
 

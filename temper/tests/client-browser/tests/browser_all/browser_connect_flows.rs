@@ -46,7 +46,7 @@ fn scrolling_the_sheet_reads_more_then_search_picks_and_adopts() {
     steps.extend(phone_steps());
     let mut script = Script::new(steps.into_boxed_slice());
     let mut connect = connect_github(&tier);
-    let mut harness = Harness::new(setup);
+    let mut harness = temper_client_browser_world::harness(setup);
     let outcome =
         harness.run_lending(&mut [&mut connect, &mut script], &mut [Lent { name: b"github", peer: &mut github }]);
     stories.assert_done(outcome);
@@ -92,7 +92,7 @@ fn input(name: &[u8], words: &[u8]) -> Step {
     Step::Person(PersonStep::Type { find: Find::exactly_named(Role::TextField, name), words: words.into() })
 }
 fn go(address: &[u8]) -> Step {
-    Step::Person(PersonStep::Go { address: address.into() })
+    Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(address) })
 }
 fn box_of(harness: &Harness, name: &[u8]) -> (i64, i64) {
     let kept = harness.kept().iter().find(|kept| kept.name.as_ref() == name).expect("kept box");

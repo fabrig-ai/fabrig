@@ -154,7 +154,7 @@ fn accounts_runtime_holds_unresolved_hosts() {
 }
 
 #[test]
-fn a_start_without_a_worker_half_refuses_workers_before_opening_their_files() {
+fn an_engine_start_refuses_workers_before_opening_their_files() {
     let (directories, _) = temper_shell::directories::resolve(
         &[b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from),
         &[],
@@ -163,9 +163,9 @@ fn a_start_without_a_worker_half_refuses_workers_before_opening_their_files() {
     .expect("fixture directories");
     for bytes in [b"{}".as_slice(), include_bytes!("../../../../docs/examples/owned.json").as_slice()] {
         let mut owned = Vec::new();
-        let why = super::prepare("temper-engine", &[], b"/", None, &directories, bytes, &mut owned)
+        let why = super::prepare("temper-engine", &[], b"/", &directories, bytes, &mut owned)
             .err()
-            .expect("no worker half");
+            .expect("engine refuses a worker");
         assert_eq!(why, "temper.json names a worker, and temper-engine runs none");
         assert!(owned.is_empty(), "refusal opens no startup descriptors");
     }

@@ -52,7 +52,7 @@ one list of the browser bundles, read by any runner that builds them.
 The wasm target is `wasm32-unknown-unknown`. Each tool invocation uses the
 module's underscored package name, `/bundle/` prefix, and the options of
 its tree's table in the list. Temper matches
-`temper/scripts/bundle.sh --loopback`, without embedding the bundle in the
+`temper/scripts/bundle.sh`, without embedding the bundle in the
 native binary. Existing bundle outputs are rebuilt on every invocation.
 
 ### 2.1 Native binary lists

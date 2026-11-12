@@ -19,7 +19,11 @@ pub(crate) fn environment(
         .collect();
     let path = OsStr::from_bytes(crate::table::PATH.value(given).unwrap_or_default());
     let paths = std::iter::once(scratch.join("bin")).chain(std::env::split_paths(&path));
-    let mut replacements = vec![("PATH", std::env::join_paths(paths)?), ("TERM", "xterm-256color".into())];
+    let mut replacements = vec![
+        ("PATH", std::env::join_paths(paths)?),
+        ("TERM", "xterm-256color".into()),
+        (temper_shell::environment::INTERNAL_RECORD.name, "1".into()),
+    ];
     for (name, directory) in [
         ("HOME", "home"),
         ("XDG_STATE_HOME", "state"),

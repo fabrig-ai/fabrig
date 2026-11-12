@@ -1,15 +1,17 @@
 //! The shell's adapter over the temper composition (jig's protocol/service.md, 7).
 //! Start refusals name their cause (temper/docs/design/protocol/binaries.md).
+use crate::Served;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};
 use temper_service::long_pass::{LONG_PASS, LongPass, Part, Watch};
-use temper_service::{End, Service, Stop};
+use temper_service::{End, Stop};
 use temper_shell::directories::Directories;
 use temper_shell::directories::EnvironmentEntry;
 
-pub struct Host {
-    pub service: Service,
+pub struct Host<S> {
+    pub service: S,
+    served: Served<S>,
     binary: String,
     directories: Directories,
     pub(super) store: Box<[u8]>,
@@ -22,21 +24,23 @@ pub struct Host {
     watch: Watch,
     clock: skein_shell::Clock,
 }
-impl Host {
+impl<S> Host<S> {
     #[must_use]
-    pub fn new(service: Service, directories: Directories) -> Self {
-        Self::with_binary("temper", service, directories, &[])
+    pub fn new(service: S, served: Served<S>, directories: Directories) -> Self {
+        Self::with_binary("temper", service, served, directories, &[])
     }
     #[must_use]
     pub fn with_binary(
         binary: &str,
-        service: Service,
+        service: S,
+        served: Served<S>,
         directories: Directories,
         environment: &[EnvironmentEntry],
     ) -> Self {
         let store = directories.data.clone();
         Self {
             service,
+            served,
             binary: binary.into(),
             directories,
             store,
@@ -52,6 +56,9 @@ impl Host {
             clock: skein_shell::Clock::new(),
         }
     }
+    fn ending(&self) -> (String, u8) {
+        (self.served.ending)(&self.service, &self.binary, self.output_failed, &self.directories, &self.store)
+    }
     pub(super) fn keep_link(&self, url: &[u8]) {
         if let Some(path) = &self.link_file
             && let Err(why) = super::link_file::keep(path, url, skein_shell::effective_user())
@@ -65,84 +72,61 @@ pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool 
     debug || crate::WAIT_CHECK.value(environment).is_some()
 }
 
-impl skein_shell::Host for Host {
+impl<S> skein_shell::Host for Host<S> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         self.watch.begin(now);
-        for stage in temper_service::STAGES {
-            temper_service::iterate_stage(&mut self.service, stage, now, wall);
+        for &stage in self.served.stages {
+            (self.served.iterate_stage)(&mut self.service, stage, now, wall);
             self.watch.ended(Part::Service(stage), self.clock.now().now);
         }
-        for (forge, name, port) in self.service.unresolved() {
-            let address = std::str::from_utf8(&name)
-                .ok()
-                .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
-            self.service.resolved(forge, address);
-        }
+        (self.served.resolve)(&mut self.service);
         self.watch.ended(Part::Names, self.clock.now().now);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
-        self.service.completions()
+        (self.served.completions)(&mut self.service)
     }
     fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.service.submissions()
+        (self.served.submissions)(&mut self.service)
     }
     fn work_pending(&self, now: Time) -> bool {
-        self.service.work_pending(now)
+        (self.served.work_pending)(&self.service, now)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.service.next_deadline()
+        (self.served.next_mechanism_deadline)(&self.service)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.service.next_policy_deadline()
+        (self.served.next_policy_deadline)(&self.service)
     }
     fn is_empty(&self) -> bool {
-        self.service.is_empty()
+        (self.served.is_empty)(&self.service)
     }
     fn operations(&self) -> u32 {
-        self.service.operations()
+        (self.served.operations)(&self.service)
     }
     fn exit(&self) -> Option<Exit> {
-        if !self.service.is_empty() {
+        if !(self.served.is_empty)(&self.service) {
             return None;
         }
         if let Some(long) = self.watch.held() {
             eprint!("{}", long_pass_line(&self.binary, long));
         }
-        let (lines, code) = ending_with_binary(
-            &self.binary,
-            self.service.end(),
-            self.output_failed,
-            &self.directories,
-            &self.store,
-            self.service.unsettled(),
-        );
+        let (lines, code) = self.ending();
         eprint!("{lines}");
         Some(Exit::Code(code))
     }
     fn drain(&mut self) {
-        while let Some(read) = self.service.take_handover_read() {
-            let answer = read_handover(&read);
-            self.service.handover_read(read.forge, read.run, answer);
-        }
-        while let Some(remove) = self.service.take_handover_removal() {
-            let removed = remove_handover(&remove);
-            self.service.handover_removed(remove.forge, remove.run, removed);
-        }
-        while let Some(note) = self.service.listening().pop() {
-            let clients =
-                matches!(&note, temper_service::Note::Listening { listener: temper_service::Listening::Clients, .. });
-            let lines = note_line(&self.binary, note);
+        (self.served.handover)(&mut self.service);
+        while let Some((lines, clients)) = (self.served.listening)(&mut self.service, &self.binary) {
             eprint!("{lines}");
             if self.wait_check && clients {
                 super::restart_fault::cut_at_listen(self.cut_at_listen.as_deref());
             }
         }
-        while let Some(note) = self.service.notes().pop() {
-            let lines = note_line(&self.binary, note);
+        while let Some(lines) = (self.served.note)(&mut self.service, &self.binary) {
             eprint!("{lines}");
         }
-        while let Some(link) = self.service.links().pop() {
+        while let Some(link) = (self.served.link)(&mut self.service) {
             if self
                 .output
                 .write_all(&link)
@@ -151,14 +135,14 @@ impl skein_shell::Host for Host {
                 .is_err()
             {
                 self.output_failed = true;
-                self.service.shutdown();
+                (self.served.shutdown)(&mut self.service);
             }
         }
-        while let Some(link) = self.service.local_links().pop() {
+        while let Some(link) = (self.served.local_link)(&mut self.service) {
             self.keep_link(&link);
         }
         if self.wait_check {
-            self.service.check_wait_boundary(self.now);
+            (self.served.check_wait_boundary)(&self.service, self.now);
         }
         self.watch.ended(Part::Drain, self.clock.now().now);
         if let Some(long) = self.watch.pass_ended() {
@@ -167,7 +151,7 @@ impl skein_shell::Host for Host {
     }
 }
 
-pub(crate) fn read_handover(
+pub fn read_handover(
     read: &temper_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_service::HandoverUnread> {
     use temper_service::HandoverUnread;
@@ -184,12 +168,66 @@ pub(crate) fn read_handover(
         Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(super::errno(error))),
     }
 }
-fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> {
+pub fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> {
     match std::fs::remove_file(super::path(&remove.path)) {
         Ok(()) => Ok(()),
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(why) => Err(why.raw_os_error().expect("unlink returns an errno")),
     }
+}
+
+/// The composition's listening note, with the client-listen boundary kept beside its words.
+pub fn listening_line(service: &mut temper_service::Service, binary: &str) -> Option<(String, bool)> {
+    let note = service.listening().pop()?;
+    let clients = matches!(&note, temper_service::Note::Listening { listener: temper_service::Listening::Clients, .. });
+    Some((note_line(binary, note), clients))
+}
+pub fn next_note_line(service: &mut temper_service::Service, binary: &str) -> Option<String> {
+    service.notes().pop().map(|note| note_line(binary, note))
+}
+#[must_use]
+pub fn service_ending(
+    service: &temper_service::Service,
+    binary: &str,
+    failed: bool,
+    directories: &Directories,
+    store: &[u8],
+) -> (String, u8) {
+    ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled())
+}
+
+/// A worker alone has no listening diagnostic; its first drain carries its worker notes.
+pub fn worker_listening_line(
+    service: &mut temper_service::worker_alone::Service,
+    binary: &str,
+) -> Option<(String, bool)> {
+    worker_note_line(service, binary).map(|line| (line, false))
+}
+pub fn worker_note_line(service: &mut temper_service::worker_alone::Service, binary: &str) -> Option<String> {
+    service.notes().pop().map(|note| worker_note_words(binary, note))
+}
+#[must_use]
+pub fn worker_service_ending(
+    service: &temper_service::worker_alone::Service,
+    binary: &str,
+    failed: bool,
+    directories: &Directories,
+    store: &[u8],
+) -> (String, u8) {
+    worker_ending_words(binary, service.end(), failed, directories, store)
+}
+fn worker_note_words(binary: &str, note: temper_service::worker_alone::Note) -> String {
+    note_line(binary, note.into())
+}
+fn worker_ending_words(
+    binary: &str,
+    end: Option<&temper_service::worker_alone::End>,
+    failed: bool,
+    directories: &Directories,
+    store: &[u8],
+) -> (String, u8) {
+    let end = end.cloned().map(Into::into);
+    ending_with_binary(binary, end.as_ref(), failed, directories, store, &[])
 }
 
 /// The terminal stderr and status shared by the shell and its real-loop host.
@@ -412,7 +450,7 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         temper_service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
             let verb = verb.escape_ascii();
             let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");
-            let (class, _) = job_ending(&ending);
+            let (class, _) = worker_job_ending(&ending);
             run_detail_line(format!("{prefix}{class}: "), &why)
         }
         temper_service::Note::HelloRefused { channel, text } => {
@@ -639,6 +677,23 @@ fn job_ending(ending: &temper_service::JobDiagnosticEnding) -> (String, &[u8]) {
             (String::from("refused Invalid(Start)"), why)
         }
         JobDiagnosticEnding::Refused(
+            reason @ (JobRefusal::Busy
+            | JobRefusal::Invalid(
+                JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
+            )),
+        ) => (format!("refused {reason:?}"), b""),
+    }
+}
+
+fn worker_job_ending(ending: &temper_service::WorkerJobEnding) -> (String, &[u8]) {
+    use jig_domain_host::{JobInvalid, JobRefusal};
+    use temper_service::WorkerJobEnding;
+    match ending {
+        WorkerJobEnding::Failed { failure, detail } => (format!("failed {failure:?}"), detail),
+        WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
+            (String::from("refused Invalid(Start)"), why)
+        }
+        WorkerJobEnding::Refused(
             reason @ (JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
@@ -1931,7 +1986,12 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     attempt: 2,
                     kind: 3,
                     verb: b"merge".as_slice().into(),
-                    ending,
+                    ending: match ending {
+                        JobDiagnosticEnding::Failed { failure, detail } => {
+                            temper_service::WorkerJobEnding::Failed { failure, detail }
+                        }
+                        JobDiagnosticEnding::Refused(reason) => temper_service::WorkerJobEnding::Refused(reason),
+                    },
                     why: why.into(),
                 }
             } else {
@@ -2014,3 +2074,110 @@ pub fn ending(
 ) -> (String, u8) {
     ending_with_binary("temper", end, output_failed, directories, store, unsettled)
 }
+
+#[cfg(test)]
+pub(super) mod adapter_tests {
+    use super::*;
+    use skein_shell::Host as _;
+
+    pub(crate) struct OneStage {
+        stages: u32,
+        at: Option<Time>,
+        stopped: bool,
+        completions: Queue<Complete>,
+        submissions: Queue<Submit>,
+        links: Queue<Box<[u8]>>,
+    }
+    impl OneStage {
+        fn new() -> Self {
+            Self {
+                stages: 0,
+                at: None,
+                stopped: false,
+                completions: Queue::uncapped(),
+                submissions: Queue::uncapped(),
+                links: Queue::uncapped(),
+            }
+        }
+    }
+    pub(crate) const SERVED: Served<OneStage> = Served {
+        stages: &[temper_service::Stage::Route],
+        iterate_stage: |service, stage, now, wall| {
+            assert_eq!(stage, temper_service::Stage::Route);
+            service.at = Some(now);
+            assert_eq!(wall, Wall::EPOCH);
+            service.stages += 1;
+        },
+        resolve: |_| {},
+        completions: |service| &mut service.completions,
+        submissions: |service| &mut service.submissions,
+        operations: |_| 7,
+        work_pending: |service, _| service.stages == 0,
+        next_mechanism_deadline: |_| Some(Time::ZERO),
+        next_policy_deadline: |_| None,
+        is_empty: |service| service.stages == 1,
+        shutdown: |service| service.stopped = true,
+        ending: |service, binary, failed, _, store| {
+            assert_eq!(service.stages, 1);
+            assert_eq!(binary, "own-service");
+            assert_eq!(store, b"/d");
+            (format!("{binary}: one stage ended\n"), u8::from(failed))
+        },
+        handover: |_| {},
+        listening: |_, _| None,
+        note: |_, _| None,
+        link: |service| service.links.pop(),
+        local_link: |_| None,
+        check_wait_boundary: |service, _| assert_eq!(service.stages, 1),
+        adopt_listener: |_, _, _| Ok(()),
+        adopt_signals: |_, _| Ok(()),
+    };
+    fn host() -> Host<OneStage> {
+        let arguments = ["--config", "/c", "--data", "/d", "--cache", "/k"].map(|word| Box::from(word.as_bytes()));
+        let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+        Host::with_binary("own-service", OneStage::new(), SERVED, directories, &[])
+    }
+    #[test]
+    fn supplied_service_stage_and_ending_drive_the_host() {
+        let mut host = host();
+        assert_eq!(host.exit(), None);
+        assert!(host.work_pending(Time::ZERO));
+        assert_eq!(host.operations(), 7);
+        assert_eq!(host.next_mechanism_deadline(), Some(Time::ZERO));
+        assert_eq!(host.next_policy_deadline(), None);
+        assert!(host.completions().is_empty());
+        assert!(host.submissions().is_empty());
+        let now = host.clock.now().now;
+        host.iterate(now, Wall::EPOCH);
+        host.drain();
+        assert_eq!(host.service.at, Some(now));
+        assert!(host.is_empty());
+        assert!(!host.work_pending(Time::ZERO));
+        assert_eq!(host.ending(), ("own-service: one stage ended\n".into(), 0));
+        assert_eq!(host.exit(), Some(Exit::Code(0)));
+    }
+    struct BrokenOutput;
+    impl Write for BrokenOutput {
+        fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+            Err(io::ErrorKind::BrokenPipe.into())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+    #[test]
+    fn output_failure_shuts_down_the_supplied_service() {
+        let mut host = host();
+        host.output = Box::new(BrokenOutput);
+        host.service.links.push(b"a link".as_slice().into());
+        let now = host.clock.now().now;
+        host.iterate(now, Wall::EPOCH);
+        host.drain();
+        assert!(host.service.stopped, "failed output must ask the supplied service to shut down");
+        assert_eq!(host.exit(), Some(Exit::Code(1)));
+    }
+}
+
+#[cfg(test)]
+#[path = "worker_lines_tests.rs"]
+mod worker_lines_tests;

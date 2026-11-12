@@ -1,6 +1,7 @@
 //! The playground's frame and words (temper/docs/design/playground.md, 2 and 6).
 use skein_lib::{Duration, Time};
 use skein_ui_web::bridge::{self, Speed};
+use temper_client_shell_web::Control;
 
 #[cfg(test)]
 mod tests;
@@ -30,16 +31,6 @@ pub const START_OVER: &str = "playground-start-over";
 
 /// Descriptions are the stories' own data; the page links no world.
 pub const STORIES: &[(&str, &str)] = &[("a", include_str!("../../temper-playground/stories/a/description.txt"))];
-
-/// The frame's reports (temper/docs/design/playground.md, 6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Control {
-    Pause,
-    Speed(Speed),
-    Reset,
-    Story(&'static str),
-    Log,
-}
 
 /// The report for a frame element; a story choice must name an offered story.
 #[must_use]

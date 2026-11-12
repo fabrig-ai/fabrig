@@ -6,7 +6,14 @@ use skein_ui_web::mapping::Primary;
 use temper_client_shell_web::host::{self, Duties, Host, Report};
 
 fn started(path: &[u8]) -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host = Host::new(
+        temper_client_shell_web::limits::client(),
+        11,
+        Time::ZERO,
+        Wall::EPOCH,
+        0,
+        temper_client_view::sign_in::Ways::NONE,
+    );
     host.start(path, Vec::new(), None);
     host
 }

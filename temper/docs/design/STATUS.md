@@ -171,6 +171,7 @@ Design documents:
 - [`protocol/git.md`](protocol/git.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/openid-provider.md`](protocol/openid-provider.status.md)
+- [`protocol/services.md`](protocol/services.status.md)
 - [`protocol/setup/README.md`](protocol/setup/README.status.md)
 - [`protocol/setup/box.md`](protocol/setup/box.status.md)
 - [`protocol/setup/github.md`](protocol/setup/github.status.md)

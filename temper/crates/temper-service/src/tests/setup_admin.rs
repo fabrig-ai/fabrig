@@ -580,7 +580,7 @@ fn a_failed_keep_ends_the_admin_caller_and_erases_before_the_engine_stops() {
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
     let origin =
-        records::Origin { kind: skein_forge_connection::settings::Kind::Forgejo, api: "127.0.0.1:3000".into() }
+        forge_records::Origin { kind: skein_forge_connection::settings::Kind::Forgejo, api: "127.0.0.1:3000".into() }
             .encode();
     lifecycle::keep(engine, 1, Item::Origin, &origin, Purpose::Host(run));
     let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("pending keep") };
@@ -1172,7 +1172,7 @@ fn a_secret_drawn_at_a_first_adoption_reaches_the_connection() {
     let engine = service.engine.as_ref().unwrap();
     assert_eq!(
         engine.forge_records.rows.forge(1).unwrap().get(Item::WebhookSecret),
-        Err(records::NotConnected::Incomplete)
+        Err(forge_records::NotConnected::Incomplete)
     );
     assert!(engine.forge.starts.iter().last().unwrap().1.webhook_secret.is_none());
     adopt_private(&mut service, 70);
