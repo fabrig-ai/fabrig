@@ -41,6 +41,7 @@ walk)
         --scratch) test "$2" = "$PWD/box"; shift 2 ;;
         --setups) test -d "$2"; shift 2 ;;
         --strict) shift ;;
+        --ports) shift 2 ;;
         *) exit 1 ;;
         esac
     done
@@ -110,8 +111,15 @@ struct World {
 }
 impl World {
     fn new() -> Self {
+        Self::with_ports(false)
+    }
+    fn with_ports(fixed: bool) -> Self {
         let scratch = Scratch::new("qa-place");
-        fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["unused"]}}"#).expect("configuration");
+        let mut config = serde_json::json!({"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["unused"]}});
+        if fixed {
+            config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
+        }
+        fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("configuration");
         let home = Home::open(scratch.path()).expect("home");
         let started = home
             .transact(|ledger| {
@@ -198,6 +206,21 @@ impl World {
             .recipe("added", &input, &["welcome".into(), "project-landing".into(), "chat-draft".into()], &mut output)
             .expect("recipe command");
         (code, String::from_utf8(output).expect("output"))
+    }
+}
+
+#[test]
+fn setups_and_proving_walks_receive_only_their_places_ports() {
+    for fixed in [false, true] {
+        let mut world = World::with_ports(fixed);
+        assert_eq!(world.setup("chat-draft").0, 0);
+        assert_eq!(world.recipe("welcome").0, 0);
+        let walks = world.walks();
+        assert_eq!(walks.len(), 5, "three setup walks, parent check and proving walk");
+        for walk in walks {
+            assert_eq!(walk.contains("--ports 31001,31002,31003,31004,31005,31006,31007,31008,31009"), fixed, "{walk}");
+            assert_eq!(walk.contains("--ports"), fixed, "{walk}");
+        }
     }
 }
 
