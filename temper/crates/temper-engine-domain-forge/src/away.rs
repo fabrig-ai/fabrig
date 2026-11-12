@@ -255,6 +255,7 @@ pub(crate) fn overturn(
 }
 
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    crate::findings::erase_project(d, project, out);
     let mut erases = List::with_capacity(d.aways.len());
     for ((party, held), _) in &d.aways {
         if *held == project {

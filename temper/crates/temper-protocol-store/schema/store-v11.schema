@@ -38,7 +38,8 @@ record Names { task: u64 resources: list 1024 Name }
 record LandingsTopic { repository: Repository branch: bytes 4096 }
 record CiTopic { repository: Repository head: fixed 32 }
 record NumberTopic { repository: Repository number: u64 }
-enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participation: NumberTopic }
+record FindingsTopic { project: u32 }
+enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participation: NumberTopic, findings: FindingsTopic }
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }
 # 04.2: families 6 to 9.
 record BranchHead { name: Name commit: fixed 32 owned: bool }
@@ -379,5 +380,12 @@ record ClosingLine { line: option bytes 256 }
 enum ClosingSelectionProgress { pull, checks, jobs: ClosingJobs, done: ClosingLine }
 record ClosingSelection { pull: u64 head: option Commit progress: ClosingSelectionProgress }
 record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, finding: Finding }
 versioned record Row { value: Value }
+
+# Findings: family 31, owner derived and never stored (protocol/store.md, 2).
+enum FindingKind { qa, flake, red, review, feedback }
+enum Severity { low, medium, high }
+enum FindingState { new, routed, backlog, dropped }
+enum Filer { task: Number, party: Number }
+record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 }

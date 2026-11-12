@@ -259,6 +259,9 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    FileFinding(crate::FileFindingAnswer),
+    HandFinding(crate::HandFindingAnswer),
+    TriageFinding(crate::TriageFindingAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -806,6 +809,7 @@ pub enum Topic {
     Pull { repository: skein_forge::api::Repository, number: u64 },
     /// A participant wrote on an object.
     Participation { repository: skein_forge::api::Repository, number: u64 },
+    Findings { project: u32 },
 }
 /// A subscriber's classification of observed news.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1237,6 +1241,7 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    Finding(crate::Finding),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1278,6 +1283,7 @@ pub enum Key {
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
     LandingLog { repository: skein_forge::api::Repository },
+    Finding { project: u32, number: u32 },
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
