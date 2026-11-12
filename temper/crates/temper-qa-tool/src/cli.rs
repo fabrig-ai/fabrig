@@ -94,7 +94,7 @@ const LINES: Command = Command {
 };
 pub const TABLE: Table = Table {
     binary: "temper-qa",
-    line: "QA after landing: main's landings triaged into cases, and builds kept for them.",
+    line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
     commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES],

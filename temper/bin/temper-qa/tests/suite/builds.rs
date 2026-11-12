@@ -22,7 +22,10 @@ fn stage(home: &Home, name: &str) -> std::path::PathBuf {
     for directory in ["bin", "bundle", "bundle-record"] {
         fs::create_dir_all(path.join(directory)).expect("stage directory");
     }
-    script(&path.join("bin/temper-box"), "printf 'temper-box 0.1.0 (0123456789ab)\\n'");
+    for binary in ["temper-box", "temper-client", "temper-client-journeys"] {
+        script(&path.join("bin").join(binary), &format!("printf '{binary} 0.1.0 (0123456789ab)\\n'"));
+    }
+    script(&path.join("bin/fake-claude"), "printf '2.1.312 (Claude Code)\\n'");
     fs::write(path.join("bundle/index.html"), b"a\n").expect("bundle");
     fs::write(path.join("bundle-record/index.html"), b"record\n").expect("record bundle");
     path
@@ -75,7 +78,7 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
     fs::write(stage.join("manifest"), b"stale manifest").expect("old manifest");
     fs::write(stage.join("bundle/a\\b\nc\r"), b"a\n").expect("escaped filename");
     let original = fs::read(stage.join("bin/temper-box")).expect("original script");
-    success(&keep(&home, COMMIT, &stage), 6);
+    success(&keep(&home, COMMIT, &stage), 9);
     assert!(!stage.exists());
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read(kept.join("bin/temper-box")).expect("kept script"), original);
@@ -83,14 +86,17 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
     let mut lines = manifest.lines();
     assert_eq!(lines.next(), Some(format!("commit {COMMIT}").as_str()));
     let rows: Vec<_> = lines.collect();
-    assert_eq!(rows.len(), 6);
+    assert_eq!(rows.len(), 9);
     let paths: Vec<_> = rows.iter().map(|line| line.split_once("  ").expect("checksum row").1).collect();
     assert_eq!(
         paths,
         [
             "bin/another",
             "bin/directory/data",
+            "bin/fake-claude",
             "bin/temper-box",
+            "bin/temper-client",
+            "bin/temper-client-journeys",
             "bundle-record/index.html",
             "bundle/a\\\\b\\nc\\r",
             "bundle/index.html"
@@ -127,7 +133,7 @@ fn commit_form_refuses_before_build_checks_and_accepts_sha256_ids() {
         refusal(&home, commit, &stage, &format!("{commit} is no commit id"));
     }
     let long = format!("{COMMIT}0123456789abcdef01234567");
-    success(&keep(&home, &long, &stage), 3);
+    success(&keep(&home, &long, &stage), 6);
     assert!(home.builds.join(long).join("manifest").exists());
 }
 
@@ -205,7 +211,7 @@ fn a_deleted_build_is_kept_anew_and_an_abandoned_partial_is_removed() {
     fs::create_dir_all(&partial).expect("abandoned partial");
     fs::write(partial.join("abandoned"), b"old").expect("abandoned file");
     let stage = stage(&home, "stage");
-    success(&keep(&home, COMMIT, &stage), 3);
+    success(&keep(&home, COMMIT, &stage), 6);
     assert!(!partial.exists());
     assert!(!home.builds.join(COMMIT).join("abandoned").exists());
     assert!(!stage.exists());

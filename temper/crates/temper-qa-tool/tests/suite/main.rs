@@ -1,4 +1,5 @@
 //! Landed QA's focused value tests and seeded invariants (qa/README.md, 6).
+mod builds;
 mod configuration;
 mod fuzzy;
 mod home;

@@ -37,8 +37,9 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                 assert_eq!(output.status.code(), Some(0));
                 assert_eq!(
                     paragraph(&stdout),
-                    "temper-qa: QA after landing: main's landings triaged into cases, and builds kept for them."
+                    "temper-qa: QA after landing: main's landings triaged into cases, and passes run on builds kept for them."
                 );
+                let commands = stdout.split_once("\n\n").expect("help body").1;
                 for internal in [
                     "run",
                     "build keep",
@@ -49,7 +50,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "TEMPER_INTERNAL_QA_HOME",
                     "TEMPER_INTERNAL_QA_SESSION",
                 ] {
-                    assert!(!stdout.contains(internal), "internal entry: {internal}");
+                    assert!(!commands.contains(internal), "internal entry: {internal}");
                 }
                 assert_eq!(stdout, TABLE.help());
             }
