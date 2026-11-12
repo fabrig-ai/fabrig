@@ -159,7 +159,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     assert_eq!(world.domain.agent().agents(), 0);
     world.event(Event::Link(host::LinkDown::Acknowledge { run: Token::new(81), attempt: Token::new(13) }));
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
     world.report
 }
