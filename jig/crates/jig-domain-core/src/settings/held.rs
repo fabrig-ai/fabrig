@@ -197,7 +197,10 @@ impl Held {
             } else {
                 None // The new erased-removal barrier.
             };
-            let value = CharterVersion { charter };
+            let overlay = if self.newest_key(current, key.charter) == Some(key) {
+                match current.overlay(Setting::Charter(key.charter)) { Some(overlay) => Some(Box::new(overlay.clone())), None => None }
+            } else { None };
+            let value = CharterVersion { charter, overlay };
             out.push(Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Charter {
                 charter: key.charter,
                 revision: key.revision,
@@ -267,6 +270,16 @@ impl Core {
             return self.charter(number);
         }
         self.held.versions.get(&key)?.charter.as_deref()
+    }
+
+    pub(crate) fn overlay_at(&self, number: u32, revision: u32) -> Option<&super::Overlay> {
+        if revision == self.current.newest() { return self.current.overlay(Setting::Charter(number)); }
+        if !self.held(revision) { return None; }
+        let key = self.held.selected(&self.current, number, revision)?;
+        if let (_, Some((_, current))) = self.current.lookup(Setting::Charter(number)) && key.revision == current {
+            return self.current.overlay(Setting::Charter(number));
+        }
+        self.held.versions.get(&key)?.overlay.as_deref()
     }
 
     pub(crate) fn release_revision(&mut self, env: &Env<Limits>, revision: u32, out: &mut Queue<Request>) {

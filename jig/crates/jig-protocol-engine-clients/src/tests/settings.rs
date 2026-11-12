@@ -281,6 +281,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
     let names = [s::Setting::Charter(1), s::Setting::Template(1), s::Setting::Policy(1), s::Setting::Rules];
     for (name, value) in names.into_iter().zip(values()) {
         let document = reads::SettingDocument {
+            overlay: None,
             setting: name,
             revision: 6,
             value: Some(value),
@@ -580,6 +581,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     let setting = s::Setting::Application { kind: 7, scope: 0, number: 2 };
     let state = State { follows: Follows::Removed { revision: 6 }, size: 0, charters: Box::new([]) };
     let read = reads::SettingDocument {
+        overlay: None,
         setting,
         revision: 6,
         value: None,

@@ -175,7 +175,7 @@ fn settings_finish_drops_cross_record_revision_rules() {
                     .push(Record::Charter {
                         charter: 1,
                         revision,
-                        value: CharterVersion { charter: Some(Box::new(core.charter(1).expect("charter").clone())) },
+                        value: CharterVersion { overlay: None, charter: Some(Box::new(core.charter(1).expect("charter").clone())) },
                     })
                     .expect("one stored version"),
                 Rule::ExtentAtHead => {
@@ -227,7 +227,7 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
         let (mut core, mut env) = loaded();
         let (row, which) = if versions {
             env.limits.settings.versions = 0;
-            (Record::Charter { charter: 7, revision: 2, value: CharterVersion { charter: None } }, HeldLimit::Versions)
+            (Record::Charter { charter: 7, revision: 2, value: CharterVersion { overlay: None, charter: None } }, HeldLimit::Versions)
         } else {
             env.limits.settings.revisions = 0;
             assert_eq!(restore(&mut core, &env, head(1)), Restored::Live);
@@ -318,7 +318,7 @@ fn a_stored_head_does_not_rejudge_revision_order() {
 fn restored_refusals_keep_the_first_cause_across_families() {
     let (mut core, mut env) = loaded();
     env.limits.settings.versions = 0;
-    let row = Record::Charter { charter: 7, revision: 2, value: CharterVersion { charter: None } };
+    let row = Record::Charter { charter: 7, revision: 2, value: CharterVersion { overlay: None, charter: None } };
     assert_eq!(restore(&mut core, &env, row), Restored::Rejected);
     env.limits.policy_bytes = 0;
     assert!(!core.restore_policy(&env.limits, 1, "Project".into(), policy()));

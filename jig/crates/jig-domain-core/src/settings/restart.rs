@@ -224,6 +224,17 @@ impl Core {
                 return false;
             }
         }
+        if let Some(overlay) = &value.overlay {
+            let stored = super::Value::Overlay(overlay.clone());
+            if let Err(failure) = super::check::restore_fit(Setting::Charter(charter), &stored, limits) {
+                let _refused = self.refuse_settings(failure);
+                return false;
+            }
+            if value.charter.is_none() {
+                let _refused = self.refuse_settings(Failure { setting: Setting::Charter(charter), fault: Fault::Shape, detail: None });
+                return false;
+            }
+        }
         self.held.versions.insert(key, value).is_ok()
     }
 

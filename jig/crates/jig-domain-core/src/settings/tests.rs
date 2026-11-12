@@ -658,7 +658,7 @@ fn two_held_rows_and_a_charter_row_restore_before_tasks() {
             Record::Charter {
                 charter: 1,
                 revision: 1,
-                value: CharterVersion { charter: Some(Box::new(charter.clone())) },
+                value: CharterVersion { overlay: None, charter: Some(Box::new(charter.clone())) },
             },
             &limits
         ));
@@ -685,7 +685,7 @@ fn a_charter_row_past_the_limit_refuses_without_retaining_it() {
         Record::Charter {
             charter: 1,
             revision: 1,
-            value: CharterVersion { charter: Some(Box::new(core.charter(1).unwrap().clone())) },
+            value: CharterVersion { overlay: None, charter: Some(Box::new(core.charter(1).unwrap().clone())) },
         },
         &limits
     ));
@@ -702,7 +702,7 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
     let mut old = core.charter(1).unwrap().clone();
     old.policy.instructions = b"An orphan version".as_slice().into();
     assert!(core.restore_setting(
-        Record::Charter { charter: 1, revision: 1, value: CharterVersion { charter: Some(Box::new(old)) } },
+        Record::Charter { charter: 1, revision: 1, value: CharterVersion { overlay: None, charter: Some(Box::new(old)) } },
         &limits
     ));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

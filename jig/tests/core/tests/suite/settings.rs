@@ -1643,7 +1643,7 @@ fn a_restored_run_must_have_a_charter_on_its_held_revision() {
         record(settings::Record::Charter {
             charter: 1,
             revision: 1,
-            value: settings::CharterVersion { charter: None },
+            value: settings::CharterVersion { overlay: None, charter: None },
         }),
     ]));
     let commits = world.store.applied;

@@ -97,7 +97,7 @@ pub(crate) fn catalogue(store: &mut crate::Store) -> Result<(), crate::restore::
             Record::Changed { changed, .. } => match changed.value {
                 Some(Value::Model(model)) => model,
                 Some(
-                    Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_),
+                    Value::Overlay(_) | Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_),
                 )
                 | None => return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), site)),
             },

@@ -241,6 +241,7 @@ pub enum Key {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CharterVersion {
+    pub overlay: Option<Box<Overlay>>,
     pub charter: Option<Box<Charter>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

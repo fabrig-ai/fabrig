@@ -290,6 +290,7 @@ fn policy_page(policy: Box<c::SettingPolicy>) -> Readout {
 }
 fn policy_document(project: u32, revision: u32, value: Option<c::SettingValue>) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: c::Setting::ProjectPolicy { project },
         revision,
         value,

@@ -632,6 +632,7 @@ fn current_project_policy_reads_are_whole_only_at_newest() {
         assert_eq!(
             read_policy(&mut core, &limits, SIGN_IN, PROJECT, revision),
             crate::reads::Answer::Setting(Box::new(crate::reads::SettingDocument {
+                overlay: None,
                 setting: s::Setting::ProjectPolicy { project: PROJECT },
                 revision,
                 value: Some(s::Value::Policy(Box::new(expected))),

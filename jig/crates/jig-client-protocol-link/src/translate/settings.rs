@@ -339,6 +339,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
 }
 pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        c::SettingValue::Overlay(_) => return Err(w::Problem { path: w::Path::CharterInstructions, reason: skein_codec::Reason::Bound }),
         c::SettingValue::Model(v) => w::SettingValue::Model(Box::new(wire_catalogue(v, limits)?)),
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
             limits,
@@ -558,6 +559,7 @@ pub fn restore_settings_document(
 }
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
+        overlay: None,
         setting: restore_setting(value.setting())?,
         revision: value.revision(),
         value: match value.value() {

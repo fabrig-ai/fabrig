@@ -421,7 +421,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
         settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
-        settings::Value::Application(_) => return Err(bound()),
+        settings::Value::Overlay(_) | settings::Value::Application(_) => return Err(bound()),
     })
 }
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
@@ -1893,7 +1893,7 @@ fn decode_charter_version(
         Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
         None => None,
     };
-    Ok(settings::CharterVersion { charter: field_charter })
+    Ok(settings::CharterVersion { overlay: None, charter: field_charter })
 }
 fn encode_proposal(
     value: &settings::Proposal,

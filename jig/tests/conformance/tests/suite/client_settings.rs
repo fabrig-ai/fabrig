@@ -109,6 +109,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     );
     let mut value = values::settings_values().into_boxed().into_vec();
     let document = c::SettingDocument {
+        overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
         value: Some(value.pop().expect("rules")),
@@ -178,6 +179,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     config.core.defaults.rules.ceiling.models = jig_domain_authority::Models::ALL;
     let spend = config.core.defaults.rules.period_spend;
     let source = reads::SettingDocument {
+        overlay: None,
         setting: s::Setting::Rules,
         revision: 6,
         value: Some(s::Value::Rules(Box::new(config.core.defaults.rules))),

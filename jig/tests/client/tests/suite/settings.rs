@@ -106,6 +106,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     setup.truth.settings = Some(values::settings_document());
     let mut settings_values = values::settings_values().into_boxed().into_vec();
     setup.truth.setting_values.push(c::SettingDocument {
+        overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
         value: Some(settings_values.pop().expect("valid public story fixture")),
