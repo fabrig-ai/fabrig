@@ -98,7 +98,7 @@ fn a_tui_setup_is_read_whole_before_any_build_or_child() {
     assert!(matches!(walker.phase, Phase::Load));
     assert_eq!(
         walker.progress(&mut face, Time::ZERO).expect("reload after setup"),
-        Next::Do(Doing::Go { address: b"/child".as_slice().into() })
+        Next::Do(Doing::Go { address: b"/child?internal-loopback-navigation=1".as_slice().into() })
     );
     assert!(matches!(walker.phase, Phase::Opening));
     assert!(walker.terminal.is_none(), "reload precedes the TUI");
