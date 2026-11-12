@@ -18,7 +18,7 @@ pub(super) fn read(bytes: &[u8]) -> Vec<smith_events::Record> {
     // The binary harness captures at most one MiB per stream.
     const STREAM_BYTES: u32 = 1_048_576;
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = STREAM_BYTES;
         fixture_limits.content = STREAM_BYTES;
         fixture_limits.items = STREAM_BYTES;

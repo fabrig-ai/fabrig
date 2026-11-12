@@ -18,9 +18,6 @@ name = "test-peer"
 path = "src/bin/test_peer.rs"
 test = false
 
-[features]
-fixture = []
-
 [dependencies]
 skein-fail-stop.workspace = true
 serde = { version = "1", features = ["derive"] }
@@ -33,7 +30,7 @@ base64 = "0.22"
 rusqlite = { version = "0.37", features = ["bundled"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 smith-local-shell = { path = "../crates/smith-local-shell" }
-smith-events = { workspace = true, features = ["fixture"] }
+smith-events.workspace = true
 skein-lib.workspace = true
 skein-llm.workspace = true
 skein-world.workspace = true
@@ -42,7 +39,8 @@ skein-shell.workspace = true
 skein-oauth.workspace = true
 
 [dev-dependencies]
-smith-bench = { path = ".", features = ["fixture"] }
+smith-events-fixtures.workspace = true
+smith-bench-fixtures.workspace = true
 skein-scratch.workspace = true
 smith-agent-service.workspace = true
 

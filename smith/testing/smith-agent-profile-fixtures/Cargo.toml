@@ -1,0 +1,34 @@
+[package]
+license.workspace = true
+name = "smith-agent-profile-fixtures"
+description = "Shared test fixtures for smith-agent-profile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+smith-agent-profile.workspace = true
+skein-channel.workspace = true
+skein-lib.workspace = true
+skein-llm.workspace = true
+smith-domain.workspace = true
+smith-protocol-llm.workspace = true
+smith-protocol-machine.workspace = true
+smith-protocol-program.workspace = true
+smith-protocol-translate.workspace = true
+
+[lints.rust]
+unsafe_code = "deny"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

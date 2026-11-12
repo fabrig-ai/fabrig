@@ -12,5 +12,5 @@ pub mod trace;
 
 pub use smith_agent_profile::host_limits;
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;

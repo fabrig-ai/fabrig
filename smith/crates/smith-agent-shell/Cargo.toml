@@ -6,9 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-fixture = ["smith-agent-document/fixture"]
-
 [dependencies]
 smith-agent-document.workspace = true
 smith-protocol-program.workspace = true
@@ -34,7 +31,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 [dev-dependencies]
-smith-agent-shell = { path = ".", features = ["fixture"] }
+smith-agent-document-fixtures.workspace = true
 skein-scratch.workspace = true
 
 [lints.rust]

@@ -13,8 +13,8 @@ skein-json.workspace = true
 smith-domain.workspace = true
 smith-agent-world.workspace = true
 smith-agent-service.workspace = true
-smith-protocol-events = { workspace = true, features = ["fixture"] }
-smith-events = { workspace = true, features = ["fixture"] }
+smith-protocol-events.workspace = true
+smith-events.workspace = true
 smith-protocol-llm = { workspace = true, features = ["fixture"] }
 smith-session-world.workspace = true
 smith-domain-tools.workspace = true
@@ -49,6 +49,8 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+smith-events-fixtures.workspace = true
+smith-protocol-events-fixtures.workspace = true
 smith-domain-session.workspace = true
 smith-protocol-translate.workspace = true
 smith-transcript.workspace = true

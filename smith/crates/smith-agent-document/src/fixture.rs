@@ -1,3 +1,4 @@
+//! Step-test fixtures (smith/docs/design/testing.md, section 7).
 //! The standard product quantities shared by fixed and drawn startup stories.
 
 /// The standard product startup document for fixed and drawn configuration stories.

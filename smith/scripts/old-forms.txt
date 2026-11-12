@@ -9,7 +9,7 @@ genuine 0
 allow 0
 expect_manual_let_else 0
 expect_single_match 0
-full_limits 104
+full_limits 103
 temp_dir 0
 bare_wire_kind 0
 io_resume 2
