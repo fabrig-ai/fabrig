@@ -16,18 +16,7 @@ impl Inputs {
     pub fn read(git: &mut impl GitFace, landing: &Landing) -> Result<Self, Refusal> {
         let commit = &landing.commit;
         let parent = format!("{commit}^1");
-        let message = git.message(commit)?;
-        let mut drafts = present_drafts(
-            git,
-            commit,
-            message
-                .split(|c: char| !(c.is_alphanumeric() || matches!(c, '/' | '.' | '-' | '_')))
-                .filter_map(draft_path),
-        )?;
-        if drafts.is_empty() {
-            let paths = git.changed_paths(&parent, commit)?;
-            drafts = present_drafts(git, commit, paths.into_iter().filter_map(|path| draft_path(&path)))?;
-        }
+        let drafts = landing_drafts(git, landing)?;
         let mut pages = Pages::new();
         let mut surfaces = String::new();
         for (surface, directory, journeys) in [
@@ -139,6 +128,21 @@ impl Inputs {
         text.push_str("\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{\"surface\":\"web\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}]}\n```\nUse only the pages and setups above; give at least one step, each with nonempty do and expect.\n");
         text
     }
+}
+
+pub(crate) fn landing_drafts(git: &mut impl GitFace, landing: &Landing) -> Result<Vec<String>, Refusal> {
+    let commit = &landing.commit;
+    let message = git.message(commit)?;
+    let mut drafts = present_drafts(
+        git,
+        commit,
+        message.split(|c: char| !(c.is_alphanumeric() || matches!(c, '/' | '.' | '-' | '_'))).filter_map(draft_path),
+    )?;
+    if drafts.is_empty() {
+        let paths = git.changed_paths(&format!("{commit}^1"), commit)?;
+        drafts = present_drafts(git, commit, paths.into_iter().filter_map(|path| draft_path(&path)))?;
+    }
+    Ok(drafts)
 }
 
 fn present_drafts(
