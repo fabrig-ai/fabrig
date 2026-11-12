@@ -356,7 +356,9 @@
     `-hint` for the quiet line, whose model button takes no token, as the
     request's `.tt-model`, and so none of `-btn`'s padding or ground;
     `temper-terminal-head` for a list's head;
-    `temper-terminal-note` for a note; `temper-to-terminal` for `>_` in the bar.
+    `temper-terminal-note` for a note. No bar draws the terminal entrance
+    (`../pages/chat/terminal.md`, 1, *Entered*); the terminal look's tokens and
+    rules stay for a browser whose kept look selects it.
     The conversation, the box, the list and the pane keep the page's own tokens
     (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
     rules reach under `.temper-terminal`; the list is skein's options menu, whose

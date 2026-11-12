@@ -118,7 +118,6 @@ pub(crate) fn main(
             {
                 super::document::add(b, words, bindings, Act::AddDraft);
             }
-            super::session::to_terminal(b, words, bindings);
             super::chat_sheet::bar(b, root, words, bindings);
             if asking && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
                 b.open(Role::Button);

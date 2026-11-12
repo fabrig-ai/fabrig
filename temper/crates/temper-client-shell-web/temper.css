@@ -1090,7 +1090,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* The nested lineage is metadata too; its following wait keeps the old zero margin. */
 .temper-page .temper-meta > p.temper-wait { margin-top: 0; }
 /* The welcome's look (client/pages/README.md and client/pages/welcome.md, 2): IBM Plex, paper and ink, a top bar
-   of the brand, temper box's line and the steps, then one column of choices as cards.
+   of the brand and the steps, then one column of choices as cards and temper box's line.
    Scoped to the welcome's frame; the other pages keep theirs. */
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-500-normal.woff2) format('woff2'); }
@@ -1106,10 +1106,11 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 }
 :root:has(.temper-welcome) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 #app:has(> .temper-welcome) { --temper-mono: var(--gf-sans); --temper-ink: var(--gf-ink); --temper-muted: var(--gf-muted); --temper-faint: var(--gf-faint); --temper-line: var(--gf-line); --temper-paper: var(--gf-surface); --temper-canvas: var(--gf-paper); }
-/* The top bar: the brand, temper box's line, the steps at its right. */
+/* The top bar: the brand, the steps at its right, and the link while offline. */
 #app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: flex-end; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
 /* The end takes the free space when no steps show yet. */
 #app:has(> .temper-welcome) > .temper-top > .temper-brand + .temper-top-end { margin-left: auto; }
+#app:has(> .temper-welcome) > .temper-top > .temper-top-end:not(:has(.temper-offline)) { display: none; }
 #app:has(> .temper-welcome) .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app:has(> .temper-welcome) .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
 #app:has(> .temper-welcome) .temper-brand::after { display: none; }
@@ -1121,14 +1122,6 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] { color: var(--gf-ink); font-weight: 500; }
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] > a::before { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 #app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > a::before { content: '✓'; border-color: var(--gf-good-line); background: var(--gf-good-pale); color: var(--gf-good); }
-/* temper box's line, between the brand and the steps; its own row when narrow. */
-#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 0 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
-#app:has(> .temper-welcome) .temper-welcome-box-line strong { color: var(--gf-ink); font-weight: 600; }
-#app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
-#app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
-@media (max-width: 1100px) {
-  #app:has(> .temper-welcome) .temper-welcome-box-line { order: 3; flex-basis: 100%; margin: 0; }
-}
 /* The page: one column, the tagline above the heading. */
 #app > .temper-welcome { width: min(680px, 100%); margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
 #app > .temper-welcome .temper-welcome-tagline { order: -1; margin: 0 0 12px; font: 14px/1.6 var(--gf-sans); font-style: normal; color: var(--gf-muted); }
@@ -1157,6 +1150,9 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-welcome .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
 /* Under the cards: a note, then back and the way out. */
 #app > .temper-welcome .temper-welcome-after { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-box-note { margin-top: 28px; }
+#app > .temper-welcome .temper-welcome-box-note strong { color: var(--gf-ink); font-weight: 600; }
+#app > .temper-welcome .temper-welcome-box-note > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-welcome-foot { display: flex; justify-content: space-between; gap: 16px; margin: 0; padding-top: 4px; font-size: 14px; color: var(--gf-muted); }
 #app > .temper-welcome .temper-welcome-foot > * { margin: 0; }
 #app > .temper-welcome .temper-welcome-foot > :is(a, button) { font: 400 14px/1.6 var(--gf-sans); color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
@@ -1172,6 +1168,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
 #app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
 #app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > a.temper-flow-quiet { display: inline-block; margin: 2px 0 0 24px; font-size: 13.5px; line-height: 1.55; color: var(--gf-muted); text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
 #app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }
@@ -1793,6 +1790,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 320px; font-size: 14px; color: var(--gf-muted); }
 #app > .temper-session .temper-crumbs > .temper-back { display: none; }
 #app > .temper-session .temper-trail { display: flex; align-items: center; gap: 4px; }
+#app > .temper-session .temper-trail { flex: none; white-space: nowrap; }
 #app > .temper-session .temper-trail > a::after { content: '/'; margin-left: 4px; color: var(--gf-muted); }
 #app > .temper-session .temper-crumbs a:hover { color: var(--gf-ink); }
 #app > .temper-session .temper-crumbs > h1 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
@@ -2024,13 +2022,6 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 
 /* chat-terminal: the frame, conversation and box, from terminal.css. */
-.temper-to-terminal {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0; line-height: 1;
-  height: 30px; padding: 0 9px; border: 1px solid var(--gf-line-2, var(--gf-control-line)); border-radius: 8px;
-  background: transparent; color: var(--gf-ink-2, var(--gf-control-ink-2)); cursor: pointer;
-}
-.temper-to-terminal::before { content: '>_' / ''; font: 12px/1 'IBM Plex Mono', ui-monospace, monospace; }
-.temper-to-terminal:hover { background: var(--gf-hover, var(--gf-control-hover)); color: var(--gf-ink, var(--gf-control-ink)); }
 body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal {
   --bg: #191816; --ink: #e8e3da; --dim: #9a9388; --faint: #6a655c; --line: #2f2d29; --sel: #2a2825;
@@ -2179,8 +2170,6 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-thread > .temper-starter { max-width: 100ch; margin-left: 0; margin-right: 0; }
 #app > .temper-terminal .temper-thread .temper-starter :is(h2, p, ul, li, span, button) { font: inherit; color: var(--ink); }
 #app > .temper-terminal .temper-starter .temper-starters button { background: var(--sel); border-color: var(--line); box-shadow: none; }
-/* The bar's small entrance keeps its own mono type beside the mode group. */
-#app > .temper-session .temper-session-right > button.temper-to-terminal { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0; line-height: 1; min-height: 30px; height: 30px; padding: 0 9px; border: 1px solid var(--gf-line-2, var(--gf-control-line)); color: var(--gf-ink-2, var(--gf-control-ink-2)); }
 @media (max-width: 760px) {
   #app > .temper-terminal .temper-terminal-top { padding: 8px 2ch; gap: 2ch; }
   #app > .temper-terminal .temper-terminal-where :is(.temper-terminal-place, .temper-terminal-sep, .temper-terminal-task) { display: none; }

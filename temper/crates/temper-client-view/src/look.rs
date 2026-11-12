@@ -629,8 +629,8 @@ pub const PROJECT_RENAME: Style = Style { owner: owner(), token: 161 };
 pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
 /// The open project's row while it is renamed (temper/docs/design/client/view.md, 3).
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
-/// The welcome's temper box line, in its top bar (temper/docs/design/client/pages/README.md).
-pub const WELCOME_BOX_LINE: Style = Style { owner: owner(), token: 164 };
+/// The Welcome step's temper box paragraph under its cards (client/pages/welcome.md, 1).
+pub const WELCOME_BOX_NOTE: Style = Style { owner: owner(), token: 762 };
 /// The welcome's sheet for Forgejo on this machine, a modal dialog over the
 /// Forge step (temper/docs/design/client/pages/README.md).
 pub const WELCOME_SHEET: Style = Style { owner: owner(), token: 165 };
@@ -885,7 +885,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-project-rename",
         b"temper-project-new",
         b"temper-project-rename-form",
-        b"temper-welcome-box-line",
+        b"temper-reserved-164",
         b"temper-welcome-sheet",
         b"temper-welcome-sheet-head",
         b"temper-welcome-start",
@@ -1318,7 +1318,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-terminal-hint",
         b"temper-terminal-head",
         b"temper-terminal-note",
-        b"temper-to-terminal",
+        b"temper-reserved-597",
         b"temper-terminal-dismiss",
         b"temper-terminal-choices",
         b"temper-terminal-card",
@@ -1484,6 +1484,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-session-time",
         b"temper-team-session-cost",
         b"temper-team-session-closing",
+        b"temper-welcome-box-note",
     ],
     regions: &[b"temper-link"],
 };
@@ -1820,7 +1821,6 @@ pub const TERMINAL_LINE: Style = Style { owner: owner(), token: 593 };
 pub const TERMINAL_HINT: Style = Style { owner: owner(), token: 594 };
 pub const TERMINAL_HEAD: Style = Style { owner: owner(), token: 595 };
 pub const TERMINAL_NOTE: Style = Style { owner: owner(), token: 596 };
-pub const TO_TERMINAL: Style = Style { owner: owner(), token: 597 };
 pub const TERMINAL_DISMISS: Style = Style { owner: owner(), token: 598 };
 pub const TERMINAL_CHOICES: Style = Style { owner: owner(), token: 599 };
 

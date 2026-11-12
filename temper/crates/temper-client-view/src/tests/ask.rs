@@ -1331,7 +1331,10 @@ fn composer_and_path_emit_the_requested_acts() {
         assert_eq!(crate::act(&mut view, entry, Act::Submit), Some(d::Action::Pages(pages::Act::StartChat)));
         let send = named(view.tree(), Role::Button, b"Send").id;
         assert_eq!(crate::act(&mut view, send, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
-        let links: Vec<_> = children(styled(view.tree(), look::TRAIL)).into_iter().map(|n| n.id).collect();
+        let trail = children(styled(view.tree(), look::TRAIL));
+        assert_eq!(trail.len(), 1, "Ask before its first message keeps the project alone");
+        assert_eq!(trail[0].name.as_deref(), Some(b"Shop".as_slice()));
+        let links: Vec<_> = trail.into_iter().map(|n| n.id).collect();
         let back = styled(view.tree(), look::BACK)[0].id;
         for (node, address) in
             [(back, Address::Home { project: f::PROJECT }), (links[0], Address::Home { project: f::PROJECT })]

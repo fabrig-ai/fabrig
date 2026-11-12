@@ -57,16 +57,17 @@ pub(crate) fn top(
     link(b, bindings, &label, address.clone(), Some(look::BACK));
     b.open(Role::Slot);
     b.style(look::TRAIL);
-    if let Some(project) = project {
-        let name = match super::project_name(root.pages().me(root.client()), project) {
-            Some(name) => name,
-            None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
-        };
-        link(b, bindings, &name, Address::Home { project }, None);
-    }
     match path {
         Path::Chats | Path::Ask => link(b, bindings, &label, address, None),
-        Path::Home => {}
+        Path::Home => {
+            if let Some(project) = project {
+                let name = match super::project_name(root.pages().me(root.client()), project) {
+                    Some(name) => name,
+                    None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
+                };
+                link(b, bindings, &name, Address::Home { project }, None);
+            }
+        }
     }
     b.close();
     match heading {
@@ -187,11 +188,6 @@ pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<
         ),
         None => number(b, w, task),
     }
-}
-
-/// The browser's entrance to a chat's terminal (client/pages/README.md).
-pub(crate) fn to_terminal(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
-    super::terminal::enter(b, w, bindings);
 }
 
 /// Send feedback beneath the composer (temper/docs/design/client/pages/README.md).
