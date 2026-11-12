@@ -186,7 +186,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/crates/temper-client-shell-web/Cargo.toml: [features]", until: "cli C5" },
     Exception { what: "temper/crates/temper-client-shell-web/Cargo.toml: web-sys", until: "cli C5" },
     Exception { what: "temper/crates/temper-fake/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/crates/temper-forge-setup-shell/Cargo.toml: rustls", until: "cli C5" },
     Exception { what: "temper/crates/temper-playground/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/crates/temper-protocol-records/Cargo.toml: [features]", until: "cli C5" },
     Exception { what: "temper/crates/temper-protocol-records/Cargo.toml: jig-protocol-config", until: "cli C5" },
@@ -207,7 +206,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/crates/temper-service/Cargo.toml: temper-worker-protocol-git", until: "cli C5" },
     Exception { what: "temper/crates/temper-worker-shell/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/crates/temper-box-shell/Cargo.toml: [features]", until: "cli C5" },
-    Exception { what: "temper/crates/temper-box-shell/Cargo.toml: rustls", until: "cli C5" },
     Exception { what: "temper/crates/temper-box-shell/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/testing/temper-github-app/Cargo.toml: temper-protocol-records", until: "cli C5" },
     Exception { what: "temper/testing/temper-github-app/Cargo.toml: temper-service", until: "cli C5" },
@@ -215,7 +213,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/tests/client/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tests/codecs/Cargo.toml: temper-protocol-records", until: "cli C5" },
     Exception { what: "temper/tests/engine/domain/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tests/one-process/Cargo.toml: aho-corasick", until: "cli C5" },
     Exception { what: "temper/tests/one-process/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tests/playground/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tests/real-loop/Cargo.toml: temper-protocol-records", until: "cli C5" },
@@ -225,8 +222,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
         what: "temper/crates/temper-client-journeys-tool/Cargo.toml: temper-client-shell-tui",
         until: "cli C5",
     },
-    Exception { what: "temper/crates/temper-stage-one-tool/Cargo.toml: serde", until: "cli C5" },
-    Exception { what: "temper/crates/temper-twin-tool/Cargo.toml: serde_json", until: "cli C5" },
 ];
 
 /// The findings no exception names, and the exceptions that name no

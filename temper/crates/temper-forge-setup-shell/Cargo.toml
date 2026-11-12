@@ -20,7 +20,7 @@ skein-shell.workspace = true
 skein-world.workspace = true
 skein-scratch.workspace = true
 skein-tls-kit.workspace = true
-rustls = { workspace = true, features = ["std"] }
+rustls-std.workspace = true
 jig-protocol-config.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
