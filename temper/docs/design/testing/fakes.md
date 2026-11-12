@@ -238,6 +238,26 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   git route's `objects` call gives a commit's tree, which the case's
   referee reads for main once the last merge is observed, before the
   forge stops.
+- **Its state kept, as a process:** `temper-box fake forge --document
+  FILE [--state STATE]`. With `--state`, the forge's state lasts across
+  its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;
+  `testing/fakes/github.md`, 1.7):
+  - **At its start,** a STATE present, this user's private single-link
+    regular file as a retained output is (`../protocol/setup/playground.md`,
+    its outputs), is read and the forge built from its image in place of
+    seeding the document's repositories, sources, App and accounts; the
+    document's listener, outputs, limits and CI are read as ever. STATE
+    absent, the forge is seeded from the document as before.
+  - **At its orderly stop,** on its termination signal, once its peer
+    has shut down: the forge's image written to a new private file
+    beside STATE and renamed over it. A forge that exits otherwise
+    writes nothing, so its next start reads what its last orderly stop
+    wrote.
+  - **A STATE it cannot read,** one that does not decode, holds past the
+    limits, or is no private regular file, refuses the start before the
+    listener is served, with one line on stderr, `temper-box fake forge:
+    state STATE refused: WHY`, STATE the path as given, and exit 1. The
+    file is left as it is.
 
 ## 3. The machine, and the fake git program
 

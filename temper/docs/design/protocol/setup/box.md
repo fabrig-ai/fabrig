@@ -741,9 +741,19 @@ are revalidated on both paths; edits are not silently replaced.
 Held listeners provide the ordinary fake peers' readiness and accept
 backlog. Restart, backoff, give-up and reverse-order shutdown use the
 ordinary supervisor. The playground's reset ends no peer of these, so a
-person's newly connected model or issuer runs on. Peer memory lasts one launch: a restarted peer
-uses the same seed and output files, but does not recover in-memory Apps or
-other changes. Effective configuration and temper's data remain retained.
+person's newly connected model or issuer runs on. The fake forges keep
+their state across a restart: the `fake github` and `fake forgejo` steps'
+arguments add `--state D'/github-forge.state` and `--state
+D'/forgejo-forge.state` (`../../testing/fakes.md`, 2), written at each
+one's orderly stop, so a stopped box's data holds its Apps,
+installations, repositories, pull requests and CI as they stood, and a
+copy of that data holds them (`../../draft/landed-qa.md`, 6). A forge
+that exits otherwise starts again from what its last orderly stop wrote,
+or from its seed when none has. The model and the issuer keep their
+memory for one launch: a restarted one uses the same seed, scripts and
+output files, and so answers as before. A state a newer build cannot
+read refuses that step's start, naming the file, as a store refused by
+name does. Effective configuration and temper's data remain retained.
 
 **Sources to copy** (`../../draft/repository-copies.md`, 6): the `fake forgejo`
 peer's document names two, and `box: copy source ADDRESS` prints each

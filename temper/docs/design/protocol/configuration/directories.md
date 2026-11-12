@@ -99,8 +99,10 @@ login is imported.
   after validating it; other effective edits and data remain. Without that
   override, the retained bundle is authoritative. The box prints these
   effective directories. Compatible v1 peer documents are revalidated and
-  retained; the seeded output files follow ../setup/playground.md. Peer in-memory
-  state lasts one launch, independently of retained configuration and data.
+  retained; the seeded output files follow ../setup/playground.md. The fake
+  forges' state is kept in D' across launches (../setup/box.md, 5); the
+  other peers' in-memory state lasts one launch, independently of
+  retained configuration and data.
   A later required document or adapter schema that cannot safely reuse an
   older sandbox is refused by name with explicit reset instructions;
   startup never migrates or deletes E or silently omits a required peer.
