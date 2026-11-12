@@ -21,12 +21,12 @@ fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecod
     for test in tests.into_boxed() {
         let test = test.into_parts().test_id;
         if test.is_empty() {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
         if let Some(previous) = values.as_slice().last()
             && previous >= &test
         {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
         values.push(test).expect(FITS);
     }
@@ -127,10 +127,10 @@ fn decode_run(run: w::TierRun) -> Result<p::Run, Undecodable> {
                 w::TierSelection::Tests(tests) => p::Selection::Tests(decode_tests(tests.into_parts().tests)?),
             };
             let finding = decode_finding(finding)?;
-            if usize::try_from(landing).or(Err(Undecodable))? >= landings.len()
+            if usize::try_from(landing).or(Err(Undecodable::Malformed))? >= landings.len()
                 || finding.blamed.len() != landings.len()
             {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
             p::Part::Probe { landing, tests, finding }
         }
@@ -221,11 +221,11 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         started,
     } = row.into_parts();
     if tier.is_empty() {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     for byte in &tier {
         if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
     }
     let record = decode_record(record)?;
@@ -240,7 +240,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         purpose: match purpose {
             Some(bytes) => match d::purpose::EffectPurpose::decode(&bytes) {
                 Some(value @ d::purpose::EffectPurpose::Tier { .. }) => Some(value),
-                _ => return Err(Undecodable),
+                _ => return Err(Undecodable::Malformed),
             },
             None => None,
         },
@@ -323,7 +323,7 @@ fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Faul
         w::TierFault::MissingWorkflow => Fault::MissingWorkflow,
     }
 }
-fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
+pub(super) fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     let mut pending = List::with_capacity(u32::try_from(flight.pending.len()).expect(FITS));
     for attempt in &flight.pending {
         pending.push(answers::encode_job_attempt(attempt)).expect(FITS);
@@ -365,7 +365,7 @@ fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     )
     .expect(FITS)
 }
-fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
+pub(super) fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
     let w::TierFlightParts { entry, start, since, waiting, next, run, pending, fault, report } = flight.into_parts();
     let mut attempts = List::with_capacity(pending.len());
     for attempt in pending.into_boxed() {
@@ -426,8 +426,10 @@ fn decode_probe(
     match probe {
         Some(probe) => {
             let w::TierProbeBranchParts { landing, branch } = probe.into_parts();
-            if usize::try_from(landing).or(Err(Undecodable))? >= run.ok_or(Undecodable)?.landings.len() {
-                return Err(Undecodable);
+            if usize::try_from(landing).or(Err(Undecodable::Malformed))?
+                >= run.ok_or(Undecodable::Malformed)?.landings.len()
+            {
+                return Err(Undecodable::Malformed);
             }
             Ok(Some(d::TierProbeBranch { landing, branch: decode_branch(branch) }))
         }
@@ -485,7 +487,7 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
         if let Some(previous) = values.as_slice().last() {
             let previous: &p::Flake = previous;
             if previous.test >= test {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
         values.push(p::Flake { test, count }).expect(FITS);
@@ -529,12 +531,12 @@ fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecoda
     for goal in goals.into_boxed() {
         let w::TierGoalParts { goal, branch, tip, ran, failing, started } = goal.into_parts();
         if branch.is_empty() {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
         if let Some(previous) = values.as_slice().last() {
             let previous: &d::TierGoal = previous;
             if previous.goal >= goal {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
         values

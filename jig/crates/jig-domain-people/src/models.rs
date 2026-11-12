@@ -141,6 +141,8 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
         | Ask::AnswerPerson { .. }
         | Ask::Move { .. }
         | Ask::DecideProposal { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Say { .. }
         | Ask::AnswerQuestion { .. }
         | Ask::SetRoles { .. }
@@ -234,6 +236,8 @@ fn selectors(ask: &Ask) -> Selectors {
         | Ask::AnswerPerson { .. }
         | Ask::Move { .. }
         | Ask::DecideProposal { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Say { .. }
         | Ask::AnswerQuestion { .. }
         | Ask::SetRoles { .. }

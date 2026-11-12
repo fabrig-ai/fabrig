@@ -1,9 +1,12 @@
 # gallery: status
 
-2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-12. Where the tree's code lags or departs from [gallery.md](gallery.md).
+
+- **Not yet:** 2: `work` and `work-drafts` hold no landed draft
+  [in flight: change 664].
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
-  `cargo test -p temper-client-gallery --lib`, serial, measured
+  `cargo test -p temper-client-gallery-tool --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
@@ -49,25 +52,25 @@ chosen.
   adds the large goal; chats and settings use the Reference and Solo
   worlds' parties, accounts and templates. Their counts, words, available
   tabs and resulting page lengths differ because the gallery draws those
-  domains (`tools/gallery/src/samples.rs`), not the mock's stored state.
+  domains (`crates/temper-client-gallery-tool/src/samples.rs`), not the mock's stored state.
 - **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
   drafter, and each role's `who` says when it runs alone, where
   `whole-story/how.html` says what it does too [in flight: change 316].
 - **Not yet:** 2: `sheet-from-home` and `sheet-from-chats` are not in
-  the gallery (`tools/gallery/src/samples.rs`) [in flight: change 525].
+  the gallery (`crates/temper-client-gallery-tool/src/samples.rs`) [in flight: change 525].
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
   its toast says "Paused" while the header and acts still read running and
-  Pause (`tools/gallery/src/samples.rs`, `goal_domain`).
+  Pause (`crates/temper-client-gallery-tool/src/samples.rs`, `goal_domain`).
 - **Not yet:** 1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`../view.md`, 1):
-  `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
+  `crates/temper-client-gallery-tool/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
 - **Departs:**  the elsewhere-forge address departure remains `README.status.md`, 2.3. 2: `google-sign-in`,
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
-  states the gallery holds (`tools/gallery/names.txt`,
-  `tools/gallery/src/samples.rs`) that the table does not list.
+  states the gallery holds (`crates/temper-client-gallery-tool/names.txt`,
+  `crates/temper-client-gallery-tool/src/samples.rs`) that the table does not list.
 
 `README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
 `code` query, transport sign-in by cookie, the signed-out state with
@@ -100,3 +103,5 @@ and the browser tier's public story expects "temper" and "Sign in" on
 every page (`public.md`, 4), with no passing run supplied here. No focused test
 reads the rules, whose effect is rendered; that comparison is `README.md`, section 3
 's, after landing.
+
+- **Not yet:** 2: `home-step-pair`'s and `needs-approval-first`'s sizes [in flight: change 535].

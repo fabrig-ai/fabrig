@@ -279,6 +279,8 @@ fn reports() -> Answer {
 }
 fn task() -> d::Task {
     d::Task {
+        talk: None,
+        session: None,
         settings: None,
         waits_on: d::WaitsOn::Nothing,
         label: 2,

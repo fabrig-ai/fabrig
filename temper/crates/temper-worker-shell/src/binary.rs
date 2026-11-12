@@ -12,15 +12,16 @@ use temper_shell::{
 pub const WORKER: Table = Table {
     binary: "temper-worker",
     line: "the deployment's worker: a worker alone, and its programs' sign-in.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &[SERVE, PROGRAM_LOGIN, table::HELP],
     settings: &[&directories::SETTINGS],
     variables: &[
         &environment::JOB,
         &INTERNAL_WORKSPACE_REUSE,
         &environment::INTERNAL_DUMP_LLM,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_service_shell::WAIT_CHECK,
         &temper_service_shell::CUT_AT_LISTEN,
     ],
@@ -62,9 +63,9 @@ fn capture() -> Capture {
 }
 
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
-    match run(&captured) {
+    match run(&captured, version, commit) {
         Ok(code) => ExitCode::from(code),
         Err((code, why)) => {
             eprint!("{why}");
@@ -73,14 +74,14 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn run(captured: &Capture) -> Result<u8, (u8, String)> {
+fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<u8, (u8, String)> {
     match WORKER.reach(&captured.run_as, &captured.arguments) {
         Reached::Help => {
             print!("{}", WORKER.help());
             Ok(0)
         }
         Reached::Version => {
-            print!("{}", WORKER.version_line());
+            print!("{}", Table { version, commit, ..WORKER }.version_line());
             Ok(0)
         }
         Reached::CommandHelp(command) => {
@@ -113,12 +114,14 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                     WORKER.binary,
                     &directories,
                     &captured.environment,
-                    false,
-                    |bytes, owned, _| {
+                    crate::served::SERVED,
+                    |_| Ok(()),
+                    |bytes, owned, ()| {
                         crate::worker::alone(&directories, bytes, owned, &captured.environment).map(|service| {
-                            temper_service_shell::Prepared { service, store: Box::new([]), line_bytes: 0 }
+                            temper_service_shell::Prepared { service, store: Box::new([]), adoption: () }
                         })
                     },
+                    |_, _, ()| Ok(()),
                 )
                 .map_err(|why| (1, why))?
                 {

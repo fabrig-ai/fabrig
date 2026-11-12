@@ -1,6 +1,8 @@
 //! The trees' dependencies point one way (AGENTS.md, 1): skein names none
 //! of smith, jig, temper or hearth, smith names neither jig nor temper, jig
 //! never names temper, and hearth names skein alone. Nothing names hearth.
+//! Only packages under temper/bin/ may name temper-version in any dependency
+//! table (temper/docs/design/release.md, 3).
 //! The check reads the workspace's manifests: the members the root
 //! `Cargo.toml` lists, and each member's package name and
 //! every dependency table (normal, target, dev and build), an inherited
@@ -19,6 +21,9 @@ const TREES: [(&str, &[&str]); 5] = [
     ("temper", &["skein", "smith", "jig"]),
     ("hearth", &["skein"]),
 ];
+
+/// Packages that only members under the directory prefix may name.
+const PACKAGE_DIRECTORIES: [(&str, &str); 1] = [("temper-version", "temper/bin/")];
 
 /// A member: its directory from the root, its package's name and the
 /// packages it depends on, in any table.
@@ -179,6 +184,24 @@ fn breaches(members: &[Member]) -> Vec<String> {
     breaches
 }
 
+/// Each member naming a restricted package outside the directory its row permits.
+fn package_breaches(members: &[Member]) -> Vec<String> {
+    let mut breaches = Vec::new();
+    for member in members {
+        for (package, prefix) in PACKAGE_DIRECTORIES {
+            if !member.directory.starts_with(prefix)
+                && member.dependencies.iter().any(|dependency| dependency == package)
+            {
+                breaches.push(format!(
+                    "{} ({}) depends on {package}, which only a package under {prefix} may name",
+                    member.name, member.directory
+                ));
+            }
+        }
+    }
+    breaches
+}
+
 fn workspace() -> Vec<Member> {
     let root = skein_scratch::paths::workspace();
     let source = fs::read_to_string(root.join("Cargo.toml")).expect("the root manifest is readable");
@@ -215,6 +238,22 @@ fn the_trees_depend_upstream_only() {
     }
     let breaches = breaches(&members);
     assert!(breaches.is_empty(), "dependencies against the trees' direction:\n{}", breaches.join("\n"));
+}
+
+#[test]
+fn restricted_packages_are_named_only_under_their_directory() {
+    let members = workspace();
+    for (package, prefix) in PACKAGE_DIRECTORIES {
+        assert!(
+            members.iter().any(|member| {
+                member.directory.starts_with(prefix)
+                    && member.dependencies.iter().any(|dependency| dependency == package)
+            }),
+            "the check reads a dependent on {package} under {prefix}"
+        );
+    }
+    let breaches = package_breaches(&members);
+    assert!(breaches.is_empty(), "dependencies outside their permitted directories:\n{}", breaches.join("\n"));
 }
 
 const ROOT: &str = r#"
@@ -302,6 +341,72 @@ fn hearth_names_skein_alone_and_nothing_names_hearth() {
             "hearth-f (hearth/f) depends on temper-d, a temper package",
         ]
     );
+}
+
+const VERSION_ROOT: &str = r#"
+[workspace]
+members = [
+    "temper/d",
+    "tests/e",
+    "temper/crates/temper-version",
+    "temper/bin/tool",
+    "temper/binary",
+]
+
+[workspace.dependencies]
+temper-version = { path = "temper/crates/temper-version" }
+renamed = { package = "temper-version", path = "temper/crates/temper-version" }
+"#;
+
+#[test]
+fn a_restricted_dependency_is_a_breach_in_any_table() {
+    let breach = "temper-d (temper/d) depends on temper-version, which only a package under temper/bin/ may name";
+    for (directory, dependency, expected) in [
+        ("temper/d", "[dependencies]\ntemper-version.workspace = true\n", Some(breach)),
+        ("temper/d", "[dev-dependencies]\ntemper-version.workspace = true\n", Some(breach)),
+        ("temper/d", "[build-dependencies]\ntemper-version.workspace = true\n", Some(breach)),
+        ("temper/d", "[target.'cfg(unix)'.dependencies]\ntemper-version.workspace = true\n", Some(breach)),
+        (
+            "tests/e",
+            "[dependencies]\ntemper-version.workspace = true\n",
+            Some("e (tests/e) depends on temper-version, which only a package under temper/bin/ may name"),
+        ),
+        ("temper/d", "[dependencies]\nrenamed.workspace = true\n", Some(breach)),
+        (
+            "temper/d",
+            "[dependencies]\nidentity = { package = \"temper-version\", path = \"../crates/temper-version\" }\n",
+            Some(breach),
+        ),
+        (
+            "temper/d",
+            "[dependencies]\ntemper-version.workspace = true\n[dev-dependencies]\nrenamed.workspace = true\n",
+            Some(breach),
+        ),
+        ("temper/bin/tool", "[dependencies]\ntemper-version.workspace = true\n", None),
+        (
+            "temper/binary",
+            "[dependencies]\ntemper-version.workspace = true\n",
+            Some("binary (temper/binary) depends on temper-version, which only a package under temper/bin/ may name"),
+        ),
+        ("temper/d", "", None),
+    ] {
+        let manifests = [
+            ("temper/d", "[package]\nname = \"temper-d\"\n"),
+            ("tests/e", "[package]\nname = \"e\"\n"),
+            ("temper/crates/temper-version", "[package]\nname = \"temper-version\"\n"),
+            ("temper/bin/tool", "[package]\nname = \"tool\"\n"),
+            ("temper/binary", "[package]\nname = \"binary\"\n"),
+        ];
+        let members = read(VERSION_ROOT, |at| {
+            manifests
+                .iter()
+                .find(|(directory, _)| *directory == at)
+                .map(|(_, source)| format!("{source}{}", if at == directory { dependency } else { "" }))
+                .ok_or_else(|| format!("{at}: no manifest"))
+        })
+        .expect("the fixture reads");
+        assert_eq!(package_breaches(&members), expected.into_iter().collect::<Vec<_>>(), "{directory}: {dependency}");
+    }
 }
 
 #[test]

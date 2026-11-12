@@ -2,6 +2,10 @@
 
 2026-11-11. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
+- **Not yet:** the opening's first bullet: a context adoption of a
+  repository another project writes, kept for its project and read by its
+  lookups, runs and follows [in flight: change 97].
+
 - **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected` [in flight: change 261].
 
 - **Not yet:** 6, *Only under a box*: a link restored by a connector built

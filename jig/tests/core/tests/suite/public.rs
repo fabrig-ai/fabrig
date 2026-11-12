@@ -122,6 +122,10 @@ fn a_deleted_public_project_is_unknown_from_its_deletions_decision() {
     assert_eq!(story::answer(&mut world, 500, story::read(2, None)), PublicAnswer::Unknown);
     world.hold_project_releases.clear();
     world.send(root::Event::Core(core::Event::ProjectReleased { connector: 1, project: 1 }));
+    super::deletion::finish(&mut world);
+    assert!(world.domain.core().people.deletions().is_empty());
+    assert!(world.domain.core().people.deleted(1));
+    assert_eq!(story::answer(&mut world, 501, story::read(2, None)), PublicAnswer::Unknown);
 }
 
 #[test]

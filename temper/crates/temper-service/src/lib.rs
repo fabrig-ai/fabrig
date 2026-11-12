@@ -4,24 +4,29 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
+#[path = "worker/job_ending.rs"]
+mod worker_job_ending;
+#[path = "worker_alone/vocabulary.rs"]
+mod worker_vocabulary;
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
+pub use worker_job_ending::JobEnding as WorkerJobEnding;
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
-pub mod long_pass;
+pub use temper_service_core::long_pass;
 pub mod settings;
 pub mod startup;
 pub mod stock;
 pub use startup::{Named, StoreLimits, named, startup, store_limits};
-pub use temper_protocol_records::NotConnected;
+pub use temper_protocol_records_forge::NotConnected;
 pub mod system;
 pub use system::{STAGES, Service, Stage, iterate, iterate_stage};
 pub mod store;
 #[cfg(test)]
 mod tests;
-pub mod tokens;
+pub use temper_service_core::tokens;
 
 pub mod accounts;
 pub mod assignment;
@@ -37,6 +42,8 @@ pub mod values;
 #[cfg(feature = "worker")]
 mod worker;
 #[cfg(feature = "worker")]
+pub mod worker_alone;
+#[cfg(feature = "worker")]
 mod worker_git;
 #[cfg(feature = "worker")]
 pub mod worker_route;
@@ -47,7 +54,7 @@ pub use worker::{Worker, WorkerRuntime};
 #[cfg(not(feature = "worker"))]
 mod unbuilt;
 #[cfg(not(feature = "worker"))]
-pub use unbuilt::{Worker, WorkerRuntime};
+pub use unbuilt::{Worker, WorkerRuntime, worker_alone};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod core_wait;
@@ -59,7 +66,8 @@ mod setup;
 mod start_refusal;
 mod stop;
 pub mod upgrade;
-pub use start_refusal::refused_start;
+pub use start_refusal::{refused_row_start, refused_start};
+pub use store::UnreadableRow;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
@@ -107,9 +115,15 @@ pub enum Stop {
     },
     /// The deployment's namespace binding was refused.
     Binding,
+    /// A current stored setting names a retired value or number.
+    Setting(temper_engine_domain_forge::settings::SettingKey),
     /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
+    },
+    /// A temper row refused decoding at restart (protocol/store.md, 5).
+    StoreRow {
+        row: UnreadableRow,
     },
     Listener {
         listener: Listening,
@@ -201,7 +215,7 @@ pub enum Note {
         attempt: u64,
         kind: u32,
         verb: Box<[u8]>,
-        ending: JobDiagnosticEnding,
+        ending: WorkerJobEnding,
         why: Box<[u8]>,
     },
     /// A forge read refusal with its task, tool, layer and authority findings.
@@ -343,13 +357,7 @@ pub enum Listening {
     Webhooks,
 }
 
-/// The peer's refusal code, or a local opening/decoding refusal.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Refusal {
-    Peer(u16),
-    Terms,
-    Malformed,
-}
+pub use temper_service_core::Refusal;
 
 pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
 pub use jig_protocol_worker_wire::Loss as WorkerLoss;

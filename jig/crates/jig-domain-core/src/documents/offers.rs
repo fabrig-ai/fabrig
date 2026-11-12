@@ -84,7 +84,7 @@ pub(super) fn task(
     row: &tasks::TaskRecord,
     decision: skein_lib::Wall,
 ) -> Result<List<Offered>, Missing> {
-    let mut kinds = List::with_capacity(9);
+    let mut kinds = List::with_capacity(11);
     let mutable = match row.phase {
         tasks::Phase::Waiting
         | tasks::Phase::Active(_)
@@ -96,6 +96,10 @@ pub(super) fn task(
     if mutable {
         if let tasks::Executor::Agent { .. } = row.executor {
             kinds.push(Act::Message).expect("task act bound");
+            if row.flags.ended_by == tasks::EndedBy::Standing {
+                kinds.push(Act::Talk).expect("task act bound");
+                kinds.push(Act::Leave).expect("task act bound");
+            }
         }
         kinds.push(Act::Amend).expect("task act bound");
         kinds.push(Act::Move).expect("task act bound");
@@ -413,7 +417,9 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
             Some(acts::Effect::Cancel(impact))
         }
         Act::Move => Some(acts::Effect::Move { reservation: core.tasks.takeover_budget(number)? }),
-        Act::Message
+        Act::Talk
+        | Act::Leave
+        | Act::Message
         | Act::Answer
         | Act::Take
         | Act::HandBack

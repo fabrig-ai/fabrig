@@ -494,7 +494,7 @@ impl World {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let result = match result {
-                        Ok(answer) => Ok(translate::answer(&op, answer, &self.env.limits.forge.client)),
+                        Ok(answer) => translate::answer(&op, answer, &self.env.limits.forge.client),
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }

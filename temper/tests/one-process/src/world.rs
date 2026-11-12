@@ -788,8 +788,10 @@ impl Host for Person {
         if client.started() && self.project_selected && !self.finished && !preparing {
             let before = self.actor.at();
             let mut face = TreeFace::new(client.tree());
+            // A repository watch can show the adoption before its keyed answer arrives.
+            // Keep the caller alive for that answer, including when only the service restarted.
             let next = if self.cutting
-                && self.life > 1
+                && (self.life > 1 || self.offset + before as usize >= fixtures::ADOPTION_REPLY_STEP)
                 && !self
                     .wire
                     .received

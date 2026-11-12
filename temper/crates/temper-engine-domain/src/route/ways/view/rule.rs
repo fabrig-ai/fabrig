@@ -12,7 +12,7 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64, kind: u32, number:
     for held in &rules {
         if held.scope == scope && held.number == number {
             let inputs = super::super::inputs(domain, project, party, &[], None, None);
-            return ways::View::Rule { kind, number, card: card(&held.rule, kind, number, &inputs.roles) };
+            return ways::View::Rule { kind, number, card: card(&held.rule, kind, number, &inputs) };
         }
     }
     not_drawn(&[
@@ -24,7 +24,7 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64, kind: u32, number:
     ])
 }
 
-fn card(rule: &settings::LandingRule, kind: u32, number: u32, roles: &[ways::Role]) -> ways::Card {
+fn card(rule: &settings::LandingRule, kind: u32, number: u32, inputs: &ways::Inputs) -> ways::Card {
     let who = if rule.enforce {
         "a landing rule · holds a merge until it is met"
     } else {
@@ -35,7 +35,11 @@ fn card(rule: &settings::LandingRule, kind: u32, number: u32, roles: &[ways::Rol
         Decimal::of(u64::from(number)).as_bytes(),
     ]);
     let mut facts = List::uncapped();
-    facts.push(fact(b"Covers", &covers(&rule.pattern))).expect("rule facts");
+    let mut covering = covers(&rule.pattern);
+    if ways::by_path(rule, &inputs.sets) {
+        covering = bytes::concat(&[&covering, b", where a change touches ", &ways::set_names(rule, &inputs.sets)]);
+    }
+    facts.push(fact(b"Covers", &covering)).expect("rule facts");
     let mut asks = Box::from(b"".as_slice());
     if rule.ci {
         asks = b"CI".as_slice().into();
@@ -67,7 +71,7 @@ fn card(rule: &settings::LandingRule, kind: u32, number: u32, roles: &[ways::Rol
         approvals = bytes::concat(&[
             &approvals,
             if approvals.is_empty() { b"" } else { b"; " },
-            &approval_words(approval, roles),
+            &approval_words(approval, &inputs.roles),
         ]);
     }
     if !approvals.is_empty() {
@@ -110,28 +114,17 @@ fn covers(pattern: &GatePattern) -> Box<[u8]> {
     }
 }
 
-// The approve stop's words are private to the derivation (domain/forge/change/branch-path.md).
 fn approval_words(approval: &settings::RuleApproval, roles: &[ways::Role]) -> Box<[u8]> {
-    let mut name = bytes::concat(&[b"role ", Decimal::of(u64::from(approval.role)).as_bytes()]);
-    let mut yours = false;
     for role in roles {
         if role.number == approval.role {
-            name.clone_from(&role.name);
-            yours = role.yours;
-            break;
+            return ways::approval_words(role, approval.people, false);
         }
     }
-    let mut words = if yours {
-        b"you approve".as_slice().into()
-    } else {
-        let article = match name.first() {
-            Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => b"an ".as_slice(),
-            Some(_) | None => b"a ".as_slice(),
-        };
-        bytes::concat(&[article, &name, b" approves"])
+    let role = ways::Role {
+        number: approval.role,
+        name: bytes::concat(&[b"role ", Decimal::of(u64::from(approval.role)).as_bytes()]),
+        yours: false,
+        holders: 0,
     };
-    if approval.people > 1 {
-        words = bytes::concat(&[&words, " ×".as_bytes(), Decimal::of(u64::from(approval.people)).as_bytes()]);
-    }
-    words
+    ways::approval_words(&role, approval.people, false)
 }

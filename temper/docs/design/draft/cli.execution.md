@@ -10,10 +10,10 @@
 | C2, `temper-box` and `temper-engine` in `temper/bin/`: the libraries holding their names renamed, their tables, sets, help, `--version`, pre-table modes as rows, generated documents, their internal variables renamed, and the dropped twins' tests reworked | 4.2, 4.3, 4.6, 8.4, 8.5, 8.7, 8.10 | temper/ui | C1 | none | done |
 | C3, `temper` in `temper/bin/`, from `temper-client`: its table, sets, help, and `temper box`: the TUI in front of `temper-box --front`, the local link's pipe, the identity check, the cache and the download, and `temper-box` without `--no-tui` and `internal tui` | 4.1, 5, 8.4 to 8.6 | temper/tui | C1; C2 for `temper-box`'s name | none; the download's walk is C7's | not started |
 | C4, the test set: the 29 renamed to `TEMPER_TEST_*`, with their setters, and the test set's document | 4.6, 8.7 | temper/tiers | C1 | none | done |
-| C5, features out of temper, each reporting the binaries' sizes before and after: `forge` and `worker` as crates; the recorders' shared journey and redaction code in a crate of its own, then the TUI's recorder; the web's `record`, `small-window`, `loopback-navigation` (with `skein-ui-web`'s) and `playground` | 6, 8.8 | temper/migration for `forge` and `worker`; temper/tui for the shared code and the TUI's recorder, telling temper/ui first; temper/ui for the web's | C1 | none | not started |
+| C5, features out of temper, each reporting the binaries' sizes before and after: `forge` and `worker` as crates; the recorders' shared journey and redaction code in a crate of its own, then the TUI's recorder; the web's `record`, `small-window`, `loopback-navigation` (with `skein-ui-web`'s) and `playground` | 6, 8.8 | temper/migration for `forge` and `worker`; temper/tui for the shared code and the TUI's recorder, telling temper/ui first; temper/ui for the web's | C1 | none | done |
 | C6, `temper-worker` and `temper-agent` in `temper/bin/`, with their tables | 4.4, 4.5 | temper/migration, with `deployment-binaries.execution.md`'s M3 and M4 | C1 | none | done |
 | C7, the site: `temper` at the short link, gzipped, and `temper-box` in each commit's directory, with the download line | 5, 8.9 | whoever runs the site's release job, with `deployment-binaries.execution.md`'s M6 | C2, C3 | on a fresh machine, the download line starts the box | not started |
-| C8, temper's tools and fixtures in `temper/bin/`, as internal binaries | 3.1 | temper/ui | C1 | none | not started |
+| C8, temper's tools and fixtures in `temper/bin/`, as internal binaries | 3.1 | temper/ui | C1 | none | done |
 
 ## 2. Order
 

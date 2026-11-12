@@ -1,5 +1,5 @@
 //! Git's records at the worker layer, with identity values below the root.
-use crate::{limits, settings};
+use crate::{settings, worker_settings::Limits};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
 use skein_io::kernel;
@@ -18,7 +18,7 @@ pub(crate) struct Git {
 impl Git {
     pub fn new(
         worker: &settings::Worker,
-        own: &limits::Limits,
+        own: &Limits,
         path: &[u8],
         root: kernel::Fd,
         seed: u64,
@@ -27,8 +27,8 @@ impl Git {
         home.put(path).expect("home path");
         home.put(b"/home").expect("home suffix");
         let component = match component::Component::new(
-            &own.git_component.into(),
-            &own.checkout.into(),
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout),
             component::Settings {
                 git: worker.git.clone(),
                 home: home.finish(),

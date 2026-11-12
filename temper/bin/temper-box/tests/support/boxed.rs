@@ -136,7 +136,7 @@ impl Judge {
         self.phase = Phase::Stopping;
     }
 }
-fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
+pub(crate) fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
     pids.iter().copied().find(|pid| {
         std::fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref() == Some(program)
             && std::fs::read(format!("/proc/{pid}/cmdline"))
@@ -795,7 +795,28 @@ pub fn run_ctl<T>(
         steps,
         deadline,
         check,
-        CtlPeers { expected_exits: Vec::new(), model: CtlModel::None },
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::None },
+    )
+    .0
+}
+/// Start an installed box at an explicit path, keeping ctl and tree drainage unchanged.
+#[must_use]
+pub fn run_ctl_from<T>(
+    program: &Path,
+    directory: &Path,
+    flags: Vec<String>,
+    client_root: &Path,
+    steps: Vec<super::ctl::Step>,
+    check: impl FnOnce(&Binary) -> T,
+) -> CtlOutcome<T> {
+    run_ctl_peers(
+        directory,
+        flags,
+        client_root,
+        steps,
+        BOX_DEADLINE,
+        check,
+        CtlPeers { program: Some(program.into()), expected_exits: Vec::new(), model: CtlModel::None },
     )
     .0
 }
@@ -818,7 +839,7 @@ pub fn run_ctl_resuming_playground<T>(
         steps,
         deadline,
         check,
-        CtlPeers { expected_exits: Vec::new(), model: CtlModel::ResumingPlayground(paths) },
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::ResumingPlayground(paths) },
     )
     .0
 }
@@ -840,7 +861,7 @@ pub fn run_ctl_with_exits<T>(
         steps,
         deadline,
         |_| check(),
-        CtlPeers { expected_exits: expected_exits.to_vec(), model: CtlModel::None },
+        CtlPeers { program: None, expected_exits: expected_exits.to_vec(), model: CtlModel::None },
     )
     .0
 }
@@ -851,6 +872,7 @@ pub struct CtlLlm {
     pub on_link: Box<dyn FnOnce()>,
 }
 struct CtlPeers {
+    program: Option<PathBuf>,
     expected_exits: Vec<(usize, u8)>,
     model: CtlModel,
 }
@@ -904,7 +926,7 @@ pub fn run_ctl_with_account_probe<T>(
         steps,
         deadline,
         |_| check(),
-        CtlPeers { expected_exits: Vec::new(), model: CtlModel::Account(Box::new(probe)) },
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::Account(Box::new(probe)) },
     )
     .0
 }
@@ -926,7 +948,7 @@ pub fn run_ctl_with_llm<T>(
         steps,
         deadline,
         |binary| check(binary.stderr()),
-        CtlPeers { expected_exits: llm.expected_exits.clone(), model: CtlModel::Llm(Box::new(llm)) },
+        CtlPeers { program: None, expected_exits: llm.expected_exits.clone(), model: CtlModel::Llm(Box::new(llm)) },
     )
     .0
 }
@@ -948,7 +970,7 @@ pub fn run_ctl_with_face<T>(
         steps,
         deadline,
         |_| check(),
-        CtlPeers { expected_exits: Vec::new(), model: CtlModel::Face(Box::new(face)) },
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::Face(Box::new(face)) },
     );
     (outcome, seen.expect("face observations"))
 }
@@ -1012,7 +1034,7 @@ fn run_ctl_peers<T>(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: peers.program.unwrap_or_else(|| skein_scratch::paths::binary("temper-box")),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             // Real repository stories, including a fake box's owned Forgejo,

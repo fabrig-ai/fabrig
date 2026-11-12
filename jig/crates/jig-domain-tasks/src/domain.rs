@@ -757,6 +757,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
+        Event::Talk { reply_to, project, operation } => {
+            crate::inbox::talk(domain, env, reply_to, project, operation, out);
+        }
+        Event::Leave { reply_to, project, task, party, maintainer } => {
+            crate::inbox::leave(domain, env, reply_to, project, (task, party, maintainer), out);
+        }
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
@@ -807,6 +813,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 },
                 out,
             );
+        }
+        Event::NowWritten { task, attempt, line } => {
+            crate::activity::now_written(domain, env, task, attempt, &line, out);
         }
         Event::Started { task, attempt } => crate::run::started(domain, env, task, attempt, out),
         Event::Refusals { task, attempt, refused, offered } => {
@@ -877,6 +886,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Retained { task, root, holding } => crate::holds::retained(domain, env, task, root, &holding, out),
         Event::Settled { task } => crate::closing::settled(domain, env, task, out),
         Event::QuestionOwedNotice { task, message } => crate::questions::owed(domain, env, task, message, out),
+        Event::QuestionParked { task, question, reason } => {
+            crate::run::question_parked(domain, env, task, question, &reason, out);
+        }
         Event::NothingAwaitedNotice { task, message } => {
             crate::run::nothing_awaited_notice(domain, env, task, message, out);
         }
@@ -1116,7 +1128,11 @@ impl Domain {
         Some(Box::new(crate::RunContext {
             session_wake: task.flags.ended_by == crate::EndedBy::Standing && !task.activation_open,
             session_kinds: crate::wake::session_kinds(domain, number, inbox.as_slice()),
-            reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
+            reasons: if self.open_questions(number).is_empty() {
+                crate::wake::reasons(domain, number, inbox.as_slice())
+            } else {
+                crate::wake::reasons(domain, number, inbox.as_slice()).union(crate::Reasons::QUESTION)
+            },
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
             payer: domain.payer(number).expect("admitted financial chain has a payer"),
@@ -1482,6 +1498,7 @@ pub(crate) fn make_admitted(
         let number = new.number;
         let task = Task::new(TaskRecord {
             session: None,
+            talk: None,
             activation_open: false,
             closer: None,
             reasons: crate::Reasons::FIRST,

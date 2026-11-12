@@ -41,7 +41,7 @@ Each number has an `.html` page and a `.txt` frame:
   offered by typing it without sending: its command list no longer
   replaces the quiet line. It clears those words before this mark.
 - `15.html` and `15.txt`: that chat at the recording's end. The quiet
-  line's goal part is left out at 80 columns, as `pages.md`'s narrow rule
+  line's goal part is left out at 80 columns, as `pages/README.md`'s narrow rule
   says (`../../pages.md`, *A design session*).
 
 The rule above the box names Hello, the chat's shortened title, T2 and

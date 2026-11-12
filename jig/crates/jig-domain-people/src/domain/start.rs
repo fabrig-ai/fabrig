@@ -87,7 +87,10 @@ impl Domain {
             match answer.outcome.family() {
                 OutcomeFamily::ServiceMade(person) => link(self, &mut missing, source, person),
                 OutcomeFamily::RolesSet(project) => {
-                    if !self.roles.contains_key(&project) && missing.is_none() {
+                    // Until its own rows go, an answer links to the kept deletion
+                    // (jig/docs/design/domain/people/acts.md, 2).
+                    if !self.roles.contains_key(&project) && !self.deletions.contains_key(&project) && missing.is_none()
+                    {
                         missing = Some(RestoreFailure {
                             key: source,
                             cause: crate::RestoreCause::Link { target: Key::Roles(project) },
@@ -189,6 +192,7 @@ fn discarded(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
         Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
         Stored::Deletion { .. }
         | Stored::Public { .. }
+        | Stored::Deleted { .. }
         | Stored::Person { .. }
         | Stored::Roles { .. }
         | Stored::ReadResults { .. }
@@ -220,6 +224,9 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
     }
     match record {
         Stored::Public { .. } => {}
+        Stored::Deleted { project } => {
+            domain.deleted.insert(project).expect("mark fit checked");
+        }
         Stored::Deletion { project, step, grace } => {
             domain.deletions.insert(project, crate::KeptDeletion { step, grace }).expect("deletion fit checked");
         }
@@ -263,6 +270,10 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
     let key = record.key();
     match record {
         Stored::Public { .. } => Ok(()),
+        Stored::Deleted { project } => {
+            assert!(!domain.deleted.contains(project), "duplicate {key:?}");
+            fit::occupancy(&key, RestoreBound::Roles, domain.deleted.len(), 0, env.limits.projects)
+        }
         Stored::Deletion { project, .. } => {
             assert!(!domain.deletions.contains_key(project), "duplicate {key:?}");
             fit::occupancy(&key, RestoreBound::Roles, domain.deletions.len(), 0, env.limits.projects)

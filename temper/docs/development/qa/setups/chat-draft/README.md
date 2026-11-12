@@ -1,0 +1,1 @@
+Hello's first chat, T2, has written the first Away mode draft and opened Split, at chat-draft's mark 3 (06.html), before any revision request or goal creation. This state serves the chat's Chat, Split and Draft views, the draft's Purpose, When the person returns and Open questions sections, and the Start goal sheet; the box's generated fake-model scripts supply its replies.

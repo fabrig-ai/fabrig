@@ -166,7 +166,7 @@ pipes      stdin (written, then closed), stdout, stderr
   the engine's root holds (channel.md, section 4). git follows Forgejo's
   redirect from a renamed repository's old path for its first request
   (`http.followRedirects`, whose default is `initial`), as
-  `tools/git-transcripts` records (fact
+  `temper-git-transcripts` records (fact
   `git-follows-a-renamed-repository-redirect`); a remote that changes
   misses the checkout's cache and the worker's store, which clone and fetch
   afresh.
@@ -566,7 +566,7 @@ The push's status line decides:
 
 Forgejo refuses a push to a protected branch with that `[remote
 rejected]` line, its reason ending in `declined`, as
-`tools/git-transcripts` records (fact
+`temper-git-transcripts` records (fact
 `protected-push-is-remote-rejected-declined`).
 
 A push that fails in a way that may have landed (`Unreachable`, `Broken`,
@@ -860,14 +860,14 @@ checks this document's contract:
     program, each invocation failing 128, naming the host, with nothing
     spawned.
 - **Transcripts** of real git 2.47, captured once, outside the suites, by
-  `tools/git-transcripts`: every invocation of section 4, and every
+  `temper-git-transcripts`: every invocation of section 4, and every
   failure of section 6 (a missing repository, branch and commit, a wrong
   token, no permission, a protected branch, a refused connection),
   against skein's throwaway Forgejo (`skein/docs/design/testing/fakes/forge.md`, section 6;
   `../testing/process-tier.md`). Each keeps the argument vector,
   exit status, stdout and stderr, masked: object ids, ports, paths and
   times. No credential is ever written. The facts this document relies
-  on, named in `git.md`, sections 3 and 4.8, are in `tools/git-transcripts/facts.txt`
+  on, named in `git.md`, sections 3 and 4.8, are in `crates/temper-git-transcripts-tool/facts.txt`
   with git's and Forgejo's versions. They are captured again when an
   invocation changes, or to move to another git.
 - **The git component's machine world,** `tests/worker/protocol-git`:

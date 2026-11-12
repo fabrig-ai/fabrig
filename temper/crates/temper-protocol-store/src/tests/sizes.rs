@@ -64,12 +64,12 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
         if name == "right key" {
             assert_eq!(records::row(&key, &value, &bounds), Ok(row.clone()));
         } else {
-            assert_eq!(records::row(&key, &value, &bounds), Err(Undecodable), "{name}");
+            assert_eq!(records::row(&key, &value, &bounds), Err(Undecodable::Malformed), "{name}");
         }
     }
-    assert_eq!(records::row(&[], &value, &bounds), Err(Undecodable), "malformed key");
+    assert_eq!(records::row(&[], &value, &bounds), Err(Undecodable::Malformed), "malformed key");
     let key = keys::encode(&forge::Key::Landed([1; 32]), u32::MAX).expect("a fixed key fits");
-    assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable), "malformed value");
+    assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable::Malformed), "malformed value");
 }
 #[test]
 fn the_store_version_is_eleven() {

@@ -98,7 +98,7 @@ pub(super) fn decode(row: w::Forge) -> Result<d::ForgeRecord, Undecodable> {
         Some(link) => {
             let w::ForgeLinkParts { user, person } = link.into_parts();
             if user == 0 || person == 0 {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
             Some(d::Link { user, person })
         }

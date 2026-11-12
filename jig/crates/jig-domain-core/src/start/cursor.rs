@@ -44,6 +44,7 @@ fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
                 Key::People(
                     jig_domain_people::Key::Acted(_)
                     | jig_domain_people::Key::Deletion(_)
+                    | jig_domain_people::Key::Deleted(_)
                     | jig_domain_people::Key::Public(_),
                 ) => 1,
                 Key::People(

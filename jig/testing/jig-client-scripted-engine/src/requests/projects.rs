@@ -23,6 +23,8 @@ impl<A: Application> Engine<A> {
             | Ask::Create { .. }
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }
+            | Ask::Talk { .. }
+            | Ask::Leave { .. }
             | Ask::Message { .. }
             | Ask::Compound { .. }
             | Ask::Answer { .. }
@@ -54,6 +56,25 @@ impl<A: Application> Engine<A> {
         let held = me.projects.iter().find(|p| p.project == project).map(|p| p.role);
         if held != Some(HeldRole::Owner) {
             return Ok(refused(Refusal::Role { held }));
+        }
+        let mut roots = Vec::new();
+        for value in self.truth.objects.values() {
+            if let jig_client_domain::contract::ReadValue::Task(task) = value
+                && task.project == project
+                && !matches!(task.requester, jig_client_domain::contract::Requester::Task(_))
+                && task.chip.phase.class() != jig_client_domain::contract::PhaseClass::Ended
+            {
+                roots.push(task.chip.task);
+            }
+        }
+        roots.sort_unstable();
+        if !roots.is_empty() {
+            let more = u32::try_from(roots.len().saturating_sub(32)).expect("bounded live roots");
+            let mut tasks = List::with_capacity(32);
+            for task in roots.into_iter().take(32) {
+                tasks.push(task).expect("named roots fit");
+            }
+            return Ok(refused(Refusal::LiveTasks { tasks, more }));
         }
         let change = Change::RemoveProject { project };
         change.validate(&self.bounds)?;

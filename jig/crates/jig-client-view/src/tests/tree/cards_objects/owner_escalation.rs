@@ -136,18 +136,16 @@ fn closed_offers(refused: bool) -> Escalation {
             },
         ]),
     };
-    for _ in 0_u32..5 {
-        for act in kinds {
-            let admission = if refused {
-                Admission::Refused(Refusal::Moved {
-                    now: Revision { value: u64::MAX },
-                    what: Moved::Hold { reason: Some(CurrentHold::Document(Box::new(reason.clone()))) },
-                })
-            } else {
-                Admission::Allowed
-            };
-            row.acts.push(Offered { effect: None, act, admission }).unwrap();
-        }
+    for act in kinds.into_iter().cycle().take(usize::try_from(MAX_OFFERED_ACTS).unwrap()) {
+        let admission = if refused {
+            Admission::Refused(Refusal::Moved {
+                now: Revision { value: u64::MAX },
+                what: Moved::Hold { reason: Some(CurrentHold::Document(Box::new(reason.clone()))) },
+            })
+        } else {
+            Admission::Allowed
+        };
+        row.acts.push(Offered { effect: None, act, admission }).unwrap();
     }
     row
 }

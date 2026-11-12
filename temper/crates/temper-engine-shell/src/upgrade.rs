@@ -43,10 +43,8 @@ fn prepare(
     }
     let agent =
         if named.worker.is_some() { Some(worker.expect("checked worker half").preflight(&named)?) } else { None };
-    let required = core::mem::take(&mut named.files);
-    let asked = core::mem::take(&mut named.asked_files);
     let crate::serve::Inputs { files, google, bundle } =
-        crate::serve::read_inputs(&named, required, asked, skein_shell::effective_user())?;
+        crate::serve::before_root(&mut named, skein_shell::effective_user())?;
     let roots = crate::serve::trust(None)?;
     let github = crate::serve::github_runtime(binary, named.machine.github.as_ref(), &roots, crate::address)?;
     let document = jig_protocol_config::document(
@@ -141,7 +139,7 @@ fn run_inner(
             return Err(why.to_string());
         }
     };
-    let mut host = temper_service_shell::Host::for_upgrade(binary, service, directories.clone(), source.clone());
+    let mut host = temper_service_shell::Host::for_upgrade(binary, service, crate::served::SERVED, directories.clone(), source.clone());
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch {
         let _removed = std::fs::remove_dir(scratch);

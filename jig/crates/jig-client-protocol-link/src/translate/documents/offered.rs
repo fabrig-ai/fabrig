@@ -4,6 +4,8 @@ use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, effec
 pub(crate) fn act_kind_fields(value: &w::ActKind) -> c::ActKind {
     match value {
         w::ActKind::Reorder => c::ActKind::Reorder,
+        w::ActKind::Talk => c::ActKind::Talk,
+        w::ActKind::Leave => c::ActKind::Leave,
         w::ActKind::Message => c::ActKind::Message,
         w::ActKind::Answer => c::ActKind::Answer,
         w::ActKind::Take => c::ActKind::Take,

@@ -116,3 +116,5 @@
     [25] Pass up
     [26] Amend
     [27] Cancel
+    [28] Release
+    [29] Leave it held

@@ -1,6 +1,7 @@
 # tooling: status
 
-2026-11-10. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-12. Where temper's code lags or departs from [tooling.md](tooling.md).
+
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract, since neither kind is built (`../domain/worker/jobs.md`): no

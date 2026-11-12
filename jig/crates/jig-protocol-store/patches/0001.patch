@@ -7,11 +7,26 @@ add EndedBy.standing
 
 family jig-store-tasks 9 to 10
 add EndedBy.standing
+add NowWrittenLine
 add StoodLine
 add SessionEnd
 add SessionEndedLine
+add TalkOpenedLine
+add TalkEndedLine
 add Line.stood
 add Line.session_ended
+add Line.talk_opened
+add Line.talk_ended
+add Line.now_written
+add Talk
 add Session
-add TaskRecord.activation_open bool false
-add TaskRecord.session option Session none
+rename TaskRecord BeforeTalk
+add BeforeTalk.activation_open bool false
+add BeforeTalk.session option Session none
+add TaskRecord
+add Value.live_talk
+add Value.ended_talk
+add TalkOpen
+add Refusal.not_standing
+add Refusal.talk_open
+add Refusal.no_talk
