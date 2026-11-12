@@ -654,8 +654,8 @@ the printed link names them. A stopped box holds none, so a port the kernel
 hands on meanwhile refuses its restart, naming the port. An init-shaped
 source's listeners stay its own.
 
-`TEMPER_INTERNAL_FAKE_BOX_PORTS`, the process tier's and never a person's
-(`../../testing/process-tier.md`), names a new sandbox's nine ports, separated
+`TEMPER_INTERNAL_FAKE_BOX_PORTS`, the process tier's and QA's places', never a person's
+(`../../testing/process-tier.md`; `../../testing/qa/places.md`, 2), names a new sandbox's nine ports, separated
 by commas: init's five, clients, owned, forge, llm and webhooks, then the
 peers' github, oauth, llm and forgejo. A new sandbox holds each of them or
 refuses to start, naming the port and the variable, as it does a value that

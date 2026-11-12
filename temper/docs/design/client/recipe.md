@@ -109,7 +109,7 @@ lowercase hexadecimal digits.
 ### 5.1 `recipe walk`
 
 ```text
-temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]
+temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]
 ```
 
 - **The chain read first:** a refusal of section 3 comes before
@@ -124,8 +124,9 @@ temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--
   with it, it holds them, or the walk refuses.
 - **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
-  root first, as `--scripts`, and `--strict` as given: on a pass's box
-  it is (`../draft/landed-qa.md`, 6).
+  root first, as `--scripts`, and `--strict` and `--ports` as given: on
+  a pass's box `--strict` is (`../draft/landed-qa.md`, 6), and a place
+  with ports gives them (`../testing/qa/places.md`, 2).
 - **Its lines,** given to the session in this order, with the chain's
   recipes R1 to Rk, root first:
   - from a fresh box: for each Ri, its steps, then `web reload "/"` and

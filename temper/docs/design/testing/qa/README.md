@@ -1,7 +1,7 @@
 # Landed QA
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, milestones Q1
-and Q3 of `../../draft/landed-qa.execution.md`. QA after landing, beside
+Provisional, 2026-11-12, from `../../draft/landed-qa.md`, milestones Q1,
+Q3 and Q4 of `../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
 each landing and run each pass. This document is the tool, its home, its
@@ -9,7 +9,9 @@ loop and its lines; its parts are documents of their own beside it.
 Landings, triage, kept builds and the ledger are Q1's; places and their
 copies (`places.md`), passes (`passes.md`) and findings with their goal
 (`findings.md`) are Q3's, on Q2's drive session and recipes
-(`../../client/drive.md`, `../../client/recipe.md`).
+(`../../client/drive.md`, `../../client/recipe.md`); the TUI's cases, the
+setups' catalogue with its twins (`setups.md`), places' own ports and
+the figures bounds are tuned from are Q4's.
 
 ## 1. In one page
 
@@ -82,6 +84,7 @@ copies (`places.md`), passes (`passes.md`) and findings with their goal
   | `temper-qa show` | anyone | `ledger.md`, 6 |
   | `temper-qa lines` | anyone | `ledger.md`, 6 |
   | `temper-qa report PASS` | anyone | `passes.md`, 8 |
+| `temper-qa tune` | anyone | `ledger.md`, 6 |
 
 - **Its variables,** internal, read through its table
   (`../tools.md`, 4.3):
@@ -133,7 +136,7 @@ taken from the home.
   "bounds": { "poll": 60, "triage": 900, "build_wait": 21600, "pass": 7200 },
   "builds": "builds",
   "places": ["places/1"],
-  "surfaces": ["web"],
+  "surfaces": ["web", "tui"],
   "areas": { "web": "AREA", "tui": "AREA" },
   "request": { "command": ["PROGRAM", "ARG"], "state": ["PROGRAM", "ARG"], "area": "AREA" },
   "notify": ["PROGRAM", "ARG"]
@@ -157,11 +160,17 @@ taken from the home.
   landings before it is a line, 21600 when absent (`ledger.md`, 4.7);
   `pass`, a pass session's time, 7200 when absent (`passes.md`, 4).
 - **`builds`:** where kept builds are, `builds` when absent.
-- **`places`:** the places' directories, at least one, each distinct,
-  `["places/1"]` when absent (`places.md`, 2). A place's name in the
-  ledger is its directory as written here.
+- **`places`:** the places, at least one, `["places/1"]` when absent
+  (`places.md`, 2): each its directory, or `{"directory", "ports"}`,
+  `ports` the nine ports its boxes bind, as
+  `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists them
+  (`../../protocol/setup/box.md`, 5), each nonzero and distinct, and
+  distinct across places. Directories are distinct. A place's name in
+  the ledger is its directory as written here. More than one place
+  needs each its ports (`places.md`, 2); the deployment adds one when
+  `temper-qa tune` suggests it (`ledger.md`, 6).
 - **`surfaces`:** the surfaces a pass takes cases of, each `web` or
-  `tui`, `["web"]` when absent; a case of another surface stays queued
+  `tui`, `["web", "tui"]` when absent; a case of another surface stays queued
   (`passes.md`, 3). Triage records cases of both
   (`../../draft/landed-qa.md`, 4).
 - **`areas`:** each surface's area, `web` and `tui` each optional; a
@@ -259,7 +268,12 @@ its binary's table test (`../tools.md`, 6), each failing first:
 - **The place's commands** over fakes of the drive tool and the archive
   (`places.md`, 8): small scripts that answer as the drive session and
   the recipe walk do, so that a copy's restore, its making again and the
-  holder's lines are checked with no box.
+  holder's lines are checked with no box, a place's ports passed to
+  each walk and session among them.
+- **`tune`** over ledgers the test builds: each figure, and each
+  suggestion made or withheld at its threshold (`ledger.md`, 6), and a
+  wait for a place opened and closed by the loop's third step
+  (`ledger.md`, 4.17).
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
@@ -280,12 +294,6 @@ The deployment's, on the machine that holds the places:
 
 ## 8. Later
 
-- **The TUI's cases and deeper states:** Q4
-  (`../../draft/landed-qa.execution.md`), `tui` added to `surfaces`, fake
-  forges keeping their state across a restart, scripts taking values
-  from the conversation, and twins as setups.
-- **More places** when passes queue (`../../draft/landed-qa.md`, 12;
-  `places.md`, 9).
 - **Edge cases, ctl and the help as surfaces, and real backends**
   (`../../draft/landed-qa.md`, 12).
 
