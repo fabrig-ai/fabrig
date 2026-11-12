@@ -75,6 +75,9 @@ impl Bounds {
 pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
     let limits = v11::Limits {
         closer_selections: forge.tasks,
+        closing_question_words: forge.client.op_bytes.max(change_words),
+        closing_asked_answer_some: forge.client.op_bytes.max(change_words),
+        closing_message_words: forge.client.op_bytes.max(change_words),
         status_brief_sentence: 200,
         status_brief_lede: 600,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,

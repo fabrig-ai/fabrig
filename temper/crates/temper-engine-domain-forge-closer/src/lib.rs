@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod policy;
 mod report;
+pub mod relay;
 mod selection;
 pub use policy::{Child, Closer, Decision, Facts, Hold, Running, Step, Stepped, step};
 pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_answer, selection_read};
