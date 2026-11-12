@@ -44,6 +44,11 @@ struct World {
     output: Fd,
     signals: Fd,
     children: Vec<fake_box::Child>,
+    login: Option<fake_box::Login>,
+    login_spawns: usize,
+    login_refused: bool,
+    loan_signals: Vec<(io::kernel::Signal, io::kernel::Target)>,
+    spawn_root: Option<Fd>,
     bound: std::collections::BTreeSet<Token>,
     hold_link: bool,
     connects: Vec<io::Addr>,
@@ -139,7 +144,10 @@ impl World {
             record: recording,
             front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
                 executable: b"/bin/temper".as_slice().into(),
-                cache: b"/cache".as_slice().into(),
+                directories: temper_shell::directories::Directories {
+                    config: b"/config".as_slice().into(), data: b"/data".as_slice().into(),
+                    cache: b"/cache".as_slice().into(), origins: [skein_shell::Origin::Flag; 3],
+                },
                 arguments: vec![Box::from(b"--data".as_slice()), Box::from(b"/data".as_slice())].into(),
                 environment: vec![Box::from(b"HOME=/home/person".as_slice())].into(),
                 directory,
@@ -169,6 +177,11 @@ impl World {
             output,
             signals,
             children: Vec::new(),
+            login: None,
+            login_spawns: 0,
+            login_refused: false,
+            loan_signals: Vec::new(),
+            spawn_root,
             bound: std::collections::BTreeSet::new(),
             hold_link: false,
             connects: Vec::new(),
@@ -210,13 +223,17 @@ impl World {
                             && [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref())
                             && self.bound.insert(complete.op)
                         {
-                            Some((*pidfd, spawn.program.as_ref() == b"/bin/temper-box"))
+                            Some((*pidfd, spawn.program.as_ref() == b"/bin/temper-box", spawn.args.first().is_some_and(|arg| arg.as_ref() == b"program-login")))
                         } else {
                             None
                         }
                     })
                     .collect();
-                for (pidfd, boxed) in spawns {
+                for (pidfd, boxed, login) in spawns {
+                    if login {
+                        self.login = Some(fake_box::Login::new(&mut self.sim, self.pid, pidfd));
+                        continue;
+                    }
                     self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
                 }
                 self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
@@ -224,7 +241,19 @@ impl World {
             }
             for submit in self.run.submissions().iter() {
                 if let Op::Spawn { spawn } = &submit.kind {
-                    if spawn.program.as_ref() == b"/bin/browser" {
+                    if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"program-login") {
+                        self.login_spawns += 1;
+                        assert_eq!(spawn.program.as_ref(), b"/bin/temper-box");
+                        assert_eq!(spawn.args.len(), 8);
+                        let flags: Vec<_> = spawn.args.iter().take(7).map(AsRef::as_ref).collect();
+                        assert_eq!(flags, [b"program-login".as_slice(), b"--config", b"/config", b"--data", b"/data", b"--cache", b"/cache"]);
+                        assert_eq!(spawn.env.as_ref(), &[Box::<[u8]>::from(b"HOME=/home/person".as_slice())]);
+                        assert_eq!(Some(spawn.root), self.spawn_root);
+                        assert_eq!(spawn.dir.as_ref(), b".");
+                        assert_eq!(spawn.pipes.as_ref(), &(0..3).map(|child| io::kernel::Pipe { child, way: io::kernel::Way::Inherit, parent: None }).collect::<Vec<_>>());
+                        assert!(self.bytes.windows(LEAVE.len()).any(|bytes| bytes == LEAVE), "left before spawn");
+                        assert!(self.bytes.ends_with(b"browser.\n"), "line and LF before spawn: {}", String::from_utf8_lossy(&self.bytes));
+                    } else if spawn.program.as_ref() == b"/bin/browser" {
                         self.spawns += 1;
                         assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
                     } else {
@@ -235,13 +264,28 @@ impl World {
                     self.connects.push(io::Addr::Ip(*addr));
                 }
                 if let Op::Signal { to, .. } = &submit.kind {
-                    assert_eq!(*to, io::kernel::Target::Child, "the browser's group stays");
+                    if self.login_spawns > 0 {
+                        if let Op::Signal { signal, to, .. } = &submit.kind {
+                            self.loan_signals.push((*signal, *to));
+                        }
+                    } else {
+                        assert_eq!(*to, io::kernel::Target::Child, "the browser's group stays");
+                    }
+                }
+            }
+            if self.login.as_ref().is_some_and(|login| !login.finished) {
+                for submit in self.run.submissions().iter() {
+                    assert!(!matches!(&submit.kind, Op::PipeRead { fd, .. } if *fd == self.input), "no TUI key read while lent");
+                    assert!(!matches!(&submit.kind, Op::PipeWrite { fd, .. } if *fd == self.output), "no frame while lent");
                 }
             }
             self.sim.submit(self.pid, self.run.submissions());
             self.serve();
             for child in &mut self.children {
                 child.iterate(&mut self.sim, self.now);
+            }
+            if let Some(login) = &mut self.login {
+                login.iterate(&mut self.sim);
             }
             if let Some(engine) = &mut self.engine {
                 if self.run.is_empty() {
@@ -261,6 +305,7 @@ impl World {
                 || self.run.work_pending(self.now)
                 || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim))
                 || self.children.iter().any(|child| child.pending(&self.sim))
+                || self.login.as_ref().is_some_and(|login| login.pending(&self.sim))
             {
                 continue;
             }
@@ -327,6 +372,10 @@ impl World {
                 self.saved += 1;
             }
             if let Ask::Spawn { program, args, .. } = &call.ask {
+                if args.first().is_some_and(|arg| arg.as_ref() == b"program-login") && self.login_refused {
+                    answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::NotFound) });
+                    continue;
+                }
                 if [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&program.as_ref()) {
                     answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Service)) });
                     continue;
@@ -468,6 +517,7 @@ struct Engine {
     link_answer: Option<jig_client_protocol_wire::v19::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
+    terminal_watch: Option<u64>,
 }
 impl Engine {
     fn new(sim: &mut Sim) -> Self {
@@ -491,6 +541,7 @@ impl Engine {
             link_answer: None,
             link_sign_ins: 0,
             approvals: 0,
+            terminal_watch: None,
         };
         engine.down(io::Request::Listen {
             owner: Token::new(1),
@@ -619,11 +670,13 @@ impl Engine {
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
         use jig_client_protocol_wire::v19 as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
-        if open.subject().owner() == &w::Owner::Jig
-            && w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).expect("subject")
-                == w::Subject::Me
-        {
-            self.respond(self.stream.expect("opened stream"), me_event(open.watch()));
+        if open.subject().owner() == &w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).expect("subject");
+            if subject == w::Subject::Me {
+                self.respond(self.stream.expect("opened stream"), me_event(open.watch()));
+            } else if matches!(subject, w::Subject::Terminal(_)) {
+                self.terminal_watch = Some(open.watch());
+            }
         }
         self.respond(owner, {
             let answer = w::OpenAnswer::Admitted;

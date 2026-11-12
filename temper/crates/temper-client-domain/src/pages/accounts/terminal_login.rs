@@ -5,11 +5,14 @@ use alloc::boxed::Box;
 use jig_client::{Handle, Latest, State, contract as c};
 use skein_lib::{Env, Queue};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Terminal {
     handle: Option<Handle>,
 }
 impl Terminal {
+    pub(crate) const fn new() -> Self {
+        Self { handle: None }
+    }
     pub(crate) fn login<'a>(&self, client: &'a jig_client::Client) -> Option<&'a c::TerminalLogin> {
         let document = client.document(self.handle?)?;
         if document.state != State::Live {

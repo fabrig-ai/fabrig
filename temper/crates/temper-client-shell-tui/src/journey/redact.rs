@@ -105,6 +105,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Quit
         | Line::StopBox
         | Line::StopBoxAgain
+        | Line::Lent { .. } | Line::Lend { .. } | Line::Unlend
         | Line::Deadline(_) => Vec::new(),
     }
 }
@@ -191,6 +192,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Quit
             | Line::StopBox
             | Line::StopBoxAgain
+        | Line::Lent { .. } | Line::Lend { .. } | Line::Unlend
             | Line::Deadline(_)
             | Line::Mark(_)
             | Line::End(_) => {}

@@ -12,7 +12,10 @@ const URL: &[u8] = b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAA
 fn child() -> Child {
     Child::new(Front {
         executable: b"/bin/temper".as_slice().into(),
-        cache: b"/cache".as_slice().into(),
+        directories: temper_shell::directories::Directories {
+            config: b"/config".as_slice().into(), data: b"/data".as_slice().into(),
+            cache: b"/cache".as_slice().into(), origins: [skein_shell::Origin::Flag; 3],
+        },
         arguments: vec![
             Box::from(b"--fake-backends".as_slice()),
             Box::from(b"--data".as_slice()),

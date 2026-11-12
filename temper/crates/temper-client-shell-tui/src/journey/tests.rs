@@ -526,6 +526,8 @@ fn duties_keep_the_seams_order_and_fields() {
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
+        lend: None,
+        unlend: false,
         stop: None,
         local: true,
         note: Some(temper_client_tui::Note::SignedOut),

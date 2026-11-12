@@ -55,7 +55,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         approval_revision: 0,
         asked: None,
         signed_out: false,
-        terminal: crate::pages::accounts::terminal_login::Terminal::default(),
+        terminal: crate::pages::accounts::terminal_login::Terminal::new(),
     }
 }
 impl Domain {

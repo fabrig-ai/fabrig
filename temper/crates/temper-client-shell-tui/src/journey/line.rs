@@ -131,6 +131,7 @@ pub struct Unreadable {
 
 impl Line {
     /// Append this record and its newline.
+    #[expect(clippy::too_many_lines, reason = "the recording's variants are written in one exhaustive match")]
     pub fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
