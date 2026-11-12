@@ -341,7 +341,14 @@ impl Drivers {
     pub fn adopt(&mut self, fd: Fd, user: u32, owner: Token, installation: [u8; 16]) -> Result<(), Fd> {
         self.adopt_mode(fd, user, owner, installation, Adoption::Open)
     }
-    pub fn adopt_mode(&mut self, fd: Fd, user: u32, owner: Token, installation: [u8; 16], mode: Adoption) -> Result<(), Fd> {
+    pub fn adopt_mode(
+        &mut self,
+        fd: Fd,
+        user: u32,
+        owner: Token,
+        installation: [u8; 16],
+        mode: Adoption,
+    ) -> Result<(), Fd> {
         if self.adopted || self.closing {
             return Err(fd);
         }
@@ -375,10 +382,16 @@ impl Drivers {
         });
         if let Adoption::Rehearse { scratch } = mode {
             self.below.secrets.push(file::Request::OpenDirectory {
-                owner: ADOPT, root: scratch, name: b".".as_slice().into(), no_follow: true,
+                owner: ADOPT,
+                root: scratch,
+                name: b".".as_slice().into(),
+                no_follow: true,
             });
             self.below.transcripts.push(file::Request::OpenDirectory {
-                owner: ADOPT, root: scratch, name: b".".as_slice().into(), no_follow: true,
+                owner: ADOPT,
+                root: scratch,
+                name: b".".as_slice().into(),
+                no_follow: true,
             });
         }
         Ok(())
@@ -521,12 +534,12 @@ impl Drivers {
                     if fd.is_none() {
                         if self.root.take().is_some() {
                             above.push(match self.adoption {
-                                Adoption::Open | Adoption::Rehearse { .. } => crate::Event::OpenRefused {
-                                    owner: self.owner, why: crate::OpenRefusal::Failed,
-                                },
-                                Adoption::Back => crate::Event::BackRefused {
-                                    owner: self.owner, why: crate::BackRefusal::Unreadable,
-                                },
+                                Adoption::Open | Adoption::Rehearse { .. } => {
+                                    crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed }
+                                }
+                                Adoption::Back => {
+                                    crate::Event::BackRefused { owner: self.owner, why: crate::BackRefusal::Unreadable }
+                                }
                             });
                         }
                     } else if self.drivers.get(1).expect("driver index").handles.len() >= self.root_count()
@@ -538,15 +551,19 @@ impl Drivers {
                             env,
                             match self.adoption {
                                 Adoption::Open => crate::Request::Open {
-                                    owner: self.owner, root: crate::Root { token: Token::new(1), fd },
+                                    owner: self.owner,
+                                    root: crate::Root { token: Token::new(1), fd },
                                     installation: self.installation,
                                 },
                                 Adoption::Rehearse { .. } => crate::Request::Rehearse {
-                                    owner: self.owner, directory: crate::Root { token: Token::new(1), fd },
-                                    scratch: self.scratch.expect("adopted scratch"), installation: self.installation,
+                                    owner: self.owner,
+                                    directory: crate::Root { token: Token::new(1), fd },
+                                    scratch: self.scratch.expect("adopted scratch"),
+                                    installation: self.installation,
                                 },
                                 Adoption::Back => crate::Request::Back {
-                                    owner: self.owner, root: crate::Root { token: Token::new(1), fd },
+                                    owner: self.owner,
+                                    root: crate::Root { token: Token::new(1), fd },
                                 },
                             },
                             above,

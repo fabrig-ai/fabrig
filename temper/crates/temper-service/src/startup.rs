@@ -869,8 +869,12 @@ fn checked_start(
 }
 /// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
 pub fn restoring_with(
-    document: &[u8], directories: &config::Directories, files: &settings::Files,
-    agent: Option<&settings::Agent>, seeds: &settings::Seeds, given: &crate::stock::Given,
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, io, forges, .. } =
         checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;

@@ -1,5 +1,7 @@
 //! Stopped-deployment tools over fixture patch sets (protocol/store/opening.md 5).
-use jig_protocol_store::{BackRefusal, Event, KeptWire, OpenRefusal, Owner, PatchSet, PatchSets, Request, Wire, Write};
+use jig_protocol_store::{
+    BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, PatchSet, PatchSets, Request, Undecoded, Wire, Write,
+};
 use jig_store_world::{
     World,
     patches::{self, BASE, Records, SETS, flights},
@@ -60,6 +62,7 @@ fn rehearsal_reports_kept_wires_and_patch_counts_without_writing_source() {
     let before = world.contents();
     let events = world.rehearse();
     rehearsal_lines(&events, Some(&[KeptWire { name: "fixture-worker".into(), version: 7 }]), false);
+    assert!(matches!(events.get(1), Some(Event::Decoded { owner: OWNER, records: 10 })), "{events:?}");
     assert!(events.iter().any(|event| matches!(event, Event::Patched { of: Owner::Application, patch: 2, counts, .. } if counts.records == u64::from(patches::STORY_SHELVES) + patches::STORY_TOKENS && counts.commits == 3)), "{events:?}");
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
     Records::story().check_public(&mut world, 2, &"rehearsed copy");
@@ -75,12 +78,59 @@ fn equal_rehearsal_opens_its_own_generation_without_wires_or_patches() {
     let events = world.rehearse();
     rehearsal_lines(&events, None, false);
     assert!(
-        matches!(events.as_slice(), [Event::Rehearsing { .. }, Event::Opened { last: 1, pending: false, .. }]),
+        matches!(
+            events.as_slice(),
+            [
+                Event::Rehearsing { .. },
+                Event::Decoded { owner: OWNER, records: 7 },
+                Event::Opened { last: 1, pending: false, .. }
+            ]
+        ),
         "{events:?}"
     );
     assert_eq!(world.scratch_contents().get(b"active".as_slice()).and_then(Option::as_deref), Some(b"1\n".as_slice()));
     assert_eq!(world.contents(), before);
     close(&mut world);
+}
+
+#[test]
+fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() {
+    let mut world = lower();
+    let last = world.open().expect("equal source start");
+    let relative = b"l/1";
+    assert_eq!(
+        world.commit(Box::new([
+            Write::Save(root::header(last + 1)),
+            Write::Put { key: Box::from(relative.as_slice()), value: Box::from(b"refused".as_slice()) },
+        ])),
+        Some(last + 1)
+    );
+    world.crash(SEED);
+    world.patch_sets(SETS);
+    let before = world.contents();
+    let events = world.rehearse();
+    let [
+        Event::Rehearsing { .. },
+        Event::Undecodable { owner: OWNER, family, version: 2, at: Undecoded::Record { map: KeptMap::Store, key } },
+    ] = events.as_slice()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(family.as_ref(), "fixture-label");
+    assert_eq!(
+        key.as_ref(),
+        [jig_protocol_store::keys::APPLICATION].into_iter().chain(relative.iter().copied()).collect::<Vec<_>>()
+    );
+    assert_eq!(world.contents(), before);
+    close(&mut world);
+    assert_eq!(world.contents(), before, "failed walk and close leave source unchanged");
+    world.crash(SEED);
+    world.patch_sets(SETS);
+    assert!(
+        world.open_switched().is_some(),
+        "start patches without decoding the unchanged label: {:?}",
+        world.refusal()
+    );
 }
 
 #[test]

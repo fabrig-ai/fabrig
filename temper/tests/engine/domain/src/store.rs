@@ -499,7 +499,12 @@ impl Store {
                 self.applied = last;
                 self.pending_generation = pending;
             }
-            Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } => {
+            Event::Decoded { .. }
+            | Event::Undecodable { .. }
+            | Event::Rehearsing { .. }
+            | Event::Back { .. }
+            | Event::BackRefused { .. }
+            | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
             Event::Patched { .. } => {}

@@ -25,6 +25,8 @@ temper-client-shell-cli.workspace = true
 jig-client.workspace = true
 serde_json.workspace = true
 temper-service = { workspace = true, features = ["worker"] }
+temper-service-shell.workspace = true
+temper-shell.workspace = true
 temper-forge-setup.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-domain.workspace = true

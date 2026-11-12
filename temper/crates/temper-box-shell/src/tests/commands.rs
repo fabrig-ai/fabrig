@@ -15,6 +15,8 @@ fn command_words(command: &Command) -> Vec<&str> {
             Reach::Words(words) => words.to_vec(),
             Reach::RunAs(name) => vec![name],
         },
+        Command::Upgrade { request: temper_engine_shell::upgrade::Request::Check(_), .. } => vec!["upgrade", "--check"],
+        Command::Upgrade { request: temper_engine_shell::upgrade::Request::Back, .. } => vec!["upgrade", "--back"],
         Command::Init { .. } => vec!["init"],
         Command::Serve { boxed: false, .. } => vec!["serve"],
         Command::Serve { boxed: true, .. } => vec!["internal", "serve"],
@@ -49,6 +51,8 @@ fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
         (&["versions"], &["versions"]),
+        (&["upgrade", "--check"], &["upgrade", "--check", "/backup"]),
+        (&["upgrade", "--back"], &["upgrade", "--back"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),

@@ -804,6 +804,8 @@ impl Component {
             | store::Event::Opened { .. }
             | store::Event::OpenRefused { .. }
             | store::Event::Site { .. }
+            | store::Event::Decoded { .. }
+            | store::Event::Undecodable { .. }
             | store::Event::Rehearsing { .. }
             | store::Event::Back { .. }
             | store::Event::BackRefused { .. }
@@ -1067,6 +1069,8 @@ impl Component {
                 | store::Event::Opened { .. }
                 | store::Event::OpenRefused { .. }
                 | store::Event::Site { .. }
+                | store::Event::Decoded { .. }
+                | store::Event::Undecodable { .. }
                 | store::Event::Rehearsing { .. }
                 | store::Event::Back { .. }
                 | store::Event::BackRefused { .. }

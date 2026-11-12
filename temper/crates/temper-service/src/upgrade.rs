@@ -13,7 +13,10 @@ pub struct Report {
     pub done: bool,
 }
 
-#[expect(clippy::struct_excessive_bools, reason = "operation kind, close request, close terminal and back terminal are independent")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "operation kind, close request, close terminal and back terminal are independent"
+)]
 pub(crate) struct State {
     pub(crate) report: Report,
     rehearsal: bool,
@@ -21,14 +24,24 @@ pub(crate) struct State {
     closing: bool,
     pub(crate) closed: bool,
     pub(crate) back: bool,
+    pub(crate) undecodable: bool,
 }
 impl State {
     pub(crate) fn new(rehearsal: bool) -> Self {
         Self {
             report: Report {
-                events: Queue::uncapped(), elapsed: Duration::ZERO, end: None, restored: false, done: false,
+                events: Queue::uncapped(),
+                elapsed: Duration::ZERO,
+                end: None,
+                restored: false,
+                done: false,
             },
-            rehearsal, began: None, closing: false, closed: false, back: false,
+            rehearsal,
+            began: None,
+            closing: false,
+            closed: false,
+            back: false,
+            undecodable: false,
         }
     }
 }
@@ -37,15 +50,21 @@ impl State {
 pub(crate) fn advance(engine: &mut Engine) -> bool {
     let Some(state) = &mut engine.upgrade else { return false };
     let began = *state.began.get_or_insert(engine.env.now);
-    if state.report.done { return true; }
-    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back) {
+    // Once the report is terminal, the ordinary ended-engine passes drain
+    // the other components' close continuations.
+    if state.report.done {
+        return false;
+    }
+    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back || state.undecodable) {
         state.report.restored = engine.domain.rehearsed();
         state.report.end = engine.end.take();
         state.report.elapsed = engine.env.now.saturating_since(began);
         state.closing = true;
         if state.rehearsal {
             engine.store.host.ask(Request::Close { owner: Token::new(1) });
-        } else { state.closed = true; }
+        } else {
+            state.closed = true;
+        }
     }
     if state.closing && state.closed {
         state.report.done = true;

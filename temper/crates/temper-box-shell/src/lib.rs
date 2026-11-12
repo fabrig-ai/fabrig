@@ -50,7 +50,10 @@ pub enum Command {
     Overview,
     Version,
     Versions,
-    Upgrade { directories: Directories, request: temper_engine_shell::upgrade::Request },
+    Upgrade {
+        directories: Directories,
+        request: temper_engine_shell::upgrade::Request,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -282,8 +285,12 @@ fn configure_row(
 pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], run_as: &[u8]) -> Result<u8, String> {
     let exit = match command {
         Command::Upgrade { directories, request } => {
-            return temper_engine_shell::upgrade::run("temper-box", &directories, &request,
-                Some(&worker_half::Half { environment: environment.into() }));
+            return temper_engine_shell::upgrade::run(
+                "temper-box",
+                &directories,
+                &request,
+                Some(&worker_half::Half { environment: environment.into() }),
+            );
         }
         Command::Overview => {
             print!("{}", TABLE.help());

@@ -77,7 +77,13 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
         }
         Reach::Words(["upgrade", mode @ ("--check" | "--back")]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine upgrade: {why}\n")))?;
-            let (directories, request) = crate::upgrade::configure(*mode == "--check", arguments, &captured.environment, working.as_os_str().as_bytes()).map_err(|why| refused(&why))?;
+            let (directories, request) = crate::upgrade::configure(
+                *mode == "--check",
+                arguments,
+                &captured.environment,
+                working.as_os_str().as_bytes(),
+            )
+            .map_err(|why| refused(&why))?;
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             crate::upgrade::run(ENGINE.binary, &directories, &request, None).map_err(|why| (1, why))
         }
