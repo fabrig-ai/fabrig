@@ -442,7 +442,7 @@ fn follow_owner(owner: &w::FollowOwner, members: Option<&[c::ProjectMember]>, re
                     return Owner::Named(role.title.clone());
                 }
             }
-            return Owner::Named(skein_lib::bytes::concat(&[b"task ", Decimal::of(task.task()).as_bytes()]));
+            return Owner::Named(skein_lib::bytes::concat(&[b"task ", skein_lib::Decimal::of(task.task()).as_bytes()]));
         }
     };
     if owner == reader {

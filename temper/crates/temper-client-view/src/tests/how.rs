@@ -878,6 +878,8 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
                 " that touches src, include or tests",
             ),
             (Owner::Unknown, false, vec![], "", "Each waits for its owner's word.", ""),
+            (Owner::Named(b"Prover".as_slice().into()), false, vec![], ", owned by Prover", "Each waits for Prover's word.", ""),
+            (Owner::Named(b"task 52".as_slice().into()), false, vec![], ", owned by task 52", "Each waits for task 52's word.", ""),
             (
                 Owner::Named(b"Pat".as_slice().into()),
                 true,

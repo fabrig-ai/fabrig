@@ -1032,6 +1032,25 @@ fn follows_boxes_follow_only_the_read_documents() {
         ("no follows read", None, Some(&main), None, 2, Landed { follows: Box::default(), tiers: Some(tiers) }),
         ("neither read", None, None, None, 2, Landed { follows: Box::default(), tiers: None }),
     ] {
-        assert_eq!(how::follows(panel.as_ref(), path, members.as_deref(), reader), expected, "{name}");
+        assert_eq!(how::follows(panel.as_ref(), path, members.as_deref(), reader, &[]), expected, "{name}");
+    }
+}
+
+#[test]
+fn task_follow_owner_uses_the_roles_title_else_its_number_never_you() {
+    let mut row = follow_row(&[], w::FollowStart::Owner, 0, None).into_parts();
+    let mut setting = row.setting.into_parts();
+    setting.owner = w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
+    row.setting = w::Follow::new(&w::CEILINGS, setting).unwrap();
+    let panel = w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts {
+        project: f::PROJECT, follows: List::from_boxed(Box::new([w::FollowView::new(&w::CEILINGS, row).unwrap()])), dependencies: List::with_capacity(0),
+    }).unwrap();
+    let roles = [how::Standing { number: 52, title: b"Prover".as_slice().into(), left: 0, budget: 0 }];
+    for (roles, expected) in [
+        (roles.as_slice(), b"Prover".as_slice()),
+        ([].as_slice(), b"task 52".as_slice()),
+    ] {
+        let landed = how::follows(Some(&panel), None, None, 52, roles);
+        assert_eq!(landed.follows.first().unwrap().owner, how::Owner::Named(expected.into()));
     }
 }

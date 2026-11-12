@@ -552,7 +552,10 @@ impl Team {
         }
         match told {
             Told::Changed { handle } if Some(*handle) == self.follows_handle => {
-                self.follows = follows_panel(client, *handle, env.limits.forge, self.project).map(Box::new);
+                self.follows = match follows_panel(client, *handle, env.limits.forge, self.project) {
+                    Some(panel) => Some(Box::new(panel)),
+                    None => None,
+                };
                 true
             }
             Told::Ended { handle, .. } if Some(*handle) == self.follows_handle => {

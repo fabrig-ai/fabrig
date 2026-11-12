@@ -210,12 +210,23 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
         }
         b.text(Run::Plain, &role.name);
         b.close();
-        if let Some(now) = &role.now
-            && !now.is_empty()
-        {
-            paragraph(b, now, look::TEAM_LINE);
+        let owner = team::follows::Owner::Task(role.task);
+        let mut has_follows = false;
+        for follow in &parts.follows {
+            has_follows |= follow.owner == owner;
         }
-        owner_follows(b, w, &parts, team::follows::Owner::Task(role.task));
+        let now = match role.now.as_deref() {
+            Some(now) if !now.is_empty() => Some(now),
+            Some(_) | None => None,
+        };
+        if now.is_some() || has_follows {
+            b.open(Role::Slot);
+            if let Some(now) = now {
+                paragraph(b, now, look::TEAM_LINE);
+            }
+            owner_follows(b, w, &parts, owner);
+            b.close();
+        }
         text(b, Role::Text, &w.say(Word::TeamSpend, &[Hole::Number(role.spent), Hole::Number(role.budget)]));
         b.close();
     }
@@ -357,7 +368,13 @@ fn card_follows(b: &mut Builder, w: &Words, follows: &skein_lib::List<team::foll
     for follow in follows {
         follow_line(b, w, follow);
         for entry in &follow.entries {
-            paragraph(b, &w.say(Word::TeamFollowEntry, &[Hole::Name(entry.after.as_slice().into()), Hole::Name(entry.state.clone())]), look::TEAM_ROLE);
+            let name = w.say(Word::TeamFollowEntry, &[Hole::Name(entry.after.as_slice().into()), Hole::Name(entry.state.clone())]);
+            b.open(Role::Paragraph);
+            b.style(look::TEAM_ROLE);
+            b.name(&name);
+            b.text(Run::Code, &entry.after);
+            b.text(Run::Plain, &w.say(Word::TeamFollowEntry, &[Hole::Name(Box::default()), Hole::Name(entry.state.clone())]));
+            b.close();
         }
         if follow.more > 0 {
             paragraph(b, &w.say(Word::TeamFollowsMore, &[Hole::Number(u64::from(follow.more))]), look::TEAM_ROLE);
