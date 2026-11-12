@@ -877,7 +877,9 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
-                let mut service = result.expect("charter shortfalls warn");
+                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
+                    panic!("standalone service")
+                };
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),

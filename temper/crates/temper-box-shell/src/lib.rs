@@ -40,6 +40,7 @@ mod program_login;
 pub use temper_engine_shell::setup;
 mod serve;
 mod served;
+pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
 #[cfg(test)]
@@ -366,7 +367,7 @@ fn path(bytes: &[u8]) -> &Path {
 }
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub use temper_service_shell::host::ending as service_ending;
-pub type Host = temper_service_shell::Host<service::Service>;
+pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
 fn prepare(
@@ -375,7 +376,7 @@ fn prepare(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     serve::prepare("temper", environment, working, directories, bytes, owned)
 }
 #[cfg(test)]
@@ -385,7 +386,7 @@ fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<(service::Service, Box<[u8]>), String> {
+) -> Result<(Service, Box<[u8]>), String> {
     serve::prepare_with_store("temper", environment, working, directories, bytes, owned)
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
@@ -411,7 +412,7 @@ pub fn prepare_in(
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     serve::prepare_in("temper", environment, working, directories)
 }
 /// Prepare an in-process world's service with the supplied defaults.
@@ -420,7 +421,7 @@ pub fn prepare_in_with(
     working: &[u8],
     directories: &Directories,
     given: &service::stock::Given,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     serve::prepare_in_with("temper", environment, working, directories, given)
 }
 /// The same for an in-process world's service, with the supplied defaults.

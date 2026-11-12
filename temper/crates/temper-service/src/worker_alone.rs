@@ -76,6 +76,21 @@ impl Service {
             "service would wait forever with nothing in flight: end={:?}; state={:?}; worker={:?}",
             self.end(), self.wait_state(), self.worker.pending(now));
     }
+    /// Readiness without advancing the worker or exposing payloads.
+    #[must_use]
+    pub fn pending(&self, now: Time) -> crate::diagnostics::Pending {
+        crate::diagnostics::Pending {
+            work_pending: self.work_pending(now), worker_runs: true,
+            io_ready: self.process.io().is_ready(), io_due: self.process.io().is_due(now),
+            completions: self.process.completion_count(), told: self.process.told_count(),
+            raw_submissions: self.process.raw_submission_count(), ended: self.end().is_some(),
+            signals: self.process.has_signals(), signals_closing: self.process.signals_closing(),
+            box_pipe_pending: false, engine: None, worker: Some(self.worker.pending(now)),
+        }
+    }
+    /// The worker domain, for a world to inspect before requesting shutdown.
+    #[must_use]
+    pub const fn worker_domain(&self) -> &temper_worker_domain::Domain { &self.worker.root }
     #[must_use]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
         crate::diagnostics::Wait {

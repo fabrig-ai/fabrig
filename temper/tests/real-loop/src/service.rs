@@ -1,5 +1,7 @@
 //! Deferred standalone preparation with its original operation count.
 mod cue;
+mod driven;
+pub(crate) use driven::Driven;
 mod hooks;
 mod watch;
 use crate::fixtures;
@@ -56,7 +58,7 @@ pub struct ServiceHost {
     pub(crate) runs: crate::cluster::Runs,
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
     started_at: Option<Time>,
-    pub(crate) service: Option<temper_service::Service>,
+    pub(crate) service: Option<Driven>,
     pub(crate) address: Option<SocketAddr>,
     pub(crate) link: Vec<u8>,
     watch: watch::Watch,
@@ -256,7 +258,7 @@ impl ServiceHost {
         self.in_flight == 0
             && self.completions.is_empty()
             && self.submissions.is_empty()
-            && self.service.as_ref().is_some_and(temper_service::Service::is_empty)
+            && self.service.as_ref().is_some_and(Driven::is_empty)
     }
     pub(crate) fn restart(&mut self) {
         assert!(self.state == LifeState::Stopping && self.settled(), "restart a settled cluster service");
@@ -361,17 +363,20 @@ impl ServiceHost {
             && ((self.fixture.is_none() && self.github.is_none()) || self.forge_address.is_some())
             && (self.github.is_none() || self.blob_address.is_some())
     }
-    fn prepare_service(&self) -> temper_service::Service {
+    fn prepare_service(&self) -> Driven {
         use std::os::fd::{AsRawFd, IntoRawFd};
-        let mut service = temper_box_shell::prepare_in_with(
+        let prepared = temper_box_shell::prepare_in_with(
             &[],
             b"/",
             &Self::directories(&self.path, self.cluster.is_some()),
             &fixtures::given(&self.path),
         )
         .expect("standalone preparation");
-        if let Some(blob) = self.blob_address {
-            configure_job_logs(&mut service, self.forge_address.expect("GitHub API"), blob);
+        let mut service = Driven::new(prepared);
+        if let Some(blob) = self.blob_address
+            && let temper_box_shell::Service::Joined(joined) = &mut service.service
+        {
+            configure_job_logs(joined, self.forge_address.expect("GitHub API"), blob);
         }
         if let Some(listener) = &self.clients_listener {
             // Keep the original bound across the bootstrap service's shutdown
@@ -386,7 +391,7 @@ impl ServiceHost {
     }
     #[must_use]
     pub fn end(&self) -> Option<&crate::End> {
-        self.service.as_ref().and_then(temper_service::Service::end)
+        self.service.as_ref().and_then(Driven::end)
     }
     pub(crate) fn early_exit(&self, process: usize) -> String {
         const STDERR_TAIL: usize = 4096;
@@ -436,7 +441,7 @@ impl ServiceHost {
     }
     pub(crate) fn fixture_ready(&self) -> bool {
         self.fixture.is_none()
-            || self.service.as_ref().and_then(temper_service::Service::engine_domain).is_some_and(|domain| {
+            || self.service.as_ref().and_then(Driven::engine_domain).is_some_and(|domain| {
                 matches!(domain.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. })
             })
     }
@@ -468,7 +473,7 @@ impl ServiceHost {
 
 fn record_tries(
     tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
-    service: &temper_service::Service,
+    service: &Driven,
 ) {
     if let Some(engine) = service.engine_domain() {
         for row in &engine.tasks().view_tasks() {
@@ -587,9 +592,9 @@ impl Host for ServiceHost {
                     cue.complete(complete);
                 }
             }
-            temper_service::iterate(service, now, wall);
+            service.iterate(now, wall);
             record_tries(&mut self.tries, service);
-            while let Some(note) = service.listening().pop() {
+            while let Some(note) = service.take_listening() {
                 if let temper_service::Note::Listening { listener, addr } = note {
                     if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
                         retain_listener(&self.path, listener, addr);
@@ -612,11 +617,11 @@ impl Host for ServiceHost {
                 self.linked += usize::from(matches!(note, temper_service::Note::Linked { .. }));
                 self.notes.push(note);
             }
-            while let Some(note) = service.notes().pop() {
+            while let Some(note) = service.take_note() {
                 self.linked += usize::from(matches!(note, temper_service::Note::Linked { .. }));
                 self.notes.push(note);
             }
-            while let Some(link) = service.links().pop() {
+            while let Some(link) = service.take_link() {
                 if !self.records_seeded {
                     // The first start seeds settings and owners before its durable
                     // mark permits fixture records. Drain it before seeding the
@@ -662,16 +667,16 @@ impl Host for ServiceHost {
             || self.service.as_ref().map_or(self.address.is_some() && self.ready(), |service| service.work_pending(now))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.service.as_ref().and_then(temper_service::Service::next_deadline)
+        self.service.as_ref().and_then(Driven::next_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.service.as_ref().and_then(temper_service::Service::next_policy_deadline)
+        self.service.as_ref().and_then(Driven::next_policy_deadline)
     }
     fn is_empty(&self) -> bool {
         if self.restartable {
             !self.stopping() && self.settled()
         } else {
-            self.service.as_ref().is_some_and(temper_service::Service::is_empty)
+            self.service.as_ref().is_some_and(Driven::is_empty)
         }
     }
     fn operations(&self) -> u32 {
