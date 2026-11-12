@@ -2,7 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [git.md](git.md).
 
-- **Not yet:** 2: `agent/` in the root's layout [in flight: change 1749].
 
 Section 4.7's delivery snapshot has no known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote

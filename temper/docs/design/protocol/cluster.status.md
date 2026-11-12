@@ -2,8 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
-- **Not yet:** 3: the fixtures' workers give no `graces.drain_ms` [in flight: change 1757].
-- **Not yet:** 4: a worker's ending drains [in flight: change 1767].
 - **Not yet:** 6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration
   (`../testing/process-tier.status.md`); jig's fleet takes a draining

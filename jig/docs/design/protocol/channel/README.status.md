@@ -2,7 +2,6 @@
 
 2026-11-12. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 9.1: the stop bound holds no drain [in flight: change 1757].
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.
 
 - **Not yet:** 9.1: the dial due at the grace's end less the handshake's deadline; a redial waits at most a quarter of the grace, so an engine back in the grace's last quarter can miss the last dial (`jig-protocol-worker-link/src/component.rs`).
