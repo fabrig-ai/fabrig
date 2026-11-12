@@ -473,6 +473,8 @@ fn build(
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT if call.form == 0 => c::Ask::Talk { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT => c::Ask::Leave { project, task },
         rows::ANSWER_AT => c::Ask::Answer { project, on: answer(call, limits)? },
         rows::TAKE_AT => c::Ask::Take { project, task },
         rows::HAND_BACK_AT => c::Ask::HandBack { project, task },
@@ -576,6 +578,8 @@ fn chip_project(chip: &c::Chip) -> u32 {
 fn kind(call: &Call) -> c::ActKind {
     match call.tool {
         rows::MESSAGE_AT => c::ActKind::Message,
+        rows::ROLE_TALK_AT if call.form == 0 => c::ActKind::Talk,
+        rows::ROLE_TALK_AT => c::ActKind::Leave,
         rows::CLOSE_AT | rows::CANCEL_AT => c::ActKind::Cancel,
         rows::ANSWER_AT => c::ActKind::Answer,
         rows::TAKE_AT => c::ActKind::Take,
@@ -853,6 +857,15 @@ pub(super) fn answered(
                 return;
             };
             sent.operation.to = Some(c::Recipient::Role { project, role: *to });
+        }
+        if sent.called.call.tool == rows::ROLE_TALK_AT
+            && sent.called.call.form == 0
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Said { message, .. },
+            )))) = outcome
+        {
+            crate::jig::wait::talk(runner, client, env, sent.called, *message, out);
+            return;
         }
         if sent.called.call.tool == rows::EXPORT_AT {
             super::moves::answered(runner, client, env, sent, outcome, out);

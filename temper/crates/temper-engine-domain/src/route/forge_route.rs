@@ -27,7 +27,7 @@ mod change_llm;
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{made as closer_made, refused as closer_refused, start_closer_step};
-mod status_route;
+pub(crate) mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
@@ -2675,6 +2675,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority,
                 ci: None,
                 change: forge_change::Change {
+                    ended_held: None,
                     early: forge_change::Early::None,
                     way: forge_change::Way::Queue,
                     landing: None,

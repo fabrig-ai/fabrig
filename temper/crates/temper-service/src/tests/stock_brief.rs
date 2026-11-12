@@ -54,7 +54,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
             .ceiling
             .tools
             .0,
-        1 | 2 | 4 | 128 | 256 | 512 | 1024 | 2048
+        1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 2048
     );
     assignment.run.ended_by = if number == 13 {
         jig_domain_tasks::EndedBy::Standing

@@ -278,7 +278,8 @@ members = [
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
-    "temper/crates/temper-client",
+    "temper/bin/temper-client",
+    "temper/crates/temper-client-shell",
     "temper/bin/temper-agent",
     "temper/crates/temper-agent-shell",
     "temper/crates/temper-client-bundle",
@@ -609,6 +610,7 @@ jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
 temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
 jig-channel-world = { path = "jig/tests/channel" }
+temper-client-shell = { path = "temper/crates/temper-client-shell" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }

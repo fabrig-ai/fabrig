@@ -1899,3 +1899,48 @@ fn a_closer_in_a_people_batch_round_trips() {
         ask_round_trip(jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) });
     }
 }
+
+#[test]
+fn task_talks_and_their_lines_round_trip() {
+    use jig_domain_tasks as t;
+    use skein_lib::Wall;
+    for talk in [None, Some(t::Talk { party: 31, opened: Wall::from_nanos(11), last: Wall::from_nanos(17) })] {
+        let mut record = fixtures::task_record();
+        record.talk = talk;
+        for row in [t::Stored::Live(Box::new(record.clone())), t::Stored::Ended(Box::new(record))] {
+            assert_eq!(saved_tasks(&row), Ok(row));
+        }
+    }
+    for line in [
+        t::Line::TalkOpened { party: 31 },
+        t::Line::TalkEnded { party: 31, lapsed: true },
+        t::Line::TalkEnded { party: 31, lapsed: false },
+        t::Line::SessionEnded { attempt: 7, end: t::SessionEnd::Talk },
+        t::Line::SessionEnded { attempt: 7, end: t::SessionEnd::Left },
+    ] {
+        let row = t::Stored::Activity(t::ActivityLine { task: 17, position: 1, at: Wall::from_nanos(23), line });
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
+#[test]
+fn rows_stored_before_talk_decode_with_no_talk() {
+    use crate::{codec::tasks as codec, tasks_v9 as w};
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Writer};
+    let limits = tasks_limits();
+    let original = fixtures::task_record();
+    let modern = codec::record::task_record(&original, &limits, None).unwrap().into_parts();
+    for live in [true, false] {
+        let value = if live { w::Value::Live(modern.record.clone()) } else { w::Value::Ended(modern.record.clone()) };
+        let record = w::Row::new(&limits, w::RowParts { value, models: List::with_capacity(0) }).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let expected = if live {
+            t::Stored::Live(Box::new(original.clone()))
+        } else {
+            t::Stored::Ended(Box::new(original.clone()))
+        };
+        assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(expected));
+    }
+}

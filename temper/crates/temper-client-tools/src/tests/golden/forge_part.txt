@@ -7,4 +7,4 @@ resource: o/n on example.com
 acts:
   task stop 41 --key KEY
   task cancel 41 REASON --key KEY
-digest: task a8cfe159cfdda943
+digest: task 3b66d67d5b68dd2c

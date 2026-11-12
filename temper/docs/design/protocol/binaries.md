@@ -43,7 +43,8 @@ test doubles   temper-box fake llm|forge|oauth|git ...
 - **The TUI on an engine** is the client's, `temper-client [ADDRESS]`
   below; the box runs it in front of itself by `internal tui`, until the
   client's `temper box` does (`../draft/cli.md`, section 5).
-- **The deployment's client, `temper-client`** (`crates/temper-client`;
+- **The deployment's client, `temper-client`** (`bin/temper-client`, its
+  crate `crates/temper-client-shell`, `../cli/README.md`, 2;
   `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
   own for a person's machine or an automation's. Its table holds three of
   the client's `temper` rows, the same rows run by the same code (`components.md`):
@@ -570,7 +571,7 @@ hold, and its exceptions, each with its reason.
 
 | Package | Rules | Exceptions |
 |---|---|---|
-| `temper-client` | temper only `temper-client`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
+| `temper-client` | temper only `temper-client`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
 | `temper-engine` | temper not `temper-worker-` and `temper-service`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
 | `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-protocol-records-forge`, `temper-agent-shell` and `temper-service`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | none (5) |
 | `temper-agent` | temper only `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell` and `temper-version`; jig only none | none |
