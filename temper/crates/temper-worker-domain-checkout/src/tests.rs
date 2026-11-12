@@ -1390,6 +1390,26 @@ fn an_abort_mid_push_waits_for_the_push_keeps_what_landed_and_reports_the_rest_a
 }
 
 #[test]
+fn a_stop_bound_cut_cancels_a_push_without_verifying_and_never_starts_another_save() {
+    for (done, first) in [
+        (failed(Fault::Cancelled), explained(Fault::Cancelled)),
+        (Done::Succeeded, Landing::Landed { commit: commit(11) }),
+    ] {
+        let mut h = Harness::new(LIMITS);
+        let hold = h.ready(1, spec(b"w", Box::new([repository(b"a", true), repository(b"b", true)])));
+        h.one(Event::Push { hold, message: message() });
+        h.next(hold, Done::Committed { commit: commit(11) });
+        assert_eq!(h.one(Event::Cut { hold }), Request::Cancel { owner: hold });
+        h.none(Event::Cut { hold });
+        let end = h.one(Event::Done { owner: hold, done });
+        assert_eq!(&*landings(end), &[first, Landing::Aborted]);
+        let end = h.one(Event::Save { hold, message: message() });
+        assert_eq!(&*landings(end), &[Landing::Aborted, Landing::Aborted]);
+        assert_eq!(h.one(Event::Release { hold }), Request::Released { client: Token::new(1) });
+    }
+}
+
+#[test]
 fn a_push_that_may_have_landed_is_verified() {
     let cases = [
         (failed(Fault::TimedOut), Done::Fetched { commit: commit(11) }, Landing::Landed { commit: commit(11) }),

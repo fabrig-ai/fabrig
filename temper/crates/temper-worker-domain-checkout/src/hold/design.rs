@@ -9,7 +9,7 @@ use skein_lib::{Env, Id, Queue, Writer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Delivery {
-    repository: u32,
+    pub(super) repository: u32,
     attempt: u8,
     tip: Option<Commit>,
 }

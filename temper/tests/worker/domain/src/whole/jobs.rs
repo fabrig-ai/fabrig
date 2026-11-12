@@ -163,6 +163,7 @@ impl World {
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
             Request::Link(host::LinkUp::Draining) => {}
+            Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
             Request::ReadList { .. }
             | Request::CancelRead { .. }
@@ -349,7 +350,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     }
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     world.report.tree = world.forge.tree(commit);
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
     assert_eq!(world.domain.kept_answers(), 0);
     world.report

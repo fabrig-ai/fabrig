@@ -20,6 +20,9 @@ fn the_worker_sizes_each_part_from_its_payload_codec() {
     let limits = fixtures::worker_limits();
     let prepared = worker_settings::prepare(&settings, &agent, &limits).unwrap();
     assert_eq!(prepared.root.host.slots, 1);
+    assert_eq!(prepared.root.drain, settings.jig.graces.drain);
+    assert_eq!(prepared.root.stop_bound, settings.jig.stop_bound);
+    assert_eq!(prepared.root.after_grace, Duration::from_secs(30));
     assert_eq!(prepared.root.checkout.repositories, 1);
     assert_eq!(prepared.prefix, (3_u64 << 60_u32) + (1_u64 << 48_u32));
     assert_eq!(u64::from(prepared.link.sizes.items), v1::Items::encoded_bound(&prepared.payload).unwrap());
@@ -984,6 +987,7 @@ fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
     fixtures::assert_worker_only(&service);
     service.shutdown();
     assert!(service.worker.stopping());
+    assert!(service.worker.events.iter().any(|event| matches!(event, root::Event::Shutdown { drain: true })));
     assert_eq!(service.end(), None);
     service.shutdown();
     assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));

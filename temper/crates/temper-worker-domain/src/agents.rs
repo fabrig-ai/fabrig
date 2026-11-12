@@ -63,8 +63,17 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
             smith::parent::Event::Message { agent, name, label: sender, text: words, finish_requested }
         }
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
-        // No root sends a drain yet; a later change maps it to smith's drain.
-        host::ToAgent::Drain { agent } | host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
+        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent },
+        host::ToAgent::Cancel { agent } => {
+            let mut cut = false;
+            for (owner, bound) in &domain.agents {
+                if bound.agent == agent {
+                    cut = crate::stopping::cut(domain, *owner);
+                    break;
+                }
+            }
+            if cut { smith::parent::Event::Drop { agent } } else { smith::parent::Event::Stop { agent } }
+        }
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
         // domain/hosts/hub.md, 2): the table needs no reading.
@@ -98,6 +107,9 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
                 .insert(client, Bound { agent, admitted: false, detail: Box::new([]), refused: None })
                 .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
+            if crate::stopping::cut(domain, client) {
+                route::agent_step(domain, env, smith::Input::Parent(smith::parent::Event::Drop { agent }));
+            }
             return;
         }
         smith::parent::Request::Admitted { client } => {

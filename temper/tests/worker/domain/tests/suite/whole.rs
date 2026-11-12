@@ -105,3 +105,25 @@ fn a_landed_change_saves_nothing() {
 fn an_unchecked_save_keeps_the_producer_tree_and_a_checked_push_replaces_its_commit() {
     temper_worker_domain_world::whole::unchecked_save_then_delivery(101);
 }
+
+#[test]
+fn a_shutdown_drains_the_turn_saves_its_work_and_waits_for_every_acknowledgement() {
+    let report = run(112, Case::Drained);
+    assert_eq!((report.drains, report.cancellations, report.saves), (1, 0, 1));
+}
+
+#[test]
+fn the_drain_bound_cancels_a_run_still_in_its_turn() {
+    let report = run(113, Case::DrainExpired);
+    assert_eq!((report.drains, report.cancellations, report.saves), (1, 1, 1));
+}
+
+#[test]
+fn the_contact_stop_bound_cuts_a_save_push_that_never_answers() {
+    assert_eq!(temper_worker_domain_world::whole::contact_bound(114, true).io_cuts, 1);
+}
+
+#[test]
+fn the_contact_stop_bound_drops_a_stopping_agent_and_cuts_its_late_save() {
+    assert_eq!(temper_worker_domain_world::whole::contact_bound(115, false).drops, 1);
+}

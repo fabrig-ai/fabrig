@@ -40,6 +40,8 @@ pub enum Case {
     CancelledDelivery,
     ContactWithin,
     ContactPast,
+    Drained,
+    DrainExpired,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -47,6 +49,9 @@ pub struct Report {
     pub tree: Tree,
     pub trace: Vec<String>,
     pub cancellations: u32,
+    pub drains: u32,
+    pub drops: u32,
+    pub io_cuts: u32,
     pub saves: u32,
     pub stop_bound: Duration,
 }
@@ -121,6 +126,9 @@ impl World {
                 tree: Tree::new(),
                 trace: Vec::new(),
                 cancellations: 0,
+                drains: 0,
+                drops: 0,
+                io_cuts: 0,
                 saves: 0,
                 stop_bound: Duration::ZERO,
             },
@@ -180,6 +188,7 @@ impl World {
                     assert!(self.answer.replace((answer, work, preparation)).is_none());
                 }
             }
+            Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
             Request::Process(request) => self.process(*request),
             Request::Decode { agent, run, start } => {
@@ -193,10 +202,18 @@ impl World {
                 self.owed.push_back(Event::Activity { owner, activity: protocol::activity(&body) });
             }
             Request::Io { owner, op, deadline } => self.io(owner, op, deadline),
-            Request::JobAnswer { .. }
-            | Request::Job { .. }
-            | Request::CancelRelay { .. }
-            | Request::CancelIo { .. } => {
+            Request::CancelIo { owner } => {
+                let (held, _) = self.held.take().expect("a cut names the held save push");
+                assert_eq!(owner, held);
+                self.report.io_cuts += 1;
+                self.owed.push_back(Event::Done {
+                    owner,
+                    done: temper_worker_domain::checkout::git::Done::Failed {
+                        fault: temper_worker_domain::checkout::git::Fault::Cancelled,
+                    },
+                });
+            }
+            Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
         }
@@ -205,6 +222,9 @@ impl World {
     fn link(&mut self, up: host::LinkUp) {
         match up {
             host::LinkUp::Draining => {}
+            host::LinkUp::Turn { run, attempt, turn } => {
+                assert_eq!((run, attempt, turn.turn), (RUN, self.attempt, 1));
+            }
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
                 assert_eq!((run, attempt), (RUN, self.attempt));
@@ -217,7 +237,6 @@ impl World {
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
-            | host::LinkUp::Turn { .. }
             | host::LinkUp::Unauthorized { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
@@ -277,7 +296,10 @@ impl World {
             agent::process::Request::Wait { owner, process } | agent::process::Request::Reap { owner, process } => {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
             }
-            agent::process::Request::Signal { owner, .. } => {
+            agent::process::Request::Signal { owner, signal, .. } => {
+                if signal == agent::Signal::Terminate {
+                    self.report.drops += 1;
+                }
                 self.owed.push_back(Event::Process(Box::new(agent::process::Event::Signalled { owner })));
             }
         }
@@ -325,10 +347,9 @@ impl World {
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
-            agent::Down::Acknowledge { .. }
-            | agent::Down::Grant { .. }
-            | agent::Down::Message { .. }
-            | agent::Down::Drain => {
+            agent::Down::Drain => self.report.drains += 1,
+            agent::Down::Acknowledge { turn: 1 } => {}
+            agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
                 panic!("unscripted process record")
             }
         }
@@ -397,6 +418,31 @@ impl World {
 
     fn story(&mut self, case: Case) {
         match case {
+            Case::Drained | Case::DrainExpired => {
+                self.event(Event::Shutdown { drain: true });
+                assert_eq!(self.report.drains, 1);
+                assert_eq!(self.report.cancellations, 0, "the current turn goes on");
+                self.env.now = self.env.now.saturating_add(Duration::from_nanos(self.env.limits.drain.as_nanos() - 1));
+                self.settle();
+                assert_eq!(self.report.cancellations, 0, "not before the drain bound");
+                if case == Case::DrainExpired {
+                    self.env.now = self.env.now.saturating_add(Duration::from_nanos(1));
+                    self.settle();
+                    assert_eq!(self.report.cancellations, 1, "the bound stops a turn still running");
+                } else {
+                    self.say(agent::Up::Turn { turn: protocol::turn(1, 0, 8) });
+                }
+                let answer = agent::Answer {
+                    read: None,
+                    turns: u32::from(case == Case::Drained),
+                    spent: 0,
+                    result: agent::RunResult::Failed { failure: agent::RunFailure::Cancelled },
+                };
+                self.say(agent::Up::Answer { answer });
+                self.gone();
+                assert_eq!(self.stops, 0, "the engine has not acknowledged the answer");
+                assert_eq!(self.report.saves, 1);
+            }
             Case::Delivered => {
                 self.deliver();
                 assert_eq!(self.deliveries, 1);
@@ -448,12 +494,17 @@ impl World {
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
         assert_eq!(preparation, None);
-        let branch = if case == Case::ContactPast { b"saved".as_slice() } else { b"topic".as_slice() };
+        let branch = if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) {
+            b"saved".as_slice()
+        } else {
+            b"topic".as_slice()
+        };
         let commit = self.forge.branch(REMOTE, branch).expect("worker pushed");
         let expected = match case {
             Case::Delivered | Case::ContactWithin => None,
             Case::CancelledDelivery => Some(host::Reason::Engine),
             Case::ContactPast => Some(host::Reason::Contact),
+            Case::Drained | Case::DrainExpired => Some(host::Reason::Shutdown),
         };
         let cancelled = match answer.ending {
             host::Ending::Ended { .. } => None,
@@ -463,7 +514,7 @@ impl World {
             }
         };
         assert_eq!(cancelled, expected);
-        if case == Case::ContactPast {
+        if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) {
             let saved = work.saved.expect("saved work");
             let [wire::SavedRepository { landing: wire::Landing::Landed { commit: saved }, .. }] = saved.as_ref()
             else {
@@ -478,7 +529,13 @@ impl World {
         assert!(self.forge.is_ancestor(self.first, commit));
         self.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
         assert_eq!(self.domain.kept_answers(), 0);
-        self.event(Event::Shutdown);
+        if case == Case::Drained {
+            assert_eq!(self.stops, 0, "its last turn must be kept too");
+            self.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn: 1 }));
+        }
+        if !matches!(case, Case::Drained | Case::DrainExpired) {
+            self.event(Event::Shutdown { drain: true });
+        }
         assert_eq!(self.stops, 1, "a worker with nothing left stops, once");
         self.report
     }
@@ -509,7 +566,7 @@ pub fn saved(seed: u64, start: wire::Start) -> wire::Work {
     ));
     world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
     work
 }
@@ -577,7 +634,7 @@ fn finish_host_run(world: &mut World) {
     assert_eq!(world.domain.workspaces(), 0);
     world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
     assert_eq!(world.domain.kept_answers(), 0);
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
 }
 
@@ -705,7 +762,7 @@ pub fn retry(seed: u64, resume: bool) -> Report {
     };
     world.report.tree = if saved { world.forge.tree(head) } else { restored };
     world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.domain.agent().agents(), 0);
     assert_eq!(world.domain.workspaces(), 0);
     assert_eq!(world.domain.kept_answers(), 0);
@@ -739,4 +796,51 @@ pub fn unchecked_save_then_delivery(seed: u64) {
     world.gone();
     assert!(world.answer.is_some());
     assert_eq!(world.domain.workspaces(), 0);
+}
+
+/// The contact bound cuts a hung save, or an agent still stopping. No later
+/// end can resume writing, even when a new channel opens before that end.
+#[must_use]
+pub fn contact_bound(seed: u64, saving: bool) -> Report {
+    let mut world = World::new(seed);
+    world.env.limits.agent.cancel_grace = Duration::from_secs(90);
+    world.start();
+    world.up = false;
+    world.event(Event::Lost);
+    world.event(Event::GracePassed);
+    assert_eq!(world.report.cancellations, 1);
+    world.hold_push = true;
+    if saving {
+        world.gone();
+        assert!(world.held.is_some(), "the saved-work push has no terminal yet");
+    }
+    let at = world.env.limits.after_grace.as_nanos();
+    world.env.now = Time::from_nanos(at - 1);
+    world.settle();
+    assert_eq!((world.report.io_cuts, world.report.drops), (0, 0));
+    world.env.now = Time::from_nanos(at);
+    world.settle();
+    if saving {
+        assert_eq!(world.report.io_cuts, 1, "the bound cuts even a saved-work push");
+    } else {
+        assert_eq!(world.report.drops, 1, "the root drops an agent still stopping");
+        world.connect();
+        world.gone();
+        assert_eq!(world.report.saves, 0, "no new commit after the bound");
+    }
+    if !world.up {
+        world.connect();
+    }
+    let (answer, work, _) = world.answer.take().expect("the cut run is answered");
+    assert!(matches!(
+        answer.ending,
+        host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Contact), .. }
+    ));
+    let saved = work.saved.expect("the save's failed outcome");
+    assert!(!matches!(saved[0].landing, wire::Landing::Landed { .. }));
+    assert_eq!(world.forge.branch(REMOTE, b"saved"), Some(world.first));
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    world.event(Event::Shutdown { drain: true });
+    assert_eq!(world.stops, 1);
+    world.report
 }
