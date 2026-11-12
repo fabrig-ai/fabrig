@@ -161,10 +161,9 @@ fn a_copied_seed_names_its_snapshot_bytes_and_limit() {
                 &[Problem { path: seed_path().member(b"policy"), what: What::PolicyBytes { bytes, limit } }]
             );
             let message = problems.problems.get(0).unwrap().codec_message().unwrap();
-            let message = core::str::from_utf8(&message).unwrap();
-            assert!(message.contains(&bytes.to_string()));
-            assert!(message.contains(&limit.to_string()));
-            assert!(message.contains("core.policy_bytes"));
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(bytes).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(limit).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, b"core.policy_bytes").is_some());
         }
     }
 }

@@ -2280,7 +2280,7 @@ fn the_stock_has_no_foreman() {
 fn a_standard_document_seeds_project_one_from_stock_policy_one() {
     let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
     document["engine"]["limits"] = serde_json::json!({"profile": "standard"});
-    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
+    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
     let bytes = serde_json::to_vec(&document["engine"]).unwrap();
     let parsed = config::document(&bytes, &config::DocumentLimits { bytes: 65_536, tokens: 8192, depth: 32 }).unwrap();
     let mut engine = config::engine(&parsed, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
@@ -2315,8 +2315,8 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
 #[test]
 fn a_seeded_stock_document_names_the_executor_limit() {
     let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
-    document["engine"]["limits"]["overrides"]["authority.executors"] = 18.into();
+    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
+    document["engine"]["limits"]["overrides"]["authority.executors"] = 18_i32.into();
     let document = serde_json::to_vec(&document).unwrap();
     let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.projects[0].policy.ceiling.delegation.kinds: policy has 20 executor kinds; authority.executors limit is 18.\n");
@@ -2325,7 +2325,7 @@ fn a_seeded_stock_document_names_the_executor_limit() {
 #[test]
 fn inits_document_can_seed_stock_policy_one() {
     let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1, "policy": 1}]);
+    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
     let document = serde_json::to_vec(&document).unwrap();
     crate::named(&document, &config::Directories::working()).expect("init's limits admit a seeded stock project");
 }
