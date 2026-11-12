@@ -11,7 +11,11 @@ each draft landed in its repositories that its writer says is ready, by
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5).
+`draft/surfaces.status.md`, 5). Landed QA's milestone Q1: `temper-qa`
+watches main's ref, triages each goal's landing into cases in main's
+order, and keeps the deployment's builds of landed tips until no pass
+can need them, all in one ledger; its passes follow in Q2 and Q3
+(`testing/qa/README.md`; `draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -149,6 +153,11 @@ Design documents:
 - [`testing/fakes.md`](testing/fakes.status.md)
 - [`testing/live-tier.md`](testing/live-tier.status.md)
 - [`testing/process-tier.md`](testing/process-tier.status.md)
+- [`testing/qa/README.md`](testing/qa/README.status.md)
+- [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/landings.md`](testing/qa/landings.status.md)
+- [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
+- [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
@@ -176,6 +185,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
