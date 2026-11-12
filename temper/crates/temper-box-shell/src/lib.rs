@@ -73,6 +73,8 @@ pub enum Command {
     BoxFakeBackends {
         directories: Directories,
         bundle: Option<PathBuf>,
+        scripts: Vec<PathBuf>,
+        strict: bool,
         echo: temper_box_machine::host::Echo,
         no_tui: bool,
     },
@@ -184,15 +186,16 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
-        if word.as_ref() == b"--bundle" {
+        if word.as_ref() == b"--bundle" || word.as_ref() == b"--scripts" {
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
-    let bundle = fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
+    let fake_backends::Options { bundle, scripts, strict } =
+        fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui })
 }
 
 fn configure_row(
@@ -305,10 +308,14 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             boxed,
             Some(&worker_half::Half { environment: environment.into() }),
         )?,
-        Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui, environment)
-                .map_err(|why| prefixed("temper-box", &why))?
-        }
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui } => fake_backends::run(
+            &directories,
+            &fake_backends::Options { bundle, scripts, strict },
+            echo,
+            no_tui,
+            environment,
+        )
+        .map_err(|why| prefixed("temper-box", &why))?,
         Command::Box { directories, echo, no_tui } => {
             box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
         }
