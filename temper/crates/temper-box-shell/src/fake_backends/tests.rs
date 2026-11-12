@@ -557,18 +557,22 @@ fn empty_configuration_refuses_before_creating_data_or_cache() {
     let scratch = Scratch::new("empty");
     let source = scratch.dirs();
     // Missing provisioning refuses for both absent C and present empty C.
-    missing_bundle_refuses(&source);
+    assert_eq!(
+        missing_bundle_refuses(&source),
+        "application.clients.bundle: no provisioned bundle; run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)"
+    );
     make_private(crate::path(&source.config), skein_shell::effective_user()).expect("empty configuration");
     missing_bundle_refuses(&source);
 }
 
-fn missing_bundle_refuses(source: &Directories) {
+fn missing_bundle_refuses(source: &Directories) -> String {
     let error = start(source, None).err().expect("no bundle");
     assert!(error.contains("scripts/bundle.sh DIR"), "{error}");
     assert!(error.contains("application.clients.bundle"), "{error}");
     assert!(error.contains("temper-box --fake-backends --bundle BUNDLE"), "{error}");
     assert!(!crate::path(&source.data).exists(), "refuse before data mutation");
     assert!(!crate::path(&source.cache).exists(), "refuse before cache mutation");
+    error
 }
 
 #[test]
@@ -768,6 +772,12 @@ fn reuse_refuses_a_missing_effective_bundle_and_preserves_edits() {
     drop(first);
     let error = start(&source, None).err().expect("missing retained bundle refused");
     assert!(error.contains("absent-retained-bundle"), "{error}");
+    assert_eq!(read_json(&document), edited);
+
+    edited["application"]["clients"]["bundle"] = serde_json::Value::Null;
+    store_json(&document, &edited);
+    let error = start(&source, None).err().expect("unnamed retained bundle refused");
+    assert_eq!(error, "application.clients.bundle: effective document must name its bundle");
     assert_eq!(read_json(&document), edited);
 }
 

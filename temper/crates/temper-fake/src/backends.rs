@@ -11,7 +11,7 @@ use skein_json::{
 use skein_lib::{Decimal, List, bytes};
 use temper_forge_setup::{Kind as StepKind, Step};
 
-/// Absolute effective directories and the already provisioned loopback bundle.
+/// Absolute effective directories and the already provisioned bundle.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Paths {
     pub config: Box<[u8]>,
