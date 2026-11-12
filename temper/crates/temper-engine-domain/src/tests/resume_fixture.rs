@@ -268,6 +268,7 @@ pub fn config(seed: u64) -> engine::Config {
     config_with_project_room(seed, 1)
 }
 
+#[expect(clippy::too_many_lines, reason = "the configuration fixture spells out required settings and endpoint facts")]
 pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
     let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
     let rules = authority::Rules {
@@ -325,6 +326,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             },
             settings: jig_domain_core::Settings {
                 endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 1,

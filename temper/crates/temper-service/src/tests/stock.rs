@@ -1228,6 +1228,13 @@ fn init_inbox_holds_three_message_credits_within_the_store_codec() {
 fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
     let engine = engine(&generated());
     let init = engine.llm.models.clone();
+    let fable = &init[2].model;
+    let c = (u64::from(fable.window) * 12_500 + u64::from(fable.output) * 50_000).div_ceil(1_000_000);
+    assert_eq!(c, 13_517, "Fable's window at its cache-write rate plus output, rounded once");
+    assert_eq!(jig_domain_core::most_costly(fable), Some(c));
+    let astra = init[4].clone();
+    let astra_c = jig_domain_core::most_costly(&astra.model).unwrap();
+    assert_eq!(astra_c, 10_896, "without Claude the costliest completion is unchanged");
     let mut cheap = init[0].clone();
     cheap.model.window = 1501;
     cheap.model.output = 503;
@@ -1237,9 +1244,10 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
     cheap.model.output_price = 4;
     cheap.model.price_unit = 1000;
     for (row, models, c, k) in [
-        ("init", init.clone(), 10_896, 43_584),
+        ("init", init.clone(), c, 4 * c),
         ("cheap with costliest prices and rounding", Box::new([cheap.clone()]), 7, 256),
-        ("cheap before Fable", Box::new([cheap, init[2].clone()]), 10_896, 43_584),
+        ("cheap before Fable", Box::new([cheap, init[2].clone()]), c, 4 * c),
+        ("OpenAI only", Box::new([astra]), astra_c, 4 * astra_c),
     ] {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
@@ -1868,12 +1876,14 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
 fn the_stock_pool_funds_eighty_chats_at_once() {
     let engine = engine(&generated());
     let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.minimum_run_spend, 2 * 10_896);
-    assert_eq!(stock.rules.maximum_run_spend, 43_584);
+    let c = jig_domain_core::most_costly(&engine.llm.models[2].model).unwrap();
+    let k = 4 * c;
+    assert_eq!(stock.rules.minimum_run_spend, 2 * c);
+    assert_eq!(stock.rules.maximum_run_spend, k);
     let policy = &stock.policies.get(&1).expect("policy 1").policy;
     assert_eq!(stock.templates[0].budget, jig_domain_people::TemplateBudget::AsAllowed { cap: None });
     let chat_spend = policy.roles[0].authority.budget.spend;
-    assert_eq!(chat_spend, 24 * 43_584);
+    assert_eq!(chat_spend, 24 * k);
     let pool = policy.roles[0].period_spend;
     assert!(pool >= 80 * chat_spend);
     assert!(pool < 81 * chat_spend);
@@ -2115,15 +2125,15 @@ fn stock_numbers_each_model_for_good() {
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
     assert_eq!(models.len(), 8);
-    for (entry, (number, provider, name)) in models.iter().zip([
-        (1, 2, "claude-opus-5-5"),
-        (2, 2, "claude-sonnet-5-5"),
-        (3, 2, "claude-fable-5-1"),
-        (4, 1, "gpt-6.1-sol"),
-        (5, 1, "gpt-6-astra"),
-        (6, 1, "gpt-6.1-terra"),
-        (7, 1, "gpt-6-luna"),
-        (8, 3, "demo"),
+    for (entry, (number, provider, name, cached, cache_write)) in models.iter().zip([
+        (1, 2, "claude-opus-5-5", 200, Some(5_000)),
+        (2, 2, "claude-sonnet-5-5", 200, Some(2_500)),
+        (3, 2, "claude-fable-5-1", 250, Some(12_500)),
+        (4, 1, "gpt-6.1-sol", 2_000, None),
+        (5, 1, "gpt-6-astra", 10_000, None),
+        (6, 1, "gpt-6.1-terra", 1_000, None),
+        (7, 1, "gpt-6-luna", 100, None),
+        (8, 3, "demo", 1, None),
     ]) {
         assert_eq!(
             (entry.number, entry.model.provider, entry.model.name.as_ref()),
@@ -2135,7 +2145,8 @@ fn stock_numbers_each_model_for_good() {
         assert!(!entry.estimated);
         assert_eq!(entry.model.window, 1_048_576);
         assert_eq!(entry.model.output, 8192);
-        assert_eq!(entry.model.cache_write_price, None);
+        assert_eq!(entry.model.cached_price, cached, "{name}");
+        assert_eq!(entry.model.cache_write_price, cache_write, "{name}");
         assert!(entry.description.is_none());
     }
     assert_eq!(models[7].model.name.as_ref(), b"demo");

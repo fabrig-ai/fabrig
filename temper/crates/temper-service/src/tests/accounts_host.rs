@@ -722,6 +722,7 @@ fn registered() -> (config::Engine, AccountsRuntime) {
         list: None,
         number: 3,
         endpoint: None,
+        direct: None,
         name: b"issuer".as_slice().into(),
         signed_in_plan: false,
         manage_usage: None,
