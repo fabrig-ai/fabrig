@@ -72,7 +72,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), OP_BYTES);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), OP_BYTES);
     defaults.rules.period_spend = SPEND;
     defaults.rules.ceiling.budget.spend = SPEND;
     for charter in &mut defaults.charters {

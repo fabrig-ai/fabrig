@@ -5375,12 +5375,14 @@ dependencies = [
  "skein-ui-web",
  "skein-world",
  "temper-client-domain",
+ "temper-engine-service",
  "temper-fake",
  "temper-fixtures",
  "temper-init",
  "temper-playground",
  "temper-playground-world",
  "temper-service",
+ "temper-service-core",
  "temper-shell",
  "temper-test-env",
 ]
@@ -5735,9 +5737,9 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
+ "temper-engine-service",
  "temper-engine-smith",
  "temper-protocol-reaches",
- "temper-service",
  "temper-worker-domain-world",
 ]
 
@@ -5983,13 +5985,13 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-forge-world",
+ "temper-engine-service",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
  "temper-protocol-reaches",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
- "temper-service",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
 ]
@@ -6032,7 +6034,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-forge-world",
- "temper-service",
+ "temper-engine-service",
  "temper-test-env",
 ]
 
@@ -6245,10 +6247,10 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-service",
  "temper-forge-setup",
  "temper-init",
  "temper-protocol-store",
- "temper-service",
 ]
 
 [[package]]
@@ -6393,10 +6395,10 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-engine-service",
  "temper-protocol-records",
  "temper-protocol-records-forge",
  "temper-protocol-store",
- "temper-service",
 ]
 
 [[package]]
@@ -6996,13 +6998,15 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-forge-world",
+ "temper-engine-service",
  "temper-engine-smith",
  "temper-fake-checkout",
  "temper-protocol-worker-wire",
- "temper-service",
+ "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-domain-world",
+ "temper-worker-service",
 ]
 
 [[package]]

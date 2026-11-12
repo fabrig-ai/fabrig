@@ -8,7 +8,7 @@ const REASON: &[u8] = b"ci: the forge's answer did not match its read";
 
 fn world() -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     // The shipped brief has room for both the pull identity and its unread marker.
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let world = World::configured_limits(
         true,
         true,

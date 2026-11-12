@@ -896,7 +896,7 @@ impl World {
                 limits.people.amendment_bytes = 2048;
             }
             if kinds && index == 1 {
-                config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
+                config.core.kinds = temper_engine_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         })
@@ -1196,7 +1196,7 @@ impl World {
             owner.identity = identity.clone();
         }
         self.restart_config.core.kinds =
-            temper_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
+            temper_engine_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
         let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
         bootstrap.core.kinds = Box::new([]);
         self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
@@ -3082,7 +3082,7 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
-    temper_service::limits::engine(&jig, &temper).expect("coherent box limits")
+    temper_engine_service::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
 /// The store join allowance from the same init template projection as `box_limits`.
@@ -3091,14 +3091,14 @@ pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
-fn box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
     // A story reads the same template for its defaults, root limits and store joins.
-    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_service::limits::Limits)> =
+    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_engine_service::limits::Limits)> =
         std::sync::OnceLock::new();
     *PROFILES.get_or_init(read_box_profiles)
 }
 
-fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),
@@ -3118,13 +3118,13 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::
     let at = limits.member(&document, b"overrides").expect("application overrides");
     let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
     let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_service::limits::profile(temper_service::limits::Profile::Standard);
+    let mut temper = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Standard);
     for index in at..end {
         let token = document.token(index).expect("application override token");
         let Some(name) = document.text(token) else { continue };
         let Some(value_at) = overrides.member(&document, name) else { continue };
         let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_service::limits::apply(&mut temper, name, value)
+        temper_engine_service::limits::apply(&mut temper, name, value)
             .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
     }
     (parsed.limits, temper)

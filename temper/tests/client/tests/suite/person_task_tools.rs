@@ -243,7 +243,7 @@ fn role_configuration() -> engine::Config {
             estimated: false,
         })
         .collect();
-    let stock = temper_service::stock::with_models(models, RESULT_WORDS);
+    let stock = temper_engine_service::stock::with_models(models, RESULT_WORDS);
     config.core.defaults.charters = stock.charters.into_iter().filter(|charter| charter.number == 13).collect();
     config.core.defaults.templates = stock.templates.into_iter().filter(|template| template.number == 7).collect();
     let ceiling = &mut config.core.defaults.rules.ceiling;

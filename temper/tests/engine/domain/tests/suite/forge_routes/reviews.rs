@@ -2101,7 +2101,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 
 #[test]
 fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let world = World::configured_limits(
         true,
         true,

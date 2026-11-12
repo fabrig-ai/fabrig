@@ -874,7 +874,7 @@ impl World {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    return Ok(vec![temper_service::settings_note(to, *call, &body, &self.root.catalogue())]);
+                    return Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.root.catalogue())]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },

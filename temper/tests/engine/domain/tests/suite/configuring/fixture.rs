@@ -53,15 +53,15 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
+    config.core.defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
     deployment_owner.project = people::DEPLOYMENT;
     config.core.owners = Box::new([deployment_owner, project_owner]);
     config.core.connectors = Box::new([1]);
-    config.core.kinds = temper_service::stock::kinds(&limits(), 1);
-    config.kinds_stock = temper_service::stock::forge(&limits());
+    config.core.kinds = temper_engine_service::stock::kinds(&limits(), 1);
+    config.kinds_stock = temper_engine_service::stock::forge(&limits());
     config
 }
 
