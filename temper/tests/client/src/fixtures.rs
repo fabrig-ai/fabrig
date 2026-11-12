@@ -100,15 +100,16 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
+/// Twelve delegates fill one stream's room beside the chat's session watches and Home.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 12;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 20; // Holds four projects' decided watches.
-    limits.client.domain.handles = 22; // Holds four projects' decided watches.
+    // The shipped shells hold four projects' documents and the session's own watches.
+    limits.client.domain.watches = 26;
+    limits.client.domain.handles = 28;
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
