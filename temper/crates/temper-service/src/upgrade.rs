@@ -57,6 +57,9 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
     }
     engine.clients.abort(true);
     // Restoring owns only the store; the other owners close before any I/O.
+    if let Some(accounts) = &mut engine.accounts {
+        accounts.abort();
+    }
     engine.workers.abort(engine.env.now, &mut engine.events);
     engine.setup.close();
     engine.forge.down(skein_forge_connection::Request::Close);

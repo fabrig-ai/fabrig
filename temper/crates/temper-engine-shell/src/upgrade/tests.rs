@@ -47,12 +47,28 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
         workers.push(serde_json::json!({"name":name,"digest":digest}));
     }
     document["engine"]["hosts"]["workers"] = workers.into();
-    document["engine"]["llm"]["providers"][0]["sources"].as_object_mut().expect("sources").remove("sign_in");
-    document["engine"]["llm"]["providers"][0]["signed_in_plan"] = false.into();
+    let registration = serde_json::json!({
+        "issuer":"http://127.0.0.1:7104", "client":"test-client", "scopes":["openid","read"],
+        "authorization":"http://127.0.0.1:7104/authorize", "token":"http://127.0.0.1:7104/token",
+        "keys":"http://127.0.0.1:7104/keys", "transport":"plaintext", "must_grant":["read"],
+        "redirect_path":"callback"
+    });
+    document["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
+    document["engine"]["llm"]["providers"][0]["manage_usage"] = "https://accounts.example.invalid/usage".into();
     let endpoint = &mut document["engine"]["llm"]["endpoints"][0];
     endpoint.as_object_mut().expect("endpoint").remove("server_name");
     endpoint["address"] = serde_json::json!({"socket":"127.0.0.1:1"});
     endpoint["transport"] = "plaintext".into();
+    let mut endpoint = endpoint.clone();
+    endpoint["name"] = "second".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "second".into();
+    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    let mut provider = document["engine"]["llm"]["providers"][0].clone();
+    provider["name"] = "second".into();
+    provider["number"] = 2.into();
+    provider["endpoint"] = "second".into();
+    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
     document["application"]["machine"]["github"] = serde_json::json!({
         "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
         "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"
@@ -69,7 +85,7 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
 }
 
 #[test]
-fn deployment_rehearsal_with_workers_and_forge_reaches_its_report() {
+fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
     let (_scratch, directories) = deployment();
     let code = run("temper-engine", &directories, &Request::Check(directories.data.clone()), None)
         .expect("upgrade reaches its report");
@@ -77,7 +93,7 @@ fn deployment_rehearsal_with_workers_and_forge_reaches_its_report() {
 }
 
 #[test]
-fn deployment_back_with_workers_and_forge_reports_no_previous_generation() {
+fn deployment_back_with_accounts_workers_and_forge_reports_no_previous_generation() {
     let (_scratch, directories) = deployment();
     let code = run("temper-engine", &directories, &Request::Back, None).expect("back reaches its report");
     assert_eq!(code, 1, "baseline has no previous generation");

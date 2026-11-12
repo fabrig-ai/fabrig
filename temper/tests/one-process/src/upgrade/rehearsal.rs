@@ -2,7 +2,8 @@
 use crate::{fixtures, golden};
 use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_io::kernel::{Complete, Exit, Submit};
-use skein_lib::{Queue, Time, Wall};
+use skein_lib::{List, Queue, Time, Wall};
+use skein_oauth_accounts as accounts;
 use skein_shell::Host;
 use std::{collections::BTreeMap, path::Path};
 use temper_playground::machine::{self, SignalHost};
@@ -79,6 +80,27 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
+    let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
+    for provider in document["engine"]["llm"]["providers"].as_array().expect("LLM providers") {
+        if provider["sources"]["sign_in"].is_object() {
+            let endpoint = || accounts::Endpoint {
+                address: ([127, 0, 0, 1], 7104).into(),
+                transport: accounts::Transport::Plaintext,
+            };
+            let mut origins = List::with_capacity(1);
+            origins
+                .push(accounts::Origin { uri: b"http://127.0.0.1:7104".as_slice().into(), endpoint: endpoint() })
+                .expect("sign-in origin");
+            runtime
+                .providers
+                .push((
+                    u32::try_from(provider["number"].as_u64().expect("provider number")).expect("u32"),
+                    endpoint(),
+                    origins,
+                ))
+                .expect("two providers");
+        }
+    }
     let mut files = fixtures::files();
     for worker in document["engine"]["hosts"]["workers"].as_array().expect("configured workers") {
         let name = worker["digest"].as_str().expect("digest path").as_bytes();
@@ -97,7 +119,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         &files,
         Some(&temper_playground::documents::agent()),
         &fixtures::seeds(),
-        None,
+        Some(runtime),
         &given,
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
@@ -108,6 +130,9 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         owners.workers.closed && owners.setup.closed && owners.forge.closed,
         "upgrade closes unstarted owners before store I/O: {owners:?}"
     );
+    if let Some(accounts) = owners.accounts {
+        assert!(accounts.empty && !accounts.work_pending && !accounts.opened, "unstarted accounts close: {accounts:?}");
+    }
     SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
 }
 
@@ -157,6 +182,14 @@ pub fn golden_check(directory: &Path, broken: bool) {
 
 /// A deployment's remote workers and owned Forgejo must stay unstarted.
 pub fn deployment_check(directory: &Path) {
+    golden_check_with(
+        directory,
+        false,
+        serde_json::to_vec(&deployment_document(directory)).expect("deployment configuration"),
+    );
+}
+
+fn deployment_document(directory: &Path) -> serde_json::Value {
     let mut document: serde_json::Value =
         serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
     document["workers"] = serde_json::json!([]);
@@ -172,7 +205,36 @@ pub fn deployment_check(directory: &Path) {
         "forgejo":"/opt/forgejo/forgejo", "runner":null,
         "person":{"login":"person", "email":"person@example.invalid"}, "sign_in":null
     }});
-    golden_check_with(directory, false, serde_json::to_vec(&document).expect("deployment configuration"));
+    document
+}
+
+/// Configured sign-in sources must not keep the rehearsal waiting for its start mark.
+pub fn accounts_check(directory: &Path) {
+    let mut document = deployment_document(directory);
+    document["engine"]["providers"] = serde_json::json!([
+        {"number":1,"kind":"link"}, {"number":2,"kind":"deployment"}, {"number":3,"kind":"application"}
+    ]);
+    document["engine"]["acts"] = serde_json::json!([{"connector":1,"may":["remove_account","adopt"]}]);
+    // The second endpoint and third identity provider add two settings versions.
+    document["engine"]["limits"]["overrides"]["core.settings.versions"] = 10.into();
+    let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
+    endpoint["name"] = "second".into();
+    endpoint["number"] = 2.into();
+    endpoint["provider"] = "golden-provider".into();
+    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
+    document["engine"]["llm"]["providers"][1]["endpoint"] = "second".into();
+    document["engine"]["llm"]["models"][1]["endpoint"] = "second".into();
+    for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
+        provider["signed_in_plan"] = true.into();
+        provider["manage_usage"] = "https://accounts.example.invalid/usage".into();
+        provider["sources"] = serde_json::json!({"keys":true,"sign_in":{
+            "issuer":"http://127.0.0.1:7104", "client":"test-client", "scopes":["openid","read"],
+            "authorization":"http://127.0.0.1:7104/authorize", "token":"http://127.0.0.1:7104/token",
+            "keys":"http://127.0.0.1:7104/keys", "transport":"plaintext", "must_grant":["read"],
+            "redirect_path":"callback"
+        }});
+    }
+    golden_check_with(directory, false, serde_json::to_vec(&document).expect("accounts configuration"));
 }
 
 fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {

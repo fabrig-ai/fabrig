@@ -59,6 +59,7 @@ smith-protocol-llm.workspace = true
 smith-domain.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
+skein-oauth-accounts.workspace = true
 skein-http.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true

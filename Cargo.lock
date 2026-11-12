@@ -6144,6 +6144,7 @@ dependencies = [
  "skein-io",
  "skein-kv",
  "skein-lib",
+ "skein-oauth-accounts",
  "skein-playground",
  "skein-scratch",
  "skein-shell",
