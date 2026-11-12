@@ -1,6 +1,6 @@
 //! Native TLS over io and against a peer in memory (net/tls.md, 3.6).
 
-use rustls::ContentType;
+use rustls_std::ContentType;
 use skein_lib::{
     Token,
     stream::{OutputDown, OutputOutcome, OutputUp, Read, Up},

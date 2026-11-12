@@ -90,6 +90,11 @@ the separate `smith-fake-claude` package's binary tests are not selected by
 any of these pairs. No other native binary requirement was found across
 the configured pairs.
 
+`[test-binaries]` lists, by package, the binaries of other packages that the
+package's focused and fuzzy tests run, in the same records without `env`,
+validated alike; the delivery check builds them before its tests
+(`tools/pre-pr/design.md`, 4). `smith`'s lists `smith-fake-claude`'s `fake-claude`.
+
 ### 2.2 The bundle list
 
 `tools/tiers/bundles.toml` is the one list of the browser bundles: this

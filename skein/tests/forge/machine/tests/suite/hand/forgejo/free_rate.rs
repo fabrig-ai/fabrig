@@ -1,6 +1,7 @@
 //! Call envelopes gather response facts before the dialect's plan hears them.
 use skein_forge::api::{Answer, Error, Op, Rate, Read};
 use skein_forge_connection::Answered;
+use skein_forge_connection::seam::Access;
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Wall};
 use std::boxed::Box;

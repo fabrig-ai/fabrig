@@ -3,8 +3,8 @@
 use std::io::{Read as _, Write as _};
 use std::sync::Arc;
 
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use rustls::{ServerConfig, ServerConnection};
+use rustls_std::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use rustls_std::{ServerConfig, ServerConnection};
 use skein_io as io;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Intake, Queue, Token, usize_of};
@@ -274,7 +274,7 @@ fn config() -> Arc<ServerConfig> {
     const LEAF: &[u8] = include_bytes!("../../../../tests/tls/fixtures/leaf.der");
     const INTERMEDIATE: &[u8] = include_bytes!("../../../../tests/tls/fixtures/intermediate.der");
     const KEY: &[u8] = include_bytes!("../../../../tests/tls/fixtures/leaf.key");
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let provider = Arc::new(rustls_std::crypto::ring::default_provider());
     let mut config = ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .expect("fixed TLS versions")

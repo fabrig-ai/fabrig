@@ -1,5 +1,6 @@
-use super::{ending_with_binary, note_line, worker_ending_words, worker_note_words};
+use temper_engine_shell::lines::{ending_with_binary, note_line};
 use temper_service::{End, Note, Refusal, Stop, WorkerJobEnding, WorkerLoss, worker_alone as worker};
+use temper_worker_shell::lines::{ending_with_binary as worker_ending_words, note_line as worker_note_words};
 
 const BINARY: &str = "temper-worker";
 fn directories() -> temper_shell::directories::Directories {

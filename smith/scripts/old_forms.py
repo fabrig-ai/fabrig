@@ -63,6 +63,10 @@ SYNTAX_FORMS = tuple(form for form in FORMS if form not in (*WORDS, 'takes', 'ac
 DOMAIN_PATH = re.compile(
     r'^crates/(?:smith-domain(?:-[^/]+)?|smith-host-domain|smith-local-domain|smith-inline-agent)/')
 INCLUDE = {'domain_while': DOMAIN_PATH, 'domain_loop': DOMAIN_PATH}
+# A fixtures crate's whole Limits literals belong with its fixtures; the crate's
+# #[cfg(test)] copy is counted where the crate keeps it (skein/docs/foundation/cli.md,
+# section 3; the user, 2026-11-12).
+EXCLUDE = {'full_limits': ('testing/',)}
 COMMENT_FORMS = {
     'actual': ENGINE['banned_word']('actual'),
     'genuine': ENGINE['banned_word']('genuine'),

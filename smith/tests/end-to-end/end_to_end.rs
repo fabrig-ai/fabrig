@@ -1,5 +1,6 @@
 mod chat_crossing;
 mod credentials;
+mod fake_lookup;
 mod program_check;
 mod program_children;
 mod program_commands;
@@ -393,7 +394,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":6,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":6,"charter":4,"transcript":7,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));

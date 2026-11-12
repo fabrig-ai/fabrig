@@ -343,6 +343,40 @@ def clippy(packages, data, root, env):
     return code, errors
 
 
+def test_binaries(data, root):
+    """Validate focused-test prerequisites before the checks (tools/tiers/design.md, 2.1)."""
+    path = 'tools/tiers/packages.toml'
+    with (root / path).open('rb') as source:
+        inventory = tomllib.load(source).get('test-binaries', {})
+    if not isinstance(inventory, dict):
+        raise ValueError(f'refused test-binaries inventory in {path} (need a table)')
+    workspace = members(data)
+    for name, binaries in inventory.items():
+        if name not in workspace:
+            raise ValueError(f'refused test-binaries key {name} in {path} (not a workspace package)')
+        valid = isinstance(binaries, list)
+        if valid:
+            valid = all(isinstance(binary, dict) and set(binary) == {'package', 'bin'}
+                        and all(isinstance(value, str) and re.fullmatch(r'[A-Za-z0-9_-]+', value)
+                                for value in binary.values()) for binary in binaries)
+        if valid:
+            keys = [(binary['package'], binary['bin']) for binary in binaries]
+            valid = (keys == sorted(set(keys))
+                     and len({binary['bin'] for binary in binaries}) == len(binaries))
+        if not valid:
+            raise ValueError(f'refused invalid test-binaries list for {name} in {path} '
+                             '(need sorted, unique package/bin records and distinct binary names)')
+    return inventory
+
+
+def build_test_binaries(binaries, root, env):
+    for binary in binaries:
+        code, log = run(['cargo', 'build', '-p', binary['package'], '--bin', binary['bin']], root, env)
+        if code:
+            return code, [failure('build', f"{binary['package']}/{binary['bin']}: exit {code}\n" + log)]
+    return 0, []
+
+
 def one_process(packages, root, env):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
@@ -600,6 +634,16 @@ def main():
                 except (OSError, ValueError, RuntimeError) as error:
                     return [failure('format', str(error))]
 
+            inventory = {}
+            if code_checks:
+                try:
+                    if data is None:
+                        data = metadata(root, private)
+                    inventory = test_binaries(data, root)
+                except (OSError, ValueError, RuntimeError) as error:
+                    errors.append(failure('check selection', str(error)))
+                    return summary(base_id, lints, tests, errors, why if base_id else None)
+
             pending = {}
             if code_checks:
                 errors += timed('format', format_check)
@@ -615,7 +659,12 @@ def main():
                     if lints:
                         _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                         errors += found
-                    if tests:
+                    binaries = [binary for name in tests for binary in inventory.get(name, [])]
+                    build_code = 0
+                    if binaries:
+                        build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
+                        errors += found
+                    if tests and not build_code:
                         _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
                         errors += found
             if docs:
@@ -628,6 +677,8 @@ def main():
             for name, seconds in pending.items():
                 if name == 'clippy':
                     prefixes = ('clippy ', 'check clippy')
+                elif name == 'test binaries':
+                    prefixes = ('build',)
                 elif name == 'tests':
                     prefixes = ('test ', 'build', 'check one-process')
                 else:

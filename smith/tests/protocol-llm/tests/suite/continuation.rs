@@ -78,7 +78,7 @@ const OPENAI_HISTORY: &[u8] = br#""input":[{"id":"rs_c","type":"reasoning","encr
 const ANTHROPIC_HISTORY: &[u8] = br#""messages":[{"role":"assistant","content":[{"type":"thinking","future":{"proof":[1,true,null]},"thinking":"Plan carefully","signature":"signed-opaque"},{"type":"redacted_thinking","data":"hidden-opaque"},{"type":"text","text":"Answer"}]},{"role":"user","content":[{"type":"text","text":"Continue.","cache_control":{"type":"ephemeral"}}]}]"#;
 
 fn receiving(bounds: &Limits) -> Receiving {
-    smith_protocol_llm::fixture::receiving(&bounds.client, 4096).expect("fixture receiving bound")
+    smith_protocol_llm_fixtures::receiving(&bounds.client, 4096).expect("fixture receiving bound")
 }
 
 fn prompt(messages: Box<[llm::Message]>) -> llm::Prompt {

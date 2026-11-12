@@ -13,9 +13,10 @@ skein-json.workspace = true
 smith-domain.workspace = true
 smith-agent-world.workspace = true
 smith-agent-service.workspace = true
-smith-protocol-events = { workspace = true, features = ["fixture"] }
-smith-events = { workspace = true, features = ["fixture"] }
-smith-protocol-llm = { workspace = true, features = ["fixture"] }
+smith-protocol-events.workspace = true
+smith-events.workspace = true
+smith-protocol-llm.workspace = true
+smith-protocol-llm-fixtures.workspace = true
 smith-session-world.workspace = true
 smith-domain-tools.workspace = true
 smith-tools-world.workspace = true
@@ -29,7 +30,7 @@ skein-fake-llm-protocol.workspace = true
 skein-tls.workspace = true
 skein-llm-kit.workspace = true
 skein-world.workspace = true
-serde_json = { version = "1", features = ["raw_value"] }
+serde_json = { workspace = true }
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.
 # tests/clippy.toml bans what would make a run unrepeatable.
@@ -49,6 +50,8 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+smith-events-fixtures.workspace = true
+smith-protocol-events-fixtures.workspace = true
 smith-domain-session.workspace = true
 smith-protocol-translate.workspace = true
 smith-transcript.workspace = true

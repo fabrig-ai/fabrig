@@ -3257,6 +3257,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-forge-connection-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-github",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-lib",
+ "skein-tls",
+]
+
+[[package]]
 name = "skein-forge-dialect-tests"
 version = "0.0.0"
 dependencies = [
@@ -3294,6 +3306,7 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-connection",
+ "skein-forge-connection-fixtures",
  "skein-forge-kit",
  "skein-heap",
  "skein-io",
@@ -4056,6 +4069,7 @@ dependencies = [
  "smith-agent-world",
  "smith-bench",
  "smith-events",
+ "smith-events-fixtures",
  "smith-fake-claude",
  "smith-hosts-world",
  "smith-local-process-world",
@@ -4087,6 +4101,13 @@ dependencies = [
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
+]
+
+[[package]]
+name = "smith-agent-document-fixtures"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4151,11 +4172,27 @@ dependencies = [
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-agent-profile-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "skein-lib",
+ "skein-llm",
+ "smith-agent-profile",
+ "smith-domain",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -4172,15 +4209,18 @@ dependencies = [
  "skein-llm-connection",
  "skein-tls",
  "smith-agent-profile",
- "smith-agent-service",
+ "smith-agent-profile-fixtures",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",
  "smith-domain",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-channel",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
@@ -4203,8 +4243,8 @@ dependencies = [
  "skein-shell",
  "skein-tls",
  "smith-agent-document",
+ "smith-agent-document-fixtures",
  "smith-agent-service",
- "smith-agent-shell",
  "smith-channel",
  "smith-charter",
  "smith-domain",
@@ -4233,6 +4273,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-world",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-session-world",
  "smith-tools-world",
 ]
@@ -4257,11 +4298,23 @@ dependencies = [
  "skein-shell",
  "skein-world",
  "smith-agent-service",
- "smith-bench",
+ "smith-bench-fixtures",
  "smith-events",
+ "smith-events-fixtures",
  "smith-local-shell",
  "time",
  "toml",
+]
+
+[[package]]
+name = "smith-bench-fixtures"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-lib",
+ "smith-bench",
+ "smith-events",
+ "smith-events-fixtures",
 ]
 
 [[package]]
@@ -4317,6 +4370,7 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-events",
+ "smith-events-fixtures",
  "smith-transcript",
  "smith-transcript-patches",
 ]
@@ -4362,6 +4416,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-events-fixtures"
+version = "0.0.0"
+dependencies = [
+ "smith-events",
+]
+
+[[package]]
 name = "smith-fake-claude"
 version = "0.0.0"
 dependencies = [
@@ -4378,6 +4439,7 @@ dependencies = [
  "skein-world",
  "smith-agent-shell",
  "smith-protocol-program",
+ "smith-protocol-program-fixtures",
 ]
 
 [[package]]
@@ -4739,8 +4801,21 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-translate",
+]
+
+[[package]]
+name = "smith-protocol-events-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "smith-domain",
+ "smith-events",
+ "smith-events-fixtures",
+ "smith-protocol-events",
 ]
 
 [[package]]
@@ -4757,6 +4832,19 @@ dependencies = [
  "smith-domain",
  "smith-domain-tools",
  "smith-events",
+]
+
+[[package]]
+name = "smith-protocol-llm-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-tls",
+ "smith-domain",
+ "smith-protocol-llm",
 ]
 
 [[package]]
@@ -4782,8 +4870,11 @@ dependencies = [
  "smith-domain-session",
  "smith-domain-tools",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-protocol-translate",
  "smith-session-world",
  "smith-tools-world",
@@ -4824,6 +4915,15 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
+]
+
+[[package]]
+name = "smith-protocol-program-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-protocol-program",
 ]
 
 [[package]]
@@ -5865,6 +5965,8 @@ dependencies = [
  "jig-channel-kit",
  "jig-domain-core",
  "jig-domain-host",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
@@ -5884,6 +5986,8 @@ dependencies = [
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
  "temper-fake",
  "temper-forge-setup",
  "temper-forge-setup-shell",
@@ -6614,24 +6718,12 @@ dependencies = [
 name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
- "jig-domain-host",
- "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-config",
- "jig-protocol-engine-workers",
- "jig-protocol-store",
- "jig-protocol-worker-wire",
- "skein-channel",
- "skein-forge",
- "skein-forge-connection",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
- "temper-engine-domain",
- "temper-engine-domain-forge",
- "temper-service",
+ "temper-service-core",
  "temper-shell",
 ]
 
@@ -6879,6 +6971,7 @@ name = "temper-worker-shell"
 version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
+ "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-config",
  "serde_json",
@@ -6892,6 +6985,7 @@ dependencies = [
  "temper-launcher",
  "temper-playground",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-worker-domain",

@@ -36,7 +36,7 @@ fn optional_native_usage_stays_absent_through_the_root() {
         let mut bounds = fixture::limits();
         bounds.client.http.request = 16_384;
         bounds.client.request = 16_384;
-        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, settings.limits.decoded_call_bytes)
+        let receiving = smith_protocol_llm_fixtures::receiving(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("fixture receiving bound");
         settings.limits.session.completion_bytes = receiving.max_completion_bytes;
         settings.limits.session.completion_blocks = receiving.max_completion_blocks;

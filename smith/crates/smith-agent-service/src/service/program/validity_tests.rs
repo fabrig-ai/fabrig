@@ -1,5 +1,5 @@
 use super::*;
-pub(super) use smith_agent_profile::fixture::program_configuration as configuration;
+pub(super) use smith_agent_profile_fixtures::program_configuration as configuration;
 
 #[test]
 fn each_conversation_reserves_a_programs_io_files_and_token_range() {

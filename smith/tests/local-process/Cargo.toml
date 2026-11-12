@@ -52,7 +52,7 @@ smith-domain = { workspace = true, features = ["fixture"] }
 smith-events.workspace = true
 smith-transcript.workspace = true
 serde_json = "1"
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
 
 [lints.rust]
 unsafe_code = "forbid"

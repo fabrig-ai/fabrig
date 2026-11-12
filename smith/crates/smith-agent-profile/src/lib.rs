@@ -22,5 +22,5 @@ pub use host::host_limits;
 pub use programs::{ProgramBackend, program_operations, program_valid};
 pub use values::{Config, Limits, ROUTE_HEADROOM};
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;
