@@ -517,11 +517,16 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Choice, name: "tests" },
             Part::Named { role: Role::Choice, name: "A new area" },
             Part::Named { role: Role::Choice, name: "Prover" },
+            Part::Named { role: Role::Choice, name: "Prover, from the stock" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+            },
+            Part::Named { role: Role::Choice, name: "Porter, from the stock" },
+            Part::Named { role: Role::Paragraph, name: "Keeps its area's port in step with its source." },
             Part::Named { role: Role::Choice, name: "Write one with Ask temper" },
             Part::Named { role: Role::Button, name: "Not now" },
             Part::Named { role: Role::Button, name: "Hand it over" },
-            Part::Absent { role: Role::Choice, name: "Prover, from the stock" },
-            Part::Absent { role: Role::Choice, name: "Porter, from the stock" },
         ],
     },
     Holds {
@@ -5084,6 +5089,19 @@ fn team_hand_opens_the_sheet_with_the_first_area_and_role() {
     assert!(open.apply);
     let (view, _, _) = built_root(&sample, ViewInputs::new(), &root);
     find(view.tree(), Role::Dialog, "Hand an area to a role", sample.name);
+    let mut last = 0;
+    for title in ["Prover", "Prover, from the stock", "Porter, from the stock", "Write one with Ask temper"] {
+        let id = find(view.tree(), Role::Choice, title, sample.name);
+        let position = view.tree().nodes().iter().position(|n| n.id == id).unwrap();
+        assert!(position > last, "role choices follow the gallery's order");
+        last = position;
+    }
+    for words in [
+        "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+        "Keeps its area's port in step with its source.",
+    ] {
+        find(view.tree(), Role::Paragraph, words, sample.name);
+    }
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]

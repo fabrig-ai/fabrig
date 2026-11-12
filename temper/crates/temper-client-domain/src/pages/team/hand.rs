@@ -16,10 +16,33 @@ pub enum Act {
     GiveBack,
     Area(Option<Box<[u8]>>),
     Role(Option<u64>),
+    Stock(Stock),
+    Budget(Box<[u8]>),
     Name(Box<[u8]>),
     Words(Box<[u8]>),
     Close,
     Send,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stock {
+    Prover,
+    Porter,
+}
+impl Stock {
+    #[must_use]
+    pub const fn charter(self) -> u32 {
+        match self {
+            Self::Prover => 15,
+            Self::Porter => 16,
+        }
+    }
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::Prover => b"Prover",
+            Self::Porter => b"Porter",
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NameProblem {
@@ -48,6 +71,8 @@ pub struct Open {
     pub apply: bool,
     pub area: Option<Box<[u8]>>,
     pub role: Option<u64>,
+    pub stock: Option<Stock>,
+    pub budget: Box<[u8]>,
     pub name: Box<[u8]>,
     pub words: Box<[u8]>,
     pub judged: bool,
@@ -56,6 +81,8 @@ pub struct Open {
     reading: Option<(Handle, u32)>,
     pending: Option<Key>,
     retried: bool,
+    settings_toast: Option<Toasted>,
+    budget_beyond: u64,
 }
 impl Pages {
     #[must_use]
@@ -85,6 +112,8 @@ impl Open {
             apply,
             area,
             role,
+            stock: None,
+            budget: Box::default(),
             name: Box::default(),
             words: Box::default(),
             judged: false,
@@ -93,11 +122,17 @@ impl Open {
             reading: None,
             pending: None,
             retried: false,
+            settings_toast: None,
+            budget_beyond: 0,
         }
     }
     #[must_use]
     pub const fn busy(&self) -> bool {
         self.reading.is_some() || self.pending.is_some()
+    }
+    #[must_use]
+    pub fn locked(&self) -> bool {
+        self.busy() || self.settings_toast.is_some()
     }
     #[must_use]
     pub fn name_problem(&self) -> Option<NameProblem> {
@@ -126,6 +161,26 @@ impl Open {
             }
         }
         None
+    }
+    #[must_use]
+    pub fn budget_value(&self) -> Option<u64> {
+        if self.budget.is_empty() || self.budget_beyond != 0 {
+            return None;
+        }
+        let mut value = 0_u64;
+        for byte in &self.budget {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
+        }
+        if value == 0 { None } else { Some(value) }
+    }
+    fn title(&self) -> Option<&[u8]> {
+        match self.stock {
+            Some(stock) => Some(stock.name()),
+            None => Some(&self.chosen_role()?.name),
+        }
     }
     fn chosen(&self) -> Option<(&[u8], &[u8])> {
         match &self.area {
@@ -246,6 +301,7 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             if let Some(open) = &mut root.pages.hand_area
                 && !open.busy()
                 && open.give.is_none()
+                && open.settings_toast.is_none()
             {
                 let Some(areas) = &open.facts.areas else { return };
                 let mut valid = area.is_none() && areas.rows.len() < 16;
@@ -263,6 +319,7 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             if let Some(open) = &mut root.pages.hand_area
                 && !open.busy()
                 && open.give.is_none()
+                && open.settings_toast.is_none()
             {
                 let mut valid = role.is_none();
                 for row in &open.facts.roles {
@@ -270,14 +327,40 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
                 }
                 if valid {
                     open.role = role;
+                    open.stock = None;
                     open.failure = None;
                 }
+            }
+        }
+        Act::Stock(stock) => {
+            if let Some(open) = &mut root.pages.hand_area
+                && !open.busy()
+                && open.give.is_none()
+                && open.settings_toast.is_none()
+            {
+                open.stock = Some(stock);
+                open.role = None;
+                open.judged = false;
+                open.failure = None;
+            }
+        }
+        Act::Budget(budget) => {
+            if let Some(open) = &mut root.pages.hand_area
+                && !open.busy()
+            {
+                let (budget, beyond) = crate::pages::composer::held(budget, 24);
+                open.budget = budget;
+                open.budget_beyond = beyond;
+                open.failure = None;
             }
         }
         Act::Name(name) => {
             if let Some(open) = &mut root.pages.hand_area
                 && !open.busy()
             {
+                if open.settings_toast.is_some() {
+                    return;
+                }
                 open.name = crate::pages::composer::held(name, 36).0;
                 open.failure = None;
             }
@@ -286,6 +369,9 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             if let Some(open) = &mut root.pages.hand_area
                 && !open.busy()
             {
+                if open.settings_toast.is_some() {
+                    return;
+                }
                 open.words = crate::pages::composer::held(words, 484).0;
                 open.failure = None;
             }
@@ -312,7 +398,14 @@ fn submit(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if open.busy() {
         return;
     }
-    if open.give.is_none() && open.role.is_none() {
+    if open.settings_toast.is_some() {
+        open.judged = true;
+        if open.budget_value().is_some() {
+            start(root, env, out);
+        }
+        return;
+    }
+    if open.give.is_none() && open.role.is_none() && open.stock.is_none() {
         let Some(words) = open.ask_words() else { return };
         close(root, env, out);
         crate::route::pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::AskWith { words } }, out);
@@ -320,7 +413,8 @@ fn submit(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     open.judged = true;
     if open.give.is_none()
-        && (open.chosen_role().is_none()
+        && ((open.chosen_role().is_none() && open.stock.is_none())
+            || (open.stock.is_some() && open.budget_value().is_none())
             || (open.area.is_none() && (open.name_problem().is_some() || !open.words_valid())))
     {
         return;
@@ -396,7 +490,7 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
                 found = true;
             }
         } else if Some(&row.name) == open.area.as_ref() {
-            row.owner = task_owner(open, bounds)?;
+            row.owner = chosen_owner(open, bounds)?;
             found = true;
         } else if open.area.is_none() && row.name == open.name {
             return None;
@@ -410,7 +504,7 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
         rows.push(
             w::Area::new(
                 bounds,
-                w::AreaParts { name: open.name.clone(), words: open.words.clone(), owner: task_owner(open, bounds)? },
+                w::AreaParts { name: open.name.clone(), words: open.words.clone(), owner: chosen_owner(open, bounds)? },
             )
             .ok()?,
         )
@@ -420,8 +514,15 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
     }
     w::ProjectAreas::new(bounds, w::ProjectAreasParts { areas: rows }).ok()
 }
-fn task_owner(open: &Open, bounds: &w::Limits) -> Option<w::AreaOwner> {
-    Some(w::AreaOwner::Task(w::AreaTask::new(bounds, w::AreaTaskParts { number: open.chosen_role()?.task }).ok()?))
+fn chosen_owner(open: &Open, bounds: &w::Limits) -> Option<w::AreaOwner> {
+    match open.stock {
+        Some(stock) => Some(w::AreaOwner::Charter(
+            w::AreaCharter::new(bounds, w::AreaCharterParts { number: stock.charter() }).ok()?,
+        )),
+        None => Some(w::AreaOwner::Task(
+            w::AreaTask::new(bounds, w::AreaTaskParts { number: open.chosen_role()?.task }).ok()?,
+        )),
+    }
 }
 fn send(root: &mut Domain, env: &Env<Limits>, page: &Readout, revision: u32, out: &mut Queue<Request>) -> Option<()> {
     let open = root.pages.hand_area.as_ref()?;
@@ -446,7 +547,7 @@ fn send(root: &mut Domain, env: &Env<Limits>, page: &Readout, revision: u32, out
                 concat(&[b"Give ", skein_lib::Decimal::of(u64::from(give.names.len())).as_bytes(), b" areas back"])
             }
         } else {
-            concat(&[b"Hand ", open.chosen()?.0, b" to ", &open.chosen_role()?.name])
+            concat(&[b"Hand ", open.chosen()?.0, b" to ", open.title()?])
         };
         c::Ask::Propose {
             project: 0,
@@ -463,6 +564,68 @@ fn send(root: &mut Domain, env: &Env<Limits>, page: &Readout, revision: u32, out
         out,
     );
     Some(())
+}
+fn start_ask(root: &Domain, env: &Env<Limits>) -> Result<c::Ask, c::Refusal> {
+    use jig_client::shapes::{self, GoalDraft, Judged};
+    let open = root.pages.hand_area.as_ref().expect("sheet is open");
+    let stock = open.stock.expect("stock settings have answered");
+    let Some(me) = root.pages.me(&root.client) else { return Err(c::Refusal::NotOffered) };
+    let Some((name, _)) = open.chosen() else { return Err(c::Refusal::NotOffered) };
+    let words = concat(&[stock.name(), b"\n\nOwns the area ", name, b" on ", &open.project_name, b"."]);
+    let Ok(words) = c::Text::new(words, env.limits.client.domain.long_text) else {
+        return Err(c::Refusal::NotOffered);
+    };
+    let draft = GoalDraft {
+        words,
+        executor: c::Executor::Agent { charter: stock.charter() },
+        budget: open.budget_value().expect("budget judged before settings"),
+        deadline: None,
+        priority: None,
+        llm: None,
+    };
+    let reason = c::Text::new(Box::default(), 0).expect("empty reason");
+    match shapes::set_goal_from(me, open.project, 7, draft, reason) {
+        Judged::Create(ask) | Judged::Propose { ask, .. } => Ok(ask),
+        Judged::Refused(why) => Err(why),
+        Judged::NotOffered(_) => Err(c::Refusal::NotOffered),
+    }
+}
+fn start(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    match start_ask(root, env) {
+        Ok(ask) => {
+            let key = next(&mut root.pages);
+            let open = root.pages.hand_area.as_mut().expect("sheet is open");
+            open.pending = Some(key);
+            open.failure = None;
+            crate::route::client(
+                root,
+                env,
+                jig_client::Event::Send { key, name: None, request: jig_client::Ask::Jig(Box::new(ask)) },
+                out,
+            );
+        }
+        Err(refusal) => {
+            root.pages.hand_area.as_mut().expect("sheet is open").failure =
+                Some(Failure::Outcome(Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                    refusal,
+                    at: None,
+                }))));
+        }
+    }
+}
+fn started(root: &mut Domain, env: &Env<Limits>, outcome: &Outcome) {
+    if let Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::Created { .. } | c::DocumentOutcome::Proposed { .. },
+    )))) = outcome
+    {
+        let toast = root.pages.hand_area.take().expect("sheet is open").settings_toast.expect("settings answered");
+        root.pages.needs.say(toast, env.now);
+    } else {
+        let open = root.pages.hand_area.as_mut().expect("sheet is open");
+        open.pending = None;
+        open.failure = Some(Failure::Outcome(outcome.clone()));
+    }
+    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
 }
 pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut Queue<Request>) -> bool {
     let Some(open) = &root.pages.hand_area else { return false };
@@ -496,6 +659,10 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
     if open.pending != Some(*key) {
         return false;
     }
+    if open.settings_toast.is_some() {
+        started(root, env, outcome);
+        return true;
+    }
     if let Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::Stale(stale), ..
     })) = outcome
@@ -514,7 +681,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
                 Toasted::AreasGivenBack { revision: changed.revision }
             } else {
                 Toasted::AreaHanded {
-                    title: open.chosen_role().expect("sent to a listed role").name.clone(),
+                    title: open.title().expect("sent to a chosen role").into(),
                     revision: changed.revision,
                 }
             })
@@ -528,8 +695,15 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
             None
         };
     if let Some(toast) = toast {
-        root.pages.needs.say(toast, env.now);
-        root.pages.hand_area = None;
+        if open.stock.is_some() && open.give.is_none() {
+            let open = root.pages.hand_area.as_mut().expect("sheet is open");
+            open.pending = None;
+            open.settings_toast = Some(toast);
+            start(root, env, out);
+        } else {
+            root.pages.needs.say(toast, env.now);
+            root.pages.hand_area = None;
+        }
     } else {
         let open = root.pages.hand_area.as_mut().expect("sheet is open");
         open.pending = None;
