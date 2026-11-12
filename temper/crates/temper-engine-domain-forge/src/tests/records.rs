@@ -248,7 +248,7 @@ pub(super) fn setting_rule() -> setting::LandingRule {
 #[test]
 fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
     let limits = Limits { judge_projects: 2, landing_rules: 3, setting_proposals: 4, ..LIMITS };
-    assert_eq!(setting::rows(&limits), Some(190)); // (9 rules + 2 charters + 4 project values + 4 follows) * (2 + 4 + 4).
+    assert_eq!(setting::rows(&limits), Some(270)); // (9 rules + 2 charters + 4 project values + 4 follows + 8 dependencies) * (2 + 4 + 4).
     assert_eq!(
         setting::rows(&Limits {
             judge_projects: 0,
