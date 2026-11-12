@@ -121,6 +121,7 @@ struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
+    files_page: Option<u32>,
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
@@ -384,6 +385,13 @@ impl World {
     /// Script a dialect's measured refusal of pull-file sides.
     pub fn reject_file_sides(&mut self, excess: skein_forge::api::Excess) {
         self.read_script.files_excess = Some(excess);
+        self.read_script.files_page = None;
+    }
+
+    /// Refuse only the seeded page, allowing earlier pages to reach the fake.
+    pub fn reject_file_page(&mut self, page: u32, excess: skein_forge::api::Excess) {
+        self.read_script.files_excess = Some(excess);
+        self.read_script.files_page = Some(page);
     }
 
     /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
@@ -538,7 +546,12 @@ impl World {
             signatures,
             pull_snapshot: None,
             held_compares: None,
-            read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
+            read_script: ReadScript {
+                ancestry: None,
+                comparisons_too_large: false,
+                files_excess: None,
+                files_page: None,
+            },
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -890,8 +903,23 @@ impl World {
     }
 
     pub fn slow_calls(&mut self, delay: Duration) {
-        self.forge_env.limits.latency_min = delay;
-        self.forge_env.limits.latency_max = delay;
+        self.call_latencies(delay, delay);
+    }
+
+    /// Each fake call draws its latency from this seeded range.
+    pub fn call_latencies(&mut self, min: Duration, max: Duration) {
+        self.forge_env.limits.latency_min = min;
+        self.forge_env.limits.latency_max = max;
+    }
+
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.env.now
+    }
+
+    /// One world step, with no time advance beyond the given horizon.
+    pub fn step_until(&mut self, end: Time) -> bool {
+        self.iterate(end)
     }
     /// Stop with the forge's reply still pending delivery to the connector.
     pub fn run_until_posted(&mut self) {
@@ -1402,8 +1430,9 @@ impl World {
         op: &skein_forge::api::Op,
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
-            skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { .. })
-                if self.read_script.files_excess.is_some() =>
+            skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
+                if self.read_script.files_excess.is_some()
+                    && self.read_script.files_page.is_none_or(|refused| refused == *page) =>
             {
                 Some(Err(skein_forge::api::Error::TooLarge(self.read_script.files_excess.expect("scripted refusal"))))
             }

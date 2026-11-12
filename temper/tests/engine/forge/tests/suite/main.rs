@@ -21,6 +21,7 @@ mod writer;
 
 mod fuzzy {
     mod branch_patterns;
+    mod pull_cutoff;
     mod rules_by_path;
     mod simulation;
 }

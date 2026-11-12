@@ -138,6 +138,10 @@ pub struct World {
     /// Refuse the named section reads while a CI repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
+    /// Refuse pull file sides at the client answer bound.
+    pub files_too_large: bool,
+    /// Delay comparisons independently of the other brief reads.
+    pub comparison_delay: Option<Duration>,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
     /// Delay the review diff independently of the change's fresh checks.
@@ -1118,6 +1122,8 @@ impl World {
             comparisons_too_large: false,
             fail_brief_reads: None,
             slow_brief_reads: false,
+            files_too_large: false,
+            comparison_delay: None,
             slow_branch: None,
             review_files_delay: None,
             gate,
@@ -1858,6 +1864,25 @@ impl World {
                         ))));
                         continue;
                     }
+                    if self.files_too_large
+                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { .. }))
+                    {
+                        let limit = self.env.limits.forge.client.answer_bytes;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                                    skein_forge::api::Bound::AnswerBytes,
+                                    u64::from(limit),
+                                    u64::from(limit).saturating_add(1),
+                                ))),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.comparisons_too_large
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
                     {
@@ -1915,6 +1940,12 @@ impl World {
                     if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Run { .. })) {
                         self.run_repositories.insert(call, name.into());
                     }
+                    let comparison_delay =
+                        if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {
+                            self.comparison_delay
+                        } else {
+                            None
+                        };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits;
@@ -1922,7 +1953,7 @@ impl World {
                         limits.latency_min = Duration::from_secs(20);
                         limits.latency_max = Duration::from_secs(20);
                     }
-                    if let Some(delay) = review_delay {
+                    if let Some(delay) = review_delay.or(comparison_delay) {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }

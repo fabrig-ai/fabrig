@@ -1727,7 +1727,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             held::gather(d, section, source, planned.partner, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
             d.brief_documents.remove(&section);
-            brief::set_context(d, section, task, deadline);
+            brief::set_context(d, section, task, deadline, env.now);
         }
         Event::GatherBrief { owner, source, parts, bytes, max_job_bytes } => {
             brief::gather(d, owner, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
@@ -2232,7 +2232,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.capabilities.contains_key(&owner) {
                     crate::capabilities::answered(d, env, owner, result, out);
                 } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
-                    brief::brief_answer(d, owner, result, env.limits.client.rows, out);
+                    brief::brief_answer(d, owner, result, env.limits.client.rows, env.now, out);
                 } else if crate::drafts::reading(d, owner) {
                     crate::drafts::answer(d, env, owner, result, out);
                 } else if d.adoptions.contains_key(&owner) {
