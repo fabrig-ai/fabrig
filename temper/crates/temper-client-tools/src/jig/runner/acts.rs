@@ -53,13 +53,13 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     }
     if called.call.tool == rows::PROJECT_FUND_AT
         || called.call.tool == rows::PROJECT_AMEND_AT
-        || called.call.tool == rows::PROJECT_REMOVE_AT
+        || called.call.tool == rows::PROJECT_DELETE_AT
     {
         let Some(me) = me(runner, client) else { return };
         let request = if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
-        } else if called.call.tool == rows::PROJECT_REMOVE_AT {
-            project_remove(&called.call, me)
+        } else if called.call.tool == rows::PROJECT_DELETE_AT {
+            project_delete(&called.call, me)
         } else {
             project_fund(&called.call, me)
         };
@@ -161,20 +161,9 @@ fn project_amend(call: &Call, me: &c::Me) -> Prepared {
     let public = *visibility == 0;
     Ok((Request::Ask(c::Ask::SetVisibility { project, public }), None))
 }
-fn project_remove(call: &Call, me: &c::Me) -> Prepared {
+fn project_delete(call: &Call, me: &c::Me) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Refused(b"unknown project"))?;
-    match shapes::remove_project(me, project) {
-        Ok(ask) => Ok((Request::Ask(ask), None)),
-        Err(shapes::NotOffered::Project) => Err(Failed::Refused(b"unknown project")),
-        Err(
-            shapes::NotOffered::Template
-            | shapes::NotOffered::ChipExecutor
-            | shapes::NotOffered::Ceiling
-            | shapes::NotOffered::Creating,
-        ) => {
-            unreachable!("remove_project only requires project membership")
-        }
-    }
+    Ok((Request::Ask(c::Ask::RemoveProject { project, grace: None }), None))
 }
 fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     match super::reads::project(call, me) {
@@ -828,7 +817,7 @@ fn send(
     out.push(Out::Client { event });
 }
 fn removal_name(call: &Call, me: &c::Me) -> Option<c::DocumentText> {
-    if call.tool != rows::PROJECT_REMOVE_AT {
+    if call.tool != rows::PROJECT_DELETE_AT {
         return None;
     }
     let project = super::reads::project(call, me).expect("removal project resolved");

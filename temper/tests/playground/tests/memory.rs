@@ -31,7 +31,7 @@ const VISITOR_START_PEAK: i64 = 1_068 + 1_068 / 4;
 const GIT_START_HELD: i64 = 3_410 + 3_410 / 4;
 const GIT_START_PEAK: i64 = 5_952 + 5_952 / 4;
 const DISK_FIRST_STEP_RETAINED: i64 = 9_393 + 9_393 / 4;
-const DISK_START_RETAINED: i64 = 124_117 + 124_117 / 4;
+const DISK_START_RETAINED: i64 = 155_267 + 155_267 / 4;
 const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 6_981 + 6_981 / 4;
 
 fn within(process: &str, phase: &str, figure: &str, measured: i64, bound: i64) {

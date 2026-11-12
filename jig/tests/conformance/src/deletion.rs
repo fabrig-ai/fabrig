@@ -371,6 +371,10 @@ pub fn remove(world: &mut World) {
         world.domain.start_failure(),
         world.peers.start_phases
     );
+    assert!(
+        world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Deleted(1)))),
+        "number-only mark outlives deletion"
+    );
     for (key, record) in &world.store.rows {
         if let Some(name) = jig_core_kit::conformance::naming::naming(key, record) {
             assert!(

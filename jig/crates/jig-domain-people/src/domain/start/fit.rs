@@ -307,7 +307,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
 
 fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
     match why {
-        Refusal::Circle { tasks, .. } | Refusal::Full { tasks, .. } => {
+        Refusal::LiveTasks { tasks, .. } | Refusal::Circle { tasks, .. } | Refusal::Full { tasks, .. } => {
             within(key, RestoreBound::NamedTasks, tasks.len(), crate::NAMED_TASKS)
         }
         Refusal::Kept { pending } => within(key, RestoreBound::KeptPending, pending.len(), 64),

@@ -448,6 +448,7 @@ record RefusalLlm { model: text 4096 why: LlmWhy }
 enum AccountWhy { unknown, provider, uses, limited }
 record RefusalAccount { account: u32 why: AccountWhy }
 record RefusalCircle { tasks: list 32 u64 cut: bool }
+record RefusalLiveTasks { tasks: list 32 u64 more: u32 }
 record RefusalDependency { dependency: u64 how: TaskStatus }
 record RefusalKept { pending: list 32 u64 }
 enum SignInRedirectWhy { not_waiting, address, state, too_many }

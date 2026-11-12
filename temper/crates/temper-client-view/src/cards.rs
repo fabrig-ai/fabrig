@@ -44,12 +44,14 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
         | c::Refusal::ProgramNameReserved
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
+        | c::Refusal::LiveTasks { .. }
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
         | c::Refusal::Provider => None,
     };
     let name = words.say_word(jig_client::words::Word::refusal(value), hole.as_slice());
+    let name = crate::shared::live_tasks_words(name, value);
     b.open(Role::Status);
     b.style(crate::look::REFUSAL);
     b.name(&name);

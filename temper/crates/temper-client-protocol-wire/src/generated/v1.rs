@@ -199,6 +199,7 @@ pub struct Limits {
     pub follow_view_entries: u32,
     pub follow_view_skips: u32,
     pub follows_panel_follows: u32,
+    pub follows_panel_dependencies: u32,
 }
 
 /// The schema's maximum limits.
@@ -396,6 +397,7 @@ pub const CEILINGS: Limits = Limits {
     follow_view_entries: 256,
     follow_view_skips: 256,
     follows_panel_follows: 256,
+    follows_panel_dependencies: 256,
 };
 
 /// A field or tag that caused a codec problem.
@@ -2041,6 +2043,16 @@ pub enum Path {
     DraftsPanelVersion,
     /// Bytes after `DraftsPanel`.
     DraftsPanelTail,
+    /// The `project` field of `Dependency`.
+    DependencyProject,
+    /// Bytes after `Dependency`.
+    DependencyTail,
+    /// The `number` field of `DependencyView`.
+    DependencyViewNumber,
+    /// The `project` field of `DependencyView`.
+    DependencyViewProject,
+    /// Bytes after `DependencyView`.
+    DependencyViewTail,
     /// The `forge` field of `FollowRepository`.
     FollowRepositoryForge,
     /// The `repository` field of `FollowRepository`.
@@ -2163,6 +2175,8 @@ pub enum Path {
     FollowsPanelProject,
     /// The `follows` field of `FollowsPanel`.
     FollowsPanelFollows,
+    /// The `dependencies` field of `FollowsPanel`.
+    FollowsPanelDependencies,
     /// The version of `FollowsPanel`.
     FollowsPanelVersion,
     /// Bytes after `FollowsPanel`.
@@ -2386,6 +2400,7 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_view_entries > CEILINGS.follow_view_entries { return Err(Problem { path: Path::FollowViewEntries, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_skips > CEILINGS.follow_view_skips { return Err(Problem { path: Path::FollowViewSkips, reason: skein_codec::Reason::Bound }); }
     if limits.follows_panel_follows > CEILINGS.follows_panel_follows { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Bound }); }
+    if limits.follows_panel_dependencies > CEILINGS.follows_panel_dependencies { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
@@ -13276,6 +13291,75 @@ impl DraftsPanel {
     }
 }
 
+/// Movable fields of `Dependency`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DependencyParts {
+    /// The `project` field.
+    pub project: u32,
+}
+
+/// `Dependency` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Dependency {
+    project: u32,
+}
+
+impl Dependency {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: DependencyParts) -> Result<Self, Problem> {
+        let DependencyParts { project } = parts;
+        let value = Self { project };
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> DependencyParts { DependencyParts { project: self.project } }
+
+}
+
+/// Movable fields of `DependencyView`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DependencyViewParts {
+    /// The `number` field.
+    pub number: u32,
+    /// The `project` field.
+    pub project: u32,
+}
+
+/// `DependencyView` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DependencyView {
+    number: u32,
+    project: u32,
+}
+
+impl DependencyView {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: DependencyViewParts) -> Result<Self, Problem> {
+        let DependencyViewParts { number, project } = parts;
+        let value = Self { number, project };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> DependencyViewParts { DependencyViewParts { number: self.number, project: self.project } }
+
+}
+
 /// Movable fields of `FollowRepository`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FollowRepositoryParts {
@@ -14054,6 +14138,8 @@ pub struct FollowsPanelParts {
     pub project: u32,
     /// The `follows` field.
     pub follows: List<FollowView>,
+    /// The `dependencies` field.
+    pub dependencies: List<DependencyView>,
 }
 
 /// `FollowsPanel` in this codec family.
@@ -14061,13 +14147,14 @@ pub struct FollowsPanelParts {
 pub struct FollowsPanel {
     project: u32,
     follows: List<FollowView>,
+    dependencies: List<DependencyView>,
 }
 
 impl FollowsPanel {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: FollowsPanelParts) -> Result<Self, Problem> {
-        let FollowsPanelParts { project, follows } = parts;
-        let value = Self { project, follows };
+        let FollowsPanelParts { project, follows, dependencies } = parts;
+        let value = Self { project, follows, dependencies };
         value.check(limits)?;
         Ok(value)
     }
@@ -14080,15 +14167,20 @@ impl FollowsPanel {
     #[must_use]
     pub fn follows(&self) -> &List<FollowView> { &self.follows }
 
+    /// Reads the `dependencies` field.
+    #[must_use]
+    pub fn dependencies(&self) -> &List<DependencyView> { &self.dependencies }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> FollowsPanelParts { FollowsPanelParts { project: self.project, follows: self.follows } }
+    pub fn into_parts(self) -> FollowsPanelParts { FollowsPanelParts { project: self.project, follows: self.follows, dependencies: self.dependencies } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.follows.capacity() > limits.follows_panel_follows.min(CEILINGS.follows_panel_follows) { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Bound }); }
         for item_0 in self.follows.as_slice() {
         item_0.check(limits)?;
         }
+        if self.dependencies.capacity() > limits.follows_panel_dependencies.min(CEILINGS.follows_panel_dependencies) { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
 }
@@ -25462,6 +25554,68 @@ impl DraftsPanel {
     }
 }
 
+impl Dependency {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DependencyTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::DependencyProject, reason: skein_codec::Reason::Short })?;
+        Ok(Self { project: decoded_project })
+    }
+}
+
+impl DependencyView {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DependencyViewTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::DependencyViewNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::DependencyViewProject, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number, project: decoded_project })
+    }
+}
+
 impl FollowRepository {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -26273,6 +26427,9 @@ impl FollowsPanel {
         for item_0 in field_follows.as_slice() {
         size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
         }
+        let field_dependencies = &self.dependencies;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_dependencies.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -26284,6 +26441,11 @@ impl FollowsPanel {
         let field_follows = &self.follows;
         writer.put(&field_follows.len().to_be_bytes())?;
         for item_0 in field_follows.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_dependencies = &self.dependencies;
+        writer.put(&field_dependencies.len().to_be_bytes())?;
+        for item_0 in field_dependencies.as_slice() {
         item_0.encode(writer)?;
         }
         Ok(())
@@ -26301,7 +26463,8 @@ impl FollowsPanel {
         if version != 16 { return Err(Problem { path: Path::FollowsPanelVersion, reason: skein_codec::Reason::Version }); }
         let decoded_project = reader.u32().ok_or(Problem { path: Path::FollowsPanelProject, reason: skein_codec::Reason::Short })?;
         let decoded_follows = { let count = match skein_codec::read_count(reader, limits.follows_panel_follows.min(CEILINGS.follows_panel_follows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowsPanelFollows, reason }), }; if count > reader.remaining() / 79 { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowView::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { project: decoded_project, follows: decoded_follows })
+        let decoded_dependencies = { let count = match skein_codec::read_count(reader, limits.follows_panel_dependencies.min(CEILINGS.follows_panel_dependencies)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowsPanelDependencies, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = DependencyView::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { project: decoded_project, follows: decoded_follows, dependencies: decoded_dependencies })
     }
 }
 
@@ -33779,6 +33942,62 @@ impl DraftsPanel {
     }
 }
 
+impl Dependency {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl DependencyView {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl FollowRepository {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -34314,6 +34533,7 @@ impl FollowsPanel {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
         size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.follows_panel_follows).checked_mul(FollowView::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.follows_panel_dependencies).checked_mul(DependencyView::encoded_bound_within(limits)?)?)?)?;
         size.checked_add(0)
     }
 
@@ -34327,6 +34547,7 @@ impl FollowsPanel {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(List::<FollowView>::price(limits.follows_panel_follows)?.checked_add(u64::from(limits.follows_panel_follows).checked_mul(FollowView::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(List::<DependencyView>::price(limits.follows_panel_dependencies)?.checked_add(u64::from(limits.follows_panel_dependencies).checked_mul(DependencyView::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
 }
@@ -34609,6 +34830,8 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PathSet::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectClasses::encoded_bound_within(limits)?);
     biggest = biggest.max(DraftsPanel::encoded_bound_within(limits)?);
+    biggest = biggest.max(Dependency::encoded_bound_within(limits)?);
+    biggest = biggest.max(DependencyView::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowSource::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowTarget::encoded_bound_within(limits)?);
@@ -34620,12 +34843,12 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Follow::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowWords::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowWait::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowState::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowEntry::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(FollowState::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowEntry::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowSkip::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowFailing::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowVerdict::encoded_bound_within(limits)?);
@@ -34913,6 +35136,8 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PathSet::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectClasses::decoded_bound_within(limits)?);
     biggest = biggest.max(DraftsPanel::decoded_bound_within(limits)?);
+    biggest = biggest.max(Dependency::decoded_bound_within(limits)?);
+    biggest = biggest.max(DependencyView::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowSource::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowTarget::decoded_bound_within(limits)?);
@@ -34924,12 +35149,12 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Follow::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowWords::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowWait::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowState::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowEntry::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(FollowState::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowEntry::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowSkip::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowFailing::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowVerdict::decoded_bound_within(limits)?);
@@ -34941,7 +35166,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalSet, ApprovalSetParts, ApprovalSize, ApprovalSizeParts, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachKindOf, ReachKindOfParts, ClassSubject, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, ReachReason, Reach, ReachParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Asked, AskedParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, DraftRepository, DraftRepositoryParts, ReadyDraft, ReadyDraftParts, StartedDraft, StartedDraftParts, DraftChange, SetDraft, SetDraftParts, DraftRefusal, DraftRefused, DraftRefusedParts, LandedDraft, LandedDraftParts, DraftsSubject, DraftsSubjectParts, FollowAt, FollowAtParts, FollowReasonAct, FollowReasonActParts, FollowMergeAct, FollowMergeActParts, FollowAct, FollowOutcome, FollowOutcomeParts, FollowActRequest, FollowActRequestParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, FollowsSubject, FollowsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, TemplateGoal, TemplateGoalParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, DraftsPanel, DraftsPanelParts, FollowRepository, FollowRepositoryParts, FollowSource, FollowSourceParts, FollowTarget, FollowTargetParts, FollowPerson, FollowPersonParts, FollowOwner, FollowStart, FollowFormat, FollowCheck, FollowCheckParts, Follow, FollowParts, FollowWords, FollowWordsParts, FollowWait, FollowWaitParts, FollowState, FollowEntry, FollowEntryParts, FollowSkip, FollowSkipParts, FollowFailing, FollowFailingParts, FollowVerdict, FollowParity, FollowParityParts, FollowView, FollowViewParts, FollowsPanel, FollowsPanelParts, Path};
+    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalSet, ApprovalSetParts, ApprovalSize, ApprovalSizeParts, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachKindOf, ReachKindOfParts, ClassSubject, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, ReachReason, Reach, ReachParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Asked, AskedParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, DraftRepository, DraftRepositoryParts, ReadyDraft, ReadyDraftParts, StartedDraft, StartedDraftParts, DraftChange, SetDraft, SetDraftParts, DraftRefusal, DraftRefused, DraftRefusedParts, LandedDraft, LandedDraftParts, DraftsSubject, DraftsSubjectParts, FollowAt, FollowAtParts, FollowReasonAct, FollowReasonActParts, FollowMergeAct, FollowMergeActParts, FollowAct, FollowOutcome, FollowOutcomeParts, FollowActRequest, FollowActRequestParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, FollowsSubject, FollowsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, TemplateGoal, TemplateGoalParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, DraftsPanel, DraftsPanelParts, Dependency, DependencyParts, DependencyView, DependencyViewParts, FollowRepository, FollowRepositoryParts, FollowSource, FollowSourceParts, FollowTarget, FollowTargetParts, FollowPerson, FollowPersonParts, FollowOwner, FollowStart, FollowFormat, FollowCheck, FollowCheckParts, Follow, FollowParts, FollowWords, FollowWordsParts, FollowWait, FollowWaitParts, FollowState, FollowEntry, FollowEntryParts, FollowSkip, FollowSkipParts, FollowFailing, FollowFailingParts, FollowVerdict, FollowParity, FollowParityParts, FollowView, FollowViewParts, FollowsPanel, FollowsPanelParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -36026,7 +36251,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 160] = [
+    static GOLDEN_1: [Case; 164] = [
         ("record_make_refused_smallest", || { let value = MakeRefused::new(&CEILINGS, MakeRefusedParts { why: MakeRefusal::NoSuchForge }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MakeRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_make_refused_full", || { let value = MakeRefused::new(&CEILINGS, MakeRefusedParts { why: MakeRefusal::NoSuchForge }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MakeRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_outcome_adopted_smallest", || { let value = Outcome::Adopted(Adopted::new(&CEILINGS, AdoptedParts { forge: 0_u16, repository: 0_u32, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), role: Role::Owned, home: false, kinds: Kinds::new(&CEILINGS, KindsParts { skein_bools: [false, false, false, false, false, false, false, false, false] }).expect("golden within ceilings"), protection: Protection::Unknown }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36129,6 +36354,10 @@ mod golden_tests {
         ("record_project_classes_full", || { let value = ProjectClasses::new(&CEILINGS, ProjectClassesParts { items: { let mut items = skein_lib::List::with_capacity(1); items.push(ClassItem::new(&CEILINGS, ClassItemParts { subject: ClassSubject::Kind(ReachKindOf::new(&CEILINGS, ReachKindOfParts { kind: ReachKind::Wording }).expect("golden within ceilings")), words: Box::from([0_u8, 127_u8, 255_u8].as_slice()), class: ReachClass::Decide }).expect("golden within ceilings")).expect("one slot"); items }, sets: { let mut items = skein_lib::List::with_capacity(1); items.push(PathSet::new(&CEILINGS, PathSetParts { number: u8::MAX, name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), patterns: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 1, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectClasses::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_drafts_panel_smallest", || { let value = DraftsPanel::new(&CEILINGS, DraftsPanelParts { project: 0_u32, drafts: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_drafts_panel_full", || { let value = DraftsPanel::new(&CEILINGS, DraftsPanelParts { project: u32::MAX, drafts: { let mut items = skein_lib::List::with_capacity(1); items.push(LandedDraft::new(&CEILINGS, LandedDraftParts { forge: u16::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), path: Box::from([0_u8, 127_u8, 255_u8].as_slice()), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), commit: Box::from([0_u8, 127_u8, 255_u8].as_slice()), title: Box::from([0_u8, 127_u8, 255_u8].as_slice()), writer: u64::MAX, at: u64::MAX, chat: Some(u64::MAX), goal: Some(u64::MAX), ready: true }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_dependency_smallest", || { let value = Dependency::new(&CEILINGS, DependencyParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Dependency::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_dependency_full", || { let value = Dependency::new(&CEILINGS, DependencyParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Dependency::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_dependency_view_smallest", || { let value = DependencyView::new(&CEILINGS, DependencyViewParts { number: 0_u32, project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DependencyView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_dependency_view_full", || { let value = DependencyView::new(&CEILINGS, DependencyViewParts { number: u32::MAX, project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DependencyView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_repository_smallest", || { let value = FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowRepository::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_repository_full", || { let value = FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowRepository::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_source_smallest", || { let value = FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), branch: Box::from([].as_slice()), paths: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowSource::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36185,8 +36414,8 @@ mod golden_tests {
         ("record_follow_parity_full", || { let value = FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowParity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_view_smallest", || { let value = FollowView::new(&CEILINGS, FollowViewParts { number: 0_u32, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), branch: Box::from([].as_slice()), paths: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), branch: Box::from([].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: 0_u64 }).expect("golden within ceilings")), start: FollowStart::Owner, producer: None, verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([].as_slice()), artifact: Box::from([].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([].as_slice()), source_branch: Box::from([].as_slice()), target: Box::from([].as_slice()), target_branch: Box::from([].as_slice()), task: None, stopped: None, lag: 0_u32, entries: skein_lib::List::with_capacity(0), skips: skein_lib::List::with_capacity(0), parity: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_view_full", || { let value = FollowView::new(&CEILINGS, FollowViewParts { number: u32::MAX, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([0_u8, 127_u8, 255_u8].as_slice()), source_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), task: Some(u64::MAX), stopped: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), lag: u32::MAX, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings")).expect("one slot"); items }, skips: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, parity: Some(FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follows_panel_smallest", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: 0_u32, follows: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follows_panel_full", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: u32::MAX, follows: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowView::new(&CEILINGS, FollowViewParts { number: u32::MAX, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([0_u8, 127_u8, 255_u8].as_slice()), source_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), task: Some(u64::MAX), stopped: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), lag: u32::MAX, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings")).expect("one slot"); items }, skips: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, parity: Some(FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follows_panel_smallest", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: 0_u32, follows: skein_lib::List::with_capacity(0), dependencies: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follows_panel_full", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: u32::MAX, follows: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowView::new(&CEILINGS, FollowViewParts { number: u32::MAX, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([0_u8, 127_u8, 255_u8].as_slice()), source_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), task: Some(u64::MAX), stopped: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), lag: u32::MAX, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings")).expect("one slot"); items }, skips: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, parity: Some(FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, dependencies: { let mut items = skein_lib::List::with_capacity(1); items.push(DependencyView::new(&CEILINGS, DependencyViewParts { number: u32::MAX, project: u32::MAX }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -36410,8 +36639,9 @@ mod golden_tests {
         table(&BOUNDS_2);
     }
 
-    static BOUNDS_3: [Case; 1] = [
-        ("bound_follows_panel_follows", || bound((Path::FollowsPanelFollows, skein_codec::Reason::Bound), &Limits { follows_panel_follows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+    static BOUNDS_3: [Case; 2] = [
+        ("bound_follows_panel_follows", || bound((Path::FollowsPanelFollows, skein_codec::Reason::Bound), &Limits { follows_panel_follows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_follows_panel_dependencies", || bound((Path::FollowsPanelDependencies, skein_codec::Reason::Bound), &Limits { follows_panel_dependencies: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]

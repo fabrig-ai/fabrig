@@ -1451,6 +1451,18 @@ fn program_checks_retain_the_source_number() {
 }
 
 #[test]
+fn a_retained_live_tasks_refusal_round_trips() {
+    use jig_domain_people as p;
+    people_round_trip(p::Stored::Answer {
+        models: Box::new([]),
+        key: p::RequestKey { person: 1, key: [7; 16] },
+        ask: Box::new(p::Ask::RemoveProject { project: 1, grace: None }),
+        outcome: p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }),
+        at: skein_lib::Wall::EPOCH,
+    });
+}
+
+#[test]
 fn retained_people_answers_keep_dependency_refusal_facts() {
     use jig_domain_people as p;
     for why in [
@@ -1612,6 +1624,25 @@ fn a_project_removed_outcome_round_trips() {
     people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::ProjectRemoved {
         project: u32::MAX,
     }));
+}
+
+#[test]
+fn a_deleted_mark_round_trips_with_its_number_only_key() {
+    for project in [0, 2, u32::MAX] {
+        people_round_trip(jig_domain_people::Stored::Deleted { project });
+        let key = jig_domain_core::Key::People(jig_domain_people::Key::Deleted(project));
+        assert!(jig_domain_people::Key::Deleted(project).live());
+        let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
+        let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (target, byte) in expected.iter_mut().skip(3).zip(u64::from(project).to_be_bytes()) {
+            *target = byte;
+        }
+        assert_eq!(bytes.as_ref(), &expected);
+        assert_eq!(crate::keys::decode(&bytes), Some(key));
+        let mut oversized = bytes;
+        *oversized.get_mut(6).expect("project high word") = 1;
+        assert_eq!(crate::keys::decode(&oversized), None);
+    }
 }
 
 #[test]

@@ -364,7 +364,10 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
         people::Stored::Answer { ask, .. } => ask_names(ask, project),
         // Every task and conversation in this fixture belongs to the removed project.
         people::Stored::ReadConversation { .. } | people::Stored::EndedRead { .. } => true,
-        people::Stored::Person { .. } | people::Stored::ReadResults { .. } | people::Stored::SignIn { .. } => false,
+        people::Stored::Deleted { .. }
+        | people::Stored::Person { .. }
+        | people::Stored::ReadResults { .. }
+        | people::Stored::SignIn { .. } => false,
     }
 }
 
@@ -432,7 +435,45 @@ fn final_rows(world: &World) -> BTreeMap<root::Key, root::Record> {
 }
 
 #[test]
-fn a_deleted_project_leaves_only_its_spend() {
+fn an_owner_ends_live_work_then_removes_under_a_new_key() {
+    let (config, limits) = configuration(SEED);
+    let initial = profile_fixtures::create_chat(
+        &profile_fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        PROJECT,
+        0,
+        b"live conversation".as_slice().into(),
+    );
+    let rows = account_rows(&config);
+    let mut world = World::new(Setup {
+        seed: SEED,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows),
+        ..Setup::default()
+    });
+    let chat = world.task();
+    let ask = people::Ask::RemoveProject { project: PROJECT, grace: None };
+    let refused = people::Reply::Outcome(people::Outcome::Refused(people::Refusal::LiveTasks {
+        tasks: Box::new([chat]),
+        more: 0,
+    }));
+    request(&mut world, REMOVE, ask.clone());
+    assert_eq!(world.people_answers.last(), Some(&refused));
+    assert!(!world.store.rows.contains_key(&deletion()));
+    fixtures::finish_chat(&mut world, 7, b"ended before deletion");
+    request(&mut world, REMOVE, ask.clone());
+    assert_eq!(world.people_answers.last(), Some(&refused), "a refused key keeps its answer");
+    request(&mut world, REMOVE_GRACED, ask);
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::ProjectRemoved { project: PROJECT }))
+    );
+    finish(&mut world);
+}
+
+#[test]
+fn a_deleted_project_leaves_its_mark_and_spend() {
     let mut world = deleted_world(SEED);
     let number = world.store.applied + 1;
     world.cut = Some(Cut::Durable(number));
@@ -446,6 +487,9 @@ fn a_deleted_project_leaves_only_its_spend() {
             ..
         })))
     )));
+    assert!(world.commits.last().expect("closing decision").contains(&root::Write::Save(root::Record::Core(
+        core::Record::People(people::Stored::Deleted { project: PROJECT })
+    ))));
     world.drain();
     removed(&world);
     finish(&mut world);
@@ -502,6 +546,76 @@ fn a_deleted_projects_chat_finishes_within_the_deletions_grace() {
     finish(&mut world);
     assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new());
     assert!(!final_rows(&world).contains_key(&deletion()));
+}
+
+#[test]
+fn a_roles_answer_survives_restart_during_deletion_then_is_forgotten() {
+    const MEMBER: u64 = 8;
+    const SET_ROLES: u8 = 90;
+    let (config, limits) = configuration(SEED);
+    let initial = profile_fixtures::create_chat(
+        &profile_fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        PROJECT,
+        0,
+        b"live conversation".as_slice().into(),
+    );
+    let mut rows = account_rows(&config).into_vec();
+    rows.push(root::Record::Core(core::Record::People(people::Stored::Person {
+        number: MEMBER,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 1, subject: b"member".as_slice().into() },
+            login: b"member".as_slice().into(),
+            name: b"Member".as_slice().into(),
+        },
+    })));
+    let mut world = World::new(Setup {
+        seed: SEED,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows.into_boxed_slice()),
+        ..Setup::default()
+    });
+    let chat = world.task();
+    let ask = people::Ask::SetRoles {
+        project: PROJECT,
+        holdings: Box::new([
+            people::Holding { person: PARTY, role: people::Role::Owner },
+            people::Holding { person: MEMBER, role: people::Role::Member },
+        ]),
+    };
+    request(&mut world, SET_ROLES, ask.clone());
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::RolesSet { project: PROJECT }))
+    );
+    let answer = root::Key::Core(core::Key::People(people::Key::Answer(people::RequestKey {
+        person: PARTY,
+        key: [SET_ROLES; 16],
+    })));
+    act(&mut world, 89, people::Act::Close { project: PROJECT, task: chat, grace: Some(GRACE), reason: Box::new([]) });
+    assert!(live_row(&world, chat).grace.is_some());
+    // The deployment can remove the project while its conversation is still live.
+    remove_graced(&mut world);
+    removed(&world);
+    assert!(matches!(
+        world.store.rows.get(&deletion()),
+        Some(root::Record::Core(core::Record::People(people::Stored::Deletion {
+            step: people::DeletionStep::Tasks,
+            ..
+        })))
+    ));
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Roles(PROJECT)))));
+    assert!(world.store.rows.contains_key(&answer));
+    restart_world(&mut world);
+    assert_eq!(world.domain.start_failure(), None, "a retained answer links to the deletion");
+    world.advance(GRACE);
+    finish(&mut world);
+    assert!(world.domain.ready());
+    assert!(!world.store.rows.contains_key(&answer), "own-rows cleanup forgets the roles answer");
+    assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new());
+    request(&mut world, SET_ROLES, ask);
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Refused(people::Refusal::Unknown)));
 }
 
 /// The uncut run's first and last commit of the deletion, and its final rows.
@@ -715,6 +829,59 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
     let core::reads::Answer::Document(document) = reads::latest(&world) else { panic!("party frame") };
     let documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
     assert!(frame.projects.iter().all(|row| row.project != PROJECT));
+}
+
+#[test]
+fn a_deleted_project_reads_gone_to_any_signed_in_party() {
+    const STRANGER: u64 = 8;
+    const STRANGER_SIGN_IN: u64 = 88;
+    let mut world = deleted_world(SEED);
+    let owner = world.sign_in.expect("owner signed in");
+    world.seed(Box::new([
+        root::Record::Core(core::Record::People(people::Stored::Person {
+            number: STRANGER,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 1, subject: b"stranger".as_slice().into() },
+                login: b"stranger".as_slice().into(),
+                name: b"Stranger".as_slice().into(),
+            },
+        })),
+        root::Record::Core(core::Record::People(people::Stored::SignIn {
+            number: STRANGER_SIGN_IN,
+            person: STRANGER,
+            expires: skein_lib::Wall::from_nanos(
+                world.wall_time().as_nanos().saturating_add(Duration::from_secs(3600).as_nanos()),
+            ),
+        })),
+    ]));
+    restart_world(&mut world);
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    for sign_in in [owner, STRANGER_SIGN_IN] {
+        world.sign_in = Some(sign_in);
+        reads::ask(&mut world, 810, core::reads::Read::Project { project: UNKNOWN });
+        assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Unknown));
+    }
+    reads::ask(&mut world, 811, core::reads::Read::Project { project: PROJECT });
+    assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Unknown), "live but hidden");
+    remove(&mut world, REMOVE);
+    assert!(world.store.rows.contains_key(&deletion()));
+    for ended in [false, true] {
+        if ended {
+            finish(&mut world);
+        }
+        for sign_in in [owner, STRANGER_SIGN_IN] {
+            world.sign_in = Some(sign_in);
+            reads::ask(&mut world, 812, core::reads::Read::Project { project: PROJECT });
+            assert_eq!(
+                reads::latest(&world),
+                &core::reads::Answer::None(core::reads::Why::Gone),
+                "ended {ended}, sign-in {sign_in}"
+            );
+        }
+    }
+    restart_world(&mut world);
+    reads::ask(&mut world, 813, core::reads::Read::Project { project: PROJECT });
+    assert_eq!(reads::latest(&world), &core::reads::Answer::None(core::reads::Why::Gone));
 }
 
 #[test]

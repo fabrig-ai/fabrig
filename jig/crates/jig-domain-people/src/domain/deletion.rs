@@ -12,6 +12,10 @@ pub(super) fn keep(
 ) {
     match step {
         Some(step) => {
+            // Advancing a deletion never revives a mark evicted by a newer one.
+            if !domain.deletions.contains_key(&project) {
+                mark(domain, project, out);
+            }
             domain.deletions.insert(project, KeptDeletion { step, grace }).expect("deletions fit the project room");
             out.push(Request::Save { record: Stored::Deletion { project, step, grace } });
         }
@@ -21,6 +25,19 @@ pub(super) fn keep(
             out.push(Request::Erase { key: Key::Deletion(project) });
         }
     }
+}
+
+fn mark(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    if domain.deleted.contains(&project) {
+        return;
+    }
+    if domain.deleted.len() == domain.deleted.capacity() {
+        let lowest = *domain.deleted.first().expect("a deletion has project room");
+        domain.deleted.remove(&lowest);
+        out.push(Request::Erase { key: Key::Deleted(lowest) });
+    }
+    domain.deleted.insert(project).expect("marks fit the project room");
+    out.push(Request::Save { record: Stored::Deleted { project } });
 }
 
 pub(super) fn close(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
@@ -33,6 +50,12 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
     forget_census(domain, project);
     let mut answers = List::with_capacity(domain.answers.len());
     for (key, answer) in &domain.answers {
+        if let (Ask::RemoveProject { project, .. }, Outcome::ProjectRemoved { project: removed }) =
+            (&answer.ask, &answer.outcome)
+            && project == removed
+        {
+            continue;
+        }
         if kept_answer(domain, &answer.outcome) {
             continue;
         }
@@ -82,7 +105,8 @@ fn forget_census(domain: &mut Domain, project: u32) {
     }
 }
 
-/// A removal's terminal stays until the deletion finishes (jig/docs/design/domain/people/acts.md, 2).
+/// Active removals survive row cleanup; party removals also keep ordinary answer retention
+/// (jig/docs/design/domain/people/acts.md, 2).
 pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
     for (&project, _) in &domain.deletions {
         if *outcome == (Outcome::ProjectRemoved { project }) {

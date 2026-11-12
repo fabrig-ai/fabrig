@@ -876,7 +876,7 @@ pub const PROJECT_SHOW: Tool = Tool {
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so.\n",
+    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
 };
 pub const PROJECT_FUND: Tool = Tool {
     name: b"project fund",
@@ -1114,17 +1114,17 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
-/// Appended position for removing an owned project (client/ctl/tools.md, 3).
-pub const PROJECT_REMOVE_AT: u8 = 71;
-pub const PROJECT_REMOVE: Tool = Tool {
-    name: b"project remove",
-    line: b"Remove your own project, closing it at once and deleting it whole after",
-    prints: b"`removed: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
+/// Appended position for deleting an owned project (client/ctl/tools.md, 3).
+pub const PROJECT_DELETE_AT: u8 = 71;
+pub const PROJECT_DELETE: Tool = Tool {
+    name: b"project delete",
+    line: b"Delete your own project, closing it at once and deleting it whole after",
+    prints: b"`deleted: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
     result: b"project_removed",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"Only an owner removes a project, a fresh store's default project among them. Each live chat is asked to finish within its chat template's grace from me; no chat template, no grace. No confirmation. A project not in your me sends nothing, exit 2. A member who is not its owner, or a project already being deleted, is refused, exit 2. A key replay prints the same removal while deletion lasts. A restored request prints kept: remove-project, removed: project N, with no name.\n",
+    notes: b"Only an owner deletes a project, a fresh store's default project among them. Live tasks refuse it in jig's words, naming the live roots: end them first, then use a new key. No confirmation. A number is sent as given, in me or not; a name is resolved through me, and one not there sends nothing, exit 2, unknown project. The ask has no grace and uses no chat template. A member who is not its owner, an unknown project, or one already being deleted under another key is refused, exit 2. A key replay prints the same deletion after it ends as while it lasts, within the engine's retention. A restored request prints kept: remove-project, deleted: project N, with no name. project show PROJECT then says project N was deleted, exit 2.\n",
 };
 
 /// Appended host position for claiming role-addressed person work.

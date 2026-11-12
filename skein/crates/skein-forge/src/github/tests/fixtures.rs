@@ -71,7 +71,9 @@ pub fn decode_with(
             Step::Demand => {}
             Step::Row(row) => rows.push(row).unwrap(),
             Step::Done(document) => return (rows, Ok(document)),
-            Step::Malformed(error) => return (rows, Err(error)),
+            Step::Malformed(error) => {
+                return (rows, Err(error.with_document_bound(limits.json.length, feed.delivered())));
+            }
         }
         request = demand;
     }

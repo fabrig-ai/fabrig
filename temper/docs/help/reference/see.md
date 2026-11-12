@@ -118,6 +118,12 @@ The forge charter whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 
+## settings dependency N
+
+A dependency of this project, whole, at the newest revision; no stock default.
+
+Next: settings · revisions · help settings-fields
+
 ## settings follow N
 
 A follow of this project, whole, at the newest revision; no stock default.

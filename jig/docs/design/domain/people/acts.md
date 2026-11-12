@@ -68,7 +68,7 @@ The operations as the client sends them are
 | `ChangeSettings`, in the deployment's scope | owner in the deployment for the deployment's items, and owner of each project whose items it names (`README.md`, section 3 and 4); the revision they saw, the newest; the set within the checks and bounds of ../engine/settings.md, 1 and 8; every connector judging an item of its kinds accepting it | the settings changed in one decision, the new revision answered; running work staying or moved, as it asks (../engine/settings.md, 2 and 4) |
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (../engine/settings.md, 4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (`README.md`, section 3); a name in shape that no other project holds (../model.md, 6.1); a policy among the settings (../engine/settings.md, 1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (2) |
-| `RemoveProject` | owner of the project; a project that is live, not being deleted; a grace within the tasks child's bound (../tasks/README.md, section 6), or none; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (2), each of its live conversations asked to finish within the grace |
+| `RemoveProject` | owner of the project; a project that is live, not being deleted; no live task in it, else refused *live tasks*, naming its live roots (2); a grace within the tasks child's bound (../tasks/README.md, section 6), or none; never in a compound request | the project closed in the decision that admits it, answered removed then, marked deleted, and deleted whole in the steps that follow (2) |
 | `SetVisibility` | owner of the project, never project 0; a project that is live, not being deleted | the project public or private from that decision, `me` saying so (`public-reading.md`, 2) |
 | edit or delete a note | the note's scope within their role | the note revised (../engine/briefs.md, section 2) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
@@ -269,6 +269,19 @@ deployment's act (3), whole: its decision closes it and keeps the
 deletion, and the rest follows in kept steps, each in decisions of its
 own, in this order.
 
+- **An owner deletes a project with no live work.** An owner's
+  `RemoveProject` is refused while any task of the project is live,
+  a conversation closing or finishing under a grace among them, and
+  nothing of the deletion is made: the refusal, *live tasks*
+  (`../../client/domain/contract/README.md`, section 3), names the
+  project's live roots, by number, lowest first, at most `NAMED_TASKS`
+  (32, the bound a circle's refusal names its tasks within), and how
+  many more there are. Its owner ends them first, closing a chat or
+  cancelling a root, which ends its tree, and asks again under a new
+  key, since the refused one keeps its refusal. Only the deployment's
+  act deletes a project with live work, ending it as below: an
+  application resetting what it made (3).
+
 Its conversations are closed as a person closes one, with a grace
 (`README.md`, section 6), and the grace is the request's: a span within the tasks
 child's bound (../tasks/README.md, section 6), or none. The engine reads no
@@ -285,11 +298,25 @@ refused for its grace.
   answers it removed, the project takes nothing more: a task, words, an
   adoption, a change of its settings, policy or roles, a deployment's
   act on it, or any other request or watch on it is refused unknown, as
-  on a project that never was. It leaves every list and every party's
+  on a project that never was, but for a read of the project itself,
+  answered gone (*Marked deleted,* below). It leaves every list and every party's
   `me`, its roles are erased, and its name is free again from that
   decision; its number is never given again (../model.md, 6.1). A pending
   proposal of settings naming its policy is withdrawn in that decision,
   as no longer applying (../engine/settings.md, 6).
+- **Marked deleted.** The decision that admits the deletion keeps a
+  mark of the people child's, the project's number and nothing more,
+  which no step of the deletion erases, so that the project is said
+  deleted once its deletion has ended as while it lasts. A read of the
+  project (`../../client/domain/contract/README.md`, section 4) naming a
+  marked number answers *gone*, to any signed-in party, where an
+  absent or hidden one answers unknown: the number tells nothing of what
+  the project held, and its name is not kept. The marks are at most as
+  many as the projects the deployment has room for; a deletion that
+  would pass that erases the mark of the lowest number in its own
+  decision, and that project reads unknown from then, as one never
+  made. A mark is no project: it holds no room, no name and no number
+  back, and public reading never reads it (`public-reading.md`).
 - **Its tasks ended, then erased.** Each live task of the project is
   cancelled by the deployment, with no reason, in the deployment's
   compound (../tasks/changes.md), as many compounds as the operations
@@ -329,11 +356,12 @@ refused for its grace.
   totals for the period, as closed periods and pools keep it, never per
   task; and an account whose only use was the project keeps that use,
   so that it pays for no one rather than for every payer (../accounts.md,
-  4.2), while an account with other uses drops it. An act's or a
+  4.2), while an account with other uses drops it; its mark (above). An act's or a
   request's answer that named the project is erased with it, so that,
   sent again, it is judged afresh and answered unknown, as one past its
-  retention is. Each party's inbox and read positions drop what named
-  its tasks.
+  retention is, but for an owner's `RemoveProject`'s own answer, kept
+  under its key as any of the party's answers is (below). Each party's
+  inbox and read positions drop what named its tasks.
 - **Kept until whole:** the deletion is a row of the people child's,
   the project, the step it has reached (its tasks, its own rows, its
   adoptions released) and its grace, saved with each step's decision
@@ -342,9 +370,18 @@ refused for its grace.
   goes on from its step with its grace, its project closed from the
   start as from its decision, so a deletion a restart cut ends whole
   and no start serves a half-deleted project; a grace past a bound
-  lowered since is given as that bound. Its own answer is kept while it
+  lowered since is given as that bound. Until its own rows go, an
+  answer kept under a key that named the project (a roster's set roles
+  among them) stays though its roles were erased when it closed: a start
+  links such an answer to the project's kept deletion, never refusing it
+  for the roles it lacks (../engine/restart.md). Its own answer is kept while it
   lasts: sent again under its key, the deletion is answered removed
-  until it ends, and unknown after.
+  until it ends. After, an owner's is kept still, for the retention it
+  advertises as any of the party's answers is (1): sent again under its
+  key, it is answered removed once more, never judged afresh, so that a
+  client that lost the first answer hears it. The deployment's act's
+  goes with the deletion's row, as before, and sent again after is
+  answered unknown (3).
 
 ## 3. The deployment's acts
 
@@ -374,7 +411,7 @@ configuration's grant and the act's own subject are its whole check.
   | `RemoveAccount` | an account the deployment holds | the account removed (../accounts.md, section 5) |
   | `Adopt` | one of the acting connector's own resources, as an owner's adoption names one, into a live project | adopted as an owner's adoption is, the connector asked and answering as it does a party's (../connectors.md, section 12), the project's roles seeded from the parties the connector knows there, and no party made its owner |
   | `MakeProject` | as `MakeProject`'s (1), and an owner of the deployment, to be its maker | the project made (2), that owner its maker and only party |
-  | `RemoveProject` | a live project, not being deleted; a grace within the tasks child's bound, or none | the project deleted as its owners' `RemoveProject` deletes it (2), each of its live conversations asked to finish within the grace; answered removed once closed |
+  | `RemoveProject` | a live project, not being deleted, live tasks or none; a grace within the tasks child's bound, or none | the project deleted as its owners' `RemoveProject` deletes it (2), its live tasks ended first, each of its live conversations asked to finish within the grace; answered removed once closed |
 
   A subject outside its act's is refused, naming it: a task that is not
   a live conversation of a person, an account the deployment does not

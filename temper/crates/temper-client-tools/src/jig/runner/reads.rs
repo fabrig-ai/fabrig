@@ -19,6 +19,7 @@ pub(crate) struct Reading {
     pub pages: BTreeMap<u32, Readout>,
     pub documents: BTreeMap<u32, c::Delivery>,
     pub text: Option<c::RunText>,
+    pub project: Option<u32>,
     pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
     pub talk: Option<super::talk::Reply>,
@@ -105,6 +106,7 @@ fn start_reading(
         pages: BTreeMap::new(),
         documents: BTreeMap::new(),
         text: None,
+        project: None,
         specification: None,
         thread: None,
         talk,
@@ -246,6 +248,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 finish(reading, printed, out);
                 return;
             };
+            reading.project = Some(project);
             read(runner, &mut reading, 1, c::Read::Project { project }, out);
         }
         rows::PROPOSAL_AT => {

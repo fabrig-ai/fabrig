@@ -700,6 +700,7 @@ impl Connection {
         }
     }
     pub(crate) fn malformed_json(&mut self, error: decode::Malformed) {
+        let error = error.with_document_bound(self.json_limits.length, self.json.delivered());
         self.state = self.state.take().end(Some(Ended::Malformed(error)), false);
     }
     pub fn failed(&mut self, failure: Failure) {
