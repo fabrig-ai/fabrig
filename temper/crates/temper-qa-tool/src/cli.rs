@@ -23,6 +23,15 @@ pub const SESSION: Variable = Variable {
     notes: "Set by the loop for the agent it starts.",
     way: Way::Reads,
 };
+pub const AREA: Variable = Variable {
+    name: "TEMPER_INTERNAL_QA_AREA",
+    set: Set::Internal,
+    form: "AREA",
+    line: "The area under which the deployment starts a request's goal.",
+    absent: "Set by the loop from request.area, or owner when absent.",
+    notes: "Given to request.command and request.state; never read by the tool.",
+    way: Way::Sets,
+};
 const KEEP: Command = Command {
     reach: Reach::Words(&["build", "keep"]),
     set: Set::Internal,
@@ -110,7 +119,7 @@ pub const TABLE: Table = Table {
     commit: temper_version::COMMIT,
     commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES, REPORT],
     settings: &[],
-    variables: &[&HOME, &SESSION],
+    variables: &[&HOME, &SESSION, &AREA],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
 };
 
