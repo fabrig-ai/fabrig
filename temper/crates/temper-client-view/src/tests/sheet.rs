@@ -65,6 +65,34 @@ fn adopt_is_settings_repositories_with_a_dialog_and_escape_cancel() {
     );
 }
 #[test]
+fn the_out_of_date_form_uses_its_shells_words_and_disables_adoption() {
+    let mut root = root();
+    let mut view = f::page_view(&root);
+    input_sheet(&mut root, &mut view, Role::TextField, b"Owner", b"acme");
+    input_sheet(&mut root, &mut view, Role::TextField, b"Name", b"secret");
+    f::root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None },
+            },
+        },
+    );
+    for (words, said) in [
+        (f::browser_words(), b"This page is out of date for adopting repositories: reload it.".as_slice()),
+        (f::words(), b"This temper is out of date for adopting repositories: run the temper the engine runs.".as_slice()),
+    ] {
+        let mut view = f::view_of(words);
+        f::build(&mut view, &root);
+        assert!(f::find(view.tree(), Role::Status, said).is_some());
+        let button = node(view.tree(), Role::Button, b"Adopt acme/secret");
+        assert!(button.states.as_slice().contains(&State::Disabled));
+        let button = button.id;
+        assert!(crate::act_event(&mut view, button, UiAct::Press).is_none());
+    }
+}
+
+#[test]
 fn the_list_reads_on_and_holds_while_busy() {
     let root = root();
     let mut sheet = sheet::Sheet::new(f::PROJECT, root.forges());

@@ -1509,6 +1509,8 @@ pub enum Word {
     SignInLinkUnknown,
     OutOfDateMain,
     OutOfDateHow,
+    Reload,
+    ForgeOutOfDateBrowser,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
     Kind,
@@ -1991,7 +1993,7 @@ const PHRASES: u32 = 2510;
 const SEGMENTS: u32 = 4568;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 59480;
-const ALL: [Word; 1824] = [
+const ALL: [Word; 1826] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3448,6 +3450,8 @@ const ALL: [Word; 1824] = [
     Word::SignInLinkUnknown,
     Word::OutOfDateMain,
     Word::OutOfDateHow,
+    Word::Reload,
+    Word::ForgeOutOfDateBrowser,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
     Word::Kind,
@@ -5120,6 +5124,8 @@ impl Word {
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
             Self::OutOfDateHow => 184,
+            Self::Reload => 9023,
+            Self::ForgeOutOfDateBrowser => 9024,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
@@ -7989,7 +7995,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
         Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
         Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
-        Word::OutOfDateHow => (&[b"Run the temper the engine runs."], &[]),
+        Word::OutOfDateHow => match shell {
+            Shell::Terminal => (&[b"Run the temper the engine runs."], &[]),
+            Shell::Browser => (&[b"This page doesn't match temper's engine. Reload it to continue."], &[]),
+        },
+        Word::Reload => (&[b"Reload"], &[]),
+        Word::ForgeOutOfDateBrowser => (&[b"This page is out of date for adopting repositories: reload it."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),
