@@ -8,7 +8,7 @@ use skein_lib::List;
 
 /// Move a party's bounded pattern into authority's equivalent vocabulary.
 #[must_use]
-pub(crate) fn pattern_to_authority(value: people::Pattern) -> authority::Pattern {
+pub fn pattern_to_authority(value: people::Pattern) -> authority::Pattern {
     authority::Pattern {
         segments: value.segments,
         last: match value.last {
@@ -19,7 +19,7 @@ pub(crate) fn pattern_to_authority(value: people::Pattern) -> authority::Pattern
 }
 
 #[must_use]
-pub(crate) fn authority_numbers(numbers: tasks::Numbers) -> authority::Numbers {
+pub fn authority_numbers(numbers: tasks::Numbers) -> authority::Numbers {
     authority::Numbers {
         budget: numbers.budget,
         spent: numbers.spent,
@@ -29,7 +29,7 @@ pub(crate) fn authority_numbers(numbers: tasks::Numbers) -> authority::Numbers {
 }
 
 #[must_use]
-pub(crate) fn tasks_authority(value: &tasks::Authority) -> authority::Authority {
+pub fn tasks_authority(value: &tasks::Authority) -> authority::Authority {
     let mut grants = List::with_capacity(u32::try_from(value.grants.len()).expect("validated task grants"));
     for grant in &value.grants {
         grants
@@ -126,7 +126,7 @@ pub fn task_authority(value: &authority::Authority) -> tasks::Authority {
 }
 
 /// Copy a task's resource pattern into the authority vocabulary.
-pub(crate) fn task_pattern_to_authority(value: &tasks::Pattern) -> authority::Pattern {
+pub fn task_pattern_to_authority(value: &tasks::Pattern) -> authority::Pattern {
     authority::Pattern {
         segments: value.segments.clone(),
         last: match &value.last {
@@ -137,7 +137,7 @@ pub(crate) fn task_pattern_to_authority(value: &tasks::Pattern) -> authority::Pa
 }
 
 /// Copy an authority resource pattern into the task vocabulary.
-pub(crate) fn authority_pattern_to_tasks(value: &authority::Pattern) -> tasks::Pattern {
+pub fn authority_pattern_to_tasks(value: &authority::Pattern) -> tasks::Pattern {
     tasks::Pattern {
         segments: value.segments.clone(),
         last: match &value.last {
@@ -147,11 +147,11 @@ pub(crate) fn authority_pattern_to_tasks(value: &authority::Pattern) -> tasks::P
     }
 }
 
-pub(crate) fn grant_to_authority(value: people::Grant) -> authority::Grant {
+pub fn grant_to_authority(value: people::Grant) -> authority::Grant {
     authority::Grant { connector: value.connector, kind: value.kind, pattern: pattern_to_authority(value.pattern) }
 }
 
-pub(crate) fn grant_to_people(value: &authority::Grant) -> people::Grant {
+pub fn grant_to_people(value: &authority::Grant) -> people::Grant {
     people::Grant { connector: value.connector, kind: value.kind, pattern: pattern_to_people(&value.pattern) }
 }
 
@@ -267,7 +267,7 @@ pub fn requirement_to_authority(value: people::Requirement) -> authority::Requir
     }
 }
 
-pub(crate) fn requirement_to_people(value: &authority::Requirement) -> people::Requirement {
+pub fn requirement_to_people(value: &authority::Requirement) -> people::Requirement {
     people::Requirement {
         connector: value.connector,
         kind: value.kind,
