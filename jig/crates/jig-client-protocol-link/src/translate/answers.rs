@@ -99,6 +99,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
             c::DocumentOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
         }
         w::DocumentOutcome::AccountKeyKept(row) => c::DocumentOutcome::AccountKeyKept { source: row.source() },
+        w::DocumentOutcome::AccountLoginAsked(row) => c::DocumentOutcome::AccountLoginAsked { number: row.number() },
         w::DocumentOutcome::AccountProgramDeclared(row) => {
             if !c::valid_program_name(row.name()) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));

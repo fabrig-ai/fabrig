@@ -39,6 +39,7 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         }
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
+        c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal::new(limits, w::SubjectTerminalParts { terminal: *terminal })?),
     })
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
@@ -90,6 +91,11 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match value {
+        w::DeliveryValue::Terminal(value) => {
+            let mut room = super::accounts::document_room(limits);
+            super::accounts::charge(&mut room, Some(u64::try_from(size_of::<c::Terminal>()).expect("record size fits u64"))).map_err(super::classify)?;
+            c::Delivery::Terminal(Box::new(c::Terminal { login: super::accounts::terminal_login(value.login().as_ref(), &mut room).map_err(super::classify)? }))
+        }
         w::DeliveryValue::Project(value) => c::Delivery::Project(Box::new(documents::project(value, limits)?)),
         w::DeliveryValue::Accounts(value) => {
             c::Delivery::Accounts(Box::new(match documents::accounts(value, limits) {

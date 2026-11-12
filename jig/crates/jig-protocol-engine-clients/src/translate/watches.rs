@@ -29,7 +29,7 @@ pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) 
         w::Subject::Accounts => (d::Watched::Accounts, rows),
         w::Subject::Deployment => (d::Watched::Deployment, rows),
         w::Subject::Settings => (d::Watched::Settings, rows),
-        w::Subject::Run(_) => return None,
+        w::Subject::Run(_) | w::Subject::Terminal(_) => return None,
     };
     Some(core::Event::Watch { watcher, sign_in, subject, window: d::Window { rows, after: None } })
 }
