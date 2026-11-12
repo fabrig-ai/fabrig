@@ -308,6 +308,7 @@ Design documents:
 Drafts:
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
+- [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
