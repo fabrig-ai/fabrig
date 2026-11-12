@@ -24,14 +24,14 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
-                handles: 14,
-                watches: 14,
+                // Page and session handles, plus the launchpad's left-off and second project's status reads.
+                handles: 18,
+                watches: 18,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
                 heartbeat: Duration::from_millis(100),
-                reads: 8,
+                reads: 12, // The launchpad's two cards coexist with Home and session reads.
                 parts: 8,
                 delegates: 2,
                 document_bytes: 65536,
