@@ -15,7 +15,10 @@ fn file(title: Box<[u8]>) -> v1::FileFindingParts {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one findings entrance scenario covers requests, filters and their word bounds")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one findings entrance scenario covers requests, filters and their word bounds"
+)]
 fn finding_requests_subjects_and_reads_round_trip_with_bounded_words() {
     let limits = &v1::CEILINGS;
     let mut requests = List::uncapped();

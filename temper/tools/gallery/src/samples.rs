@@ -2865,6 +2865,7 @@ fn home_domain(name: &str) -> Domain {
                     | w::Watch::Ways(_)
                     | w::Watch::Trials
                     | w::Watch::Approvals
+                    | w::Watch::Findings(_)
                     | w::Watch::Changes(_) => {
                         continue;
                     }
