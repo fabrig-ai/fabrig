@@ -4,6 +4,7 @@ use skein_fake_machine::{How, Machine, Opened};
 use std::collections::BTreeMap;
 
 type Rows = BTreeMap<Vec<u8>, Vec<u8>>;
+#[derive(Debug, PartialEq, Eq)]
 pub(super) struct Maps {
     pub active: u64,
     pub store: Rows,
@@ -19,6 +20,11 @@ impl Maps {
             .expect("active newline")
             .parse()
             .expect("active generation number");
+        disk.close(root);
+        Self::generation(disk, active)
+    }
+    pub fn generation(disk: &mut Machine, active: u64) -> Self {
+        let root = disk.reopen_root(0);
         let store = map(disk, root, format!("generations/{active}/store").as_bytes());
         let secrets = map(disk, root, format!("generations/{active}/secrets").as_bytes());
         disk.close(root);
