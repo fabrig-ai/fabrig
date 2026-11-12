@@ -61,6 +61,7 @@ fn step_name(state: &change::State) -> &'static [u8] {
         change::State::Reopening { .. } => b"reopening",
         change::State::Checking { .. } => b"checking",
         change::State::Gating { .. } => b"gating",
+        change::State::Judging { .. } => b"judging",
         change::State::CancellingGates { .. } => b"cancelling gates",
         change::State::Ready { .. } => b"ready",
         change::State::Queued { .. } => b"queued",
@@ -92,6 +93,7 @@ fn waiting(words: &mut List<u8>, state: &change::State, row: &forge::ChangeRow) 
             append(words, b"its gates at ");
             head(words, Some(at));
         }
+        change::State::Judging { target, .. } => { append(words, b"its gates at "); head(words, Some(&target.prefix)); }
         change::State::First { head: at, .. } => {
             append(words, b"the forge to settle whether ");
             head(words, Some(at));

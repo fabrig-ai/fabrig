@@ -257,6 +257,7 @@ left: None,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,

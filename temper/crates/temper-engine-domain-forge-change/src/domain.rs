@@ -1458,7 +1458,12 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     let (current, asked) = match &change.state {
         State::Gating { head, asked } => (*head, asked),
         State::Judging { target, asked, .. } => (target.prefix, asked),
-        _ => return next,
+        State::Producing { .. } | State::Opening { .. } | State::Recreating { .. } | State::Reopening { .. }
+        | State::Checking { .. } | State::Ready { .. } | State::Preparing { .. } | State::CancellingGates { .. }
+        | State::Queued { .. } | State::First { .. } | State::Updating { .. } | State::WaitingProducer { .. }
+        | State::Resolving { .. } | State::Repairing { .. } | State::Landing { .. } | State::Landed { .. }
+        | State::NoChange { .. } | State::Ended | State::Held { .. } | State::Red { .. }
+        | State::Cleared { .. } | State::Uncleared { .. } => return next,
     };
     if current != head || !asked.contains(&number) {
         return next;

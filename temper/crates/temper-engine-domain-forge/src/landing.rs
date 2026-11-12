@@ -1047,7 +1047,7 @@ fn advance(
                                 | change::State::Landing { .. }
                                 | change::State::NoChange { .. }
                                 | change::State::Ended
-                                | change::State::Held { .. } => member.landed,
+                                | change::State::Held { .. } => if member.left.is_some() { member.head } else { member.landed },
                             };
                             let Some(head) = landed else {
                                 wait(d, p.task, env, p.repository, out);
@@ -1094,7 +1094,7 @@ fn advance(
                     };
                     fact.merged = pull.merged;
                     fact.ready = if let change::State::Ready { .. } | change::State::Judging { .. } = change.change.state { true } else { false };
-                    fact.held = if let change::State::Held { .. } = change.change.state { true } else { false };
+                    fact.held = p.heard.held.contains(&member.change) || if let change::State::Held { .. } = change.change.state { true } else { false };
                     fact.cancelled = change.change.state == change::State::Ended;
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
                     fact.cancelled |= p.heard.cancelled;
@@ -1722,7 +1722,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     };
                     if let Some(since) = flight.since
                         && env.now.as_nanos().saturating_sub(since.as_nanos()) > settings.gate_timeout.as_nanos()
-                        && flight.outcome == Some(policy::Verdict::Running) {
+                        && flight.outcome.is_none() && flight.run.is_some() {
                         fact.expired = Some(fact.run);
                     }
                 }
@@ -2641,6 +2641,11 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
         )?;
+    for ask in &row.asks {
+        if let Some(change::Ask::Judge(target)) = ask {
+            bytes = bytes.checked_add(skein_lib::len_u64(target.branch.len()))?.checked_add(skein_lib::len_u64(target.base.len()))?;
+        }
+    }
     for member in &row.landing.members {
         bytes = bytes.checked_add(
             skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
@@ -2774,6 +2779,7 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
             task,
             0,
             LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -2949,6 +2955,17 @@ impl Domain {
             policy::Leave::Failed { gate, run } => concat(&[b"gate ", &self.train_gates(row, repository(m)).get(usize::from(gate))?.name, b" failed in ", skein_lib::Decimal::of(run).as_bytes()]),
         })
     }
+    /// The prefix refused by this gate, while its change repairs at its own head.
+    #[must_use]
+    pub fn landing_refused_at(&self, task: u64, gate: u64) -> Option<api::Commit> {
+        let mut prefix = None;
+        for (_, row) in &self.landing.rows {
+            for member in &row.landing.members {
+                if member.change == task && member.left == Some(policy::Leave::Refused { gate }) { prefix = member.candidate; }
+            }
+        }
+        prefix
+    }
     /// The failed jobs are read before the receipt is committed; repairs use that snapshot.
     #[must_use]
     pub fn landing_failure_words(&self, change: u64, gate: u16) -> Option<Box<[u8]>> {
@@ -3079,7 +3096,7 @@ fn matches_entry(d: &Domain, task: u64, entry: u64) -> bool {
 }
 
 /// Cancellation removes a member; cancelling a landing leaves its changes live.
-pub(crate) fn closing(d: &mut Domain, task: u64, ending: crate::ReleaseEnding, out: &mut Queue<Request>) {
+pub(crate) fn closing(d: &mut Domain, env: &Env<Limits>, task: u64, ending: crate::ReleaseEnding, out: &mut Queue<Request>) {
     if ending != crate::ReleaseEnding::Cancelled {
         return;
     }
@@ -3089,6 +3106,11 @@ pub(crate) fn closing(d: &mut Domain, task: u64, ending: crate::ReleaseEnding, o
         for member in &row.landing.members {
             if let Some(change) = d.changes.get_mut(&member.change) {
                 change.change.landing = None;
+                if let Some(merge) = member.landed {
+                    change.change.state = change::State::Landed { merge, since: env.wall };
+                } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
+                    change.change.state = change::State::Ready { head, ready_since };
+                }
                 emit(
                     out,
                     Request::Save {
@@ -3202,7 +3224,6 @@ fn judging(state: &change::State) -> bool {
     if let change::State::Judging { .. } = state { true } else { false }
 }
 
-#[expect(clippy::match_like_matches_macro, reason = "explicit typed leaving reason")]
 fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     if let Some(policy::Leave::Failed { gate: failed, .. }) = left { gate == failed } else { false }
 }

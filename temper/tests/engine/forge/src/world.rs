@@ -139,6 +139,7 @@ pub struct World {
     signatures: bool,
     pull_snapshot: Option<skein_forge::api::Pull>,
     read_script: ReadScript,
+    landing_policy: temper_engine_domain_forge_landing::Project,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
 
@@ -195,7 +196,7 @@ impl World {
             project,
             way,
             gates.clone(),
-            temper_engine_domain_forge_landing::Project::DEFAULT,
+            self.landing_policy,
             top::AfterLanding {
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
@@ -211,6 +212,16 @@ impl World {
         }
         accepted
     }
+    pub fn gate_policy(&mut self, settings: temper_engine_domain_forge_landing::Project) {
+        self.landing_policy = settings;
+        let (project, way, gates) = self.landing_config.clone().expect("landing configured");
+        assert!(self.project_landing(project, way, gates));
+    }
+    pub fn runner_setup_faults(&mut self, faults: u32) { self.forge_env.limits.setup_faults = faults; }
+    #[must_use]
+    pub fn first_waiting_change(&self) -> Option<u64> { self.top.first_waiting(REPO, b"main", &[], self.env.wall) }
+    #[must_use]
+    pub fn landing_leave_words(&self, task: u64) -> Option<Box<[u8]>> { self.top.landing_leave_words(task, 0) }
     #[must_use]
     pub fn change(&self, task: u64) -> &top::ChangeRow {
         self.top.change(task).expect("fixture change")
@@ -551,6 +562,7 @@ impl World {
             signatures,
             pull_snapshot: None,
             read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
+            landing_policy: temper_engine_domain_forge_landing::Project::DEFAULT,
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -955,7 +967,7 @@ impl World {
                 *project,
                 *way,
                 gates.clone(),
-                temper_engine_domain_forge_landing::Project::DEFAULT,
+                self.landing_policy,
                 top::AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
@@ -1361,6 +1373,7 @@ impl World {
                 | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
+                | top::Request::LandingNews { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }

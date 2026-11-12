@@ -82,6 +82,7 @@ pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::De
         task,
         entry,
         heard: top::LandingHeard {
+            held: Box::new([]),
             failure: Box::new([]),
             preparation: temper_engine_domain_forge_landing::Preparation::Idle,
             released: false,

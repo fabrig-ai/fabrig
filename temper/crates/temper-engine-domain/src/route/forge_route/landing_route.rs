@@ -249,16 +249,22 @@ fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u3
 }
 
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
-pub(crate) fn start_landing_step(domain: &mut Domain, _env: &Env<Limits>, context: &tasks::RunContext) {
+pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
     let Some(row) = domain.forge.landing(task) else { return };
     let released = if let landing::Phase::Held { .. } = row.landing.phase { true } else { false };
+    let mut held = List::with_capacity(env.limits.forge.landing_members);
+    for member in &row.landing.members {
+        if let Some(task) = domain.core.tasks.task(member.change)
+            && let tasks::Phase::Held { .. } = task.phase { held.push(member.change).expect("bounded members"); }
+    }
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_landing(task);
     domain.work.push(Work::Forge(forge::Event::StepLanding {
         task,
         entry,
         heard: forge::LandingHeard {
+            held: held.into_boxed(),
             failure: prepare_failure(context),
             preparation: preparation(domain, context),
             released,
@@ -308,7 +314,6 @@ pub(super) fn describe_landing_effect(
     })
 }
 
-#[expect(clippy::too_many_lines, reason = "each landing decision commits one procedure step")]
 pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: landing::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != LANDING_CODE {
@@ -589,6 +594,8 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
 }
 fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
     for word in &context.inbox {
+        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
+            && let Some(files) = conflict_files(&word.words) { return files; }
         if let tasks::MessageKind::Escalation { .. } = word.kind {
             return word.words.clone();
         }
@@ -606,3 +613,20 @@ pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, step: forg
     }
 }
 
+
+fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
+    let length = u32::try_from(bytes.len()).ok()?;
+    let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
+    let document = skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
+    let conflict = document.member(0, b"conflict")?;
+    let files = document.member(conflict, b"files")?;
+    let mut words = List::with_capacity(8192);
+    for at in files.checked_add(1)?..document.value_end(files)? {
+        let token = document.token(at)?;
+        if token.kind == skein_json::Kind::String {
+            if !words.is_empty() { append(&mut words, b", "); }
+            append(&mut words, document.text(token)?);
+        }
+    }
+    Some(words.into_boxed())
+}

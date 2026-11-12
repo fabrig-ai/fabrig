@@ -5551,7 +5551,7 @@ fn settle_effects(
     ending: ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
-    crate::landing::closing(d, task, ending, out);
+    crate::landing::closing(d, env, task, ending, out);
     crate::tiers::closing(d, env, task, ending, out);
     let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {

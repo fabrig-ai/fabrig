@@ -1081,6 +1081,7 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
     pub preparation: landing::Preparation,
     /// Live landings waiting prepared on a member of another live landing.

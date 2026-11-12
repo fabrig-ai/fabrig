@@ -73,8 +73,12 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
             if !facts.released {
                 return wait(next, None);
             }
-            next.phase = Phase::Preparing;
-            next.round.ending = Some(crate::RoundEnd::Stale);
+            if let Phase::Held { why: Hold::Record { .. }, .. } = landing.phase {
+                next.phase = Phase::Turn { at: now };
+            } else {
+                next.phase = Phase::Preparing;
+                next.round.ending = Some(crate::RoundEnd::Stale);
+            }
             for member in &mut next.members {
                 for gate in &mut member.gates {
                     gate.faults = 0;
@@ -88,10 +92,9 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
         if member.landed.is_some() { continue; }
         let why = if let Some(gate) = fresh.refused { Some(crate::Leave::Refused { gate }) }
             else if fresh.cancelled { Some(crate::Leave::Cancelled) }
-            else if fresh.held { Some(crate::Leave::Held) }
             else if member.head.is_some() && member.head != Some(fresh.head) {
                 Some(crate::Leave::HeadMoved { head: fresh.head })
-            } else { member.left };
+            } else if fresh.held { Some(crate::Leave::Held) } else { member.left };
         if let Some(why) = why { return leaving(next, position(index), why); }
     }
     match landing.phase {

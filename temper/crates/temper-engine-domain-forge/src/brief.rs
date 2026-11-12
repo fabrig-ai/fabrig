@@ -887,7 +887,10 @@ pub(super) fn brief_reviews(
     let repository = row.repository;
     let mut words = BriefWords::with_capacity(bytes, false);
     for remark in &row.gate_remarks {
-        if reviewed.is_none() && remark.head == head.0 {
+        let prefix = if let change::State::Repairing { why: change::Repair::Gate(gate), .. } = row.change.state {
+            domain.landing_refused_at(row.task, gate)
+        } else { None };
+        if reviewed.is_none() && (remark.head == head.0 || prefix == Some(remark.head)) {
             append(&mut words, b"Gate remarks: ");
             append(&mut words, &remark.words);
             append(&mut words, b"\n");

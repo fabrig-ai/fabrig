@@ -153,6 +153,7 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
         task: LANDING,
         entry: 202,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Idle,
             failure: Box::new([]),
             released: true,
@@ -204,6 +205,7 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Failed,
             failure: b"push refused".as_slice().into(),
             released: false,
@@ -301,6 +303,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Conflict,
             failure: Box::new([]),
             released: false,

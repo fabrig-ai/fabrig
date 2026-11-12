@@ -348,6 +348,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
                     released: false,
@@ -450,6 +451,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -544,6 +546,7 @@ left: None,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -666,6 +669,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -866,6 +870,7 @@ fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_br
             task: 61,
             entry: 92,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -1123,6 +1128,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                     released: false,
@@ -1339,6 +1345,7 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                     released: false,
