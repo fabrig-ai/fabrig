@@ -69,6 +69,7 @@ pub fn config(seed: u64) -> engine::Config {
     // The charter's model is in the catalogue, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        direct: Box::new([]),
         providers: Box::new([]),
         number: charter.policy.model.endpoint,
         dialect: charter.policy.model.dialect,

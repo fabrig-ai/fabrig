@@ -112,6 +112,7 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, its add
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
 - `endpoint`: text, 4096 bytes; a configured endpoint name; required; init writes "openai" | "anthropic" | "demo". Names the endpoint its added models take.
+- `direct`: text, 4096 bytes; program-free endpoint of the same dialect; requires program endpoint and sign-in or key; optional; init leaves it out. Names the direct endpoint its sign-ins, keys and list reads take.
 - `keep`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires endpoint; optional; init writes ["gpt-*"] | ["claude-*"]. Keeps list names matching any whole-name pattern; absent disables reading the list.
 - `drop`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires keep; optional; init writes ["*audio*","*image*","*realtime*","*search*","*transcribe*","*tts*","*-20??-??-??"] | ["*-20??????"]. Excludes list names matching any whole-name pattern, even when kept.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.

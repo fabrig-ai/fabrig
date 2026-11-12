@@ -743,6 +743,7 @@ impl World {
                 config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: model.endpoint,
                     dialect: model.dialect,
