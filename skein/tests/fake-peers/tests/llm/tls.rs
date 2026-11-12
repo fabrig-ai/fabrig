@@ -1,5 +1,5 @@
 use super::{make, request};
-use rustls::{
+use rustls_std::{
     ClientConfig, ClientConnection, RootCertStore,
     pki_types::{CertificateDer, ServerName},
 };
@@ -29,7 +29,7 @@ fn the_exported_root_alone_authenticates_a_tls_llm_peer_at_127_0_0_1() {
     let mut roots = RootCertStore::empty();
     roots.add(CertificateDer::from(ROOT)).unwrap();
     assert_eq!(roots.len(), 1);
-    let config = ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+    let config = ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_root_certificates(roots)

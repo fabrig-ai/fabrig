@@ -7,12 +7,12 @@
 
 use std::sync::Arc;
 
-use rustls::crypto::cipher::{MessageEncrypter, OutboundChunks, OutboundPlainMessage};
-use rustls::crypto::{CryptoProvider, ring};
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use rustls::server::ServerConfig;
-use rustls::version::{TLS12, TLS13};
-use rustls::{
+use rustls_std::crypto::cipher::{MessageEncrypter, OutboundChunks, OutboundPlainMessage};
+use rustls_std::crypto::{CryptoProvider, ring};
+use rustls_std::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use rustls_std::server::ServerConfig;
+use rustls_std::version::{TLS12, TLS13};
+use rustls_std::{
     CipherSuiteCommon, ConnectionTrafficSecrets, ContentType, ProtocolVersion, RootCertStore, SupportedCipherSuite,
     SupportedProtocolVersion, Tls13CipherSuite,
 };
