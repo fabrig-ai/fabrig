@@ -754,7 +754,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let applied = fixtures::answered(&mut world, agent, number);
     assert_eq!(applied.status, 0, "{applied:?}");
     let shown = call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1"]);
-    assert!(shown.contains("\"up\""), "{shown}");
+    assert!(shown.contains("\"none\""), "{shown}");
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
     assert!(historical.contains("\"value\":\"up\""), "{historical}");

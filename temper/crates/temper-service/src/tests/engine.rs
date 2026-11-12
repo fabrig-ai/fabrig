@@ -1068,12 +1068,14 @@ fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Bo
 }
 
 #[test]
-fn a_retired_current_setting_refuses_start_before_switch() {
+fn a_retired_stored_setting_refuses_start_before_switch() {
     use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
     use jig_protocol_store as store;
     for key in [
         SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Change },
         SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Change },
+        SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Replaced(2) },
+        SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Replaced(2) },
     ] {
         let mut previous = fixtures::ready().engine.unwrap();
         let mut header = previous.domain.deployment();

@@ -90,6 +90,14 @@ fn start(bound: Option<u32>) -> Story {
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     world.until(Until::Ready);
+    // Keep the goal's inbox credit distinct from its producer's question credit.
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]), reply_to: skein_lib::ReplyTo::new(Token::new(96)),
+        sign_in: world.signed_in.expect("owner"), key: [96; 16],
+        ask: people::Ask::Say { project: 1, task: goal.task, words: b"Follow the plan.".as_slice().into() },
+    }));
+    world.until(Until::Ready);
+    world.scripted_read_inbox(&goal);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     assert_eq!(forge_hold(&world, &branch).expect("goal holds g").task, goal.task);
     let main = branch_tip(&mut world, b"main");
@@ -412,7 +420,7 @@ fn amend_spec(story: &mut Story, target: u64, spec: &str, completion: u32) {
 fn amending_with_explicit_parameters_replaces_them() {
     let cases: [(u32, &str, Box<[tasks::Parameter]>); 2] = [
         (94, "[]", Box::new([])),
-        (95, r#"[{"kind":"number","name":14,"value":1}]"#, Box::new([tasks::Parameter::Number { name: 14, value: 2 }])),
+        (95, r#"[{"kind":"number","name":14,"value":2}]"#, Box::new([tasks::Parameter::Number { name: 14, value: 2 }])),
     ];
     let mut story = start(None);
     let change = story.producer.task;

@@ -748,7 +748,7 @@ fn a_project_member_reads_its_kinds_at_their_revisions() {
     let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Up), project_ways()];
     let later = [
         settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
-        settings::Value::Questions(Route::Up),
+        settings::Value::Questions(Route::None),
         settings::Value::Ways(settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }),
     ];
     for (key, values) in [(67, &earlier), (68, &later)] {

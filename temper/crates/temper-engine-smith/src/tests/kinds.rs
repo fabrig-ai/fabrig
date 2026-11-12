@@ -33,7 +33,7 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 14] {
+fn values() -> [(u32, settings::Value); 13] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
