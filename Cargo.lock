@@ -6293,6 +6293,7 @@ name = "temper-qa-tool"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "sha2",
  "skein-scratch",
  "skein-shell",
  "temper-test-env",

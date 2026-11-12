@@ -6,6 +6,13 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 
 ## Internal
 
+### `temper-qa build keep`
+
+- **Set:** internal
+- **Forms:** `COMMIT DIR`
+- Every executable must print that commit as its version, the files are moved into the builds directory under the commit, a manifest names the commit and each file's checksum, and the ledger records the build.
+- **Arguments:** `COMMIT`: The landed tip, 40 or 64 lowercase hexadecimal digits.; `DIR`: The staged build, on the builds directory's filesystem.
+
 ### `temper-qa triage none`
 
 - **Set:** internal

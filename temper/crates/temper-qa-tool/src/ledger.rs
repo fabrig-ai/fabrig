@@ -303,6 +303,21 @@ impl Ledger {
         Ok(())
     }
 
+    /// Record a published build anew, moving a deleted record to the kept order's end
+    /// (qa/builds.md, 3).
+    pub fn record_build_kept(&mut self, commit: &str, now: u64) -> Result<(), Refusal> {
+        self.check_build_keep(commit)?;
+        self.builds.retain(|build| build.commit != commit);
+        self.keep_build(commit, now)
+    }
+
+    pub(crate) fn check_build_keep(&self, commit: &str) -> Result<(), Refusal> {
+        if self.builds.iter().any(|build| build.commit == commit && build.state == BuildState::Kept) {
+            return Err(refused(format!("build {} is kept already", short(commit))));
+        }
+        Ok(())
+    }
+
     pub fn set_build_holds(&mut self, commit: &str, holds: Vec<u64>, order: u64) -> Result<(), Refusal> {
         if holds.iter().any(|number| !self.landings.iter().any(|landing| landing.number == *number)) {
             return Err(refused(format!("build {commit}: holds an unknown landing")));
