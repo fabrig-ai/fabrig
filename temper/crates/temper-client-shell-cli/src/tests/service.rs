@@ -47,6 +47,7 @@ fn a_party_make_key_replay_prints_the_party_and_writes_nothing() {
 fn sign_in_service_uses_the_files_address_and_credential_and_keeps_the_sign_in() {
     let mut f = Frame::read(&["sign-in", "--service", "link-file"]);
     f.link = service::FILE;
+    f.token = b"";
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert!(f.link_bearers.first().and_then(Option::as_ref).is_some_and(|bytes| bytes.as_ref() == service::CREDENTIAL));
