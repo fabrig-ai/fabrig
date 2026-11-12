@@ -32,8 +32,8 @@ jig-client-protocol-link.workspace = true
 jig-client-kit.workspace = true
 skein-tls.workspace = true
 skein-oauth-issuer.workspace = true
-serde_json = "1.0"
-tempfile = "3"
+serde_json.workspace = true
+tempfile.workspace = true
 jig-core-kit.workspace = true
 jig-test-domain = { path = "../../testing/jig-test-domain" }
 [lints.rust] # harness: tools/lints/design.md, 2.2

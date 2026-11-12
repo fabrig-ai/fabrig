@@ -28,7 +28,7 @@ smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
 serde = { workspace = true }
-serde_json = "1.0"
+serde_json.workspace = true
 
 [dev-dependencies]
 smith-agent-document-fixtures.workspace = true
