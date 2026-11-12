@@ -62,8 +62,8 @@ fn site(
             };
             socket.set_read_timeout(Some(std::time::Duration::from_millis(100))).expect("site read timeout");
             socket.set_write_timeout(Some(std::time::Duration::from_millis(100))).expect("site write timeout");
-            let mut tls = rustls::StreamOwned::new(
-                rustls::ServerConnection::new(skein_tls_kit::pki::Server::plain().config()).expect("site TLS"),
+            let mut tls = rustls_std::StreamOwned::new(
+                rustls_std::ServerConnection::new(skein_tls_kit::pki::Server::plain().config()).expect("site TLS"),
                 socket,
             );
             let mut head = Vec::new();
