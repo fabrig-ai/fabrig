@@ -24,7 +24,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     a failed write failing the step's exchanges and cancelling the
     navigation; the inbox's: no turn inside a turn;
   - the navigation's targets (`README.md`, section 8): each kind accepted or
-    refused, plaintext loopback with and without `loopback-navigation`;
+    refused, plaintext loopback with loopback navigation on and off;
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
     marker, and each refusal of `bundle.md`, 2 and 3 naming its file;

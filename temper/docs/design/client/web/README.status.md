@@ -2,6 +2,10 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2.1: the shell reads no internal setting from its address: its recorder, its small window and skein's loopback navigation are the features `record`, `small-window` and `loopback-navigation`; 2.6: `scripts/bundle.sh` takes `--loopback`, `--small-window` and `--record`.
+
+- **Not yet:** 2.1 and 2.6: the shell is the `cdylib` whose wasm start the bundle runs, and its feature `playground` chooses the playground's entry instead; there is no `temper-client-web-page` or `temper-playground-page`.
+
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
   proposal's acts among them, and the path's stops on Ask temper's page

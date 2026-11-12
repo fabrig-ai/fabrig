@@ -2,6 +2,10 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2: there is no `temper-client-redaction`: `temper-client-shell-tui` links `temper-client-shell-web` under its `record` feature for the shared redaction and scan.
+
+- **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
+
 - **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a
   pasted bundle by it (`forge/forges.rs`), on `skein-ui` for its phrasebooks

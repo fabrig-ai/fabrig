@@ -2,6 +2,8 @@
 
 2026-11-10. Where the tree's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:** 2 and 3: the tier's bundle is built with the shell's `loopback-navigation` and `small-window` features (`tools/tiers/bundles.toml`), and its addresses carry no internal setting.
+
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
