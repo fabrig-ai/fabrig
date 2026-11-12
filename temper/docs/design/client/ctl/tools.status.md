@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 2: `push list`; 3: `push add` and `push remove`. [in flight: change 543]
 
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
 

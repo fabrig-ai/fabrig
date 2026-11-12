@@ -2,9 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [attention.md](attention.md).
 
-- **Not yet:** 7.1: a person's devices: no `Device` row, `AddDevice`, `RemoveDevice` or `devices` subject. [in flight: change 543]
-- **Not yet:** 7.2: a need's arrival pushes nothing: the root drops jig's `NeedArrived`, and no `Push` or `Pushed` exists. [in flight: change 544]
-- **Not yet:** 7.3: `application.push` is not read, and the service sends no push. [in flight: change 545]
 - **Not yet:** 7.4: mail and the digest: no `Told` row, no `application.mail`, no mail sent; left by N3b, whose push took the six changes it was given.
 
 - **Not yet:** 5: a call answered ask at the bound, with no row past

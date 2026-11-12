@@ -2,7 +2,6 @@
 
 2026-11-07. Where temper's code lags or departs from [credentials.md](credentials.md).
 
-- **Not yet:** 2: a deployment's VAPID key is not read. [in flight: change 545]
 - **Not yet:** 2: a deployment's mail password, designed and not built (`../domain/forge/attention.md`, 7.4).
 
 - **Not yet:** 2.1, 8: rows of a forge with no record are not named in the log (`temper-service/src/forge/records.rs`). 4: a removed forge's grant is not withdrawn from jig's accounts: `temper-service/src/forge/gone.rs` takes its values out of temper's identities' table alone, so a Forgejo identity's unbounded grant holds its room in jig's table until a restart, and a forge made later may find none. 5: a `Corrupt` from jig's secrets' store on an accounts' request stops no engine, where this section has a failure of that store stop it: `temper-service/src/engine.rs`, `answer`, stops on `accounts::WRONG_KIND` alone, and any other accounts' token finds no flight in `store::route::up`. This is by reading: no test drives it. 7: the worlds' search for issued secrets covers LLM access tokens, git tokens and a forge's API token (`tests/one-process/src/referee/secrets.rs`), Apps' keys and installations' tokens in one story (`tests/one-process/src/m15/observer.rs`), and the forge's protocol world one API token (`tests/engine/protocol-forge/src/fixtures.rs`): no world searches LLM keys, admins' tokens or webhooks' secrets.

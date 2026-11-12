@@ -2,8 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [fakes.md](fakes.md).
 
-- **Not yet:** 6: no world takes the root's pushes. [in flight: change 544]
-- **Not yet:** 6: no world hosts skein's fake push service. [in flight: change 545]
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
 
 - **Not yet:**  GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6

@@ -2,7 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 1: the `Accounts` tab's last row has no "Telling you". [in flight: change 546]
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and

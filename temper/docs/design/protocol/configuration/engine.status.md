@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [engine.md](engine.md).
 
-- **Not yet:** `push`: the member is not read, so `Config`'s `forge.push` is none. [in flight: change 545]
 - **Not yet:** `mail`: designed and not built, as `../../domain/forge/attention.md`, 7.4 is.
 
 - **Not yet:** the project's landing settings, *The delivery checks' bound*: the project's landing settings have no `check_timeout_ms` (`temper-service/src/startup/application/landing.rs`), so every run's checks have the agent's `check_timeout` [in flight: change 74].

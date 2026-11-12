@@ -16,8 +16,6 @@ tasks handed from the public index (`public-reading.md`, 3, 9).
 completed ctl answer. No acknowledgement precedes `SetVisibility`; that
 client step remains deferred in temper's `client/ctl/README.md`, section 11.
 
-- **Not yet:** 8: the core gives its root no `Held::NeedArrived`:
-  nothing tells an application that a need arrived. [in flight: change 540]
 - **Departs:** 5, 7: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
   each application opts in before the first step, as temper does. With
