@@ -6091,6 +6091,7 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-fake-claude",
+ "smith-protocol-channel",
  "smith-protocol-llm",
  "temper-client-domain",
  "temper-client-protocol-wire",
