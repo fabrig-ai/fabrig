@@ -79,7 +79,7 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         let engine = service.engine.as_ref().unwrap();
         assert_eq!(engine.env.limits.call_answer_bytes, expected_engine);
         assert_eq!(engine.env.limits.host_reply_bytes, Some(agent.limits.bodies.host_reply_text));
-        let opening = store_limits(&input, &directories, Some(&agent)).unwrap();
+        let opening = store_limits(&input, &directories, Some(&agent.declaration())).unwrap();
         assert_eq!(opening.store, engine.store.opening_limits());
         assert_eq!(opening.store.core.call_answer_bytes, expected_engine);
         check(
@@ -105,7 +105,8 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     let input = fixtures::engine_alone_document();
     let input = core::str::from_utf8(&input).unwrap().replace(",\"core.call_answer_bytes\":2048", "");
     let agent = fixtures::startup_agent();
-    for metadata in [None, Some(&agent)] {
+    let declaration = agent.declaration();
+    for metadata in [None, Some(&declaration)] {
         assert_eq!(
             store_limits(input.as_bytes(), &directories, metadata).unwrap().store.core.call_answer_bytes,
             69_632
@@ -160,7 +161,7 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
         )
         .err()
         .unwrap(),
-        store_limits(input, &directories, Some(agent)).unwrap_err(),
+        store_limits(input, &directories, Some(&agent.declaration())).unwrap_err(),
         check(
             input,
             &directories,
@@ -329,7 +330,7 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
             )
             .err()
             .unwrap(),
-            store_limits(&input, &directories, Some(&agent)).unwrap_err(),
+            store_limits(&input, &directories, Some(&agent.declaration())).unwrap_err(),
             check(
                 &input,
                 &directories,
@@ -348,7 +349,7 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
         }
         // A refusal preserves each configured value, rather than silently deriving it.
         let mut parsed = parse(&input, &directories).unwrap();
-        parsed.compose(&agent).unwrap_err();
+        parsed.compose(&agent.declaration()).unwrap_err();
         if let Some(bytes) = engine {
             assert_eq!(parsed.engine.limits.core.call_answer_bytes, bytes);
         }
@@ -414,7 +415,10 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
         )
         .unwrap();
         assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
-        assert_eq!(store_limits(&input, &directories, Some(&agent)).unwrap().store.core.call_answer_bytes, 2048);
+        assert_eq!(
+            store_limits(&input, &directories, Some(&agent.declaration())).unwrap().store.core.call_answer_bytes,
+            2048
+        );
     }
 }
 

@@ -10,6 +10,7 @@ use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
 use temper_protocol_worker_wire as payload;
 
+use temper_service_core::agent::Declaration;
 pub(super) use temper_service_core::startup::{against, at, call_answer, own, short};
 fn charter_path(engine: &config::Engine, index: usize) -> Path {
     let number = Decimal::of(u64::from(engine.charters.get(index).expect("checked charter index").number));
@@ -505,15 +506,13 @@ fn resume_window(bytes: u32) -> Option<u64> {
 fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
     short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
 }
-#[cfg(feature = "worker")]
-pub(super) use super::worker::checks::agent_answer;
 /// Each process checks the turn bounds its own document can know
 /// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
 pub fn turns(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
     own_limits: &limits::Limits,
-    agent: Option<&settings::Agent>,
+    agent: Option<&Declaration>,
     problems: &mut Problems,
 ) {
     let engine_path = Path::root().member(b"engine").member(b"limits").member(b"overrides");
@@ -521,14 +520,14 @@ pub fn turns(
         forge_result(own_limits.forge.client.op_bytes, engine.core.tasks.result_bytes, problems);
     }
     if let Some(agent) = agent {
-        let turn = u64::from(agent.turn_body());
+        let turn = u64::from(agent.turn_body);
         if let Some(engine) = engine {
             short(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.outcome_bytes()),
+                Some(agent.outcome_bytes),
             );
             short(
                 problems,
@@ -560,9 +559,6 @@ pub fn turns(
                 turn.checked_add(u64::try_from(size_of::<domain::Record>()).expect("record slot")),
             );
         }
-        #[cfg(feature = "worker")]
-        super::worker::checks::turns(workers, agent, problems);
-        #[cfg(not(feature = "worker"))]
         for (index, worker) in workers.iter().enumerate() {
             let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
             short(
@@ -570,7 +566,7 @@ pub fn turns(
                 path.member(b"hub.outcome_bytes"),
                 worker.limits.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.outcome_bytes()),
+                Some(agent.outcome_bytes),
             );
             short(
                 problems,
@@ -736,9 +732,12 @@ pub fn root(
     }
 }
 /// Endpoint names, and every charter model, agree with the agent.
-pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Problems) {
+pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
-        let agrees = agent.resolves_endpoint(&endpoint.name);
+        let mut agrees = false;
+        for name in &agent.endpoints {
+            agrees |= name.as_ref() == endpoint.name.as_ref();
+        }
         if !agrees {
             problems.push(
                 at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")),
@@ -749,8 +748,8 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     for (index, provider) in engine.llm.providers.iter().enumerate() {
         for (offered, name) in provider.programs.iter().enumerate() {
             let mut declared = false;
-            for program in agent.programs() {
-                declared |= program.adapter.name() == name.as_ref();
+            for program in &agent.programs {
+                declared |= program.as_ref() == name.as_ref();
             }
             if !declared {
                 problems.push(
@@ -771,12 +770,12 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
 pub fn admission(
     core: &jig_domain_core::Config,
     engine: &config::Engine,
-    agent: &settings::Agent,
+    agent: &Declaration,
     problems: &mut Problems,
 ) -> Problems {
     use fleet::AgentShortfall;
     let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
-    let bounds = agent.bounds();
+    let bounds = &agent.bounds;
     let mut warnings = Problems::empty();
     // A charter warning must not mask a deployment's receiving shortfall.
     for (why, offered, required) in [
@@ -1164,9 +1163,8 @@ pub(crate) fn membership(problem: Problem) -> (Path, config::What) {
     }
 }
 
-#[cfg(not(feature = "worker"))]
 /// Only an agent running locally must hold the answer in its tool payload.
-pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
+pub(super) fn agent_answer(agent: &Declaration, problems: &mut Problems) {
     short(
         problems,
         at(0, Path::root().member(b"workers"))
@@ -1174,7 +1172,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
             .member(b"profile")
             .member(b"declared")
             .member(b"tool_payload"),
-        u64::from(agent.tool_payload()),
+        u64::from(agent.tool_payload),
         b"temper's documentation answer (read_docs)",
         Some(u64::from(temper_service_core::DOC_ANSWER)),
     );

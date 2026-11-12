@@ -587,7 +587,7 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
             }]);
         }
         let mut problems = Problems::empty();
-        checks::agent(&engine, &agent, &mut problems);
+        checks::agent(&engine, &agent.declaration(), &mut problems);
         assert_eq!(
             &*lines(&problems),
             if declared {
@@ -600,7 +600,7 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
         let mut no_offers = fixtures::engine().jig;
         no_offers.llm.providers = Box::new([]);
         let mut problems = Problems::empty();
-        checks::agent(&no_offers, &agent, &mut problems);
+        checks::agent(&no_offers, &agent.declaration(), &mut problems);
         assert!(problems.is_empty(), "no offers need no declaration");
     }
 }
@@ -615,10 +615,10 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
             agent.bounds.endpoints[0].output = 1;
         }
         let mut problems = Problems::empty();
-        checks::agent(&engine, &agent, &mut problems);
+        checks::agent(&engine, &agent.declaration(), &mut problems);
         assert!(problems.is_empty(), "charter models do not refuse the start");
         let core = config::core(&engine, [7; 16], 7);
-        let warnings = checks::admission(&core, &engine, &agent, &mut problems);
+        let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut problems);
         assert!(problems.is_empty());
         assert_eq!(warnings.problems.len(), 1);
         assert_eq!(
@@ -700,14 +700,14 @@ fn charter_admission_shortfalls_warn_but_do_not_hide_deployment_refusals() {
     let engine = fixtures::guard_engine().jig;
     let core = config::core(&engine, [7; 16], 7);
     let mut found = Problems::empty();
-    let warnings = checks::admission(&core, &engine, &agent, &mut found);
+    let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut found);
     assert!(found.is_empty(), "charter bounds belong to stored settings: {found:?}");
     assert_eq!(
         core::str::from_utf8(&lines(&warnings)).unwrap(),
         "engine.charters[0].turns: needs 64 turns; the agent's profile.policy.max_turns allows 1\n"
     );
     agent.bounds.message_bytes = 0;
-    checks::admission(&core, &engine, &agent, &mut found);
+    checks::admission(&core, &engine, &agent.declaration(), &mut found);
     assert!(core::str::from_utf8(&lines(&found)).unwrap().contains("messages (tasks.message_bytes)"));
 }
 
@@ -765,7 +765,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
         let engine = fixtures::guard_engine().jig;
         let core = config::core(&engine, [7; 16], 7);
         let mut found = Problems::empty();
-        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut found);
         let (reported, empty) =
             if expected.starts_with("engine.limits") { (&found, &warnings) } else { (&warnings, &found) };
         assert!(empty.is_empty(), "{empty:?}");
@@ -788,7 +788,7 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
         let engine = fixtures::guard_engine().jig;
         let core = config::core(&engine, [7; 16], 7);
         let mut found = Problems::empty();
-        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut found);
         assert!(found.is_empty(), "{found:?}");
         assert!(core::str::from_utf8(&lines(&warnings)).unwrap().starts_with(expected));
     }
@@ -1003,7 +1003,7 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         worker.limits.hub.outcome_bytes = agent.host_limits.outcome_bytes;
         own.forge.client.op_bytes = engine.core.tasks.result_bytes;
         let mut found = Problems::empty();
-        checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
+        checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
         assert_eq!(&*lines(&found), b"", "{path} at equality");
         match index {
             0 => engine.hub.turn_bytes -= 1,
@@ -1018,7 +1018,7 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
             9 => own.forge.client.op_bytes -= 1,
             _ => unreachable!("ten turn and payload relations"),
         }
-        checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
+        checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
         assert_eq!(&*lines(&found), format!("{path}: {} bytes, short of {of}, {needs} bytes\n", needs - 1).as_bytes(),);
     }
 }
@@ -1039,10 +1039,10 @@ fn turn_checks_use_only_what_each_process_knows() {
     assert_eq!(&*lines(&found), b"engine.limits.overrides.hub.transcript_bytes: 262143 bytes, short of the engine's resume window, 262144 bytes\n");
     let mut found = Problems::empty();
     agent.limits.bodies.turn_body = u32::try_from(worker.limits.hub.turn_bytes).unwrap();
-    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
+    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
     assert_eq!(&*lines(&found), b"");
     agent.limits.bodies.turn_body += 1;
-    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
+    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
     assert_eq!(
         &*lines(&found),
         b"workers[0].limits.overrides.hub.turn_bytes: 65536 bytes, short of the agent's largest turn, 65537 bytes\n"

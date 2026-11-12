@@ -54,7 +54,8 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     )
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
+            .unwrap();
     assert_eq!(opened.store.store.page.bytes, 3_421_331);
 }
 
@@ -65,7 +66,8 @@ fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap_err();
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err();
     assert_eq!(lines(&opened).as_ref(), expected);
 }
 
@@ -145,7 +147,8 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             overrides["io.output"] = (jig_protocol_worker_wire::v9::Turn::encoded_bound(&bodies).unwrap() + 8).into();
             document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         }
-        let store = crate::store_limits(&document, &config::Directories::working(), Some(&agent)).unwrap().store;
+        let store =
+            crate::store_limits(&document, &config::Directories::working(), Some(&agent.declaration())).unwrap().store;
         let page = u64::from(store.store.page.bytes);
         let map = u64::from(store.store.key) + u64::from(store.store.value);
         let frame = u64::from(jig_protocol_store::sizes::frame(&store.core, TRANSCRIPT).unwrap());
@@ -191,9 +194,10 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
 #[test]
 fn a_map_driven_page_needs_no_larger_read_bound() {
     let document = fixtures::document();
-    let store = crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent()))
-        .unwrap()
-        .store;
+    let store =
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
+            .unwrap()
+            .store;
     let map = store.store.key.checked_add(store.store.value).unwrap();
     let frame =
         jig_protocol_store::sizes::frame(&store.core, fixtures::startup_agent().limits.bodies.turn_body).unwrap();
@@ -290,8 +294,9 @@ fn startup_names_the_policy_row_before_its_general_refusal() {
         b"application.limits.overrides",
         br#"{"root.journal.transcript_bytes":1}"#,
     );
-    let found = crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent()))
-        .expect_err("short policy row");
+    let found =
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
+            .expect_err("short policy row");
     assert_eq!(
         lines(&found).as_ref(),
         b"application.limits.overrides.root.journal.transcript_bytes: must agree with engine.limits.core.policy_bytes plus its policy row carrier\n"
@@ -975,7 +980,7 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
         ),
         ("limits", refused.as_slice(), Err(b"engine.limits: past its bound\n".as_slice())),
     ] {
-        let found = crate::store_limits(input, &directories, Some(&fixtures::startup_agent()));
+        let found = crate::store_limits(input, &directories, Some(&fixtures::startup_agent().declaration()));
         let found = found.map(|limits| (limits.store, limits.forge)).map_err(|problems| lines(&problems));
         assert_eq!(found.as_ref().map_err(AsRef::as_ref), expected.as_ref().map_err(AsRef::as_ref), "{name}");
     }
@@ -1088,7 +1093,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         link.room,
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
     );
-    let operations = crate::system::worker_alone_operations(
+    let operations = temper_service_core::process::Process::operations_for(
         &part.worker.jig.limits.io,
         crate::worker_settings::operations(&crate::worker_settings::git_component(part.limits.git_component)).unwrap(),
     )

@@ -1,5 +1,4 @@
 //! Uninhabited worker types for an engine build (protocol/binaries.md, 1 and protocol/components.md).
-use crate::settings;
 
 #[derive(Debug)]
 pub enum Worker {}
@@ -9,34 +8,7 @@ pub enum WorkerRuntime {}
 pub enum Agent {}
 
 impl Agent {
-    pub(crate) fn charter_bytes(&self) -> u64 {
-        match *self {}
-    }
-    pub(crate) fn tool_payload(&self) -> u32 {
-        match *self {}
-    }
-    pub(crate) fn host_ask_input(&self) -> u32 {
-        match *self {}
-    }
-    pub(crate) fn host_reply_text(&self) -> u32 {
-        match *self {}
-    }
-    pub(crate) fn turn_body(&self) -> u32 {
-        match *self {}
-    }
-    pub(crate) fn outcome_bytes(&self) -> u64 {
-        match *self {}
-    }
-    pub(crate) fn run_limits(&self) -> &smith_domain_run::Limits {
-        match *self {}
-    }
-    pub(crate) fn bounds(&self) -> &jig_domain_link::Bounds {
-        match *self {}
-    }
-    pub(crate) fn programs(&self) -> &[settings::Program] {
-        match *self {}
-    }
-    pub(crate) fn resolves_endpoint(&self, _name: &[u8]) -> bool {
+    pub(crate) fn declaration(&self) -> temper_service_core::agent::Declaration {
         match *self {}
     }
 }

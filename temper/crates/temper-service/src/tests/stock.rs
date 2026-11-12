@@ -2106,12 +2106,12 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
     let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
     let mut problems = crate::startup::Problems::empty();
     let core = config::core(&engine, [7; 16], 7);
-    let warnings = crate::startup::checks::admission(&core, &engine, &agent, &mut problems);
+    let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert!(warnings.is_empty());
     let demo = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 3).unwrap();
     demo.output = 8191;
-    let warnings = crate::startup::checks::admission(&core, &engine, &agent, &mut problems);
+    let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert_eq!(warnings.problems.len(), 1);
     assert_eq!(
