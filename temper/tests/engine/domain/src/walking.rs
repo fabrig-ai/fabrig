@@ -885,6 +885,7 @@ impl World {
     )]
     fn delivery(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story issues no source sign-out"),
             Delivery::WebReply { reply: people::Reply::SignedIn { person, sign_in, .. }, .. } => {
                 self.referee.signed_in(&self.store.rows, person, sign_in).expect("durable sign-in");

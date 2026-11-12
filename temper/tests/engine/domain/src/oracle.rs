@@ -254,7 +254,8 @@ impl Driver {
             Delivery::Panel { watcher: got, panel } if *got == watcher => {
                 Some(temper_engine_domain_forge::Document::Change(*panel.clone()))
             }
-            Delivery::Start(_)
+            Delivery::Push(_)
+            | Delivery::Start(_)
             | Delivery::NotesLoad { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }

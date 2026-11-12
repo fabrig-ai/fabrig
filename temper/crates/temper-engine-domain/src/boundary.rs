@@ -1175,7 +1175,8 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }

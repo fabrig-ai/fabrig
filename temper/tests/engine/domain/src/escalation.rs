@@ -702,6 +702,7 @@ impl World {
     )]
     fn delivery(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story issues no source sign-out"),
             Delivery::WebReply {
                 to,
