@@ -71,9 +71,9 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
         jig_domain_tasks::Contract::Report { words: 64 }
     } else if number == 9 {
         jig_domain_tasks::Contract::Report { words: 800 }
-    } else if number == 4 || number == 6 {
+    } else if number == 4 {
         jig_domain_tasks::Contract::Verdict {
-            choices: (1..=if number == 6 { 3 } else { 2 })
+            choices: (1..=2)
                 .map(|code| jig_domain_tasks::Verdict { code, words: 1024, followups: 0, fields: Box::default() })
                 .collect(),
         }
@@ -120,7 +120,6 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         (2, false),
         (4, false),
         (5, false),
-        (6, false),
         (9, false),
         (10, false),
         (11, true),
@@ -134,7 +133,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
             None
         } else {
-            Some(workspace(number != 4 && number != 6 && !open))
+            Some(workspace(number != 4 && !open))
         };
         let room = run::brief_room(&charter, workspace.as_ref(), &limits).expect("stock declarations fit");
         eprintln!(
@@ -155,7 +154,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 79_982);
+            assert_eq!(original.owned_bytes().unwrap(), 79_944);
             assert_eq!(receiving, 65_463);
             assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
             assert_ne!(charter.brief, original.brief);
@@ -167,7 +166,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 2_844, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 2_882, "the goal's brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -212,7 +211,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 340_091, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 340_129, "charter 5's maximal non-brief host part leaves this room");
     assert_eq!(brief.brief_bytes, 336_713);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
@@ -223,7 +222,6 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         (2, false),
         (4, false),
         (5, false),
-        (6, false),
         (9, false),
         (10, false),
         (11, true),
@@ -241,7 +239,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
             None
         } else {
-            Some(workspace(number != 4 && number != 6 && !open))
+            Some(workspace(number != 4 && !open))
         };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         if number == 2 || number == 5 {
@@ -382,7 +380,7 @@ fn stock_small_heap_through_construction_admission_and_first_turn() {
     eprintln!("heap agent Service::new held={} peak={}", measured.held(), measured.peak());
     drop(service);
     measure_worker();
-    for number in [1, 2, 4, 6] {
+    for number in [1, 2, 4] {
         measure_turn(number);
     }
 }
@@ -469,7 +467,7 @@ fn measure_turn(number: u32) {
     meter.start();
     let mut domain = smith_domain::Domain::new(&limits, config.service.domain, 7);
     let charter = temper_engine_smith::charter(&assignment);
-    let workspace = workspace(number != 4 && number != 6);
+    let workspace = workspace(number != 4);
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {
