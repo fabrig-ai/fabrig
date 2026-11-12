@@ -1,7 +1,7 @@
 //! Signing in, cookies and reconnects share one browser and server (client/web/testing.md, 6, client/web/README.md, 1).
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
-use skein_fake_person_browser::{Harness, Outcome, Script, Step};
+use skein_fake_person_browser::{Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
 
@@ -24,7 +24,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
     let gone = |find| Step::Person(PersonStep::Gone { find, within: WITHIN });
     let mut steps = temper_client_browser_world::first_chat_steps(b"Hello");
     steps.extend([
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS) }),
         see(first_chat(b"Hello")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
@@ -38,7 +38,9 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         see(first_chat(b"Hello")),
     ]);
     for _ in 0..RAPID_RELOADS {
-        steps.push(Step::Person(PersonStep::Reload));
+        steps.push(Step::Person(PersonStep::Go {
+            address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS),
+        }));
     }
     steps.extend([
         see(tier.states().live),
@@ -62,14 +64,14 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         press(row()),
         press(item(b"Sign out")),
         see(tier.states().signed_out),
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/accounts") }),
         see(tier.states().signed_out),
-        Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS) }),
         see(tier.states().signed_out),
         Step::Reopen,
         see(Find::text(b"This link isn't from this temper. Use the one its terminal printed.")),
         Step::Address(b"/welcome".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(Harness::new(setup).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut script]), Outcome::Done);
 }
