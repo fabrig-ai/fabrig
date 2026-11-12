@@ -5,6 +5,7 @@
     clippy::disallowed_macros,
     reason = "ordinary tests build table rows and inspect semantic subtrees"
 )]
+mod areas;
 use super::fixtures as f;
 use crate::{look, pages::team::draw};
 use jig_client::contract::HeldRole;
@@ -32,7 +33,7 @@ fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str,
         shown: Shown::Read(Facts {
             people: List::from_boxed(people.into_boxed_slice()),
             cut,
-            triager: None,
+            areas: None,
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
@@ -315,7 +316,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
         let facts = Facts {
             people: List::with_capacity(0),
             cut: false,
-            triager: None,
+            areas: None,
             roles: List::from_boxed(Box::new([team::Role {
                 task: 52,
                 name: b"Prover".as_slice().into(),
@@ -334,6 +335,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 paused: false,
                 pause: true,
                 resume: false,
+                talk: false,
                 sessions: List::with_capacity(0),
                 rules: None,
                 wakes: List::with_capacity(0),
@@ -545,7 +547,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
         let mut facts = Facts {
             people: List::with_capacity(0),
             cut: false,
-            triager: None,
+            areas: None,
             roles_cut: false,
             selected: Some(52),
             roles: List::from_boxed(Box::new([team::Role {
@@ -564,6 +566,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
                 paused: false,
                 pause: false,
                 resume: false,
+                talk: false,
                 now: Some(team::Now { body: b"A finding.".as_slice().into(), changed: None, cut: false }),
                 rules: Some(team::Rules { charter: 13, asked: b"Reproduce before routing.".as_slice().into() }),
                 wakes: team::wakes::rows(&subscriptions, &policy),
@@ -667,7 +670,7 @@ fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
         let shown = Shown::Read(Facts {
             people: List::from_boxed(Box::new([reader, sam, kit])),
             cut: false,
-            triager: None,
+            areas: None,
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,

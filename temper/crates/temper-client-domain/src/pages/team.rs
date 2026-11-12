@@ -8,6 +8,8 @@ use skein_lib::Queue;
 use skein_lib::{Decimal, Duration, List, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
+mod areas;
+pub use areas::{Area, AreaName, AreaPart, Areas};
 mod rules;
 mod standing;
 pub mod wakes;
@@ -79,8 +81,8 @@ pub struct Facts {
     pub people: List<Person>,
     /// The project's document was cut: its members may be more.
     pub cut: bool,
-    /// The project's triager, as its line names it; no read gives it yet.
-    pub triager: Option<Box<[u8]>>,
+    /// The project's areas and routing holder, once the findings document answers.
+    pub areas: Option<Areas>,
     pub roles: List<Role>,
     pub roles_cut: bool,
     /// The address’s requested role; falls back to the first listed.
@@ -98,8 +100,19 @@ pub struct Parts {
     pub people: bool,
     /// People's head's shared role; never `Policy`.
     pub shared: Option<c::HeldRole>,
-    /// The triager's line: a triager is read.
-    pub triager: bool,
+    pub areas: bool,
+    pub areas_table: bool,
+    pub areas_empty: bool,
+    pub who_routes: bool,
+    pub lede_areas: bool,
+    pub area_rows: List<AreaPart>,
+    /// Listed roles that hold no table row, in watch order.
+    pub standing: List<u64>,
+    /// The person's table rows, by party, never an empty list.
+    pub box_areas: List<(u64, List<AreaName>)>,
+    /// The selected card's table rows, in table order.
+    pub owns: List<AreaName>,
+    pub talk: bool,
     /// Positive sign-off counts, in words, by party.
     pub signed: List<(u64, Box<[u8]>)>,
     pub standing_roles: bool,
@@ -121,7 +134,16 @@ impl Default for Parts {
             signed: List::with_capacity(0),
             people: false,
             shared: None,
-            triager: false,
+            areas: false,
+            areas_table: false,
+            areas_empty: false,
+            who_routes: false,
+            lede_areas: false,
+            area_rows: List::with_capacity(0),
+            standing: List::with_capacity(0),
+            box_areas: List::with_capacity(0),
+            owns: List::with_capacity(0),
+            talk: false,
             standing_roles: false,
             roles_cut: false,
             card: None,
@@ -199,9 +221,7 @@ pub fn parts(facts: &Facts) -> Parts {
         signed,
         people: !facts.people.is_empty(),
         shared: shared(facts),
-        triager: facts.triager.is_some(),
-        standing_roles: !facts.roles.is_empty(),
-        roles_cut: !facts.roles.is_empty() && facts.roles_cut,
+        roles_cut: facts.roles_cut,
         card,
         pause: false,
         resume: false,
@@ -211,7 +231,9 @@ pub fn parts(facts: &Facts) -> Parts {
         wakes: false,
         wakes_cut: false,
         right: false,
+        ..Parts::default()
     };
+    areas::parts(facts, &mut parts);
     if let Some(detail) = detail {
         if let Some(rules) = &detail.rules {
             parts.rules = !rules.asked.is_empty();
@@ -220,6 +242,7 @@ pub fn parts(facts: &Facts) -> Parts {
         parts.wakes_cut = parts.wakes && detail.wakes_cut;
         parts.sessions = !detail.sessions.is_empty();
         parts.right = parts.wakes || parts.sessions;
+        parts.talk = detail.talk;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
         if let Some(now) = &detail.now {
@@ -307,7 +330,7 @@ pub fn gather(
     Facts {
         people,
         cut: project.cut,
-        triager: None,
+        areas: None,
         roles: List::with_capacity(0),
         roles_cut: false,
         selected: None,
@@ -356,6 +379,8 @@ pub struct Team {
     sessions: sessions::Reader,
     changes_handle: Option<Handle>,
     changes: Option<Box<w::ChangesPanel>>,
+    areas_handle: Option<Handle>,
+    areas: Option<Areas>,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Reading {
@@ -383,6 +408,8 @@ impl Default for Team {
             sessions: sessions::Reader::default(),
             changes_handle: None,
             changes: None,
+            areas_handle: None,
+            areas: None,
         }
     }
 }
@@ -436,6 +463,20 @@ impl Team {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }
             self.changes = None;
+        }
+        if on_team && self.areas_handle.is_none() {
+            if let Some(subject) =
+                crate::forge::findings::watching(project, Some(w::FindingState::New), false, &env.limits.forge)
+            {
+                let handle = new_handle(next);
+                self.areas_handle = Some(handle);
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+            }
+        } else if !on_team {
+            if let Some(handle) = self.areas_handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            self.areas = None;
         }
         self.configure_others(you, on_team, &env.limits, next, out);
         self.standing.configure(project, address, next, out);
@@ -503,8 +544,12 @@ impl Team {
         if let Some(handle) = self.changes_handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
+        if let Some(handle) = self.areas_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
         *self = Self::default();
     }
+    #[expect(clippy::too_many_lines, reason = "Team correlates its independent people, changes and areas reads")]
     pub(super) fn told(
         &mut self,
         env: &skein_lib::Env<Limits>,
@@ -522,6 +567,26 @@ impl Team {
             return true;
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.areas_handle => {
+                let document = match client.document(*handle) {
+                    Some(document) if document.state == jig_client::State::Ended => None,
+                    Some(document) => match document.latest {
+                        Some(Latest::Family(record)) => crate::forge::findings::document(record, &env.limits.forge),
+                        Some(Latest::Jig(_)) => None,
+                        None => return true,
+                    },
+                    None => return true,
+                };
+                self.areas = match document {
+                    Some(document) if Some(document.project()) == self.project => Some(areas::gather(&document)),
+                    Some(_) | None => None,
+                };
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.areas_handle => {
+                self.areas = None;
+                true
+            }
             Told::Changed { handle } if Some(*handle) == self.changes_handle => {
                 let panel = match client.document(*handle) {
                     Some(document) if document.state == jig_client::State::Ended => None,
@@ -657,20 +722,21 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
         Facts {
             people: List::with_capacity(0),
             cut: false,
-            triager: None,
+            areas: None,
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
             card: None,
         }
     };
+    facts.areas.clone_from(&state.areas);
     state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
     if let Some(card) = &mut facts.card {
         card.sessions = state.sessions.rows(wall);
     }
     if state.document.is_some() {
         Shown::Read(facts)
-    } else if facts.roles.is_empty() {
+    } else if facts.roles.is_empty() && !facts.roles_cut && facts.areas.is_none() {
         if state.reading == Reading::Failed || state.reading == Reading::Gone {
             Shown::Unreadable
         } else {
