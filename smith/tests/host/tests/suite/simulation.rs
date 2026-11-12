@@ -1365,7 +1365,7 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
         | Down::Message { .. }
         | Down::Answer { .. }
         | Down::Acknowledge { .. }
-        | Down::Grant { .. } => panic!("wall must politely cancel first"),
+        | Down::Grant { .. } | Down::Drain => panic!("wall must politely cancel first"),
     }
     world.sent();
     world.at(25);

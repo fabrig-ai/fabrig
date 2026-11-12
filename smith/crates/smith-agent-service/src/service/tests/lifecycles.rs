@@ -191,8 +191,11 @@ fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
         service.stages.admission.admit(run);
         domain_down(&mut service.stages, Some(&mut service.frame));
         let event = service.stages.domain_events.pop().expect("held control delivered");
-        assert!(if cancel { matches!(event, domain::Event::Cancel { run: owner } if owner == run) }
-            else { matches!(event, domain::Event::Drain { run: owner } if owner == run) });
+        match event {
+            domain::Event::Cancel { run: owner } => { assert!(cancel); assert_eq!(owner, run); }
+            domain::Event::Drain { run: owner } => { assert!(!cancel); assert_eq!(owner, run); }
+            other => panic!("held control, got {other:?}"),
+        }
         domain_down(&mut service.stages, Some(&mut service.frame));
         assert!(service.stages.domain_events.is_empty());
     }

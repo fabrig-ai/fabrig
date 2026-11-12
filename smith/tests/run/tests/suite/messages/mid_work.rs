@@ -215,8 +215,8 @@ fn drain_keeps_the_completion_and_tools_whole_without_reading_a_later_message() 
         assert_eq!(fences(&world), [None]);
         assert_eq!(terminals(&world), [(Token::new(7), "unread")]);
         assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
-            matches!(block, smith_domain::llm::Block::ToolResult {
-                result: smith_domain::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } }, ..
+            matches!(block, smith_domain::session::llm::Block::ToolResult {
+                result: smith_domain::session::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } }, ..
             })), "the shell result is in the told turn");
     }
 }
@@ -242,8 +242,8 @@ fn drain_waits_for_the_sub_agents_whole_conversation() {
         Some((_, smith_agent_world::CompletionTerminal::Completed(_))))));
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
     assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
-        matches!(block, smith_domain::llm::Block::ToolResult {
-            result: smith_domain::llm::Returned::Text { text, error: false, .. }, ..
+        matches!(block, smith_domain::session::llm::Block::ToolResult {
+            result: smith_domain::session::llm::Returned::Text { text, error: false, .. }, ..
         } if text.windows(b"child done".len()).any(|bytes| bytes == b"child done"))));
 }
 
