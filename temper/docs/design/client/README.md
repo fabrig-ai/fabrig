@@ -173,7 +173,7 @@ temper-client-world             tests/client: temper's client joined to temper's
 skein-fake-person-browser       the person in Chromium, through skein-browser (web/testing.md)
 temper-client-browser-world     tests/client-browser: the browser tier (web/testing.md)
 temper-client-gallery-tool      crates/temper-client-gallery-tool: the browser's pages in named states, as static documents (web/gallery.md)
-temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/temper-client-journeys: recorded walks replayed through the shipped hosts and printed (web/journeys.md; tui/journeys.md)
+temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/temper-client-journeys: recorded walks replayed through the shipped hosts and printed (web/journeys.md; tui/journeys.md); QA's drive session and recipes (drive.md; recipe.md)
 ```
 
 - **The crate graph.** `temper-client-domain` depends on skein-lib,
@@ -403,8 +403,8 @@ credential.
   does (jig's `client/domain/objects.md`, section 1; jig's
   `client/domain/contract/documents.md`, 4). Closing a chat says only what closing
   changes (*The sheet,* below). Removing a forge says what goes and what stays on the
-  forge (`forge/deployment.md`); deleting a project asks for the project's
-  name, and sends nothing until it is typed whole (`pages/README.md`). Pause and Resume, on a
+  forge (`forge/deployment.md`); deleting a project names it and says what
+  goes with it (*The sheet,* below; `pages/settings.md`, 1). Pause and Resume, on a
   chat, a goal or an agent's task, are undone by each other and sent at once. A
   goal's Close says that what landed on its branch stays there (`pages/task.md`, 4). Where the document offers an act
   as proposable (jig's `client/domain/contract/documents.md`, 3), the card says
@@ -426,6 +426,7 @@ credential.
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
   | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
   | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+  | deleting a project | "Delete NAME?", NAME the project's name as `me` gives it | "NAME leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone." | "Keep it" | "Delete project" |
 
   - *What it changes,* under a hairline, each line present only where it holds,
     and no count at zero:

@@ -466,6 +466,7 @@ fn derive_keeps_the_branch_and_repository() {
         ),
     ] {
         let inputs = Inputs {
+            sets: Box::default(),
             branch: b"topic".as_slice().into(),
             repository,
             rules: Box::default(),

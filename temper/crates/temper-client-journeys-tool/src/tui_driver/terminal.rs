@@ -2,13 +2,12 @@
 //! (temper/docs/design/client/tui/journeys.md, 8.2).
 //! A shell waits for one line before exec: the master is resized before the
 //! TUI can read its screen size. All output is drained on this same thread.
-use super::Paths;
 use skein_io::kernel::{Complete, Done, Fd, Op, Pipe, Signal, Size, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait, keeper};
-use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt};
+use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::Path};
 
-pub(super) struct Terminal {
+pub(crate) struct Terminal {
     kernel: Kernel,
     pidfd: Fd,
     master: Fd,
@@ -20,20 +19,21 @@ pub(super) struct Terminal {
     serial: u64,
 }
 impl Terminal {
-    pub(super) fn start(
-        paths: &Paths,
+    pub(crate) fn start(
+        scratch: &Path,
+        program: &Path,
         address: &[u8],
         environment: &[(OsString, OsString)],
     ) -> Result<Self, &'static str> {
         let kernel = Kernel::open(Config { operations: 8 }).map_err(|_| "cannot open TUI terminal kernel")?;
-        let root = skein_shell::open_root(&paths.scratch).map_err(|_| "cannot open TUI scratch directory")?;
+        let root = skein_shell::open_root(scratch).map_err(|_| "cannot open TUI scratch directory")?;
         let mut spawn = Spawn {
             program: b"/bin/sh".as_slice().into(),
             args: vec![
                 b"-c".as_slice().into(),
                 b"read -r ready; exec \"$@\"".as_slice().into(),
                 b"tui-again".as_slice().into(),
-                paths.temper.with_file_name("temper-client").as_os_str().as_bytes().into(),
+                program.as_os_str().as_bytes().into(),
                 address.into(),
             ]
             .into_boxed_slice(),
@@ -76,13 +76,16 @@ impl Terminal {
         self.submits.push(Submit { op, kind });
         op
     }
-    pub(super) fn ready(&self) -> bool {
+    pub(crate) fn written(&self) -> bool {
+        self.writes.is_empty() && self.writing.is_none()
+    }
+    pub(crate) fn ready(&self) -> bool {
         skein_shell::terminal_modes(self.master).is_ok_and(|modes| !modes.lines && !modes.echo && !modes.signals)
     }
-    pub(super) fn write(&mut self, bytes: Vec<u8>) {
+    pub(crate) fn write(&mut self, bytes: Vec<u8>) {
         self.writes.push_back(bytes.into());
     }
-    pub(super) fn tick(&mut self) -> Result<(), &'static str> {
+    pub(crate) fn tick(&mut self) -> Result<(), &'static str> {
         self.kernel.submit(&mut self.submits, Wait::No);
         self.kernel.reap(&mut self.complete);
         while let Some(complete) = self.complete.pop() {

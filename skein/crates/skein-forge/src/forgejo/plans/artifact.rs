@@ -133,9 +133,7 @@ impl Plan {
 }
 fn invalid(body: Body) -> api::Error {
     match body {
-        Body::Malformed(
-            crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-        ) => api::Error::TooLarge(Excess::unnamed()),
-        Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => api::Error::InvalidAnswer,
+        Body::Malformed(error) => super::failure::malformed(error),
+        Body::Empty | Body::Raw { .. } | Body::Document(_) => api::Error::InvalidAnswer,
     }
 }

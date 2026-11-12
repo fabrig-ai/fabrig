@@ -298,6 +298,7 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
                 Answer::Pull(api::Pull {
                     queued: None,
                     dequeued: None,
+                    size: None,
                     reviewers: Box::new([7]),
                     number: 1,
                     state: api::State::Open,

@@ -91,6 +91,15 @@ its own types, close to ../../forge/README.md, section 3; the layers above trans
   `Protection { branch, contexts, approvals, dismiss_stale }`: a merge needs
   the statuses and approvals asked; pushes, creation and deletion are
   refused. Deleting a branch closes the pull requests it headed or based.
+- **A pull request's size** is the fake's own count, as a forge's is
+  (`../../forge/README.md`, 3.6): at its head, `files` the paths whose
+  contents differ from the merge base's, those its `PullFiles` lists;
+  for each, its head side's lines that its base side's don't match,
+  counted as additions, and its base side's that its head side's don't
+  match, as deletions, lines matched as a multiset, a missing side
+  having none. Both protocol layers write them on a pull request's
+  document as `changed_files`, `additions` and `deletions`, as the
+  forges do.
 
 ### 2.3 Timing, faults and CI
 

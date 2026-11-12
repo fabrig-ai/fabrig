@@ -11,6 +11,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+sha2.workspace = true
 temper-client-shell-tui = { workspace = true, features = ["record"] }
 temper-client-tui.workspace = true
 skein-ui-screen.workspace = true

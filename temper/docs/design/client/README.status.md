@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
+
 - **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a
   pasted bundle by it (`forge/forges.rs`), on `skein-ui` for its phrasebooks
@@ -45,3 +47,9 @@
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
 - **Not yet:** 2: the client's binary's package, `temper-client` at `temper/bin/temper-client`, and its crate `temper-client-shell`: today one package, `temper/crates/temper-client`, holds both [in flight: change 587].
+
+T1's repair, goal 761, carries the launchpad's brief, Where you left off
+and Needs you across the person's projects, a walked need's reason,
+need ages, dated left-off rows and the blank row under the header
+(`tui/pages/launchpad.md`). Its walk follows landing (`README.md`, 5);
+Stop asking stays on the web (`../draft/surfaces.status.md`, 11).

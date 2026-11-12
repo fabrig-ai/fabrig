@@ -10,6 +10,10 @@ const READER: u64 = 1;
 const COORDINATOR: u32 = 1;
 
 fn fixture() -> (Domain, Env<crate::Limits>) {
+    roster_fixture(false)
+}
+
+fn roster_fixture(service: bool) -> (Domain, Env<crate::Limits>) {
     let mut config = resume_fixture::config(7);
     let model = config.core.settings.models.first_mut().unwrap();
     model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
@@ -26,20 +30,43 @@ fn fixture() -> (Domain, Env<crate::Limits>) {
     later.number = 6;
     later.executor = TemplateExecutor::Chosen;
     config.core.defaults.templates = Box::new([later, config.core.defaults.templates[0].clone()]);
-    let records = [
-        crate::Record::Core(core::Record::People(people::Stored::Person {
+    let mut records = List::uncapped();
+    records
+        .push(crate::Record::Core(core::Record::People(people::Stored::Person {
             number: READER,
             identity: people::Identity { key: forge::user_key(1, 7), login: Box::new([]), name: Box::new([]) },
-        })),
-        crate::Record::Core(core::Record::People(people::Stored::Roles {
+        })))
+        .unwrap();
+    let mut holdings = List::uncapped();
+    holdings
+        .push(people::Holding {
+            person: READER,
+            role: if service { people::Role::Owner } else { people::Role::Member },
+        })
+        .unwrap();
+    if service {
+        records
+            .push(crate::Record::Core(core::Record::People(people::Stored::Person {
+                number: 2,
+                identity: people::Identity {
+                    key: people::IdentityKey { provider: 1, subject: b"service".as_slice().into() },
+                    login: Box::new([]),
+                    name: Box::new([]),
+                },
+            })))
+            .unwrap();
+        holdings.push(people::Holding { person: 2, role: people::Role::Owner }).unwrap();
+    }
+    records
+        .push(crate::Record::Core(core::Record::People(people::Stored::Roles {
             project: PROJECT,
-            holdings: Box::new([people::Holding { person: READER, role: people::Role::Member }]),
-        })),
-    ];
+            holdings: holdings.into_boxed(),
+        })))
+        .unwrap();
     let mut limits = resume_fixture::limits();
     limits.documents.roles = 2;
     limits.authority.roles = 2; // Owner and member.
-    resume_fixture::root_with_records(config, &limits, &records)
+    resume_fixture::root_with_records(config, &limits, records.as_slice())
 }
 
 fn goal_template() -> core::Template {
@@ -62,6 +89,7 @@ fn goal_template() -> core::Template {
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
+        contexts: Box::new([]),
         workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,
@@ -296,8 +324,8 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         assert_eq!(
             got.roles.as_ref(),
             [
-                ways::Role { number: 0, name: b"owner".as_slice().into(), yours: false },
-                ways::Role { number: 2, name: b"member".as_slice().into(), yours: true }
+                ways::Role { number: 0, name: b"owner".as_slice().into(), yours: false, holders: 0 },
+                ways::Role { number: 2, name: b"member".as_slice().into(), yours: true, holders: 1 }
             ],
             "{name}"
         );
@@ -802,4 +830,99 @@ fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
             assert!(lacks_delegation(&domain, PROJECT), "{missing:?}, ceiling {ceiling}");
         }
     }
+}
+
+#[test]
+fn path_sets_and_people_word_the_document_and_rule_card() {
+    use temper_protocol_reaches::{Classes, PathSet};
+    let (mut domain, env) = roster_fixture(true);
+    let classes = Classes {
+        items: Box::new([]),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: b"protocol core".as_slice().into(),
+            patterns: [b"protocol/**".as_slice(), b"src/wire.rs"].map(Box::from).into(),
+        }]),
+    };
+    let rule = settings::LandingRule {
+        sets: Box::new([1]),
+        pattern: forge::GatePattern {
+            segments: Box::new([b"branch".as_slice().into()]),
+            last: forge::GateLast::Exact(b"main".as_slice().into()),
+        },
+        enforce: true,
+        ci: false,
+        up_to_date: false,
+        gates: Box::new([]),
+        approvals: Box::new([settings::RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Clean }]),
+    };
+    domain.forge.give_settings_defaults(
+        [(2, settings::Value::Rule(rule)), (8, settings::Value::Classes(classes.clone()))]
+            .map(|(kind, value)| settings::Stock {
+                kind,
+                scope: if kind == 2 { 0 } else { PROJECT },
+                number: 1,
+                value: settings::SizedValue { size: 64, value },
+            })
+            .into(),
+    );
+    let got = inputs(&domain, PROJECT, READER, &[], None, None);
+    assert_eq!(got.sets, classes.sets);
+    assert_eq!(got.roles.first().unwrap().holders, 1, "a service holds none");
+    assert!(got.roles.first().unwrap().yours);
+    assert!(!inputs(&domain, PROJECT, 2, &[], None, None).roles.first().unwrap().yours, "a service cannot sign");
+    let doc = document(&domain, PROJECT, READER);
+    assert_eq!(doc.rules.rows.len(), 1);
+    assert_eq!(doc.rules.rows.first().unwrap().sign_off.as_ref(), b"you");
+    let mut found = false;
+    for stop in &doc.own.stops {
+        if stop.step == ways::Step::Approve {
+            found = true;
+            assert_eq!((stop.words.as_ref(), stop.over.as_ref()), (b"you".as_slice(), b"if protocol core".as_slice()));
+        }
+    }
+    assert!(found);
+    for edit in [ways::Edit::Set(settings::Value::Classes(Classes::default())), ways::Edit::Remove] {
+        let item = ways::Item { kind: 8, scope: PROJECT, number: 1, edit };
+        assert!(
+            inputs(&domain, PROJECT, READER, &[item], None, None).sets.is_empty(),
+            "classes items lay over the project's sets"
+        );
+    }
+    people::step(
+        &mut domain.core.people,
+        &env.with(env.limits.people),
+        people::Event::SignedIn {
+            reply_to: skein_lib::ReplyTo::new(Token::new(69)),
+            person: READER,
+            sign_in: 1,
+            identity: people::Identity { key: forge::user_key(1, 7), login: Box::new([]), name: Box::new([]) },
+            kind: people::Kind::Person,
+            held: None,
+        },
+        &mut Queue::uncapped(),
+    );
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    view::read(
+        &mut domain,
+        &env,
+        &mut decision,
+        skein_lib::ReplyTo::new(Token::new(70)),
+        1,
+        PROJECT,
+        b"rule 2/1".as_slice().into(),
+    );
+    crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
+    let mut released = Queue::uncapped();
+    crate::resume(&mut domain.journal, &mut released);
+    let Some(crate::JournalOutput::Deliver(crate::Delivery::ForgeRead {
+        answer: crate::ForgeReadAnswer::View(view),
+        ..
+    })) = released.pop()
+    else {
+        panic!("rule answer")
+    };
+    let ways::View::Rule { card, .. } = view.as_ref() else { panic!("rule card") };
+    assert_eq!(card.facts.first().unwrap().value.as_ref(), b"the branch main, where a change touches protocol core");
+    assert_eq!(card.facts.last().unwrap().value.as_ref(), b"you approve");
 }

@@ -148,6 +148,18 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                             .expect("matching table records"),
                     )
                 }
+                d::Value::Dependency(value) => w::SettingValue::Dependency(
+                    w::Dependency::new(&w::CEILINGS, w::DependencyParts { project: value.project }).expect(FITS),
+                ),
+                d::Value::Follow(follow) => {
+                    let record = d::follow_record(follow).expect(FITS);
+                    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured follow length"));
+                    record.encode(&mut writer).expect("measured follow room");
+                    w::SettingValue::Follow(
+                        w::Follow::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .expect("matching follow records"),
+                    )
+                }
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
                 d::Value::Questions(route) => w::SettingValue::Questions(
                     w::ProjectQuestions::new(
@@ -218,6 +230,15 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
         w::SettingEdit::Set(value) => {
             let w::SizedValueParts { value, size } = value.into_parts();
             let value = match value {
+                w::SettingValue::Follow(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+                    record.encode(&mut writer).or(Err(Undecodable))?;
+                    let record =
+                        v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+                    d::Value::Follow(d::follow_from(record))
+                }
+                w::SettingValue::Dependency(value) => d::Value::Dependency(d::Dependency { project: value.project() }),
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),
                 w::SettingValue::Questions(value) => d::Value::Questions(match value.into_parts().route {
                     w::Route::None => temper_engine_domain_forge_change::Route::None,

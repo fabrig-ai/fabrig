@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 
-TAG = re.compile(rb'\s\[in flight: ([^\]\r\n]*)\][ \t\r]*$')
+TAG = re.compile(rb'\s\[in flight: ([^\]\r\n]*)\][.,;:!?]*[ \t\r]*$')
 CHANGE = re.compile(rb'change ([0-9]+)')
 
 
@@ -74,7 +74,7 @@ def entries(text):
 
 def settle(text, ends):
     lines = file_lines(text)
-    unknown = []
+    kept = []
     found, labels = entries(text)
     for start, end, tag in found:
         if tag is None:
@@ -82,7 +82,7 @@ def settle(text, ends):
         change = CHANGE.fullmatch(tag)
         task = int(change[1]) if change is not None else None
         if task not in ends:
-            unknown.append((end, tag.decode('utf-8', errors='backslashreplace')))
+            kept.append((end, tag.decode('utf-8', errors='backslashreplace')))
         elif ends[task]:
             # Keep offsets stable until empty labels have been checked.
             lines[start:end] = [b''] * (end - start)
@@ -94,23 +94,33 @@ def settle(text, ends):
     for start, end in labels:
         if not any(lines[start + 1:end]):
             lines[start] = b''
-    return b''.join(lines), sorted(unknown)
+    return b''.join(lines), sorted(kept)
 
 
-def result_bytes(settled):
+def result_bytes(settled, kept):
     def encode(result):
         return (json.dumps(result, ensure_ascii=True, separators=(',', ':')) + '\n').encode('utf-8')
 
     result = {'settled': settled}
-    if len(encode(result)) <= 512:
-        return encode(result)
-    result = {'settled': [], 'more': len(settled)}
-    for path in settled:
-        result['settled'].append(path)
-        result['more'] -= 1
+    if kept:
+        result['kept'] = kept
+    encoded = encode(result)
+    if len(encoded) <= 512:
+        return encoded
+    result = {group: [] for group in result}
+    groups = [('settled', settled, 'more'), ('kept', kept, 'kept_more')]
+    for _, items, counter in groups:
+        if items:
+            result[counter] = len(items)
+    for group, counter, item in ((group, counter, item)
+                                 for group, items, counter in groups for item in items):
+        result[group].append(item)
+        result[counter] -= 1
+        if not result[counter]:
+            del result[counter]
         if len(encode(result)) > 512:
-            result['settled'].pop()
-            result['more'] += 1
+            result[group].pop()
+            result[counter] = result.get(counter, 0) + 1
             break
     return encode(result)
 
@@ -122,7 +132,7 @@ def main():
     repository = Path(__file__).resolve().parents[2]
     result = Path(os.environ['TEMPER_JOB']) / 'result.json'
     changed = {}
-    unknown = []
+    kept = []
     paths = sorted(os.fsdecode(path) for path in git(repository, 'ls-files', '-z').split(b'\0')
                    if path)
     for path in paths:
@@ -130,11 +140,9 @@ def main():
             continue
         previous = (repository / path).read_bytes()
         updated, tags = settle(previous, ends)
-        unknown.extend(f'{path}:{line}: unknown tag [in flight: {tag}]' for line, tag in tags)
+        kept.extend(f'{path}:{line}: [in flight: {tag}]' for line, tag in tags)
         if updated != previous:
             changed[path] = (previous, updated)
-    if unknown:
-        raise ValueError('\n'.join(unknown))
     index = Path(os.fsdecode(git(repository, 'rev-parse', '--git-path', 'index')).strip())
     if not index.is_absolute():
         index = repository / index
@@ -142,7 +150,7 @@ def main():
     try:
         for path, (_, updated) in changed.items():
             (repository / path).write_bytes(updated)
-        result.write_bytes(result_bytes(list(changed)))
+        result.write_bytes(result_bytes(list(changed), kept))
         if changed:
             git(repository, 'add', '--', *changed)
     except (OSError, subprocess.CalledProcessError):

@@ -29,6 +29,13 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
+        c::Setting::Application { kind: kind @ (12 | 13), scope, number } => {
+            out.put(if kind == 12 { b"follow " } else { b"dependency " });
+            out.number(u64::from(number));
+            out.put(b" --project ");
+            out.number(u64::from(scope));
+            return;
+        }
         c::Setting::Application { kind: 11, number, .. } => {
             out.put(b"template-goal ");
             out.number(u64::from(number));
@@ -93,6 +100,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 1 | 2 => out.string(b"landing-rule"),
                 3 => out.string(b"forge-charter"),
                 11 => out.string(b"template-goal"),
+                12 => out.string(b"follow"),
+                13 => out.string(b"dependency"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
@@ -100,7 +109,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 10 => out.string(b"project-words"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 {
+            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
             } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {

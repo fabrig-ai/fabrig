@@ -2,6 +2,12 @@
 
 2026-11-11. Where the tree's code lags or departs from [questions.md](questions.md).
 
+- **Not yet:** 1, *Passed up*: a requester's run that reads the change's
+  question and ends without answering leaves later runs no sight of it,
+  and the requester idle with it [in flight: change 838].
+- **Not yet:** 1, *Passed up*: the question's label names no answer form
+  [in flight: change 839].
+
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
   -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.
@@ -107,3 +113,5 @@
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
   (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+
+- **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].

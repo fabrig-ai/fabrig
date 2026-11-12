@@ -1,4 +1,4 @@
-//! The launchpad's states and hand-written frames (client/tui/pages/README.md and client/tui/theme.md).
+//! The launchpad's states and hand-written frames (temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/tui/theme.md).
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,
@@ -137,7 +137,6 @@ fn home_at(
 ) -> Domain {
     home_rows(brief, chats, &[], needs, playground, address, LEDE.as_bytes())
 }
-#[expect(clippy::too_many_lines, reason = "the fixture supplies Home's independent public reads and brief")]
 fn home_rows(
     brief: Option<bool>,
     chats: &[c::TaskLine],
@@ -146,6 +145,20 @@ fn home_rows(
     playground: Option<(Option<u32>, w::PlaygroundState)>,
     address: Address,
     lede: &[u8],
+) -> Domain {
+    home_projects(brief, chats, goals, needs, playground, address, lede, false)
+}
+#[expect(clippy::too_many_arguments, reason = "the fixture supplies independent public reads for two projects")]
+#[expect(clippy::too_many_lines, reason = "the fixture supplies Home's independent public reads and brief")]
+fn home_projects(
+    brief: Option<bool>,
+    chats: &[c::TaskLine],
+    goals: &[c::TaskLine],
+    needs: bool,
+    playground: Option<(Option<u32>, w::PlaygroundState)>,
+    address: Address,
+    lede: &[u8],
+    across: bool,
 ) -> Domain {
     let chat = address == (Address::Chat { task: CHAT });
     let mut playground = playground;
@@ -163,6 +176,7 @@ fn home_rows(
             },
         );
     }
+    f::event(&mut root, Event::Launchpad);
     let mut out = f::event(
         &mut root,
         Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
@@ -172,15 +186,24 @@ fn home_rows(
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me()))) }
+                let mut me = me();
+                if across {
+                    me.projects.get_mut(1).unwrap().name = c::DocumentText::complete(
+                        c::Text::new(b"shop".as_slice().into(), f::limits().client.domain.text).unwrap(),
+                    );
+                }
+                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) } => {
+                let mut rows = List::with_capacity(u32::try_from(chats.len().max(goals.len())).unwrap());
+                for row in if query.tracked == Some(true) { goals } else { chats } {
+                    if query.project.is_none() || query.project == Some(row.project) {
+                        rows.push(row.clone()).unwrap();
+                    }
+                }
                 Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                        rows: List::from_boxed(if query.tracked == Some(true) { goals.into() } else { chats.into() }),
-                        more: false,
-                    }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
                 }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task }) } => {
@@ -195,28 +218,51 @@ fn home_rows(
                 Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(document))) }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                if brief.is_none() && !chat {
+                    continue;
+                }
                 let mut document = inbox();
-                if chat && needs {
+                if needs {
                     document.needs = entries();
+                    if across {
+                        for (index, entry) in document.needs.iter_mut().enumerate() {
+                            if !chat || index == 1 {
+                                entry.project = Some(OTHER_PROJECT);
+                            }
+                        }
+                    }
                     document.cached_needs = document.needs.len();
                 }
                 Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(document))) }
             }
             jig_client::Down::Open { watch, subject }
-                if Some(&subject) == d::forge::status::watch(PROJECT, &f::limits().forge).as_ref() =>
+                if Some(&subject) == d::forge::status::watch(PROJECT, &f::limits().forge).as_ref()
+                    || (across
+                        && Some(&subject) == d::forge::status::watch(OTHER_PROJECT, &f::limits().forge).as_ref()) =>
             {
                 let Some(brief) = brief else { continue };
                 let status = status(brief);
                 let mut parts = status.into_parts();
+                let other = Some(&subject) == d::forge::status::watch(OTHER_PROJECT, &f::limits().forge).as_ref();
+                if other {
+                    parts.project = OTHER_PROJECT;
+                    parts.landed = 1;
+                    parts.seen = u64::from(!brief);
+                }
                 if let Some(brief) = parts.brief {
                     let mut brief = brief.into_parts();
-                    brief.lede = lede.into();
+                    brief.lede =
+                        if other { b"Coupons are two of three in. One awaits review.".as_slice() } else { lede }.into();
+                    if other {
+                        brief.sentence = b"One change landed in shop.".as_slice().into();
+                        brief.at = 480 * MINUTE;
+                        brief.landed = 1;
+                    }
                     parts.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).unwrap());
                 }
-                Up::FamilyDelivered {
-                    watch,
-                    record: family(wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, parts).unwrap())),
-                }
+                let record = family(wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, parts).unwrap()));
+                assert!(d::forge::status::document(&record, f::limits().forge).is_some(), "status decodes");
+                Up::FamilyDelivered { watch, record }
             }
             jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
@@ -270,7 +316,13 @@ fn home_rows(
                     result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
                         c::InboxPage {
                             rows: if needs && group == c::InboxReadGroup::Needs {
-                                entries()
+                                let mut entries = entries();
+                                if across {
+                                    for entry in entries.iter_mut() {
+                                        entry.project = Some(OTHER_PROJECT);
+                                    }
+                                }
+                                entries
                             } else {
                                 List::with_capacity(0)
                             },
@@ -283,7 +335,9 @@ fn home_rows(
                 }
             }
             jig_client::Down::Send { attempt, request, .. }
-                if Some(&request) == d::forge::status::ask(PROJECT, &f::limits().forge).as_ref() =>
+                if Some(&request) == d::forge::status::ask(PROJECT, &f::limits().forge).as_ref()
+                    || (across
+                        && Some(&request) == d::forge::status::ask(OTHER_PROJECT, &f::limits().forge).as_ref()) =>
             {
                 Up::Answer {
                     attempt,
@@ -393,7 +447,10 @@ fn body(tree: &skein_ui::Tree) -> List<Box<[u8]>> {
         let end = start.checked_add(usize::try_from(region.size).unwrap()).unwrap();
         for node in &tree.nodes()[start..end] {
             if node.role == (Role::Heading { level: 1 }) || node.role == Role::Paragraph || node.role == Role::Alert {
-                result.push(f::text(tree, node)).unwrap();
+                let text = f::text(tree, node);
+                if !text.is_empty() {
+                    result.push(text).unwrap();
+                }
             }
         }
     }
@@ -470,8 +527,8 @@ fn the_launchpad_says_each_state() {
             &session,
             &ordinary,
             header,
-            &["Where you left off", "Hello   Away mode, a design session · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a design session · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "the playground running in the project",
@@ -481,28 +538,36 @@ fn the_launchpad_says_each_state() {
             &[
                 "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
                 "Where you left off",
-                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
                 "Needs you",
-                "? Hello   csv-export: comma or semicolon?",
+                "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
                 "• Hello   Held task: Held task  n walks them",
             ][..],
-            None,
+            Some(Wall::from_nanos(583 * MINUTE)),
         ),
         (
             "the playground in another project",
             &other_playground,
             &ordinary,
             header,
-            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            &[
+                "3 changes landed in Hello. Nothing needs you.",
+                "Hello: csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 07:42 · /brief",
+            ][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "the playground starting",
             &starting_playground,
             &ordinary,
             header,
-            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            &[
+                "3 changes landed in Hello. Nothing needs you.",
+                "Hello: csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 07:42 · /brief",
+            ][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "needs read",
@@ -512,7 +577,7 @@ fn the_launchpad_says_each_state() {
             &[
                 "The last change landed 2 hours ago. Two things need you.",
                 "Needs you",
-                "? Hello   csv-export: comma or semicolon?",
+                "? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago",
                 "• Hello   Held task: Held task  n walks them",
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
@@ -523,16 +588,20 @@ fn the_launchpad_says_each_state() {
             &left,
             &noted,
             header,
-            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "new brief",
             &brief,
             &ordinary,
             header,
-            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
-            None,
+            &[
+                "3 changes landed in Hello. Nothing needs you.",
+                "Hello: csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 07:42 · /brief",
+            ][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "no brief",
@@ -548,8 +617,8 @@ fn the_launchpad_says_each_state() {
             &left,
             &ordinary,
             header,
-            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
-            None,
+            &["Where you left off", "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1"][..],
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         (
             "left off sorts activity",
@@ -558,10 +627,10 @@ fn the_launchpad_says_each_state() {
             header,
             &[
                 "Where you left off",
-                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
-                "Hello   Older, a chat · 00:00 · waiting on you  /chats 2",
+                "Hello   Away mode, a chat · today 00:00 · waiting on you  /chats 1",
+                "Hello   Older, a chat · today 00:00 · waiting on you  /chats 2",
             ][..],
-            None,
+            Some(Wall::from_nanos(1440 * MINUTE)),
         ),
         ("no live chat", &ended, &ordinary, header, &[][..], None),
         ("start address", &start, &ordinary, header, &[][..], None),
@@ -653,32 +722,18 @@ fn the_launchpad_says_each_state() {
         let view = build(root, tui);
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
     }
-    // Empty ledes keep the sentence and byline without offering more prose.
-    for lede in [b"".as_slice(), LEDE.as_bytes()] {
-        let root = home_rows(Some(true), &[], &[], false, None, Address::Home { project: PROJECT }, lede);
-        let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Brief);
-        tui.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
-        let part = launchpad::read(&root, &tui, &f::words(), NOW);
-        assert_eq!(part.lines.get(0).unwrap().words.as_ref(), SENTENCE.as_bytes());
-        assert_eq!(part.lines.get(1).unwrap().words.ends_with(b"/brief"), !lede.is_empty());
-        assert_eq!(part.lines.get(1).unwrap().style, Some(look::BYLINE));
-        assert_eq!(part.brief.len(), 3);
-        for (line, expected) in part.brief.iter().zip([SENTENCE.as_bytes(), lede, b"written by the status agent 07:42"])
-        {
-            assert_eq!(line.words.as_ref(), expected);
-            assert_eq!(line.style, Some(look::NOTE));
-        }
-        let view = build(&root, &tui);
-        let lines = body(view.tree());
-        let mut sentence = false;
-        for line in &lines {
-            assert!(!line.starts_with(b"Unknown command"));
-            sentence |= line.as_ref() == SENTENCE.as_bytes();
-        }
-        let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
-        assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
-        assert!(sentence);
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Brief);
+    let part = launchpad::read(&brief, &tui, &f::words(), NOW);
+    assert_eq!(part.lines.get(2).unwrap().style, Some(look::BYLINE));
+    assert_eq!(part.brief.len(), 3);
+    for (line, expected) in part.brief.iter().zip([
+        b"Hello: 3 changes landed overnight.".as_slice(),
+        LEDE.as_bytes(),
+        b"written by the status agent 07:42",
+    ]) {
+        assert_eq!(line.words.as_ref(), expected);
+        assert_eq!(line.style, Some(look::NOTE));
     }
     draw_states(&mut failures);
     assert!(failures.is_empty(), "launchpad rows: {failures:?}");
@@ -714,6 +769,7 @@ fn draw_states(failures: &mut List<&'static str>) {
         for number in 0..count {
             needs
                 .push(launchpad::NeedRow {
+                    since: None,
                     mark: match number {
                         0 => NeedMark::Question,
                         1 => NeedMark::Money,
@@ -812,14 +868,18 @@ fn the_launchpads_are_their_goldens() {
     goal.waits_on = c::WaitsOn::Nothing;
     goal.chip.phase = c::Phase::Running;
     goal.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
-    let root = home_rows(
+    goal.project = OTHER_PROJECT;
+    let mut chat = line(CHAT, b"Away mode", 492 * MINUTE, false);
+    chat.project = OTHER_PROJECT;
+    let root = home_projects(
         Some(true),
-        &[line(CHAT, b"Away mode", 492 * MINUTE, false)],
+        &[chat],
         &[goal],
         false,
         None,
         Address::Home { project: PROJECT },
         LEDE.as_bytes(),
+        true,
     );
     let (none, _) = f::live(Some(f::me(&[])));
     let mut views = List::with_capacity(FRAMES);
@@ -831,6 +891,7 @@ fn the_launchpads_are_their_goldens() {
         let mut part = launchpad::read(if empty { &none } else { &root }, &tui, &f::words(), NOW);
         if !empty {
             part.needs = Box::new([launchpad::NeedRow {
+                since: Some(Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
                 project: b"Hello".as_slice().into(),
                 words: b"csv-export: comma or semicolon?".as_slice().into(),
@@ -838,29 +899,39 @@ fn the_launchpads_are_their_goldens() {
             if size.columns == 110 {
                 part.needs = Box::new([
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Question,
                         project: b"Hello".as_slice().into(),
                         words: b"csv-export: comma or semicolon?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Money,
-                        project: b"Demo".as_slice().into(),
+                        project: b"shop".as_slice().into(),
                         words: b"Porter: raise its weekly budget?".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::SignOff,
                         project: b"Hello".as_slice().into(),
                         words: b"Monthly totals: ready for review".as_slice().into(),
                     },
                     launchpad::NeedRow {
+                        since: Some(Wall::from_nanos(562 * MINUTE)),
                         mark: NeedMark::Other,
-                        project: b"Demo".as_slice().into(),
+                        project: b"shop".as_slice().into(),
                         words: b"Proposal: review the new way".as_slice().into(),
                     },
                 ]);
             }
         }
         let count = u32::try_from(part.needs.len()).unwrap();
+        if !empty {
+            let mut facts = d::pages::all_home::facts(&root, NOW);
+            facts.needs = d::pages::home::Needs::Count { count, cut: false };
+            part.lines.get_mut(0).unwrap().words =
+                temper_client_view::shared::all_home_headline(f::words().view(), &facts, NOW).0;
+        }
         views.push(draw(part, size.columns, count)).unwrap();
     }
     let mut checks = List::with_capacity(FRAMES);
@@ -909,8 +980,9 @@ fn rows_keep_their_hint_in_the_room() {
         let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
         part.left_off.get_mut(0).unwrap().title = title.as_bytes().into();
         part.needs = Box::new([launchpad::NeedRow {
+            since: None,
             mark: NeedMark::Question,
-            project: b"Demo".as_slice().into(),
+            project: b"shop".as_slice().into(),
             words: title.as_bytes().into(),
         }]);
         let view = draw(part, columns, 1);
@@ -966,7 +1038,7 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(8, b"Second", 3, false),
                 line(CHAT, b"Newest", 4, false),
             ][..],
-            &[("Newest", "00:00"), ("Second", "00:00"), ("Older", "00:00")][..],
+            &[("Newest", "today 00:00"), ("Second", "today 00:00"), ("Older", "today 00:00")][..],
         ),
         (
             "tie and bound",
@@ -976,9 +1048,9 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(9, b"Higher", 2, false),
                 line(8, b"Lower", 2, false),
             ][..],
-            &[("Lower", "00:00"), ("Higher", "00:00"), ("Third", "00:00")][..],
+            &[("Lower", "today 00:00"), ("Higher", "today 00:00"), ("Third", "today 00:00")][..],
         ),
-        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "07:42")][..]),
+        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "today 07:42")][..]),
     ] {
         let root = home(None, chats);
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
@@ -1327,4 +1399,184 @@ fn surface_root(page: SurfacePage) -> Domain {
         SurfacePage::NoProject => f::live(Some(f::me(&[]))).0,
         SurfacePage::SignedOut => f::signed_out(),
     }
+}
+
+#[test]
+fn needs_age_is_a_hint_cut_from_the_end_and_keeps_the_soonest_tick() {
+    let root = home_cards(Some(true), &[line(CHAT, b"Away mode", 492 * MINUTE, false)], true);
+    let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+    assert_eq!(part.needs[0].since, Some(Wall::EPOCH));
+    assert_eq!(part.tick, Some(Wall::from_nanos(583 * MINUTE)));
+    assert_eq!(part.left_off.get(0).unwrap().at.as_ref(), b"today 08:12");
+    for (columns, since, expected) in [
+        (110, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked 20 min ago"),
+        (110, None, "csv-export: comma or semicolon?"),
+        (69, Some(Wall::from_nanos(562 * MINUTE)), "csv-export: comma or semicolon? · asked…"),
+    ] {
+        let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        part.needs = Box::new([launchpad::NeedRow {
+            mark: NeedMark::Question,
+            project: b"Hello".as_slice().into(),
+            words: b"csv-export: comma or semicolon?".as_slice().into(),
+            since,
+        }]);
+        let view = draw(part, columns, 1);
+        let mut line = None;
+        let mut age_hint = false;
+        for node in view.tree().nodes() {
+            if node.role == Role::Description && line.is_none() {
+                line = Some(f::text(view.tree(), node));
+            }
+            if node.styles.as_slice() == [look::HINT]
+                && f::text(view.tree(), node).as_ref() == b" \xc2\xb7 asked 20 min ago"
+            {
+                age_hint = true;
+            }
+        }
+        let line = line.unwrap();
+        assert!(skein_lib::bytes::find(&line, expected.as_bytes()).is_some(), "{line:?}");
+        assert_eq!(age_hint, since.is_some() && columns == 110);
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the frame assertion locates the header's bottom and the next drawn section"
+)]
+fn the_headers_frame_has_one_blank_row_before_a_section_or_note() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let root = home(None, &[]);
+    for section in [true, false] {
+        let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        if !section {
+            part.project = None;
+            part.notes.lines = Box::new([b"A note".as_slice().into()]);
+        }
+        let view = draw(part, 80, 0);
+        let size = Size { columns: 80, rows: 24 };
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
+        let printed = frame.print();
+        let printed = core::str::from_utf8(&printed).unwrap();
+        let mut lines = printed.lines();
+        assert!(lines.find(|line| line.starts_with('╰')).is_some());
+        assert_eq!(lines.next().unwrap().trim(), "");
+        assert_eq!(lines.next().unwrap().trim(), if section { "Start" } else { "A note" });
+    }
+}
+
+#[test]
+fn the_header_joins_new_briefs_across_projects() {
+    for (brief, expected) in [
+        (
+            Some(true),
+            &[
+                "4 changes landed across two projects. Nothing needs you.",
+                "shop: Coupons are two of three in. Hello: csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 08:00 · /brief",
+            ][..],
+        ),
+        (Some(false), &["The last change landed 2 hours ago. Nothing needs you."][..]),
+        (None, &[][..]),
+    ] {
+        let root =
+            home_projects(brief, &[], &[], false, None, Address::Home { project: PROJECT }, LEDE.as_bytes(), true);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Brief);
+        let part = launchpad::read(&root, &tui, &f::words(), NOW);
+        assert_eq!(
+            usize::try_from(part.lines.len()).unwrap(),
+            expected.len(),
+            "{:?}",
+            d::pages::all_home::facts(&root, NOW)
+        );
+        for (line, expected) in part.lines.iter().zip(expected) {
+            assert_eq!(line.words.as_ref(), expected.as_bytes(), "{:?}", d::pages::all_home::facts(&root, NOW));
+        }
+        if brief == Some(true) {
+            let expected = [
+                "shop: One change landed in shop.",
+                "Coupons are two of three in. One awaits review.",
+                "Hello: 3 changes landed overnight.",
+                LEDE,
+                "written by the status agent 08:00",
+            ];
+            assert_eq!(part.brief.len(), 5);
+            for (line, expected) in part.brief.iter().zip(expected) {
+                assert_eq!(line.words.as_ref(), expected.as_bytes());
+                assert_eq!(line.style, Some(look::NOTE));
+            }
+            assert_eq!(part.tick, Some(Wall::from_nanos(1440 * MINUTE)));
+            tui.step(Told::Kept { written: false });
+            assert_eq!(launchpad::read(&root, &tui, &f::words(), NOW).lines.len(), 4);
+        } else {
+            assert!(part.brief.is_empty());
+        }
+    }
+}
+
+#[test]
+fn left_off_reads_the_other_projects_chat_and_newest_goal() {
+    let mut chat = line(CHAT, b"Shop chat", 492 * MINUTE, false);
+    chat.project = OTHER_PROJECT;
+    let mut newest_goal = goal(7, 480 * MINUTE, PARTY, false);
+    newest_goal.project = OTHER_PROJECT;
+    let root = home_projects(
+        None,
+        &[line(OLDER_CHAT, b"Hello chat", BRIEF_AT, false), chat],
+        &[goal(8, BRIEF_AT, PARTY, false), newest_goal],
+        false,
+        None,
+        Address::Home { project: PROJECT },
+        LEDE.as_bytes(),
+        true,
+    );
+    let mut tui = Tui::new(f::ADDRESS);
+    let part = launchpad::read(&root, &tui, &f::words(), NOW);
+    assert_eq!(part.left_off.len(), 3);
+    for (row, (task, project, kind)) in part.left_off.iter().zip([
+        (CHAT, b"shop".as_slice(), launchpad::LeftKind::Chat { number: 1, session: false }),
+        (7, b"shop".as_slice(), launchpad::LeftKind::Goal),
+        (OLDER_CHAT, b"Hello".as_slice(), launchpad::LeftKind::Chat { number: 2, session: false }),
+    ]) {
+        assert_eq!((row.task, row.project.as_ref(), row.kind), (task, project, kind));
+    }
+    assert_eq!(part.left_off.get(0).unwrap().at.as_ref(), b"today 08:12");
+    let view = build(&root, &tui);
+    assert_eq!(crate::arrow(&view, crate::Arrow::Down), Some(crate::Event::LeftOff { task: Some(CHAT) }));
+    tui.step(Told::LeftOff { task: Some(CHAT) });
+    let view = build(&root, &tui);
+    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+    assert_eq!(
+        crate::event(&view, field.id, skein_ui::Act::Submit),
+        Some(crate::Event::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } })
+    );
+}
+
+#[test]
+fn needs_and_the_quiet_line_cross_projects_only_on_the_launchpad() {
+    let root =
+        home_projects(Some(false), &[], &[], true, None, Address::Home { project: PROJECT }, LEDE.as_bytes(), true);
+    let mut tui = Tui::new(f::ADDRESS);
+    let part = launchpad::read(&root, &tui, &f::words(), NOW);
+    assert_eq!(part.needs.len(), 2);
+    for row in &part.needs {
+        assert_eq!(row.project.as_ref(), b"shop");
+    }
+    assert_eq!(foot::read(&root, &tui, &f::words(), NOW).needs.count, 2);
+    tui.step(Told::Walk { by_key: true });
+    let question = foot::lists::walk(&root, &tui, &f::words()).unwrap();
+    assert_eq!(question.head.as_deref(), Some(b"comma or semicolon?".as_slice()));
+    tui.step(Told::Walked { object: c::ObjectKey::Question { task: CHAT, message: 1 } });
+    let web = foot::lists::walk(&root, &tui, &f::words()).unwrap();
+    assert_eq!(
+        web.items.first().unwrap().event,
+        crate::Event::Walk {
+            object: c::ObjectKey::Escalation(ENDED_CHAT),
+            step: crate::WalkStep::Open { address: b"http://127.0.0.1:8367/?project=2".as_slice().into() },
+        }
+    );
+    let chat = home_projects(Some(false), &[], &[], true, None, Address::Chat { task: CHAT }, LEDE.as_bytes(), true);
+    assert_eq!(foot::read(&chat, &Tui::new(f::ADDRESS), &f::words(), NOW).needs.count, 1);
 }

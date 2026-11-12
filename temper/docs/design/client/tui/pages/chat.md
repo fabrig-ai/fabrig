@@ -115,7 +115,10 @@ Illustrative (the request's 03, with the look request
     - *a path:* a stop a paragraph, in the derivation's order (the
       wire's `stops`): its mark, then a space and its words as the
       derivation gives them, which the TUI never spells (they change
-      with the page How work runs, `../../../draft/surfaces.md`, 13). The mark
+      with the page How work runs, `../../../draft/surfaces.md`, 13),
+      then, where it has them, a space and its small words in brackets,
+      as the web's text says them, "you (if protocol core)"
+      (`../../../domain/forge/change/branch-path.md`, *Drawn apart*). The mark
       is the web's for its actor: a ring `○` for a person
       (`tui-signal`, the person's colour alone), a four-point star `✦`
       for an agent (no paint, the ink, as `../../../draft/surfaces.md`, 13,

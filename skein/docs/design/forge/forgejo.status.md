@@ -1,6 +1,7 @@
 # forgejo: status
 
-2026-11-11. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-12. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+
 
 - **Not yet:** 1.1 to 1.3: `Reviews`, `PullFiles` and a `Remarks` slice sized for real rows and cut at the answer's bytes, read on with `skip`: each holds as many of its listing's largest rows as `answer_bytes` holds (`skein-forge-connection/src/limits.rs`, `page_size`) [in flight: change 161].
 - **Not yet:** 1.2: `Read::Pull`'s `ci`; `PullFor`'s status read (`plans/reads/done.rs`, `pull_status`) [in flight: change 158].
@@ -36,3 +37,5 @@ The client world's late copies read
   rebase's concurrent-push behaviour. The connector world checks a dropped
   push by an explicit branch rewrite; the design takes the forced push at
   its worst until the real forge's behaviour is recorded.
+
+- **Not yet:** 1.2: `Read::Pull`'s `size`, from `changed_files`, `additions` and `deletions` [in flight: change 532].

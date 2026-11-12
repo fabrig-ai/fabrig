@@ -24,6 +24,40 @@ fn question(number: u64, at: u64) -> tasks::Word {
 }
 
 #[test]
+fn an_askers_credit_keeps_question_words_while_it_closes() {
+    let (mut core, limits) = pair();
+    let mut parent = core.tasks.task(1).unwrap().clone();
+    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    let mut child = core.tasks.task(2).unwrap().clone();
+    let question = tasks::OpenQuestion { asker: 2, number: 3, line: child.activity };
+    child.questions = Box::new([tasks::QuestionCredit {
+        number: 3,
+        answerer: tasks::Party::Task(1),
+        asked: tasks::Party::Task(1),
+        line: child.activity,
+    }]);
+    child.phase = tasks::Phase::Closing(tasks::Closing {
+        stage: tasks::Stage::Effects,
+        ending: tasks::Ending::Failed { reason: Box::new([]) },
+    });
+    restore(&mut core, &limits, Box::new([parent, child]));
+    assert!(core.remember_question(&tasks::ActivityLine {
+        task: question.asker,
+        position: question.line,
+        at: Wall::EPOCH,
+        line: tasks::Line::Words {
+            message: question.number,
+            by: tasks::Party::Task(2),
+            kind: tasks::MessageKind::Question,
+            words: b"Which form?".as_slice().into()
+        },
+    }));
+    assert_eq!(core.tasks.open_questions(1).as_slice(), [question]);
+    core.prune_questions(2);
+    assert_eq!(core.open_question_words(question), Some(b"Which form?".as_slice()));
+}
+
+#[test]
 fn a_task_with_live_delegates_and_no_entries_waits_on_its_delegates() {
     let (core, limits) = pair();
     assert_eq!(core.waits_on(&limits, 1), WaitsOn::Delegates);

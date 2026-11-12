@@ -1411,6 +1411,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-home .temper-need-card > .temper-need-more { display: none; }
 #app > .temper-home .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
 #app > .temper-home .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--gf-line); border-radius: 999px; font: 400 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); background: var(--gf-surface); white-space: nowrap; }
+.temper-needs .temper-chips, #app > .temper-home .temper-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.temper-needs .temper-chips .temper-chip, #app > .temper-home .temper-chips .temper-chip { display: inline-block; }
 #app > .temper-home .temper-chip-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gf-good); }
 #app > .temper-home .temper-chip-signal { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal); }
 #app > .temper-home .temper-projects { margin: 0; padding: 0; list-style: none; }
@@ -1482,6 +1484,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
   #app > .temper-home > .temper-home-intro { gap: 10px; }
   #app > .temper-home h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
   #app > .temper-home .temper-home-lede { font-size: 15.5px; }
+  #app > .temper-home .temper-chips .temper-chip { padding: 0; border: 0; background: none; font-size: 13px; color: var(--gf-muted); }
+  #app > .temper-home .temper-size-files { display: none; }
 }
 
 /* project-home-onboarding: To begin as a card of its own, marked "Optional", with "Skip" a button at its top right; one line a step, its act at the right. */
@@ -2391,6 +2395,10 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-work-agent { background: #eff6ff; color: #1e40af; }
 .temper-work-code { background: #f1f5f9; color: #334155; }
 .temper-work-person { background: var(--gf-signal-pale); color: var(--gf-signal-ink); }
+.temper-work-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.temper-work-choice { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 7px; color: var(--gf-ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.temper-work-choice.temper-work-recommended { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal-ink); }
+.temper-work-way { font-size: 12px; color: var(--gf-muted); }
 .temper-work-quote { font-size: 16.5px; font-weight: 500; line-height: 1.45; }
 .temper-work-bar { position: relative; padding-top: 8px; font-size: 12px; color: var(--gf-muted); }
 .temper-work-bar::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--gf-ink-2) 0 var(--skein-ui-progress, 0%), var(--gf-line) var(--skein-ui-progress, 0%) 100%); }
@@ -3064,17 +3072,33 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 #app > .temper-settings .temper-how-role [role=term] { font: 400 11.5px/1.9 var(--gf-mono); color: var(--gf-faint); }
 #app > .temper-settings .temper-how-role [role=definition] { margin: 0; color: var(--gf-ink2); }
 #app > .temper-settings .temper-how-role-more { display: flex; gap: 18px; margin: 10px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--gf-line); font-size: 13px; }
+#app > .temper-settings .temper-how-follows { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+#app > .temper-settings .temper-how-follow { background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+#app > .temper-settings .temper-how-follow h3 { font-size: 17px; font-weight: 600; }
+#app > .temper-settings .temper-how-follow p { margin: 0; font-size: 13px; }
+#app > .temper-settings .temper-how-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#app > .temper-settings .temper-how-who-code::before { width: 7px; height: 7px; border-radius: 1.5px; background: var(--gf-muted); }
 #app > .temper-settings .temper-how-reaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 #app > .temper-settings .temper-how-reach { background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
 #app > .temper-settings .temper-how-reach > ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 #app > .temper-settings .temper-how-who-agent,
+#app > .temper-settings .temper-how-who-code,
 #app > .temper-settings .temper-how-who-person { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; font-size: 12px; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font-weight: 500; white-space: nowrap; color: var(--gf-ink2); }
 #app > .temper-settings .temper-how-who-agent::before,
+#app > .temper-settings .temper-how-who-code::before,
 #app > .temper-settings .temper-how-who-person::before { content: ''; flex: none; box-sizing: border-box; }
 #app > .temper-settings .temper-how-who-person::before { width: 8px; height: 8px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
 #app > .temper-settings .temper-how-who-agent { --star: url(files/star.svg); }
 #app > .temper-settings .temper-how-who-agent::before { width: 11px; height: 11px; margin: 0 -1px; background: var(--gf-ink); -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat; }
 #app > .temper-settings .temper-how-reach-note { margin: 0; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-how-add { margin-left: auto; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-how-rules { min-width: 0; overflow-x: auto; }
+#app > .temper-settings .temper-how-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+#app > .temper-settings .temper-how-table th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--gf-muted); padding: 8px 10px; border-bottom: 1px solid var(--gf-line); white-space: nowrap; }
+#app > .temper-settings .temper-how-table td { padding: 12px 10px; border-bottom: 1px solid var(--gf-line); vertical-align: top; }
+#app > .temper-settings .temper-how-paths { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-settings .temper-how-empty { color: var(--gf-muted); }
+#app > .temper-settings .temper-how-rules-note { margin: 0; font-size: 13px; color: var(--gf-muted); }
 @media (max-width: 760px) {
   #app > .temper-settings .temper-how-role > summary { grid-template-columns: minmax(0, 1fr) auto; }
   #app > .temper-settings .temper-how-role > summary > span { grid-column: 1 / -1; grid-row: 2; }

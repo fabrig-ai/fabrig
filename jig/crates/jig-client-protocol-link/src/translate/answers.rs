@@ -487,6 +487,7 @@ fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
     super::facts::ending(value, limits)
 }
 
+#[expect(clippy::too_many_lines, reason = "one total match preserves every wire refusal")]
 pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(match value {
         w::Refusal::Role(row) => {
@@ -497,6 +498,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
             c::Refusal::Role { held: opt0 }
         }
         w::Refusal::Taken(row) => c::Refusal::Taken { by: row.by() },
+        w::Refusal::LiveTasks(value) => c::Refusal::LiveTasks { tasks: value.tasks().clone(), more: value.more() },
         w::Refusal::Circle(value) => c::Refusal::Circle { tasks: value.tasks().clone(), cut: value.cut() },
         w::Refusal::Kept(value) => c::Refusal::Kept { pending: value.pending().clone() },
         w::Refusal::Dependency(value) => c::Refusal::Dependency {

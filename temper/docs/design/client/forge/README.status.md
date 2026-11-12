@@ -75,3 +75,6 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
   5.2: a drift hold's card, what changed, by whom and when.
   6: a goal's issue, landings as news, findings on a project's page. 
   the remaining forge reads remain `served.status.md` (Not yet, the whole document).  the stopped admin-panel connect remains `deployment.status.md` (Not yet, the whole document).
+
+- **Not yet:** 4.1: *Its size* on Needs you's and Home's cards, and on a phone [in flight: change 535].
+- **Not yet:** 4.1: the joined world's approval card showing the fake forge's size [in flight: change 536].

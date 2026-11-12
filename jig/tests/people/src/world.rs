@@ -495,6 +495,7 @@ impl World {
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
                 | Stored::Answer { .. }
+                | Stored::Deleted { .. }
                 | Stored::Deletion { .. }
                 | Stored::Public { .. }
                 | Stored::Policy { .. } => None,

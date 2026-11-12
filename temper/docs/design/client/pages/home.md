@@ -20,7 +20,16 @@
   welcome's Ready and "+ New project" (`../view.md`, 3) open, and the brand's link.
   Going to it opens that project as a project's button does (`../view.md`, 3); with
   no such project in `me`, it says "Project N is not one of yours.", N
-  the address's number, and the chats' link. One column of prose, in
+  the address's number, and the chats' link. *A deleted project:* with
+  no such project in `me`, the page reads the project, jig's
+  `Read::Project { project }`, once for its address, and draws its
+  heading alone until the read answers; answered gone, a project
+  deleted (jig's `client/domain/contract/README.md`, section 4), it says
+  "Project N was deleted." in that sentence's place, with the same
+  link; any other answer, the sentence above. How work runs says the
+  same where it says a project is not one of yours (`settings.md`, 1).
+  With no project left, the column "No project yet" draws instead, as
+  on every address (`welcome.md`, 1). One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
     (the user, 2026-11-04), the level-1 heading and
@@ -240,6 +249,9 @@
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
         an approval's question as on *Needs you*;
+      - *an approval's size,* under its question, its row of chips as on
+        *Needs you* (`../forge/README.md`, 4.1, *Its size*), as
+        `pair/home.html` draws it; none without one;
       - *its reason line,* under the question, as *Needs you*'s on the
         signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
         *Why it reached you* and *Stop asking*);
@@ -261,7 +273,11 @@
       its from line and its question; its recommended act is a
       full-width button, at least 44 pixels tall, then "More", quiet,
       which opens *Needs you* at that card; an approval's recommended act
-      is its "Review on FORGE ↗". The browser's alone.
+      is its "Review on FORGE ↗". An approval's size reads as
+      `pair/phone-home.html` has it, "+A -D" alone, small and muted, with
+      no chip's border or ground, its files' words, " in N files", in an
+      element of their own that the phone's width hides. The browser's
+      alone.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -303,7 +319,7 @@
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
 
-  **In the TUI** (`../tui/pages/launchpad.md`, 1), Home is the root's page under
+  **In the TUI** (`../tui/pages/launchpad.md`), Home is the root's page under
   the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's
@@ -315,7 +331,11 @@
   no white space are the terminal's (`chat/terminal.md`, 1, *Commands*)
   where the look is the terminal's, as on the pages it draws. The
   browser's Home sends neither `ChatWords` nor `StartChat` and draws no
-  picker, so it is unmoved.
+  picker, so it is unmoved. Given `boundary::Event::Launchpad`, which
+  the TUI's host alone gives, Home also holds the launchpad's reads
+  across the person's projects: Home on All projects' statuses, the
+  inbox unfiltered, the decided documents of the needs' projects and
+  the person's chats and goals across projects (`../tui/pages/launchpad.md`, 2).
 - **Home on All projects** (`../../draft/surfaces.md`, section 3; the whole
   story's `home.html` and `phone-home.html`, `web/whole-story/`):
   `AllHome`, at `/home`, Home for every project the person is in, as

@@ -383,6 +383,26 @@ fn dependency_refusals_keep_all_names_and_outcomes_through_the_client() {
 }
 
 #[test]
+fn live_task_refusals_round_trip_the_client_wire() {
+    use jig_client_domain::contract as c;
+    use skein_lib::{List, Reader, Writer};
+    let limits = f::wire();
+    let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }));
+    let record = crate::translate::answers::answer(&reply, &[], &limits).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    let record = w::KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+    let mut tasks = List::with_capacity(2);
+    tasks.push(12).unwrap();
+    tasks.push(15).unwrap();
+    assert_eq!(
+        jig_client_protocol_link::translate::answers::answer(record, &f::client_limits()),
+        Ok(c::Answer::Refused { refusal: c::Refusal::LiveTasks { tasks, more: 2 }, at: None })
+    );
+}
+
+#[test]
 fn project_outcomes_keep_the_project_number() {
     let limits = f::wire();
     for (outcome, expected) in [

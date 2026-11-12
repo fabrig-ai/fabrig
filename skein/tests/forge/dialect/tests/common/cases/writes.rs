@@ -49,6 +49,9 @@ pub fn answers() -> Vec<(&'static str, Answer)> {
                 merge_base: Some(forgejo::sha(3)),
                 mergeable: true,
                 requested_reviewers: Box::from([]),
+                changed_files: Some(u64::from(number == 4)),
+                additions: Some(u64::from(number == 4)),
+                deletions: Some(0),
             }),
         ));
     }

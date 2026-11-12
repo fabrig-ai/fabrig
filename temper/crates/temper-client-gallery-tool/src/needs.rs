@@ -578,6 +578,17 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
             },
             whole: true,
             yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+            size: if name == "needs-approval-first" {
+                Some(
+                    w::ApprovalSize::new(
+                        &w::CEILINGS,
+                        w::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false },
+                    )
+                    .expect("approval size"),
+                )
+            } else {
+                None
+            },
         },
     )
     .expect("approval fixture");

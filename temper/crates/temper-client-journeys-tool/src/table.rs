@@ -1,5 +1,5 @@
 //! The journeys tool's forms and environment (temper/docs/design/testing/tools.md, 4).
-use skein_shell::{Argument, Command, Fallback, Reach, Set, Setting, Settings, Table, Variable, Way};
+use skein_shell::{Argument, Command, Fallback, Reach, Set, Setting, Settings, Switch, Table, Variable, Way};
 
 pub(crate) const PATH: Variable = Variable {
     name: "PATH",
@@ -96,13 +96,131 @@ pub(crate) const AGAIN: Command = Command {
     ..REPRINT
 };
 
+const SESSION: Settings = Settings {
+    tool: "temper-client-journeys drive",
+    about: "The given build and private scratch directory; nothing is built.",
+    table: &[
+        Setting {
+            name: "bin",
+            value: "DIR",
+            about: "Directory holding executable temper-box, fake-claude and temper-client.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Required.",
+        },
+        Setting {
+            name: "bundle",
+            value: "DIR",
+            about: "The loopback browser bundle, holding index.html.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Required.",
+        },
+        Setting {
+            name: "scratch",
+            value: "DIR",
+            about: "Existing, owned private directory for every session write.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Required. Only session/ is made afresh; config/, data/ and cache/ stay.",
+        },
+        Setting {
+            name: "scripts",
+            value: "FILE",
+            about: "A fake model script given to the box; repeats in order.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Repeats.",
+        },
+    ],
+};
+pub(crate) const DRIVE: Command = Command {
+    reach: Reach::Words(&["drive"]),
+    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict]"],
+    line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
+    settings: &[&SESSION],
+    switches: &[Switch {
+        name: "strict",
+        set: Set::Internal,
+        line: "Give --strict to the box's fake model.",
+        notes: "",
+    }],
+    variables: &[&CHROMIUM, &PATH],
+    notes: "Answers ready, then each web, tui or ctl line with shown lines prefixed | and ok or failed. end or stdin's end stops the box. TUI lines parse and are kept but are not driven yet. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    ..REPRINT
+};
+
+const RECIPES: Settings = Settings {
+    tool: "temper-client-journeys recipe",
+    about: "The recipes' directory.",
+    table: &[Setting {
+        name: "setups",
+        value: "DIR",
+        about: "Directory of named recipe directories.",
+        fallback: Fallback::Text(crate::recipe::SETUPS),
+        set: Set::Internal,
+        twin: None,
+        notes: "Relative to the working directory.",
+    }],
+};
+const RECIPE_SESSION: Settings = Settings {
+    tool: "temper-client-journeys recipe walk",
+    about: "A given build and scratch directory, fresh or restored from an ancestor.",
+    table: &[
+        SESSION.table[0],
+        SESSION.table[1],
+        SESSION.table[2],
+        Setting {
+            name: "from",
+            value: "ANCESTOR",
+            about: "Start with this member's check on its restored box.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "With --from, config/ and data/ must be directories; without it, both must be absent.",
+        },
+    ],
+};
+pub(crate) const RECIPE_HASH: Command = Command {
+    reach: Reach::Words(&["recipe", "hash"]),
+    forms: &["NAME [--setups DIR]"],
+    line: "Read a recipe's chain and print its SHA-256 hash.",
+    arguments: &[Argument { shown: "NAME", line: "Recipe name, 1–64 bytes of [a-z][a-z0-9-]*." }],
+    settings: &[&RECIPES],
+    notes: "Refusals name the recipe and its line or file, exit 1.",
+    ..REPRINT
+};
+pub(crate) const RECIPE_LIST: Command = Command {
+    reach: Reach::Words(&["recipe", "list"]),
+    forms: &["[--setups DIR]"],
+    line: "List recipes, parents and each README's first sentence, in name order.",
+    settings: &[&RECIPES],
+    notes: "An unreadable recipe is listed as refused; the catalogue goes on.",
+    ..REPRINT
+};
+pub(crate) const RECIPE_WALK: Command = Command {
+    reach: Reach::Words(&["recipe", "walk"]),
+    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]"],
+    line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
+    arguments: RECIPE_HASH.arguments,
+    settings: &[&RECIPES, &RECIPE_SESSION],
+    switches: DRIVE.switches,
+    variables: DRIVE.variables,
+    notes: "Chain scripts go to the box root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
+    ..REPRINT
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, AGAIN],
+    commands: &[REPRINT, ADD, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

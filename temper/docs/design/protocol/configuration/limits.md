@@ -60,6 +60,16 @@
   keeps 7 days (`../../domain/forge/attention.md`, 5): 1,024 in both profiles, so a
   busy night's every task fits beside the day before. The forge's family
   holds it times `forge.judge_projects`.
+- **A project's follows:** `forge.follows` per project, 2 in `small` and
+  8 in `standard`; `forge.follow_queue`, 16 and 64; and, in both,
+  `forge.follow_paths` 8, `forge.follow_merge` 8, `forge.follow_commits`
+  8, `forge.follow_files` 32, `forge.follow_message_bytes` 512,
+  `forge.follow_skips` 8 and `forge.follow_reason_bytes` 256, as
+  `../../domain/forge/follows.md`, section 10 bounds them.
+- **A project's dependencies:** `forge.dependencies` per project, 4 in
+  `small` and 16 in `standard`, kind 13's numbers and the most the
+  `follows` document carries (`../../domain/forge/dependencies.md`,
+  section 2).
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.

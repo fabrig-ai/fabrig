@@ -33,4 +33,6 @@ fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec
     flags
 }
 
+#[cfg(target_os = "linux")]
+mod newer_build;
 mod walk;
