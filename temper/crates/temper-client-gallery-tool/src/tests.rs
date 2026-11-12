@@ -6318,15 +6318,23 @@ fn role_talk_shows_provers_open_talk_sent_words_reply_and_leave() {
     find(tree, Role::TextArea, "Talk", sample.name);
     find(tree, Role::Button, "Leave", sample.name);
     find(tree, Role::Status, "Sent", sample.name);
-    let said: Vec<u8> = tree.nodes().iter().flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied())).collect();
+    let said: Vec<u8> =
+        tree.nodes().iter().flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied())).collect();
     let said = String::from_utf8(said).unwrap();
-    for words in ["From now on, reproduce a flake twice before routing it.", "Add it to my rules?", 
+    for words in [
+        "From now on, reproduce a flake twice before routing it.",
+        "Add it to my rules?",
         "Talk with Prover · it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said.",
-        "Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY"] {
+        "Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY",
+    ] {
         assert!(said.contains(words), "missing {words}: {said}");
     }
     let log = tree.nodes().iter().position(|node| node.role == Role::Log).unwrap();
-    let reply = tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == b"Add it to my rules?")).unwrap();
+    let reply = tree
+        .nodes()
+        .iter()
+        .position(|node| node.text.iter().any(|run| run.text.as_ref() == b"Add it to my rules?"))
+        .unwrap();
     assert!(reply > log && reply < log + usize::try_from(tree.nodes()[log].size).unwrap());
     assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::AGENT_PAGE)));
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));

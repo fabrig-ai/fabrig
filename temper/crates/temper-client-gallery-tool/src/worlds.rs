@@ -376,16 +376,27 @@ fn role_talk_task() -> c::Task {
     task.chip.task = 52;
     task.chip.title = doc("Prover");
     task.flags.ended_by = c::EndedBy::Standing;
-    task.talk = Some(c::Talk { party: 3, opened: Wall::from_nanos(chat_work::AT), last: Wall::from_nanos(chat_work::AT) });
+    task.talk =
+        Some(c::Talk { party: 3, opened: Wall::from_nanos(chat_work::AT), last: Wall::from_nanos(chat_work::AT) });
     task.activity = 1;
     task.acts = offers(&[c::ActKind::Talk, c::ActKind::Message, c::ActKind::Leave, c::ActKind::Stop]);
     task
 }
 fn role_talk_activity() -> c::ActivityPage {
-    c::ActivityPage { rows: List::from_boxed(Box::new([
-        c::DecodedActivityLine { source: Box::new(c::ActivityLine { task: 52, position: 1,
-            at: Wall::from_nanos(chat_work::AT), line: c::Activity::TalkOpened { party: 3 } }), decoded: None },
-    ])), before: None, after: None, cut: false }
+    c::ActivityPage {
+        rows: List::from_boxed(Box::new([c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: 52,
+                position: 1,
+                at: Wall::from_nanos(chat_work::AT),
+                line: c::Activity::TalkOpened { party: 3 },
+            }),
+            decoded: None,
+        }])),
+        before: None,
+        after: None,
+        cut: false,
+    }
 }
 fn role_talk_run() -> c::Delivery {
     let c::Delivery::RunState(mut run) = chat_work::run("chat-work-writing") else { unreachable!("run state") };
@@ -408,17 +419,34 @@ pub(super) fn chat_work_world(name: &str) -> Domain {
         // before the next activity read replaces the local Sent words.
         use temper_client_domain::{Action, pages::Act};
         let mut out = Queue::uncapped();
-        step(&mut root, Event::Act { action: Action::Pages(Act::MessageWords {
-            words: b"From now on, reproduce a flake twice before routing it.".as_slice().into(),
-        }) }, &mut out);
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::MessageWords {
+                    words: b"From now on, reproduce a flake twice before routing it.".as_slice().into(),
+                }),
+            },
+            &mut out,
+        );
         step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
         while let Some(request) = out.pop() {
             if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
-                step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
-                    attempt, envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
-                        c::DocumentOutcome::Said { task: 52, message: 1 })))), why: None,
-                } } }, &mut out);
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                    c::DocumentOutcome::Said { task: 52, message: 1 },
+                                )))),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut out,
+                );
             }
         }
     }
@@ -698,7 +726,9 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, asking);
-                            if role_talk { me.party.number = 3; }
+                            if role_talk {
+                                me.party.number = 3;
+                            }
                             if let Some(name) = settings.filter(|name| ways::is_how(name)) {
                                 ways::frame(&mut me, name);
                             }
@@ -837,13 +867,15 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
-                        c::Subject::Tree { .. } if agent_work || role_talk => Some(c::Delivery::Tree(Box::new(c::Tree {
-                            root: if role_talk { role_talk_task().chip } else { agent_work_task().chip },
-                            rows: List::with_capacity(0),
-                            folded: List::with_capacity(0),
-                            held_below: 0,
-                            next: None,
-                        }))),
+                        c::Subject::Tree { .. } if agent_work || role_talk => {
+                            Some(c::Delivery::Tree(Box::new(c::Tree {
+                                root: if role_talk { role_talk_task().chip } else { agent_work_task().chip },
+                                rows: List::with_capacity(0),
+                                folded: List::with_capacity(0),
+                                held_below: 0,
+                                next: None,
+                            })))
+                        }
                         c::Subject::Tree { task, window } => Some(
                             page_goal(goals)
                                 .filter(|g| g.facts.number == task)
@@ -1911,7 +1943,9 @@ fn proposal() -> c::ReadValue {
 }
 #[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
-    if goals == Some("role-talk") && let c::Read::Activity { .. } = what {
+    if goals == Some("role-talk")
+        && let c::Read::Activity { .. } = what
+    {
         return Some(c::ReadValue::Activity(Box::new(role_talk_activity())));
     }
     if let Some(name) = goals.filter(|name| name.starts_with("chat-work-"))

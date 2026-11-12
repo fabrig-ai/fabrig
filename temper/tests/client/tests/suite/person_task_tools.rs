@@ -918,17 +918,22 @@ fn a_person_talks_on_the_roles_page_reads_its_run_reply_and_leaves() {
     const WORDS: &[u8] = b"From now on, reproduce a flake twice before routing it.";
     let (ctl, task) = parked_role_ctl();
     let mut world: World<Temper, Joint> = World::new(
-        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, ctl.front);
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+        ctl.front,
+    );
     world.randomness(0, 0, 0);
     let reader = world.client(fixtures::PARTY, Address::Task { task });
-    world.person(reader, vec![
-        Step::See { find: Find::exactly_named(Role::TextArea, b"Talk"), within: fixtures::WITHIN },
-        Step::Type { find: Find::exactly_named(Role::TextArea, b"Talk"), words: WORDS.into() },
-        Step::Press { find: Find::exactly_named(Role::Button, b"Send") },
-        Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
-        Step::See { find: Find::text(b"Talk opened by party"), within: fixtures::WITHIN },
-        Step::See { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
-    ]);
+    world.person(
+        reader,
+        vec![
+            Step::See { find: Find::exactly_named(Role::TextArea, b"Talk"), within: fixtures::WITHIN },
+            Step::Type { find: Find::exactly_named(Role::TextArea, b"Talk"), words: WORDS.into() },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Send") },
+            Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"Talk opened by party"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
+        ],
+    );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().engine.task(task).unwrap().talk.as_ref().unwrap().party, fixtures::PARTY);
@@ -938,14 +943,20 @@ fn a_person_talks_on_the_roles_page_reads_its_run_reply_and_leaves() {
     let spent = world.front().engine.task(task).unwrap().run_spent;
     world.front().engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
     world.front().engine.settle();
-    world.person(reader, vec![
-        Step::See { find: Find::text(b"Add it to my rules?"), within: fixtures::WITHIN },
-        Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
-        Step::Press { find: Find::exactly_named(Role::Button, b"Leave") },
-        Step::See { find: Find::text(b"Left: its next session starts fresh from its Now."), within: fixtures::WITHIN },
-        Step::See { find: Find::text(b"Talk ended"), within: fixtures::WITHIN },
-        Step::Gone { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
-    ]);
+    world.person(
+        reader,
+        vec![
+            Step::See { find: Find::text(b"Add it to my rules?"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Leave") },
+            Step::See {
+                find: Find::text(b"Left: its next session starts fresh from its Now."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: Find::text(b"Talk ended"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
+        ],
+    );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert!(world.front().engine.task(task).unwrap().talk.is_none());

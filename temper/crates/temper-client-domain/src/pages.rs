@@ -1007,7 +1007,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::LeaveTalk } => {
-            if pages.confirm.is_none() && let Some(page) = &mut pages.task {
+            if pages.confirm.is_none()
+                && let Some(page) = &mut pages.task
+            {
                 page.send(env, client, task::Sending::Leave, &mut pages.serial, out);
             }
         }

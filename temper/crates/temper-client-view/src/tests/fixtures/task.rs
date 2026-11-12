@@ -210,7 +210,7 @@ pub fn agent_root_with_page(
     tree: Option<c::Delivery>,
     page: c::ActivityPage,
 ) -> temper_client_domain::Domain {
-    agent_root_as(document, tree, page, fixture_me(b"Shop").party.number)
+    agent_root_for(document, tree, page, fixture_me(b"Shop").party.number, TASK)
 }
 pub fn agent_root_as(
     document: c::Task,
@@ -218,9 +218,18 @@ pub fn agent_root_as(
     page: c::ActivityPage,
     party: u64,
 ) -> temper_client_domain::Domain {
+    let number = document.chip.task;
+    agent_root_for(document, tree, page, party, number)
+}
+fn agent_root_for(
+    document: c::Task,
+    tree: Option<c::Delivery>,
+    page: c::ActivityPage,
+    party: u64,
+    number: u64,
+) -> temper_client_domain::Domain {
     use jig_client::{Event as E, Up};
     use temper_client_domain::{Event, Request};
-    let number = document.chip.task;
     let mut reader = fixture_me(b"Shop");
     reader.party.number = party;
     let limits = domain_limits();
@@ -280,8 +289,7 @@ pub fn agent_root_as(
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
                     },
             } if task == number => Some(Up::ReadDone {
                 read,

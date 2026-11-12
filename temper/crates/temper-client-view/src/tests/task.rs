@@ -2824,9 +2824,15 @@ fn role_talk_document() -> c::Task {
     task.chip.title = f::document_words(b"Prover");
     task.flags.ended_by = c::EndedBy::Standing;
     task.talk = Some(c::Talk { party: 3, opened: skein_lib::Wall::EPOCH, last: skein_lib::Wall::EPOCH });
-    offers(&mut task, &[(c::ActKind::Talk, c::Admission::Allowed),
-        (c::ActKind::Message, c::Admission::Allowed), (c::ActKind::Leave, c::Admission::Allowed),
-        (c::ActKind::Stop, c::Admission::Allowed)]);
+    offers(
+        &mut task,
+        &[
+            (c::ActKind::Talk, c::Admission::Allowed),
+            (c::ActKind::Message, c::Admission::Allowed),
+            (c::ActKind::Leave, c::Admission::Allowed),
+            (c::ActKind::Stop, c::Admission::Allowed),
+        ],
+    );
     task
 }
 fn role_talk_root(task: c::Task) -> Domain {
@@ -2840,7 +2846,8 @@ fn a_roles_composer_names_talk_and_its_terminal_and_leave_precedes_pause() {
         let composer = index_of(tree, Role::TextArea, b"Talk");
         assert_eq!(tree.nodes()[composer].placeholder.as_deref(), Some(b"Talk to Prover".as_slice()));
         assert!(contains(tree, "Talk with Prover · it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said.".as_bytes()));
-        let command = index_of_text(tree, b"Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY").expect("terminal command");
+        let command = index_of_text(tree, b"Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY")
+            .expect("terminal command");
         assert!(command > composer);
         assert!(tree.nodes()[command].styles.as_slice().contains(&look::HINT));
         assert!(!contains(tree, b"Steer this task"));
@@ -2861,7 +2868,10 @@ fn leave_is_absent_without_the_readers_admitted_talk_and_other_agents_keep_messa
             0 => task.talk.as_mut().unwrap().party = 4,
             1 => task.talk = None,
             2 => task.acts.get_mut(2).unwrap().admission = c::Admission::Refused(c::Refusal::NotOffered),
-            3 => { task.flags.ended_by = c::EndedBy::Result; task.talk = None; }
+            3 => {
+                task.flags.ended_by = c::EndedBy::Result;
+                task.talk = None;
+            }
             _ => unreachable!("four changes"),
         }
         let view = fixtures::page_view(&role_talk_root(task));
