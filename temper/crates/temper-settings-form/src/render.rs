@@ -34,12 +34,14 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10), scope, .. } => {
+        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 12 | 13), scope, .. } => {
             out.put(match kind {
                 6 => b"project-questions ",
                 7 => b"project-ways ",
                 8 => b"project-classes ",
                 10 => b"project-words ",
+                12 => b"project-areas ",
+                13 => b"project-triager ",
                 _ => unreachable!("project setting without a number"),
             });
             out.number(u64::from(scope));
@@ -98,16 +100,18 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 8 => out.string(b"project-classes"),
                 9 => out.string(b"charter-words"),
                 10 => out.string(b"project-words"),
+                12 => out.string(b"project-areas"),
+                13 => out.string(b"project-triager"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 {
+            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
             } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 {
+            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 12 && kind != 13 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
