@@ -164,6 +164,9 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         Check::Failed
     } else {
         match &workflow.cue {
+            Some(Cue::Declared { path }) => ci::declared(
+                domain, commit, file, path, None, &env.limits.limits,
+            ).0,
             Some(Cue::PullFile { no_pull, .. }) => *no_pull,
             Some(Cue::Message { fail }) => {
                 if find(&domain.object(commit).expect("run commit").message, fail).is_some() {

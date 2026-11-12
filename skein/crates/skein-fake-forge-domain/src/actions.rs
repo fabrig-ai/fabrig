@@ -195,7 +195,7 @@ pub(crate) fn run(repository: &Repository, id: u64) -> Result<&Kept, Error> {
     Err(Error::Missing(What::Job))
 }
 
-pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
+pub(crate) fn jobs(domain: &Domain, limits: &crate::Limits, repository: &Repository, id: u64) -> Result<Answer, Error> {
     let kept = run(repository, id)?;
     let mut answer = List::with_capacity(kept.jobs.len());
     for job in &kept.jobs {
@@ -207,11 +207,13 @@ pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
                 None => unreachable!("a completed CI job has a conclusion"),
             };
             let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");
+            let cue = crate::ci::effective(domain, kept.run.commit, &job.name,
+                crate::ci::cue(&repository.checks, &job.name), kept.pull, limits);
             view.steps = outcome_steps(
                 &job.name,
                 state,
                 failing,
-                crate::ci::cue(&repository.checks, &job.name),
+                cue.as_ref(),
                 kept.pull,
                 repository.opening.get(usize_of(job.index)).expect("CI context"),
             );
@@ -356,6 +358,7 @@ pub(crate) fn steps(
             number: WORKFLOW_STEP,
             name: match cue {
                 Some(Cue::PullFile { step, .. }) => copy_of(step),
+                Some(Cue::Declared { .. }) => copy_of(context),
                 Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {
                     skein_lib::bytes::concat(&[b"Run ", context])
                 }
@@ -393,6 +396,7 @@ pub(crate) fn log(
         .expect("bounded log");
     let custom = match cue {
         Some(Cue::PullFile { log, .. }) => Some(crate::ci::template(log, pull)),
+        Some(Cue::Declared { path }) => Some(skein_lib::bytes::concat(&[b"unreadable ", path])),
         Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => None,
     };
     let extra = match &custom {

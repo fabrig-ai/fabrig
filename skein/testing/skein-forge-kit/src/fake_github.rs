@@ -150,7 +150,7 @@ pub fn domain_config() -> domain::Config {
         hook_min: Duration::from_secs(3600),
         hook_max: Duration::from_secs(3600),
         skew: domain::Skew::None,
-        ..domain::Config::TEST
+        ..domain::Config::test()
     }
 }
 pub fn domain() -> (domain::Domain, domain::Config) {

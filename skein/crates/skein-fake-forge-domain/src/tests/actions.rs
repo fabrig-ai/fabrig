@@ -5,7 +5,7 @@ fn failing(reruns: u32) -> (Harness, u64) {
     let mut configured = setup();
     configured.checks.passes = 0;
     configured.checks.reruns = reruns;
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).unwrap();
     h.settle();
@@ -17,7 +17,7 @@ fn a_failing_ci_status_links_its_run_number_and_job_index() {
     let mut configured = setup();
     configured.checks.passes = 0;
     configured.checks.contexts = names(&[b"ci", b"fmt"]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).unwrap();
     h.settle();
@@ -60,7 +60,7 @@ fn a_commits_run_is_found_by_its_number_and_its_jobs_by_run() {
     let mut configured = setup();
     configured.id = 3;
     configured.name = copy_of(b"ai/other");
-    let first = crate::repository(&mut h.domain, &CALM, configured);
+    let first = crate::repository(&mut h.domain, &calm(), configured);
     crate::grant(&mut h.domain, b"ai/other", ENGINE, Permission::Write);
     let next = h.commit(first, &[(b"src", b"two")]);
     let created = h.env.now;
@@ -94,8 +94,8 @@ fn a_pull_request_run_has_its_heads_commit_and_forge_ids_not_link_numbers() {
     let mut other = configured.clone();
     other.id = 3;
     other.name = copy_of(b"ai/other");
-    let config = Config { limits: Limits { name_bytes: 64, content_bytes: 128, ..LIMITS }, ..CALM };
-    let mut h = Harness::with(config, configured);
+    let config = Config { limits: Limits { name_bytes: 64, content_bytes: 128, ..LIMITS }, ..calm() };
+    let mut h = Harness::with(config.clone(), configured);
     let mut parent = crate::repository(&mut h.domain, &config, other);
     crate::grant(&mut h.domain, b"ai/other", ENGINE, Permission::Write);
     for n in 0..6 {
@@ -192,7 +192,7 @@ fn a_rerun_context_answers_its_second_attempt() {
 
 #[test]
 fn a_thread_is_one_read_oldest_first() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.ok(PERSON, create(b"thread", b"body", &[])), Answer::Created(1));
     let rows = [(b"one".as_slice(), 1), (b"two".as_slice(), 2), (b"three".as_slice(), 3)];
     for (text, id) in rows {
@@ -244,7 +244,7 @@ fn reviewers_are_requested_and_removed_by_their_own_writes() {
 
 #[test]
 fn items_come_newest_created_first_in_forgejos_default_order() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     for title in [b"one".as_slice(), b"two", b"three"] {
         h.ok(PERSON, create(title, b"body", &[]));
     }
@@ -319,7 +319,7 @@ fn pull_for_answers_the_open_pull_before_an_older_closed_one() {
 
 #[test]
 fn an_empty_pull_opens_only_when_opens_empty() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.ok(ENGINE, create_branch(b"work", FIRST));
     for (head, opens_empty, expected) in [
         (b"work".as_slice(), false, Err(Error::NothingToMerge)),
@@ -387,7 +387,7 @@ fn a_job_read_by_id_answers_its_latest_attempt() {
 
 #[test]
 fn a_passing_ci_job_read_by_id_has_successful_steps_and_an_empty_log() {
-    let mut h = Harness::with(CALM, setup());
+    let mut h = Harness::with(calm(), setup());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).unwrap();
     h.settle();
@@ -402,7 +402,7 @@ fn a_passing_ci_job_read_by_id_has_successful_steps_and_an_empty_log() {
 
 #[test]
 fn forgotten_statuses_remove_the_commits_run() {
-    let mut h = Harness::new(Config { limits: Limits { statuses: 1, ..LIMITS }, ..CALM });
+    let mut h = Harness::new(Config { limits: Limits { statuses: 1, ..LIMITS }, ..calm() });
     let one = h.commit(FIRST, &[(b"src", b"one")]);
     let two = h.commit(one, &[(b"src", b"two")]);
     h.push(ENGINE, b"work", one).expect("first head");
@@ -457,7 +457,7 @@ fn dispatch_harness(config: Config, jobs: &[&[u8]]) -> Harness {
         silent: 0,
         cue: None,
     }]);
-    Harness::with(config, configured)
+    Harness::with(config.clone(), configured)
 }
 fn dispatch() -> Op {
     write(Write::Dispatch {
@@ -482,7 +482,7 @@ fn run_jobs(h: &Harness, run: u64) -> Box<[Job]> {
 
 #[test]
 fn a_dispatch_runs_its_workflow_at_the_branch_head() {
-    let mut h = dispatch_harness(CALM, &[b"ci", b"fmt"]);
+    let mut h = dispatch_harness(calm(), &[b"ci", b"fmt"]);
     let created = h.env.now;
     assert_eq!(h.call(ENGINE, dispatch()), Ok(Answer::Done));
     let runs = workflow_runs(&h);
@@ -517,7 +517,7 @@ fn a_dispatch_runs_its_workflow_at_the_branch_head() {
 
 #[test]
 fn two_dispatches_at_one_commit_make_two_runs() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     h.ok(ENGINE, dispatch());
     h.ok(ENGINE, dispatch());
     let runs = workflow_runs(&h);
@@ -529,7 +529,7 @@ fn two_dispatches_at_one_commit_make_two_runs() {
 
 #[test]
 fn a_push_starts_no_workflow() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     let head = h.commit(FIRST, &[(b"src", b"changed")]);
     h.push(ENGINE, b"work", head).unwrap();
     h.settle();
@@ -538,7 +538,7 @@ fn a_push_starts_no_workflow() {
 
 #[test]
 fn a_dispatch_of_a_missing_workflow_or_branch_is_missing() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     for (workflow, branch, missing) in
         [(b"missing".as_slice(), MAIN, What::File), (b"gate.yml", b"missing", What::Branch)]
     {
@@ -556,11 +556,11 @@ fn a_dispatch_of_a_missing_workflow_or_branch_is_missing() {
 
 #[test]
 fn a_cued_message_fails_the_workflow_step() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     let id = h.domain.id(REPOSITORY);
     h.domain.repositories.get_mut(id).unwrap().workflows[0].cue = Some(Cue::Message { fail: copy_of(b"FAIL") });
     let head =
-        crate::commit(&mut h.domain, &CALM, FIRST, files(&[(b"src", b"change")]), b"FAIL this test").unwrap().unwrap();
+        crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"src", b"change")]), b"FAIL this test").unwrap().unwrap();
     h.push(ENGINE, MAIN, head).unwrap();
     h.ok(ENGINE, dispatch());
     h.settle();
@@ -574,7 +574,7 @@ fn a_cued_message_fails_the_workflow_step() {
 
 #[test]
 fn a_setup_fault_fails_the_set_up_step() {
-    let mut h = dispatch_harness(Config { setup_faults: 1000, ..CALM }, &[b"ci"]);
+    let mut h = dispatch_harness(Config { setup_faults: 1000, ..calm() }, &[b"ci"]);
     h.ok(ENGINE, dispatch());
     h.settle();
     let jobs = run_jobs(&h, workflow_runs(&h)[0].id);
@@ -585,7 +585,7 @@ fn a_setup_fault_fails_the_set_up_step() {
 
 #[test]
 fn a_lost_run_fails_with_no_step_failed() {
-    let mut h = dispatch_harness(Config { lost: 1000, ..CALM }, &[b"ci", b"fmt"]);
+    let mut h = dispatch_harness(Config { lost: 1000, ..calm() }, &[b"ci", b"fmt"]);
     h.ok(ENGINE, dispatch());
     h.settle();
     let run = &workflow_runs(&h)[0];
@@ -600,7 +600,7 @@ fn a_lost_run_fails_with_no_step_failed() {
 
 #[test]
 fn a_rerun_of_a_failed_job_runs_its_next_attempt() {
-    let mut h = dispatch_harness(Config { setup_faults: 1000, ..CALM }, &[b"ci"]);
+    let mut h = dispatch_harness(Config { setup_faults: 1000, ..calm() }, &[b"ci"]);
     h.ok(ENGINE, dispatch());
     h.settle();
     let run = workflow_runs(&h)[0].id;
@@ -618,7 +618,7 @@ fn a_rerun_of_a_failed_job_runs_its_next_attempt() {
 
 #[test]
 fn a_rerun_before_its_run_completes_is_refused() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     h.ok(ENGINE, dispatch());
     let job = run_jobs(&h, workflow_runs(&h)[0].id)[0].id;
     assert_eq!(h.call(ENGINE, write(Write::Rerun { job })), Err(Error::Refused));
@@ -627,7 +627,7 @@ fn a_rerun_before_its_run_completes_is_refused() {
 
 #[test]
 fn runs_are_listed_by_workflow_and_commit_newest_first() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     h.ok(ENGINE, dispatch());
     h.ok(ENGINE, dispatch());
     let head = crate::advance(&mut h.domain, &h.env, REPOSITORY, MAIN, b"src", b"new", ENGINE).unwrap();
@@ -663,7 +663,7 @@ fn runs_are_listed_by_workflow_and_commit_newest_first() {
 
 #[test]
 fn workflow_runs_past_their_limit_drop_the_oldest() {
-    let mut h = dispatch_harness(Config { limits: Limits { workflow_runs: 1, ..LIMITS }, ..CALM }, &[b"ci"]);
+    let mut h = dispatch_harness(Config { limits: Limits { workflow_runs: 1, ..LIMITS }, ..calm() }, &[b"ci"]);
     h.ok(ENGINE, dispatch());
     let old = workflow_runs(&h)[0].id;
     let job = run_jobs(&h, old)[0].id;
@@ -677,7 +677,7 @@ fn workflow_runs_past_their_limit_drop_the_oldest() {
 
 #[test]
 fn a_status_keeps_its_description_and_link() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.ok(
         ENGINE,
         write(Write::Status {
@@ -701,7 +701,7 @@ fn a_status_keeps_its_description_and_link() {
 
 #[test]
 fn overlapping_dispatches_keep_jobs_separate_without_publishing_statuses() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     h.ok(ENGINE, dispatch());
     let first = workflow_runs(&h)[0].id;
     let first_job = run_jobs(&h, first)[0].id;
@@ -732,7 +732,7 @@ fn explicit_reruns_also_advance_a_completed_commits_ci_job() {
 
 #[test]
 fn workflow_and_input_limits_refuse_before_making_a_run() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     let too_many = write(Write::Dispatch {
         workflow: copy_of(b"gate.yml"),
         branch: copy_of(MAIN),
@@ -744,14 +744,14 @@ fn workflow_and_input_limits_refuse_before_making_a_run() {
     });
     assert_eq!(h.call(ENGINE, too_many), Err(Error::TooLarge));
     assert!(workflow_runs(&h).is_empty());
-    let mut empty = dispatch_harness(Config { limits: Limits { workflow_runs: 0, ..LIMITS }, ..CALM }, &[b"ci"]);
+    let mut empty = dispatch_harness(Config { limits: Limits { workflow_runs: 0, ..LIMITS }, ..calm() }, &[b"ci"]);
     assert_eq!(empty.call(ENGINE, dispatch()), Err(Error::Full));
     assert!(workflow_runs(&empty).is_empty());
 }
 
 #[test]
 fn a_silent_workflow_job_keeps_its_run_running() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     let id = h.domain.id(REPOSITORY);
     h.domain.repositories.get_mut(id).unwrap().workflows[0].silent = 1000;
     h.ok(ENGINE, dispatch());
@@ -762,7 +762,7 @@ fn a_silent_workflow_job_keeps_its_run_running() {
 
 #[test]
 fn dispatch_runs_and_commit_ci_keep_separate_identities_and_one_numbering() {
-    let mut h = dispatch_harness(CALM, &[b"ci"]);
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
     let id = h.domain.id(REPOSITORY);
     h.domain.repositories.get_mut(id).unwrap().checks.contexts = names(&[b"ci"]);
     h.domain.repositories.get_mut(id).unwrap().failing = Box::new([Failing::Workflow]);
@@ -790,8 +790,8 @@ fn dispatch_runs_and_commit_ci_keep_separate_identities_and_one_numbering() {
 #[test]
 fn a_seed_replays_workflow_latency_runner_faults_and_reruns() {
     for seed in 0..16 {
-        let config = Config { setup_faults: 350, lost: 250, ..CALM };
-        let mut first = dispatch_harness(config, &[b"ci", b"fmt"]);
+        let config = Config { setup_faults: 350, lost: 250, ..calm() };
+        let mut first = dispatch_harness(config.clone(), &[b"ci", b"fmt"]);
         let mut second = dispatch_harness(config, &[b"ci", b"fmt"]);
         for h in [&mut first, &mut second] {
             h.domain.rng = skein_lib::Rng::new(seed);
@@ -821,7 +821,7 @@ fn a_context_opening_begins_its_jobs_whole_log() {
     let mut configured = setup();
     configured.checks.passes = 0;
     configured.checks.contexts = names(&[b"ci", b"fmt"]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     crate::set_opening(&mut h.domain, REPOSITORY, b"ci", b"selection: full\n");
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).unwrap();

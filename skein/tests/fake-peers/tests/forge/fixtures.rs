@@ -88,7 +88,7 @@ pub fn boxed(text: &[u8]) -> Box<[u8]> {
     bytes::copy_of(text)
 }
 pub fn fake_config() -> domain::Config {
-    domain::Config::TEST
+    domain::Config::test()
 }
 
 pub fn shared() -> Rc<RefCell<Forge>> {

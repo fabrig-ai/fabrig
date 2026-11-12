@@ -73,7 +73,7 @@ use temper_fake_checkout::{
 };
 use temper_fake_git::{Answer, Typed, answer, check, id::id};
 /// The protocol world's synchronous forge configuration, shared by the worlds.
-pub const CONFIG: domain::Config = crate::forge::CONFIG;
+pub use crate::forge::config;
 /// Each protocol or refusal case has its own equivalent checkout fixture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
@@ -129,7 +129,7 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_forgejo:
 /// The transcript's repository name, with an unborn fixture for fixture/empty.
 #[must_use]
 pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
-    let mut domain = domain::Domain::new(&CONFIG, 1);
+    let mut domain = domain::Domain::new(&config(), 1);
     let setup = api::Setup {
         workflows: Box::new([]),
         id: 2,
@@ -160,14 +160,14 @@ pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
         hooked: false,
     };
     let base = if full == b"fixture/empty" {
-        domain::unborn_repository(&mut domain, &CONFIG, setup);
+        domain::unborn_repository(&mut domain, &config(), setup);
         0
     } else {
-        domain::repository(&mut domain, &CONFIG, setup)
+        domain::repository(&mut domain, &config(), setup)
     };
     domain::grant(&mut domain, full, 1, api::Permission::Write);
     domain::grant(&mut domain, full, 2, api::Permission::Read);
-    let forge = Rc::new(RefCell::new(Forge::new(domain, CONFIG)));
+    let forge = Rc::new(RefCell::new(Forge::new(domain, config())));
     let mut transport = Typed::new(forge, &table(full, protected));
     let identity = identity();
     transport.authenticate(Some(&(identity.login, identity.token)));

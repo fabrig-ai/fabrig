@@ -82,7 +82,7 @@ fn config() -> domain::Config {
         rate_window: Duration::from_secs(3600),
         ci: 33,
         skew: domain::Skew::None,
-        ..domain::Config::TEST
+        ..domain::Config::test()
     }
 }
 pub(crate) struct World {

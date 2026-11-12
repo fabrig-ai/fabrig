@@ -206,12 +206,12 @@ pub(crate) fn checks(repository: &Repository, limits: &Limits, commit: u64, ci_u
     Ok(Answer::Checks(summaries.into_boxed()))
 }
 
-pub(crate) fn job(repository: &Repository, id: u64) -> Result<Answer, Error> {
-    let job = job_view(repository, id)?;
+pub(crate) fn job(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) -> Result<Answer, Error> {
+    let job = job_view(domain, limits, repository, id)?;
     Ok(Answer::Job { steps: job.steps.clone(), job })
 }
 
-fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
+fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
     let (_, mut job) = crate::actions::latest(repository, id)?;
     let run = crate::actions::run(repository, job.run)?;
     if run.run.workflow.is_none() && job.state == crate::api::RunState::Completed {
@@ -220,11 +220,13 @@ fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> 
             Some(crate::api::Conclusion::Failure) => Check::Failed,
             None => unreachable!("a completed CI job has a conclusion"),
         };
+        let cue = crate::ci::effective(domain, run.run.commit, &job.name,
+            crate::ci::cue(&repository.checks, &job.name), run.pull, limits);
         job.steps = crate::actions::outcome_steps(
             &job.name,
             state,
             *repository.failing.get(usize_of(job.index)).expect("CI context"),
-            crate::ci::cue(&repository.checks, &job.name),
+            cue.as_ref(),
             run.pull,
             repository.opening.get(usize_of(job.index)).expect("CI context"),
         );
@@ -232,8 +234,8 @@ fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> 
     Ok(job)
 }
 
-pub(crate) fn log(repository: &Repository, id: u64, attempt: u32, step: Option<u32>) -> Result<Answer, Error> {
-    let job = job_view(repository, id)?;
+pub(crate) fn log(domain: &Domain, limits: &Limits, repository: &Repository, id: u64, attempt: u32, step: Option<u32>) -> Result<Answer, Error> {
+    let job = job_view(domain, limits, repository, id)?;
     let steps = &job.steps;
     if job.attempt != attempt || steps.is_empty() {
         return Err(Error::Missing(What::Job));

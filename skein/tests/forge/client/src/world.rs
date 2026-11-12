@@ -738,7 +738,7 @@ fn config(faults: bool) -> Config {
         timeouts: if faults { 150 } else { 0 },
         landing: if faults { 150 } else { 0 },
         rate_limit: if faults { 8 } else { 0 },
-        ..Config::TEST
+        ..Config::test()
     }
 }
 

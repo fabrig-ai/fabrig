@@ -60,9 +60,11 @@ pub const LIMITS: Limits = Limits {
 };
 
 /// A forge that answers at once and fails only as a world scripts it.
-pub const CONFIG: Config = Config {
+#[must_use]
+pub fn config() -> Config { Config {
     setup_faults: 0,
     lost: 0,
+    made_checks: Config::test().made_checks,
     limits: LIMITS,
     latency_min: Duration::ZERO,
     latency_max: Duration::ZERO,
@@ -87,7 +89,7 @@ pub const CONFIG: Config = Config {
     skew: Skew::None,
     status_updates: false,
     edit_updates: false,
-};
+} }
 
 /// A branch moved on the forge: created if it was nowhere.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -115,7 +117,7 @@ impl Forge {
     pub fn new(seed: u64) -> Forge {
         Forge {
             observations: Vec::new(),
-            domain: Domain::new(&CONFIG, seed),
+            domain: Domain::new(&config(), seed),
             repositories: 1,
             now: Time::ZERO,
             calls: 0,
@@ -135,7 +137,7 @@ impl Forge {
     /// Returns the fake forge's native authentication or operation error.
     pub fn api(&mut self, remote: &[u8], user: u64, op: Op) -> Result<Answer, Error> {
         self.calls += 1;
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: CONFIG };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config() };
         let mut out = Queue::uncapped();
         let reply_to = ReplyTo::new(Token::new(self.calls));
         skein_fake_forge_domain::step(
@@ -208,7 +210,7 @@ impl Forge {
             protection: None,
             hooked: false,
         };
-        let first = skein_fake_forge_domain::repository(&mut self.domain, &CONFIG, setup);
+        let first = skein_fake_forge_domain::repository(&mut self.domain, &config(), setup);
         skein_fake_forge_domain::grant(&mut self.domain, remote, WORKER, Permission::Write);
         skein_fake_forge_domain::grant(&mut self.domain, remote, OTHER, Permission::Write);
         first
@@ -229,7 +231,7 @@ impl Forge {
     /// writing `path` with `content`, and moves the branch to it, as a push of
     /// its own would. Returns the commit.
     pub fn advance(&mut self, remote: &[u8], branch: &[u8], path: &[u8], content: &[u8]) -> u64 {
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: CONFIG };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config() };
         let advanced = skein_fake_forge_domain::advance(&mut self.domain, &env, remote, branch, path, content, OTHER);
         advanced.expect("the forge has room for another party's commit")
     }
@@ -255,7 +257,7 @@ impl Forge {
     #[must_use]
     pub fn branch(&self, remote: &[u8], branch: &[u8]) -> Option<u64> {
         let read = Read::Branch { branch: branch.into() };
-        match self.domain.inspect(&CONFIG, remote, &read) {
+        match self.domain.inspect(&config(), remote, &read) {
             Ok(Answer::Commit(commit)) => Some(commit),
             Ok(answer) => panic!("a branch is read as where it is: {answer:?}"),
             Err(_) => None,
@@ -393,16 +395,16 @@ impl Remote for Forge {
     fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
         if always {
             return Some(
-                skein_fake_forge_domain::commit_tree(&mut self.domain, &CONFIG, parent, merging, files(tree), message)
+                skein_fake_forge_domain::commit_tree(&mut self.domain, &config(), parent, merging, files(tree), message)
                     .expect("the forge has room"),
             );
         }
         match merging {
             Some(second) => Some(
-                skein_fake_forge_domain::merge_commit(&mut self.domain, &CONFIG, parent, second, files(tree), message)
+                skein_fake_forge_domain::merge_commit(&mut self.domain, &config(), parent, second, files(tree), message)
                     .expect("the forge's store has room for every merge"),
             ),
-            None => skein_fake_forge_domain::commit(&mut self.domain, &CONFIG, parent, files(tree), message)
+            None => skein_fake_forge_domain::commit(&mut self.domain, &config(), parent, files(tree), message)
                 .expect("the forge's store has room for every commit"),
         }
     }

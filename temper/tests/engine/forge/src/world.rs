@@ -1631,6 +1631,7 @@ pub fn fake_config() -> forge::Config {
         rate_limit: 0,
         rate_window: Duration::from_secs(10),
         ci: 3,
+        made_checks: forge::Config::test().made_checks,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

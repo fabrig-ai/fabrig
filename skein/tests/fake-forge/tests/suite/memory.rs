@@ -42,7 +42,7 @@ const LIMITS: Limits = Limits {
 };
 
 /// Calls answered at once; CI and webhooks so slow that they pile up.
-const CONFIG: Config = Config {
+fn config() -> Config { Config {
     limits: LIMITS,
     latency_min: Duration::from_millis(1),
     latency_max: Duration::from_millis(1),
@@ -56,8 +56,8 @@ const CONFIG: Config = Config {
     hook_min: Duration::from_secs(3600),
     hook_max: Duration::from_secs(3600),
     skew: Skew::None,
-    ..Config::TEST
-};
+    ..Config::test()
+} }
 
 /// The users of every repository: an admin, then writers. The second opens
 /// everything; the others comment and review.
@@ -164,7 +164,7 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.protection = None;
-    let first = skein_fake_forge_domain::repository(&mut forge.domain, &CONFIG, configured);
+    let first = skein_fake_forge_domain::repository(&mut forge.domain, &config(), configured);
     skein_fake_forge_domain::grant(&mut forge.domain, &repository, AUTHOR, Permission::Write);
     let mut left = first;
     let mut right = first;
@@ -173,7 +173,7 @@ fn full_merge_history_and_both_parent_traversals_stay_bounded() {
         forge.meter.start();
         let next = skein_fake_forge_domain::merge_commit(
             &mut forge.domain,
-            &CONFIG,
+            &config(),
             left,
             right,
             files,
@@ -237,7 +237,7 @@ const CHECK_CONTEXTS_PEAK_CEILING: u64 = 130_000;
 #[test]
 fn many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded() {
     let limits = Limits { repositories: 1, files: 1, contexts: 64, statuses: 1, commits: 2, ..LIMITS };
-    let config = Config { limits, ..CONFIG };
+    let config = Config { limits, ..config() };
     let mut forge = Measured::with(config, CHECK_CONTEXTS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
@@ -256,7 +256,7 @@ fn many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded()
 
 impl Measured {
     fn new(ceiling: u64) -> Measured {
-        Self::with(CONFIG, ceiling)
+        Self::with(config(), ceiling)
     }
 
     fn with(config: Config, ceiling: u64) -> Measured {
@@ -471,7 +471,7 @@ const FILLED_FORGE_PEAK_CEILING: u64 = 87_000;
     reason = "one measured fixture keeps the filled repositories, reports and held range answers alive together"
 )]
 fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
-    let config = Config { limits: Limits { workflows: 1, workflow_runs: 2, ..LIMITS }, ..CONFIG };
+    let config = Config { limits: Limits { workflows: 1, workflow_runs: 2, ..LIMITS }, ..config() };
     let mut forge = Measured::with(config, FILLED_FORGE_PEAK_CEILING);
     let mut firsts = List::with_capacity(LIMITS.repositories);
     for index in 0..u64::from(LIMITS.repositories) {
@@ -641,7 +641,7 @@ fn counted_group_branches_and_queue_landings_stay_within_memory_bound() {
     // bytes here. Compared with the full fixture, names gain eighty bytes;
     // one repository and three branches hold main, the pull head and its group.
     let limits = Limits { repositories: 1, name_bytes: 96, branches: 3, ..LIMITS };
-    let config = Config { limits, ..CONFIG };
+    let config = Config { limits, ..config() };
     let mut forge = Measured::with(config, QUEUE_LANDINGS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);

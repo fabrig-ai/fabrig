@@ -66,9 +66,11 @@ pub const LIMITS: skein_fake_forge_domain::Limits = skein_fake_forge_domain::Lim
 };
 
 /// The hosted git's calm forge configuration.
-pub const CONFIG: skein_fake_forge_domain::Config = skein_fake_forge_domain::Config {
+#[must_use]
+pub fn config() -> skein_fake_forge_domain::Config { skein_fake_forge_domain::Config {
     setup_faults: 0,
     lost: 0,
+    made_checks: skein_fake_forge_domain::Config::test().made_checks,
     limits: LIMITS,
     latency_min: Duration::ZERO,
     latency_max: Duration::ZERO,
@@ -93,4 +95,4 @@ pub const CONFIG: skein_fake_forge_domain::Config = skein_fake_forge_domain::Con
     skew: skein_fake_forge_domain::Skew::None,
     status_updates: false,
     edit_updates: false,
-};
+} }
