@@ -27,6 +27,14 @@ proposals. A role reports through its Now, a line per session and a weekly
 `report` note, with its Now in Home's brief's words; areas and routing remain
 a later milestone, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
+Being told is the whole story's milestone N3b, goal 492, built
+against fakes alone: a person's devices, jig's need's arrival, the
+root's pushes and the service's Web Push, `temper ctl push add`, and
+Telling you in the browser, its service worker and manifest; mail and
+the digest are designed and not built, and a real push needs a deployment
+at a name over HTTPS and its VAPID key (`domain/forge/attention.status.md`,
+7.4; `draft/what-reaches-you.status.md`, 9).
+
 
 QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a
@@ -37,7 +45,7 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestones Q1, Q3 and Q4: `temper-qa`
+Landed QA's milestones Q1, Q3, Q4 and Q5: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
 can need them, all in one ledger; a pass, by goal 1210, takes the newest
@@ -48,9 +56,12 @@ request and one goal, and resumes on a build holding that goal's
 landing, two goals at most. By goal 1334 it takes the TUI's cases too.
 Its places have their own ports, and `temper-qa tune` gives the figures
 bounds and places are tuned from. The box's fake forges keep their state
-across a restart. Fake-model scripts take values from the conversation,
-so B0's twin replays as setups on a box's own Forgejo; B1's waits on how
-its gate's commit is made. Its passes follow landing
+across a restart, and a head's CI there is what it declares.
+Fake-model scripts take values from the conversation, so B0's and B1's
+twins replay as setups. By goal 1676 QA runs on the fakes alone: every
+setup's forge is the box's fake Forgejo, connected through ctl lines that
+name the box's values, and a recipe's `forge` lines commit files it
+holds, with no credential named. Its passes follow landing
 (`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
@@ -297,6 +308,7 @@ Design documents:
 Drafts:
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
+- [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
@@ -305,6 +317,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
+- [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)

@@ -6,6 +6,9 @@ use temper_service::{self as service, settings::Seeds};
 use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
     Check(Box<[u8]>),

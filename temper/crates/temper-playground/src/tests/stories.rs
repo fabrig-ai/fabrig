@@ -353,7 +353,7 @@ fn story_as_pace_is_paced() {
     assert_eq!(llm.limits().latency_max, Duration::from_millis(1200));
     let forge = forge::Document::decode(A.forge).expect("forge document");
     let (mut forge, _) = forge.seed(7);
-    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::LIMITS };
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::limits() };
     let head =
         domain::advance(&mut forge.domain, &env, b"playground/widget", b"main", b"ci/result", b"green", forge::OWNER)
             .expect("seeded repository");
@@ -363,7 +363,7 @@ fn story_as_pace_is_paced() {
     domain::fire(&mut forge.domain, &env, &mut out);
     let f::Answer::Statuses(statuses) = forge
         .domain
-        .inspect(&forge::LIMITS, b"playground/widget", &f::Read::Statuses { commit: head })
+        .inspect(&forge::limits(), b"playground/widget", &f::Read::Statuses { commit: head })
         .expect("CI status")
     else {
         panic!("statuses")
@@ -374,7 +374,7 @@ fn story_as_pace_is_paced() {
     domain::fire(&mut forge.domain, &env, &mut out);
     let f::Answer::Statuses(statuses) = forge
         .domain
-        .inspect(&forge::LIMITS, b"playground/widget", &f::Read::Statuses { commit: head })
+        .inspect(&forge::limits(), b"playground/widget", &f::Read::Statuses { commit: head })
         .expect("CI status")
     else {
         panic!("statuses")

@@ -230,8 +230,8 @@ store keeps its row until the first patch it meets writes the levels.
 
 - **The fixture patch:** the real sets with temper's extended by one
   patch that changes no family, the one after temper's last (`patch 1`,
-  `owner temper 1 after jig 0` before the catch-up; `patch 2`, `owner
-  temper 2 after jig 1` after it, 9), `mark fresh-windows`, its set's `fresh` that word (skein's
+  `owner temper 1 after jig 0` before the catch-up; `patch 3`, `owner
+  temper 3 after jig 1` after the devices' patch 2), `mark fresh-windows`, its set's `fresh` that word (skein's
   `data/codec/patches.md`, 1: a patch may carry a mark and no block).
   A store made under the real sets is behind it, so a start under it
   plans, copies, patches (no record changed), closes every live window,
@@ -273,7 +273,7 @@ dev.fabrig.ai's, upgrades to it.
   reviewed; the golden test's assertions hold under them.
 - **What moves with them:** the binary's levels, jig 1 and temper 1, so
   `versions` prints `level jig 1` and `level temper 1`; the fixture patch
-  (8) is the one after temper's last, `patch 2`, `owner temper 2 after
+  (8) follows the devices' patch 2 at level 3, `owner temper 3 after
   jig 1`.
 - **Unchanged:** `BASELINE` (5), the baseline's versions and layouts, by
   which a store the baseline's build wrote reads as level 0 and is

@@ -47,6 +47,7 @@ impl Roles {
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -178,6 +179,7 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

@@ -512,7 +512,11 @@ impl World {
         let top = top::Domain::new(
             &limits,
             seed,
-            skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
+            temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::from(&b"world"[..]),
+                writers: writer.into_iter().collect(),
+            },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[configured_forge()],
             false,
@@ -967,7 +971,8 @@ impl World {
         self.top = top::Domain::new(
             &self.env.limits,
             self.seed,
-            skein_forge_client::Config {
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },
@@ -1056,7 +1061,7 @@ impl World {
         self.push_as(branch, path, content, 1);
     }
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
@@ -1153,7 +1158,7 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
-        let mut config = self.forge_env.limits;
+        let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
@@ -1598,6 +1603,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
@@ -1660,6 +1666,7 @@ pub fn fake_config() -> forge::Config {
         rate_limit: 0,
         rate_window: Duration::from_secs(10),
         ci: 3,
+        made_checks: forge::Config::test().made_checks,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

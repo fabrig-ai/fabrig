@@ -3145,6 +3145,7 @@ dependencies = [
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
+ "skein-fake-push",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -3166,6 +3167,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
  "skein-fake-peers",
+ "skein-fake-push",
  "skein-forge",
  "skein-forge-connection",
  "skein-forge-kit",
@@ -3177,6 +3179,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-oauth",
+ "skein-push",
  "skein-shell",
  "skein-sim",
  "skein-tls",
@@ -3206,6 +3209,17 @@ dependencies = [
  "skein-ui",
  "skein-ui-web",
  "skein-world",
+]
+
+[[package]]
+name = "skein-fake-push"
+version = "0.0.0"
+dependencies = [
+ "skein-http",
+ "skein-json",
+ "skein-lib",
+ "skein-push",
+ "skein-tls",
 ]
 
 [[package]]
@@ -3725,6 +3739,14 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-world",
+]
+
+[[package]]
+name = "skein-push"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-tls",
 ]
 
 [[package]]
@@ -5404,6 +5426,7 @@ dependencies = [
  "jig-test-profile",
  "skein-json",
  "skein-lib",
+ "skein-push",
  "skein-ui",
  "temper-client-domain",
  "temper-client-protocol-wire",
@@ -5612,7 +5635,9 @@ dependencies = [
  "jig-protocol-config",
  "skein-forge",
  "skein-forge-client",
+ "skein-json",
  "skein-lib",
+ "skein-push",
  "skein-ui",
  "skein-world",
  "temper-client-domain",
@@ -5649,6 +5674,7 @@ dependencies = [
  "skein-forge-client",
  "skein-forge-setup",
  "skein-lib",
+ "skein-push",
  "skein-rows",
  "skein-world",
  "temper-client-protocol-wire",
@@ -6144,13 +6170,17 @@ dependencies = [
  "skein-fake-machine",
  "skein-fake-peers",
  "skein-fake-person",
+ "skein-fake-push",
  "skein-forge",
  "skein-heap",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
+ "skein-oauth-accounts",
  "skein-playground",
+ "skein-push",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
@@ -6519,6 +6549,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
+ "skein-push",
  "skein-scratch",
  "skein-shell",
  "skein-tls",

@@ -2,6 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
 
+
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
   not read, and no landed draft's card starts a goal [in flight: change 664].
 

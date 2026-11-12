@@ -12,9 +12,9 @@ fn head_and_base_moves_draw_replayable_inclusive_settle_deadlines() {
                     settle_min: Duration::from_secs(min),
                     settle_max: Duration::from_secs(max),
                     resolution: Duration::ZERO,
-                    ..CALM
+                    ..calm()
                 };
-                let mut h = Harness::seeded(config, setup(), seed);
+                let mut h = Harness::seeded(config.clone(), setup(), seed);
                 let work = h.commit(FIRST, &[(b"src", b"one")]);
                 h.push(ENGINE, b"work", work).unwrap();
                 h.open(b"work").unwrap();
@@ -53,5 +53,5 @@ fn head_and_base_moves_draw_replayable_inclusive_settle_deadlines() {
 #[should_panic(expected = "latencies are ranges")]
 fn reversed_settle_range_is_refused_at_admission() {
     let _domain =
-        Domain::new(&Config { settle_min: Duration::from_secs(3), settle_max: Duration::from_secs(2), ..CALM }, 7);
+        Domain::new(&Config { settle_min: Duration::from_secs(3), settle_max: Duration::from_secs(2), ..calm() }, 7);
 }

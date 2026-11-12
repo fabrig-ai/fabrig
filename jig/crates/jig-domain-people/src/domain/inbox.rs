@@ -193,6 +193,20 @@ impl Domain {
         Some(counts)
     }
 
+    /// Exact task-derived needs in one project (domain/people/README.md, section 8).
+    #[must_use]
+    pub fn project_needs(&self, person: u64, project: u32) -> u32 {
+        let mut count = 0_u32;
+        for (_, needs) in &self.needs {
+            for &need in needs {
+                if need.project == project && addressed(self, person, need) {
+                    count = count.checked_add(1).expect("validated task projection bound");
+                }
+            }
+        }
+        count
+    }
+
     /// Whether this task currently contributes to the party's exact need count.
     #[must_use]
     pub fn task_needs(&self, person: u64, task: u64) -> bool {
@@ -695,11 +709,22 @@ fn replace_needs(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Ent
     }
 }
 
-pub(super) fn replace_waiting(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Entry]) {
+pub(super) fn replace_waiting(
+    domain: &mut Domain,
+    limits: &Limits,
+    task: u64,
+    entries: &[Entry],
+    out: &mut Queue<Request>,
+) {
     if task == 0 || domain.start == Start::Failed {
         return;
     }
+    let old = domain.needs.get(&task).cloned();
     replace_needs(domain, limits, task, entries);
+    // The census and link rebuild projections without telling arrivals.
+    if domain.ready() {
+        arrivals(domain, task, old.as_deref().unwrap_or(&[]), out);
+    }
     for &entry in entries {
         if let (Whom::Person(party), EntryKind::Reply { .. }) = (entry.whom, entry.kind) {
             cache_update(domain, limits, party, Update::Reply(entry));
@@ -765,6 +790,45 @@ pub(super) fn replace_waiting(domain: &mut Domain, limits: &Limits, task: u64, e
         if !cached.is_empty() {
             drop(domain.waiting.insert(entry.whom, cached.into_boxed()));
         }
+    }
+}
+
+/// Tell only newly reached needs; a refreshed timestamp is not a new need
+/// (domain/people/README.md, section 8).
+fn arrivals(domain: &Domain, task: u64, old: &[Need], out: &mut Queue<Request>) {
+    let Some(needs) = domain.needs.get(&task) else { return };
+    for &need in needs {
+        let mut unchanged = false;
+        for prior in old {
+            unchanged |= prior.project == need.project && prior.whom == need.whom && prior.kind == need.kind;
+        }
+        if unchanged {
+            continue;
+        }
+        match need.whom {
+            Whom::Person(party) => tell_arrival(domain, task, need, party, out),
+            Whom::Role { project, role } => {
+                // Project holdings have their existing bound, not a role-holder index.
+                if let Some(holdings) = domain.roles.get(&project) {
+                    for holding in holdings {
+                        if holding.role.number() == role {
+                            tell_arrival(domain, task, need, holding.person, out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn tell_arrival(domain: &Domain, task: u64, need: Need, party: u64, out: &mut Queue<Request>) {
+    if addressed(domain, party, need) {
+        out.push(Request::NeedArrived {
+            party,
+            project: need.project,
+            task,
+            needs: domain.project_needs(party, need.project),
+        });
     }
 }
 

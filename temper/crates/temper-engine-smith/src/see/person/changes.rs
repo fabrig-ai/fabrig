@@ -212,6 +212,7 @@ pub(super) fn queues(
             | Document::Changes(_)
             | Document::Follows(_)
             | Document::Status(_)
+            | Document::Devices(_)
             | Document::Aways(_)
             | Document::Decisions(_)
             | Document::Dismissals(_),

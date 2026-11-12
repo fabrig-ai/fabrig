@@ -68,6 +68,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::Relay { .. }
         | core::Held::PeopleReply { .. }
         | core::Held::CallAnswer { .. }
+        | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::TurnBusy { .. }

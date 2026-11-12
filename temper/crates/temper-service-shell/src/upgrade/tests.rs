@@ -9,8 +9,14 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             .expect("directories")
             .0;
     for binary in ["temper", "temper-box", "temper-engine"] {
-        let mut report =
-            Report { events: Queue::uncapped(), elapsed: Duration::ZERO, end: None, restored: true, done: true };
+        let mut report = Report {
+            events: Queue::uncapped(),
+            elapsed: Duration::ZERO,
+            end: None,
+            restored: true,
+            done: true,
+            open_failure: None,
+        };
         report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
         let (text, code) = lines(binary, &report, &directories, b"/state");
         assert_eq!(code, 0);
@@ -20,8 +26,14 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             (Undecoded::Record { map: KeptMap::Secrets, key: Box::new([2, 0, 1]) }, "secrets key 020001"),
             (Undecoded::Frame { transcript: "7".into(), offset: 256 }, "transcript 7 at 256"),
         ] {
-            let mut report =
-                Report { events: Queue::uncapped(), elapsed: Duration::ZERO, end: None, restored: false, done: true };
+            let mut report = Report {
+                events: Queue::uncapped(),
+                elapsed: Duration::ZERO,
+                end: None,
+                restored: false,
+                done: true,
+                open_failure: None,
+            };
             report.events.push(Event::Undecodable {
                 owner: Token::new(1),
                 family: "temper-store".into(),

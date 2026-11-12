@@ -5,6 +5,7 @@
 
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
 
+
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the

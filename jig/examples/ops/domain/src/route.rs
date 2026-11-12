@@ -397,6 +397,7 @@ fn core_held(
         | core::Held::WatchEnded { .. }
         | core::Held::PeopleReply { .. }
         | core::Held::CarriedUnused { .. }
+        | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::Drained
         | core::Held::Grant { .. }

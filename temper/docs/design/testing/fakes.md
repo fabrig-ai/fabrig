@@ -255,6 +255,20 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   git route's `objects` call gives a commit's tree, which the case's
   referee reads for main once the last merge is observed, before the
   forge stops.
+- **Its CI, as a process:** each repository of `temper-box fake forge
+  --document FILE` names its `ci`, its one context `check` judged by: on
+  `null`, every head passing; on `{"path", "green"}`, the domain's
+  `Cue::File`; on `{"declared": PATH}`, the domain's `Cue::Declared`,
+  each head judged by the rule its own tree holds at PATH, a head with
+  none passing (skein's `testing/fakes/forge.md`, 2.3). PATH is
+  relative, with no empty, `.` or `..` segment, within the domain's
+  name limit. The document's `made_ci`, optional and of the same form,
+  is the CI of every repository the forge makes through its setup
+  routes, an admin's `CreateRepository` and a copy's destination
+  (skein's `testing/fakes/forge.md`, 4, `Config.made_checks`); absent,
+  they report none, as before. So the box's fake forges let a person's
+  commit decide a head's checks by what it holds
+  (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6).
 - **Its state kept, as a process:** `temper-box fake forge --document
   FILE [--state STATE]`. With `--state`, the forge's state lasts across
   its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;
@@ -488,3 +502,30 @@ Scripted stand-ins inside a world are another matter, and stay. The
 worker's worlds keep agents that hang, crash and break the channel's
 rules, and the run's world keeps a host that cancels twice, because the
 real ones never do.
+
+## 6. Push services and mail
+
+What a person is told while away (`../domain/forge/attention.md`,
+section 7) leaves the engine for a push service, and some day for a
+mail server. Neither is reached by a test.
+
+- **At the root's boundary,** in the engine's and the client's worlds:
+  the root's push deliveries (`../domain/forge/attention.md`, 7.2) are
+  taken by the world, as a forge's calls are in the domain's tests,
+  recorded with their party, device, topic and payload, and answered
+  `Pushed` with the answer the story scripts, `Made` by default. So a
+  story counts the pushes a need makes, reads their words, and answers
+  one `Gone`.
+- **On the wire,** in the one-process world: skein's fake push service
+  (skein's `testing/fakes/push.md`), its peer hosted beside the forge's
+  and the LLM's, its origin among `application.push.services` and its
+  key the public half of the world's VAPID key, a fixture. It checks the
+  token, the headers and the seal's framing, and records each push; the
+  story reads its records, never a payload's words, which the root's
+  boundary holds.
+- **A device with no browser** is registered as `temper ctl push add`
+  registers one (`../client/ctl/tools.md`, 3): a subscription's JSON
+  whose endpoint is the fake's, `http://ORIGIN/push/NAME`, and whose
+  keys are a fixture's.
+- **A fake mail sink** is not built, nor is mail
+  (`../domain/forge/attention.md`, 7.4).

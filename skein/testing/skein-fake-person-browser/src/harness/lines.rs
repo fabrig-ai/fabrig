@@ -19,6 +19,16 @@ pub fn printed(output: &[u8], printed: &Printed<'_>) -> Vec<Opened> {
         })
         .collect()
 }
+pub(super) fn every_address(_: &[u8]) -> bool {
+    true
+}
+
+/// Adds the query only to addresses named as the page; all others stay byte for byte.
+#[must_use]
+pub fn page_with_query(address: &[u8], query: &[u8], page: fn(&[u8]) -> bool) -> Box<[u8]> {
+    if page(address) { with_query(address, query) } else { address.into() }
+}
+
 /// Inserts a raw query parameter string before the fragment, joining an existing
 /// nonempty query with `&`. An empty parameter string leaves the address unchanged.
 #[must_use]
@@ -86,7 +96,7 @@ pub(crate) fn opening(lines: &[Opened], names: Names, index: usize) -> Option<&O
 
 #[cfg(test)]
 mod tests {
-    use super::{substitute, with_query};
+    use super::{every_address, page_with_query, substitute, with_query};
 
     #[test]
     fn page_query_joins_before_the_fragment_without_changing_other_bytes() {
@@ -99,6 +109,26 @@ mod tests {
         ] {
             assert_eq!(with_query(address, b"one=1&two=2").as_ref(), expected);
             assert_eq!(with_query(address, b"").as_ref(), address);
+        }
+    }
+
+    #[test]
+    fn page_query_only_changes_named_addresses() {
+        fn page(address: &[u8]) -> bool {
+            let path = address.strip_prefix(b"http://127.0.0.1:9").unwrap_or(address);
+            !path.starts_with(b"/forges/")
+        }
+        for (address, expected) in [
+            (
+                b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice(),
+                b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice(),
+            ),
+            (b"http://127.0.0.1:9/chats#x", b"http://127.0.0.1:9/chats?one=1#x"),
+            (b"/forges/1/github/manifest?state=s#x", b"/forges/1/github/manifest?state=s#x"),
+            (b"/chats#x", b"/chats?one=1#x"),
+        ] {
+            assert_eq!(page_with_query(address, b"one=1", page).as_ref(), expected);
+            assert_eq!(page_with_query(address, b"one=1", every_address), with_query(address, b"one=1"));
         }
     }
 

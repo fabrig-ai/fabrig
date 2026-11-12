@@ -16,6 +16,15 @@ pub(crate) fn setups(home: &Home, pass: u64) -> PathBuf {
     home.directory.join("passes").join(pass.to_string()).join("setups")
 }
 
+pub(crate) fn files(home: &Home, pass: u64) -> PathBuf {
+    home.directory.join("passes").join(pass.to_string()).join("files")
+}
+
+pub(crate) fn prepare_files(home: &Home, pass: u64) -> Result<(), Refusal> {
+    let directory = files(home, pass);
+    io(&directory, fs::create_dir_all(&directory))
+}
+
 /// Keep the free-place test's lock through preparation and recording.
 pub(crate) fn free_lock(place: &Path) -> Result<Option<File>, Refusal> {
     io(place, fs::create_dir_all(place))?;
