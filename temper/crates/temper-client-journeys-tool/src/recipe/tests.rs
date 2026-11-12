@@ -122,7 +122,7 @@ fn file_and_line_limits_are_inclusive() {
     read(&files, "bounded").expect("1024 records");
     bytes.extend_from_slice(b"web see \"One too many\"\n");
     put(&mut files, "bounded", "recipe", &bytes);
-    let refusal = read(&files, "bounded").err().expect("1025 records must be refused");
+    let refusal = read(&files, "bounded").map(|_| ()).expect_err("1025 records must be refused");
     assert_eq!(refusal.line, Some(1025));
     assert!(refusal.why.contains("1024"));
     let mut bytes = b"recipe 1\nweb see \"".to_vec();
@@ -136,7 +136,7 @@ fn file_and_line_limits_are_inclusive() {
     read(&files, "bounded").expect("no final newline");
     bytes.extend_from_slice(b"\n\n");
     put(&mut files, "bounded", "recipe", &bytes);
-    assert!(read(&files, "bounded").err().expect("64 KiB + 1 must be refused").why.contains("64 KiB"));
+    assert!(read(&files, "bounded").map(|_| ()).expect_err("64 KiB + 1 must be refused").why.contains("64 KiB"));
 }
 #[test]
 fn refuses_cycle_missing_parent_and_ninth_parent_at_the_after() {
