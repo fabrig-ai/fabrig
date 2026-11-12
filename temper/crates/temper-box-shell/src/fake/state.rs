@@ -55,7 +55,7 @@ pub(super) fn store(path: &Path, peer: &Peer) -> Result<(), String> {
     let image = peer.image().map_err(|why| format!("state {}: {why:?}", path.display()))?;
     let mut name =
         path.file_name().ok_or_else(|| format!("state {}: expected a file name", path.display()))?.to_os_string();
-    name.push(format!(".{}.tmp", std::process::id()));
+    name.push(format!(".{}.tmp", temper_forge_setup_shell::process::id()));
     let temporary = path.with_file_name(name);
     let mut file = OpenOptions::new()
         .write(true)
