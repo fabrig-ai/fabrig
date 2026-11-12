@@ -15,8 +15,8 @@ use temper_shell::{
     link_file,
 };
 pub mod host;
-pub mod upgrade;
 mod restart_fault;
+pub mod upgrade;
 pub use host::{Host, ending};
 
 /// jig's form of the three directories (temper/docs/design/protocol/components.md).

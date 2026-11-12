@@ -139,7 +139,7 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help", "versions"]);
+    assert_eq!(names, ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]);
     assert!(text.contains("temper-box [--config DIR]"));
 }
 

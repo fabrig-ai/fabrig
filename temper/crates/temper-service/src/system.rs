@@ -380,14 +380,23 @@ impl Service {
         let engine = self.engine.as_mut().expect("rehearsal has an engine");
         engine.domain.rehearse();
         crate::upgrade::prepare(engine, true);
-        engine.store.host.adopt_mode(directory, user, engine.store.installation,
-            jig_protocol_store::host::Adoption::Rehearse { scratch })
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Rehearse { scratch },
+        )
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
         let engine = self.engine.as_mut().expect("going back has an engine");
         crate::upgrade::prepare(engine, false);
-        engine.store.host.adopt_mode(directory, user, engine.store.installation, jig_protocol_store::host::Adoption::Back)
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Back,
+        )
     }
     /// Retained through teardown for shells and worlds alike.
     #[must_use]

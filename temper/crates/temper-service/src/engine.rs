@@ -722,7 +722,9 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::BackRefused { .. }
             | jig_protocol_store::Event::Closed { .. }) => {
                 let state = engine.upgrade.as_mut().expect("upgrade store event");
-                if let jig_protocol_store::Event::Closed { .. } = &event { state.closed = true; }
+                if let jig_protocol_store::Event::Closed { .. } = &event {
+                    state.closed = true;
+                }
                 if let jig_protocol_store::Event::Back { .. } | jig_protocol_store::Event::BackRefused { .. } = &event {
                     state.back = true;
                 }

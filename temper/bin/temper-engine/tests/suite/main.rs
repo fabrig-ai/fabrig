@@ -4,7 +4,9 @@ use temper_engine_shell::{ENGINE, commands};
 #[path = "../support/upgrade.rs"]
 mod upgrade;
 #[test]
-fn upgrade_refuses_an_empty_deployment_directory() { upgrade::empty_directory("temper-engine"); }
+fn upgrade_refuses_an_empty_deployment_directory() {
+    upgrade::empty_directory("temper-engine");
+}
 
 const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
@@ -111,8 +113,20 @@ const ROWS: &[Case] = &[
         empty,
         "temper-engine forge fetch: temper.json holds a worker alone; temper-worker serve runs it\n",
     ),
-    (&["upgrade", "--check"], None, 2, empty, "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n"),
-    (&["upgrade", "--back", "extra"], None, 2, empty, "temper-engine upgrade --back: invalid arguments\nusage: temper-engine upgrade --back [DIRECTORIES]\n"),
+    (
+        &["upgrade", "--check"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--back", "extra"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --back: invalid arguments\nusage: temper-engine upgrade --back [DIRECTORIES]\n",
+    ),
     (&["versions"], None, 0, versions, ""),
     (
         &["versions", "extra"],

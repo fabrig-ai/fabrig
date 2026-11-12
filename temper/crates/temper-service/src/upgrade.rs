@@ -13,7 +13,10 @@ pub struct Report {
     pub done: bool,
 }
 
-#[expect(clippy::struct_excessive_bools, reason = "operation kind, close request, close terminal and back terminal are independent")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "operation kind, close request, close terminal and back terminal are independent"
+)]
 pub(crate) struct State {
     pub(crate) report: Report,
     rehearsal: bool,
@@ -26,9 +29,17 @@ impl State {
     pub(crate) fn new(rehearsal: bool) -> Self {
         Self {
             report: Report {
-                events: Queue::uncapped(), elapsed: Duration::ZERO, end: None, restored: false, done: false,
+                events: Queue::uncapped(),
+                elapsed: Duration::ZERO,
+                end: None,
+                restored: false,
+                done: false,
             },
-            rehearsal, began: None, closing: false, closed: false, back: false,
+            rehearsal,
+            began: None,
+            closing: false,
+            closed: false,
+            back: false,
         }
     }
 }
@@ -42,6 +53,7 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
             unreachable!("only unstarted worker listeners at construction");
         };
     }
+    engine.clients.abort(true);
     engine.upgrade = Some(State::new(rehearsal));
 }
 
@@ -49,7 +61,9 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
 pub(crate) fn advance(engine: &mut Engine) -> bool {
     let Some(state) = &mut engine.upgrade else { return false };
     let began = *state.began.get_or_insert(engine.env.now);
-    if state.report.done { return false; }
+    if state.report.done {
+        return false;
+    }
     if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back) {
         state.report.restored = engine.domain.rehearsed();
         state.report.end = engine.end.take();
@@ -57,7 +71,9 @@ pub(crate) fn advance(engine: &mut Engine) -> bool {
         state.closing = true;
         if state.rehearsal && engine.store.host.started() {
             engine.store.host.ask(Request::Close { owner: Token::new(1) });
-        } else { state.closed = true; }
+        } else {
+            state.closed = true;
+        }
     }
     if state.closing && state.closed {
         state.report.done = true;

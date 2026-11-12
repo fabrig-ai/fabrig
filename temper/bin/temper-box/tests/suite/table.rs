@@ -4,7 +4,9 @@ use temper_box_shell::TABLE;
 #[path = "../../../temper-engine/tests/support/upgrade.rs"]
 mod upgrade;
 #[test]
-fn upgrade_refuses_an_empty_deployment_directory() { upgrade::empty_directory("temper-box"); }
+fn upgrade_refuses_an_empty_deployment_directory() {
+    upgrade::empty_directory("temper-box");
+}
 
 fn empty(text: &str) -> bool {
     text.is_empty()
@@ -78,8 +80,18 @@ const ROWS: &[Case] = &[
     ),
     (&["frobnicate"], 2, empty, "temper-box: no command frobnicate; temper-box --help lists them\n"),
     (&["init", "extra"], 2, empty, "temper-box init: invalid arguments\nusage: temper-box init [DIRECTORIES]\n"),
-    (&["upgrade", "--check"], 2, empty, "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n"),
-    (&["upgrade", "--back", "extra"], 2, empty, "temper-box upgrade --back: invalid arguments\nusage: temper-box upgrade --back [DIRECTORIES]\n"),
+    (
+        &["upgrade", "--check"],
+        2,
+        empty,
+        "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--back", "extra"],
+        2,
+        empty,
+        "temper-box upgrade --back: invalid arguments\nusage: temper-box upgrade --back [DIRECTORIES]\n",
+    ),
 ];
 
 #[test]

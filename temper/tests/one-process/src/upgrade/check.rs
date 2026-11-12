@@ -4,11 +4,16 @@ use crate::{fixtures, referee, stories, world};
 use jig_protocol_store::{Owner, PatchSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc, fmt::Write};
+use std::{cell::RefCell, collections::BTreeMap, fmt::Write, path::Path, rc::Rc};
 
 type Patches = Vec<(Owner, u32, jig_protocol_store::Counts)>;
 #[derive(Clone, Copy, Debug)]
-enum Until { Check, Back, Switched, Wires }
+enum Until {
+    Check,
+    Back,
+    Switched,
+    Wires,
+}
 
 fn configured(document: &[u8]) -> temper_service::Service {
     let mut document: serde_json::Value = serde_json::from_slice(document).expect("configuration");
@@ -17,9 +22,14 @@ fn configured(document: &[u8]) -> temper_service::Service {
     document.as_object_mut().expect("document").remove("world_settings");
     temper_service::startup::restoring_with(
         &serde_json::to_vec(&document).expect("configuration bytes"),
-        &jig_protocol_config::Directories::working(), &fixtures::files(),
-        Some(&temper_playground::documents::agent()), &fixtures::seeds(), None, &given,
-    ).unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
+        &jig_protocol_config::Directories::working(),
+        &fixtures::files(),
+        Some(&temper_playground::documents::agent()),
+        &fixtures::seeds(),
+        None,
+        &given,
+    )
+    .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
 }
 
 fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> (String, u8, Patches) {
@@ -42,7 +52,9 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
     for _ in 0..100_000 {
         temper_service::iterate(&mut service, sim.now(), sim.wall());
         while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Patched { of, patch, counts } = note { patched.push((of, patch, counts)); }
+            if let temper_service::Note::Patched { of, patch, counts } = note {
+                patched.push((of, patch, counts));
+            }
         }
         assert!(service.links().is_empty(), "no secret served before the switch/wires checkpoint");
         let wait = service.wait_state().engine.expect("engine state");
@@ -52,32 +64,54 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
             Until::Wires => wait.mark_durable,
         };
         if reached {
-            let report = service.upgrade_report().map_or_else(|| (String::new(), 0), |report| {
-                temper_service_shell::upgrade::lines("temper-box", report, &temper_shell::directories::Directories {
-                    config: b"/config".as_slice().into(), data: b"/data".as_slice().into(), cache: b"/cache".as_slice().into(),
-                    origins: [skein_shell::Origin::Flag; 3],
-                }, b"/state")
-            });
+            let report = service.upgrade_report().map_or_else(
+                || (String::new(), 0),
+                |report| {
+                    temper_service_shell::upgrade::lines(
+                        "temper-box",
+                        report,
+                        &temper_shell::directories::Directories {
+                            config: b"/config".as_slice().into(),
+                            data: b"/data".as_slice().into(),
+                            cache: b"/cache".as_slice().into(),
+                            origins: [skein_shell::Origin::Flag; 3],
+                        },
+                        b"/state",
+                    )
+                },
+            );
             // The world's fault is after Switched, with no wires IO submitted. A killed start closes its descriptors.
-            for handle in sim.cut(pid) { disk.close(Opened::new(handle.raw())); }
+            for handle in sim.cut(pid) {
+                disk.close(Opened::new(handle.raw()));
+            }
             sim.assert_no_open_fds(pid);
             return (report.0, report.1, patched);
         }
-        if let Some(end) = service.end() { assert!(service.upgrade_report().is_some(), "start refused: {end:?}"); }
+        if let Some(end) = service.end() {
+            assert!(service.upgrade_report().is_some(), "start refused: {end:?}");
+        }
         if let Until::Check | Until::Back = until {
             for submit in service.submissions().iter() {
-                if let skein_io::kernel::Op::Listen { .. } | skein_io::kernel::Op::Connect { .. }
-                    | skein_io::kernel::Op::Spawn { .. } = &submit.kind {
+                if let skein_io::kernel::Op::Listen { .. }
+                | skein_io::kernel::Op::Connect { .. }
+                | skein_io::kernel::Op::Spawn { .. } = &submit.kind
+                {
                     panic!("upgrade tool made an effect: {:?}", submit.kind);
                 }
             }
         }
         sim.submit(pid, service.submissions());
         skein_fake_machine::serve(disk, &mut sim);
-        if !service.work_pending(sim.now()) && sim.ready(pid) == 0 { assert!(sim.advance(), "a pending operation or deadline"); }
+        if !service.work_pending(sim.now()) && sim.ready(pid) == 0 {
+            assert!(sim.advance(), "a pending operation or deadline");
+        }
         sim.reap(pid, service.completions());
     }
-    panic!("upgrade {until:?} checkpoint did not settle: {:?}; report {:?}", service.wait_state(), service.upgrade_report());
+    panic!(
+        "upgrade {until:?} checkpoint did not settle: {:?}; report {:?}",
+        service.wait_state(),
+        service.upgrade_report()
+    );
 }
 
 type Image = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
@@ -91,14 +125,18 @@ fn image(disk: &mut Machine) -> Image {
 fn tree(disk: &mut Machine, root: Opened, prefix: &[u8], result: &mut Image) {
     loop {
         let entries = disk.list(root, 32, 4096).expect("directory entries");
-        if entries.is_empty() { return; }
+        if entries.is_empty() {
+            return;
+        }
         for (kind, name) in entries {
-            let mut path = prefix.to_vec(); path.extend_from_slice(&name);
+            let mut path = prefix.to_vec();
+            path.extend_from_slice(&name);
             let how = if kind == Is::Directory { How::DirectoryNoFollow } else { How::ReadNoFollow };
             let child = disk.open(root, &name, how).expect("image child");
             if kind == Is::Directory {
                 result.insert(path.clone(), None);
-                path.push(b'/'); tree(disk, child, &path, result);
+                path.push(b'/');
+                tree(disk, child, &path, result);
             } else {
                 let size = u32::try_from(disk.stat(child).size).expect("world file length");
                 result.insert(path, Some(disk.read(child, 0, size).expect("image bytes")));
@@ -111,10 +149,16 @@ fn tree(disk: &mut Machine, root: Opened, prefix: &[u8], result: &mut Image) {
 pub fn rehearsal_then_start_and_back() {
     let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
     let settings = fixtures::calm(fixtures::SEED);
-    let (first, mut disk, _) = world::with_patch_sets(temper_service::store::PATCH_SETS, || world::run_phase(
-        settings, scenario, world::Phase::Story, temper_playground::machine::fresh(), referee::Store::new(),
-        Rc::new(RefCell::new(referee::Run::default())),
-    ));
+    let (first, mut disk, _) = world::with_patch_sets(temper_service::store::PATCH_SETS, || {
+        world::run_phase(
+            settings,
+            scenario,
+            world::Phase::Story,
+            temper_playground::machine::fresh(),
+            referee::Store::new(),
+            Rc::new(RefCell::new(referee::Run::default())),
+        )
+    });
     assert!(first.drained);
     let document = fixtures::document();
     let original = image(&mut disk);
@@ -147,21 +191,44 @@ pub fn rehearsal_then_start_and_back() {
 pub fn golden(directory: &Path) {
     stories::set(world::Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
-    let mut document: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration")).expect("golden JSON");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
+            .expect("golden JSON");
     let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
     *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
-    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else { panic!("world defaults") };
-    for (name, count) in [("tasks.charters", jig.charters.len()), ("core.templates", jig.templates.len()), ("authority.executors", jig.rules.ceiling.delegation.kinds.len())] {
+    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
+        panic!("world defaults")
+    };
+    for (name, count) in [
+        ("tasks.charters", jig.charters.len()),
+        ("core.templates", jig.templates.len()),
+        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
+    ] {
         let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("count override");
         *bound = bound.as_u64().expect("count").max(u64::try_from(count).expect("default count")).into();
     }
     let mut disk = crate::golden::files::load(directory);
     let before = image(&mut disk);
-    let (report, code, patches) = drive(&mut disk, &serde_json::to_vec(&document).expect("configuration"), temper_service::store::PATCH_SETS, Until::Check);
+    let (report, code, patches) = drive(
+        &mut disk,
+        &serde_json::to_vec(&document).expect("configuration"),
+        temper_service::store::PATCH_SETS,
+        Until::Check,
+    );
     assert_eq!(code, 0, "{report}");
     let mut actual = String::new();
     for (of, patch, counts) in patches {
-        writeln!(actual, "{} {patch} {} {}", temper_service_shell::upgrade::owner(of), counts.records, counts.commits).expect("count line");
+        assert!(
+            report.contains(&format!(
+                "patched {} {patch}: {} records in {} commits",
+                temper_service_shell::upgrade::owner(of),
+                counts.records,
+                counts.commits
+            )),
+            "{report}"
+        );
+        writeln!(actual, "{} {patch} {} {}", temper_service_shell::upgrade::owner(of), counts.records, counts.commits)
+            .expect("count line");
     }
     assert_eq!(actual, std::fs::read_to_string(directory.join("patched.txt")).expect("golden patch counts"));
     assert!(report.contains("patches and restores pass"), "{report}");

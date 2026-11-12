@@ -151,7 +151,9 @@ impl skein_shell::Host for Host {
             }
         }
         while let Some(note) = self.service.notes().pop() {
-            if self.service.upgrade_report().is_some() { continue; }
+            if self.service.upgrade_report().is_some() {
+                continue;
+            }
             let lines = note_line(&self.binary, note);
             eprint!("{lines}");
         }
@@ -474,7 +476,13 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
             )
         }
         temper_service::Note::Patched { of, patch, counts } => {
-            format!("{binary} serve: patched {} {patch}: {} records in {} commits\n", crate::upgrade::owner(of), counts.records, counts.commits)
+            let binary = if binary == "temper" { "temper-box" } else { binary };
+            format!(
+                "{binary} serve: patched {} {patch}: {} records in {} commits\n",
+                crate::upgrade::owner(of),
+                counts.records,
+                counts.commits
+            )
         }
         temper_service::Note::Listening { listener, addr } => {
             let name = match listener {
