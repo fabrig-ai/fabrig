@@ -368,7 +368,9 @@ fn machine_owned_sign_in_is_refused_at_its_path() {
         );
         let input = fixtures::with(&input, b"application.machine.owned", owned.as_bytes());
         let input = fixtures::with(&input, b"application.sign_in", sign_in.as_bytes());
-        let problems = crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap_err();
+        let problems =
+            crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working())
+                .unwrap_err();
         assert_eq!(core::str::from_utf8(&crate::startup::lines(&problems)).unwrap(), expected);
     }
 }
@@ -387,7 +389,9 @@ fn sign_in_members_login_refuses_the_bot_without_any_forge_entries() {
             r#"{{"google":{{"provider":3,"client":"client","secret":"google.secret","endpoints":null}},"members":[{{"address":"ada@localhost","login":"{login}"}}]}}"#
         );
         let input = fixtures::with(&input, b"application.sign_in", sign_in.as_bytes());
-        let problems = crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap_err();
+        let problems =
+            crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working())
+                .unwrap_err();
         assert!(
             core::str::from_utf8(&crate::startup::lines(&problems))
                 .unwrap()
@@ -407,7 +411,8 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     let input = super::stock::generated();
     let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
     let input = fixtures::with(&input, b"application.machine.owned", br#"{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","person":{"login":"ada","email":"ada@localhost"},"forgejo":"fetched","runner":null,"sign_in":"forgejo"}"#);
-    let named = crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
+    let named =
+        crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
     assert!(named.sign_in.is_none());
     let mut config = fixtures::engine();
     config.jig = super::stock::engine(&input);
@@ -481,7 +486,8 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
 fn box_entries(service: &mut crate::Service, key: bool) {
     let mut settings = fixtures::engine();
     let input = super::stock::generated();
-    let named = crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
+    let named =
+        crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
     settings.machine = named.machine;
     if key {
         settings.machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());

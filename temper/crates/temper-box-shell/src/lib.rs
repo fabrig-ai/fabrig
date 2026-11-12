@@ -346,10 +346,7 @@ pub fn run(
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            return forge::command(
-                "temper",
-                forge::Command::ForgeChild { parent, signal, program, arguments },
-            );
+            return forge::command("temper", forge::Command::ForgeChild { parent, signal, program, arguments });
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
             return forge::command(
