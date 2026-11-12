@@ -197,7 +197,8 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
             }
-            Tool::Follow(_) | Tool::Finding(_)
+            Tool::Follow(_)
+            | Tool::Finding(_)
             | Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
@@ -238,7 +239,8 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
             }
         }
         Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
-        Tool::Follow(_) | Tool::Finding(_)
+        Tool::Follow(_)
+        | Tool::Finding(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -288,7 +290,8 @@ pub(crate) fn relay_call(
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
-        Tool::Follow(_) | Tool::Finding(_)
+        Tool::Follow(_)
+        | Tool::Finding(_)
         | Tool::Decided(_)
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -350,7 +353,8 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             }
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
-        Tool::Follow(_) | Tool::Finding(_)
+        Tool::Follow(_)
+        | Tool::Finding(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -538,7 +542,9 @@ pub(crate) fn connector_answer(domain: &Domain, key: crate::CallKey) -> Option<C
 
 pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     match payload {
-        forge::CallPayload::Follow { follow, refusal } => CallAnswer::Follow(Box::new(crate::FollowToolAnswer::Write { follow, refusal })),
+        forge::CallPayload::Follow { follow, refusal } => {
+            CallAnswer::Follow(Box::new(crate::FollowToolAnswer::Write { follow, refusal }))
+        }
         forge::CallPayload::Finding(reply) => CallAnswer::Finding(Box::new(crate::FindingToolAnswer::Write(*reply))),
         forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
@@ -559,7 +565,9 @@ pub(crate) fn keep_connector_answer(
     let payload = match answer {
         CallAnswer::Follow(answer) => match *answer {
             crate::FollowToolAnswer::Write { follow, refusal } => forge::CallPayload::Follow { follow, refusal },
-            crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => unreachable!("follow reads are not recorded"),
+            crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => {
+                unreachable!("follow reads are not recorded")
+            }
         },
         CallAnswer::Finding(answer) => match *answer {
             crate::FindingToolAnswer::Write(reply) => forge::CallPayload::Finding(Box::new(reply)),

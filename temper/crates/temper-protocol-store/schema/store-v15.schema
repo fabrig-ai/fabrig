@@ -426,8 +426,7 @@ record FindingRefused { why: FindingRefusal }
 enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused }
 
 record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }
-record CallFollow { follow: u32 refusal: option bytes 8192 }
-enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided, finding: boxed FindingReply, follow: CallFollow }
+enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided, finding: boxed FindingReply }
 record Call { key: NamedCall answer: CallPayload }
 
 record AreaTask { number: u64 }

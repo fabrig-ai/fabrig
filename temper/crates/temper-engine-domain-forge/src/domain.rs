@@ -627,7 +627,7 @@ impl Domain {
             crate::CallPayload::Read(_)
             | crate::CallPayload::Refused(_)
             | crate::CallPayload::Follow { .. }
-                | crate::CallPayload::Finding(_)
+            | crate::CallPayload::Finding(_)
             | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")
             }

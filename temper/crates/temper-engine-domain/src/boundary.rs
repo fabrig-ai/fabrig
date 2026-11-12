@@ -183,15 +183,30 @@ pub enum Tool {
     Finding(FindingCall),
     Follow(FollowCall),
     /// Read related task specifications or proven descendant reports.
-    ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
+    ReadTask {
+        task: u64,
+        field: jig_domain_core::reads::TaskTextField,
+        from: u64,
+    },
     /// Read settings without retaining a named-call record.
-    Settings { read: jig_domain_core::SettingsRead, from: u32 },
+    Settings {
+        read: jig_domain_core::SettingsRead,
+        from: u32,
+    },
     /// Read by one address line, from a byte offset of its answer (domain/agent/ask-temper.md, 1).
-    See { line: Box<[u8]>, from: u32 },
+    See {
+        line: Box<[u8]>,
+        from: u32,
+    },
     /// Write the chat's one document whole, or one section of it (domain/agent/ask-temper.md, 3).
-    Document { action: DocumentAction, body: Box<[u8]> },
+    Document {
+        action: DocumentAction,
+        body: Box<[u8]>,
+    },
     /// Keep, change or drop a line about the chat's person (domain/agent/ask-temper.md, 4).
-    Remember { action: RememberAction },
+    Remember {
+        action: RememberAction,
+    },
     /// Propose whole settings to the deployment's owners.
     ProposeSettings {
         against: u32,
@@ -202,34 +217,81 @@ pub enum Tool {
         more: bool,
     },
     /// Propose a whole settings file held in an accessible note at this revision.
-    ProposeSettingsNote { against: u32, note: u64, revision: u32, reason: Box<[u8]> },
+    ProposeSettingsNote {
+        against: u32,
+        note: u64,
+        revision: u32,
+        reason: Box<[u8]>,
+    },
     /// Write or correct one scoped note by the revision this run recalled.
-    Note { entry: jig_domain_notes::New, recalled: Option<u32> },
+    Note {
+        entry: jig_domain_notes::New,
+        recalled: Option<u32>,
+    },
     /// Replace a range of a note's body lines by the revision this run recalled.
-    NoteLines { entry: jig_domain_notes::New, recalled: u32, range: jig_domain_notes::LineRange },
+    NoteLines {
+        entry: jig_domain_notes::New,
+        recalled: u32,
+        range: jig_domain_notes::LineRange,
+    },
     /// Read one bounded page of notes by name or description.
-    Recall { by: jig_domain_notes::Recall, page: u32 },
+    Recall {
+        by: jig_domain_notes::Recall,
+        page: u32,
+    },
     /// Queue one checked forge write with a root-derived idempotency key.
-    EffectForge { repository: skein_forge::api::Repository, resource: forge::What, write: Box<skein_forge::api::Write> },
+    EffectForge {
+        repository: skein_forge::api::Repository,
+        resource: forge::What,
+        write: Box<skein_forge::api::Write>,
+    },
     /// A host read resolved in its project before resource authority admission.
     /// A zero file/job `max_bytes` asks for the configured read limit.
-    ReadNamed { repository: Option<Box<[u8]>>, read: skein_forge::api::Read },
+    ReadNamed {
+        repository: Option<Box<[u8]>>,
+        read: skein_forge::api::Read,
+    },
     /// Read one adopted forge resource through the connector's bounded fresh lane.
-    ReadForge { repository: skein_forge::api::Repository, read: skein_forge::api::Read },
+    ReadForge {
+        repository: skein_forge::api::Repository,
+        read: skein_forge::api::Read,
+    },
     /// Ask a covering ancestor or person to carry one action the caller cannot take alone.
-    Propose { action: ProposedAction, reason: Box<[u8]>, as_holder: bool },
+    Propose {
+        action: ProposedAction,
+        reason: Box<[u8]>,
+        as_holder: bool,
+    },
     /// Decide one pending proposal currently addressed to this task.
-    Decide { proposer: u64, proposal: u64, decision: ProposalChoice },
+    Decide {
+        proposer: u64,
+        proposal: u64,
+        decision: ProposalChoice,
+    },
     /// Withdraw this task's still-pending proposal.
-    Withdraw { proposal: u64 },
+    Withdraw {
+        proposal: u64,
+    },
     /// Resolve one held delegate currently waiting at this task.
-    DecideEscalation { task: u64, revision: u64, decision: EscalationChoice },
+    DecideEscalation {
+        task: u64,
+        revision: u64,
+        decision: EscalationChoice,
+    },
     /// Expand a goal in the run's words into one ordinary named delegation.
-    Goal { words: Box<[u8]>, advisor: bool, agree: bool },
+    Goal {
+        words: Box<[u8]>,
+        advisor: bool,
+        agree: bool,
+    },
     /// Expand a project repository change into one ordinary named delegation.
-    Change { changes: Box<[ChangeCall]> },
+    Change {
+        changes: Box<[ChangeCall]>,
+    },
     /// Create one authorized batch of direct task delegates.
-    Delegate { batch: Box<[Delegate]> },
+    Delegate {
+        batch: Box<[Delegate]>,
+    },
     /// Amend one live delegate after authority fitting and finite source checks.
     Amend {
         target: u64,
@@ -239,17 +301,37 @@ pub enum Tool {
         keep_parameters: bool,
     },
     /// Cancel one live delegate's whole subtree with a bounded reason.
-    Cancel { target: u64, reason: Box<[u8]> },
+    Cancel {
+        target: u64,
+        reason: Box<[u8]>,
+    },
     /// Release one held delegate.
-    Release { target: u64, revision: u64, again: Option<bool> },
+    Release {
+        target: u64,
+        revision: u64,
+        again: Option<bool>,
+    },
     /// Send whole bounded words to a task the caller references.
-    Message { target: u64, form: MessageForm, words: Box<[u8]> },
+    Message {
+        target: u64,
+        form: MessageForm,
+        words: Box<[u8]>,
+    },
     /// Give two tasks referenced by the caller reciprocal references.
-    Introduce { left: u64, right: u64 },
+    Introduce {
+        left: u64,
+        right: u64,
+    },
     /// Add one bounded task-state or timer interest.
-    Subscribe { kind: tasks::SubscriptionKind },
+    Subscribe {
+        kind: tasks::SubscriptionKind,
+    },
     /// Subscribe this task to typed connector news, with overlap paths for landings.
-    SubscribeForge { topic: forge::Topic, own_change: Option<u64>, paths: Box<[Box<[u8]>]> },
+    SubscribeForge {
+        topic: forge::Topic,
+        own_change: Option<u64>,
+        paths: Box<[Box<[u8]>]>,
+    },
     /// Resolve an owner/name or the project's sole readable adoption before subscribing.
     SubscribeNamedForge {
         repository: Option<Box<[u8]>>,
@@ -258,7 +340,9 @@ pub enum Tool {
         paths: Box<[Box<[u8]>]>,
     },
     /// Remove one current interest by its root-issued number.
-    Unsubscribe { subscription: u64 },
+    Unsubscribe {
+        subscription: u64,
+    },
     /// Root-normalized whole-batch shape refusal after bounded ingress.
     Rejected(tasks::Refusal),
     /// Root-normalized message shape refusal before retaining its words.
@@ -284,7 +368,7 @@ pub enum FollowCall {
 pub enum FollowToolAnswer {
     Write { follow: u32, refusal: Option<Box<[u8]>> },
     List(forge::FollowsView),
-    Show { follow: u32, view: Option<forge::FollowView> },
+    Show { follow: u32, view: Option<Box<forge::FollowView>> },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).

@@ -6,8 +6,8 @@ use temper_engine_domain_forge::follows::FollowAct;
 
 pub(crate) const SPEC: Spec = Spec {
     name: b"follow",
-    description: b"start: follow commit; hold: follow commit reason; skip: follow commit reason; merge: follow commits (two or more, queue order); list: no members; show: follow. Act on your own follows; list and show read your project's follows.",
-    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"enum":["start","hold","skip","merge","list","show"]},"follow":{"type":"integer","minimum":1,"maximum":4294967295},"commit":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"commits":{"type":"array","minItems":2,"items":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}},"reason":{"type":"string","minLength":1}},"required":["act"],"oneOf":[{"properties":{"act":{"enum":["start"]}},"required":["follow","commit"]},{"properties":{"act":{"enum":["hold","skip"]}},"required":["follow","commit","reason"]},{"properties":{"act":{"enum":["merge"]}},"required":["follow","commits"]},{"properties":{"act":{"enum":["list"]}}},{"properties":{"act":{"enum":["show"]}},"required":["follow"]}]}"#,
+    description: b"start: follow commit; hold/skip: follow commit reason; merge: follow commits (2+, queue order); list: project's follows; show: follow. Acts are owner's.",
+    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"enum":["start","hold","skip","merge","list","show"]},"follow":{"type":"integer","minimum":1,"maximum":4294967295},"commit":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"commits":{"type":"array","minItems":2,"maxItems":32,"items":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}},"reason":{"type":"string","minLength":1,"maxLength":8192}},"required":["act"],"oneOf":[{"properties":{"act":{"enum":["start"]}},"required":["follow","commit"]},{"properties":{"act":{"enum":["hold","skip"]}},"required":["follow","commit","reason"]},{"properties":{"act":{"enum":["merge"]}},"required":["follow","commits"]},{"properties":{"act":{"enum":["list"]}}},{"properties":{"act":{"enum":["show"]}},"required":["follow"]}]}"#,
     // One declaration covers writes and reads; the root serves list/show without a durable call.
     effect: smith_domain_run::HostEffect::Write,
     offer: crate::calls::Offer::Delegate,
@@ -42,15 +42,15 @@ pub(crate) fn decode(value: &Value) -> Result<FollowCall, Problem> {
         b"hold" | b"skip" => {
             let after = commit(value.required(b"commit")?)?;
             let reason = value.required(b"reason")?.text(b"reason")?;
-            if reason.is_empty() {
-                return Err(Problem::Range(b"reason: nonempty"));
+            if reason.is_empty() || reason.len() > 8192 {
+                return Err(Problem::Range(b"reason: 1 to 8192 UTF-8 bytes"));
             }
             if act.as_ref() == b"hold" { FollowAct::Hold { after, reason } } else { FollowAct::Skip { after, reason } }
         }
         b"merge" => {
             let values = value.required(b"commits")?.array(b"commits")?;
-            if values.len() < 2 {
-                return Err(Problem::Range(b"commits: at least two"));
+            if values.len() < 2 || values.len() > 32 {
+                return Err(Problem::Range(b"commits: 2 to 32"));
             }
             let mut afters = List::uncapped();
             for value in values {
