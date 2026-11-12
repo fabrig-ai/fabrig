@@ -464,6 +464,32 @@ process has exited and its tree is empty. temper's choices:
 - **The repository's checks are a long operation** the run reports, so
   the watchdog stretches to their span: a two-hour test suite is not a
   hang.
+- **A check's build directory is held for the whole check.** A
+  repository's check builds and then runs what it built, after cargo has
+  exited. A deployment whose cargo on the agent's `PATH` lends a build
+  directory only while a cargo command runs could reclaim it between the
+  two, and a test's executable would vanish under the check. The worker
+  gives a check nothing but the agent's `environment`
+  (`../../protocol/configuration/README.md`, section 4), so the hold is the
+  check's and that environment's: one hold for the check, taken by its
+  outermost entry point from before its first build to its last test,
+  released at its end or by its process's death. fabrig's own check takes
+  the hold its environment names in `TIERS_HOLD` (`tools/tiers/design.md`,
+  section 3; `tools/pre-pr/design.md`, section 4), and a deployment that
+  lends build directories names its hold there.
+- **What a test writes reaches the checkout.** A run's commands and
+  checks run in place, in the workspace's checkout (smith's
+  `protocol/agent.md`, section 2), and its delivery takes that tree, so a
+  file a test writes under its package, a recorded fixture re-recorded by
+  `SKEIN_CODEGEN_WRITE=1` among them, is in the change as any edit is,
+  once the test finds its package when it runs
+  (skein/docs/foundation/testing-strategy.md, section 8, *A test reads its
+  paths when it runs*). A path compiled in names the checkout the
+  executable was built from, which a build cache shared between
+  checkouts, or a target directory kept apart from the checkout, can make
+  another one's: the file goes there, and never reaches the change. A
+  merge job re-records the recordings it knows in its own job's checkout
+  and delivers them itself (`../../protocol/tooling.md`, 4.1).
 - **Its limits** are smith's host limits, and the bounds the hello
   states, from the agent's configuration (`../../protocol/configuration/README.md`,
   section 4). The one number that isn't the agent's is how many agents

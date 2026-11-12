@@ -440,6 +440,32 @@ whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
 
+A close job held for its failures stays its change's delegate while it
+lives (2026-11-12). Its change holds at producing on that failure, as on
+a producer failed for good, carrying its words; the job's escalation
+reaches the goal above as any held task's, so either task may be
+released:
+
+- **The job released** runs again as its change's close job, in the
+  change's checkout as on its first attempt: the change's repository,
+  its own branch writable, made at the goal's branch's tip
+  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`). Its end is
+  the change's producer's result, and it ends the change's hold on that
+  failure with no release of the change, as a delegate ending ends a
+  stall at its wait (a result that arrives on a held change, above): a
+  head pushed opens the pull request, nothing staged ends the change with
+  no change, and a failure for good holds the change again with the new
+  words.
+- **The change released** decides afresh as at producing, with a fresh
+  close job; the held one is cancelled once the fresh one is made and
+  before it starts, its reason `superseded by its change's fresh close
+  job, task M`, M the fresh job's task, so that no close job its change
+  no longer names runs.
+
+A close job reserves none of its change's spend: it runs no model and
+makes no children, so a held one leaves its change's budget whole for a
+fresh one (2026-11-12). A merge job's reservation is unchanged.
+
 ## 1. Open questions
 
 - **A gate's live run past the stall** (`repairs.md`): a review's task stays a wait

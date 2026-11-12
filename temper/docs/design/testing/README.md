@@ -7,7 +7,8 @@ the referee, the two suites, and where a failure is fixed. This document
 keeps what is temper's: its tiers (section 2), its neighbours and their
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
 (`README.md`, section 4), what its worlds check beyond the strategy (`checks.md`), its
-layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), and what
+layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), QA
+after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).
 
 ## 1. In one page
@@ -528,6 +529,7 @@ tests/*/*/tests/suite/*.rs                a world's focused tests
 tests/*/*/tests/suite/fuzzy/*.rs          its fuzzy tests: random worlds, domains driven at random
 tests/fake-checkout                 temper-fake-checkout: working trees' git, over skein's fake checkout
 crates/temper-twin-tool             the live run's twin: bin/temper-twin, selected transcripts as a fake LLM document (fakes.md, 1)
+crates/temper-qa-tool               QA after landing: bin/temper-qa, main's landings triaged into cases and builds kept for them (qa/README.md)
 crates/temper-git-transcripts-tool  git's transcripts, recorded by bin/temper-git-transcripts against skein's throwaway Forgejo (../protocol/git.md, section 9)
 crates/temper-client-gallery-tool    bin/temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/web/gallery.md), its tests in the view's world
 crates/temper-client-journeys-tool   recorded walks replayed through the shipped hosts and printed (../client/web/journeys.md; ../client/tui/journeys.md), run by bin/temper-client-journeys, its test reprinting each committed journey

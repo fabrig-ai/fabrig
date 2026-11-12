@@ -1199,6 +1199,7 @@ dependencies = [
  "jig-client",
  "skein-codec",
  "skein-lib",
+ "skein-scratch",
  "skein-ui",
  "skein-ui-text",
 ]
@@ -3658,6 +3659,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-oauth",
+ "skein-scratch",
  "skein-sim",
  "skein-world",
 ]
@@ -5235,6 +5237,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-lib",
+ "skein-scratch",
  "temper-test-env",
 ]
 
@@ -6204,6 +6207,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-playground",
+ "skein-scratch",
  "skein-sim",
  "skein-sim-world",
  "skein-ui",
@@ -6276,6 +6280,28 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-qa"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-qa-tool",
+]
+
+[[package]]
+name = "temper-qa-tool"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "skein-scratch",
+ "skein-shell",
+ "temper-test-env",
+ "temper-version",
 ]
 
 [[package]]
@@ -6568,6 +6594,7 @@ dependencies = [
 name = "temper-test-env"
 version = "0.0.0"
 dependencies = [
+ "skein-scratch",
  "skein-shell",
 ]
 
