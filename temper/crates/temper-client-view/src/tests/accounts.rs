@@ -416,7 +416,11 @@ fn a_key_only_card_names_the_brand_and_holder_once() {
             assert!(row.is_some(), "missing {name} · held by Alice");
         }
         let row = root.pages().accounts_document(root.client()).unwrap().accounts.get(0).unwrap();
-        assert_eq!(crate::pages::accounts::account_words(&root, &fixtures::words(), row, row.sources.get(0).unwrap(), false).as_ref(), name.as_bytes());
+        assert_eq!(
+            crate::pages::accounts::account_words(&root, &fixtures::words(), row, row.sources.get(0).unwrap(), false)
+                .as_ref(),
+            name.as_bytes()
+        );
     }
 }
 /// The key account's row controls are view reads (temper/docs/design/client/web/testing.md, 6).
