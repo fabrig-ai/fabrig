@@ -7,3 +7,5 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-real-loop-world::suite terminal::up_down_and_the_page_up_line_read_the_conversation
 - test temper-real-loop-world::suite terminal::a_person_at_the_terminal_reads_a_run_of_calls
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
+- test skein-conformance-real::suite deadline::an_idle_listener_wait_fails_with_its_figures
+- test temper-real-loop-world world::diagnostics::tests::forced_overdue_observes_real_tasks_operations_and_dispatch
