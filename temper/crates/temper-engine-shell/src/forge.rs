@@ -173,6 +173,9 @@ fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
     skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
 }
+/// A binary shell supplies the checked document shape it serves (protocol/services.md, 7).
+pub type Reader = fn(&[u8], &jig_protocol_config::Directories) -> Result<super::setup::Deployment, String>;
+
 pub fn start(
     directories: &super::Directories,
     arguments: &[OsString],
@@ -181,12 +184,33 @@ pub fn start(
 ) -> Result<u8, Refused> {
     start_with_binary("temper", directories, arguments, ssl_cert_file, environment)
 }
+pub fn start_with_reader(
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    reader: Reader,
+) -> Result<u8, Refused> {
+    start_with_binary_reader("temper", directories, arguments, ssl_cert_file, environment, reader)
+}
+
 fn start_with_binary(
     binary: &str,
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
+) -> Result<u8, Refused> {
+    start_with_binary_reader(binary, directories, arguments, ssl_cert_file, environment, super::setup::check)
+}
+
+fn start_with_binary_reader(
+    binary: &str,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    reader: Reader,
 ) -> Result<u8, Refused> {
     let usage = || Refused {
         verb: "prepare",
@@ -220,7 +244,7 @@ fn start_with_binary(
     let listener = which.map(|which| inherited_listener(which, environment)).transpose().map_err(refused)?.flatten();
     let bytes = directories.read().map_err(refused)?;
     let super::setup::Deployment { named, checked, .. } =
-        super::setup::check(&bytes, &jig_directories(directories)).map_err(refused)?;
+        reader(&bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
         return super::forge_sign_in::run(directories, &bytes, &named, number, environment).map_err(refused);
     }
@@ -368,7 +392,19 @@ pub fn run(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
 ) -> u8 {
-    match start_with_binary(binary, directories, arguments, ssl_cert_file, environment) {
+    run_with_reader(binary, directories, arguments, ssl_cert_file, environment, super::setup::check)
+}
+
+#[must_use]
+pub fn run_with_reader(
+    binary: &str,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    reader: Reader,
+) -> u8 {
+    match start_with_binary_reader(binary, directories, arguments, ssl_cert_file, environment, reader) {
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
@@ -614,9 +650,13 @@ pub fn configure(
 }
 
 pub fn command(binary: &str, command: Command) -> Result<u8, String> {
+    command_with_reader(binary, command, super::setup::check)
+}
+
+pub fn command_with_reader(binary: &str, command: Command, reader: Reader) -> Result<u8, String> {
     match command {
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            Ok(run(binary, &directories, &arguments, ssl_cert_file, &environment))
+            Ok(run_with_reader(binary, &directories, &arguments, ssl_cert_file, &environment, reader))
         }
         Command::ForgeChild { parent, signal, program, arguments } => {
             let why = temper_forge_setup_shell::process::child(parent, signal, &program, &arguments);

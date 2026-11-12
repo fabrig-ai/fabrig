@@ -11,7 +11,7 @@ use skein_lib::{List, Queue, Time, Token, Wall};
 /// The engine root, its protocol children and the kernel queues.
 #[expect(missing_debug_implementations, reason = "the service owns account token records")]
 pub struct Service {
-    pub(crate) engine: Option<temper_engine_service::Engine>,
+    pub(crate) engine: Option<Box<temper_engine_service::Engine>>,
     pub(crate) worker: Option<Worker>,
     ending: Option<End>,
     notes: Queue<crate::Note>,
@@ -174,7 +174,7 @@ impl Service {
             if worker.is_some() { program_login } else { None },
         )?;
         Ok(Self {
-            engine: Some(engine),
+            engine: Some(Box::new(engine)),
             worker,
             ending: None,
             notes: Queue::with_capacity(notes),

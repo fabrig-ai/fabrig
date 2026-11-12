@@ -107,3 +107,9 @@ fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
         .member(document, name)
         .expect("checked member")
 }
+
+/// Give the shared forge commands the engine member of this shell's checked document.
+pub fn engine(bytes: &[u8], directories: &config::Directories) -> Result<temper_engine_shell::setup::Deployment, String> {
+    let Deployment { named, checked, limits, demo } = check(bytes, directories)?;
+    Ok(temper_engine_shell::setup::Deployment { named: named.into_engine(), checked, limits, demo })
+}

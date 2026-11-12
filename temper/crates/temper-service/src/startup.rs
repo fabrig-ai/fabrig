@@ -906,3 +906,29 @@ pub fn worker_alone(
         Err(found) => Err(problems::from_worker(found)),
     }
 }
+
+impl Named {
+    /// The checked engine member, without the local worker declaration.
+    #[must_use]
+    pub fn into_engine(self) -> temper_engine_service::startup::Named {
+        temper_engine_service::startup::Named {
+            machine: self.machine,
+            files: self.files,
+            asked_files: self.asked_files,
+            redirects: self.redirects,
+            deployment: self.deployment,
+            llm: self.llm,
+            projects: self.projects,
+            forges: self.forges,
+            identities: self.identities,
+            clients: self.clients,
+            link: self.link,
+            public: self.public,
+            sign_in: self.sign_in,
+            bundle: self.bundle,
+            bundle_limits: self.bundle_limits,
+            webhooks: self.webhooks,
+            overrides: self.overrides,
+        }
+    }
+}

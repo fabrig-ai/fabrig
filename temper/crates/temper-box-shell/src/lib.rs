@@ -29,7 +29,7 @@ pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub use temper_engine_shell::forge;
+pub mod forge;
 use temper_engine_shell::{address, forge_sign_in, login_passwd};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
@@ -346,13 +346,13 @@ pub fn run(
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            return temper_engine_shell::forge::command(
+            return forge::command(
                 "temper",
                 forge::Command::ForgeChild { parent, signal, program, arguments },
             );
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            return temper_engine_shell::forge::command(
+            return forge::command(
                 "temper",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
