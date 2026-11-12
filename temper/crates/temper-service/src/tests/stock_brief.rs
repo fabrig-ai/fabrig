@@ -244,7 +244,11 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         let rendered = run::brief_bytes(&charter.brief).unwrap();
-        eprintln!("whole brief charter {number} open={open}: host bound={} non-brief={} room={remaining} rendered={rendered}", limits.host_part, limits.host_part - u64::from(remaining));
+        eprintln!(
+            "whole brief charter {number} open={open}: host bound={} non-brief={} room={remaining} rendered={rendered}",
+            limits.host_part,
+            limits.host_part - u64::from(remaining)
+        );
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));

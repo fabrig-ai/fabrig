@@ -466,7 +466,13 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert!(temper_engine_smith::charter(&coordinator).grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding"));
+    assert!(
+        temper_engine_smith::charter(&coordinator)
+            .grants
+            .host_tools
+            .iter()
+            .any(|tool| tool.name.as_ref() == b"finding")
+    );
     repair_change(&mut driver, &coordinator, 43);
 }
 

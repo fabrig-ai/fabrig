@@ -61,13 +61,32 @@ fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
         if size <= bound {
             decoded.expect("text at its byte bound decodes");
         } else {
-            assert_eq!(decoded, Err(Problem::Range(if field == "title" { b"title: 1 to 200 UTF-8 bytes, no control characters" } else { b"body: at most 4,096 UTF-8 bytes" })));
+            assert_eq!(
+                decoded,
+                Err(Problem::Range(if field == "title" {
+                    b"title: 1 to 200 UTF-8 bytes, no control characters"
+                } else {
+                    b"body: at most 4,096 UTF-8 bytes"
+                }))
+            );
         }
     }
     let schema = crate::json::parse(crate::finding::SPEC.schema).unwrap();
     let properties = schema.required(b"properties").unwrap();
     assert_eq!(properties.required(b"act").unwrap().required(b"enum").unwrap().array(b"enum").unwrap().len(), 7);
-    for field in [b"kind".as_slice(), b"severity", b"area", b"title", b"body", b"number", b"why", b"goal", b"reason", b"state", b"mine"] {
+    for field in [
+        b"kind".as_slice(),
+        b"severity",
+        b"area",
+        b"title",
+        b"body",
+        b"number",
+        b"why",
+        b"goal",
+        b"reason",
+        b"state",
+        b"mine",
+    ] {
         assert!(properties.field(field).unwrap().is_some());
     }
 }
