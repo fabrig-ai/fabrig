@@ -30,14 +30,42 @@ fn main() -> ExitCode {
             _ => {}
         }
     }
-    fixture(mode.as_deref(), &mut args)
+    owned_fixture(mode, &mut args)
+}
+
+// No fixture outlives its test (skein/docs/design/testing/README.md, 5).
+// The marker carries the original owner across exec without changing the
+// public invocation or the parent-death control modes.
+fn owned_fixture(mut mode: Option<String>, args: &mut std::env::Args) -> ExitCode {
+    let armed = mode.as_deref() == Some("owned");
+    let owner = if armed {
+        let owner = args.next().expect("owner PID").parse().expect("numeric owner PID");
+        mode = args.next();
+        owner
+    } else {
+        std::os::unix::process::parent_id()
+    };
+    #[cfg(target_os = "linux")]
+    if !armed
+        && matches!(
+            mode.as_deref(),
+            Some("never" | "fork-live" | "supervise-term" | "supervise-ignore" | "supervise-grandchild")
+        )
+    {
+        let mut command = Command::new(std::env::current_exe().expect("fixture path"));
+        command.args(["owned", &owner.to_string(), mode.as_deref().expect("owned mode")]).args(args);
+        let error = skein_shell::exec_dying_with_parent(command, owner, skein_io::kernel::Signal::Kill);
+        eprintln!("fixture owner exec refused: {error}");
+        return ExitCode::FAILURE;
+    }
+    fixture(mode.as_deref(), args, owner)
 }
 
 #[expect(
     clippy::zombie_processes,
     reason = "the process-tree fixture deliberately leaves a descendant for the keeper to settle"
 )]
-fn fixture(mode: Option<&str>, args: &mut std::env::Args) -> ExitCode {
+fn fixture(mode: Option<&str>, args: &mut std::env::Args, owner: u32) -> ExitCode {
     match mode {
         Some("echo") => {
             let input = args.next().expect("input descriptor");
@@ -111,19 +139,9 @@ fn fixture(mode: Option<&str>, args: &mut std::env::Args) -> ExitCode {
         Some(mode @ ("supervise-term" | "supervise-ignore" | "supervise-grandchild")) => {
             let mut command = Command::new("/usr/bin/setsid");
             command.arg("/bin/sh");
-            let script = match mode {
-                "supervise-term" => {
-                    "trap 'printf tree-term\\n >&2; exit 0' TERM; printf 'ready\\n'; while :; do :; done"
-                }
-                "supervise-ignore" => "trap '' TERM; printf 'ready\\n'; exec sleep 60",
-                "supervise-grandchild" => {
-                    // The leaf reports its PID before readiness can prompt TERM.
-                    r#"/usr/bin/setsid /bin/sh -c "trap 'printf tree-term\\n >&2; exit 0' TERM; printf 'grandchild:%s\\n' \"\$\$\" >&2; printf 'ready\\n'; while :; do :; done" & wait"#
-                }
-                _ => unreachable!("the fixture selected its supervised mode"),
-            };
+            let script = supervised_script(mode, owner);
             let mut child = command
-                .args(["-c", script])
+                .args(["-c", &script])
                 .stdout(Stdio::piped())
                 .spawn()
                 .expect("the fixture starts its detached descendant");
@@ -138,6 +156,22 @@ fn fixture(mode: Option<&str>, args: &mut std::env::Args) -> ExitCode {
             }
         }
         other => panic!("unknown fixture program {other:?}"),
+    }
+}
+
+fn supervised_script(mode: &str, owner: u32) -> String {
+    match mode {
+        "supervise-term" => format!(
+            "trap 'printf tree-term\\n >&2; exit 0' TERM; printf 'ready\\n'; while kill -0 {owner} 2>/dev/null; do :; done"
+        ),
+        "supervise-ignore" => "trap '' TERM; printf 'ready\\n'; exec sleep 60".to_owned(),
+        "supervise-grandchild" => {
+            // The leaf reports its PID before readiness can prompt TERM.
+            format!(
+                r#"/usr/bin/setsid /bin/sh -c "trap 'printf tree-term\\n >&2; exit 0' TERM; printf 'grandchild:%s\\n' \"\$\$\" >&2; printf 'ready\\n'; while kill -0 {owner} 2>/dev/null; do :; done" & wait"#
+            )
+        }
+        _ => unreachable!("the fixture selected its supervised mode"),
     }
 }
 
