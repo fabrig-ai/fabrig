@@ -1,4 +1,6 @@
 //! The whole JSON document (qa/ledger.md, 2), encoded without derive.
+use crate::SessionKind;
+use crate::pass_document as q;
 use crate::{
     Answer, Ask, Build, BuildState, Case, Exit, Landing, Ledger, Line, Pages, Refusal, Session, Step, refused,
 };
@@ -25,7 +27,7 @@ pub(crate) fn text(object: &Map<String, Value>, name: &str) -> Result<String, Re
 pub(crate) fn number(value: &Value) -> Result<u64, Refusal> {
     value.as_u64().ok_or_else(|| refused("expected a nonnegative whole number"))
 }
-fn boolean(value: &Value) -> Result<bool, Refusal> {
+pub(crate) fn boolean(value: &Value) -> Result<bool, Refusal> {
     value.as_bool().ok_or_else(|| refused("expected a boolean"))
 }
 pub(crate) fn integer(object: &Map<String, Value>, name: &str) -> Result<u64, Refusal> {
@@ -37,10 +39,10 @@ pub(crate) fn array(value: &Value) -> Result<&[Value], Refusal> {
 pub(crate) fn strings(value: &Value) -> Result<Vec<String>, Refusal> {
     array(value)?.iter().map(string).collect()
 }
-fn numbers(value: &Value) -> Result<Vec<u64>, Refusal> {
+pub(crate) fn numbers(value: &Value) -> Result<Vec<u64>, Refusal> {
     array(value)?.iter().map(number).collect()
 }
-fn optional_number(object: &Map<String, Value>, name: &str) -> Result<Option<u64>, Refusal> {
+pub(crate) fn optional_number(object: &Map<String, Value>, name: &str) -> Result<Option<u64>, Refusal> {
     object.get(name).map(number).transpose()
 }
 fn flag(object: &Map<String, Value>, name: &str) -> Result<bool, Refusal> {
@@ -51,7 +53,10 @@ impl Ledger {
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let decode = || {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
-            let object = object(&value, &["head", "landings", "cases", "builds", "sessions", "lines"])?;
+            let object = object(
+                &value,
+                &["head", "landings", "cases", "builds", "sessions", "lines", "passes", "findings", "notes"],
+            )?;
             Ok(Self {
                 head: object.get("head").map(string).transpose()?,
                 landings: array(required(object, "landings")?)?.iter().map(landing).collect::<Result<_, _>>()?,
@@ -59,6 +64,9 @@ impl Ledger {
                 builds: array(required(object, "builds")?)?.iter().map(build).collect::<Result<_, _>>()?,
                 sessions: array(required(object, "sessions")?)?.iter().map(session).collect::<Result<_, _>>()?,
                 lines: array(required(object, "lines")?)?.iter().map(line).collect::<Result<_, _>>()?,
+                passes: q::records(object, "passes")?.iter().map(q::pass).collect::<Result<_, _>>()?,
+                findings: q::records(object, "findings")?.iter().map(q::finding).collect::<Result<_, _>>()?,
+                notes: q::records(object, "notes")?.iter().map(q::note).collect::<Result<_, _>>()?,
             })
         };
         decode().map_err(|why: Refusal| refused(format!("ledger.json: {why}")))
@@ -80,16 +88,21 @@ impl Ledger {
                     "unanswered": landing.unanswered, "sessions": landing.sessions})
             }).collect::<Vec<_>>(),
             "cases": self.cases.iter().map(|case| json!({"number": case.number, "surface": case.surface,
-                "page": case.page, "state": "queued", "queued": case.queued, "line": case.line,
+                "page": case.page, "state": case.state.name(), "pass": case.pass, "blocks": if case.blocks == 0 { None } else { Some(case.blocks) },
+                "outcomes": case.outcomes.iter().map(q::outcome_document).collect::<Vec<_>>(), "queued": case.queued, "line": case.line,
                 "asks": case.asks.iter().map(|ask| json!({"landing": ask.landing, "setup": ask.setup,
                     "adds": ask.adds, "steps": ask.steps.iter().map(step_document).collect::<Vec<_>>() })).collect::<Vec<_>>() })).collect::<Vec<_>>(),
             "builds": self.builds.iter().map(|build| json!({"commit": build.commit, "kept": build.kept,
                 "state": match build.state { BuildState::Kept => "kept", BuildState::Deleted => "deleted" },
                 "deleted": build.deleted, "holds": build.holds, "order": build.order, "held": build.held })).collect::<Vec<_>>(),
-            "sessions": self.sessions.iter().map(|session| json!({"number": session.number, "kind": "triage",
+            "sessions": self.sessions.iter().map(|session| json!({"number": session.number, "kind": match session.kind { SessionKind::Triage => "triage", SessionKind::Pass => "pass" },
+                "pass": session.pass, "before": session.before.as_ref().map(q::before_document),
                 "landing": session.landing, "effort": session.effort, "started": session.started,
                 "ended": session.ended, "exit": session.exit.map(exit_document), "tokens": session.tokens,
-                "pages": session.pages, "setups": session.setups })).collect::<Vec<_>>(),
+                "pages": if session.kind == SessionKind::Triage { Some(&session.pages) } else { None }, "setups": if session.kind == SessionKind::Triage { Some(&session.setups) } else { None } })).collect::<Vec<_>>(),
+            "passes": self.passes.iter().map(q::pass_document).collect::<Vec<_>>(),
+            "findings": self.findings.iter().map(q::finding_document).collect::<Vec<_>>(),
+            "notes": self.notes.iter().map(q::note_document).collect::<Vec<_>>(),
             "lines": self.lines.iter().map(|line| json!({"number": line.number, "time": line.time,
                 "area": line.area, "words": line.words, "given": line.given})).collect::<Vec<_>>(),
         });
@@ -174,10 +187,9 @@ fn landing(value: &Value) -> Result<Landing, Refusal> {
     })
 }
 fn case(value: &Value) -> Result<Case, Refusal> {
-    let object = object(value, &["number", "surface", "page", "asks", "state", "queued", "line"])?;
-    if text(object, "state")? != "queued" {
-        return Err(refused("unknown case state"));
-    }
+    let object =
+        object(value, &["number", "surface", "page", "asks", "state", "queued", "line", "pass", "blocks", "outcomes"])?;
+    let state = q::case_state(&text(object, "state")?)?;
     let asks = array(required(object, "asks")?)?.iter().map(ask).collect::<Result<Vec<_>, _>>()?;
     if asks.is_empty() {
         return Err(refused("case has no asks"));
@@ -191,6 +203,10 @@ fn case(value: &Value) -> Result<Case, Refusal> {
         surface,
         page: text(object, "page")?,
         asks,
+        state,
+        pass: optional_number(object, "pass")?,
+        blocks: optional_number(object, "blocks")?.unwrap_or(0),
+        outcomes: q::records(object, "outcomes")?.iter().map(q::outcome).collect::<Result<_, _>>()?,
         queued: integer(object, "queued")?,
         line: flag(object, "line")?,
     })
@@ -232,26 +248,37 @@ fn build(value: &Value) -> Result<Build, Refusal> {
 fn session(value: &Value) -> Result<Session, Refusal> {
     let object = object(
         value,
-        &["number", "kind", "landing", "effort", "started", "ended", "exit", "tokens", "pages", "setups"],
+        &[
+            "number", "kind", "landing", "effort", "started", "ended", "exit", "tokens", "pages", "setups", "pass",
+            "before",
+        ],
     )?;
-    if text(object, "kind")? != "triage" {
-        return Err(refused("unknown session kind"));
-    }
-    let pages = required(object, "pages")?.as_object().ok_or_else(|| refused("pages: expected an object"))?;
+    let kind = match text(object, "kind")?.as_str() {
+        "triage" => SessionKind::Triage,
+        "pass" => SessionKind::Pass,
+        other => return Err(refused(format!("unknown session kind {other}"))),
+    };
+    let empty = Value::Object(Map::new());
+    let pages =
+        if kind == SessionKind::Triage { required(object, "pages")? } else { object.get("pages").unwrap_or(&empty) };
+    let pages = pages.as_object().ok_or_else(|| refused("pages: expected an object"))?;
     let pages = pages
         .iter()
         .map(|(surface, pages)| Ok((surface.clone(), strings(pages)?)))
         .collect::<Result<Pages, Refusal>>()?;
     Ok(Session {
         number: integer(object, "number")?,
-        landing: integer(object, "landing")?,
+        kind,
+        landing: if kind == SessionKind::Triage { Some(integer(object, "landing")?) } else { None },
+        pass: if kind == SessionKind::Pass { Some(integer(object, "pass")?) } else { None },
+        before: if kind == SessionKind::Pass { Some(q::before(required(object, "before")?)?) } else { None },
         effort: text(object, "effort")?,
         started: integer(object, "started")?,
         ended: optional_number(object, "ended")?,
         exit: object.get("exit").map(exit).transpose()?,
         tokens: optional_number(object, "tokens")?,
         pages,
-        setups: strings(required(object, "setups")?)?,
+        setups: if kind == SessionKind::Triage { strings(required(object, "setups")?)? } else { Vec::new() },
     })
 }
 fn line(value: &Value) -> Result<Line, Refusal> {

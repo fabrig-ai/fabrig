@@ -14,7 +14,8 @@ use std::{
     time::Duration,
 };
 
-pub(crate) fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
+/// Publish a staged build after checking its files and executable versions.
+pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
     if !(commit.len() == 40 || commit.len() == 64)
         || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
@@ -59,7 +60,14 @@ pub(crate) fn keep(home: &Home, commit: &str, directory: &Path, environment: &En
 
 fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
     let mut missing = Vec::new();
-    for path in ["bin/temper-box", "bundle/index.html", "bundle-record/index.html"] {
+    for path in [
+        "bin/temper-box",
+        "bin/fake-claude",
+        "bin/temper-client",
+        "bin/temper-client-journeys",
+        "bundle/index.html",
+        "bundle-record/index.html",
+    ] {
         if !fs::symlink_metadata(directory.join(path)).is_ok_and(|metadata| metadata.is_file()) {
             missing.push(format!("{} lacks {path}", directory.display()));
         }
@@ -108,6 +116,9 @@ fn check_version(
     let executable = directory.join(path);
     if io(&executable, fs::metadata(&executable))?.permissions().mode() & 0o111 == 0 {
         return Err(refused(format!("{} is not executable", path.display())));
+    }
+    if path.file_name() == Some(OsStr::new("fake-claude")) {
+        return Ok(());
     }
     let line = version(home, &executable, environment)?;
     if !line.ends_with(&format!(" ({})", short(commit))) {

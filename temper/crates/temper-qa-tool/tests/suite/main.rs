@@ -1,10 +1,15 @@
 //! Landed QA's focused value tests and seeded invariants (qa/README.md, 6).
+mod builds;
 mod configuration;
 mod fuzzy;
+mod hold;
 mod home;
 mod ledger;
+mod passes;
+mod place;
 mod reference;
 mod run;
+mod run_passes;
 mod world;
 
 use temper_qa_tool::{CaseInput, Ledger, Pages};

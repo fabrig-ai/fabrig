@@ -58,6 +58,45 @@ fn reads_chain_and_walks_fresh_or_from_a_copy() {
     let refusal = chain.lines(Some("elsewhere")).expect_err("not an ancestor");
     assert!(refusal.to_string().contains("elsewhere/recipe: --from"));
 }
+/// The landed QA catalogue reads the kept recipes (client/recipe.md, 2–3, 5.1).
+#[test]
+fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    for entry in std::fs::read_dir(&setups).expect("committed QA setups") {
+        let entry = entry.expect("setup entry");
+        if !entry.file_type().expect("setup file type").is_dir() {
+            continue;
+        }
+        let name = entry.file_name().into_string().expect("ASCII recipe name");
+        let chain = Chain::read(&setups, &name).unwrap_or_else(|why| panic!("{name}: {why}"));
+        let recipe = chain.recipes.last().expect("recipe itself");
+        let check: Vec<_> = recipe.check.iter().map(|line| recipe.walk_line(line)).collect();
+        assert!(!check.is_empty(), "{name} has a closing check");
+        assert!(chain.lines(None).expect("fresh walk").ends_with(&check), "{name} ends on its own check");
+    }
+
+    let chain = Chain::read(&setups, "chat-draft").expect("chat-draft chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing", "chat-draft"]);
+    let welcome = chain.recipes.first().expect("welcome");
+    assert!(welcome.steps.is_empty(), "welcome is already reached on a fresh box");
+
+    let project = chain.recipes.iter().find(|recipe| recipe.name == "project-landing").expect("project-landing");
+    let setup = std::fs::read_to_string(Path::new(crate::JOURNEYS).join("project-landing/setup"))
+        .expect("project-landing journey setup");
+    let presses: Vec<_> =
+        setup.lines().filter(|line| line.starts_with("press ")).map(|line| format!("web {line}")).collect();
+    assert!(!presses.is_empty(), "journey has setup acts");
+    assert_eq!(
+        project.steps.iter().map(|line| String::from_utf8_lossy(line.line.print()).into_owned()).collect::<Vec<_>>(),
+        presses,
+        "project-landing keeps the journey's presses in order, without its trailing reload"
+    );
+    assert_eq!(
+        project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
+        [br#"web see "work/hello is in Hello""#.as_slice()]
+    );
+}
+
 #[test]
 fn refuses_forbidden_records_and_requires_a_trailing_check() {
     let mut files = Files::new();

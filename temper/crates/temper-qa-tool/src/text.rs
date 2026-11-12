@@ -1,6 +1,6 @@
 //! The person's text (qa/ledger.md, 6). UTC dates use March-based Gregorian eras.
 use crate::ledger::{numbers, short};
-use crate::{Answer, BuildState, Exit, Ledger};
+use crate::{Answer, BuildState, Exit, Ledger, SessionKind};
 use std::fmt::Write;
 
 impl Ledger {
@@ -34,10 +34,12 @@ impl Ledger {
         for case in &self.cases {
             writeln!(
                 text,
-                "  {} {} {} queued; landings {}",
+                "  {} {} {} {}; pass {}; landings {}",
                 case.number,
                 case.surface,
                 case.page,
+                case.state.name(),
+                case.pass.map_or_else(|| "none".into(), |number| number.to_string()),
                 numbers(&case.landings())
             )
             .expect("String write");
@@ -49,23 +51,70 @@ impl Ledger {
                 BuildState::Deleted => "deleted",
             };
             let holds = build.holds.as_ref().map_or_else(|| "unknown".into(), |holds| numbers(holds));
-            writeln!(text, "  {} {state}; landings {holds}", short(&build.commit)).expect("String write");
+            writeln!(
+                text,
+                "  {} {state}; landings {holds}; held {}",
+                short(&build.commit),
+                build.held.map_or_else(|| "none".into(), |number| number.to_string())
+            )
+            .expect("String write");
         }
         text.push_str("\nsessions:\n");
         for session in &self.sessions {
             let ended = session.ended.map_or_else(|| "running".into(), utc_minute);
             let exit = session.exit.map_or_else(|| "running".into(), exit_text);
+            let target = match session.kind {
+                SessionKind::Triage => format!("triage landing {}", session.landing.expect("triage landing")),
+                SessionKind::Pass => format!("pass {}", session.pass.expect("pass session")),
+            };
             writeln!(
                 text,
-                "  {} triage landing {} {} {} - {ended}; {exit}",
+                "  {} {target} {} {} - {ended}; {exit}",
                 session.number,
-                session.landing,
                 session.effort,
                 utc_minute(session.started)
             )
             .expect("String write");
         }
+        self.show_passes(&mut text);
         text
+    }
+    fn show_passes(&self, text: &mut String) {
+        text.push_str("\npasses:\n");
+        for pass in &self.passes {
+            writeln!(
+                text,
+                "  {} {} {} {}; cases {}; goal {}",
+                pass.number,
+                pass.place,
+                short(&pass.build),
+                pass.state.name(),
+                numbers(&pass.cases),
+                pass.requests
+                    .last()
+                    .and_then(|request| request.goal)
+                    .map_or_else(|| "none".into(), |goal| goal.to_string())
+            )
+            .expect("String write");
+        }
+        text.push_str("\nfindings:\n");
+        for finding in &self.findings {
+            writeln!(
+                text,
+                "  {} pass {} case {} {} {} {}",
+                finding.number,
+                finding.pass,
+                finding.case,
+                finding.severity,
+                finding.state.name(),
+                finding.title
+            )
+            .expect("String write");
+        }
+        text.push_str("\nnotes:\n");
+        for note in &self.notes {
+            writeln!(text, "  {} pass {} {}", note.number, note.pass, note.words).expect("String write");
+        }
     }
     #[must_use]
     pub fn lines_text(&self) -> String {

@@ -1,6 +1,8 @@
-//! A single-home service, with five saved steps per tick (qa/README.md, 4–5).
+//! A single-home service, with ordered saved steps per tick (qa/README.md, 4–5).
 use crate::faces::{ClockFace, Environment, GitFace, Moment, ProcessCommand, Processes, Signal};
-use crate::{Exit, Home, Ledger, Refusal, brief::Inputs, refused, watch::watch};
+use crate::{
+    Exit, Home, Ledger, PassState, Refusal, SessionKind, brief::Inputs, pass_brief, pass_files, refused, watch::watch,
+};
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions, TryLockError},
@@ -9,7 +11,8 @@ use std::{
 };
 
 struct Active {
-    session: u64,
+    kind: SessionKind,
+    bound: u64,
     process: u64,
     started: u64,
     bounded: bool,
@@ -27,8 +30,9 @@ pub struct Run<G, P, C> {
     pub clock: C,
     environment: Environment,
     _lock: File,
-    active: Option<Active>,
+    active: BTreeMap<u64, Active>,
     trees: Vec<PathBuf>,
+    reports: Vec<u64>,
     kills: Vec<(u64, u64)>,
     notifications: Vec<u64>,
     failures: BTreeMap<&'static str, Failure>,
@@ -57,23 +61,24 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             clock,
             environment,
             _lock: lock,
-            active: None,
+            active: BTreeMap::new(),
             trees: Vec::new(),
+            reports: Vec::new(),
             kills: Vec::new(),
             notifications: Vec::new(),
             failures: BTreeMap::new(),
         };
         let now = run.clock.now();
-        run.trees = run.home.transact(|ledger| {
+        let home = run.home.clone();
+        home.transact(|ledger| {
             let numbers: Vec<_> = ledger.running_sessions().iter().map(|session| session.number).collect();
-            let mut trees = Vec::new();
             for number in numbers {
-                ledger.end_session(number, Exit::Lost, None, now.wall, &run.home.configuration.owner)?;
-                trees.push(run.home.session_directory(number).join("tree"));
+                let output = fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
+                run.end_record(ledger, number, Exit::Lost, parse_tokens(&output), now.wall)?;
             }
-            Ok(trees)
+            Ok(())
         })?;
-        let result = run.clean_trees();
+        let result = run.clean_passes();
         run.outcome("triage", result, now);
         Ok(run)
     }
@@ -88,6 +93,14 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let result =
             self.probe().and_then(|()| home.transact(|ledger| Ok(self.triage(ledger))).and_then(|result| result));
         self.outcome("triage", result, now);
+        let result = self.passes();
+        self.outcome("passes", result, now);
+        let result = home
+            .transact(|ledger| {
+                Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
+            })
+            .and_then(|result| result);
+        self.outcome("requests", result, now);
         let result = home.transact(|ledger| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())
@@ -125,10 +138,10 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
             if !probe_failed {
                 match self.probe() {
-                    Ok(()) if self.active.as_ref().is_some_and(|active| active.exit.is_some()) => break,
+                    Ok(()) if self.active.values().any(|active| active.exit.is_some()) => break,
                     Ok(()) => (),
                     Err(why) => {
-                        eprintln!("temper-qa: triage: {why}");
+                        eprintln!("temper-qa: sessions: {why}");
                         probe_failed = true;
                     }
                 }
@@ -147,14 +160,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
         }
         self.kills = remaining;
-        if let Some(active) = &mut self.active
-            && active.exit.is_none()
-        {
+        for active in self.active.values_mut().filter(|active| active.exit.is_none()) {
             active.exit = self.processes.poll(active.process)?;
-            if active.exit.is_none()
-                && !active.bounded
-                && now.saturating_sub(active.started) >= self.home.configuration.bounds.triage
-            {
+            if active.exit.is_none() && !active.bounded && now.saturating_sub(active.started) >= active.bound {
                 self.processes.signal(active.process, Signal::Term)?;
                 active.bounded = true;
                 self.kills.push((active.process, now.saturating_add(10)));
@@ -166,10 +174,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
 
     fn triage(&mut self, ledger: &mut Ledger) -> Result<(), Refusal> {
         let now = self.clock.now();
-        if let Some(active) = &self.active
+        if let Some((&number, active)) = self.active.iter().find(|(_, active)| active.kind == SessionKind::Triage)
             && let Some(exit) = active.exit
         {
-            let number = active.session;
             let output = fs::read_to_string(self.home.session_directory(number).join("output")).unwrap_or_default();
             ledger.end_session(
                 number,
@@ -179,10 +186,10 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 &self.home.configuration.owner,
             )?;
             self.trees.push(self.home.session_directory(number).join("tree"));
-            self.active = None;
+            self.active.remove(&number);
         }
         self.clean_trees()?;
-        if self.active.is_some() {
+        if self.active.values().any(|active| active.kind == SessionKind::Triage) {
             return Ok(());
         }
         let Some(landing) = ledger.next_landing().cloned() else { return Ok(()) };
@@ -203,27 +210,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 .map_err(|why| refused(format!("brief: {why}")))?;
             fs::write(directory.join("diff.patch"), inputs.patch)
                 .map_err(|why| refused(format!("diff.patch: {why}")))?;
-            let mut environment = self.environment.clone();
-            environment.retain(|(name, _)| {
-                name.as_ref() != crate::HOME.name.as_bytes() && name.as_ref() != crate::SESSION.name.as_bytes()
-            });
-            environment
-                .push((crate::HOME.name.as_bytes().into(), self.home.directory.as_os_str().as_encoded_bytes().into()));
-            environment.push((crate::SESSION.name.as_bytes().into(), number.to_string().into_bytes().into()));
-            Ok(ProcessCommand {
-                arguments: self
-                    .home
-                    .configuration
-                    .agent
-                    .command
-                    .iter()
-                    .map(|argument| argument.replace("{effort}", &self.home.configuration.agent.triage))
-                    .collect(),
-                directory: tree.clone(),
-                stdin: brief,
-                output: directory.join("output"),
-                environment,
-            })
+            Ok(self.agent_command(number, &self.home.configuration.agent.triage))
         };
         let result = start().and_then(|command| {
             self.git.add_tree(&tree, &landing.commit)?;
@@ -231,8 +218,17 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         });
         match result {
             Ok(process) => {
-                self.active =
-                    Some(Active { session: number, process, started: now.monotonic, bounded: false, exit: None });
+                self.active.insert(
+                    number,
+                    Active {
+                        kind: SessionKind::Triage,
+                        bound: self.home.configuration.bounds.triage,
+                        process,
+                        started: now.monotonic,
+                        bounded: false,
+                        exit: None,
+                    },
+                );
             }
             Err(why) => {
                 ledger.end_session(number, Exit::Unstarted, None, now.wall, &self.home.configuration.owner)?;
@@ -245,6 +241,159 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         }
         Ok(())
     }
+    fn agent_command(&self, number: u64, effort: &str) -> ProcessCommand {
+        let directory = self.home.session_directory(number);
+        let mut environment = self.environment.clone();
+        environment.retain(|(name, _)| {
+            name.as_ref() != crate::HOME.name.as_bytes() && name.as_ref() != crate::SESSION.name.as_bytes()
+        });
+        environment
+            .push((crate::HOME.name.as_bytes().into(), self.home.directory.as_os_str().as_encoded_bytes().into()));
+        environment.push((crate::SESSION.name.as_bytes().into(), number.to_string().into_bytes().into()));
+        ProcessCommand {
+            arguments: self
+                .home
+                .configuration
+                .agent
+                .command
+                .iter()
+                .map(|argument| argument.replace("{effort}", effort))
+                .collect(),
+            directory: directory.join("tree"),
+            stdin: directory.join("brief"),
+            output: directory.join("output"),
+            environment,
+        }
+    }
+
+    /// End records are committed before reports take the ledger's read lock.
+    /// Keep pending effects until they succeed, including after an unstarted end.
+    fn passes(&mut self) -> Result<(), Refusal> {
+        let home = self.home.clone();
+        home.transact(|ledger| {
+            let ended: Vec<_> = self
+                .active
+                .iter()
+                .filter_map(|(&number, active)| {
+                    (active.kind == SessionKind::Pass).then_some((number, active.exit, active.bounded))
+                })
+                .collect();
+            let end = || -> Result<(), Refusal> {
+                for (number, exit, bounded) in ended {
+                    if let Some(exit) = exit {
+                        let output =
+                            fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
+                        self.end_record(
+                            ledger,
+                            number,
+                            if bounded { Exit::Bound } else { exit },
+                            parse_tokens(&output),
+                            self.clock.now().wall,
+                        )?;
+                        self.active.remove(&number);
+                    }
+                }
+                Ok(())
+            };
+            Ok(end())
+        })??;
+        self.clean_passes()?;
+        for place in home.configuration.places.clone() {
+            // An effect failure must not undo an earlier session's end, or an
+            // unstarted rollback, in this step.
+            let result = home.transact(|ledger| Ok(self.start_pass(ledger, &place)))?;
+            let cleanup = self.clean_passes();
+            result?;
+            cleanup?;
+        }
+        Ok(())
+    }
+
+    fn end_record(
+        &mut self,
+        ledger: &mut Ledger,
+        number: u64,
+        exit: Exit,
+        tokens: Option<u64>,
+        now: u64,
+    ) -> Result<(), Refusal> {
+        let session = ledger.sessions.iter().find(|session| session.number == number).expect("running session");
+        if let Some(number) = session.pass {
+            let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass");
+            let recipes = if exit == Exit::Unstarted {
+                Vec::new()
+            } else {
+                pass_files::changed_setups(&mut self.git, &pass.build, &pass_files::setups(&self.home, number))?
+            };
+            ledger.end_pass_session(session.number, exit, tokens, now, &self.home.configuration.owner, &recipes)?;
+            self.reports.push(number);
+        } else {
+            ledger.end_session(number, exit, tokens, now, &self.home.configuration.owner)?;
+        }
+        self.trees.push(self.home.session_directory(number).join("tree"));
+        Ok(())
+    }
+
+    fn start_pass(&mut self, ledger: &mut Ledger, place: &str) -> Result<(), Refusal> {
+        if ledger.passes.iter().any(|pass| pass.state == PassState::Running && pass.place == place) {
+            return Ok(());
+        }
+        let configuration = &self.home.configuration;
+        let now = self.clock.now();
+        // Run the ledger's selection on a snapshot. Preparation failures record
+        // nothing; no caller duplicates the ledger's eligibility rules.
+        let mut recorded = ledger.clone();
+        let Some(start) = recorded
+            .resume_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall)
+            .or_else(|| recorded.start_pass(place, &configuration.surfaces, &configuration.agent.pass, now.wall))
+        else {
+            return Ok(());
+        };
+        let directory = configuration.place_directory(&self.home.directory, place)?;
+        let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
+        pass_files::install(&self.home.builds.join(&start.build), &start.build, &directory)?;
+        pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
+        *ledger = recorded;
+        let command = self.agent_command(start.session, &configuration.agent.pass);
+        let mut prepare = || -> Result<(), Refusal> {
+            let directory = self.home.session_directory(start.session);
+            fs::create_dir_all(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
+            let brief = pass_brief::render(&mut self.git, &self.home, &start, ledger)?;
+            fs::write(&command.stdin, brief).map_err(|why| refused(format!("brief: {why}")))?;
+            self.git.add_tree(&command.directory, &start.build)
+        };
+        let result = prepare().and_then(|()| self.processes.start(&command));
+        drop(lock);
+        match result {
+            Ok(process) => {
+                self.active.insert(
+                    start.session,
+                    Active {
+                        kind: SessionKind::Pass,
+                        bound: self.home.configuration.bounds.pass,
+                        process,
+                        started: now.monotonic,
+                        bounded: false,
+                        exit: None,
+                    },
+                );
+                Ok(())
+            }
+            Err(why) => {
+                self.end_record(ledger, start.session, Exit::Unstarted, None, now.wall)?;
+                Err(why)
+            }
+        }
+    }
+
+    fn clean_passes(&mut self) -> Result<(), Refusal> {
+        while let Some(&number) = self.reports.first() {
+            self.home.write_pass_report(number)?;
+            self.reports.remove(0);
+        }
+        self.clean_trees()
+    }
+
     fn clean_trees(&mut self) -> Result<(), Refusal> {
         while let Some(tree) = self.trees.first() {
             self.git.remove_tree(tree)?;

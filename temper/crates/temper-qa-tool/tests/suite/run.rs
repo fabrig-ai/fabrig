@@ -143,7 +143,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     run.tick();
     let ledger = world.ledger();
     assert_eq!(ledger.sessions.len(), 1);
-    assert_eq!(ledger.sessions[0].landing, 1);
+    assert_eq!(ledger.sessions[0].landing, Some(1));
     assert_eq!(ledger.sessions[0].effort, "cheap");
     assert_eq!(ledger.sessions[0].pages["web"], ["chat", "work"]);
     assert_eq!(ledger.sessions[0].pages["tui"], ["chat"]);
@@ -211,7 +211,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].exit, Some(Exit::Code(0)));
     assert_eq!(ledger.sessions[0].tokens, Some(1234));
     assert_eq!(ledger.sessions.len(), 2);
-    assert_eq!(ledger.sessions[1].landing, 2);
+    assert_eq!(ledger.sessions[1].landing, Some(2));
     assert!(!world.home.session_directory(1).join("tree").exists());
     let brief = fs::read_to_string(world.home.session_directory(2).join("brief")).expect("second brief");
     for words in ["Case 1: web / work; landings 1", "setup fresh", "open Work", "Drafts lists the draft"] {
@@ -511,4 +511,381 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
     let restarted = world.start(baseline(), &[]);
     assert_eq!(world.ledger().landings[0].sessions, 2);
     drop(restarted);
+}
+
+fn request_directory(world: &World, pass: u64, request: u64) -> std::path::PathBuf {
+    world.home.directory.join("passes").join(pass.to_string()).join("requests").join(request.to_string())
+}
+fn deployment(world: &World, name: &str, body: &str) -> Vec<String> {
+    let script = world.home.directory.join(format!("{name}.sh"));
+    fs::write(&script, format!(r#"set -eu
+printf '%s\n' "$PWD" "$CAPTURED" "$TEMPER_INTERNAL_QA_HOME" "$TEMPER_INTERNAL_QA_AREA" "$@" >> "$TEMPER_INTERNAL_QA_HOME/{name}-calls"
+find . -type f | sort > "$TEMPER_INTERNAL_QA_HOME/{name}-files"
+if read -r ignored; then exit 94; fi
+{body}
+"#)).expect("deployment script");
+    vec!["/bin/sh".into(), script.display().to_string()]
+}
+fn seed_request(world: &World, count: u64, time: u64, page: &str, commit: &str) -> u64 {
+    let pass = world
+        .home
+        .transact(|ledger| {
+            let case = super::passes::queue(ledger, page, "web");
+            let holds = ledger.landings.iter().map(|landing| landing.number).collect::<Vec<_>>();
+            super::passes::build(ledger, commit, &holds, time);
+            let start = super::passes::start(ledger);
+            let mut findings = Vec::new();
+            for index in 0..count {
+                let mut finding = super::passes::finding(case);
+                finding.title = format!("Start does nothing {index}");
+                finding.setup = "recipe".into();
+                finding.lines = vec!["web open work".into(), format!("web press button Start{index}")];
+                finding.expected = format!("goal {index} starts");
+                findings
+                    .push(ledger.record_finding(start.session, &finding, &["recipe".into()], "product", time)?.number);
+            }
+            ledger.record_outcome(
+                start.session,
+                case,
+                if count == 0 { "passed" } else { "failed" },
+                "tested",
+                &findings,
+                time,
+            )?;
+            ledger.end_pass_session(start.session, Exit::Code(0), None, time, "qa", &["recipe".into()])?;
+            Ok(start.pass)
+        })
+        .expect("request through ledger operations");
+    let recipe = world.home.directory.join("passes").join(pass.to_string()).join("setups/recipe");
+    fs::create_dir_all(recipe.join("nested")).expect("recipe directory");
+    fs::write(recipe.join("README.md"), "# Recipe\n\nThe whole recipe.\n").expect("recipe");
+    fs::write(recipe.join("nested/bytes"), [0, 1, 255, 10]).expect("nested binary recipe file");
+    pass
+}
+
+#[test]
+fn requests_write_the_document_recipes_message_and_goal_then_record_stdout_goal() {
+    let mut world = World::new();
+    let commit = "abcdef1234567890abcdef1234567890abcdef12";
+    seed_request(&world, 2, 5, "work", commit);
+    world.home.configuration.request.area = "fixes".into();
+    world.home.configuration.request.command = deployment(
+        &world,
+        "file",
+        r#"
+cp -R tree "$TEMPER_INTERNAL_QA_HOME/received"
+cat message > "$TEMPER_INTERNAL_QA_HOME/received-message"
+cat goal > "$TEMPER_INTERNAL_QA_HOME/received-goal"
+printf 'progress\ngoal 41\n\n \n'
+printf 'goal 99\n' >&2
+"#,
+    );
+    let mut run = world.start_with_environment(
+        baseline(),
+        &[],
+        vec![
+            (b"CAPTURED".as_slice().into(), b"kept".as_slice().into()),
+            (b"TEMPER_INTERNAL_QA_HOME".as_slice().into(), b"stale-home".as_slice().into()),
+            (b"TEMPER_INTERNAL_QA_AREA".as_slice().into(), b"stale-area".as_slice().into()),
+        ],
+    );
+    run.clock.time = 10;
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!((ledger.passes[0].requests[0].filed, ledger.passes[0].requests[0].goal), (Some(10), Some(41)));
+    assert!(ledger.findings.iter().all(|finding| finding.goals == [41]));
+    let directory = request_directory(&world, 1, 1);
+    let path = "temper/docs/development/qa/requests/pass-1-1.md";
+    let document = fs::read_to_string(directory.join("tree").join(path)).expect("request document");
+    assert!(document.starts_with("# QA pass 1, request 1: 2 findings at abcdef123456\n"));
+    assert!(document.contains("lowest world that reproduces it, starting from the finding's lines"));
+    assert!(document.contains("what the cases expected and nothing past it"));
+    for (number, index) in [(1, 0), (2, 1)] {
+        let mut previous = 0;
+        for words in [
+            format!("## {number}. Start does nothing {index}"),
+            "Severity: medium".into(),
+            "Surface: web".into(),
+            "Page: work".into(),
+            "Area: product".into(),
+            "goal 11: a landing".into(),
+            "Setup: temper/docs/development/qa/setups/recipe/".into(),
+            format!("```text\nweb open work\nweb press button Start{index}\n```"),
+            format!("Expected: goal {index} starts"),
+            "Seen: no goal".into(),
+            format!("evidence/{number}/look.png"),
+            "Earlier goals: none".into(),
+        ] {
+            let section = document.split(&format!("## {number}. ")).nth(1).expect("finding section");
+            let at = if words.starts_with("## ") {
+                0
+            } else {
+                section.find(&words).unwrap_or_else(|| panic!("{words}\n{section}"))
+            };
+            assert!(at >= previous, "{words} is in document order");
+            previous = at;
+        }
+    }
+    assert!(document.ends_with("## Recipes\n\n- temper/docs/development/qa/setups/recipe/\n"));
+    assert_eq!(
+        fs::read_to_string(world.home.directory.join("received").join(path)).expect("command saw files"),
+        document
+    );
+    let setup = directory.join("tree/temper/docs/development/qa/setups/recipe");
+    assert_eq!(fs::read_to_string(setup.join("README.md")).expect("whole recipe"), "# Recipe\n\nThe whole recipe.\n");
+    assert_eq!(fs::read(setup.join("nested/bytes")).expect("nested file"), [0, 1, 255, 10]);
+    assert_eq!(
+        fs::read_to_string(world.home.directory.join("received-message")).expect("message"),
+        "QA pass 1, request 1: 2 findings at abcdef123456\n\nQA-pass: 1\n"
+    );
+    assert_eq!(
+        fs::read_to_string(world.home.directory.join("received-goal")).expect("goal"),
+        format!(
+            "Read the QA request at {path} and fix each finding it lists, each with a test in the lowest world that reproduces it, starting from its lines.\n"
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(world.home.directory.join("file-calls")).expect("environment"),
+        format!("{}\nkept\n{}\nfixes\n", directory.display(), world.home.directory.display())
+    );
+    let output = fs::read_to_string(directory.join("output")).expect("output");
+    assert!(output.contains("progress\ngoal 41"));
+    assert!(output.contains("goal 99"));
+    assert_eq!(run.processes.bounded[0].1, 600);
+    for name in ["TEMPER_INTERNAL_QA_HOME", "TEMPER_INTERNAL_QA_AREA"] {
+        assert_eq!(
+            run.processes.bounded[0].0.environment.iter().filter(|(key, _)| key.as_ref() == name.as_bytes()).count(),
+            1
+        );
+    }
+    run.tick();
+    assert_eq!(run.processes.bounded.len(), 1, "filed request is not run again; no state command configured");
+}
+
+#[test]
+fn recipes_alone_are_filed_without_a_document_or_goal_and_replace_stale_files() {
+    let mut world = World::new();
+    seed_request(&world, 0, 5, "work", &id(0));
+    let directory = request_directory(&world, 1, 1);
+    fs::create_dir_all(directory.join("tree")).expect("old attempt");
+    fs::write(directory.join("goal"), "stale goal").expect("old goal");
+    fs::write(directory.join("tree/stale"), "stale tree").expect("old tree");
+    world.home.configuration.request.command = deployment(
+        &world,
+        "file",
+        r#"
+test ! -e goal
+test ! -e tree/stale
+test ! -e tree/temper/docs/development/qa/requests
+cat message > "$TEMPER_INTERNAL_QA_HOME/received-message"
+printf 'goal 999\n\377\n'
+"#,
+    );
+    let mut run = world.start(baseline(), &[]);
+    run.tick();
+    assert_eq!(world.ledger().passes[0].requests[0].filed, Some(0));
+    assert_eq!(world.ledger().passes[0].requests[0].goal, None);
+    assert!(!directory.join("goal").exists());
+    assert!(!directory.join("tree/temper/docs/development/qa/requests").exists());
+    assert!(directory.join("tree/temper/docs/development/qa/setups/recipe/nested/bytes").is_file());
+    assert_eq!(
+        fs::read_to_string(world.home.directory.join("received-message")).expect("message"),
+        "QA pass 1: recipes\n\nQA-pass: 1\n"
+    );
+    assert!(fs::read_to_string(world.home.directory.join("file-calls")).expect("owner fallback").contains("\nqa\n"));
+}
+
+#[test]
+fn failed_filing_retries_each_tick_and_reports_one_line_after_an_hour() {
+    for body in [
+        "printf 'goal 41\\n'; exit 1",
+        "printf 'goal 41\\nnot a goal\\n'",
+        "printf 'goal 41\\n' >&2",
+        "printf 'goal +41\\n'",
+        "printf 'goal 0\\n'",
+        "printf 'goal 18446744073709551616\\n'",
+    ] {
+        let mut world = World::new();
+        seed_request(&world, 1, 5, "work", &id(0));
+        world.home.configuration.request.command = deployment(&world, "file", body);
+        let mut run = world.start(baseline(), &[]);
+        for (time, lines) in [(0, 0), (3599, 0), (3600, 1), (7200, 1)] {
+            run.clock.time = time;
+            run.tick();
+            let ledger = world.ledger();
+            assert_eq!(ledger.passes[0].requests[0].filed, None, "{body}");
+            assert_eq!(ledger.passes[0].requests[0].goal, None);
+            assert!(ledger.findings[0].goals.is_empty());
+            assert_eq!(ledger.lines.len(), lines);
+        }
+        assert_eq!(run.processes.bounded.len(), 4, "retry each tick");
+        assert!(world.ledger().lines[0].words.contains("requests has failed for an hour"));
+        deployment(&world, "file", "printf 'goal 41\\n'");
+        run.tick();
+        assert_eq!(world.ledger().passes[0].requests[0].goal, Some(41));
+    }
+}
+
+#[test]
+fn goal_state_live_waits_and_ended_allows_resume_on_the_newest_reached_build() {
+    let mut world = World::new();
+    seed_request(&world, 1, 5, "work", &id(0));
+    world.home.configuration.request.command = deployment(&world, "file", "printf 'goal 41\\n'");
+    world.home.configuration.request.state = Some(
+        deployment(
+            &world,
+            "state",
+            r#"
+test "$1" = status
+test "$2" = 41
+cat "$TEMPER_INTERNAL_QA_HOME/state-answer"
+printf 'ended\n' >&2
+"#,
+        )
+        .into_iter()
+        .chain(["status".into()])
+        .collect(),
+    );
+    fs::write(world.home.directory.join("state-answer"), "progress\nlive\n\n").expect("live");
+    let mut run = world.start(baseline(), &[]);
+    run.tick();
+    let before = world.ledger();
+    assert_eq!(before.passes[0].requests[0].goal, Some(41), "file before polling state");
+    assert_eq!(before.passes[0].requests[0].ended, None, "stderr cannot end the goal");
+    assert_eq!(run.processes.bounded.iter().map(|(_, seconds)| *seconds).collect::<Vec<_>>(), [600, 60]);
+    run.tick();
+    assert_eq!(world.ledger(), before, "live changes nothing");
+    fs::write(world.home.directory.join("state-answer"), "ended\n\n").expect("ended");
+    run.clock.time = 20;
+    run.tick();
+    assert_eq!(world.ledger().passes[0].requests[0].ended, Some(20));
+    let calls = run.processes.bounded.len();
+    run.tick();
+    assert_eq!(run.processes.bounded.len(), calls, "ended goals are not polled again");
+    assert!(
+        fs::read_to_string(request_directory(&world, 1, 1).join("output"))
+            .expect("filing output retained")
+            .contains("goal 41")
+    );
+    world
+        .home
+        .transact(|ledger| {
+            super::passes::build(ledger, &id(1), &[1], 100);
+            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 21).expect("resume allowed by ended");
+            assert_eq!(resumed.build, id(1));
+            Ok(())
+        })
+        .expect("resume through ledger rule");
+}
+
+#[test]
+fn a_second_request_names_the_earlier_goal_that_carried_the_finding() {
+    let mut world = World::new();
+    seed_request(&world, 1, 5, "work", &id(0));
+    world.home.configuration.request.command = deployment(&world, "file", "printf 'goal 41\\n'");
+    let mut run = world.start(baseline(), &[]);
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            ledger.end_goal(41, 10)?;
+            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 11).expect("resume");
+            ledger.record_check(resumed.session, 1, "holds", "still fails", 12)?;
+            ledger.end_pass_session(resumed.session, Exit::Code(0), None, 13, "qa", &[])
+        })
+        .expect("second request");
+    deployment(&world, "file", "printf 'goal 42\\n'");
+    run.tick();
+    let document = fs::read_to_string(
+        request_directory(&world, 1, 2).join("tree/temper/docs/development/qa/requests/pass-1-2.md"),
+    )
+    .expect("second document");
+    assert!(document.contains("Earlier goals:\n- goal 41\n"));
+    assert_eq!(world.ledger().findings[0].goals, [41, 42]);
+}
+
+#[test]
+fn goal_state_failures_retry_but_unconfigured_or_landed_goals_are_not_polled() {
+    for body in ["printf 'live\\n'; exit 1", "printf 'other\\n'", "printf 'ended\\n' >&2"] {
+        let mut world = World::new();
+        seed_request(&world, 1, 5, "work", &id(0));
+        world.home.configuration.request.command = deployment(&world, "file", "printf 'goal 41\\n'");
+        let mut run = world.start(baseline(), &[]);
+        run.tick();
+        assert_eq!(run.processes.bounded.len(), 1, "no state command means no probe");
+        run.home.configuration.request.state = Some(deployment(&world, "state", body));
+        run.tick();
+        run.clock.time = 3600;
+        run.tick();
+        assert_eq!(world.ledger().passes[0].requests[0].ended, None);
+        assert!(world.ledger().lines.iter().any(|line| line.words.contains("requests has failed for an hour")));
+        assert_eq!(run.processes.bounded.len(), 3);
+        world
+            .home
+            .transact(|ledger| {
+                let landing = ledger.record_landing(&id(2), 41, None, "goal's landing", 3601).expect("new landing");
+                let session = super::session(ledger, landing);
+                ledger.answer_none(session, "fix landed")?;
+                ledger.end_session(session, Exit::Code(0), None, 3601, "qa")
+            })
+            .expect("landed");
+        run.tick();
+        assert_eq!(run.processes.bounded.len(), 3, "a landing outranks state polling");
+    }
+}
+
+#[test]
+fn oldest_unfiled_requests_run_first_and_success_survives_a_later_failure() {
+    let mut world = World::new();
+    seed_request(&world, 0, 20, "work", &id(0));
+    seed_request(&world, 0, 10, "home", &id(1));
+    world.home.configuration.request.command = deployment(
+        &world,
+        "file",
+        r#"
+printf '%s\n' "$PWD" >> "$TEMPER_INTERNAL_QA_HOME/order"
+case "$PWD" in */passes/1/requests/1) exit 1;; esac
+"#,
+    );
+    let mut run = world.start(baseline(), &[]);
+    run.tick();
+    let order = fs::read_to_string(world.home.directory.join("order")).expect("order");
+    assert_eq!(
+        order,
+        format!("{}\n{}\n", request_directory(&world, 2, 1).display(), request_directory(&world, 1, 1).display())
+    );
+    assert_eq!(
+        world.ledger().passes[1].requests[0].filed,
+        Some(0),
+        "earlier success is saved even when the step fails"
+    );
+    assert_eq!(world.ledger().passes[0].requests[0].filed, None);
+    deployment(&world, "file", "exit 0");
+    run.tick();
+    assert_eq!(run.processes.bounded.len(), 3, "only the failed request is retried");
+    assert_eq!(world.ledger().passes[0].requests[0].filed, Some(0));
+}
+
+#[test]
+fn bounded_requests_are_not_filed_and_real_commands_are_killed_at_the_bound() {
+    use temper_qa_tool::faces::{ProcessCommand, Processes, RealProcesses};
+    let mut world = World::new();
+    seed_request(&world, 1, 5, "work", &id(0));
+    world.home.configuration.request.command = deployment(&world, "file", "printf 'goal 41\\n'");
+    let mut run = world.start(baseline(), &[]);
+    run.processes.command_bound = true;
+    run.tick();
+    assert_eq!(world.ledger().passes[0].requests[0].filed, None);
+    run.processes.command_bound = false;
+    run.tick();
+    assert_eq!(world.ledger().passes[0].requests[0].goal, Some(41));
+    let command = ProcessCommand {
+        arguments: vec!["/bin/sh".into(), "-c".into(), "while :; do :; done".into()],
+        directory: world.home.directory.clone(),
+        stdin: "/dev/null".into(),
+        output: world.home.directory.join("bounded-output"),
+        environment: vec![],
+    };
+    assert_eq!(RealProcesses::default().run(&command, 0).expect("bounded command").exit, Exit::Bound);
+    assert!(!command.output.with_extension("stdout").exists(), "temporary stdout is removed");
 }
