@@ -279,7 +279,10 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
     let mut row = landing_row();
     row.branch = branch;
     row.pull = Some(1);
+    row.goal = Some(GOAL);
     row.change.way = change::Way::Turn;
+    row.change.owns_turn = true;
+    row.change.updates = 1;
     row.change.state =
         change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall };
     row.pending = Some(UPDATE);
@@ -293,11 +296,13 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
 fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
     let base = Name { forge: REPO.forge, repository: REPO.repository, what: What::Branch(Box::new([b"main".as_slice().into()])) };
     d.heads.insert(base.clone(), BranchHead { name: base, commit: LANDING_TIP, owned: false }).unwrap();
-    let mut requests = Vec::new();
-    requests.extend(outputs(d, fixtures::change_step()));
-    for _ in 0..12 {
+    let mut requests = skein_lib::List::uncapped();
+    for request in outputs(d, fixtures::change_step()) {
+        requests.push(request).expect("uncapped test output");
+    }
+    for _ in 0_u32..12 {
         if d.steps.is_empty() {
-            return requests.into_boxed_slice();
+            return requests.into_boxed();
         }
         let (call, op) = fixtures::next_call(d);
         let answer = match op {
@@ -316,9 +321,11 @@ fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Reque
             }
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
             Op::Read(Read::Compare { before, after }) => Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 0, changed: 0 },
-            _ => panic!("prepare read: {op:?}"),
+            Op::Read(_) | Op::Write(_) => panic!("prepare read: {op:?}"),
         };
-        requests.extend(fixtures::answer(d, call, Ok(answer)));
+        for request in fixtures::answer(d, call, Ok(answer)) {
+            requests.push(request).expect("uncapped test output");
+        }
     }
     panic!("prepare read did not settle")
 }
@@ -349,7 +356,9 @@ fn prepares_rebase_answer_is_its_candidate_not_drift() {
         );
         assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, None);
         for request in &out {
-            assert!(!matches!(request, Request::Drift { .. }), "{request:?}");
+            if let Request::Drift { .. } = request {
+                panic!("{request:?}");
+            }
         }
         let requests = prepare_at_head(&mut d, fixtures::BASE);
         assert_eq!(d.hold(&resource).unwrap().drift, None);
@@ -358,7 +367,11 @@ fn prepares_rebase_answer_is_its_candidate_not_drift() {
         assert_eq!(row.change.state, change::State::Ready { head: fixtures::BASE, ready_since: env().wall });
         assert_eq!(row.change.last_head, Some(fixtures::BASE));
         assert_eq!(row.change.clean.as_ref(), &[fixtures::HEAD]);
-        assert!(!requests.iter().any(|request| matches!(request, Request::Drift { .. })), "{requests:?}");
+        for request in &requests {
+            if let Request::Drift { .. } = request {
+                panic!("{request:?}");
+            }
+        }
     }
 }
 
@@ -399,7 +412,11 @@ fn prepares_writer_owns_its_forward_head_before_the_answer() {
         assert_eq!(row.drift, None);
         assert_eq!(row.change.state, change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall });
         assert_eq!(d.branch_head(&resource), Some(fixtures::HEAD), "an observation is not a confirmed head");
-        assert!(!requests.iter().any(|r| matches!(r, Request::Drift { .. })));
+        for request in &requests {
+            if let Request::Drift { .. } = request {
+                panic!("{request:?}");
+            }
+        }
         rebase_made(&mut d);
         prepare_at_head(&mut d, fixtures::BASE);
         let row = d.change(fixtures::CHANGE).unwrap();
@@ -482,7 +499,11 @@ fn prepares_let_go_update_takes_its_forward_head_after_the_slot_frees() {
         let (mut d, resource) = preparing_domain(goal_branch);
         domain::change_outcome(&mut d, &env(), UPDATE, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout), &mut Queue::uncapped());
         let requests = prepare_move(&mut d, 7, true);
-        assert!(!requests.iter().any(|r| matches!(r, Request::Drift { .. })));
+        for request in &requests {
+            if let Request::Drift { .. } = request {
+                panic!("{request:?}");
+            }
+        }
         prepare_at_head(&mut d, fixtures::BASE);
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(d.hold(&resource).unwrap().drift, None);

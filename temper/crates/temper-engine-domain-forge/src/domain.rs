@@ -4911,7 +4911,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
         if matches_updating(&effect_prior.state) && !matches_updating(&row.change.state) && row.pending.is_none() {
             admission::change_writer(d, env, &row, false);
         }
-        // If the landing tip changed, Updating's containment cannot serve Checking.
+        // If the landing tip changed, the update's containment cannot serve Checking.
         let reread_base = matches_updating(&effect_prior.state)
             && !matches_updating(&row.change.state)
             && updating_base(&effect_prior.state) != Some(facts.base_tip)
