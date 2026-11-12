@@ -36,13 +36,13 @@ fn reads(root: &Path, landing: u64, change: u64) -> Reads {
 
 /// Initialize the store without queue requirements before seeding the forge record.
 #[must_use]
-pub fn start(scratch: &super::Scratch, barrier: &JobBarrier) -> Throwaway {
+pub fn start(scratch: &super::Scratch) -> Throwaway {
     let forge = Throwaway::start_bare(scratch);
     let path = scratch.path().join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"] = json!([]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
-    forge.with_repository(scratch, 20, &barrier.gate_workflow(super::forgejo::WORKFLOW))
+    forge.with_repository(scratch, 20, landing_by_turn::WORKFLOW)
 }
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
@@ -55,6 +55,28 @@ pub fn configure(root: &Path, repository: u64) {
             "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
     }]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
+    let path = root.join("native-landing-settings.json");
+    let mut settings: Value = serde_json::from_slice(&fs::read(&path).expect("native landing settings"))
+        .expect("settings JSON");
+    settings["items"][0]["set"]["gates"] = json!([{"number":1,"blocking":true,"freshness":"clean"}]);
+    write_private(&path, &serde_json::to_vec(&settings).expect("settings JSON"));
+}
+
+/// Hold the first run's blocking review until main has moved, before readiness.
+fn held_review_scripts(forge: &Throwaway) -> Box<[skein_fake_llm_domain::api::Script]> {
+    use skein_fake_llm_domain::api::{Line, Piece};
+    let mut scripts = landing_scripts(ANSWER, forge);
+    let review = scripts.iter_mut().find(|script| script.cue.as_ref() == b"Review this change at the named head")
+        .expect("review script");
+    let mut verdict = review.turns[0].clone();
+    let mut lines = verdict.lines.into_vec();
+    lines.insert(0, Line::Pieces { pieces: Box::new([Piece {
+        text: b"Checked the change at the original head.".as_slice().into(),
+        hold: Some(b"turn-restart-review".as_slice().into()),
+    }]) });
+    verdict.lines = lines.into_boxed_slice();
+    review.turns = Box::new([verdict]);
+    scripts
 }
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
@@ -137,10 +159,28 @@ impl Judge<'_> {
             let pulls = forge.repository_observation("acme", "widget", "pulls?state=open&limit=2");
             let Some(pull) = pulls.as_array().expect("pull list").first() else { return false };
             let original = pull["head"]["sha"].as_str().expect("original head").to_owned();
+            let change = read(self.root, &["change", "show", "3"]);
+            let gate = &change["gates"][0];
+            if gate["verdict"] != "pending" {
+                return false;
+            }
+            assert_eq!(change["step"], "gating");
+            assert_eq!(gate["number"], 1);
+            assert_eq!(gate["kind"], "review");
+            assert_eq!(gate["blocks"], true);
+            assert_eq!(change["head"], original);
+            let list = read(self.root, &["landing", "list", "--project", "1"]);
+            assert!(list["landings"].as_array().expect("landing rows").is_empty(), "review holds readiness");
+            let before = forge.repository_observation("acme", "widget", "branches/main");
+            let before = before["commit"]["id"].as_str().expect("main before move");
             forge.add_file("notes.txt", landing_by_turn::NOTES);
             let main = forge.repository_observation("acme", "widget", "branches/main");
-            self.advanced = Some((original, main["commit"]["id"].as_str().expect("moved main").to_owned()));
-            eprintln!("turn restart: main advanced after the pull opened");
+            let moved = main["commit"]["id"].as_str().expect("moved main");
+            assert_ne!(before, moved, "notes moved main");
+            let compare = forge.repository_observation("acme", "widget", &format!("compare/{original}...{moved}"));
+            assert!(!compare["commits"].as_array().expect("comparison commits").is_empty(), "original lacks moved main");
+            self.advanced = Some((original, moved.to_owned()));
+            eprintln!("turn restart: main moved while the review held readiness");
         }
         let Some(run) = self.waiting_gate(forge) else { return false };
         let (landing, change) = self.members();
@@ -171,23 +211,9 @@ impl Judge<'_> {
         let run = self.barrier.waiting(self.previous.map(|proof| proof.run))?;
         let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
         assert_eq!(actual["id"], run, "marker names the forge's actual run");
-        if actual["workflow_id"] == "check.yaml" && actual["status"] == "cancelled" {
-            self.barrier.release(run);
-            return None;
-        }
-        assert_eq!(actual["status"], "running");
-        if actual["workflow_id"] == "check.yaml" {
-            // The change cannot prepare until its CI passes. Release that job
-            // only after Forgejo has checked the pull against the moved main.
-            let pull = forge.repository_observation("acme", "widget", "pulls/1");
-            let base = moved_main(self.advanced.as_ref(), self.previous).expect("main advanced");
-            if pull["mergeable"] != true || pull["base"]["sha"] != base {
-                return None;
-            }
-            self.barrier.release(run);
-            return None;
-        }
+        // Only the dispatched landing gate takes the runner and reaches the barrier.
         assert_eq!(actual["workflow_id"], "gate.yaml");
+        assert_eq!(actual["status"], "running");
         Some(run)
     }
 
@@ -218,8 +244,13 @@ impl Judge<'_> {
         });
         self.chat.forge.expect("forge").pull_update_failure(moved_main(self.advanced.as_ref(), self.previous));
         eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"]));
-        eprintln!("stalled landing task: {}", read(self.root, &["task", "show", "5"]));
-        eprintln!("stalled landings: {}", read(self.root, &["landing", "list", "--project", "1", "--ended"]));
+        eprintln!("stalled review task: {}", read(self.root, &["task", "show", "5"]));
+        let list = read(self.root, &["landing", "list", "--project", "1", "--ended"]);
+        eprintln!("stalled landings: {list}");
+        for landing in list["landings"].as_array().expect("landing rows") {
+            let task = landing["task"].as_u64().expect("landing task");
+            eprintln!("stalled landing task: {}", read(self.root, &["task", "show", &task.to_string()]));
+        }
         eprintln!("stalled tasks: {}", read(self.root, &["task", "list", "--project", "1"]));
         let runs = self.chat.forge.expect("forge").repository_observation("acme", "widget", "actions/runs?limit=100");
         let runs: Vec<_> = runs["workflow_runs"]
@@ -266,14 +297,22 @@ impl Referee<Process> for Judge<'_> {
             self.poll = now.saturating_add(Duration::from_millis(250));
             // A listener may draw another port on restart. Let the native
             // client keep that address before ctl loads its client directory.
-            if self.previous.is_some() && (!person.finished || !person.client.as_ref().is_some_and(Host::is_empty)) {
+            let settled = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
+            if self.previous.is_some() && !settled {
                 return;
             }
-            // Moving main starts as soon as the pull opens, before readiness.
             if !self.ready {
                 self.ready = self.sample();
+                if self.previous.is_none() && self.advanced.is_some() {
+                    // A release before the stream reaches its hold is not remembered.
+                    for proc in procs.iter_mut() {
+                        if let Process::Peer(peer) = proc {
+                            peer.release(b"turn-restart-review").expect("release blocking review");
+                        }
+                    }
+                }
             }
-            if self.ready && person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
+            if self.ready && settled {
                 let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
                 binary.signal(Signal::Terminate);
                 for proc in procs {
@@ -328,9 +367,9 @@ fn run_to(
     previous: Option<&Proof>,
     retry: bool,
 ) -> (Option<Proof>, Option<Reads>) {
-    let peer = fake_llm(landing_scripts(ANSWER, forge));
-    peer.configure(root);
     let first = previous.is_none();
+    let peer = fake_llm(if first { held_review_scripts(forge) } else { landing_scripts(ANSWER, forge) });
+    peer.configure(root);
     let script = if first { person::adopt_and_start_change(forge) } else { person::found() };
     let clock = Clock::new();
     let mut binary = serve(root);
