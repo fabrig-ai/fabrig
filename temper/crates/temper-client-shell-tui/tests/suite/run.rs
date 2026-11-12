@@ -331,11 +331,7 @@ enum WayOut {
 #[test]
 fn every_way_out_leaves_the_terminal_as_it_was_found() {
     let clock = skein_shell::Clock::new();
-    let recording = if cfg!(feature = "record") {
-        [Recording::None, Recording::Root].as_slice()
-    } else {
-        [Recording::None].as_slice()
-    };
+    let recording = [Recording::None, Recording::Root];
     for (way, front, record) in [
         (WayOut::End, false),
         (WayOut::ControlC, false),
@@ -393,7 +389,6 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
             WayOut::Refused | WayOut::BoxLinesEndBeforeStart => unreachable!("early closing checked above"),
         }
         world.settle();
-        #[cfg(feature = "record")]
         if record == Recording::Root {
             replay(&world.recording_file().expect("closing records every way out").0);
         }
@@ -698,7 +693,6 @@ impl World {
     }
 }
 
-#[cfg(feature = "record")]
 fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
     use temper_client_shell_tui::journey;
     let lines = journey::lines(recording).expect("read recording");
@@ -717,7 +711,6 @@ fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn recording_keys_save_whole_and_closing_saves_again() {
     use temper_client_shell_tui::journey::Line;
     for (mark, save) in [(b"\x1bM", b"\x1bS"), (b"\x1bm", b"\x1bs")] {
@@ -765,7 +758,6 @@ fn without_recording_root_keys_write_no_file() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn a_failed_recording_save_is_silent_and_retried() {
     let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
     world.settle();
@@ -784,7 +776,6 @@ fn a_failed_recording_save_is_silent_and_retried() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn recording_facts_include_the_loaded_records_and_credential() {
     use skein_fake_machine::How;
     use temper_client_shell_tui::journey::Line;
@@ -828,7 +819,6 @@ fn recording_facts_include_the_loaded_records_and_credential() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn background_selects_the_recorded_start_scheme() {
     use skein_ui_screen::Rgb;
     use skein_ui_screen_terminal::ASK_BACKGROUND;
@@ -950,7 +940,6 @@ fn terminal_text(bytes: &[u8]) -> String {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn local_file_is_read_and_reported_before_sign_in() {
     use temper_client_shell_tui::journey::{Line, Sent};
     for (name, bytes, mode, found) in [
@@ -1014,10 +1003,8 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
         (false, Recording::None, NoteWrite::Done),
         (true, Recording::None, NoteWrite::Hold),
         (true, Recording::None, NoteWrite::Refuse),
-    ]
-    .into_iter()
-    .chain(cfg!(feature = "record").then_some((true, Recording::Root, NoteWrite::Hold)))
-    {
+        (true, Recording::Root, NoteWrite::Hold),
+    ] {
         let mut world =
             World::options(false, true, false, Outcome::Success, recording, Some(Scheme::Dark), None, notes, None);
         world.settle();
@@ -1228,7 +1215,6 @@ fn a_front_connects_after_early_readiness_or_a_refused_connect() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_lines() {
     use temper_client_shell_tui::journey::Line;
     use temper_client_tui::BoxLine;

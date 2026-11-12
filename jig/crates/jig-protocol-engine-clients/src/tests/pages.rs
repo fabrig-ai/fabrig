@@ -241,7 +241,10 @@ fn a_line_at_the_largest_profile_bound_encodes() {
             | w::Activity::Turn(_)
             | w::Activity::Decided(_)
             | w::Activity::Milestone(_)
+            | w::Activity::NowWritten(_)
             | w::Activity::Stood(_)
+            | w::Activity::TalkOpened(_)
+            | w::Activity::TalkEnded(_)
             | w::Activity::SessionEnded(_)
             | w::Activity::Kept(_)) => panic!("word line: {other:?}"),
         };
@@ -319,4 +322,90 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         w::ActivityLine::decode(&narrower, &mut Reader::new(&out.finish())).unwrap_err().path,
         w::Path::ActivityStoodWords
     );
+}
+
+#[test]
+fn talk_lines_and_the_two_session_ends_cross_the_client_wire() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{Reader, Wall, Writer};
+    for (line, expected) in [
+        (t::Line::TalkOpened { party: 41 }, c::Activity::TalkOpened { party: 41 }),
+        (t::Line::TalkEnded { party: 41, lapsed: false }, c::Activity::TalkEnded { party: 41, lapsed: false }),
+        (t::Line::TalkEnded { party: 41, lapsed: true }, c::Activity::TalkEnded { party: 41, lapsed: true }),
+        (
+            t::Line::SessionEnded { attempt: 3, end: t::SessionEnd::Talk },
+            c::Activity::SessionEnded { attempt: 3, end: c::SessionEnd::Talk },
+        ),
+        (
+            t::Line::SessionEnded { attempt: 3, end: t::SessionEnd::Left },
+            c::Activity::SessionEnded { attempt: 3, end: c::SessionEnd::Left },
+        ),
+    ] {
+        let mut rows = skein_lib::List::with_capacity(1);
+        rows.push(reads::PageRow::Activity {
+            line: t::ActivityLine { task: 7, position: 13, at: Wall::from_nanos(37), line },
+            turn: None,
+        })
+        .unwrap();
+        let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &w::CEILINGS).unwrap() else {
+            panic!("activity page")
+        };
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let record = w::ActivityPage::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).unwrap();
+        let decoded =
+            jig_client_protocol_link::translate::pages::activity_page(record, &fixtures::client_limits()).unwrap();
+        assert_eq!(decoded.rows.get(0).unwrap().source.line, expected);
+    }
+}
+
+#[test]
+fn now_written_crosses_the_client_wire_at_its_line_bound() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{Reader, Wall, Writer};
+    let limits = fixtures::wire_limits();
+    let client = jig_client_domain::Limits { long_text: t::NOW_LINE, ..*fixtures::client_limits().client() };
+    let client = jig_client_protocol_link::Limits::new(client, 4).unwrap();
+    let text = "界".repeat(170) + "ab";
+    let line = t::ActivityLine {
+        task: 7,
+        position: 13,
+        at: Wall::from_nanos(37),
+        line: t::Line::NowWritten { attempt: 3, line: text.as_bytes().into() },
+    };
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(reads::PageRow::Activity { line: line.clone(), turn: None }).unwrap();
+    let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
+        panic!("activity page")
+    };
+    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
+    let decoded = jig_client_protocol_link::translate::pages::activity_page(record, &client).unwrap();
+    let actual = decoded.rows.get(0).unwrap();
+    assert_eq!(
+        actual.source.as_ref(),
+        &c::ActivityLine {
+            task: 7,
+            position: 13,
+            at: Wall::from_nanos(37),
+            line: c::Activity::NowWritten {
+                attempt: 3,
+                line: c::Text::new(text.as_bytes().into(), t::NOW_LINE).unwrap()
+            },
+        }
+    );
+    assert!(actual.decoded.is_none());
+    let record = crate::translate::activity::line(&line, &limits).unwrap();
+    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    let narrower = w::Limits { activity_now_written_line: t::NOW_LINE - 1, ..limits };
+    assert_eq!(
+        w::ActivityLine::decode(&narrower, &mut Reader::new(&bytes.finish())).unwrap_err().path,
+        w::Path::ActivityNowWrittenLine
+    );
+    let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
+    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityNowWrittenLine);
 }

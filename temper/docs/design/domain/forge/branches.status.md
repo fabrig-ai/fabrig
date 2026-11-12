@@ -1,6 +1,6 @@
 # branches: status
 
-2026-11-11. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-12. Where the tree's code lags or departs from [branches.md](branches.md).
 
 - **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`).
 

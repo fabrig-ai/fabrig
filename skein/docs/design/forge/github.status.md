@@ -25,3 +25,5 @@
   landing, as the request limits this plan to focused and fuzzy runs.
   The by-slug read is not evidence for this route.
 - **Not yet:** 4.5: the GitHub routes of `Runs`, `Run`, `Artifact`, `Dispatch`, `Rerun`, `Tree`, a fast-forward-only `Merge` and a rebase `Update`, which the dialect answers `Refused` (`skein-forge/src/github/tests.rs`, `turn_calls_are_refused_without_a_request`); of `UpdateRef` and the labels, which no dialect has (README.md, 3.2); `Protection`'s `pulls_required` and `pulls_bypass`; and the stories of 4.5 on the fake GitHub.
+
+- **Not yet:** 4.1: `Read::Pull`'s `size`, from `changed_files`, `additions` and `deletions` [in flight: change 532].

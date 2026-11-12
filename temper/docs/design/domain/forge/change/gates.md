@@ -13,7 +13,11 @@
     `domain/people/README.md`, section 7): the change approved at the head, or
     declined as "cannot do it", with a reason;
   - *a check:* one of the checks a repository without CI is adopted
-    with, a task at exactly the head.
+    with, a task at exactly the head;
+  - *a follow's check,* on a follow change alone: its follow's workflow,
+    dispatched by the change at exactly its head with the followed
+    source commit, its verdict the run's report (`../follows.md`, section
+    6).
 - **Blocking or advisory.** A blocking gate's verdict holds the landing;
   an advisory one's is read, and reported, and holds nothing.
 - **A review's brief names what it judges,** so the reviewer reads
@@ -192,7 +196,13 @@ merge, kind 4, on a pattern of landing branches (jig's
   lands, and until a merge refused or failed is judged again its panel
   says reviews not read yet. Both procedure and
   landing merge waits supply its head, whether the read is complete,
-  the verified reviewers and the reviews from unmapped forge accounts.
+  the verified reviewers and the reviews from unmapped forge accounts,
+  and the pull request's size at that head: the forge's own counts of
+  its files, additions and deletions (skein's `forge/README.md`, 3.6),
+  from the read of the pull request the same step made, none where that
+  read gave none or answered another head. A pull request's answer the
+  store keeps carries no size, as it carries no queue facts, so a step
+  answered from it keeps none.
   So does each step of a change ready in a queue (`Queued` or `First`)
   that an enforcing rule covering it asks an approval of: the forge hands
   the root the step's evidence, `Request::Reviewed { task, evidence }`,

@@ -43,6 +43,8 @@ pub(crate) fn request(
         | people::Ask::Propose { action: people::Action::Batch(_) | people::Action::Amend { .. }, .. } => {
             return standing::role(core, project, role, Act::Amend);
         }
+        people::Ask::Talk { task, .. } => (Act::Talk, documents::Subject::Task { task: *task }),
+        people::Ask::Leave { task, .. } => (Act::Leave, documents::Subject::Task { task: *task }),
         people::Ask::Say { task, .. } => (Act::Message, documents::Subject::Task { task: *task }),
         people::Ask::AnswerQuestion { task, question, .. } => {
             (Act::Answer, documents::Subject::Question { task: *task, message: *question })
@@ -158,6 +160,8 @@ pub(crate) fn request(
         people::Ask::Restore { .. }
         | people::Ask::Compound { .. }
         | people::Ask::Application { .. }
+        | people::Ask::Talk { .. }
+        | people::Ask::Leave { .. }
         | people::Ask::Say { .. }
         | people::Ask::AnswerQuestion { .. }
         | people::Ask::TakePerson { .. }

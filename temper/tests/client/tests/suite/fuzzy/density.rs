@@ -35,6 +35,7 @@ struct World {
     approvals: Vec<w::ApprovalRow>,
     accounts: Option<c::Accounts>,
     decision_rows: Vec<(Token, u32, Vec<u64>)>,
+    relation_rows: Vec<(Token, u32)>,
     answered: Vec<c::ObjectKey>,
     ways: Vec<u32>,
     revision: u32,
@@ -77,6 +78,7 @@ impl World {
                 Down::Close { watch } => {
                     self.watches.retain(|(held, _)| held != watch);
                     self.decision_rows.retain(|(held, _, _)| held != watch);
+                    self.relation_rows.retain(|(held, _)| held != watch);
                 }
                 Down::Read { read, what } => {
                     if let Some(result) = self.read(what) {
@@ -570,6 +572,29 @@ impl World {
         self.root.pages().needs().needs(inbox, self.root.forge().approvals()).iter().map(|need| need.object()).collect()
     }
 
+    fn relations(&mut self, project: u32) {
+        let subject = forge::follows::watch(project, &self.env.limits.forge).expect("follows subject");
+        let Some(watch) = self.watch(&subject) else { return };
+        let count = u32::try_from(self.rng.below(3)).expect("at most two relations");
+        let dependencies = (1..=count)
+            .map(|number| {
+                w::DependencyView::new(&w::CEILINGS, w::DependencyViewParts { number, project: 7 }).expect("dependency")
+            })
+            .collect::<Vec<_>>();
+        let panel = w::FollowsPanel::new(
+            &w::CEILINGS,
+            w::FollowsPanelParts {
+                project,
+                follows: List::with_capacity(0),
+                dependencies: List::from_boxed(dependencies.into_boxed_slice()),
+            },
+        )
+        .expect("relations");
+        self.relation_rows.retain(|(held, _)| *held != watch);
+        self.relation_rows.push((watch, count));
+        self.family(Some(subject), wire::follows_panel(&panel));
+    }
+
     fn showing(&self, project: Option<u32>) -> usize {
         self.decision_rows
             .iter()
@@ -599,6 +624,14 @@ impl World {
         let (facts, brief_lines, decisions, projects) = match *self.root.pages().address() {
             Address::AllHome => {
                 let page = all_home::facts(&self.root, self.env.wall);
+                let expected = self
+                    .relation_rows
+                    .iter()
+                    .map(|(_, count)| usize::try_from(*count).expect("two relations"))
+                    .sum::<usize>();
+                assert_eq!(page.follows.len(), expected, "answered relation boxes");
+                assert_eq!(usize::try_from(page.parts_facts().follows).expect("bounded boxes"), expected);
+                self.observed.insert(if expected > 0 { "relations showing" } else { "no relations" });
                 assert_eq!(
                     usize::try_from(page.showing).expect("small decision count"),
                     self.showing(None),
@@ -671,6 +704,7 @@ fn check_rules(home: Option<&parts::HomeFacts>, needs: &parts::NeedsFacts) {
                 needs: facts.open != 0 && !facts.to_begin,
                 decided: facts.showing != 0 && !facts.to_begin,
                 projects: facts.across && facts.projects > 1,
+                follows: facts.across && facts.follows > 0,
                 ask: !facts.to_begin,
             },
             "Home's independent part rules: {facts:?}"
@@ -702,6 +736,7 @@ fn check_content(
         assert_eq!(shown.needs, open > 0 && !facts.to_begin, "Needs you has a card, or no open card is hidden");
         assert_eq!(shown.decided, decisions > 0 && !facts.to_begin, "Decided for you has a row");
         assert_eq!(shown.projects, facts.across && projects >= 2, "Projects has at least two rows");
+        assert_eq!(shown.follows, facts.across && facts.follows > 0, "What follows what has a box");
     } else {
         let shown = parts::needs(needs);
         assert_eq!(shown.list, open > 0, "Needs you's list has a card");
@@ -748,6 +783,67 @@ fn check_cards(world: &World, open: &[c::ObjectKey], count: u32) {
     }
 }
 
+fn check_approval_sizes(world: &mut World, view: &mut temper_client_view::View) {
+    use temper_client_view::look;
+    let inbox = world.root.pages().inbox().expect("density inbox");
+    let visible = match *world.root.pages().address() {
+        Address::Inbox { .. } => {
+            world.root.pages().needs().shown(inbox, world.root.forge().approvals()).into_iter().collect::<Vec<_>>()
+        }
+        Address::Home { project } if home::facts(&world.root, project, world.env.wall).to_begin() => Vec::new(),
+        Address::AllHome | Address::Home { .. } => {
+            world.root.pages().needs().needs(inbox, world.root.forge().approvals()).iter().copied().take(3).collect()
+        }
+        _ => unreachable!("density pages"),
+    };
+    let expected: Vec<_> = visible
+        .iter()
+        .filter_map(|need| match need {
+            needs::Need::Approval(row) => Some(row.size),
+            needs::Need::Card(_) => None,
+        })
+        .collect();
+    if expected.is_empty() {
+        return;
+    }
+    temper_client_view::build(view, &world.root, world.env.wall, &mut Queue::uncapped());
+    let nodes = view.tree().nodes();
+    let cards: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(start, node)| {
+            if !node.styles.as_slice().contains(&look::NEED_CARD) && !node.styles.as_slice().contains(&look::ASK) {
+                return None;
+            }
+            let card = &nodes[start..start + usize::try_from(node.size).expect("card span")];
+            card.iter().any(|n| n.name.as_deref() == Some(b"Approve A change on GitHub".as_slice())).then_some(card)
+        })
+        .collect();
+    assert_eq!(cards.len(), expected.len(), "each visible approval has a card");
+    for (card, size) in cards.into_iter().zip(expected) {
+        let chips: Vec<_> =
+            card.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::CHIPS)).collect();
+        assert_eq!(chips.len(), usize::from(size.is_some()), "exactly one chips row with a size, none without");
+        if let Some(size) = size {
+            world.observed.insert(if size.cut { "approval with cut size" } else { "approval with size" });
+            let (start, row) = chips[0];
+            let row = &card[start..start + usize::try_from(row.size).expect("chips span")];
+            let actual: Vec<_> = row.iter().flat_map(|n| n.text.iter()).flat_map(|r| r.text.iter().copied()).collect();
+            let count = |n| format!("{n}{}", if size.cut && n == u32::MAX { "+" } else { "" });
+            let expected = format!(
+                "+{} -{} in {} {}",
+                count(size.additions),
+                count(size.deletions),
+                count(size.files),
+                if size.files == 1 { "file" } else { "files" }
+            );
+            assert_eq!(actual, expected.as_bytes(), "approval's size words");
+        } else {
+            world.observed.insert("approval without size");
+        }
+    }
+}
+
 fn check_settings(before: &[c::ObjectKey], after: &[c::ObjectKey], approvals: &[w::ApprovalRow]) {
     assert_eq!(before, after, "a settings revision keeps the open set and its order");
     for row in approvals {
@@ -780,6 +876,7 @@ fn generate(seed: u64) -> World {
         approvals: Vec::new(),
         accounts: None,
         decision_rows: Vec::new(),
+        relation_rows: Vec::new(),
         answered: Vec::new(),
         ways: vec![0; usize::try_from(projects).expect("bounded density fixture")],
         revision: 0,
@@ -816,7 +913,7 @@ fn generate(seed: u64) -> World {
     world.dismissals();
     world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();
     world.inbox();
-    world.approvals = vec![approval(1)];
+    world.approvals = vec![approval(1, &mut world.rng)];
     world.approval_rows();
     assert!(world.open().contains(&c::ObjectKey::Task(201)), "approval asked under You approve is open");
     world.settings(1);
@@ -829,8 +926,10 @@ fn generate(seed: u64) -> World {
     world
 }
 
-fn sweep(seed: u64) -> BTreeSet<&'static str> {
+fn sweep(seed: u64, words: &temper_client_view::words::Words) -> BTreeSet<&'static str> {
     let mut world = generate(seed);
+    let bounds = fixtures::view_bounds(&world.env.limits, words);
+    let mut view = temper_client_view::View::new(&bounds, &world.env.limits, words.clone(), fixtures::FORGE);
     world.observed.insert(match world.projects {
         1 => "one project",
         2 => "two projects",
@@ -841,7 +940,7 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
     for step in 0..STEPS {
         world.step = step;
         let project = u32::try_from(world.rng.between(1, u64::from(world.projects))).expect("bounded density fixture");
-        match world.rng.below(15) {
+        match world.rng.below(16) {
             0 => {
                 world.observed.insert("All projects Home");
                 world.go(Address::AllHome);
@@ -870,7 +969,12 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
                 world.inbox();
             }
             7 => {
-                world.approvals = (1..=world.projects).filter(|_| world.rng.below(2) == 0).map(approval).collect();
+                world.approvals.clear();
+                for project in 1..=world.projects {
+                    if world.rng.below(2) == 0 {
+                        world.approvals.push(approval(project, &mut world.rng));
+                    }
+                }
                 world.approval_rows();
             }
             8 => world.settings(project),
@@ -902,18 +1006,23 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
             12 => world.dismissals(),
             13 => world.go(Address::Inbox { filter: Filter { kind: Some(Kind::Question), ..Filter::ALL } }),
             14 => world.accounts(),
-            _ => unreachable!("fifteen generator moves"),
+            15 => world.relations(project),
+            _ => unreachable!("sixteen generator moves"),
         }
         world.drain();
+        check_approval_sizes(&mut world, &mut view);
     }
     world.observed
 }
 
 #[test]
 fn random_facts_and_settings_keep_each_part_and_card() {
+    let words =
+        temper_client_view::words::Words::english(fixtures::FORGE, 512, temper_client_view::words::Shell::Browser)
+            .expect("density words");
     let mut observed = BTreeSet::new();
     for seed in REPLAY.map_or(1..=SEEDS, |seed| seed..=seed) {
-        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed)));
+        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed, &words)));
         assert!(outcome.is_ok(), "density seed {seed}; replay with REPLAY = Some({seed})");
         observed.extend(outcome.expect("seed completed"));
     }
@@ -935,6 +1044,8 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "no decisions",
             "new brief",
             "no new brief",
+            "relations showing",
+            "no relations",
             "held answer",
             "undone answer",
             "sent answer",
@@ -942,6 +1053,9 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "expired decisions",
             "an Only you item",
             "no Only you item",
+            "approval without size",
+            "approval with size",
+            "approval with cut size",
         ] {
             assert!(observed.contains(state), "density sweep did not reach {state}");
         }
@@ -1028,7 +1142,31 @@ fn entry(task: u64, project: u32) -> c::InboxEntry {
         projects: List::with_capacity(0),
     }
 }
-fn approval(project: u32) -> w::ApprovalRow {
+fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
+    let size = match rng.below(3) {
+        0 => None,
+        kind => {
+            let mut counts = [0; 3];
+            for count in &mut counts {
+                *count = u32::try_from(rng.between(0, 1000)).expect("small size");
+            }
+            if kind == 2 {
+                counts[usize::try_from(rng.below(3)).expect("three counts")] = u32::MAX;
+            }
+            Some(
+                w::ApprovalSize::new(
+                    &w::CEILINGS,
+                    w::ApprovalSizeParts {
+                        files: counts[0],
+                        additions: counts[1],
+                        deletions: counts[2],
+                        cut: kind == 2,
+                    },
+                )
+                .expect("size"),
+            )
+        }
+    };
     w::ApprovalRow::new(
         &w::CEILINGS,
         w::ApprovalRowParts {
@@ -1054,6 +1192,7 @@ fn approval(project: u32) -> w::ApprovalRow {
             signed: List::with_capacity(0),
             can_sign: List::with_capacity(0),
             can_sign_more: 0,
+            size,
         },
     )
     .expect("bounded density fixture")
@@ -1113,6 +1252,8 @@ fn chip(task: u64, project: u32) -> c::Chip {
 }
 fn task_document(task: u64, project: u32) -> c::Task {
     c::Task {
+        talk: None,
+        session: None,
         settings: None,
         label: 0,
         flags: c::TaskFlags {

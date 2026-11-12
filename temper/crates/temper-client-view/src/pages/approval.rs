@@ -211,6 +211,31 @@ fn people(values: &[ApprovalPerson], more: u32, me: u64, can: bool, w: &Words) -
     joined
 }
 
+fn size_count(count: u32, cut: bool, w: &Words) -> Box<[u8]> {
+    w.say(if cut && count == u32::MAX { Word::CountLimited } else { Word::Count }, &[Hole::Number(u64::from(count))])
+}
+pub(crate) fn size(b: &mut Builder, row: &Row, w: &Words) {
+    let Some(size) = row.size else { return };
+    b.open(Role::Slot);
+    b.style(look::CHIPS);
+    b.open(Role::Slot);
+    b.style(look::CHIP);
+    b.text(
+        Run::Plain,
+        &w.say(
+            Word::ApprovalSizeLines,
+            &[Hole::Name(size_count(size.additions, size.cut, w)), Hole::Name(size_count(size.deletions, size.cut, w))],
+        ),
+    );
+    let files = if size.files == 1 {
+        w.say(Word::ApprovalSizeFile, &[])
+    } else {
+        w.say(Word::ApprovalSizeFiles, &[Hole::Name(size_count(size.files, size.cut, w))])
+    };
+    ask::text(b, Role::Text, &files, look::SIZE_FILES);
+    b.close();
+    b.close();
+}
 pub(crate) fn when(row: &Row, w: &Words, times: &mut Times) -> Box<[u8]> {
     concat(&[
         &w.say(Word::ApprovalKind, &[]),

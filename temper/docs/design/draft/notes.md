@@ -641,3 +641,13 @@ The reasons behind `cli.md`, from the user, 2026-11-08.
 - **What `temper box` does:** "start the TUI normally, as a regular "temper" run, but also print some message saying it's downloading temper-box and then start temper-box as sub-process" (the user). The draft keeps today's behaviour around it: the box's log in its file, and quitting the TUI stopping the box.
 - **The download's time,** the draft's estimate for the box's 24 MB: about 1 to 3 seconds on fiber, cable or a cloud machine, which most of temper's audience has; 12 to 24 seconds on ADSL; 40 seconds to a minute and a half on a weak mobile hotspot. The download line pipes through `gunzip`, since curl has no short form of `--compressed`.
 - **The draft's readings,** not the user's words: `ctl` stays in `temper`, internal; `temper box` doesn't look on PATH, where another commit's `temper-box` may be; `serve` and `program-login` are public on `temper-box`, for one person's deployment on one machine; `TEMPER_INTERNAL_BUNDLE=none` stays for development builds' speed.
+
+## 14. Claude through an API key
+
+The reasons behind `claude-api.md`, from the user, 2026-11-11.
+
+- **What they asked for:** "add support for using claude via API token, that would be via smith agent natively (no need to call out to native claude binary), since that's allowed by Anthropic terms of use (please check)", and "Initially it's sufficient to expose this via "temper ctl" (basically you can add an account in temper that uses a Claude API token)."
+- **The terms, checked:** Anthropic's pages, read that day, allow a customer's own API key in software built on Claude, and forbid routing a subscription's credentials through it (`claude-api.md`, section 2).
+- **One provider, not two:** a second, key-only Claude provider beside Claude Code's was weighed first, as configuration alone. It fails on the catalogue: jig refuses two models of one name, whatever their provider, and charters name a model by its name, so a second provider can't carry its own `claude-opus-5-5`. Making a model's identity its provider and name would be work that one provider never needs. One provider whose source picks the route keeps every piece.
+- **In two steps:** "let's build B in two steps as you recommend": step 1 in v0.1.0, and "we'll evaluate the second one later, if it fits in v0.1.0 or not."
+- **The draft's readings,** not the user's words: a subscription limited everywhere holds its account's runs, as jig's order already says, rather than spending the key after it, until step 2 weighs that; Claude's cache prices replace the stock's cautious ones, since Anthropic's page gives them and a key pays them; the pages draw the key where they draw OpenAI's, with no new look.

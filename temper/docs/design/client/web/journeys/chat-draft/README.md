@@ -1,7 +1,8 @@
 # chat-draft
 
 On a fresh `temper box --fake-backends`, built with
-`temper/scripts/bundle.sh --loopback --record`: set up Forgejo on this
+`temper/scripts/bundle.sh`, loading the page with
+`internal-record=1&internal-loopback-navigation=1`: set up Forgejo on this
 machine with the offered empty `work/hello`, sign in to the fake ChatGPT
 plan, and create Hello. Wait for Home's status before starting the
 first chat. Home writes note 1; the chat's document is note 3.

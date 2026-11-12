@@ -1202,6 +1202,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Message { .. }
         | tasks::Event::PersonQuestion { .. }
         | tasks::Event::PersonQuestionAnswer { .. }
+        | tasks::Event::Talk { .. }
+        | tasks::Event::Leave { .. }
         | tasks::Event::AuthorizedMessage { .. }
         | tasks::Event::PeriodNext { .. }
         | tasks::Event::OpenPeriod { .. }
@@ -1227,6 +1229,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::DecideEscalation { .. }
         | tasks::Event::ChargeEffect { .. }
         | tasks::Event::Turn { .. }
+        | tasks::Event::NowWritten { .. }
         | tasks::Event::Refusals { .. }
         | tasks::Event::MakeResultFollowups { .. }
         | tasks::Event::Prepare { .. }
@@ -1245,6 +1248,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::PersonStallNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }

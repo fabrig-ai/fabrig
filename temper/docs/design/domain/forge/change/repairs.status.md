@@ -1,6 +1,7 @@
 # repairs: status
 
-2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-12. Where the tree's code lags or departs from [repairs.md](repairs.md).
+
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).

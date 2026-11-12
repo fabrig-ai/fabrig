@@ -17,6 +17,32 @@ pub fn refused_start(why: &OpenRefusal, deployment: &[u8]) -> (Box<[u8]>, u8) {
     (lines.writer.finish(), 1)
 }
 
+/// Render the named unreadable-row refusal (temper/docs/design/protocol/store.md, 5).
+#[must_use]
+pub fn refused_row_start(row: &crate::UnreadableRow, deployment: &[u8]) -> (Box<[u8]>, u8) {
+    let mut measuring = Lines { writer: Writer::new(0), length: 0, measuring: true };
+    render_row(&mut measuring, row, deployment);
+    let mut lines = Lines { writer: Writer::new(measuring.length), length: 0, measuring: false };
+    render_row(&mut lines, row, deployment);
+    (lines.writer.finish(), 1)
+}
+
+fn render_row(lines: &mut Lines, row: &crate::UnreadableRow, deployment: &[u8]) {
+    let Some((number, name)) = row.family() else {
+        lines.put(b"temper serve: restore forge: store load failed\n");
+        return;
+    };
+    lines.put(b"temper serve: The store in ");
+    lines.put(deployment);
+    lines.put(b" holds a ");
+    lines.put(name.as_bytes());
+    lines.put(b" record, family ");
+    lines.number(u64::from(number));
+    lines.put(b", that this build cannot read, and the start stopped there. Start the build that wrote it again, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ");
+    lines.put(deployment);
+    lines.put(b" together, and start again: nothing is deleted, and the next start makes a new, empty store.\n");
+}
+
 struct Lines {
     writer: Writer,
     length: usize,

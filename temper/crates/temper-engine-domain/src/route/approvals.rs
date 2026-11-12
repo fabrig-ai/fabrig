@@ -42,6 +42,16 @@ pub struct ApprovalRow {
     pub signed: Box<[ApprovalPerson]>,
     pub can_sign: Box<[ApprovalPerson]>,
     pub can_sign_more: u32,
+    pub size: Option<ApprovalSize>,
+}
+
+/// The forge's counts narrowed for an approval row (client/forge/records.md, `approvals`).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSize {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
 }
 
 /// A touched path set of this row's approval (domain/forge/change/questions.md, 2).
@@ -116,6 +126,10 @@ fn cut(rows: Box<[ApprovalRow]>, bound: u32) -> Approvals {
 }
 
 /// One wait as `party` sees it, or none (domain/forge/change/questions.md, 2).
+#[expect(
+    clippy::too_many_lines,
+    reason = "the watcher-specific approval carries both signer eligibility and forge size"
+)]
 pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Option<ApprovalRow> {
     let role = domain.core.people.role(party, wait.project)?;
     let mut chosen = None;
@@ -213,6 +227,10 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         signed: signed.into_boxed(),
         can_sign: can_sign.into_boxed(),
         can_sign_more,
+        size: match wait.size {
+            Some(size) => Some(narrow(size)),
+            None => None,
+        },
     })
 }
 
@@ -225,6 +243,17 @@ fn person(domain: &Domain, person: u64) -> ApprovalPerson {
         None => Box::default(),
     };
     ApprovalPerson { person, name }
+}
+
+fn narrow(size: skein_forge::api::Size) -> ApprovalSize {
+    ApprovalSize {
+        files: u32::try_from(size.files).unwrap_or(u32::MAX),
+        additions: u32::try_from(size.additions).unwrap_or(u32::MAX),
+        deletions: u32::try_from(size.deletions).unwrap_or(u32::MAX),
+        cut: size.files > u64::from(u32::MAX)
+            || size.additions > u64::from(u32::MAX)
+            || size.deletions > u64::from(u32::MAX),
+    }
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository

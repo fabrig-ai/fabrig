@@ -130,7 +130,7 @@ fn report_bytes(report: &Report) -> Option<u64> {
 }
 
 pub(crate) fn failure(failure: &Failure) -> Option<u64> {
-    parts(&failure.parts)?.checked_add(report_bytes(&failure.report)?)
+    parts(&failure.parts)?.checked_add(report_bytes(&failure.report)?)?.checked_add(bytes(&failure.message)?)
 }
 
 pub(crate) fn answer(answer: &Answer) -> Option<u64> {

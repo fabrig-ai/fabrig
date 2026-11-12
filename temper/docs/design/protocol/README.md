@@ -130,7 +130,7 @@ binary (`jig-test`).
 | worker alone | `temper-box serve` on a document with one worker and no engine, dialling an engine alone on loopback (`cluster.md`, 1) |
 | the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier runs it (`cluster.md`) |
 | the cluster's description | `bin/temper-box/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (`cluster.md`, 5) |
-| the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 4 and 5) |
+| the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-engine-service` and `temper-worker-service`, composed by `temper-service` (sections 4 to 6; `services.md`) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
 | the forge component | skein's `skein-forge-connection` (forge/README.md; skein's `forge/connection.md`) |
 | the git component | `temper-worker-protocol-git` (git.md) |
@@ -147,7 +147,7 @@ binary (`jig-test`).
 | the browser shell | `temper-client-shell-web` (`../client/web/README.md`, 2.1) |
 | the bundle | the browser shell's module, glue and stylesheets, skein's bundler's output, which the binary holds and the clients' listener serves (`../client/web/README.md`, 2.2 and 2.6) |
 | the tools | the agents' interface to temper, `temper ctl`: `temper-client-tools` and `temper-client-shell-cli` (`../client/ctl/README.md`, section 4) |
-| the clients' listener | `temper-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/engine.md`) |
+| the clients' listener | `temper-engine-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/engine.md`) |
 | the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper-box fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`, 3) |
 | the throwaway Forgejo | a Forgejo started by a test script on loopback, with SQLite in a scratch directory, removed after (`../testing/process-tier.md`) |
 | locate | the forge connector's read of a repository's id by owner and name (skein's `forge/forgejo.md`, 1.2) |
@@ -163,7 +163,7 @@ the pin (setup/owned.md, 1), the preparation (setup/owned.md, 3), the box and it
 In the shape of jig's `protocol/service.md`, section 2:
 
 ```
-temper-service, engine module           iterate: io ↔ components ↔ root
+temper-engine-service                   iterate: io ↔ components ↔ root
 ├── temper-engine-domain                the root, with the journal (../domain/root.md)
 └── the protocol layer
     ├── jig-protocol-store              commits, loads, transcripts, secrets; temper's families (store.md)
@@ -272,7 +272,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
 In the shape of jig's `protocol/service.md`, section 6:
 
 ```
-temper-service, worker module           iterate
+temper-worker-service                   iterate
 ├── temper-worker-domain                the worker's root: jig's hub, smith's host domain, the checkout
 └── the protocol layer
     ├── jig-protocol-worker-link        the link to the engine; temper's parts as bytes (channel.md)
@@ -327,10 +327,11 @@ No store; starting, ending and smith's payloads are jig's (jig's
 
 Standalone is jig's one process (jig's `protocol/service.md`, section 10):
 
-- **One service, one loop.** `temper-service`'s system module owns the
-  engine's protocol layer and the worker's as children, each with its own
-  root and journal, sharing io and nothing else; nothing crosses between
-  them but bytes.
+- **One service, one loop.** `temper-service` owns the engine's
+  protocol layer and the worker's as components, each with its own root
+  and journal, sharing io and nothing else; nothing crosses between them
+  but bytes. Each half is a crate of its own, which the engine's and the
+  worker's binaries link alone (`services.md`).
 - **Joined by the in-process name `workers`:** the engine's workers'
   listener and the worker's link (configuration/README.md, section 2). The
   link's opening, authentication, liveness, relays and grants run as
@@ -675,7 +676,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 - **Step tests:** every codec against golden bytes, at its bounds and by
   fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
-  real git (`tools/git-transcripts`); `skein-forge`'s decoders against
+  real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
   `skein/docs/design/testing/fakes/forge.md`, section 7);
   temper's pages as skein's text shell prints them (`../client/testing.md`

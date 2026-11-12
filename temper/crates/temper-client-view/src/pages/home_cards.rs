@@ -12,6 +12,10 @@ use temper_client_domain::{
     pages::{Act, needs},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Home's need variants carry approval size and signer context beside their acts"
+)]
 pub(crate) fn cards(
     b: &mut Builder,
     root: &Domain,
@@ -35,8 +39,11 @@ pub(crate) fn cards(
             question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-        if let needs::Need::Card(card) = need {
-            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+        match need {
+            needs::Need::Card(card) => {
+                super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+            }
+            needs::Need::Approval(row) => super::approval::size(b, row, w),
         }
         if index == 0
             && let needs::Need::Approval(row) = need

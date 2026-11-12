@@ -19,7 +19,8 @@ pub(super) fn linked() -> Host {
     linked_at(b"/accounts/connect", Vec::new())
 }
 fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.start(path, records, None);
     host.requests();
     host.heard(Heard::StreamOpened);
@@ -226,7 +227,8 @@ fn start_gives_the_kept_sign_in_after_start_and_drops_malformed_values() {
 }
 #[test]
 fn keeping_a_sign_in_is_a_save_without_a_client_write() {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.out.push(Request::KeepSignIn {
         source: 43,
         address: b"https://issuer.example/visit".as_slice().into(),

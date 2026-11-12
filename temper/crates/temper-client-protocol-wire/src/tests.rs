@@ -1,4 +1,5 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
+mod drafts;
 mod fixtures;
 mod source;
 use crate::v1;
@@ -1113,6 +1114,50 @@ fn ways_panel_round_trips() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire golden supplies the panel without rules")]
+fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
+    let limits = fixtures::limits();
+    let base = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
+        .expect("smallest panel");
+    // At every bound together, then one past each bound independently.
+    for (rows, paths, review, sign_off, lands, note, refused) in [
+        (9, 256, 64, 64, 64, 160, None),
+        (10, 256, 64, 64, 64, 160, Some(v1::Path::PathRulesRows)),
+        (9, 257, 64, 64, 64, 160, Some(v1::Path::PathRulePaths)),
+        (9, 256, 65, 64, 64, 160, Some(v1::Path::PathRuleReview)),
+        (9, 256, 64, 65, 64, 160, Some(v1::Path::PathRuleSignOff)),
+        (9, 256, 64, 64, 65, 160, Some(v1::Path::PathRuleLands)),
+        (9, 256, 64, 64, 64, 161, Some(v1::Path::PathRulesNote)),
+    ] {
+        let row = v1::PathRuleParts {
+            paths: fixtures::field_bytes(paths),
+            review: fixtures::field_bytes(review),
+            sign_off: fixtures::field_bytes(sign_off),
+            lands: fixtures::field_bytes(lands),
+        };
+        let note = fixtures::field_bytes(note);
+        let bytes = fixtures::ways_with_unchecked_rules(&base, rows, &row, &note);
+        let made = match fixtures::path_rules(&limits, rows, row, note) {
+            Ok(rules) => v1::WaysPanel::new(&limits, v1::WaysPanelParts { rules, ..base.clone().into_parts() }),
+            Err(problem) => Err(problem),
+        };
+        match refused {
+            None => {
+                let panel = made.expect("all rules at their bounds");
+                assert_eq!(crate::ways_panel(&panel), bytes);
+                assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
+            }
+            Some(path) => {
+                let problem = v1::Problem { path, reason: skein_codec::Reason::Bound };
+                assert_eq!(made, Err(problem));
+                assert_eq!(v1::WaysPanel::decode(&limits, &mut Reader::new(&bytes)), Err(problem));
+                assert_eq!(crate::decode_ways_panel(&bytes, &limits), None);
+            }
+        }
+    }
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn view_answer_round_trips() {
     let limits = fixtures::limits();
@@ -1982,11 +2027,19 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
 fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     let limits = v1::CEILINGS;
     let mut rows = List::with_capacity(4);
-    for (yours, goal) in [
-        (v1::ApprovalYours::Counts, Some(u64::MAX)),
-        (v1::ApprovalYours::NoAccount, None),
-        (v1::ApprovalYours::TooFew, None),
-        (v1::ApprovalYours::OtherRole, None),
+    let size =
+        v1::ApprovalSize::new(&limits, v1::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false })
+            .expect("approval size");
+    let saturated = v1::ApprovalSize::new(
+        &limits,
+        v1::ApprovalSizeParts { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: true },
+    )
+    .expect("approval size at its bounds");
+    for (yours, goal, size) in [
+        (v1::ApprovalYours::Counts, Some(u64::MAX), None),
+        (v1::ApprovalYours::NoAccount, None, Some(size)),
+        (v1::ApprovalYours::TooFew, None, Some(saturated)),
+        (v1::ApprovalYours::OtherRole, None, None),
     ] {
         rows.push(
             v1::ApprovalRow::new(
@@ -2018,6 +2071,7 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
                     signed: approval_people(1),
                     can_sign: approval_people(9),
                     can_sign_more: 3,
+                    size,
                 },
             )
             .expect("approval row at its byte bounds"),

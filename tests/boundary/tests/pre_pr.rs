@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
+assert 'TIERS_HOLD' not in os.environ, 'hold setting leaked to child'
 common = subprocess.check_output(['/usr/bin/git', 'rev-parse', '--git-common-dir'], text=True).strip()
 git_dir = Path(common).resolve()
 root = git_dir.parent
@@ -55,6 +56,16 @@ def format_files(paths):
         sys.exit(1)
     if fail == 'interrupt':
         os.kill(os.getpid(), signal.SIGTERM)
+if name == 'hold':
+    assert Path.cwd() == root
+    spend(0, ['hold-start', args])
+    if args == ['fail']:
+        sys.exit(3)
+    print('held', flush=True)
+    sys.stdin.read()
+    state = json.loads(state_path.read_text())
+    spend(0, ['hold-end', (git_dir / 'pre-pr-passed').exists()])
+    sys.exit(0)
 metadata = json.loads((git_dir / 'metadata.json').read_text())
 if name == 'cargo' and args[0] == 'metadata':
     spend(1000, ['metadata', args, side])
@@ -120,6 +131,7 @@ elif name == 'one-process':
     print('last streamed line: ' + side, flush=True)
     if ledger.get('output'):
         print(ledger['output'], flush=True)
+    spend(0, ['one-process-end'])
     sys.exit(ledger.get('one_process_exit', 100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0))
 else:
     tree = Path.cwd().name
@@ -139,7 +151,12 @@ fn write(root: &Path, path: &str, text: &str) {
 }
 
 fn command(root: &Path, program: &str, args: &[&str]) -> Output {
-    Command::new(program)
+    command_with_hold(root, program, args, None)
+}
+
+fn command_with_hold(root: &Path, program: &str, args: &[&str], hold: Option<&str>) -> Output {
+    let mut command = Command::new(program);
+    command
         .args(args)
         .current_dir(root)
         .env_clear()
@@ -150,9 +167,11 @@ fn command(root: &Path, program: &str, args: &[&str]) -> Output {
         .env("GIT_AUTHOR_EMAIL", "fixture@example.invalid")
         .env("GIT_COMMITTER_NAME", "Fixture")
         .env("GIT_COMMITTER_EMAIL", "fixture@example.invalid")
-        .env("GIT_CONFIG_GLOBAL", "/dev/null")
-        .output()
-        .expect("start fixture command")
+        .env("GIT_CONFIG_GLOBAL", "/dev/null");
+    if let Some(prefix) = hold {
+        command.env("TIERS_HOLD", prefix);
+    }
+    command.output().expect("start fixture command")
 }
 
 fn git(root: &Path, args: &[&str]) -> Vec<u8> {
@@ -167,14 +186,18 @@ fn fixture() -> skein_scratch::Scratch {
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
     let workspace = skein_scratch::paths::workspace();
-    for path in
-        [".temper/pre-pr", "tools/pre-pr/pre_pr.py", "tools/citations/citations.py", "tools/citations/sized.txt"]
-    {
+    for path in [
+        ".temper/pre-pr",
+        "tools/pre-pr/pre_pr.py",
+        "tools/tiers/run",
+        "tools/citations/citations.py",
+        "tools/citations/sized.txt",
+    ] {
         if let Ok(source) = fs::read_to_string(workspace.join(path)) {
             write(root, path, &source);
         }
     }
-    for name in ["cargo", "rustfmt", "git"] {
+    for name in ["cargo", "rustfmt", "git", "hold"] {
         write(root, &format!(".git/bin/{name}"), PROGRAM);
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
@@ -660,4 +683,56 @@ fn the_summary_fits_the_kept_tail() {
         assert!(content.ends_with(&"x".repeat(63)), "last output line retained");
     }
     assert!(log.find("last streamed line:").expect("streamed tools") < log.rfind("pre-pr: refused").expect("summary"));
+}
+
+#[test]
+fn one_hold_spans_the_check_but_not_a_cache_hit() {
+    for setting in [None, Some(""), Some(".git/bin/hold")] {
+        let scratch = fixture();
+        let root = scratch.path();
+        pin(root);
+        write(root, "a/src/lib.rs", "fn changed() {}\n");
+        let output = command_with_hold(root, "sh", &[".temper/pre-pr"], setting);
+        assert!(output.status.success(), "{}", text(&output));
+        let state = budget(root);
+        let events: Vec<_> =
+            state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
+        if setting == Some(".git/bin/hold") {
+            assert_eq!(events.first(), Some(&json!(["hold-start", []])));
+            assert_eq!(events.get(1).expect("first cargo")[0], "metadata");
+            assert_eq!(events.last(), Some(&json!(["hold-end", true])));
+            assert!(
+                events.iter().position(|e| e[0] == "one-process-end").expect("tests returned")
+                    < events.len().saturating_sub(1)
+            );
+            assert_eq!(events.iter().filter(|e| e[0] == "hold-start").count(), 1);
+        } else {
+            assert!(!events.iter().any(|e| e[0] == "hold-start" || e[0] == "hold-end"));
+        }
+        reset(root, "format");
+        let cached = command_with_hold(root, "sh", &[".temper/pre-pr"], setting);
+        assert!(cached.status.success(), "{}", text(&cached));
+        assert!(budget(root)["events"].as_array().expect("cached events").iter().all(|e| e[0] == "git"));
+    }
+}
+
+#[test]
+fn an_early_hold_exit_warns_without_changing_the_verdict() {
+    for fault in ["", "format"] {
+        let scratch = fixture();
+        let root = scratch.path();
+        pin(root);
+        write(root, "a/src/lib.rs", "fn changed() {}\n");
+        reset(root, fault);
+        let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"));
+        assert_eq!(output.status.success(), fault.is_empty(), "{}", text(&output));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout.matches("pre-pr: hold:").count(), 1, "{stdout}");
+        assert!(stdout.contains("; going on unheld"), "{stdout}");
+        let state = budget(root);
+        let events: Vec<_> =
+            state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
+        assert_eq!(events.first(), Some(&json!(["hold-start", ["fail"]])));
+        assert_eq!(events.get(1).expect("cargo after failed hold")[0], "metadata");
+    }
 }

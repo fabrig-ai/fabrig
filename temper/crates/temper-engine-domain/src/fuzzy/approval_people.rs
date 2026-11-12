@@ -110,6 +110,12 @@ fn check_context(row: &crate::ApprovalRow, me: u64, words: &Words) {
         signed: client_people(&row.signed),
         can_sign: client_people(&row.can_sign),
         can_sign_more: row.can_sign_more,
+        size: row.size.map(|size| client::forge::approvals::Size {
+            files: size.files,
+            additions: size.additions,
+            deletions: size.deletions,
+            cut: size.cut,
+        }),
     };
     let env = client_env();
     let mut root = client_fixture(me, &env);

@@ -108,6 +108,27 @@ fn file_transcript_mutations_are_malformed_naming_the_field() {
     }
 }
 #[test]
+fn unchanged_pull_file_status_decodes_as_modified() {
+    use skein_forge::forgejo::{
+        document::{ChangedFile, FileStatus},
+        request::{Page, Request},
+    };
+    let request =
+        Request::PullFiles { at: forgejo::specimen(), number: 1, page: Page { page: Some(1), limit: Some(2) } };
+    let decoded =
+        forgejo::decode(&request, br#"[{"filename":"wire.bin","status":"unchanged","additions":0,"deletions":0}]"#);
+    assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
+    assert_eq!(
+        decoded.rows.as_slice(),
+        &[Row::File(ChangedFile {
+            filename: Box::from(*b"wire.bin"),
+            previous_filename: None,
+            status: FileStatus::Modified,
+        })]
+    );
+}
+
+#[test]
 fn a_failing_actions_status_links_its_run_and_job() {
     let transcript = forgejo::transcript("actions-combined-status");
     let decoded = forgejo::decode(&forgejo::route(&transcript), &transcript.body);

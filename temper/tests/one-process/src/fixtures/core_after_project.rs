@@ -26,7 +26,7 @@ use temper_playground::{
 const ANSWER_BOUND: skein_lib::Duration = temper_client_shell_cli::limits::DEADLINE;
 const LOGIN: &str = "personal";
 const PROJECT: &str = "proof-5-clearer-words";
-const ITEMS: usize = 11; // Rules, six charters, two templates and two policies.
+const ITEMS: usize = 10; // Rules, five charters, two templates and two policies.
 
 struct Incident;
 type Proc = programs::Process<Incident>;
@@ -243,7 +243,7 @@ impl Judge {
     fn after_forget(&mut self, caller: &mut Caller) {
         self.readings = caller.answers.len();
         let mut commands = vec![vec!["settings", "show", "rules", "--json"]];
-        for number in ["1", "2", "4", "6", "9", "10"] {
+        for number in ["1", "2", "4", "9", "10"] {
             commands.push(vec!["settings", "show", "charter", number, "--json"]);
         }
         for kind in ["template", "policy"] {

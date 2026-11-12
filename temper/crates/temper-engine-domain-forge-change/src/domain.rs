@@ -56,6 +56,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         Pull::Missing | Pull::Open { .. } | Pull::Closed => {}
     }
     if standing.cancelled {
+        if let State::Held { why, .. } = &next.state {
+            next.ended_held = Some(*why);
+        }
         next.state = State::Ended;
         next.released = None;
         next.owns_turn = false;
@@ -557,6 +560,9 @@ fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Steppe
 }
 
 fn hold(mut change: Change, why: Hold) -> Stepped {
+    if change.state == State::Ended {
+        return Stepped { change, decision: Decision::Cancel };
+    }
     if change.owns_turn {
         change.owns_turn = false;
     }
@@ -572,6 +578,9 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if !requested && facts.follows && !facts.pending.is_empty() {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     match &change.early {
         Early::Started(heads) => {
             if standing.start_conflict.is_some() {
@@ -943,7 +952,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         match verdict(&change, gate, facts, head) {
             Status::Failed if gate.blocking => match gate.kind {
                 GateKind::Person => return hold(change, Hold::Rejected),
-                GateKind::Agent | GateKind::Check => {
+                GateKind::Agent | GateKind::Check | GateKind::Follow => {
                     return repair_due(change, Repair::Gate(gate.number), facts, now, limits);
                 }
             },
@@ -1533,6 +1542,16 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
 }
 
 fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
+    match delegate {
+        Delegate::Gate { number: crate::FOLLOW_CHECK_GATE, .. } => return None,
+        Delegate::Gate { .. }
+        | Delegate::Produce
+        | Delegate::Close
+        | Delegate::Repair(_)
+        | Delegate::Resolve { .. }
+        | Delegate::Merge { .. } => {}
+    }
+
     if let Some(why) = standing.lacking {
         return Some(why);
     }

@@ -4,31 +4,36 @@
 
 ### Its questions
 
-A change made with questions `foreman` or `up` (`README.md`, 1) relays its agents'
+A change made with questions `up` (`README.md`, 1) relays its agents'
 questions: its producing, its repairs and its resolutions ask it, it
-has each settled by a foreman or passes it to its requester, and it
-answers the asker. It decides nothing itself (jig's `domain/tasks/proposals.md`
-): the foreman and the requester decide, and the change relays
-(`../../../draft/notes.md`, N1).
+passes each to its requester, and it answers the asker. It decides
+nothing itself (jig's `domain/tasks/proposals.md`
+): the requester decides, and the change relays
+(`../../../draft/notes.md`, N1). A change made with questions `none`
+relays none. The routes are `none` and `up` alone: `foreman`, which had
+a delegate of the forge's charter 3 settle each question first, is
+retired (`../../../draft/stock-charters.md`, 3), since the implementer
+now checks its spec itself before it asks. A `change` naming it, alone
+or in a batch, is refused by name (`../../agent/tools.md`, 1), and a
+stored setting naming it is refused, not read, naming the setting
+(`../../../protocol/configuration/settings.md`, 2).
 
 - **Its agents may ask.** It delegates its producing, its repairs and
   its resolutions with the Message family kept, so that each may ask
   its requester, the change, in the question form, its words carrying
   its options and its recommendation, after pushing what it has; a
   question in the line form (`../../agent/agents.md`, 2) reaches a person's client
-  as its choices where it is relayed whole, and any other, or one with a
-  foreman's reasons beneath it (*Passed up,* below), as words. An
+  as its choices where it is relayed whole, and any other as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks/lifecycle.md`, 8): its run parks, no try spent, until the
   change answers, a `finish` before then parking it too, whatever its
   form, and the change's wait for it is no stall (`repairs.md`). Its
-  reviews and its foremen are delegated without the Message family, as
-  under `none`.
+  reviews are delegated without the Message family, as under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
   asked (its producing task, and the repair or the resolution it has
   live), oldest first, as its open questions, kept on its record, and
-  works them one at a time in that order: the next gets its foreman, or
-  is passed up, once the one before is answered. A question from any
+  works them one at a time in that order: the next is passed up once
+  the one before is answered. A question from any
   other task, and any other task's words, receive fallback feedback naming
   the enabled route and the answer form; words do not settle a question.
 - **Its own agents' words.** Its agent's report goes in its `finish`,
@@ -61,49 +66,29 @@ answers the asker. It decides nothing itself (jig's `domain/tasks/proposals.md`
   `temper-box init`'s box runs, each below the 128 open questions a change's
   record keeps:
   `../../../protocol/configuration/limits.md`). The one past the bound,
-  when its turn comes, is given no foreman and passed nowhere: the
+  when its turn comes, is passed nowhere: the
   change holds itself, its words naming the bound and the question's
   asker and number, and the hold escalates to its requester (jig's
   `domain/tasks/proposals.md`). Released, it passes that question up
-  (below) with no foreman, the first it counts since the release, as
+  (below), the first it counts since the release, as
   its repairs count again from one (`repairs.md`).
-- **A foreman per question,** under `foreman`: a delegate under the
-  forge's foreman charter (kind 3's number 3:
-  `../../../protocol/configuration/settings.md`, 2), made under the change's own
-  authority as its other delegates are (`repairs.md`), each one of the change's
-  tasks; a foreman that authority no longer covers is not made, and the
-  question is passed up, its reasons saying what the authority lacks. Its brief
-  carries the change's words whole, the question's words whole with its
-  asker and number, and the change's branch and pushed head, where it
-  has one; its workspace is a checkout of the landing branch's tip,
-  inspect only, with the forge's reads on the change's repository, so
-  that it reads the design there and the pushed work through
-  `read_branch` and `read_file`. Its contract is a verdict whose label
-  is one of:
-  - `answer`: the change's words, the design or the draft settle it; its
-    text is the answer;
-  - `finish`: the work done holds, and the rest belongs to the asker's
-    Left list; its text says what to finish with;
-  - `escalate`: neither settles it; its text says why, for the
-    requester.
-
-  On `answer` or `finish` the change answers the asker's question, in
-  the answer form to its number, with the foreman's text, opened for
-  `finish` by the line `Finish: the work done holds; list the rest under
-  Left.` On `escalate`, or a foreman that fails or is cancelled, the
-  change passes the question up, the foreman's text or its failure's
-  words among the reasons.
-- **Passed up,** under `up`, on `escalate`, or released past the bound,
+- **Passed up,** under `up`, or released past the bound,
   one at a time in the order taken: the change asks its requester in
   the question form, its words the asker's question whole, as its
-  record kept them when it was taken, then,
-  under a line `Foreman:`, the foreman's reasons where one ran, the
-  whole cut from its end to the message bound and marked. The change is
+  record kept them when it was taken, cut from its end to the message
+  bound and marked. The change is
   kept by its own question while it waits (jig's `domain/tasks/lifecycle.md`,
   8): it steps as ever, and merges nothing, its merge waiting as for
   a pending dependency (`README.md`, 2, step 7). A repair's or a resolution's
   question passed up takes it out of its queue until answered, as a
-  kept change's place is (`../queues.md`).
+  kept change's place is (`../queues.md`). Its requester, a goal among
+  them, is woken by the question, which its run reads labelled with how
+  to answer (`../../agent/README.md`, 4). A run that ends without
+  answering leaves the question shown in every later run's brief, and
+  its requester is woken again while it awaits nothing else (jig's
+  `domain/engine/briefs.md`, 1.2, and `domain/tasks/lifecycle.md`, 2),
+  so a requester with nothing else to wait for is never left idle with
+  the change's question.
 - **The answer relayed down.** The requester's answer, in the answer
   form to the change's question, is relayed at the step that takes it.
   A fresh requester run finds that durable question number and its authorized
@@ -125,22 +110,22 @@ answers the asker. It decides nothing itself (jig's `domain/tasks/proposals.md`
   dependency having ended done or been amended away; a requester that
   adds a dependency as it answers so makes the work wait for it.
 - **An asker that ends first** (cancelled, or its run failing for good:
-  its own `finish` parks it) ends its questions: a foreman still
-  running for one is cancelled, and an answer to a question passed up
-  for it is taken and dropped, the change's history naming it. The
+  its own `finish` parks it) ends its questions: an answer to a
+  question passed up for it is taken and dropped, the change's history
+  naming it. The
   change's own question stays until its requester answers it or it
   ends with the change. No question goes silently: the change tells its
   requester, in words and once, `Task A ended with its question N open;
   it reached no one: LINE`, where it had not been asked of the requester
-  (taken, or with a foreman), and `Task A ended; your answer to its
+  (taken), and `Task A ended; your answer to its
   question N goes no further: LINE`, at the step that takes or holds
   the answer to one that had. LINE is the question's first line, as its
   record keeps it. These words share the step's `tasks.batch`, and a
-  question with no room for them stays on the record, its foreman
-  running on, until a step has (below).
+  question with no room for them stays on the record until a step has
+  (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
-  first line, and where it stands (taken; with foreman task F; asked of the
+  first line, and where it stands (taken; asked of the
   requester; its answer held for dependencies), and the questions
   taken against its bound, are kept on its record, so that a restart
   resumes each where it stood (`../README.md`, section 9), and shown on its panel
@@ -159,22 +144,11 @@ must be less than 128, leaving room for the question past that allowance. A
 question beyond the open-queue ceiling is answered with fallback feedback
 describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
-The foreman's brief fits the deployment's brief bound by cutting the
-change's words from their end and marking truncation before cutting anything
-else; the question's words are never cut. Its three verdict choices, in
-order, are code 1 `answer`, code 2 `finish`, code 3 `escalate`, each
-requiring words and no fields. Its words fit both `tasks.result_bytes` and
-`tasks.message_bytes` less 64 bytes, reserving room for the finish prefix in
-the answer relayed down (2026-11-04).
-
 Every relay input read at a step is retained before any message is sent. A
-question is taken once by its asker and number. Reasons awaiting passing up,
-and answers awaiting passing down, stay on the record even when the step has
-no message room; stored pending reasons have a ceiling of 65,536 bytes.
-Passing up after release does not check the spent allowance again. Only the
-result of the current question's assigned foreman settles it; other foreman
-results are dropped. Ask and answer messages share the step's `tasks.batch`
-with its other replies. Work left solely for lack of message room makes the
+question is taken once by its asker and number. Answers awaiting passing
+down stay on the record even when the step has no message room.
+Passing up after release does not check the spent allowance again. Ask and
+answer messages share the step's `tasks.batch` with its other replies. Work left solely for lack of message room makes the
 next step due at once (2026-11-04).
 
 ### Early starts
@@ -274,7 +248,8 @@ rest of the branch lands while a sign-off waits a night
   people counted, and `sets`, the sets of its rule the change touches
   there, bit `n − 1` for set `n`, none for a rule naming no set. No change
   waits behind one it shows, which is out of its queue (`../queues.md`), so a
-  row counts none. Reviews read
+  row counts none. It carries its pull request's size at that head, as its
+  approval evidence keeps it (`gates.md`, 2), none where it keeps none. Reviews read
   in part make a row as a whole read does. A change with no facts at its last
   head has none: one not yet judged, one that was held, and every change
   after a restart until its next step's facts are kept.
@@ -300,7 +275,11 @@ rest of the branch lands while a sign-off waits a night
   number in order, `ApprovalSet { number, name }`, its name the project's
   classes' as the forge holds them (`../attention.md`, 6), empty for a number
   the classes hold no set at; none for a rule naming no set. The client
-  says them on the card (`../../../client/forge/README.md`, 4.1).
+  says them on the card (`../../../client/forge/README.md`, 4.1). It carries
+  the size the forge's part gives, each count kept in 32 bits as the row's other
+  counts are, one past 4294967295 kept at it and the size marked cut, so
+  that the card says so (`../../../client/forge/records.md`, the subject
+  `approvals`).
 - **Who can still sign:** the root's part names, too, who has signed the
   row's approval at the head and who can still give the next sign-off
   (`../../../draft/what-reaches-you.md`, section 7;

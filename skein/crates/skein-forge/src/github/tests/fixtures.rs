@@ -71,7 +71,9 @@ pub fn decode_with(
             Step::Demand => {}
             Step::Row(row) => rows.push(row).unwrap(),
             Step::Done(document) => return (rows, Ok(document)),
-            Step::Malformed(error) => return (rows, Err(error)),
+            Step::Malformed(error) => {
+                return (rows, Err(error.with_document_bound(limits.json.length, feed.delivered())));
+            }
         }
         request = demand;
     }
@@ -167,6 +169,9 @@ pub fn pull(number: u64) -> super::super::document::Pull {
         head_commit: super::super::id::commit(SHA).unwrap(),
         base_commit: super::super::id::commit(OTHER_SHA).unwrap(),
         reviewers: Box::from([9, 10]),
+        changed_files: None,
+        additions: None,
+        deletions: None,
     }
 }
 pub fn context(check: crate::api::Check) -> super::super::document::Context {

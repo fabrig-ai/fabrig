@@ -41,7 +41,12 @@ pub enum GateKind {
     Person,
     /// A configured check supplies a verdict.
     Check,
+    /// The follow workflow dispatched by the change itself.
+    Follow,
 }
+
+/// The follow gate is outside the configured gates' u32 namespace.
+pub const FOLLOW_CHECK_GATE: u64 = u64::MAX;
 
 /// One gate the change or its project asks for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -242,6 +247,8 @@ pub struct Change {
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
     pub state: State,
+    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
+    pub ended_held: Option<Hold>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
@@ -330,6 +337,8 @@ pub struct Facts {
     pub delegate: Option<Delegate>,
     /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
     pub catch_up: Option<Commit>,
+    /// This change follows source landings and never starts early (domain/forge/follows.md, 4).
+    pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).
@@ -436,6 +445,8 @@ pub enum Delegate {
 /// The effect the top should commit after checking authority.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
+    /// Dispatch or retry the follow check at this head.
+    FollowCheck { head: Commit },
     /// Run the next failed runner job again without moving the head.
     Rerun { head: Commit },
     /// Open a pull request for the pushed branch.
@@ -519,7 +530,6 @@ pub struct Limits {
 pub enum Route {
     #[default]
     None,
-    Foreman,
     Up,
 }
 
@@ -553,10 +563,8 @@ pub struct Open {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stands {
-    /// Waiting its turn, its foreman's delegation or its passing up.
+    /// Waiting its turn to be passed up.
     Taken,
-    /// With its foreman: `None` while the delegate is asked, its task once made.
-    Foreman { task: Option<u64> },
     /// Asked of the change's requester, the change kept by its own question.
     Asked,
     /// Answered by the requester and held while the change is kept by a pending dependency.

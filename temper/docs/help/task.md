@@ -17,9 +17,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   Results reach their parent; its run hears them under its waking rules.
   A change task is a delegate run by the forge, returning a landed
   change (temper help box) or why none applies; it starts with half its
-  parent's remaining spend. Questions go to `none`, a `foreman`
-  (answers, finishes or escalates), or `up` to its requester.
-  It relays producer, repair and resolution questions, holds answers until
+  parent's remaining spend. Questions go `up` to its requester (for a
+  goal, the goal's agent, then you), or nowhere (`none`). With `up`, it
+  relays producer, repair and resolution questions, holds answers until
   dependencies land, and holds past its question bound.
   To answer an escalation, get its answer number with `read_task` on the
   change, then `message` with `form=answer`. Words and amendment reasons

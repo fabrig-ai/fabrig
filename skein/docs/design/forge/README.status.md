@@ -39,3 +39,5 @@ transcript lists its three commits newest first, as the plan reads them.
 - **Departs:** 4.2: the plans' handler departure remains `forgejo.status.md` (Departs). 4.2: the decoded-kind match departure remains `forgejo.status.md` (Departs).  The client/server own-enum departure remains `forgejo.status.md`, 1.
 
 - **Not yet:** 3.2: `PullFor`'s `head` and `base` filters.
+
+- **Not yet:** 3.6: `Pull`'s `size` and `Size`, the forge's own counts at the pull request's head [in flight: change 532].

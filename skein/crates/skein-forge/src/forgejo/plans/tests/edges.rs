@@ -865,7 +865,7 @@ fn refs_namespace_does_not_reduce_the_branch_name_bound() {
         let expected = if name.len() == 64 {
             Ok(Answer::Branches(Box::new([Box::from(name)])))
         } else {
-            Err(Error::InvalidAnswer)
+            Err(Error::TooLarge(api::Excess::unnamed()))
         };
         assert_eq!(run.answer(200, &body.finish()), Step::Done(expected));
     }

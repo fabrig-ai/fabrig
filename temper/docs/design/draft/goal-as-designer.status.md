@@ -1,6 +1,6 @@
 # goal-as-designer: status
 
-2026-11-11. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
+2026-11-12. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
 
 Section 8's first/later choice is carried by `per-wake.md`, section 5
 and `../protocol/configuration/reference.md`: template 4 chooses xhigh
@@ -24,10 +24,16 @@ and a 131,072-byte section is cut at the worker. The fake-program table
 reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/design/protocol/limits.status.md`, 11. The stock's figures stay as they are.
 
 - **Design lags:**
-  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/tools/stage-one/`), so folding this in changes their inputs.
+  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/crates/temper-stage-one-tool/`), so folding this in changes their inputs.
   - 2, 7: `../protocol/configuration/reference.md`: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell.
   - 9: `../protocol/configuration/stock.md`: stock instructions are held in `temper-service`'s source.
 - **Design departs:**
+  - 2, its roles table, and 10: the foreman. `../domain/forge/change/questions.md`,
+    1 has none: a change's questions go `up` to the goal's agent, or
+    nowhere. `stock-charters.md`, 3 retires it, the user's draft of
+    2026-11-12; this draft's foreman lines are rewritten by hand once that
+    draft's first milestone lands (`stock-charters.execution.md`, 3), and
+    `notes.md`, N1 keeps the reasons.
   - 2, 7, 10: `goal-runs-itself.md`, sections 1 to 7, replaces the
     agent's landing, close-out and finish with a closer: jig makes it
     when nothing is left to await, and temper settles the status tags,
@@ -55,7 +61,7 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
     user, 2026-11-10). The `"run"` form goes.
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
-  - 10: a spec past one call, a foreman before a repair, what a
+  - 10: a spec past one call, what a
     designer reads of goals beside it, and a goal's own notes across
     its runs remain open.
 

@@ -74,7 +74,7 @@ the user's hand-made frames of the look request `tui-box-front`
   restarting and the step given up, in memory alone; of them the printed
   link alone is a secret, and it is drawn on the welcome, nowhere else.
 - **Its pages:** the welcome while `me` names no project, then the
-  launchpad and a chat as `pages/README.md` draws them, with the playground's words
+  launchpad and a chat as `pages/launchpad.md` and `pages/README.md` draw them, with the playground's words
   where the project is the playground's. The sign-in screen only where
   the handed link's sign-in fell back.
 
@@ -109,7 +109,7 @@ signed in, and 02, after):
 
 - **When:** in front, from the first frame, while the sign-in screen is
   not drawn and `me`, read or not, names no project: in the no-project
-  launchpad's place (`pages/launchpad.md`, 1, *No project yet*), "Connecting" included.
+  launchpad's place (`pages/launchpad.md`, 7), "Connecting" included.
   Once `me` names a project the host goes to its launchpad (`README.md`, 3, *Its
   pages*), and once it names none again, the welcome stands again.
 - **Its header,** the region `tui-top`, as the launchpad's: "temper" in

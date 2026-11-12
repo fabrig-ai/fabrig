@@ -3,9 +3,10 @@
 2026-11-11. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6).
+- **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
-  1: the brief's lineage, calls and waiting sections.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
+  1: the brief's lineage and calls sections, and the waiting section's proposals and escalations, which reach a run as inbox entries instead.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
    the restart-oracle gaps remain `../testing.status.md`, 9.
    the pending-reasons continuation gap remains `settings.status.md`, 6.
    the settings-holder gap remains `settings.status.md`, 6.

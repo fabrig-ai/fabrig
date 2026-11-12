@@ -72,6 +72,7 @@ pub(crate) fn wait(short: Box<[forge::ShortApproval]>) -> forge::ApprovalWait {
         title: b"Change".as_slice().into(),
         since: Wall::from_nanos(6),
         whole: true,
+        size: None,
         short,
     }
 }
@@ -317,4 +318,42 @@ fn approval_people_are_bounded_named_by_login_and_cut_on_a_character_boundary() 
 
 pub(crate) fn row_for(domain: &Domain, wait: &forge::ApprovalWait, watcher: u64) -> Option<ApprovalRow> {
     row(domain, wait, watcher)
+}
+
+#[test]
+fn approval_rows_narrow_each_size_count_and_mark_any_cut() {
+    use skein_forge::api::Size;
+    let (domain, _) = fixture(Some(Role::Maintainer), true);
+    let max = u64::from(u32::MAX);
+    for (size, expected) in [
+        (None, None),
+        (
+            Some(Size { files: 4, additions: 142, deletions: 18 }),
+            Some(ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
+        ),
+        (
+            Some(Size { files: max, additions: max, deletions: max }),
+            Some(ApprovalSize { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: false }),
+        ),
+        (
+            Some(Size { files: 5_000_000_000, additions: 142, deletions: 18 }),
+            Some(ApprovalSize { files: u32::MAX, additions: 142, deletions: 18, cut: true }),
+        ),
+        (
+            Some(Size { files: 4, additions: max + 1, deletions: 18 }),
+            Some(ApprovalSize { files: 4, additions: u32::MAX, deletions: 18, cut: true }),
+        ),
+        (
+            Some(Size { files: 4, additions: 142, deletions: max + 1 }),
+            Some(ApprovalSize { files: 4, additions: 142, deletions: u32::MAX, cut: true }),
+        ),
+        (
+            Some(Size { files: max + 1, additions: u64::MAX, deletions: u64::MAX }),
+            Some(ApprovalSize { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: true }),
+        ),
+    ] {
+        let mut wait = wait(Box::new([approval(1, 1, false)]));
+        wait.size = size;
+        assert_eq!(row(&domain, &wait, 1).unwrap().size, expected, "{size:?}");
+    }
 }

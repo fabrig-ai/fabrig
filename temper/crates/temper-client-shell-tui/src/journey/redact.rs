@@ -8,7 +8,7 @@ use skein_lib::{
 };
 use skein_ui_screen_terminal::Key;
 use std::collections::BTreeMap;
-use temper_client_shell_web::journey::redact_field;
+use temper_client_redaction::redact_field;
 use temper_client_tui::BoxLine;
 
 pub struct Redacted {

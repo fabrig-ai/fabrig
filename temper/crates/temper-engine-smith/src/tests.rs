@@ -517,7 +517,10 @@ fn a_starting_inbox_keeps_question_and_answer_references() {
     ) else {
         panic!("start conversion")
     };
-    assert_eq!(messages[0].label.as_ref(), b"2 asks (question 4)");
+    assert_eq!(
+        messages[0].label.as_ref(),
+        b"2 asks (question 4; answer with message target=2, form=answer, question=4)"
+    );
     assert_eq!(messages[0].text.as_ref(), b"The plan?");
     assert_eq!(messages[1].label.as_ref(), b"1 answers question 4");
     assert_eq!(messages[1].text.as_ref(), b"Approved.");
@@ -1189,6 +1192,7 @@ fn pull_answer(state: skein_forge::api::State, head: [u8; 32], merged: Option<[u
         ci: api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     })
 }
 
@@ -1919,8 +1923,8 @@ fn change_decodes_repairs_alone_and_in_changes_at_each_commit_width() {
             (format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#), None),
             (format!(r#"{{"words":"a","repairs":"{text}","questions":"up"}}"#), Some(engine::ChangeQuestions::Up)),
             (
-                format!(r#"{{"changes":[{{"words":"a","repairs":"{text}","questions":"foreman"}}]}}"#),
-                Some(engine::ChangeQuestions::Foreman),
+                format!(r#"{{"changes":[{{"words":"a","repairs":"{text}","questions":"up"}}]}}"#),
+                Some(engine::ChangeQuestions::Up),
             ),
         ] {
             let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("repair change").tool
@@ -2014,11 +2018,7 @@ fn change_refuses_a_branch_other_than_mine() {
 
 #[test]
 fn change_decodes_its_questions() {
-    for (questions, expected) in [
-        ("foreman", engine::ChangeQuestions::Foreman),
-        ("up", engine::ChangeQuestions::Up),
-        ("none", engine::ChangeQuestions::None),
-    ] {
+    for (questions, expected) in [("up", engine::ChangeQuestions::Up), ("none", engine::ChangeQuestions::None)] {
         let member = format!(r#"{{"words":"a","questions":"{questions}"}}"#);
         for input in [member.clone(), format!(r#"{{"changes":[{{"words":"first"}},{member}]}}"#)] {
             let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("questions").tool else {
@@ -2041,6 +2041,7 @@ fn change_decodes_its_questions() {
 #[test]
 fn change_refuses_unknown_questions() {
     for (questions, expected) in [
+        (r#""foreman""#, Problem::Range(b"questions")),
         (r#""ask""#, Problem::Range(b"questions")),
         ("true", Problem::Type(b"questions")),
         ("0", Problem::Type(b"questions")),
@@ -2238,7 +2239,8 @@ fn change_refuses_a_producer_or_llm_out_of_range() {
 #[test]
 fn change_batch_refuses_outer_options() {
     let members = r#"{"name":"lexer","words":"lex"},{"name":"parser","words":"parse"},{"name":"checks","words":"check"},{"name":"docs","words":"document"}"#;
-    let options = r#""landing":"goal","producer":2,"questions":"foreman","llm":{"producer":{"main":{"model":"sol","effort":"high"}}}"#;
+    let options =
+        r#""landing":"goal","producer":2,"questions":"up","llm":{"producer":{"main":{"model":"sol","effort":"high"}}}"#;
     let input = format!(r#"{{"changes":[{members}],{options}}}"#);
     assert_eq!(
         configured_change(input.as_bytes()),
@@ -2254,7 +2256,7 @@ fn change_batch_refuses_outer_options() {
         ("after", "[1]"),
         ("producer", "2"),
         ("llm", r#"{"producer":{"main":{"model":"sol","effort":"high"}}}"#),
-        ("questions", r#""foreman""#),
+        ("questions", r#""up""#),
         ("repairs", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
     ];
     for (field, value) in cases {
@@ -2282,7 +2284,7 @@ fn change_batch_keeps_member_options(options: &str) {
         assert_eq!(change.words.as_ref(), words.as_bytes());
         assert_eq!(change.landing, Some(engine::ChangeLanding::Goal));
         assert_eq!(change.producer, Some(2));
-        assert_eq!(change.questions, Some(engine::ChangeQuestions::Foreman));
+        assert_eq!(change.questions, Some(engine::ChangeQuestions::Up));
         assert_eq!(
             change.llm.producer.as_ref().expect("producer choice").main,
             tasks::ModelEffort { model: 0, effort: Some(1) }
@@ -2379,7 +2381,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

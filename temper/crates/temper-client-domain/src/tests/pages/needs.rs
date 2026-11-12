@@ -1488,6 +1488,7 @@ fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
         signed: Box::new([]),
         can_sign: Box::new([]),
         can_sign_more: 0,
+        size: None,
     };
     assert_eq!(needs::why(&root, needs::Need::Approval(&approval)), None, "approval");
     assert!(needs::ready(&root, needs::Need::Approval(&approval)), "approval");

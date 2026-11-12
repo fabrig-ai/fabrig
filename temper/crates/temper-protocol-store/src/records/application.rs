@@ -7,6 +7,9 @@ mod refusal;
 
 pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -> w::Application {
     let outcome = match outcome {
+        d::ApplicationOutcome::Follow(refusal) => w::ApplicationOutcome::Follow(
+            w::FollowOutcome::new(&w::CEILINGS, w::FollowOutcomeParts { refusal: refusal.clone() }).expect(FITS),
+        ),
         d::ApplicationOutcome::MakeKept => w::ApplicationOutcome::MakeKept,
         d::ApplicationOutcome::MakeRefused(why) => w::ApplicationOutcome::MakeRefused(
             w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { reason: super::making::encode_refusal(*why) })
@@ -45,6 +48,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
 pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let w::ApplicationParts { token, until, outcome } = value.into_parts();
     let outcome = match outcome {
+        w::ApplicationOutcome::Follow(value) => d::ApplicationOutcome::Follow(value.into_parts().refusal),
         w::ApplicationOutcome::MakeKept => d::ApplicationOutcome::MakeKept,
         w::ApplicationOutcome::MakeRefused(why) => {
             d::ApplicationOutcome::MakeRefused(super::making::decode_refusal(why.into_parts().reason))
@@ -65,7 +69,7 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
             let mut reader = Reader::new(v.refusal());
             let record =
                 jig_protocol_store::people_v14::Refusal::decode(&jig_protocol_store::people_v14::CEILINGS, &mut reader)
-                    .or(Err(Undecodable))?;
+                    .or(Err(Undecodable::Malformed))?;
             d::ApplicationOutcome::CoreRefused(refusal::decode_refusal(record))
         }
         w::ApplicationOutcome::ForgeRefused(v) => {
