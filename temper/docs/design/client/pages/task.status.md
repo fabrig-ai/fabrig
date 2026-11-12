@@ -6,7 +6,6 @@ Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.
 
-- **Not yet:** 4, *A standing role's talk*: the composer sending `Ask::Talk` on a standing role's page, "Leave", the terminal's command, and the gallery's `role-talk` [in flight: change 2013].
 
 - **Design departs:** 4, from that request, which has an agent's task's "Stop task" and "Stop this task?" become
   "Close task" and "Close this task?". That act is jig's hold, which "can't be reopened" would misstate, so the hold is

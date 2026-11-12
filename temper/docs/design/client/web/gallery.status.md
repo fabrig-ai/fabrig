@@ -4,13 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `team-role` and `night-team-role` hold no areas
-  [in flight: change 2012].
-- **Not yet:** 2: `team-role` and `night-team-role` hold no weekly
-  report [in flight: change 2014].
-- **Not yet:** 2: `team-hand` [in flight: change 2018].
-- **Not yet:** 2: `team-hand`'s stock lines [in flight: change 2019].
-- **Not yet:** 2: `role-talk` [in flight: change 2013].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
