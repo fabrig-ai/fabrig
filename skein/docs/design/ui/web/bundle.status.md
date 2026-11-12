@@ -14,6 +14,3 @@
   `a_module_not_found_says_so_and_offers_to_try_again` passing there: the plan that wrote
   them ran focused and fuzzy alone, the tier waiting for its run after landing
   (the `bundle-loading` plan's figures on the browser tier, at `668f7cd3e5`).
-- **Not yet:** 1: no `rust-toolchain.toml` pins the toolchain or names the target; the
-  module builds on whatever toolchain the machine has, stable 1.95 on the builders
-  [in flight: change 1919].
