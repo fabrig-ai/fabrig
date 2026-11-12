@@ -10,6 +10,7 @@ use temper_playground::programs::{Harness, Process};
 
 pub(crate) struct Forge {
     transport: temper_fake_git_hosted::Typed,
+    ledger: Vec<Observation>,
     tree: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) pushed: Vec<Pushed>,
     merged: Vec<(u64, u64)>,
@@ -23,6 +24,7 @@ impl Forge {
         let content: &[u8] = if matches!(story, Story::Merge) { b"topic\n" } else { b"base\n" };
         Self {
             transport,
+            ledger: Vec::new(),
             tree: BTreeMap::from([(b"conflict.txt".to_vec(), content.to_vec())]),
             pushed: Vec::new(),
             merged: Vec::new(),
@@ -31,6 +33,9 @@ impl Forge {
             prepared: false,
             hooks: None,
         }
+    }
+    pub(crate) fn take_ledger(&mut self) -> Vec<Observation> {
+        std::mem::take(&mut self.ledger)
     }
     pub(crate) fn hand_hooks(&mut self, bound: std::net::SocketAddr) {
         if matches!(self.story, Story::PlaygroundA) {
@@ -68,6 +73,7 @@ impl Forge {
         }
         let mut forge = self.transport.forge.borrow_mut();
         while let Some(observed) = forge.domain.pop_observation() {
+            self.ledger.push(observed.clone());
             if let Observation::Merged { repository, head, commit, .. } = &observed {
                 green(&forge, repository, *head);
                 if commit != head {
