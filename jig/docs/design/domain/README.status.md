@@ -4,4 +4,3 @@
 
 - **Not yet:** 2, 5: `smith-inline-agent` in the engine, hosting runs on the
   engine's own slots, and the tools begun with their calls that it hands up.
-- **Not yet:** 2: `jig-domain-core-vocabulary` doesn't exist yet [in flight: change 2032]
