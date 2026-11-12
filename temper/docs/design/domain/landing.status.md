@@ -23,10 +23,15 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   merged; the purpose's opening, closing, deletion and record operations
   (the change rebases its own branch, kind 11, and the member's pull
   request is fast-forwarded) [in flight: change 830].
-- **Not yet:** 3 (judging at its prefix), 4.2 (holds, news, drained),
-  4.3, 7.1 (*Bounded*), 7.3: judgement at the prefix, leaving with its
+- **Not yet:** 3 (judging at its prefix), 4.2 (holds, news), 4.3,
+  7.1 (*Bounded*), 7.3: judgement at the prefix, leaving with its
   reasons and its place kept, the holds past each bound, and the goal's
   news at each step [in flight: change 833].
+- **Not yet:** 4.2 (*Drained*): a landing in a draining hold's scope
+  going on through the turn once proving, idle and held while
+  preparing. It waits on jig's drain and project-scoped placed holds
+  (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10:
+  `jig-domain-tasks/src/placed.rs`, `shaped` takes only a subtree stop).
 - **Not yet:** 14: `landing show` and `landing list` with the train,
   round, branch, candidate and combining; the changes view per train; a
   change's panel naming its landing and way [in flight: change 834].
