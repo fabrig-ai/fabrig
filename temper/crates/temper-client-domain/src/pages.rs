@@ -1287,6 +1287,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps replies beside their page watches")]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm

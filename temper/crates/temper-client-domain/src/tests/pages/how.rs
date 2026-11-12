@@ -655,6 +655,7 @@ fn tier_stop(name: &[u8], checks: Option<&[u8]>, step: w::PathStep) -> w::Stop {
 }
 #[test]
 #[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary table varies optional member lists")]
+#[expect(clippy::too_many_lines, reason = "one table checks owners, paths, parity and tier selection")]
 fn follows_boxes_follow_only_the_read_documents() {
     use how::{Follow, Landed, Owner, Tier, Tiers};
     let pat = super::team::member(4, c::PartyKind::Person, b"Pat", c::HeldRole::Member);

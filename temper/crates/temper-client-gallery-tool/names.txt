@@ -241,6 +241,7 @@ how
 how-approve
 how-card
 how-draft
+how-follows
 how-reaches
 how-yours
 inbox-empty
@@ -289,6 +290,7 @@ night-ask
 night-chat-split
 night-home
 night-how
+night-how-follows
 night-how-reaches
 night-limits
 night-needs

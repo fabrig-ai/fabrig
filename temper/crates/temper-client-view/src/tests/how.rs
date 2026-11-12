@@ -687,6 +687,7 @@ fn parts_draw_the_current_way_and_the_shown_path() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "both shells keep the sentences, markers and section order")]
 fn follows_boxes_word_their_facts_and_mark_who_acts() {
     use d::pages::how::{Follow, Landed, Owner, Tier, Tiers};
     for browser in [false, true] {

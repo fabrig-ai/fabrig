@@ -1,4 +1,4 @@
-//! How work runs' parts and What reaches you's columns
+//! How work runs' parts, reaches, landing boxes and budgets
 //! (temper/docs/design/client/pages/settings.md, 2, *Its parts* and *What reaches you*).
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -54,7 +54,7 @@ pub enum Path {
     Shown,
 }
 
-/// Budgets' one row's figure.
+/// A goal budget row's figure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Budget {
     Amount(u64),

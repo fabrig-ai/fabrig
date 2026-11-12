@@ -22,6 +22,7 @@ fn call(world: &mut Clients, agent: ClientId, words: &[&[u8]]) -> String {
     String::from_utf8(printed.stdout.into_vec()).expect("follow fixture value")
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one story checks ctl and both project pages across a landing")]
 fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
     let mut front = ways::follows(fixtures::SEED, &fixtures::domain_limits());
     front.engine.send(engine::Event::Party(engine::PartyInput::Ask {
