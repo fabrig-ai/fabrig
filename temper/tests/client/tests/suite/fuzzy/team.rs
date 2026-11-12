@@ -297,6 +297,15 @@ fn sweep(seed: u64) -> bool {
             paused: rng.chance(500),
             pause: rng.chance(500),
             resume: rng.chance(500),
+            report: if rng.chance(500) {
+                Some(team::Now {
+                    body: if rng.chance(500) { Box::default() } else { b"- Report".as_slice().into() },
+                    changed: None,
+                    cut: rng.chance(500),
+                })
+            } else {
+                None
+            },
             sessions: random_sessions(&mut rng),
             rules: random_rules(&mut rng),
             wakes: random_wakes(&mut rng),
@@ -332,11 +341,16 @@ fn sweep(seed: u64) -> bool {
         detail.is_some_and(|card| !card.sessions.is_empty()),
         "seed {seed}: Sessions needs rows in the shown card"
     );
-    assert_eq!(parts.right, parts.sessions || parts.wakes, "seed {seed}: right column needs a part");
+    assert_eq!(parts.right, parts.sessions || parts.wakes || parts.report, "seed {seed}: right column needs a part");
     assert_eq!(
         parts.now,
         detail.is_some_and(|card| card.now.as_ref().is_some_and(|now| !now.body.is_empty())),
         "seed {seed}: Now needs a nonempty read"
+    );
+    assert_eq!(
+        parts.report,
+        detail.is_some_and(|card| card.report.as_ref().is_some_and(|report| !report.body.is_empty())),
+        "seed {seed}: report needs a nonempty read in the shown card"
     );
     assert_eq!(parts.rules, detail.is_some_and(|card| card.rules.is_some()), "seed {seed}: rules need Asked to read");
     assert_eq!(parts.wakes, detail.is_some_and(|card| !card.wakes.is_empty()), "seed {seed}: wakes need subscriptions");

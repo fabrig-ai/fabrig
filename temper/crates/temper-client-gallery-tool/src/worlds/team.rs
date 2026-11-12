@@ -72,9 +72,11 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Read {
                 read,
-                what: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task: 52, .. }, .. }),
+                what: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task: 52, .. }, description, .. }),
             } if role => {
-                answer(&mut root, read, c::ReadValue::Notes(Box::new(provers_now())), &mut out);
+                let report = if let Some(description) = description { description.bytes() == b"report" } else { false };
+                let page = if report { provers_report() } else { provers_now() };
+                answer(&mut root, read, c::ReadValue::Notes(Box::new(page)), &mut out);
             }
             Down::Read { read, what: Readable::Jig(c::Read::Activity { task: 52, .. }) } if role => {
                 answer(&mut root, read, c::ReadValue::Activity(Box::new(sessions::page())), &mut out);
@@ -365,6 +367,20 @@ fn provers_now() -> c::NotePage {
         before: None,
         after: None,
     }
+}
+
+fn provers_report() -> c::NotePage {
+    let mut page = provers_now();
+    if let Some(note) = page.rows.get_mut(0) {
+        note.number = 2;
+        note.description = doc("report");
+        note.changed = Some(skein_lib::Wall::from_nanos(1_793_599_200_000_000_000));
+        note.body = c::DocumentText::complete(c::Text::new(
+            b"Week of 26 October.\n- Triaged three findings: two routed to you, one repaired and landed.\n- Waiting on you: finding 91's protocol fix.\nSpent 21 of 40 this period.".as_slice().into(),
+            1024,
+        ).expect("report fits"));
+    }
+    page
 }
 
 fn charter() -> w::View {

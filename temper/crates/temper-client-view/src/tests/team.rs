@@ -334,6 +334,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
                 paused: false,
                 pause: true,
                 resume: false,
+                report: None,
                 sessions: List::with_capacity(0),
                 rules: None,
                 wakes: List::with_capacity(0),
@@ -568,6 +569,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
                 rules: Some(team::Rules { charter: 13, asked: b"Reproduce before routing.".as_slice().into() }),
                 wakes: team::wakes::rows(&subscriptions, &policy),
                 wakes_cut: true,
+                report: None,
                 sessions: List::from_boxed(Box::new([team::Session { start: at, end: None, words: None, spent: 0 }])),
             })),
         };
@@ -691,5 +693,63 @@ fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
             .map(|node| node.name.as_deref().unwrap())
             .collect();
         assert_eq!(lines, [b"Nothing waits on you.".as_slice(), b"Signed four last week.", b"Signed 2+ last week."]);
+    }
+}
+
+#[test]
+fn team_draws_the_weekly_report_after_sessions_with_the_nows_body_rules() {
+    use crate::{frame::Bindings, words::Times};
+    use skein_lib::Wall;
+    use temper_client_domain::pages::team;
+    let monday = Wall::from_nanos(1_793_599_200_000_000_000);
+    for w in [f::browser_words(), f::words()] {
+        let mut facts = super::team_sessions::facts();
+        facts.card.as_mut().unwrap().report = Some(team::Now {
+            changed: Some(monday),
+            body: b"Week.\n- Landed a fix.\nWaiting on you.".as_slice().into(),
+            cut: true,
+        });
+        for present in [true, false] {
+            if !present {
+                facts.card.as_mut().unwrap().report = None;
+            }
+            let mut b = Builder::new(&f::tree_limits());
+            draw(
+                &mut b,
+                &w,
+                b"shop",
+                &Shown::Read(facts.clone()),
+                1,
+                &mut Bindings::new(f::tree_limits().bindings),
+                &mut Times::new(monday),
+            );
+            let tree = b.finish();
+            let nodes = tree.nodes();
+            let reports: Vec<_> =
+                nodes.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::TEAM_REPORT)).collect();
+            assert_eq!(reports.len(), usize::from(present));
+            if present {
+                let (at, report) = reports[0];
+                let right = nodes.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_RIGHT)).unwrap();
+                let sessions = nodes.iter().position(|n| n.styles.as_slice().contains(&look::TEAM_SESSIONS)).unwrap();
+                assert!(at >= sessions + usize::try_from(nodes[sessions].size).unwrap(), "report follows the sessions");
+                assert!(
+                    at < right + usize::try_from(nodes[right].size).unwrap(),
+                    "in the right column, after sessions on a phone"
+                );
+                let body = &nodes[at..at + usize::try_from(report.size).unwrap()];
+                let words: Vec<_> = body.iter().filter_map(|n| n.name.as_deref().map(|name| (n.role, name))).collect();
+                assert_eq!(
+                    words,
+                    vec![
+                        (Role::Paragraph, "Its weekly report · written Mon 06:00".as_bytes()),
+                        (Role::Paragraph, b"Week.".as_slice()),
+                        (Role::Item, b"Landed a fix.".as_slice()),
+                        (Role::Paragraph, b"Waiting on you.".as_slice()),
+                        (Role::Paragraph, "…".as_bytes()),
+                    ]
+                );
+            }
+        }
     }
 }

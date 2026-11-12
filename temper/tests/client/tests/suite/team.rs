@@ -227,9 +227,11 @@ fn assert_committed_sessions(
     lines.sort_by_key(|line| line.position);
     let mut expected = Vec::<team::Session>::new();
     let mut current: Option<team::Session> = None;
+    let mut wrote_now = false;
     for line in lines {
         match line.line {
             tasks::Line::SessionEnded { .. } => {
+                wrote_now = false;
                 if let Some(row) = current.take() {
                     expected.push(row);
                 }
@@ -243,7 +245,13 @@ fn assert_committed_sessions(
                 row.end = Some(line.at);
                 row.spent = row.spent.saturating_add(spent);
             }
-            tasks::Line::Stood { words, .. } => {
+            tasks::Line::NowWritten { line, .. } => {
+                let words = String::from_utf8(line.into()).expect("NowWritten is UTF-8");
+                current.as_mut().expect("standing run began").words =
+                    Some(words.replace("\r\n", " ").replace(['\r', '\n'], " ").into_bytes().into());
+                wrote_now = true;
+            }
+            tasks::Line::Stood { words, .. } if !wrote_now => {
                 let words = String::from_utf8(words.into()).expect("Stood is UTF-8");
                 current.as_mut().expect("standing run began").words =
                     Some(words.replace('\n', " ").into_bytes().into());

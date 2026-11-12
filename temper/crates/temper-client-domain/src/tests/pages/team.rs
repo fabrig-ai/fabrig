@@ -259,6 +259,7 @@ struct Reads {
     handles: Set<Handle>,
     roles: Option<(Handle, Token)>,
     nows: List<(u64, Handle)>,
+    reports: List<(u64, Handle)>,
     card: Option<(u64, Handle, Token)>,
     activity: List<(Handle, c::Read)>,
     env: skein_lib::Env<crate::Limits>,
@@ -346,6 +347,7 @@ fn reads_fixture() -> Reads {
         handles: Set::with_capacity(team::OTHERS.checked_add(1).unwrap()),
         roles: None,
         nows: List::with_capacity(64),
+        reports: List::with_capacity(64),
         card: None,
         activity: List::with_capacity(64),
         env: fixtures::env(&fixtures::limits()),
@@ -455,9 +457,12 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 read: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { project, task }, description, after }),
             }) => {
                 assert_eq!(project, PROJECT);
-                assert_eq!(description.unwrap().bytes(), b"now");
                 assert_eq!(after, None);
-                f.nows.push((task, handle)).unwrap();
+                match description.unwrap().bytes() {
+                    b"now" => f.nows.push((task, handle)).unwrap(),
+                    b"report" => f.reports.push((task, handle)).unwrap(),
+                    other => panic!("unexpected note description: {other:?}"),
+                }
             }
             Request::Client(jig_client::Event::Read {
                 handle,
@@ -999,6 +1004,7 @@ fn card(task: u64) -> team::Card {
         pause: true,
         resume: true,
         now: None,
+        report: None,
         sessions: List::with_capacity(0),
         rules: None,
         wakes: List::with_capacity(0),
@@ -1530,4 +1536,104 @@ fn team_watches_signoffs_delivers_counts_and_closes_the_watch_on_leaving() {
         }
     }
     assert_eq!(closed, 1, "leaving Team closes its changes watch");
+}
+
+#[test]
+fn report_parts_need_a_nonempty_read_in_the_shown_card() {
+    let mut facts = team::gather(&project(Box::new([]), false), YOU, None, &[], None, Wall::EPOCH);
+    facts.roles = List::from_boxed(Box::new([role(52)]));
+    facts.card = Some(Box::new(card(52)));
+    assert!(!team::parts(&facts).report);
+    facts.card.as_mut().unwrap().report = Some(team::Now { body: Box::default(), changed: None, cut: true });
+    assert!(!team::parts(&facts).report, "empty reads have no part");
+    facts.card.as_mut().unwrap().report.as_mut().unwrap().body = b"A week.".as_slice().into();
+    assert!(team::parts(&facts).report && team::parts(&facts).right);
+    facts.card.as_mut().unwrap().task = 41;
+    assert!(!team::parts(&facts).report && !team::parts(&facts).right, "old card reports are not drawn");
+}
+
+fn report_answer(f: &mut Reads, handle: Handle, notes: Box<[c::Note]>) {
+    page(
+        f,
+        Event::Told {
+            told: Told::Page {
+                handle,
+                page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+                    rows: List::from_boxed(notes),
+                    cut: false,
+                    before: None,
+                    after: None,
+                })))),
+            },
+        },
+    );
+}
+fn report(f: &Reads) -> Option<team::Now> {
+    team::shown(&f.root, PROJECT).facts().unwrap().card.as_ref().unwrap().report.clone()
+}
+#[test]
+fn standing_reads_the_cards_report_again_on_line_delivery() {
+    let mut f = reads_fixture();
+    feed(&mut f, Feed::Open);
+    let (handle, watch) = f.roles.unwrap();
+    let mut line = super::chats::chat_line();
+    line.chip.task = 52;
+    line.project = PROJECT;
+    line.label = 3;
+    line.ended_at = None;
+    let roles = c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false };
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
+    assert_eq!(f.reports.len(), 1, "opening the card reads its report beside its Now");
+    assert_eq!(f.reports.get(0).unwrap().0, 52);
+    assert_eq!(f.nows.len(), 1, "the report never waits for or slows a Now");
+    assert_eq!(report(&f), None, "reading is not yet a report");
+    let first = f.reports.get(0).unwrap().1;
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
+    assert_eq!(f.reports.len(), 1, "one report read in flight");
+    let mut chosen = note(3, b"report", b"Week.\n- Landed a fix.");
+    chosen.body.cut = true;
+    let expected = team::Now { body: chosen.body.bytes().into(), changed: chosen.changed, cut: true };
+    report_answer(&mut f, first, Box::new([note(8, b"report", b"Later"), note(1, b"report-ish", b"Wrong"), chosen]));
+    assert_eq!(report(&f), Some(expected), "lowest exact description, with time and cut");
+    assert_eq!(f.reports.len(), 2, "a line delivered during the read is coalesced");
+    let second = f.reports.get(1).unwrap().1;
+    report_answer(&mut f, second, Box::new([]));
+    assert_eq!(report(&f), None, "no report yet is normal");
+    for refused in [true, false] {
+        line.last_activity = Wall::from_nanos(line.last_activity.as_nanos().saturating_add(1));
+        let roles = c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false };
+        delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
+        let reading = f.reports.last().unwrap().1;
+        report_answer(&mut f, reading, Box::new([note(3, b"report", b"Written")]));
+        delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles)));
+        let reading = f.reports.last().unwrap().1;
+        let told = if refused {
+            Told::Page { handle: reading, page: Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) }
+        } else {
+            Told::Ended { handle: reading, why: jig_client::Why::Limit }
+        };
+        page(&mut f, Event::Told { told });
+        assert_eq!(report(&f), None, "refused or failed hides the previous report");
+    }
+    delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
+    let stale = f.reports.last().unwrap().1;
+    let mut other = line.clone();
+    other.chip.task = 41;
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line, other])), more: false })),
+    );
+    page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(41) } });
+    assert_eq!(f.reports.last().unwrap().0, 41, "changing cards reads the new role's report");
+    assert!(f.closed.as_slice().contains(&stale));
+    report_answer(&mut f, stale, Box::new([note(1, b"report", b"Stale")]));
+    assert_eq!(report(&f), None, "the old card cannot lend its report");
+    let reading = f.reports.last().unwrap().1;
+    page(&mut f, Event::Went { address: Address::Home { project: PROJECT } });
+    assert!(f.closed.as_slice().contains(&reading), "leaving Team closes its report read");
+    let count = f.reports.len();
+    page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(52) } });
+    assert_eq!(f.reports.len(), count + 1, "reopening reads anew");
 }
