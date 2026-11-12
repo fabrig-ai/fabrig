@@ -1,4 +1,5 @@
 mod deadline;
+mod service;
 pub(crate) mod fixtures;
 use crate::{directory, limits};
 use skein_io::kernel::{Error, Exit, ServiceSignal};
