@@ -27,9 +27,14 @@ pub struct Document {
     scripts: api::Scripts,
     rules: api::Rules,
     reply_ms: u32,
+    strict: bool,
 }
 impl Document {
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
+        Self::decode_with_scripts(bytes, None)
+    }
+    /// Replaces the script members before checking them (protocol/setup/playground.md, document form).
+    pub fn decode_with_scripts(bytes: &[u8], scripts: Option<&[u8]>) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
         let mut o = read::object(&d, 0, &p)?;
@@ -67,19 +72,15 @@ impl Document {
             Some(root)
         };
         let models = models(&d, models_at, &p.member(b"models"))?;
-        let (cued, cued_rules) = scripts_with_inputs(&d, cued_at, &p.member(b"cued"), Some(credentials))?;
-        let (asked, asked_rules) = scripts_with_inputs(&d, asked_at, &p.member(b"asked"), Some(credentials))?;
-        let scripts = api::Scripts {
-            cued,
-            asked,
-            otherwise: standalone_turns(&d, otherwise_at, &p.member(b"otherwise"), Some(credentials))?,
+        let (scripts, rules) = match scripts {
+            Some(bytes) => given_scripts(bytes, credentials)?,
+            None => script_members(&d, Some(cued_at), Some(asked_at), Some(otherwise_at), credentials)?,
         };
         if control.is_none() && holds(&scripts) {
             return Err(read::why(&p.member(b"control"), b"required when a piece has a hold"));
         }
-        let rules = api::Rules { cued: cued_rules, asked: asked_rules };
         check_inputs(&scripts, &rules, &p.member(b"otherwise"))?;
-        Ok(Self { listen, control, key, added_keys, root, models, scripts, rules, reply_ms })
+        Ok(Self { listen, control, key, added_keys, root, models, scripts, rules, reply_ms, strict: false })
     }
     pub(crate) fn checked(
         listen: SocketAddr,
@@ -91,7 +92,18 @@ impl Document {
     ) -> Result<Self, Refusal> {
         check_scripts(&scripts, &p.member(b"otherwise"))?;
         let rules = api::Rules { cued: counted_rules(&scripts.cued), asked: counted_rules(&scripts.asked) };
-        Ok(Self { listen, control: None, key, added_keys: Box::new([]), root, models, scripts, rules, reply_ms: 0 })
+        Ok(Self {
+            listen,
+            control: None,
+            key,
+            added_keys: Box::new([]),
+            root,
+            models,
+            scripts,
+            rules,
+            reply_ms: 0,
+            strict: false,
+        })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -117,11 +129,17 @@ impl Document {
     pub fn models(&self) -> &[Model] {
         &self.models
     }
+    /// The document command's strict switch (skein/docs/design/testing/fakes/llm.md, 2.5).
+    #[must_use]
+    pub fn with_strict(mut self, strict: bool) -> Self {
+        self.strict = strict;
+        self
+    }
     /// Live-domain limits with the document's fixed reply latency (protocol/setup/playground.md).
     #[must_use]
     pub fn limits(&self) -> domain::Config {
         let latency = Duration::from_millis(u64::from(self.reply_ms));
-        domain::Config { latency_min: latency, latency_max: latency, ..LIMITS }
+        domain::Config { latency_min: latency, latency_max: latency, strict: self.strict, ..LIMITS }
     }
     /// No menu or random failure. Unknown model names receive the same scripts:
     /// skein's provider retains no model list and performs no per-model admission.
@@ -270,6 +288,44 @@ pub(crate) fn check_models(models: &[Model], p: &Path, indexed: bool) -> Result<
     }
     Ok(())
 }
+/// SCRIPTS uses the standalone document's readers and bounds, with absent groups empty.
+fn given_scripts(bytes: &[u8], credentials: u32) -> Result<(api::Scripts, api::Rules), Refusal> {
+    let d = read::document(bytes)?;
+    let p = Path::root();
+    let mut o = read::object(&d, 0, &p)?;
+    let cued = o.member(&d, b"cued");
+    let asked = o.member(&d, b"asked");
+    let otherwise = o.member(&d, b"otherwise");
+    read::finish(o, &d, &p)?;
+    script_members(&d, cued, asked, otherwise, credentials)
+}
+fn script_members(
+    d: &Json,
+    cued: Option<u32>,
+    asked: Option<u32>,
+    otherwise: Option<u32>,
+    credentials: u32,
+) -> Result<(api::Scripts, api::Rules), Refusal> {
+    let p = Path::root();
+    let (cued, cued_rules) = optional_scripts(d, cued, &p.member(b"cued"), credentials)?;
+    let (asked, asked_rules) = optional_scripts(d, asked, &p.member(b"asked"), credentials)?;
+    let otherwise = match otherwise {
+        Some(at) => read_turns(d, at, &p.member(b"otherwise"), Some(credentials), 0)?,
+        None => Box::new([]),
+    };
+    Ok((api::Scripts { cued, asked, otherwise }, api::Rules { cued: cued_rules, asked: asked_rules }))
+}
+fn optional_scripts(
+    d: &Json,
+    at: Option<u32>,
+    p: &Path,
+    credentials: u32,
+) -> Result<(Box<[api::Script]>, InputRules), Refusal> {
+    match at {
+        Some(at) => scripts_with_inputs(d, at, p, Some(credentials)),
+        None => Ok((Box::new([]), Box::new([]))),
+    }
+}
 fn counted_rules(scripts: &[api::Script]) -> InputRules {
     let mut rules = List::with_capacity(u32::try_from(scripts.len()).expect("sixteen scripts"));
     for _ in scripts {
@@ -360,7 +416,16 @@ pub(crate) fn turns(d: &Json, at: u32, p: &Path) -> Result<Box<[api::Turn]>, Ref
     standalone_turns(d, at, p, None)
 }
 fn standalone_turns(d: &Json, at: u32, p: &Path, credentials: Option<u32>) -> Result<Box<[api::Turn]>, Refusal> {
-    let items = read::list(d, at, 1, p)?;
+    read_turns(d, at, p, credentials, 1)
+}
+fn read_turns(
+    d: &Json,
+    at: u32,
+    p: &Path,
+    credentials: Option<u32>,
+    minimum: u32,
+) -> Result<Box<[api::Turn]>, Refusal> {
+    let items = read::list(d, at, minimum, p)?;
     let mut out = List::with_capacity(items.len());
     for (i, at) in items.iter().enumerate() {
         let turn = turn::Turn::read_standalone(d, *at, &read::index(p, i), credentials)?;
