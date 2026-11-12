@@ -9,6 +9,7 @@ use skein_lib::{Decimal, Duration, List, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
 mod areas;
+pub mod hand;
 pub use areas::{Area, AreaName, AreaPart, Areas};
 mod rules;
 mod standing;
@@ -77,6 +78,8 @@ pub struct Signed {
 /// Team's facts: plain values its reads give.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
+    /// The reader holds a role in this project, from me.
+    pub member: bool,
     /// The project's members of kind person, the reader first, then in the document's order, each once.
     pub people: List<Person>,
     /// The project's document was cut: its members may be more.
@@ -101,6 +104,9 @@ pub struct Parts {
     /// People's head's shared role; never `Policy`.
     pub shared: Option<c::HeldRole>,
     pub areas: bool,
+    pub hand_area: bool,
+    /// Named areas held by the selected role, excluding Anything else.
+    pub give_areas: u32,
     pub areas_table: bool,
     pub areas_empty: bool,
     pub who_routes: bool,
@@ -136,6 +142,8 @@ impl Default for Parts {
             people: false,
             shared: None,
             areas: false,
+            hand_area: false,
+            give_areas: 0,
             areas_table: false,
             areas_empty: false,
             who_routes: false,
@@ -237,6 +245,19 @@ pub fn parts(facts: &Facts) -> Parts {
         ..Parts::default()
     };
     areas::parts(facts, &mut parts);
+    parts.hand_area = parts.areas && facts.member;
+    if facts.member
+        && let Some(task) = parts.card
+        && let Some(areas) = &facts.areas
+    {
+        for area in &areas.rows {
+            if let Some(w::Holder::Task(holder)) = &area.holder
+                && holder.number() == task
+            {
+                parts.give_areas = parts.give_areas.saturating_add(1);
+            }
+        }
+    }
     if let Some(detail) = detail {
         if let Some(rules) = &detail.rules {
             parts.rules = !rules.asked.is_empty();
@@ -333,7 +354,12 @@ pub fn gather(
                 .expect("at most one person per document member");
         }
     }
+    let mut member = false;
+    for row in &project.members {
+        member |= row.party == you;
+    }
     Facts {
+        member,
         people,
         cut: project.cut,
         areas: None,
@@ -726,6 +752,7 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
         gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall)
     } else {
         Facts {
+            member: false,
             people: List::with_capacity(0),
             cut: false,
             areas: None,
@@ -735,6 +762,7 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
             card: None,
         }
     };
+    facts.member = hand::member(root, project);
     facts.areas.clone_from(&state.areas);
     state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
     if let Some(card) = &mut facts.card {

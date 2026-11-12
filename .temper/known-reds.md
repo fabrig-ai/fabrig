@@ -2,5 +2,8 @@
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
+- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
+- lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
 - test temper-client-journeys-tool tests::the_overlay_is_empty
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else

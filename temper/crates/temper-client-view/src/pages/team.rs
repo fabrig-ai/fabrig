@@ -1,6 +1,8 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
 mod areas;
+pub(crate) use hand::sheet as hand_sheet;
+mod hand;
 mod sessions;
 pub(crate) mod wakes;
 use crate::{
@@ -327,7 +329,7 @@ fn card(
         }
     }
     b.close();
-    if parts.talk || parts.pause || parts.resume {
+    if parts.talk || parts.pause || parts.resume || parts.give_areas > 0 {
         b.open(Role::Slot);
         b.style(look::TEAM_ACTS);
         if parts.talk {
@@ -342,6 +344,13 @@ fn card(
             b.style(look::GOAL_BTN);
             b.name(&w.say(if parts.pause { Word::Pause } else { Word::Resume }, &[]));
             b.bind(bindings.insert(if parts.pause { Act::Pause } else { Act::Resume }));
+            b.close();
+        }
+        if parts.give_areas > 0 {
+            b.open(Role::Button);
+            b.style(look::GOAL_BTN);
+            b.name(&w.say(if parts.give_areas == 1 { Word::GiveArea } else { Word::GiveAreas }, &[]));
+            b.bind(bindings.insert(Act::HandArea(team::hand::Act::GiveBack)));
             b.close();
         }
         b.close();

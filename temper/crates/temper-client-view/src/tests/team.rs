@@ -6,6 +6,7 @@
     reason = "ordinary tests build table rows and inspect semantic subtrees"
 )]
 mod areas;
+mod hand;
 use super::fixtures as f;
 use crate::{look, pages::team::draw};
 use jig_client::contract::HeldRole;
@@ -31,6 +32,7 @@ fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str,
     Row {
         label,
         shown: Shown::Read(Facts {
+            member: true,
             people: List::from_boxed(people.into_boxed_slice()),
             cut,
             areas: None,
@@ -314,6 +316,7 @@ fn team_draws_a_standing_roles_row_head_and_now() {
     let changed = Wall::from_nanos(1_794_105_660_000_000_000);
     for w in [f::browser_words(), f::words()] {
         let facts = Facts {
+            member: true,
             people: List::with_capacity(0),
             cut: false,
             areas: None,
@@ -546,6 +549,7 @@ fn team_draws_rules_and_wakes_in_their_columns() {
     };
     for w in [f::browser_words(), f::words()] {
         let mut facts = Facts {
+            member: true,
             people: List::with_capacity(0),
             cut: false,
             areas: None,
@@ -670,6 +674,7 @@ fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
         kit.party = 9;
         kit.signed = Some(temper_client_domain::pages::team::Signed { count: 0, floor: true });
         let shown = Shown::Read(Facts {
+            member: true,
             people: List::from_boxed(Box::new([reader, sam, kit])),
             cut: false,
             areas: None,
