@@ -100,8 +100,11 @@ The loop's third step (`README.md`, 4), for each free place
     become a recipe (`places.md`, 6).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
     lines in brief (`../../client/drive.md`, 3), and the recording
-    commands (section 5; `findings.md`, 2), each with its form; and
-    that each record is kept at once and the session is bounded.
+    commands (section 5; `findings.md`, 2), each with its form; that
+    `pass setup`, `pass recipe` and `pass open` may take minutes, each
+    walk or start printing a line as it goes, so the agent runs them
+    where its shell's own timeout does not cut them; and that each
+    record is kept at once and the session is bounded.
 
 ## 5. Recording
 
