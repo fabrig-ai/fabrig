@@ -1,6 +1,8 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
+
+- **Not yet:** 2, *The foreman is retired*: kind 6 takes `foreman`, and a stored foreman route or kind 3 number 3 is read, not refused [in flight: change 1157].
 
 - **Not yet:** 2: kind 12, a project's follows, its `Follow` value, codecs,
   settings-file form, judgement and read permissions [in flight: change 98].

@@ -2,6 +2,8 @@
 
 2026-11-12. Where the tree's code lags or departs from [questions.md](questions.md).
 
+- **Not yet:** 1: the `foreman` route, its delegate and its relay states, stored with the change, remain (`temper-engine-domain/src/route/forge_route/foreman.rs`) [in flight: change 1157].
+
 - **Not yet:** 1, *Passed up*: a requester's run that reads the change's
   question and ends without answering leaves later runs no sight of it,
   and the requester idle with it [in flight: change 838].

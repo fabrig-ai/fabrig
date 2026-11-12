@@ -2,6 +2,9 @@
 
 2026-11-12. Where the tree's code lags or departs from [stock.md](stock.md).
 
+- **Not yet:** charter 2's and charter 5's rows, *Built at each start* and the floors: both charters' texts come from `temper-service`'s `stock/coordinator.md` and `stock/coding.txt`, and `root.journal.run_bytes` is 24,576 (`temper-service/src/limits.rs`) [in flight: change 1154].
+- **Not yet:** charter 6, the foreman's, and the rules' and policy 1's delegation to it; kind 3's number 3; kind 9's words for charters 5 and 6 [in flight: change 1157].
+
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4) [in flight: change 108].
 
 - **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`) [in flight: change 41].

@@ -1,6 +1,8 @@
 # agents: status
 
-2026-11-11. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-12. Where the tree's code lags or departs from [agents.md](agents.md).
+
+- **Not yet:** the whole document: a change's foremen run under charter 6, and a plan's maker may make its changes with `"foreman"` [in flight: change 1157].
 
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2) [in flight: change 108].
 

@@ -1,6 +1,8 @@
 # reference: status
 
-2026-11-11. Where the tree's code lags or departs from [reference.md](reference.md).
+2026-11-12. Where the tree's code lags or departs from [reference.md](reference.md).
+
+- **Not yet:** the whole document: the reference's `settings.json` holds charter 6, and its charter 5 asks `foreman` of each coding change [in flight: change 1157].
 
 - **Not yet:** the whole document: the reference's charter 2 still tells the coder to run
   shell lints and focused tests before delivery, and charter 5 still permits

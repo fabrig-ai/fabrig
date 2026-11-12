@@ -1,6 +1,8 @@
 # areas: status
 
-2026-11-11. Where the tree's code lags or departs from [areas.md](areas.md).
+2026-11-12. Where the tree's code lags or departs from [areas.md](areas.md).
+
+- **Not yet:** the whole document: `change show` prints a question's `with foreman F` [in flight: change 1157].
 
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's

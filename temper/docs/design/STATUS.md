@@ -27,6 +27,18 @@ change's words carry no diff, and a person's follow's holds reach the
 project's escalation role, each asked of the user
 (`domain/forge/follows.status.md`; `draft/follows.status.md`).
 
+The stock from files is the stock charters' milestone S1, by goal 1144
+(`draft/stock-charters.execution.md`): the stock's charters 5, the goal's
+agent, and 2, the implementer, assembled from five Markdown files in
+`temper/docs/charters/stock/` by the step crate `temper-charter-set`
+(`domain/agent/charter.md`, 1), a stock box's `root.journal.run_bytes`
+65,536 to hold them, and the foreman retired with its whole reach, the
+reference's charter 6 among it: a change's questions go `up` or nowhere,
+and a stored foreman is refused naming its setting
+(`domain/forge/change/questions.md`, 1; `protocol/configuration/settings.md`,
+2). Its walk on a fresh box follows landing; overlays are S2
+(`draft/stock-charters.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)

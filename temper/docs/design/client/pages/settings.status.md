@@ -1,6 +1,8 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
+
+- **Not yet:** 2: the questions select offers `foreman` [in flight: change 1157].
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and

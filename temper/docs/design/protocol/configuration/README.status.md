@@ -77,20 +77,22 @@ card*), and `see ways` says no headline (`../../domain/agent/ask-temper.status.m
 1). The stock holds no tier, so it has no tier's words
 (`../../draft/stock-ways.md`, section 9).
 
-`stock.md` has stock charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 and
+`stock.md` has stock charters 1, 2, 4, 5, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`
 are absent. Charter 12's `drafter.txt` is the words temper/ui handed,
 byte for byte, its sha256 and length pinned by a focused test.
-Charter 5's file matches the supplied first edition, with shared
-instructions and four ordered parts; it runs fresh with zero waiting.
+Charters 5 and 2 are assembled from the stock's set of charter files,
+`temper/docs/charters/stock/`, charter 5 with four ordered parts; it
+runs fresh with zero waiting.
 Template 4 names its own goal branch and uses the deployment's result
 bound. The rules and policy 1 hold asking, tools 3,975, and fifteen
 executor kinds, including charters 5 and 12, role 0 and merge job 3; the
 reference's widening (`reference.md`) takes charter 12 out, so that its delegation
 fills the box's sixteen places. The stock
 floor measures resolved charters with their parts and catalogue models;
-charter 5 needs 13,123 bytes at init's catalogue. The standard brief is
-353,072 bytes, the owner's approved allowance for that charter's room.
+charter 5 needs about 27,000 bytes at init's catalogue, within
+`root.journal.run_bytes` 65,536. The standard brief follows the room
+that charter leaves, by the owner's approved rule.
 `ask.txt` carries Remembering and, of Showing, its first step alone. The
 stock first-request check holds 16,384 bytes on both request shapes.
 Existing project policies remain copies and require an owner's accepted

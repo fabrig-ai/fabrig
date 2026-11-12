@@ -1,6 +1,8 @@
 # records: status
 
-2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-12. Where the tree's code lags or departs from [records.md](records.md).
+
+- **Not yet:** the whole document: a change's questions keep the `foreman` route and its with-foreman state [in flight: change 1157].
 
 - **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
   `drafts`*: no such request, outcome, subject or panel on the wire
