@@ -71,6 +71,14 @@ pub enum Report {
     },
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
+    Stage(tui::BoxStage),
+}
+
+/// The box's first stop closes its life pipe; the second sends SIGTERM.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stop {
+    First,
+    Second,
 }
 
 #[derive(Default)]
@@ -82,6 +90,7 @@ pub struct Duties {
     pub local: bool,
     pub open: Option<Box<[u8]>>,
     pub close: bool,
+    pub stop: Option<Stop>,
 }
 
 pub struct Settings {
@@ -124,6 +133,8 @@ pub struct Host {
     opens: Queue<Opening>,
     addressed: bool,
     closed: bool,
+    stopping: bool,
+    handed: bool,
 }
 
 impl Host {
@@ -165,6 +176,8 @@ impl Host {
             opens: Queue::uncapped(),
             addressed: false,
             closed: false,
+            stopping: false,
+            handed: false,
         }
     }
 
@@ -186,6 +199,7 @@ impl Host {
         match report {
             Report::Local { link } => self.found(link),
             Report::Front(line) => self.tell(Told::BoxLine { line }),
+            Report::Stage(stage) => self.stage(stage, &mut duties),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
                 if self.notice_end.is_some_and(|end| end <= self.env.now) {
@@ -317,6 +331,8 @@ impl Host {
         self.state = Some(tui::Tui::new(&start.address));
         if start.front {
             self.tell(Told::Front);
+            self.tell(Told::Stage { stage: tui::BoxStage::Finding });
+            self.handed = true;
         }
         self.size = start.size;
         self.background = start.background;
@@ -327,7 +343,7 @@ impl Host {
         }
         self.tell(Told::Size { columns: start.size.columns });
         self.credential.clone_from(&start.credential);
-        self.local = start.local;
+        self.local = start.front || start.local;
         self.note = start.note;
         let mut kept = List::with_capacity(u32::try_from(start.kept.len()).expect("bounded store"));
         for record in start.kept {
@@ -401,7 +417,13 @@ impl Host {
             self.end_local();
             return;
         };
-        if link.host.as_ref() != self.state().address() {
+        if self.handed {
+            if link.host.as_ref() != self.state().address() {
+                self.note = None;
+            }
+            self.tell(Told::Address { address: link.host.clone() });
+            self.handed = false;
+        } else if link.host.as_ref() != self.state().address() {
             self.end_local();
             return;
         }
@@ -556,7 +578,7 @@ impl Host {
                 self.act(Act::Terminal(terminal::Act::Run { command }));
                 self.tell(Told::Cleared);
             }
-            tui::Event::Stop => self.close(duties),
+            tui::Event::Stop => self.stop(duties),
             tui::Event::Stay => self.tell(Told::Stay),
             tui::Event::Log => {
                 if self.state().front() {
@@ -642,6 +664,11 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
+        if self.state().front() && (self.words() == b"/quit" || self.words() == tui::EXIT) {
+            self.tell(Told::Cleared);
+            self.quit(duties);
+            return;
+        }
         if tui::landing(&self.root) {
             self.notice(tui::Notice::SigningIn);
             return;
@@ -986,13 +1013,45 @@ impl Host {
         self.root_writes.push(false);
     }
 
+    fn stage(&mut self, stage: tui::BoxStage, duties: &mut Duties) {
+        let ended = matches!(stage, tui::BoxStage::Ended { .. });
+        if !self.stopping || matches!(stage, tui::BoxStage::Ended { .. } | tui::BoxStage::Failed { .. }) {
+            self.tell(Told::Stage { stage });
+        }
+        if self.state().box_stage() == &tui::BoxStage::Stopping {
+            self.stopping = true;
+            self.need = None;
+            self.tell(Told::Stay);
+        }
+        if ended && self.stopping {
+            self.close(duties);
+        }
+    }
+
+    fn stop(&mut self, duties: &mut Duties) {
+        if !self.state().front() || matches!(self.state().box_stage(), tui::BoxStage::Ended { .. }) {
+            self.close(duties);
+        } else if self.stopping {
+            duties.stop = Some(Stop::Second);
+        } else {
+            self.stopping = true;
+            self.need = None;
+            self.tell(Told::Stay);
+            self.tell(Told::Stage { stage: tui::BoxStage::Stopping });
+            duties.stop = Some(Stop::First);
+        }
+    }
+
     fn quit(&mut self, duties: &mut Duties) {
-        if !self.state().front()
+        if !self.state().front() || matches!(self.state().box_stage(), tui::BoxStage::Ended { .. }) {
+            self.close(duties);
+        } else if self.stopping
             || self.state().quitting()
+            || !matches!(self.state().box_stage(), tui::BoxStage::Running)
             || matches!(self.state().box_state(), tui::BoxState::GaveUp { .. })
             || !tui::work_runs(&self.root, self.state())
         {
-            self.close(duties);
+            self.stop(duties);
         } else {
             self.tell(Told::Quitting);
         }

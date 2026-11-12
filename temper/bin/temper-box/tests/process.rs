@@ -14,6 +14,8 @@ mod fake_backends;
 #[path = "suite/startover.rs"]
 mod startover;
 pub mod support;
+#[path = "suite/tui_box.rs"]
+mod tui_box;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
 use support::forge_land::{

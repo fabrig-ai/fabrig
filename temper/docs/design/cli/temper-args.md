@@ -17,10 +17,10 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 
 - **Set:** public
 - **Forms:** `[ARGUMENT...]`
-- Run this build's temper-box, fetching it if needed.
+- Run the TUI in front of this build's temper-box, fetching it if needed.
 - **Arguments:** `ARGUMENT...`: Arguments for temper-box, passed on unchanged.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. Runs the box in this process's place, including in a terminal.
+- **Notes:** Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. In a terminal, runs the TUI in front of the box. Without a terminal, or with --echo steps, runs the box in this process's place.
 
 ### `temper help`
 

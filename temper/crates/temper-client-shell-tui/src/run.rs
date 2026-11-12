@@ -9,13 +9,15 @@ use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall, stream};
+use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
 use skein_ui_screen::Size;
 #[cfg(any(test, feature = "record"))]
 use skein_ui_screen_terminal::Key;
 use skein_ui_screen_terminal::{Background, Depth, Terminal};
 use temper_client_tui::{BoxLine, Note, Scheme};
+
+mod front;
 
 const TAG: u64 = 1 << 61;
 const ROOM: u32 = 64;
@@ -35,16 +37,20 @@ pub struct Settings {
     pub limits: limits::Limits,
     pub opener: Option<Opener>,
     pub record: Option<Fd>,
-    /// The box's handed link and lines.
+    /// How to fetch and start the box.
     pub front: Option<Front>,
 }
 
-/// The box's inputs (temper/docs/design/client/tui/box.md).
+/// The captured box start (temper/docs/design/client/tui/box.md).
 pub struct Front {
-    /// The local link's URL the box handed on fd 3.
-    pub link: skein_lib::Secret,
-    /// The box's lines, fd 4.
-    pub lines: skein_io::kernel::Fd,
+    pub executable: Box<[u8]>,
+    pub cache: Box<[u8]>,
+    pub arguments: Box<[Box<[u8]>]>,
+    pub environment: Box<[Box<[u8]>]>,
+    /// An owned descriptor of the captured working directory.
+    pub directory: Fd,
+    /// DATA/box/logs/box.log, for the exit's report.
+    pub log: Box<[u8]>,
 }
 
 #[expect(
@@ -73,9 +79,11 @@ pub struct Run {
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
     boxed: bool,
     front: bool,
-    handed: Option<Secret>,
-    lines: Option<BoxPipe>,
-    box_lines: Queue<BoxLine>,
+    box_child: Option<front::Child>,
+    spawn_root: Option<LocalFile>,
+    front_ready: bool,
+    local_wait: bool,
+    held: Queue<jig_client::Request>,
     link_file: Option<Box<[u8]>>,
     local: LocalFile,
     note: Option<Note>,
@@ -85,14 +93,9 @@ pub struct Run {
     signed_in: Option<Box<[u8]>>,
     closing: bool,
     refused: bool,
+    terminated: bool,
     #[cfg(any(test, feature = "record"))]
     recording: Option<Recording>,
-}
-
-struct BoxPipe {
-    pipe: Token,
-    reading: bool,
-    skipping: bool,
 }
 
 impl Run {
@@ -120,7 +123,7 @@ impl Run {
         terminal.adopt(input, output)?;
         let read = temper_client_shell_terminal::limits::terminal().read;
         let limits = io::Limits {
-            sockets: 3,
+            sockets: 12,
             names: 0,
             refusals: 1,
             intake: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")),
@@ -135,12 +138,12 @@ impl Run {
         let mut io = io::Io::new(&limits);
         let signals = io.adopt_signals(signals)?;
         let front = settings.front.is_some();
-        let (handed, lines) = if let Some(front) = settings.front {
-            let pipe = io.adopt_read_pipe(front.lines)?;
-            (Some(front.link), Some(BoxPipe { pipe, reading: false, skipping: false }))
-        } else {
-            (None, None)
-        };
+        let spawn_root = settings.front.as_ref().map(|front| {
+            let mut root = LocalFile::new(front.directory, user);
+            root.owned = Some(root.io.adopt_root(front.directory).expect("spawn directory room"));
+            root
+        });
+        let box_child = settings.front.map(front::Child::new);
         #[cfg(any(test, feature = "record"))]
         let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
         #[cfg(any(test, feature = "record"))]
@@ -152,7 +155,7 @@ impl Run {
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
             .and_then(|n| n.checked_add(io::operations(&limits).expect("signal operations")))
-            .and_then(|n| n.checked_add(2 + if notes.is_some() { 2 } else { 0 }))
+            .and_then(|n| n.checked_add(2 + if notes.is_some() { 2 } else { 0 } + if front { 2 } else { 0 }))
             .expect("combined operations");
         #[cfg(any(test, feature = "record"))]
         let operations =
@@ -180,9 +183,11 @@ impl Run {
             loaded: None,
             boxed: settings.boxed,
             front,
-            handed,
-            lines,
-            box_lines: Queue::uncapped(),
+            box_child,
+            spawn_root,
+            front_ready: !front,
+            local_wait: false,
+            held: Queue::uncapped(),
             link_file: settings.link_file,
             local: LocalFile::new(root, user),
             note: settings.note,
@@ -192,6 +197,7 @@ impl Run {
             signed_in: None,
             closing: false,
             refused: false,
+            terminated: false,
             #[cfg(any(test, feature = "record"))]
             recording,
         })
@@ -209,9 +215,14 @@ impl Run {
     pub fn with_local_link(mut self, root: Fd, path: &[u8]) -> Self {
         assert!(self.start.is_some(), "local link supplied before starting");
         assert!(self.local.owned.is_none(), "one local link root");
+        self = self.with_local_path(root, path.rsplit(|byte| *byte == b'/').next().expect("link filename"));
+        self
+    }
+
+    pub(crate) fn with_local_path(mut self, root: Fd, path: &[u8]) -> Self {
         self.local.owned = Some(self.local.io.adopt_root(root).expect("local link root room"));
         self.local.root = root;
-        self.link_file = Some(path.rsplit(|byte| *byte == b'/').next().expect("link filename").into());
+        self.link_file = Some(path.into());
         self
     }
 
@@ -223,15 +234,17 @@ impl Run {
 
     fn complete(&mut self, mut complete: Complete) {
         let lane = complete.op.tag();
-        if lane == 3 || lane == 4 {
+        if lane == 3 || lane == 4 || lane == 5 {
             complete.op = Token::new(complete.op.untagged());
             if let Op::Cancel { target } = &mut complete.kind {
                 *target = Token::new(target.untagged());
             }
             if lane == 3 {
                 self.notes.as_mut().expect("note completion").complete(self.env.now, complete);
-            } else {
+            } else if lane == 4 {
                 self.local.complete(self.env.now, complete);
+            } else {
+                self.spawn_root.as_mut().expect("spawn root completion").complete(self.env.now, complete);
             }
             return;
         }
@@ -254,8 +267,14 @@ impl Run {
     }
 
     fn event(&mut self, event: &io::Event) {
+        if self.box_child.as_mut().is_some_and(|front| front.event(event)) {
+            return;
+        }
         match event {
-            io::Event::Shutdown { .. } => self.close(),
+            io::Event::Shutdown { .. } => {
+                self.terminated = true;
+                self.close();
+            }
             io::Event::Failed { owner, .. } => {
                 if *owner == OPENER {
                     self.opened = Some(false);
@@ -280,10 +299,7 @@ impl Run {
                 self.down(io::Request::Abort { entity: self.child.expect("spawned opener") });
             }
             io::Event::Closed { owner } => {
-                if self.lines.as_ref().is_some_and(|lines| lines.pipe == *owner) {
-                    self.lines = None;
-                    self.close();
-                } else if self.signals == Some(*owner) {
+                if self.signals == Some(*owner) {
                     self.signals = None;
                 } else if self.child == Some(*owner) || *owner == OPENER {
                     self.child = None;
@@ -291,14 +307,8 @@ impl Run {
                 }
             }
             io::Event::Resized => self.terminal.resized(),
-            io::Event::Stream { owner, up } => {
-                assert!(
-                    self.lines.as_ref().is_some_and(|lines| lines.pipe == *owner),
-                    "the box's pipe owns the stream"
-                );
-                self.box_line(up);
-            }
-            io::Event::Output { .. }
+            io::Event::Stream { .. }
+            | io::Event::Output { .. }
             | io::Event::Listening { .. }
             | io::Event::Accepted { .. }
             | io::Event::Connecting { .. }
@@ -308,48 +318,26 @@ impl Run {
         }
     }
 
-    fn box_line(&mut self, up: &stream::Up) {
-        match up {
-            stream::Up::Bytes(bytes) => {
-                let pipe = self.lines.as_mut().expect("box pipe");
-                pipe.reading = false;
-                if let Some(line) = bytes.strip_suffix(b"\n") {
-                    if !pipe.skipping
-                        && let Some(line) = BoxLine::read(line)
-                    {
-                        self.box_lines.push(line);
-                    }
-                    pipe.skipping = false;
-                } else {
-                    // Scan gives a whole line or MOST bytes, except the final piece.
-                    pipe.skipping = true;
-                }
-            }
-            stream::Up::End | stream::Up::Failed(_) => self.close(),
-            stream::Up::Room => unreachable!("the box's lines are read only"),
+    fn front_progress(&mut self) {
+        if let Some(front) = &mut self.box_child {
+            front.progress();
+        }
+        while self.io.takes() && self.raw.room() >= io::MAX_OUT_DOWN.submissions {
+            let Some(request) = self.box_child.as_mut().and_then(|front| front.requests.pop()) else { break };
+            self.down(request);
         }
     }
 
-    fn read_lines(&mut self) {
-        if !self.closing
-            && self.io.takes()
-            && self.raw.room() >= io::MAX_OUT_DOWN.submissions
-            && let Some(pipe) = &mut self.lines
-            && !pipe.reading
-        {
-            pipe.reading = true;
-            let stream = pipe.pipe;
-            self.down(io::Request::Stream {
-                stream,
-                down: stream::Down::Demand {
-                    read: stream::Read::Scan {
-                        until: stream::Delimiter::LF,
-                        max: u32::try_from(BoxLine::MOST).expect("box line bound"),
-                    },
-                    room: 0,
-                },
-            });
-        }
+    /// A termination signal leaves after the TUI's own shutdown, without waiting on the box.
+    #[must_use]
+    pub fn terminated(&self) -> bool {
+        self.terminated && self.terminal.closed()
+    }
+
+    /// The box's exit words, printed only after leaving the terminal.
+    #[must_use]
+    pub fn box_exit(&self) -> Option<(u8, Box<[u8]>)> {
+        self.box_child.as_ref().map(front::Child::exit)
     }
 
     fn close(&mut self) {
@@ -358,6 +346,9 @@ impl Run {
         }
         self.closing = true;
         self.local.closing = true;
+        if let Some(root) = &mut self.spawn_root {
+            root.closing = true;
+        }
         #[cfg(any(test, feature = "record"))]
         let saving = self.recording.is_some();
         #[cfg(not(any(test, feature = "record")))]
@@ -366,8 +357,13 @@ impl Run {
             self.terminal.close();
         }
         self.shell.close();
-        if let Some(lines) = &self.lines {
-            self.down(io::Request::Abort { entity: lines.pipe });
+        self.held.clear();
+        if let Some(front) = &mut self.box_child {
+            if self.terminated {
+                front.leave();
+            } else {
+                front.close();
+            }
         }
         self.opens.clear();
         if let Some(entity) = self.child {
@@ -388,7 +384,11 @@ impl Run {
         #[cfg(not(any(test, feature = "record")))]
         let duties = self.host.report(report);
         for request in duties.asked {
-            self.shell.down(request);
+            if self.front_ready {
+                self.shell.down(request);
+            } else {
+                self.held.push(request);
+            }
         }
         if let Some(credential) = duties.keep {
             self.shell.keep(credential);
@@ -417,12 +417,17 @@ impl Run {
                 self.report(host::Report::Opened { opened: false });
             }
         }
+        if let Some(stop) = duties.stop
+            && let Some(front) = &mut self.box_child
+        {
+            front.stop(stop);
+        }
         if duties.close {
             self.close();
         }
         if duties.local {
-            if let Some(link) = self.handed.take() {
-                self.report(host::Report::Local { link: Some(link) });
+            if self.front && !self.front_ready {
+                self.local_wait = true;
             } else if let Some(path) = &self.link_file {
                 self.local.pending = Some(path.clone());
             } else {
@@ -520,8 +525,24 @@ impl Run {
                 self.report(host::Report::Kept { written });
                 reported = true;
             }
-            while let Some(line) = self.box_lines.pop() {
-                self.report(host::Report::Front(line));
+            while let Some(report) = self.box_child.as_mut().and_then(|front| front.reports.pop()) {
+                match report {
+                    front::Report::Stage(stage) => self.report(host::Report::Stage(stage)),
+                    front::Report::Line(line) => self.report(host::Report::Front(line)),
+                    front::Report::Link { engine, address, link } if !self.closing => {
+                        self.shell.point(engine);
+                        self.address = address;
+                        self.front_ready = true;
+                        while let Some(request) = self.held.pop() {
+                            self.shell.down(request);
+                        }
+                        if self.local_wait {
+                            self.local_wait = false;
+                            self.report(host::Report::Local { link: Some(link) });
+                        }
+                    }
+                    front::Report::Link { .. } => {}
+                }
                 reported = true;
             }
             while let Some(event) = self.shell.events().pop() {
@@ -616,6 +637,9 @@ impl Run {
             publish_files(&mut notes.submissions, &mut self.submit, 3);
         }
         publish_files(&mut self.local.submissions, &mut self.submit, 4);
+        if let Some(root) = &mut self.spawn_root {
+            publish_files(&mut root.submissions, &mut self.submit, 5);
+        }
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             publish_files(&mut recording.save.submissions, &mut self.submit, 2);
@@ -673,6 +697,9 @@ impl Host for Run {
             recording.save.progress(now);
         }
         self.local.progress(now);
+        if let Some(root) = &mut self.spawn_root {
+            root.progress(now);
+        }
         if let Some(notes) = &mut self.notes {
             notes.closing = self.closing && self.shell.is_empty();
             notes.progress(now);
@@ -686,7 +713,7 @@ impl Host for Run {
         }
         self.io.reclaim();
         self.open();
-        self.read_lines();
+        self.front_progress();
         self.publish();
     }
 
@@ -701,8 +728,10 @@ impl Host for Run {
         if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
-        self.lines.as_ref().is_some_and(|lines| !lines.reading && !self.closing)
-            || (!self.box_lines.is_empty() && self.size.is_some())
+        self.box_child
+            .as_ref()
+            .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
+            || self.spawn_root.as_ref().is_some_and(|root| root.pending() || root.io.is_due(now))
             || self.local.pending()
             || self.local.io.is_due(now)
             || self.notes.as_ref().is_some_and(|notes| notes.pending() || notes.io.is_due(now))
@@ -728,6 +757,7 @@ impl Host for Run {
             self.io.next_deadline(),
             recording,
             self.local.io.next_deadline(),
+            self.spawn_root.as_ref().and_then(|root| root.io.next_deadline()),
             self.notes.as_ref().and_then(|notes| notes.io.next_deadline()),
         ]
         .into_iter()
@@ -750,6 +780,7 @@ impl Host for Run {
         }
         self.closing
             && self.local.closed()
+            && self.spawn_root.as_ref().is_none_or(LocalFile::closed)
             && self.notes.as_ref().is_none_or(FileSave::closed)
             && self.terminal.closed()
             && self.shell.is_empty()
@@ -760,7 +791,9 @@ impl Host for Run {
             && self.told.is_empty()
     }
     fn exit(&self) -> Option<Exit> {
-        self.is_empty().then_some(Exit::Code(u8::from(self.refused)))
+        self.is_empty().then(|| {
+            Exit::Code(if self.refused || self.terminated { 1 } else { self.box_exit().map_or(0, |(code, _)| code) })
+        })
     }
     fn operations(&self) -> u32 {
         self.operations
@@ -1114,9 +1147,8 @@ impl LocalFile {
 mod tests {
     use super::*;
 
-    #[test]
-    fn recording_keys_pass_to_the_host_without_a_root() {
-        let settings = Settings {
+    fn settings() -> Settings {
+        Settings {
             engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
@@ -1131,11 +1163,45 @@ mod tests {
             opener: None,
             record: None,
             front: None,
-        };
-        let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
+        }
+    }
+
+    #[test]
+    fn recording_keys_pass_to_the_host_without_a_root() {
+        let mut run = Run::new(settings(), Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
         for key in [Key::Alt('M'), Key::Alt('S'), Key::Alt('m'), Key::Alt('s')] {
             assert!(!run.record_key(&key), "no interception without a root: {key:?}");
         }
+    }
+
+    #[test]
+    fn a_signal_drops_a_link_already_waiting_to_be_reported() {
+        let mut settings = settings();
+        settings.front = Some(Front {
+            executable: b"/bin/temper".as_slice().into(),
+            cache: b"/cache".as_slice().into(),
+            arguments: Box::new([]),
+            environment: Box::new([]),
+            directory: Fd::new(5),
+            log: b"/data/box/logs/box.log".as_slice().into(),
+        });
+        let mut run =
+            Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
+        run.started(None, Vec::new());
+        run.box_child.as_mut().expect("front").reports.push(front::Report::Link {
+            engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
+            address: b"[::1]:9400".as_slice().into(),
+            link: Secret::new(
+                b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                    .as_slice()
+                    .into(),
+            ),
+        });
+        run.event(&io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+        run.reports();
+        assert!(run.closing);
+        assert!(!run.front_ready, "no point or connection while closing");
+        assert!(run.held.is_empty());
     }
 }

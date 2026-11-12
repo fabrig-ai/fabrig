@@ -152,6 +152,10 @@ pub enum Told {
         written: bool,
     },
     Front,
+    /// The authority of the first local link handed by the box.
+    Address {
+        address: Box<[u8]>,
+    },
     Stage {
         stage: BoxStage,
     },
@@ -542,6 +546,11 @@ impl Tui {
             Told::Front => {
                 let changed = !self.front;
                 self.front = true;
+                changed
+            }
+            Told::Address { address } => {
+                let changed = self.address != address;
+                self.address = address;
                 changed
             }
             Told::Stage { stage } => self.stage(stage),
