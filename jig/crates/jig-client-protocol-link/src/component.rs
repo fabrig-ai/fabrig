@@ -1,6 +1,7 @@
 //! One bounded exchange per request-table attempt (protocol/client/README.md, 3).
 //! A family's admission refusal uses jig's wire (client/domain/contract/requests.md, 3).
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
+//! Stream bounds and order refusals differ from unreadable records (protocol/client/README.md, 6).
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
@@ -42,6 +43,11 @@ pub(super) enum ExchangeKind {
     Read { turn: Option<(u64, u64, u32)> },
     WatchOpen { name: u64 },
     WatchClose { name: u64 },
+}
+#[derive(Debug)]
+enum StreamRefusal {
+    Record(crate::Undecodable),
+    Order,
 }
 #[derive(Debug)]
 pub struct Link {
@@ -727,26 +733,39 @@ impl Link {
                 let mut reader = Reader::new(&record);
                 match w::StreamEvent::decode(self.limits.receiving(), &mut reader) {
                     Ok(record) if reader.remaining() == 0 => self.stream_event(record, out),
-                    Ok(_) | Err(_) => Err(crate::Undecodable::Malformed),
+                    Ok(_) => Err(StreamRefusal::Record(crate::Undecodable::Malformed)),
+                    Err(problem) => Err(StreamRefusal::Record(translate::classify(problem))),
                 }
             }
         };
-        if result.is_err() {
-            out.push(Request::Fact { fact: Fact::UndecodableEvent });
+        if let Err(why) = result {
+            match why {
+                StreamRefusal::Record(crate::Undecodable::Malformed | crate::Undecodable::Version) => {
+                    out.push(Request::Fact { fact: Fact::UndecodableEvent });
+                }
+                StreamRefusal::Record(crate::Undecodable::TooLarge) | StreamRefusal::Order => {}
+            }
             self.drop_stream(out);
         }
     }
-    fn stream_event(&mut self, record: w::StreamEvent, out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
+    fn stream_event(&mut self, record: w::StreamEvent, out: &mut Queue<Request>) -> Result<(), StreamRefusal> {
         let stream = self.stream.as_mut().expect("active stream");
         match record {
             w::StreamEvent::Hello(hello) => {
-                stream.hello(&hello)?;
+                if stream.name.is_some() {
+                    return Err(StreamRefusal::Order);
+                }
+                if let Err(why) = stream.hello(&hello) {
+                    return Err(StreamRefusal::Record(why));
+                }
                 for served in hello.served() {
                     if served.first() > served.last() {
-                        return Err(crate::Undecodable::Malformed);
+                        return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
                     }
                 }
-                self.save_stream(*hello.stream(), out)?;
+                if let Err(why) = self.save_stream(*hello.stream(), out) {
+                    return Err(StreamRefusal::Record(why));
+                }
                 out.push(Request::Hello { family: None, versions: hello_versions(&hello, None) });
                 for owner in self.limits.client().owners {
                     let family = Some(owner.family);
@@ -773,13 +792,15 @@ impl Link {
             }
             w::StreamEvent::Delivery(value) => {
                 if stream.name.is_none() {
-                    return Err(crate::Undecodable::Malformed);
+                    return Err(StreamRefusal::Order);
                 }
-                self.watches.delivery(value, &self.limits, out)?;
+                if let Err(why) = self.watches.delivery(value, &self.limits, out) {
+                    return Err(StreamRefusal::Record(why));
+                }
             }
             w::StreamEvent::Ended(value) => {
                 if stream.name.is_none() {
-                    return Err(crate::Undecodable::Malformed);
+                    return Err(StreamRefusal::Order);
                 }
                 if let Some(watch) = self.watches.named(value.watch()) {
                     self.cancel_open(watch, value.watch());
@@ -796,15 +817,18 @@ impl Link {
             }
             w::StreamEvent::Text(value) => {
                 if stream.name.is_none() {
-                    return Err(crate::Undecodable::Malformed);
+                    return Err(StreamRefusal::Order);
                 }
                 if let Some(watch) = self.watches.named(value.watch()) {
                     let opening = self.watches.0.get(&watch).expect("named run watch");
                     if !opening.closing {
                         if opening.owner != w::Owner::Jig || opening.version != wire::VERSION {
-                            return Err(crate::Undecodable::Version);
+                            return Err(StreamRefusal::Record(crate::Undecodable::Version));
                         }
-                        let value = translate::live::run_text(value.into_parts().value, &self.limits)?;
+                        let value = match translate::live::run_text(value.into_parts().value, &self.limits) {
+                            Ok(value) => value,
+                            Err(why) => return Err(StreamRefusal::Record(why)),
+                        };
                         self.watches.opened(watch, out);
                         out.push(Request::Watch {
                             watch,

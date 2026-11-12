@@ -151,6 +151,7 @@ pub enum Request {
 pub enum Fact {
     UndecodableAnswer,
     UndecodableDocument,
+    /// A stream record refused as malformed or of another version (protocol/client/README.md, 6).
     UndecodableEvent,
     UndecodableWatchAnswer,
     StreamDropped,

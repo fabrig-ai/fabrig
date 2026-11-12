@@ -128,6 +128,59 @@ fn silence_past_twice_the_heartbeat_is_offline_not_unreadable_and_reopens() {
     assert!(opened);
 }
 
+fn offline_and_reopening(c: &mut Client) {
+    assert_eq!(c.machine.link().state, Link::Offline);
+    assert!(!c.machine.link().unreadable);
+    let mut closed = false;
+    for request in c.requests() {
+        if let Request::CloseStream = request {
+            closed = true;
+        }
+    }
+    assert!(closed);
+    c.fire(c.machine.next_deadline().unwrap());
+    let mut opened = false;
+    for request in c.requests() {
+        if let Request::OpenStream { .. } = request {
+            opened = true;
+        }
+    }
+    assert!(opened);
+    assert!(!c.machine.link().unreadable);
+}
+
+#[test]
+fn a_delivery_past_the_clients_bound_is_offline_not_unreadable_and_reopens() {
+    let record = w::DeliveryValue::Me(jig_client_test_records::frame_record());
+    let mut limits = fixtures::limits();
+    limits.domain.document_bytes = u64::from(record.measure()).checked_sub(1).unwrap();
+    let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
+    c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
+    c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
+    c.stream(fixtures::frame(c.opened_watch()));
+    offline_and_reopening(&mut c);
+}
+
+#[test]
+fn a_delivery_before_the_hello_is_offline_not_unreadable_and_reopens() {
+    let mut c = starting();
+    c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
+    let watch = c.opened_watch();
+    c.stream(fixtures::frame(watch));
+    c.step(Event::Stored);
+    c.step(Event::StreamGone);
+    c.fire(c.machine.next_deadline().unwrap());
+    c.stream(fixtures::frame(watch));
+    offline_and_reopening(&mut c);
+}
+
+#[test]
+fn a_duplicate_hello_is_offline_not_unreadable_and_reopens() {
+    let mut c = Client::signed_in();
+    c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
+    offline_and_reopening(&mut c);
+}
+
 #[test]
 fn an_undecodable_read_answer_stays_malformed_not_unreadable() {
     let mut c = Client::signed_in();
