@@ -12,8 +12,8 @@ mod rules;
 mod standing;
 pub mod wakes;
 pub use rules::{Rules, asked};
-pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) use standing::now;
+pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) mod sessions;
 pub use sessions::Session;
 /// The standing roles watch’s window.

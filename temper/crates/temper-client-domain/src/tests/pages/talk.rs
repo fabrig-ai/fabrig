@@ -1,9 +1,19 @@
 //! The role's chat in a talk (client/pages/talk.md, 1–2).
-#![expect(clippy::disallowed_types, clippy::disallowed_methods, clippy::disallowed_macros,
-    reason = "ordinary fixture tests collect and inspect the fake root's requests")]
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary fixture tests collect and inspect the fake root's requests"
+)]
 
-use super::{fixtures as f, welcome::{deliver, event, up}};
-use crate::{Action, Address, Domain, Event, Place, Request, pages::{self, Act, chat::Talking, team}};
+use super::{
+    fixtures as f,
+    welcome::{deliver, event, up},
+};
+use crate::{
+    Action, Address, Domain, Event, Place, Request,
+    pages::{self, Act, chat::Talking, team},
+};
 use jig_client::{Down, Key, Readable, Readout, Told, UnlinkedRequest, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Wall};
 
@@ -26,7 +36,8 @@ fn open(address: Address) -> (Domain, Token, Queue<Request>) {
 }
 fn find_watch(out: &Queue<Request>, subject: c::Subject) -> Token {
     for request in out {
-        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch, subject: found } } } = request
+        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch, subject: found } } } =
+            request
             && found == &Watchable::Jig(subject.clone())
         {
             return *watch;
@@ -47,7 +58,10 @@ fn read(out: &Queue<Request>, wanted: c::Read) -> Token {
 fn nows(out: &Queue<Request>) -> Vec<Token> {
     let mut reads = Vec::new();
     for request in out {
-        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(c::Read::Notes { .. }) } } } = request {
+        if let Request::Unlinked {
+            request: UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(c::Read::Notes { .. }) } },
+        } = request
+        {
             reads.push(*read);
         }
     }
@@ -78,7 +92,10 @@ fn talking(root: &Domain) -> &Talking {
 fn sends(out: &Queue<Request>) -> Vec<c::Ask> {
     let mut asks = Vec::new();
     for request in out {
-        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } } } = request {
+        if let Request::Unlinked {
+            request: UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        } = request
+        {
             asks.push(*ask.clone());
         }
     }
@@ -106,12 +123,15 @@ fn talk_reads_chat_now_and_findings_and_refreshes_now_one_at_a_time() {
     let now_token = read(&out, now_read());
     assert_eq!(nows(&out), [now_token]);
     read(&out, c::Read::Activity { task: f::chat::TASK, before: None });
-    assert!(out.iter().any(|request| {
-        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { subject, .. } } } = request {
-            return Some(subject.clone()) == crate::forge::findings::watch(f::PROJECT, &f::limits().forge);
-        }
-        false
-    }), "Talk's project findings are watched");
+    assert!(
+        out.iter().any(|request| {
+            if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { subject, .. } } } = request {
+                return Some(subject.clone()) == crate::forge::findings::watch(f::PROJECT, &f::limits().forge);
+            }
+            false
+        }),
+        "Talk's project findings are watched"
+    );
     let mut task = role();
     let changed = document(&mut root, watch, task.clone());
     find_watch(&changed, c::Subject::Run { task: f::chat::TASK, turn: None, offset: 0 });
@@ -151,19 +171,33 @@ fn talk_words_use_talk_permission_and_chat_words_still_use_message() {
         let asks = sends(&out);
         if let Some(is_talk) = expected {
             let words = f::acts::text(b"Hello");
-            let ask = if is_talk { c::Ask::Talk { project: f::PROJECT, task: f::chat::TASK, words } }
-                else { c::Ask::Message { project: f::PROJECT, task: f::chat::TASK, words } };
+            let ask = if is_talk {
+                c::Ask::Talk { project: f::PROJECT, task: f::chat::TASK, words }
+            } else {
+                c::Ask::Message { project: f::PROJECT, task: f::chat::TASK, words }
+            };
             assert_eq!(asks, [ask]);
             let chat = root.pages().chat().unwrap();
             assert!(chat.words.is_empty());
             assert_eq!(chat.thread.words.rows.len(), 1);
             let (key, _) = *chat.pending.get(0).unwrap();
-            told(&mut root, Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: f::chat::TASK, message: 1 })))) });
+            told(
+                &mut root,
+                Told::Answered {
+                    key,
+                    outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                        c::Outcome::Document(c::DocumentOutcome::Said { task: f::chat::TASK, message: 1 }),
+                    ))),
+                },
+            );
             let chat = root.pages().chat().unwrap();
             assert!(chat.pending.is_empty());
             let mut sent = false;
             for line in &chat.thread.lines() {
-                if let jig_client::thread::Line::Words { state: jig_client::thread::Words::Sent { message: 1 }, .. } = line {
+                if let jig_client::thread::Line::Words {
+                    state: jig_client::thread::Words::Sent { message: 1 }, ..
+                } = line
+                {
                     sent = true;
                 }
             }
@@ -177,7 +211,12 @@ fn talk_words_use_talk_permission_and_chat_words_still_use_message() {
 
 #[test]
 fn leaving_sends_once_only_for_your_open_and_offered_talk_and_drops_the_answer() {
-    for (party, offered, leaves) in [(Some(f::PARTY), true, true), (None, true, false), (Some(f::PARTY + 1), true, false), (Some(f::PARTY), false, false)] {
+    for (party, offered, leaves) in [
+        (Some(f::PARTY), true, true),
+        (None, true, false),
+        (Some(f::PARTY + 1), true, false),
+        (Some(f::PARTY), false, false),
+    ] {
         let (mut root, watch, _) = open(talk());
         let mut task = role();
         task.talk = party.map(|party| c::Talk { party, opened: Wall::EPOCH, last: Wall::EPOCH });
@@ -187,20 +226,32 @@ fn leaving_sends_once_only_for_your_open_and_offered_talk_and_drops_the_answer()
         let chat = root.pages().chat().unwrap();
         let next = chat.pending.len();
         let out = go(&mut root, Address::Accounts);
-        assert_eq!(sends(&out), if leaves { vec![c::Ask::Leave { project: f::PROJECT, task: f::chat::TASK }] } else { vec![] });
+        assert_eq!(
+            sends(&out),
+            if leaves { vec![c::Ask::Leave { project: f::PROJECT, task: f::chat::TASK }] } else { vec![] }
+        );
         assert!(sends(&go(&mut root, Address::Forges)).is_empty(), "a second navigation doesn't leave twice");
         let before = pages::shown(root.pages());
         assert_eq!(next, 0);
         // Leave has a Pages key, but no page owns its answer after navigation.
         let serial = root.pages.serial;
-        told(&mut root, Told::Answered { key: Key { asker: crate::owner::Owner::Pages.asker(), number: serial }, outcome: jig_client::Outcome::Unknown });
+        told(
+            &mut root,
+            Told::Answered {
+                key: Key { asker: crate::owner::Owner::Pages.asker(), number: serial },
+                outcome: jig_client::Outcome::Unknown,
+            },
+        );
         assert_eq!(root.pages().address(), &Address::Forges);
         assert_eq!(pages::shown(root.pages()), before);
     }
 }
 
 fn activity(position: u64, line: c::Activity) -> c::DecodedActivityLine {
-    c::DecodedActivityLine { source: Box::new(c::ActivityLine { task: f::chat::TASK, position, at: Wall::EPOCH, line }), decoded: None }
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine { task: f::chat::TASK, position, at: Wall::EPOCH, line }),
+        decoded: None,
+    }
 }
 fn ended(spent: u64) -> c::Activity {
     c::Activity::RunEnded { attempt: 1, end: c::RunEnd::Parked, spent }
@@ -208,7 +259,17 @@ fn ended(spent: u64) -> c::Activity {
 #[test]
 fn talking_facts_follow_the_reader_newest_opening_runs_budget_and_lowest_now() {
     let (mut root, watch, out) = open(talk());
-    assert_eq!((talking(&root).name(), talking(&root).open(), talking(&root).from(), talking(&root).cost(), talking(&root).spend(), talking(&root).now()), (None, None, None, None, None, None));
+    assert_eq!(
+        (
+            talking(&root).name(),
+            talking(&root).open(),
+            talking(&root).from(),
+            talking(&root).cost(),
+            talking(&root).spend(),
+            talking(&root).now()
+        ),
+        (None, None, None, None, None, None)
+    );
     let mut task = role();
     task.activity = 6;
     task.budget.numbers.spent = 22;
@@ -221,23 +282,50 @@ fn talking_facts_follow_the_reader_newest_opening_runs_budget_and_lowest_now() {
     assert_eq!(talking(&root).spend(), Some((22, 100)));
     assert_eq!((talking(&root).from(), talking(&root).cost()), (None, None));
     let read = read(&out, c::Read::Activity { task: f::chat::TASK, before: None });
-    answer(&mut root, read, c::ReadValue::Activity(Box::new(c::ActivityPage {
-        rows: List::from_boxed(Box::new([
-            activity(1, c::Activity::TalkOpened { party: f::PARTY }),
-            activity(2, ended(50)),
-            activity(3, c::Activity::TalkOpened { party: f::PARTY }),
-            activity(4, ended(30)),
-            activity(5, c::Activity::TalkOpened { party: f::PARTY + 1 }),
-            activity(6, ended(12)),
-        ])), before: None, after: None, cut: false,
-    })));
+    answer(
+        &mut root,
+        read,
+        c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::from_boxed(Box::new([
+                activity(1, c::Activity::TalkOpened { party: f::PARTY }),
+                activity(2, ended(50)),
+                activity(3, c::Activity::TalkOpened { party: f::PARTY }),
+                activity(4, ended(30)),
+                activity(5, c::Activity::TalkOpened { party: f::PARTY + 1 }),
+                activity(6, ended(12)),
+            ])),
+            before: None,
+            after: None,
+            cut: false,
+        })),
+    );
     assert_eq!((talking(&root).from(), talking(&root).cost()), (Some(3), Some(42)));
     let now = |number, description: &[u8], body: &[u8]| c::Note {
-        number, revision: c::Revision { value: 1 }, scope: c::NoteScope::Task { project: f::PROJECT, task: f::chat::TASK }, writer: c::NoteAuthor::Task { task: f::chat::TASK, attempt: 1 }, acts: List::with_capacity(0), description: f::chat::document_text(description), body: f::chat::document_text(body), changed: Some(Wall::from_nanos(19)), tasks: List::with_capacity(0), cut: false,
+        number,
+        revision: c::Revision { value: 1 },
+        scope: c::NoteScope::Task { project: f::PROJECT, task: f::chat::TASK },
+        writer: c::NoteAuthor::Task { task: f::chat::TASK, attempt: 1 },
+        acts: List::with_capacity(0),
+        description: f::chat::document_text(description),
+        body: f::chat::document_text(body),
+        changed: Some(Wall::from_nanos(19)),
+        tasks: List::with_capacity(0),
+        cut: false,
     };
-    answer(&mut root, read_now(&out), notes(Box::new([now(8, b"now", b"Later"), now(1, b"other", b"Not Now"), now(3, b"now", b"First")])));
-    assert_eq!(talking(&root).now(), Some(&team::Now { body: b"First".as_slice().into(), changed: Some(Wall::from_nanos(19)), cut: false }));
-    assert_eq!(root.pages().chat().unwrap().request(root.client()), None, "a role's spec isn't its conversation's first entry");
+    answer(
+        &mut root,
+        read_now(&out),
+        notes(Box::new([now(8, b"now", b"Later"), now(1, b"other", b"Not Now"), now(3, b"now", b"First")])),
+    );
+    assert_eq!(
+        talking(&root).now(),
+        Some(&team::Now { body: b"First".as_slice().into(), changed: Some(Wall::from_nanos(19)), cut: false })
+    );
+    assert_eq!(
+        root.pages().chat().unwrap().request(root.client()),
+        None,
+        "a role's spec isn't its conversation's first entry"
+    );
     task.talk.as_mut().unwrap().party = f::PARTY + 1;
     document(&mut root, watch, task.clone());
     assert_eq!((talking(&root).open(), talking(&root).from(), talking(&root).cost()), (None, None, None));
@@ -250,7 +338,9 @@ fn talking_facts_follow_the_reader_newest_opening_runs_budget_and_lowest_now() {
 fn notes(rows: Box<[c::Note]>) -> c::ReadValue {
     c::ReadValue::Notes(Box::new(c::NotePage { rows: List::from_boxed(rows), before: None, after: None, cut: false }))
 }
-fn read_now(out: &Queue<Request>) -> Token { read(out, now_read()) }
+fn read_now(out: &Queue<Request>) -> Token {
+    read(out, now_read())
+}
 
 #[test]
 fn weekly_reads_only_an_open_seven_day_project_period() {
@@ -262,9 +352,13 @@ fn weekly_reads_only_an_open_seven_day_project_period() {
         let mut project = super::team::project(Box::new([]), false);
         project.number = f::PROJECT;
         project.current_period = Some(c::PoolLedger {
-            source: c::Funder::Period { project: f::PROJECT, period: 1 }, parent: None,
+            source: c::Funder::Period { project: f::PROJECT, period: 1 },
+            parent: None,
             numbers: c::Numbers { budget: 100, spent: 10, spent_below: 0, reserved: 0 },
-            left: 90, closed, began: Some(Wall::from_nanos(DAY)), next: Some(Wall::from_nanos((days + 1) * DAY)),
+            left: 90,
+            closed,
+            began: Some(Wall::from_nanos(DAY)),
+            next: Some(Wall::from_nanos((days + 1) * DAY)),
         });
         answer(&mut root, read, c::ReadValue::Project(Box::new(project)));
         assert_eq!(team::weekly(&root, f::PROJECT), expected);
@@ -274,18 +368,38 @@ fn weekly_reads_only_an_open_seven_day_project_period() {
 
 #[test]
 fn accepting_settings_on_a_talk_card_moves_runs_but_on_a_chat_stays() {
-    for (address, running) in [(talk(), c::Running::Moves), (Address::Chat { task: f::chat::TASK }, c::Running::Stays)] {
+    for (address, running) in [(talk(), c::Running::Moves), (Address::Chat { task: f::chat::TASK }, c::Running::Stays)]
+    {
         let (mut root, watch, _) = open(address);
         let key = f::acts::PROPOSAL;
         let mut task = role();
         task.proposals = List::from_boxed(Box::new([key]));
         let out = document(&mut root, watch, task);
         let read = read(&out, c::Read::Proposal { proposal: key });
-        let c::ReadValue::Proposal(mut proposal) = f::acts::proposal(c::ActKind::Accept, c::Admission::Allowed) else { panic!("proposal fixture") };
-        proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings { against: 0, items: List::with_capacity(0), review: None, made: None }));
+        let c::ReadValue::Proposal(mut proposal) = f::acts::proposal(c::ActKind::Accept, c::Admission::Allowed) else {
+            panic!("proposal fixture")
+        };
+        proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+            against: 0,
+            items: List::with_capacity(0),
+            review: None,
+            made: None,
+        }));
         answer(&mut root, read, c::ReadValue::Proposal(proposal));
-        assert!(sends(&act(&mut root, Act::Decide { object: c::ObjectKey::Proposal(key), revision: None, act: c::ActKind::Accept })).is_empty());
+        assert!(
+            sends(&act(
+                &mut root,
+                Act::Decide { object: c::ObjectKey::Proposal(key), revision: None, act: c::ActKind::Accept }
+            ))
+            .is_empty()
+        );
         let out = act(&mut root, Act::Confirm);
-        assert_eq!(sends(&out), [c::Ask::Decide { project: f::PROJECT, on: c::DecideOn::Proposal { proposal: key, running: Some(running), decision: c::Decision::Accepted } }]);
+        assert_eq!(
+            sends(&out),
+            [c::Ask::Decide {
+                project: f::PROJECT,
+                on: c::DecideOn::Proposal { proposal: key, running: Some(running), decision: c::Decision::Accepted }
+            }]
+        );
     }
 }

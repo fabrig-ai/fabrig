@@ -3,9 +3,8 @@
 pub mod document;
 mod request;
 pub mod sheet;
-mod views;
 mod talking;
-pub use talking::Talking;
+mod views;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -18,6 +17,7 @@ use jig_client::{
     },
 };
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
+pub use talking::Talking;
 pub use views::Shown;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
@@ -1398,10 +1398,11 @@ impl Chat {
             Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
         };
         let message_act = if self.talking.is_some() { c::ActKind::Talk } else { c::ActKind::Message };
-        let resumes = self.talking.is_none() && match me {
-            Some(me) => paused(&task.chip, me) && allowed(task, c::ActKind::Release),
-            None => false,
-        };
+        let resumes = self.talking.is_none()
+            && match me {
+                Some(me) => paused(&task.chip, me) && allowed(task, c::ActKind::Release),
+                None => false,
+            };
         let words = match kind {
             Sending::Message if !message.is_empty() && allowed(task, message_act) => {
                 let Some(me) = me else { return };

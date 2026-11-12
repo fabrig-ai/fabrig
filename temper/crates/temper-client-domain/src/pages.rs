@@ -33,7 +33,8 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
 #[must_use]
 pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
     if let Some(chat) = root.pages().chat()
-        && chat.task == task.chip.task && chat.talk().is_some()
+        && chat.task == task.chip.task
+        && chat.talk().is_some()
     {
         return false;
     }

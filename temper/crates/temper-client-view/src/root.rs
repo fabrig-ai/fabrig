@@ -358,8 +358,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
             &mut view.forge,
         );
-    } else if let temper_client_domain::Address::Chat { .. }
-    | temper_client_domain::Address::Talk { .. } = root.pages().address() {
+    } else if let temper_client_domain::Address::Chat { .. } | temper_client_domain::Address::Talk { .. } =
+        root.pages().address()
+    {
         crate::pages::chat::main(
             &mut builder,
             root,

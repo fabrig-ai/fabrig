@@ -483,7 +483,10 @@ fn session_composer(
         b.bind(bindings.insert(Act::Send));
         b.close();
     }
-    let hint = if chat.talk().is_none() && is_paused(root, task) && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
+    let hint = if chat.talk().is_none()
+        && is_paused(root, task)
+        && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release)
+    {
         Word::ChatSendResumes
     } else if chat.draft.is_some() || chat.writing {
         Word::DraftSendHint

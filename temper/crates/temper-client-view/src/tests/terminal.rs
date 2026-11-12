@@ -29,11 +29,21 @@ fn a_talk_uses_chat_layout_without_chat_commands_request_draft_or_picker() {
     }
     offers.push(c::Offered { act: c::ActKind::Talk, admission: c::Admission::Allowed, effect: None }).unwrap();
     task.acts = offers;
-    task.spec.specification.words = c::DocumentText::complete(c::Text::new(b"Role rules, not a request".as_slice().into(), 64).unwrap());
-    let (mut root, _, watch) = f::root_at(Address::Talk { project: f::PROJECT, task: f::chat::TASK }, &f::domain_limits());
-    f::root_event(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched {
-        watch: watch.unwrap(), event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
-    } } });
+    task.spec.specification.words =
+        c::DocumentText::complete(c::Text::new(b"Role rules, not a request".as_slice().into(), 64).unwrap());
+    let (mut root, _, watch) =
+        f::root_at(Address::Talk { project: f::PROJECT, task: f::chat::TASK }, &f::domain_limits());
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
     let task = root.pages().chat().unwrap().task(root.client()).unwrap();
     for command in [C::Pause, C::Close, C::StartOver, C::Model, C::Effort, C::Draft, C::Goal] {
         assert!(!crate::shared::offered(&root, Some(task), command), "{command:?}");
