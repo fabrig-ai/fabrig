@@ -358,7 +358,12 @@ fn checked_out(op: &git::Op) -> Next {
 
 fn remote(command: &Command) -> bool {
     match command {
-        Command::Store { .. } | Command::Fetch { .. } | Command::Create { .. } | Command::Push { .. } => true,
+        Command::Store { .. }
+        | Command::Fetch { .. }
+        | Command::Create { .. }
+        | Command::Push { .. }
+        | Command::CheckOut { .. }
+        | Command::Merge { .. } => true,
         Command::Format
         | Command::Version
         | Command::Origin { .. }
@@ -370,9 +375,7 @@ fn remote(command: &Command) -> bool {
         | Command::SnapshotFetch { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
-        | Command::CheckOut { .. }
         | Command::Clean
-        | Command::Merge { .. }
         | Command::Unmerged
         | Command::Add
         | Command::DiffIndex { .. }

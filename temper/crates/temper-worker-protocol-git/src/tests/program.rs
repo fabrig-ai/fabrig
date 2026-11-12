@@ -247,7 +247,7 @@ fn request(program: Option<&[u8]>, remote: bool) -> Request {
                 account: None,
             }
         } else {
-            git::Op::CheckOut { at, commit: fixtures::COMMIT, clean: true }
+            git::Op::CheckOut { at, commit: fixtures::COMMIT, clean: true, identity: 1, account: None }
         },
         deadline: fixtures::DEADLINE,
         identity: Some(fixtures::identity()),

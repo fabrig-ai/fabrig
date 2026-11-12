@@ -359,7 +359,8 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
         account: None,
     };
     assert_eq!(h.next(hold, Done::Succeeded), fetch_a);
-    let check_out_a = Op::CheckOut { at: place(workspace, b"a"), commit: commit(1), clean: true };
+    let check_out_a =
+        Op::CheckOut { at: place(workspace, b"a"), commit: commit(1), clean: true, identity: 0, account: None };
     assert_eq!(h.replaced(hold, commit(1)), check_out_a);
     let fetch_b = Op::Fetch {
         store: store_token(b"b"),
@@ -371,7 +372,8 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
         account: None,
     };
     assert_eq!(h.next(hold, Done::Succeeded), fetch_b);
-    let check_out_b = Op::CheckOut { at: place(workspace, b"b"), commit: commit(2), clean: true };
+    let check_out_b =
+        Op::CheckOut { at: place(workspace, b"b"), commit: commit(2), clean: true, identity: 0, account: None };
     assert_eq!(h.next(hold, Done::Fetched { commit: commit(2) }), check_out_b);
     let ready = h.one(Event::Done { owner: hold, done: Done::Succeeded });
     assert_eq!(
@@ -407,6 +409,22 @@ fn every_operation_has_a_deadline_by_where_it_runs() {
         panic!("pin points at the fetched commit")
     };
     assert_eq!(deadline, local, "point is local");
+    let Request::Io { deadline, op, .. } = h.one(Event::Done { owner, done: Done::Succeeded }) else {
+        panic!("checkout follows pin")
+    };
+    assert_eq!(op.kind(), Kind::CheckOut);
+    assert!(op.is_remote());
+    assert_eq!(deadline, remote, "checkout may fetch contents");
+    let mut h = Harness::new(MERGES);
+    let hold = begin_merged(&mut h, &[commit(7)]);
+    let Request::Io { deadline, op, .. } =
+        h.one(Event::Done { owner: hold, done: Done::IsAncestor { contains: false } })
+    else {
+        panic!("merge follows ancestry")
+    };
+    assert_eq!(op.kind(), Kind::Merge);
+    assert!(op.is_remote());
+    assert_eq!(deadline, remote, "merge may fetch contents");
 }
 
 #[test]
@@ -623,7 +641,7 @@ fn a_missing_base_branch_is_created_from_the_default_branch() {
         panic!("read the push branch before pinning it")
     };
     let check_out = h.replaced(hold, commit(1));
-    assert_eq!(check_out, Op::CheckOut { at, commit: commit(9), clean: true });
+    assert_eq!(check_out, Op::CheckOut { at, commit: commit(9), clean: true, identity: 0, account: None });
     let ready = prepared(h.one(Event::Done { owner: hold, done: Done::Succeeded }));
     let Prepared::Ready { .. } = ready else { panic!("ready: {ready:?}") };
 }
@@ -2683,5 +2701,37 @@ fn design_delivery_and_push_verification_fetch_through_the_repositorys_store() {
         let Op::Fetch { store, remote: source, .. } = op else { panic!("design tip or push verification fetched") };
         assert_eq!(store, store_token(b"a"));
         assert_eq!(source, remote(b"a"));
+    }
+}
+
+#[test]
+fn prepares_and_design_deliveries_authenticate_lazy_fetches_as_the_repository() {
+    for account in [Some(22), None] {
+        for start in pin_starts() {
+            let mut h = Harness::new(MERGES);
+            let repo = Repository { start, identity: 3, account, ..retry_repository() };
+            let (_, ops) = pin_ready(&mut h, 1, repo, commit(8));
+            let mut checked_out = false;
+            for op in &ops {
+                if let Op::CheckOut { identity, account: owner, .. } | Op::Merge { identity, account: owner, .. } = op {
+                    assert_eq!((*identity, *owner), (3, account));
+                    checked_out = true;
+                }
+            }
+            assert!(checked_out, "every prepare checks out its start");
+        }
+        let mut h = Harness::new(MERGES);
+        let repo = Repository { identity: 7, account, landing: Some(bytes(b"main")), ..repository(b"a", true) };
+        let hold = h.ready(1, spec(b"design", Box::new([repo])));
+        h.one(Event::Push { hold, message: message() });
+        let Op::Fetch { .. } = h.next(hold, Done::Committed { commit: commit(11) }) else { panic!("design tip") };
+        let Op::IsAncestor { .. } = h.next(hold, Done::Fetched { commit: commit(12) }) else { panic!("compare") };
+        let merge = h.next(hold, Done::IsAncestor { contains: false });
+        let Op::Merge { identity, account: owner, .. } = merge else { panic!("design merge") };
+        assert_eq!((identity, owner), (7, account));
+        let Op::Commit { .. } = h.next(hold, Done::Merged) else { panic!("merged commit") };
+        let checkout = h.next(hold, Done::Committed { commit: commit(13) });
+        let Op::CheckOut { identity, account: owner, .. } = checkout else { panic!("design checkout") };
+        assert_eq!((identity, owner), (7, account));
     }
 }

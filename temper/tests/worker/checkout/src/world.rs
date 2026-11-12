@@ -1219,7 +1219,7 @@ impl World {
             self.forge.set_refusing(name, refusing);
         }
         let before = match &op {
-            Op::CheckOut { at, commit, clean } => {
+            Op::CheckOut { at, commit, clean, .. } => {
                 let client = *self.holds.get(&owner).expect("a hold's client");
                 self.checkouts.entry(client).or_default().push((at.repository.to_vec(), *clean));
                 self.checked_out.insert((owner, at.repository.to_vec()), translate::fake(*commit));

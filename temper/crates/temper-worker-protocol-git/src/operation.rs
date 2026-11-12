@@ -128,6 +128,8 @@ impl Operation {
     fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
         match self.command {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
+            Command::Clean => None,
+            Command::Unmerged if kind == Some(git::Kind::Merge) => None,
             Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotReachable { .. }
@@ -142,7 +144,6 @@ impl Operation {
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
-            | Command::Clean
             | Command::Merge { .. }
             | Command::Unmerged
             | Command::Add

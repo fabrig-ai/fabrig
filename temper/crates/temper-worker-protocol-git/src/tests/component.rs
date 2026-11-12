@@ -133,9 +133,9 @@ fn a_cancel_between_invocations_starts_no_further_one() {
     let mut component = fixtures::Started::new();
     component.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true },
+        op: git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None },
         deadline: fixtures::DEADLINE,
-        identity: None,
+        identity: Some(fixtures::identity()),
     });
     let (child, pipes) = component.spawned();
     component.end(pipes[0]);
@@ -178,13 +178,13 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
         let op = if merging {
             fixtures::commit_op(Some(fixtures::COMMIT))
         } else {
-            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT }
+            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }
         };
         component.down(Request::Io {
             owner: fixtures::OWNER,
             op,
             deadline: fixtures::DEADLINE,
-            identity: if merging { Some(fixtures::identity()) } else { None },
+            identity: Some(fixtures::identity()),
         });
         if !merging {
             let (child, pipes) = component.spawned();
@@ -365,9 +365,9 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
         let mut component = fixtures::Started::new();
         component.down(Request::Io {
             owner: fixtures::OWNER,
-            op: git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT },
+            op: git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None },
             deadline: fixtures::DEADLINE,
-            identity: None,
+            identity: Some(fixtures::identity()),
         });
         let (child, pipes) = component.spawned();
         component.stdout(pipes[0], &[b'x'; 513]);
@@ -389,4 +389,55 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
         };
         assert_eq!(component.done(), Some((fixtures::OWNER, expected)));
     }
+}
+
+#[test]
+fn only_the_checkout_and_merge_invocations_receive_lazy_fetch_credentials() {
+    for (op, exit) in [
+        (
+            git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None },
+            0,
+        ),
+        (git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }, 1),
+    ] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op,
+            deadline: fixtures::DEADLINE,
+            identity: Some(fixtures::identity()),
+        });
+        assert_spawn_credentials(&component, true);
+        let (child, pipes) = component.spawned();
+        component.end(pipes[0]);
+        component.end(pipes[1]);
+        component.exited(child, exit);
+        component.closed(child, &pipes);
+        assert_spawn_credentials(&component, false);
+    }
+}
+
+fn assert_spawn_credentials(component: &fixtures::Started, remote: bool) {
+    let mut spawned = false;
+    for request in &component.below.out.io {
+        if let skein_io::Request::Spawn { spawn, .. } = request {
+            assert!(!spawned, "only one spawn");
+            spawned = true;
+            assert_eq!(spawn.env.contains(&Box::from(b"GIT_CONFIG_COUNT=1".as_slice())), remote);
+            if !remote {
+                for entry in &spawn.env {
+                    assert!(!entry.starts_with(b"GIT_CONFIG_KEY_"));
+                    assert!(!entry.starts_with(b"GIT_CONFIG_VALUE_"));
+                }
+            }
+            assert_eq!(spawn.args.contains(&Box::from(b"remote.origin.promisor=true".as_slice())), remote);
+            if remote {
+                assert!(spawn.env.contains(&Box::from(b"GIT_COMMITTER_NAME=Temper Bot".as_slice())));
+                assert!(spawn.env.contains(&Box::from(
+                    b"GIT_CONFIG_VALUE_0=Authorization: Basic dGVtcGVyLWJvdDp0b2stMQ==".as_slice()
+                )));
+            }
+        }
+    }
+    assert!(spawned);
 }

@@ -137,6 +137,8 @@ impl Component {
     ) {
         let needs_identity = match op {
             git::Op::Store { .. }
+            | git::Op::CheckOut { .. }
+            | git::Op::Merge { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::Commit { .. }
@@ -144,11 +146,9 @@ impl Component {
             git::Op::Point { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
-            | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
-            | git::Op::IsAncestor { .. }
-            | git::Op::Merge { .. } => false,
+            | git::Op::IsAncestor { .. } => false,
         };
         if self.start != Start::Started
             || self.shutting_down
