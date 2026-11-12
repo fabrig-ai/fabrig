@@ -230,7 +230,10 @@ impl Referee<Root> for Judge {
                 terminal.keys(b"Add CSV export to widget\r");
                 self.phase = Phase::Chat;
             }
-            Phase::Chat if terminal.has(b"Add CSV export to widget") && !terminal.writing => {
+            // The echoed input can precede the running chat read by the TUI.
+            Phase::Chat
+                if terminal.has(b"Add CSV export to widget") && terminal.has(b"Working") && !terminal.writing =>
+            {
                 terminal.keys(b"\x03");
                 self.phase = Phase::Question;
             }
