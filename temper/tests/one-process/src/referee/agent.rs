@@ -5,8 +5,18 @@ use skein_lib::Reader;
 use std::collections::BTreeMap;
 
 pub(crate) enum Record {
-    Start { task: u64, attempt: u64, workspace: Option<smith_channel::Workspace>, input: Option<Box<smith_channel::Start>> },
-    Answer { task: u64, attempt: u64, result: smith_channel::RunResult },
+    Start {
+        task: u64,
+        attempt: u64,
+        conversation: u64,
+        workspace: Option<smith_channel::Workspace>,
+        input: Option<Box<smith_channel::Start>>,
+    },
+    Answer {
+        task: u64,
+        attempt: u64,
+        result: smith_channel::RunResult,
+    },
 }
 impl std::fmt::Debug for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,7 +53,9 @@ impl Wire {
             events: Vec::new(),
         }
     }
-    pub(crate) fn keep_starts(&mut self) { self.keep_starts = true; }
+    pub(crate) fn keep_starts(&mut self) {
+        self.keep_starts = true;
+    }
     pub fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == b"/opt/temper/bin/temper" => {
@@ -133,10 +145,12 @@ impl Wire {
                 settings: crate::stories::settings_revision(),
             });
             let task = proof.task;
+            let conversation = proof.conversation;
             drop(store);
             self.store.borrow_mut().agent_records.push(Record::Start {
                 task,
                 attempt: start.activation(),
+                conversation,
                 workspace: start.workspace().clone(),
                 input: self.keep_starts.then(|| Box::new(start)),
             });

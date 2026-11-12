@@ -60,7 +60,10 @@ pub(crate) struct Walking {
 }
 impl Walking {
     pub(super) fn ready(&self) -> bool {
-        match self.waiting { Waiting::Ready => true, Waiting::Site(_) | Waiting::Commit { .. } => false }
+        match self.waiting {
+            Waiting::Ready => true,
+            Waiting::Site(_) | Waiting::Commit { .. } => false,
+        }
     }
     #[cfg(test)]
     pub(crate) fn closing(&self) -> bool {

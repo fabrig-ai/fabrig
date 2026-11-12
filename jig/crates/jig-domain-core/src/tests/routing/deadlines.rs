@@ -143,7 +143,7 @@ fn with_task_alarm() -> (Core, Limits) {
         &mut out,
     );
     assert_eq!(core.tasks.next_deadline(), Some(Time::from_nanos(10)));
-    (core,limits)
+    (core, limits)
 }
 
 #[test]
@@ -183,13 +183,17 @@ fn account_alarms_keep_running_while_the_core_stops() {
 
 #[test]
 fn task_timers_wait_for_the_start_to_open_without_hiding_finishing_timers() {
-    let (mut core,limits)=with_task_alarm();
-    arm_brief(&mut core,&limits,Time::from_nanos(20));
-    let now=Time::from_nanos(20);
-    core.opened=false;
-    assert_eq!(core.next_deadline(now,Wall::EPOCH),Some(now),"only the finishing alarm is visible during restore");
-    assert_eq!(core.due(now,Wall::EPOCH),Some(Timer::Brief));
-    core.opened=true;
-    assert_eq!(core.next_deadline(now,Wall::EPOCH),Some(Time::from_nanos(10)),"the task alarm remains armed for opening");
-    assert_eq!(core.due(now,Wall::EPOCH),Some(Timer::Tasks));
+    let (mut core, limits) = with_task_alarm();
+    arm_brief(&mut core, &limits, Time::from_nanos(20));
+    let now = Time::from_nanos(20);
+    core.opened = false;
+    assert_eq!(core.next_deadline(now, Wall::EPOCH), Some(now), "only the finishing alarm is visible during restore");
+    assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Brief));
+    core.opened = true;
+    assert_eq!(
+        core.next_deadline(now, Wall::EPOCH),
+        Some(Time::from_nanos(10)),
+        "the task alarm remains armed for opening"
+    );
+    assert_eq!(core.due(now, Wall::EPOCH), Some(Timer::Tasks));
 }

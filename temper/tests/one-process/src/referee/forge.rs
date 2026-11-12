@@ -34,7 +34,10 @@ impl Forge {
             hooks: None,
         }
     }
-    pub(crate) fn keeping_ledger(mut self) -> Self { self.ledger = Some(Vec::new()); self }
+    pub(crate) fn keeping_ledger(mut self) -> Self {
+        self.ledger = Some(Vec::new());
+        self
+    }
     pub(crate) fn take_ledger(&mut self) -> Vec<Observation> {
         std::mem::take(self.ledger.as_mut().expect("ledger enabled"))
     }
@@ -74,7 +77,9 @@ impl Forge {
         }
         let mut forge = self.transport.forge.borrow_mut();
         while let Some(observed) = forge.domain.pop_observation() {
-            if let Some(ledger) = &mut self.ledger { ledger.push(observed.clone()); }
+            if let Some(ledger) = &mut self.ledger {
+                ledger.push(observed.clone());
+            }
             if let Observation::Merged { repository, head, commit, .. } = &observed {
                 green(&forge, repository, *head);
                 if commit != head {

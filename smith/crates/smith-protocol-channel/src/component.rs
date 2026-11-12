@@ -143,7 +143,9 @@ impl Component {
 
     /// An ended channel still owes the terminals of calls it sent.
     #[must_use]
-    pub fn has_work(&self) -> bool { self.ended() && !self.calls.is_empty() }
+    pub fn has_work(&self) -> bool {
+        self.ended() && !self.calls.is_empty()
+    }
 
     /// Consume one stream event and progress the opening.
     pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {

@@ -406,7 +406,6 @@ pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
         document["engine"]["limits"]["overrides"][name] = 8.into();
     }
     serde_json::to_vec(&document).expect("golden configuration").into()
-
 }
 
 /// An ordinary world story; the caller supplies only its test's temporary directory.
