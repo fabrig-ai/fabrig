@@ -15,3 +15,7 @@ Inherited from main at the goal's start, 2026-11-12.
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
+
+Inherited from main, raised by change 1766 on 2026-11-12.
+
+- lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
