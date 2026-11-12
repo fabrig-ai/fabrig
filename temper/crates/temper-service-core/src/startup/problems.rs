@@ -117,7 +117,9 @@ pub fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8
 fn jig_words(what: config::What) -> &'static [u8] {
     match what {
         config::What::Because(words) => words,
-        config::What::PolicyEnvelope { .. }
+        config::What::PolicyExecutors { .. }
+        | config::What::PolicyBytes { .. }
+        | config::What::PolicyEnvelope { .. }
         | config::What::AmendmentEnvelope { .. }
         | config::What::CodecCeiling { .. }
         | config::What::Capacity { .. }
@@ -273,7 +275,9 @@ pub fn render_problem<E>(problem: &Problem<What<E>>, writer: &mut Writer, measur
         What::Half(_) => unreachable!("half rendered by its service"),
         What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
         What::Jig(
-            what @ (config::What::PolicyEnvelope { .. }
+            what @ (config::What::PolicyExecutors { .. }
+            | config::What::PolicyBytes { .. }
+            | config::What::PolicyEnvelope { .. }
             | config::What::AmendmentEnvelope { .. }
             | config::What::CodecCeiling { .. }
             | config::What::Capacity { .. }
