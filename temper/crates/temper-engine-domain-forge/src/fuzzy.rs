@@ -12,6 +12,7 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
         let mut rng = Rng::new(seed);
         let mut env = tests::env();
         env.limits.client.resources = u32::try_from(rng.between(1, 8)).unwrap();
+        env.limits.holds = env.limits.client.resources;
         let mut d = tests::domain_with_limits(&env.limits);
         for _ in 0..rng.between(32, 128) {
             let number = rng.below(12);
