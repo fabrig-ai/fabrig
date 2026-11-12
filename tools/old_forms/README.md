@@ -43,6 +43,9 @@ Smith's structural forms have these scopes:
   Nested expressions do not end the literal. Declarations, impls, return-type
   function bodies and simple destructuring patterns are excluded, and so is
   `file_layer::Limits`, which `skein/docs/design/runtime/io/files.md`, has a reader write out.
+  Smith's `testing/` fixture definitions are excluded: a whole literal belongs
+  there. Readers and the crate's `#[cfg(test)]` copies remain counted
+  (`skein/docs/foundation/cli.md`, 3; the user, 2026-11-12).
 - `bare_wire_kind` counts two-digit hex literals in `kind:` fields or as the
   first argument to `frame_writer`, `write_record`, `push_record` or
   `encode_record`. It excludes arbitrary byte arrays and wider wire kinds.

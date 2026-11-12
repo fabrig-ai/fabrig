@@ -215,7 +215,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
             }]),
             max_tokens: 32,
         };
-        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, 4096).expect("fixture receiving bound");
+        let receiving = smith_protocol_llm_fixtures::receiving(&bounds.client, 4096).expect("fixture receiving bound");
         let prepared = codec::prepare_for_contract(
             codec::Input {
                 owner: Token::new(91),
@@ -274,7 +274,7 @@ fn root_finish_uses_the_admitted_contract_and_corrects_the_fixture_grammar() {
         let mut bounds = limits();
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
-        let receiving = smith_protocol_llm::fixture::receiving(&bounds.client, settings.limits.decoded_call_bytes)
+        let receiving = smith_protocol_llm_fixtures::receiving(&bounds.client, settings.limits.decoded_call_bytes)
             .expect("receiving bounds");
         settings.limits.session.completion_bytes = receiving.max_completion_bytes;
         settings.limits.session.completion_blocks = receiving.max_completion_blocks;

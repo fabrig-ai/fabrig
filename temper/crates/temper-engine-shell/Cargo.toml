@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
 jig-protocol-engine-workers.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
@@ -35,6 +37,8 @@ jig-protocol-config.workspace = true
 temper-protocol-store.workspace = true
 
 [dev-dependencies]
+jig-domain-tasks.workspace = true
+jig-domain-people.workspace = true
 temper-test-env.workspace = true
 skein-scratch.workspace = true
 temper-client-protocol-wire.workspace = true

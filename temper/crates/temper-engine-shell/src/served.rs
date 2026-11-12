@@ -1,6 +1,7 @@
 //! The binary's service adapter (protocol/services.md, 7).
+use crate::lines;
 use temper_service as service;
-use temper_service_shell::{Served, host};
+use temper_service_shell::Served;
 pub const SERVED: Served<service::Service> = Served {
     stages: &service::STAGES,
     iterate_stage: service::iterate_stage,
@@ -13,10 +14,10 @@ pub const SERVED: Served<service::Service> = Served {
     next_policy_deadline: service::Service::next_policy_deadline,
     is_empty: service::Service::is_empty,
     shutdown: service::Service::shutdown,
-    ending: host::service_ending,
+    ending: lines::service_ending,
     handover,
-    listening: host::listening_line,
-    note: host::next_note_line,
+    listening: lines::listening_line,
+    note: lines::next_note_line,
     link: |service| service.links().pop(),
     local_link: |service| service.local_links().pop(),
     check_wait_boundary: service::Service::check_wait_boundary,
@@ -36,11 +37,11 @@ pub fn resolve(service: &mut service::Service) {
 /// Read and remove only the handovers the engine asks for.
 pub fn handover(service: &mut service::Service) {
     while let Some(read) = service.take_handover_read() {
-        let answer = host::read_handover(&read);
+        let answer = lines::read_handover(&read);
         service.handover_read(read.forge, read.run, answer);
     }
     while let Some(remove) = service.take_handover_removal() {
-        let removed = host::remove_handover(&remove);
+        let removed = lines::remove_handover(&remove);
         service.handover_removed(remove.forge, remove.run, removed);
     }
 }

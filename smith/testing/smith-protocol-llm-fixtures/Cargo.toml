@@ -1,0 +1,20 @@
+[package]
+name = "smith-protocol-llm-fixtures"
+description = "Small LLM translation and component presets for smith tests"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+smith-protocol-llm.workspace = true
+smith-domain.workspace = true
+skein-lib.workspace = true
+skein-llm.workspace = true
+skein-llm-connection.workspace = true
+skein-io.workspace = true
+skein-tls.workspace = true
+
+[lints]
+workspace = true

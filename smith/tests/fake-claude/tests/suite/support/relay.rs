@@ -38,7 +38,7 @@ fn limits() -> io::Limits {
 }
 
 fn server_limits() -> mcp::Limits {
-    mcp::Limits { unauthenticated: Time::from_nanos(1_000_000_000), ..smith_protocol_program::mcp::fixture::SMALL }
+    mcp::Limits { unauthenticated: Time::from_nanos(1_000_000_000), ..smith_protocol_program_fixtures::mcp::SMALL }
 }
 
 fn move_requests(below: &mut Queue<Below>, requests: &mut Queue<Request>) {
