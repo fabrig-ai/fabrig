@@ -5,7 +5,9 @@
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
-    no What follows what; its Decided for you rows name the task, not who
+    no What follows what, drawing each follow and dependency from the
+    forge's `follows` document (`../domain/forge/dependencies.md`, 4),
+    which is P2's repair, a goal of its own; its Decided for you rows name the task, not who
     decided, and its cards, as a project's Home's, name no asker (4). `../domain/forge/attention.md`,
     3, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.

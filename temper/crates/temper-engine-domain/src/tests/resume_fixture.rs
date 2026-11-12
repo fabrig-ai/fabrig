@@ -515,6 +515,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
+    dependencies: 4,
     follow_paths: 8,
     follow_queue: 16,
     follow_merge: 8,
