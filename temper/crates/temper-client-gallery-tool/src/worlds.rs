@@ -535,7 +535,7 @@ fn world_in_layout(
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
     let how = settings.is_some_and(ways::is_how);
-    let to_begin = (how && !settings.is_some_and(ways::is_draft))
+    let to_begin = (how && !settings.is_some_and(|name| ways::is_draft(name) || name == "how-team"))
         || settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
@@ -818,7 +818,12 @@ fn world_in_layout(
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
-                                if setting.kind() == 8 && !matches!(name, "how-approve" | "how-reaches") {
+                                if setting.kind() == 8
+                                    && !matches!(
+                                        name,
+                                        "how-approve" | "how-reaches" | "how-rules" | "how-rules-card" | "how-team"
+                                    )
+                                {
                                     return None;
                                 }
                                 if how && setting.kind() == 7 {
@@ -873,8 +878,10 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::View(view) => {
-                            if settings.is_some_and(ways::is_draft) && view.address() == b"roles" {
-                                ways::roles(&mut root, read, &mut out);
+                            if settings.is_some_and(|name| ways::is_draft(name) || name == "how-team")
+                                && view.address() == b"roles"
+                            {
+                                ways::roles(&mut root, read, settings == Some("how-team"), &mut out);
                             } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
@@ -5000,10 +5007,12 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
     if kind == 8 {
         use temper_protocol_reaches::{Classes, Way, classes_record};
-        if name == "how-reaches" {
-            return ways::reaches_setting();
+        if matches!(name, "how-reaches" | "how-rules" | "how-rules-card") {
+            return ways::reaches_setting(name);
         }
-        let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
+        let classes =
+            classes_record(&Classes::stock(if name == "how-team" { Way::AgentsReview } else { Way::YouApprove }))
+                .expect("project classes");
         let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
         classes.encode(&mut writer).expect("measured classes");
         writer.finish()

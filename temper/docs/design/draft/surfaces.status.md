@@ -38,9 +38,9 @@
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's
-    budget; its heading names the way without its chief departure,
-    which waits for rules by path. Rules by path waits for its milestone
-    (`whole-story.execution.md`, section 3, P3c). `../client/pages/settings.md`, section 3, also
+    budget, and Rules by path, its path's sign-offs by path and its
+    heading's chief departure, in the project's words (milestone P3c),
+    What follows a landing and a role's budget (P3d). `../client/pages/settings.md`, section 3, also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.
@@ -97,8 +97,10 @@
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
     way and its own, a stop's card and night (`how` to `night-how`), and
     What reaches you on `how.html`'s classes (`how-reaches`,
-    `night-how-reaches`), and What follows a landing and Budgets
-    (`how-follows`, `night-how-follows`), with no rule by path, and the rail, Work at Pair and with drafts first, and
+    `night-how-reaches`), and rules by path as `how.html` and
+    `team/how.html` draw them (`how-rules` to `night-how-team`), and
+    What follows a landing and Budgets (`how-follows`, `night-how-follows`),
+    and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
     `night-team`), with no areas or role's card. No state holds Tell
@@ -232,6 +234,22 @@
     the recommended choice and listed.", where `how.html` counts, "the
     last two are decided … The protocol core still asks.", since a table
     of up to 32 subjects can't be counted well in words.
+  - 7 and 13: `../domain/forge/change/branch-path.md`, step 5, words a
+    role's sign-off "one of you" wherever the reader holds the role with
+    others, on every way's tab, where `team/how.html`'s stock tabs say
+    "you approve" for owners the reader shares with two: one derivation
+    words a role alike on every path. Its *An approval's card* says
+    "Role" "owner: the three of you", where `team/how.html` has "shop's
+    owners: the three of you", since the derivation holds no project's
+    name and names a role as the policy does; and "Asks" names a rule's
+    set by its name, "1 of you; payments: 2", where it has the set's path,
+    "payments/: 2", since a set's patterns may run past a fact's bytes.
+    A stop's small words name a set where "if NAME" fits their 16 bytes,
+    and say "by path" otherwise. Rules by path draws a row a rule by path,
+    as this section says, and a last row, "everything else", only where
+    the rules covering every change ask a review or a sign-off: a path
+    set no rule names has no row, where `how.html` lists two that land
+    "on its own". Decided by P3c's design, 2026-11-11.
   - 7 and 13: `../client/pages/settings.md`, 2, *What follows a landing*,
     draws the project's own follows, its kind 12, where `how.html` draws
     vsr-rs's follow on vsr's page: a follow is its target's setting, and

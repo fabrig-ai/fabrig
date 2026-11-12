@@ -749,7 +749,8 @@ defaults (`stock.md`), so that a test world gives its own or none.
   `../../client/forge/served.md`) gives each way
   with its words, its path and its items, the way the project runs or
   none, the project's own path, the project's words (kind 10) or none,
-  and whether the reader may change the
+  its rules by path (`../../domain/forge/change/branch-path.md`, *Rules
+  by path*), and whether the reader may change the
   project's settings: an owner of the project, as jig's `ChangeSettings`
   asks (jig's `domain/people/acts.md`, 1). "Use this" and "Keep it" send
   its items (`../../client/pages/settings.md`, 2).
