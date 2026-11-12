@@ -69,6 +69,10 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
         worker["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
         worker["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
+        worker["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
     }
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
