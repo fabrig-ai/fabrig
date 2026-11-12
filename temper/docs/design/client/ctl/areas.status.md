@@ -4,6 +4,9 @@
 
 
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
+- **Not yet:** area 5: account text's readiness rows print `party N|project N`,
+  without `payer` or the `readiness payers:` line, and `account list`'s
+  reference does not name a row's payer [in flight: change 1609].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names
