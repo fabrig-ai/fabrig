@@ -724,6 +724,10 @@ impl Person {
     }
 }
 impl Host for Person {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the account barrier stays in the native person's single ordered act loop"
+    )]
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.prepare_client(now, wall);
         let Some(client) = &mut self.client else { return };
