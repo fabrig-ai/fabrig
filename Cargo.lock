@@ -6337,6 +6337,15 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-store-codec",
+]
+
+[[package]]
+name = "temper-protocol-store-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
