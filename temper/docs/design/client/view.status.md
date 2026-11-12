@@ -4,7 +4,6 @@
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
-- **Not yet:** 1, *out of date*: the browser says "Run the temper the engine runs." and offers no "Reload" [in flight: change 1979].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws

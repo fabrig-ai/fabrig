@@ -2,7 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.2: a page out of date doesn't ask its person to reload [in flight: change 1979].
 
 
 
