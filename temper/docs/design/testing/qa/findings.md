@@ -87,8 +87,8 @@ Made at a pass session's end with the pass's open findings and the
 setups it changed (`ledger.md`, 4.12 and 4.16); written when filed
 (section 5) as files at their paths in the repository:
 
-- **`temper/docs/development/qa/requests/pass-P-R.md`,** P the pass and
-  R the request's number, where it carries findings: a report, as
+- **`temper/docs/development/qa/requests/pass-<P>-<R>.md`,** `<P>` the pass's number and
+  `<R>` the request's, where it carries findings: a report, as
   `DESIGN.md`, section 4 places reports, written by code from the
   ledger:
   - its title, `# QA pass P, request R: N findings at COMMIT12`, COMMIT
@@ -121,7 +121,7 @@ filed, oldest first:
   `QA pass P: recipes` for recipes alone, then a blank line and a
   `QA-pass: P` trailer; and, where it carries findings, `goal`, the
   goal's words: `Read the QA request at
-  temper/docs/development/qa/requests/pass-P-R.md and fix each finding
+  temper/docs/development/qa/requests/pass-<P>-<R>.md and fix each finding
   it lists, each with a test in the lowest world that reproduces it,
   starting from its lines.`
 - **`request.command`** run with that directory as its working
