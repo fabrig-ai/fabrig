@@ -196,13 +196,13 @@ impl Service {
         run: Token,
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
-        self.engine.as_mut().expect("composition engine").handover_read(forge, run, answer)
+        self.engine.as_mut().expect("composition engine").handover_read(forge, run, answer);
     }
     pub fn take_handover_removal(&mut self) -> Option<crate::HandoverRemoval> {
         self.engine.as_mut().expect("composition engine").take_handover_removal()
     }
     pub fn handover_removed(&mut self, forge: u16, run: Token, result: Result<(), i32>) {
-        self.engine.as_mut().expect("composition engine").handover_removed(forge, run, result)
+        self.engine.as_mut().expect("composition engine").handover_removed(forge, run, result);
     }
     /// A manifest page can be reloaded until its own setup clock or capacity ends it.
     #[must_use]
@@ -215,7 +215,7 @@ impl Service {
     }
     /// Hold the bundle the binary read at start, served on the clients' listener.
     pub fn adopt_bundle(&mut self, bundle: clients::bundle::Bundle) {
-        self.engine.as_mut().expect("composition engine").adopt_bundle(bundle)
+        self.engine.as_mut().expect("composition engine").adopt_bundle(bundle);
     }
     /// Earliest deadline of the root and its children.
     #[must_use]
@@ -764,7 +764,7 @@ fn box_io(service: &mut Service) {
 impl Service {
     /// Start-time endpoints only; the browser and the issuer never choose a socket.
     pub fn configure_google_endpoints(&mut self, runtime: clients::fetch::Runtime) {
-        self.engine.as_mut().expect("composition engine").configure_google_endpoints(runtime)
+        self.engine.as_mut().expect("composition engine").configure_google_endpoints(runtime);
     }
 }
 
