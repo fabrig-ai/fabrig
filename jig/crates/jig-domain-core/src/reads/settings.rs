@@ -801,6 +801,10 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                             return false;
                         }
                     }
+                    settings::Value::Overlay(_) => {
+                        charters = charters.saturating_add(1);
+                        if charters > limits.tasks.charters { return false; }
+                    }
                     settings::Value::Template(_) => {
                         templates = templates.saturating_add(1);
                         if templates > limits.templates {
