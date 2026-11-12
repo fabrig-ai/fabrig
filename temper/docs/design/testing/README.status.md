@@ -142,6 +142,3 @@ that proof remains with the after-landing runs (11).
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
 
-- **Not yet:** 5: no `testing/temper-box-kit`: `temper-box`'s test binaries each compile
-  `bin/temper-box/tests/support/`, and its GitHub fixtures sit there rather than under
-  `tests/fixtures/github/` [in flight: change 2089].
