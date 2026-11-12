@@ -1,8 +1,9 @@
 //! Binary, native person and independent provider on Skein's real ring.
+//! Shared story support (tools/crates/design.md, 3.2).
 pub mod ports;
 pub mod trace;
-use crate::account_sign_in_visitor::Visitor;
 use jig_client_protocol_kit::native::{NativeClient, Script};
+use jig_protocol_accounts_kit::visitor::Visitor;
 use jig_protocol_accounts_kit::{fixtures as accounts, world::Story};
 use skein_fake_peers::{Transport, oauth};
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
@@ -17,18 +18,20 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 
 pub const ANSWER: &[u8] = b"Process answer";
 // The deterministic first native client; a fresh client after restart uses another seed.
-pub(super) const CLIENT_SEED: u64 = 7;
+pub const CLIENT_SEED: u64 = 7;
 const PIPE: Token = Token::new(u64::MAX);
 const CLOSE: Token = Token::new(u64::MAX - 1);
 
+#[must_use]
 pub fn scratch() -> tempfile::TempDir {
     tempfile::tempdir().expect("scratch directory")
 }
-pub(super) fn private(path: &Path, bytes: &[u8]) {
+pub fn private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-pub(super) fn agent_value(directory: &Path) -> serde_json::Value {
+#[must_use]
+pub fn agent_value(directory: &Path) -> serde_json::Value {
     serde_json::json!({
         "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
             "policy":{"max_turns":5,"group_stop":10}},
@@ -45,7 +48,8 @@ pub fn configuration(directory: &Path) {
     let value = configuration_value(directory);
     private(&directory.join("config.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
-pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
+#[must_use]
+pub fn configuration_value(directory: &Path) -> serde_json::Value {
     for name in ["secrets", "charters", "state", "agent-root"] {
         fs::create_dir(directory.join(name)).expect("deployment directory");
     }
@@ -79,6 +83,7 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
     clippy::disallowed_methods,
     reason = "jig's round: reads the environment to pass PATH to the reference service"
 )]
+#[must_use]
 pub fn start(directory: &Path) -> Binary {
     Binary::start(
         Command {
@@ -92,11 +97,13 @@ pub fn start(directory: &Path) -> Binary {
     )
     .expect("jig-test starts")
 }
+#[must_use]
 pub fn printed_link(bytes: &[u8]) -> Option<&[u8]> {
     let end = bytes.iter().position(|byte| *byte == b'\n')?;
     Some(&bytes[..end])
 }
-pub(super) fn client_settings(address: std::net::SocketAddr) -> jig_client_shell_native::Settings {
+#[must_use]
+pub fn client_settings(address: std::net::SocketAddr) -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
         engine: skein_io::Addr::Ip(address),
         directory: b"private".as_slice().into(),
@@ -116,20 +123,20 @@ pub(super) fn client_settings(address: std::net::SocketAddr) -> jig_client_shell
         },
     }
 }
-pub(super) struct Person {
-    pub(super) seed: u64,
-    pub(super) client: Option<NativeClient>,
-    pub(super) root: Option<Fd>,
-    pub(super) script: Option<Script>,
-    pub(super) account_sign_in: bool,
-    pub(super) llm_key: Option<bool>,
-    pub(super) input: Option<Fd>,
-    pub(super) output: Option<Fd>,
-    pub(super) reading: bool,
-    pub(super) closing: u32,
-    pub(super) bytes: Vec<u8>,
-    pub(super) completions: Queue<Complete>,
-    pub(super) submissions: Queue<Submit>,
+pub struct Person {
+    pub seed: u64,
+    pub client: Option<NativeClient>,
+    pub root: Option<Fd>,
+    pub script: Option<Script>,
+    pub account_sign_in: bool,
+    pub llm_key: Option<bool>,
+    pub input: Option<Fd>,
+    pub output: Option<Fd>,
+    pub reading: bool,
+    pub closing: u32,
+    pub bytes: Vec<u8>,
+    pub completions: Queue<Complete>,
+    pub submissions: Queue<Submit>,
 }
 impl Person {
     fn submit(&mut self, token: Token, kind: Op) {
@@ -258,7 +265,7 @@ impl Host for Person {
         512
     }
 }
-pub(super) enum Process {
+pub enum Process {
     Binary(Box<Binary>),
     Person(Box<Person>),
     Peer(Box<skein_fake_peers::llm::Peer>),
@@ -373,7 +380,8 @@ pub fn run(
     (client.signed_in, client.chats_made)
 }
 
-pub(super) fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
+#[must_use]
+pub fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
     let plans = accounts::issuer_plans(Story::AccountSignInVaryingPort);
     let profile = accounts::limits();
     let limits = skein_fake_oauth::Limits {

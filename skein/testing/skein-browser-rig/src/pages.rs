@@ -12,6 +12,7 @@ const WORDS: &[u8] = br"<!doctype html><html><body><p>Checks: 3 failing, 2 passe
 const FIGURE: &[u8] = br#"<!doctype html><html><body><figure aria-label="Error rate"><svg aria-hidden="true" width="200" height="100"><rect id="bar" x="20" y="15" width="30" height="25" fill="blue" /></svg></figure><h1>Before</h1><script src="/press.js"></script></body></html>"#;
 const PRESS: &[u8] = br"document.querySelector('#bar').addEventListener('click', () => { document.querySelector('h1').textContent = 'Pressed shape'; });";
 
+#[must_use]
 pub fn pages() -> Vec<skein_fake_person_browser::origins::Page> {
     use skein_fake_person_browser::origins::Page;
     [
