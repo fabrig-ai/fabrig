@@ -169,7 +169,6 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
             run::brief_bytes(&charter.brief).unwrap(),
             i64::from(room).checked_sub(i64::try_from(run::brief_bytes(&charter.brief).unwrap()).unwrap()).unwrap()
         );
-        eprintln!("charter {number}: owned={} room={}", charter.owned_bytes().unwrap(), run::charter_room(workspace.as_ref(), &limits).unwrap());
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -245,6 +244,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         let rendered = run::brief_bytes(&charter.brief).unwrap();
+        eprintln!("whole brief charter {number} open={open}: host bound={} non-brief={} room={remaining} rendered={rendered}", limits.host_part, limits.host_part - u64::from(remaining));
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));

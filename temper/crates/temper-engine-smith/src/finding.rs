@@ -6,8 +6,8 @@ use temper_engine_domain_forge as forge;
 
 pub(crate) const SPEC: Spec = Spec {
     name: b"finding",
-    description: b"File, hand on, route, backlog, drop, list or show findings in your task's project. Triage only your own findings.",
-    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"type":"string","enum":["file","hand","route","backlog","drop","list","show"],"description":"file: kind severity title body; hand: number area why; route: number goal; backlog/show: number; drop: number reason."},"kind":{"type":"string","enum":["qa","flake","red","review","feedback"]},"severity":{"type":"string","enum":["low","medium","high"]},"area":{"type":"string","description":"An area of this project, 1 to 32 bytes."},"title":{"type":"string","description":"1 to 200 UTF-8 bytes, no control characters."},"body":{"type":"string","description":"At most 4,096 UTF-8 bytes."},"number":{"type":"integer","minimum":1,"maximum":4294967295},"why":{"type":"string","description":"Why hand it on: one line, 1 to 200 bytes."},"goal":{"type":"integer","minimum":1},"reason":{"type":"string","description":"Why drop it: 1 to 400 bytes."},"state":{"type":"string","enum":["new","routed","backlog","dropped"]},"mine":{"type":"boolean","default":false}},"required":["act"]}"#,
+    description: b"file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number",
+    schema: br#"{"type":"object","properties":{"act":{"enum":["file","hand","route","backlog","drop","list","show"]},"kind":{"enum":["qa","flake","red","review","feedback"]},"severity":{"enum":["low","medium","high"]},"area":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"number":{"type":"integer"},"why":{"type":"string"},"goal":{"type":"integer"},"reason":{"type":"string"},"state":{"type":"string"},"mine":{"type":"boolean"}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
 };
 
@@ -118,7 +118,13 @@ fn number(value: &Value) -> Result<u32, Problem> {
 fn line(value: &Value, name: &'static [u8], bound: u32) -> Result<Box<[u8]>, Problem> {
     let text = value.required(name)?.text(name)?;
     if !forge::settings::words_fit(&text, bound) {
-        return Err(Problem::Range(name));
+        let rule: &[u8] = match name {
+            b"area" => b"area: 1 to 32 UTF-8 bytes, no control characters",
+            b"title" => b"title: 1 to 200 UTF-8 bytes, no control characters",
+            b"why" => b"why: one line of 1 to 200 UTF-8 bytes, no control characters",
+            _ => unreachable!("finding line field"),
+        };
+        return Err(Problem::Range(rule));
     }
     Ok(text)
 }

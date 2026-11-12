@@ -632,6 +632,7 @@ fn welcome_root(rows: &[w::ForgeRow], linked: bool, model: Option<bool>, playgro
                         None => None,
                     },
                     w::Read::Setting(_)
+                    | w::Read::Finding(_)
                     | w::Read::ProposalItems(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProgramEnvironment

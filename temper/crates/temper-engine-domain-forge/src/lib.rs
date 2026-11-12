@@ -86,7 +86,7 @@ pub use public::{PublicAsk, PublicMade, PublicTask};
 mod playground;
 pub mod purpose;
 mod red;
-pub use red::{JobLog, RedNews, RedOn};
+pub use red::{JobLog, RedNews, RedOn, red_news_words};
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;

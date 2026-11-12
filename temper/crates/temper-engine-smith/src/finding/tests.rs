@@ -5,6 +5,13 @@ use skein_lib::Wall;
 use temper_engine_domain_forge as f;
 
 #[test]
+fn the_finding_declaration_preserves_the_stock_brief_allowance() {
+    let spec = crate::finding::SPEC;
+    let bytes = spec.name.len() + spec.description.len() + spec.schema.len();
+    assert!(bytes <= 678, "finding declaration: {bytes} bytes, at most 678 for the stock brief");
+}
+
+#[test]
 fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
     for (input, expected) in [
         (
@@ -50,7 +57,12 @@ fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
         let title = if field == "title" { "x".repeat(size) } else { "title".into() };
         let body = if field == "body" { "x".repeat(size) } else { "body".into() };
         let input = format!(r#"{{"act":"file","kind":"qa","severity":"low","title":"{title}","body":"{body}"}}"#);
-        assert_eq!(decided(b"finding", input.as_bytes()).is_ok(), size <= bound, "{field} {size}");
+        let decoded = decided(b"finding", input.as_bytes());
+        if size <= bound {
+            decoded.expect("text at its byte bound decodes");
+        } else {
+            assert_eq!(decoded, Err(Problem::Range(if field == "title" { b"title: 1 to 200 UTF-8 bytes, no control characters" } else { b"body: at most 4,096 UTF-8 bytes" })));
+        }
     }
     let schema = crate::json::parse(crate::finding::SPEC.schema).unwrap();
     let properties = schema.required(b"properties").unwrap();

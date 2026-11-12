@@ -95,6 +95,9 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         | temper_client_protocol_wire::v1::Request::SetAway(_)
         | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
+        | temper_client_protocol_wire::v1::Request::FileFinding(_)
+        | temper_client_protocol_wire::v1::Request::HandFinding(_)
+        | temper_client_protocol_wire::v1::Request::TriageFinding(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground
@@ -216,6 +219,9 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         | temper_client_protocol_wire::v1::Request::SetAway(_)
         | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
+        | temper_client_protocol_wire::v1::Request::FileFinding(_)
+        | temper_client_protocol_wire::v1::Request::HandFinding(_)
+        | temper_client_protocol_wire::v1::Request::TriageFinding(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground

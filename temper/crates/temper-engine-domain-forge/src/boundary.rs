@@ -2038,6 +2038,11 @@ pub enum Request {
         number: u64,
         tip: skein_forge::api::Commit,
     },
+    /// File a red of no goal's in the decision keeping its verdict.
+    FileRedFinding {
+        task: u64,
+        finding: crate::FileFinding,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
@@ -2391,6 +2396,8 @@ pub enum TierDecision {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
+    /// The root's `tasks.message_bytes`, for the red finding's news body.
+    pub message_bytes: u32,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

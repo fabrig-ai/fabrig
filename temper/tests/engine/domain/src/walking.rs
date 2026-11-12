@@ -997,6 +997,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

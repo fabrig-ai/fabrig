@@ -106,7 +106,7 @@ fn keep_news(world: &mut World, news: &mut Vec<top::Request>) {
 }
 fn step_news(world: &mut World, task: u64, entry: u64, news: &mut Vec<top::Request>) -> top::TierDecision {
     keep_news(world, news);
-    world.event(top::Event::StepTier { task, entry, heard: top::TierHeard { released: false } });
+    world.event(top::Event::StepTier { task, entry, heard: top::TierHeard { released: false, message_bytes: 4096 } });
     world.run_for(1);
     let mut decision = None;
     let mut committed = None;

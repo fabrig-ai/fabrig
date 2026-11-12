@@ -1207,6 +1207,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         delivery @ (Delivery::ProjectMade { .. }
         | Delivery::ProjectReleased { .. }
         | Delivery::MoveStanding { .. }
+        | Delivery::FindingsOwned { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)

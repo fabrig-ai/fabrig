@@ -1227,6 +1227,7 @@ impl World {
                 | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
+                | top::Request::FileRedFinding { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
