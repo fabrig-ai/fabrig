@@ -23,6 +23,7 @@ skein-io.workspace = true
 skein-world.workspace = true
 jig-client-kit.workspace = true
 jig-client-test-kit.workspace = true
+jig-client-test-records.workspace = true
 skein-fake-person.workspace = true
 jig-client-test-domain.workspace = true
 jig-test-domain.workspace = true

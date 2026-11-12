@@ -37,6 +37,15 @@ change's words carry no diff, and a person's follow's holds reach the
 project's escalation role, each asked of the user
 (`domain/forge/follows.status.md`; `draft/follows.status.md`).
 
+How work runs' What follows a landing and a role's budget are the whole
+story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box
+a follow of the project's, from the forge's `follows` document, its words
+made from its setting, its lag and parity and who acts' chips, then a box
+of the project's path's tiers after landing; Budgets' rows for its live
+standing roles under its open period; and Roles the charters its standing
+roles and follows run (`domain/forge/change/branch-path.md`). Their render
+check and walk follow landing (`client/pages/settings.md`, 3).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)

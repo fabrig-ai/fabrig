@@ -1,8 +1,8 @@
-//! How work runs' parts and What reaches you's columns
+//! How work runs' parts, reaches, landing boxes and budgets
 //! (temper/docs/design/client/pages/settings.md, 2, *Its parts* and *What reaches you*).
 use alloc::boxed::Box;
 use jig_client::contract as c;
-use skein_lib::List;
+use skein_lib::{List, Map, Queue, Wall};
 use temper_client_protocol_wire::v1 as w;
 use temper_protocol_reaches::{Class, Classes, Kind, Subject};
 
@@ -19,8 +19,10 @@ pub enum Read {
 
 /// What How work runs' parts are decided from.
 #[expect(clippy::struct_excessive_bools, reason = "the page gathers independent facts for its parts")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
+    pub period: Option<Period>,
+    pub standing: Box<[Standing]>,
     /// `me` lists Ask temper's template in the project.
     pub asking: bool,
     pub read: Read,
@@ -52,7 +54,7 @@ pub enum Path {
     Shown,
 }
 
-/// Budgets' one row's figure.
+/// A goal budget row's figure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Budget {
     Amount(u64),
@@ -61,8 +63,10 @@ pub enum Budget {
 
 /// What How work runs draws (client/pages/settings.md, 2, *Its parts*).
 #[expect(clippy::struct_excessive_bools, reason = "each independent part has its own visibility rule")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Parts {
+    pub period: Option<Period>,
+    pub standing: Box<[Standing]>,
     pub head: Head,
     /// "Ask temper to change this".
     pub ask: bool,
@@ -93,7 +97,17 @@ pub fn parts(facts: &Facts) -> Parts {
     } else {
         None
     };
-    Parts { head, ask: facts.asking, path, roles: facts.roles, budget, reaches: facts.classes, several: facts.several }
+    Parts {
+        period: facts.period,
+        standing: facts.standing.clone(),
+        head,
+        ask: facts.asking,
+        path,
+        roles: facts.roles,
+        budget,
+        reaches: facts.classes,
+        several: facts.several,
+    }
 }
 
 /// Gather from `me`, the forge's kinds 7 and 8, ways and roles held for the address.
@@ -152,7 +166,15 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
         Some(me) => me.projects.len() >= 2,
         None => false,
     };
-    Facts { asking, read, goals, roles, budget, classes, several }
+    let period = match pages.team.document(project) {
+        Some(document) => period(document),
+        None => None,
+    };
+    let standing = match &pages.how {
+        Some(open) => open.standing(root.client(), project),
+        None => Box::default(),
+    };
+    Facts { period, standing, asking, read, goals, roles, budget, classes, several }
 }
 
 /// A subject's line in one of What reaches you's columns.
@@ -247,4 +269,258 @@ fn item_line(lines: &mut List<Line>, subject: Subject, index: usize, class: Clas
     if let Ok(item) = u8::try_from(index.saturating_add(1)) {
         lines.push(Line { subject, item, class }).expect("settings lines grow");
     }
+}
+
+/// Budgets' period and rows (client/pages/settings.md, 2, *Budgets*).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Period {
+    pub week: bool,
+    pub next: Option<Wall>,
+}
+#[must_use]
+pub fn period(project: &c::Project) -> Option<Period> {
+    let current = project.current_period.as_ref()?;
+    let week = match (current.began, current.next) {
+        (Some(began), Some(next)) => next.as_nanos().checked_sub(began.as_nanos()) == Some(604_800_000_000_000),
+        (Some(_) | None, None) | (None, Some(_)) => false,
+    };
+    Some(Period { week, next: current.next })
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Standing {
+    pub number: u64,
+    pub title: Box<[u8]>,
+    pub left: u64,
+    pub budget: u64,
+}
+#[must_use]
+pub fn standing(tasks: &[c::TaskLine], project: u32) -> Box<[Standing]> {
+    let mut rows = Map::uncapped();
+    for task in tasks {
+        if task.project == project && task.label == 3 && task.ended_at.is_none() {
+            rows.insert(
+                task.chip.task,
+                Standing {
+                    number: task.chip.task,
+                    title: task.chip.title.bytes().into(),
+                    left: task.budget.left,
+                    budget: task.budget.numbers.budget,
+                },
+            )
+            .expect("delivered rows fit");
+        }
+    }
+    let mut ordered = List::uncapped();
+    for (_, row) in &rows {
+        ordered.push(row.clone()).expect("rows grow");
+    }
+    ordered.into_boxed()
+}
+/// Boxes after a landing (client/pages/settings.md, 2, *What follows a landing*).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Landed {
+    pub follows: Box<[Follow]>,
+    pub tiers: Option<Tiers>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Owner {
+    You,
+    Named(Box<[u8]>),
+    Unknown,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Follow {
+    pub source: Box<[u8]>,
+    pub source_branch: Box<[u8]>,
+    pub target: Box<[u8]>,
+    pub target_branch: Box<[u8]>,
+    pub paths: Box<[Box<[u8]>]>,
+    pub owner: Owner,
+    pub code_starts: bool,
+    pub workflow: Box<[u8]>,
+    pub lag: u32,
+    pub parity: Box<[u8]>,
+    pub stopped: Option<Box<[u8]>>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Tier {
+    pub name: Box<[u8]>,
+    pub checks: Option<Box<[u8]>>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Tiers {
+    pub branch: Box<[u8]>,
+    pub tiers: Box<[Tier]>,
+}
+#[must_use]
+pub fn follows(
+    panel: Option<&w::FollowsPanel>,
+    path: Option<&w::BranchPath>,
+    members: Option<&[c::ProjectMember]>,
+    reader: u64,
+) -> Landed {
+    let mut follows = List::uncapped();
+    if let Some(panel) = panel {
+        for row in panel.follows() {
+            let setting = row.setting();
+            let w::FollowOwner::Person(person) = setting.owner();
+            let owner = follow_owner(person.person(), members, reader);
+            let code_starts = match setting.start() {
+                w::FollowStart::Code => true,
+                w::FollowStart::Owner => false,
+            };
+            follows
+                .push(Follow {
+                    source: row.source().into(),
+                    source_branch: row.source_branch().into(),
+                    target: row.target().into(),
+                    target_branch: row.target_branch().into(),
+                    paths: setting.source().paths().clone().into_boxed(),
+                    owner,
+                    code_starts,
+                    workflow: setting.verification().workflow().into(),
+                    lag: row.lag(),
+                    parity: crate::forge::follows::parity(row.parity().as_ref()),
+                    stopped: row.stopped().clone(),
+                })
+                .expect("boxes grow");
+        }
+    }
+    let mut tiers = List::uncapped();
+    if let Some(path) = path {
+        for stop in path.stops() {
+            if stop.step() == &w::PathStep::Verify
+                && let w::Opens::Tier(_) = stop.opens()
+            {
+                let mut checks = None;
+                for fact in stop.card().facts() {
+                    if fact.label() == b"Checks" {
+                        checks = Some(fact.value().into());
+                        break;
+                    }
+                }
+                tiers.push(Tier { name: stop.card().name().into(), checks }).expect("tiers grow");
+            }
+        }
+    }
+    let tiers = if tiers.is_empty() {
+        None
+    } else {
+        Some(Tiers { branch: path.expect("tiers came from a path").branch().into(), tiers: tiers.into_boxed() })
+    };
+    Landed { follows: follows.into_boxed(), tiers }
+}
+fn follow_owner(owner: u64, members: Option<&[c::ProjectMember]>, reader: u64) -> Owner {
+    if owner == reader {
+        return Owner::You;
+    }
+    if let Some(members) = members {
+        for member in members {
+            if member.party == owner {
+                let name = if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() };
+                return Owner::Named(name.into());
+            }
+        }
+    }
+    Owner::Unknown
+}
+/// The running way, not the inspected tab (client/pages/settings.md, 2, *Its parts*).
+#[must_use]
+pub fn landed(root: &crate::Domain, project: u32) -> Landed {
+    let pages = root.pages();
+    if pages.address() != &(crate::Address::Settings { project }) {
+        return follows(None, None, None, 0);
+    }
+    let panel = match &pages.how {
+        Some(open) => open.panel(root.client()),
+        None => None,
+    };
+    let path = match pages.stock_ways() {
+        Some(ways) => ways.current_path(),
+        None => None,
+    };
+    let members = match pages.team.document(project) {
+        Some(document) => Some(document.members.as_slice()),
+        None => None,
+    };
+    let reader = match pages.me(root.client()) {
+        Some(me) => me.party.number,
+        None => 0,
+    };
+    follows(panel.as_ref(), path, members, reader)
+}
+/// Settings-only watches (client/pages/settings.md, 2, *What the client holds*).
+#[derive(Debug)]
+pub(crate) struct Open {
+    follows: Option<jig_client::Handle>,
+    standing: jig_client::Handle,
+    limits: crate::forge::Limits,
+}
+impl Open {
+    pub(crate) fn new(project: u32, next: &mut u64, limits: &crate::Limits, out: &mut Queue<super::Request>) -> Self {
+        let mut follows = None;
+        if let Some(subject) = crate::forge::follows::watch(project, &limits.forge) {
+            let handle = handle(next);
+            out.push(super::Request::Client(jig_client::Event::Watch { handle, subject }));
+            follows = Some(handle);
+        }
+        let standing = handle(next);
+        let query = c::TaskQuery {
+            project: Some(project),
+            label: Some(3),
+            order: c::QueryOrder::Number,
+            requester: None,
+            root: None,
+            parent: None,
+            phase: None,
+            executor: None,
+            tracked: None,
+        };
+        out.push(super::Request::Client(jig_client::Event::Watch {
+            handle: standing,
+            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, window: limits.client.domain.rows }),
+        }));
+        Self { follows, standing, limits: limits.forge }
+    }
+    pub(crate) fn leave(&self, out: &mut Queue<super::Request>) {
+        if let Some(handle) = self.follows {
+            out.push(super::Request::Client(jig_client::Event::Unwatch { handle }));
+        }
+        out.push(super::Request::Client(jig_client::Event::Unwatch { handle: self.standing }));
+    }
+    pub(crate) fn told(&self, told: &jig_client::Told) -> bool {
+        let handle = match told {
+            jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } => *handle,
+            jig_client::Told::Link { .. }
+            | jig_client::Told::Kept { .. }
+            | jig_client::Told::Answered { .. }
+            | jig_client::Told::Pending { .. }
+            | jig_client::Told::Dropped { .. }
+            | jig_client::Told::Text { .. }
+            | jig_client::Told::Page { .. } => return false,
+        };
+        Some(handle) == self.follows || handle == self.standing
+    }
+    fn panel(&self, client: &jig_client::Client) -> Option<w::FollowsPanel> {
+        let doc = client.document(self.follows?)?;
+        if doc.state == jig_client::State::Ended {
+            return None;
+        }
+        let jig_client::Latest::Family(record) = doc.latest? else { return None };
+        temper_client_protocol_wire::decode_follows_panel(&record.bytes, &crate::forge::wire_limits(&self.limits)?)
+    }
+    fn standing(&self, client: &jig_client::Client, project: u32) -> Box<[Standing]> {
+        if let Some(doc) = client.document(self.standing)
+            && doc.state != jig_client::State::Ended
+            && let Some(jig_client::Latest::Jig(c::Delivery::Tasks(tasks))) = doc.latest
+        {
+            return standing(tasks.rows.as_slice(), project);
+        }
+        Box::default()
+    }
+}
+fn handle(next: &mut u64) -> jig_client::Handle {
+    let handle = jig_client::Handle { asker: crate::owner::Owner::Pages.asker(), number: *next };
+    *next = next.checked_add(1).expect("page handles fit");
+    handle
 }

@@ -266,37 +266,7 @@ fn role_configuration() -> engine::Config {
 }
 
 fn start_standing_role() -> (Ctl, u64) {
-    use temper_client_world::front::engine_limits;
-    use temper_engine_domain_world::{protocol, store::Store};
-    let mut bounds = engine_limits();
-    bounds.tasks.charters = 13;
-    bounds.people.initial_owners = 2;
-    // Start, three talks, the rule's acceptance and leaving each retain an answer.
-    bounds.people.requests = 6;
-    bounds.journal.run_bytes = 16_384;
-    // Keep room for the talk's unread words and its proposal's decision reservation.
-    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * bounds.tasks.inbox_messages;
-    let front = Joint::with_engine(
-        fixtures::SEED,
-        &fixtures::domain_limits(),
-        Store::with_limits(&bounds),
-        [role_configuration(), role_configuration()],
-        &bounds,
-        1,
-    );
-    let (mut front, root) = fixtures::tools_on(front, fixtures::SEED);
-    front.engine.send(engine::Event::Worker(engine::WorkerInput::Link { channel: WORKER, link: engine::Link::Lost }));
-    front.engine.settle();
-    let mut hello = protocol::hello_slots(WORKER, 1, Box::new([]));
-    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
-    {
-        hello.bounds.time = skein_lib::Duration::from_secs(28_800);
-        hello.bounds.turns = 800;
-        hello.bounds.message_bytes = bounds.tasks.message_bytes;
-    }
-    front.engine.send(hello);
-    front.engine.settle();
-    let mut ctl = Ctl::new(front, root);
+    let mut ctl = standing_ctl();
     let started = ctl.call(
         &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
         None,
@@ -816,4 +786,68 @@ fn a_person_choice_code_reaches_the_asker_and_ctl() {
     );
     assert!(ctl.front.engine.task(child).is_none(), "result read uses retained row");
     result_projections(&mut ctl, goal, child);
+}
+
+fn standing_ctl() -> Ctl {
+    use temper_client_world::front::engine_limits;
+    use temper_engine_domain_world::{protocol, store::Store};
+    let mut bounds = engine_limits();
+    bounds.tasks.charters = 13;
+    bounds.people.initial_owners = 2;
+    // Start, three talks, the rule's acceptance and leaving each retain an answer.
+    bounds.people.requests = 6;
+    // Keep room for the talk's unread words and its proposal's decision reservation.
+    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * bounds.tasks.inbox_messages;
+    bounds.journal.run_bytes = 16_384;
+    let front = Joint::with_engine(
+        fixtures::SEED,
+        &fixtures::domain_limits(),
+        Store::with_limits(&bounds),
+        [role_configuration(), role_configuration()],
+        &bounds,
+        1,
+    );
+    let (mut front, root) = fixtures::tools_on(front, fixtures::SEED);
+    front.engine.send(engine::Event::Worker(engine::WorkerInput::Link { channel: WORKER, link: engine::Link::Lost }));
+    front.engine.settle();
+    let mut hello = protocol::hello_slots(WORKER, 1, Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
+    {
+        hello.bounds.time = skein_lib::Duration::from_secs(28_800);
+        hello.bounds.turns = 800;
+        hello.bounds.message_bytes = bounds.tasks.message_bytes;
+    }
+    front.engine.send(hello);
+    front.engine.settle();
+    Ctl::new(front, root)
+}
+#[test]
+fn a_started_standing_role_has_its_budget_on_how_work_runs() {
+    let mut ctl = standing_ctl();
+    let started = ctl.call(
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        None,
+    );
+    assert_eq!(started.status, 0, "{started:?}");
+    account_acts::reopen(&mut ctl.front, &mut ctl.root, temper_client_domain::Address::Settings { project: 1 });
+    let root = ctl.root.person();
+    let words = fixtures::phrasebooks(&fixtures::domain_limits());
+    let bounds = fixtures::view_bounds(&fixtures::domain_limits(), &words);
+    let mut view = temper_client_view::View::new(&bounds, &fixtures::domain_limits(), words, fixtures::FORGE);
+    temper_client_view::build(&mut view, root, skein_lib::Wall::EPOCH, &mut skein_lib::Queue::uncapped());
+    let nodes = view.tree().nodes();
+    let row = nodes
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&temper_client_view::look::HOW_ROW))
+        .expect("standing row");
+    let end = row + usize::try_from(nodes[row].size).expect("row size");
+    let row = &nodes[row..end];
+    for name in [b"Owns the tests".as_slice(), b"50"] {
+        assert!(row.iter().any(|node| node.name.as_deref() == Some(name)), "missing {}", String::from_utf8_lossy(name));
+    }
+    assert!(row.iter().any(|node| {
+        node.name
+            .as_deref()
+            .is_some_and(|name| name.starts_with("a standing role · ".as_bytes()) && name.ends_with(b" left"))
+    }));
 }

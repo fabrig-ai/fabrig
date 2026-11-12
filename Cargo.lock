@@ -5417,6 +5417,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-domain",
  "jig-client-test-kit",
+ "jig-client-test-records",
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
