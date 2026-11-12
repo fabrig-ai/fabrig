@@ -74,10 +74,10 @@ test doubles   temper-box fake llm|forge|oauth|git ...
     jig's client crates, skein's, and `temper-shell` (`components.md`), which
     every binary of temper's starts from; none of the engine's, the
     worker's, smith's agent, the box or the forge's setup, its row in 4
-    holding it with its exceptions. Built alone,
-    as the release job builds it (`cargo build -p temper-client --bin
-    temper-client`), `temper-protocol-records` is built without its
-    `forge` feature.
+    holding it with its exceptions. Of the forges' records it links the
+    codecs alone, `temper-protocol-records`; their reading at start is
+    `temper-protocol-records-forge`'s, which it never links
+    (`components.md`).
   - **Its file** is the Cargo target `temper-client`. The name a
     deployment's people run it by is the user's to choose
     (`../draft/deployment-binaries.status.md`, Open), and the release job
@@ -580,8 +580,9 @@ hold, and its exceptions, each with its reason.
   form and its words, `no_std` and neither the client's nor the
   engine's, which ctl's tools (`temper-client-tools`) render and the
   engine decodes; `temper-protocol-records`, the forges' pasted bundle's
-  codec, which the client encodes and the engine decodes, built without
-  its `forge` feature (`../client/README.status.md`, 2);
+  codec, which the client encodes and the engine decodes, without the
+  records' reading at start, `temper-protocol-records-forge`
+  (`../client/README.status.md`, 2);
   `temper-protocol-reaches`, what reaches a person, `no_std`, whose
   subjects the client's forge pages and the engine share; and
   `jig-protocol-transcript` with `smith-transcript` beneath it, jig's

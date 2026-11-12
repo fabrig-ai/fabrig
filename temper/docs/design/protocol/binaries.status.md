@@ -45,7 +45,7 @@ tests of its package. `components.md`'s
 `help`'s answers, the three directories and the engine's link file, and
 the box's `temper-box` prints from it. Built alone, the client links none of
 the engine's, the worker's, smith's agent, the box or the forge's setup,
-and `temper-protocol-records` without `forge` (`cargo tree -p
+and of the forges' records their codecs alone (`cargo tree -p
 temper-client`), but the five crates its row in `binaries.md`, 4 names as
 exceptions. `binaries.md`'s client story is written and compiled in the
 process tier, and runs after landing.
