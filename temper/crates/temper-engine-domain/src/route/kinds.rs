@@ -80,10 +80,10 @@ fn restore(
     let mut refused = false;
     for (key, edit) in kept {
         let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit };
-        if way_refusal(domain, None, &asked).is_some() {
+        if way_refusal(domain, None, &asked).is_some() || owner_refusal(domain, bounds, &asked).is_some() {
             for (item, answer) in items.iter().zip(answers.iter_mut()) {
                 if (item.kind, item.scope, item.number) == (key.kind, key.scope, key.number) {
-                    *answer = settings::Judged::Refuse(settings::Refusal::Way);
+                    *answer = settings::Judged::Refuse(owner_refusal(domain, bounds, &asked).unwrap_or(settings::Refusal::Way));
                 }
             }
             refused = true;
@@ -108,7 +108,7 @@ fn judgement(answer: settings::Judged) -> connector::Judged {
             },
         },
         settings::Judged::Same => connector::Judged::Same,
-        settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words().into() },
+        settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words() },
     }
 }
 
@@ -120,14 +120,14 @@ fn judge(
     item: &application::Item,
 ) -> connector::Judged {
     let Some(asked) = typed(domain, proposal, item) else {
-        return connector::Judged::Refuse { why: settings::Refusal::Value.words().into() };
+        return connector::Judged::Refuse { why: settings::Refusal::Value.words() };
     };
     let answers = domain.forge.judge_settings(bounds, core::slice::from_ref(&asked));
-    let answer = *answers.first().expect("one forge judgement per item");
+    let answer = answers.first().expect("one forge judgement per item").clone();
     match answer {
         settings::Judged::Refuse(_) => judgement(answer),
         settings::Judged::Accept { .. } | settings::Judged::Same => {
-            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)) {
+            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)).or(owner_refusal_words(domain, bounds, &asked)) {
                 Some(why) => connector::Judged::Refuse { why },
                 None => judgement(answer),
             }
@@ -148,7 +148,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::Questions(_)
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
-        | settings::Value::ProjectWords(_) => return None,
+        | settings::Value::ProjectAreas(_) | settings::Value::ProjectTriager(_) | settings::Value::ProjectWords(_) => return None,
     };
     if ways.way == 0 {
         return None;
@@ -205,7 +205,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Classes(_)
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
-        | settings::Value::ProjectWords(_)
+        | settings::Value::ProjectAreas(_) | settings::Value::ProjectTriager(_) | settings::Value::ProjectWords(_)
         | settings::Value::Ways(_) => return None,
     };
     if !rule.enforce || rule.approvals.is_empty() {
@@ -458,7 +458,7 @@ fn read_refusal(
                         crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
-                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10) && *scope == project
+                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10 || *kind == 12 || *kind == 13) && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
                     };
@@ -578,4 +578,46 @@ fn revision_value(
         }
     }
     None
+}
+
+fn owner_refusal_words(domain: &Domain, bounds: &settings::Bounds, asked: &settings::Asked) -> Option<Box<[u8]>> {
+    match owner_refusal(domain, bounds, asked) { Some(why) => Some(why.words()), None => None }
+}
+fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::Asked) -> Option<settings::Refusal> {
+    let value = match &asked.edit {
+        settings::Edit::Set(value) => &value.value,
+        settings::Edit::Remove | settings::Edit::Reset => return None,
+    };
+    match value {
+        settings::Value::ProjectAreas(value) => {
+            for area in &value.areas {
+                if !owner_of_project(domain, bounds, asked.scope, area.owner) {
+                    let mut name = List::uncapped();
+                    for part in [b"area ".as_slice(), area.name.as_ref()] {
+                        for &byte in part { name.push(byte).expect("bounded area name"); }
+                    }
+                    return Some(settings::Refusal::Owner { name: name.into_boxed(), owner: area.owner });
+                }
+            }
+            None
+        }
+        settings::Value::ProjectTriager(value) => {
+            if owner_of_project(domain, bounds, asked.scope, value.owner) { None }
+            else { Some(settings::Refusal::Owner { name: b"triager".as_slice().into(), owner: value.owner }) }
+        }
+        settings::Value::Rule(_) | settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_) | settings::Value::Classes(_) | settings::Value::Goal(_) | settings::Value::CharterWords(_) | settings::Value::ProjectWords(_) => None,
+    }
+}
+fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {
+    match owner {
+        settings::AreaOwner::Task(number) => {
+            let Some(task) = domain.core.tasks.task(number) else { return false };
+            if task.project != project { return false; }
+            match task.phase { jig_domain_tasks::Phase::Ended(_) | jig_domain_tasks::Phase::Closing(_) => false,
+                jig_domain_tasks::Phase::Waiting | jig_domain_tasks::Phase::Active(_) | jig_domain_tasks::Phase::Held { .. } => true }
+        }
+        settings::AreaOwner::Party(number) => domain.core.people.role(number, project).is_some(),
+        settings::AreaOwner::Role(number) => number < bounds.roles,
+        settings::AreaOwner::Charter(number) => number > 0 && number <= bounds.charters,
+    }
 }

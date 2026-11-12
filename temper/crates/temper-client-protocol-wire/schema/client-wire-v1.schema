@@ -291,3 +291,13 @@ record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
 record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
 record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
+
+# Project ownership (temper/docs/design/protocol/configuration/settings.md, 2).
+record AreaTask { number: u64 }
+record AreaParty { number: u64 }
+record AreaRole { number: u32 }
+record AreaCharter { number: u32 }
+enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter }
+record Area { name: text 32 words: text 480 owner: AreaOwner }
+record ProjectAreas { areas: list 16 Area }
+record ProjectTriager { owner: AreaOwner }
