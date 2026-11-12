@@ -59,7 +59,6 @@ pub(crate) fn main(
             super::session::Heading::Words(&w.say(Word::AskTitle, &[])),
         );
         super::session::right(b);
-        super::session::to_terminal(b, w, bindings);
         b.close();
         b.close();
     }

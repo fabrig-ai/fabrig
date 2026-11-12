@@ -686,11 +686,6 @@ fn no_document_no_group_on_a_chat() {
         let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SESSION_RIGHT)).unwrap();
         let group = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SEG)).unwrap();
         assert_eq!(group, byline + if shell == Shell::Browser { 3 } else { 1 });
-        let terminal = nodes.iter().position(|node| node.styles.as_slice().contains(&look::TO_TERMINAL));
-        assert_eq!(terminal.is_some(), shell == Shell::Browser);
-        if let Some(terminal) = terminal {
-            assert!(terminal > group);
-        }
     }
 }
 

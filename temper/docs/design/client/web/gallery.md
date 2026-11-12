@@ -271,7 +271,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
 | `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
 | `chat-start-goal` | a chat's sheet to start a goal, open |
-| `chat-terminal` | the `chat-draft` chat with ">_" pressed: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
+| `chat-terminal` | the `chat-draft` chat with `terminal::Act::Enter` applied, not through a page control: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
 | `chat-terminal-draft` | the same with the draft beside it (page 03) |
 | `chat-terminal-commands` | the same with "/" in the box: the commands' list (page 04) |
 | `chat-terminal-model` | the same with `/model`'s list (page 05) |

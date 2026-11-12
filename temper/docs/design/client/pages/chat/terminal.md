@@ -180,8 +180,9 @@
   with menus and disclosures open and every state their messages name
   (`../../web/look-requests.md`, sections 4 and 5). Include both themes
   and fonts, the draft and its figure, questions, compact cards and
-  closed chats. Check that pressing `>_` draws the terminal before any
-  further input, including when full screen is refused, and that Exit
+  closed chats. Check that applying `terminal::Act::Enter`, which no page
+  control gives now, draws the terminal before any further input, including
+  when full screen is refused, and that Exit
   and closing a list redraw at once with no command words in the box.
   Real keys check Chromium's short and long Escape,
   Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,

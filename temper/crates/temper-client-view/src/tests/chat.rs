@@ -1412,7 +1412,7 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Mark seen").is_none());
     assert!(fixtures::find(view.tree(), Role::Button, b"Terminal, full screen").is_none());
     let browser = fixtures::browser_page_view(&fresh);
-    assert!(fixtures::find(browser.tree(), Role::Button, b"Terminal, full screen").is_some());
+    assert!(fixtures::find(browser.tree(), Role::Button, b"Terminal, full screen").is_none());
 }
 #[test]
 fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
@@ -2909,7 +2909,7 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         &mut root,
         d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: b"My words".as_slice().into() }) },
     );
-    for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
         assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
@@ -2929,7 +2929,7 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
             assert!(named_position(top_nodes, role, Some(name)).is_some(), "{name:?}");
         }
         let controls = subtree(tree, bar);
-        assert_eq!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_some(), browser);
+        assert!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_none());
         let positions = [
             named_position(controls, Role::Status, Some(b"Parked")).unwrap(),
             named_position(controls, Role::Button, Some(b"Pause")).unwrap(),
@@ -3215,11 +3215,7 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 if let Some(byline) = byline {
                     assert!(byline < status);
                 }
-                let terminal = named_position(controls, Role::Button, Some(b"Terminal, full screen"));
-                assert_eq!(terminal.is_some(), browser);
-                if let Some(terminal) = terminal {
-                    assert!(byline.unwrap() < terminal && terminal < status);
-                }
+                assert!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_none());
                 assert!(status < spend);
                 for name in [b"Pause".as_slice(), b"Close"] {
                     assert_eq!(named_position(controls, Role::Button, Some(name)).is_some(), allowed);
@@ -3230,6 +3226,16 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     assert!(status < stop && stop < close && close < spend);
                 }
                 let path = if asking { b"Ask temper".as_slice() } else { b"Chats" };
+                let trail = subtree(tree, styled(tree, look::TRAIL));
+                assert_eq!(trail.len(), 2, "a chat's trail is one link, naming no project");
+                assert_eq!(trail[0].role, Role::Link);
+                assert_eq!(trail[0].name.as_deref(), Some(path));
+                let crumbs = subtree(tree, styled(tree, look::CRUMBS));
+                assert_eq!(crumbs[0].styles.as_slice(), [look::BACK]);
+                let trail_at = usize::try_from(crumbs[0].size).unwrap();
+                assert_eq!(crumbs[trail_at].styles.as_slice(), [look::TRAIL]);
+                let heading_at = trail_at.checked_add(usize::try_from(crumbs[trail_at].size).unwrap()).unwrap();
+                assert_eq!(crumbs[heading_at].role, Role::Heading { level: 1 });
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {

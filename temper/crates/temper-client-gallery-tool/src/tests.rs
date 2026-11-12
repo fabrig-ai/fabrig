@@ -49,6 +49,7 @@ fn retired_chat_style_slots_stay_reserved() {
         (297, b"temper-reserved-297"),
         (298, b"temper-reserved-298"),
         (299, b"temper-reserved-299"),
+        (597, b"temper-reserved-597"),
     ] {
         assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
     }
@@ -4111,6 +4112,8 @@ static HOLDS: [Holds; samples::N] = [
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Named { role: Role::Navigation, name: "Where" },
+            Part::Links { style: temper_client_view::look::CRUMBS, names: &["Ask temper", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TRAIL, names: &["Ask temper"] },
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Absent { role: Role::Disclosure, name: "Model" },

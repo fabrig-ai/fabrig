@@ -48,21 +48,14 @@ fn disabled(node: &Node) -> bool {
 #[test]
 fn session_parts_follow_the_requested_order_in_both_shells() {
     let root = root();
-    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
         assert_eq!(skein_ui::outline::check(tree), None);
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
             (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (
-                look::SESSION_RIGHT,
-                if browser {
-                    vec![(Role::Button, vec![look::ADD_DRAFT]), (Role::Button, vec![look::TO_TERMINAL])]
-                } else {
-                    vec![(Role::Button, vec![look::ADD_DRAFT])]
-                },
-            ),
+            (look::SESSION_RIGHT, vec![(Role::Button, vec![look::ADD_DRAFT])]),
             (
                 look::CONVO,
                 vec![
@@ -153,13 +146,9 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
                 continue;
             }
             let trail = children(styled(tree, look::TRAIL));
-            assert_eq!(trail.len(), if project.is_some() { 2 } else { 1 });
+            assert_eq!(trail.len(), 1);
             let mut links = vec![(styled(tree, look::BACK)[0].id, Address::Chats { filter: d::ChatsFilter::All })];
             assert_eq!(styled(tree, look::BACK)[0].name.as_deref(), Some(b"Chats".as_slice()));
-            if let Some(project) = project {
-                assert_eq!(trail[0].name.as_deref(), Some(b"Shop".as_slice()));
-                links.push((trail[0].id, Address::Home { project }));
-            }
             assert_eq!(trail.last().unwrap().name.as_deref(), Some(b"Chats".as_slice()));
             links.push((trail.last().unwrap().id, Address::Chats { filter: d::ChatsFilter::All }));
             for (node, address) in links {
@@ -167,6 +156,27 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
                 assert_eq!(crate::act(&mut view, node, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
             }
         }
+    }
+    // With no selected project the frame offers project creation; the session's
+    // own path still leads through Chats when drawn without a project.
+    for words in [f::words(), f::browser_words()] {
+        let root = f::no_project_root();
+        let mut b = skein_ui::Builder::new(&f::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(f::tree_limits().bindings);
+        crate::pages::session::top(
+            &mut b,
+            &root,
+            &words,
+            &mut bindings,
+            None,
+            crate::pages::session::Path::Chats,
+            crate::pages::session::Heading::Words(b"New chat"),
+        );
+        b.close();
+        let tree = b.finish();
+        let trail = children(styled(&tree, look::TRAIL));
+        assert_eq!(trail.len(), 1);
+        assert_eq!(trail[0].name.as_deref(), Some(b"Chats".as_slice()));
     }
 }
 
