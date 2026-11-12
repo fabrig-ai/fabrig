@@ -132,14 +132,24 @@ impl Shape {
         let silence_ms = 3 * ping_ms;
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
-        let [agent_stop_ms, delivery_ms, save_ms] = [5_u64, 5, 5];
+        let mut agent: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
+                .expect("agent JSON");
+        // Bound the real agent's shutdown, not only the worker's promise about it.
+        agent["profile"]["policy"]["close"] = 10.into();
+        agent["profile"]["policy"]["write_deadline"] = 10.into();
+        agent["profile"]["policy"]["cancel_grace"] = 100.into();
+        agent["profile"]["policy"]["exit_grace"] = 100.into();
+        let [delivery_ms, save_ms] = [5_u64, 5];
         let graces = jig_protocol_config::Graces {
             grace: *grace,
-            drain: *grace,
-            agent_stop: skein_lib::Duration::from_millis(agent_stop_ms),
+            // A held model call is cancelled promptly even in a long engine-away story.
+            drain: skein_lib::Duration::from_millis(10),
+            agent_stop: agent_stop_bound(&agent),
             delivery: skein_lib::Duration::from_millis(delivery_ms),
             save: skein_lib::Duration::from_millis(save_ms),
         };
+        let agent_stop_ms = graces.agent_stop.as_millis();
         let stop_bound_ms = jig_protocol_config::stop_bound(
             &graces,
             skein_lib::Duration::from_millis(ping_ms),
@@ -178,9 +188,6 @@ impl Shape {
                 for (limit, size) in [("hub.turns", 1), ("hub.held", 1), ("hub.program_sources", 0)] {
                     worker["limits"]["overrides"][limit] = size.into();
                 }
-                let mut agent: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
-                        .expect("agent JSON");
                 agent["profile"]["policy"]["unacknowledged"] = 1.into();
                 fixtures::private(&data.join("agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
                     .expect("cluster agent");
@@ -205,6 +212,17 @@ impl Shape {
         fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
             .expect("private cluster document");
     }
+}
+
+/// The worker promises the configured host's cancel, terminate and exit tail.
+fn agent_stop_bound(agent: &serde_json::Value) -> skein_lib::Duration {
+    let configured = smith_agent_shell::config::from_value(agent.clone()).expect("cluster agent configuration");
+    let host = smith_agent_profile::host_limits(&configured.profile, &configured.service.limits)
+        .expect("cluster host supervision");
+    host.cancel_grace
+        .checked_add(host.kill_after)
+        .and_then(|bound| bound.checked_add(host.exit_grace))
+        .expect("cluster agent stop fits a duration")
 }
 
 // Observe the worker's own received assignments and successful agent spawns.
