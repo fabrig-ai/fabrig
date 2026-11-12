@@ -58,6 +58,7 @@ fn world(person: bool, has_area: bool) -> (World, engine::Assignment, u64) {
         true, true, false, 1000, Gate::default(), None,
         StoryLimits {
             kinds: true,
+            tier: Some(tier_runs::Tier::default()),
             person_executor: true,
             spec_bytes: Some(4096),
             applications: Some(24),
@@ -96,6 +97,16 @@ fn world(person: bool, has_area: bool) -> (World, engine::Assignment, u64) {
             landing_attempts: engine::LANDING_ATTEMPTS,
         },
     );
+    // Keep the automatic red's full header and test id within the existing message bound.
+    world.env.limits.tasks.message_bytes = 1024;
+    let mut limits = temper_engine_domain_world::store::widest();
+    limits.tasks = world.env.limits.tasks;
+    limits.authority = world.env.limits.authority;
+    let mut store = temper_engine_domain_world::store::Store::with_limits(&limits);
+    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
+    world.store = store;
+    let client = world.env.limits.forge.client;
+    world = world.with_forge_client(client);
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world.sign_in();
     context_projects::adopt_pair_with_red_tier(&mut world);
