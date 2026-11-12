@@ -195,6 +195,9 @@ fn configured_limits(
             let Some(value_at) = object.member(document, name) else { continue };
             match config::read::integer(document, value_at, u64::MAX) {
                 Ok(value) => {
+                    if name == b"checkout.preparations" && value == 0 {
+                        problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
+                    }
                     if limits::handed_on(name) {
                         handed.push((bytes::copy_of(name), value)).expect("bounded overrides");
                     }
