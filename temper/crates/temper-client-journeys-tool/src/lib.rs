@@ -18,6 +18,7 @@ pub mod again;
 pub mod drive;
 pub mod line;
 pub mod print;
+pub mod recipe;
 pub mod tui;
 pub mod tui_again;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
