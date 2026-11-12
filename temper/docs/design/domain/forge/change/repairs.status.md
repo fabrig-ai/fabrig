@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "A resolution", its reads on a forge catching up, and "A brief section's read that fails", a files read answered `Stale`: the brief counts it permanent, `the forge refused this read`, so a head the forge moves between the pull's read and its files' holds the task for good; and the forge world's fake answers a pull's files at the moved head, which skein's client refuses `InvalidAnswer` (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`; `temper/tests/engine/forge/src/translate.rs`) [in flight: change 1229].
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`) [in flight: change 596].
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`) [in flight: change 601].
