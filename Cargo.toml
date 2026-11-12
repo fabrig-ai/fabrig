@@ -49,6 +49,7 @@ members = [
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
     "skein/crates/skein-tls",
+    "skein/crates/skein-rustls-std",
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
     "skein/crates/skein-ui-text",
@@ -472,6 +473,7 @@ skein-fake-push = { path = "skein/crates/skein-fake-push" }
 skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
+skein-rustls-std = { path = "skein/crates/skein-rustls-std" }
 skein-shell = { path = "skein/crates/skein-shell" }
 skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }
@@ -500,11 +502,10 @@ wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
-# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4):
-# its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
-# that uses it.
+# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
+# Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
-# rustls for native crates needing std; the plain entry stays without it for wasm32.
+# rustls with std, named in native tables alone (skein/docs/foundation/cli.md, 3).
 rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
 rustls-pki-types = { version = "1.15", features = ["web"] }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
