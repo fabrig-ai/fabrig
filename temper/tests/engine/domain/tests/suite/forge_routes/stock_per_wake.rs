@@ -35,6 +35,7 @@ fn wake(world: &mut World, previous: &engine::Assignment, kinds: &[tasks::Messag
     world.scripted_read_inbox(previous);
     let turns = live_task(world, previous.task).turn;
     park_after_turn(world, previous, None, turns);
+    world.until(Until::Ready);
     world.drain_cut();
     let mut row = live_task(world, previous.task).clone();
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));

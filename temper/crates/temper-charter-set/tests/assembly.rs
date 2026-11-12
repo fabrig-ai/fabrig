@@ -111,6 +111,8 @@ mod fuzzy {
             let (text, expected) = generated(seed);
             let replay = generated(seed); assert_eq!(text, replay.0); assert_eq!(expected, replay.1);
             let result = goal_agent(&Set { coordinator: Some(&text), ..empty() }, reason);
+            let replayed = goal_agent(&Set { coordinator: Some(&replay.0), ..empty() }, reason);
+            assert_eq!(result, replayed, "seed {seed}: assembly replay");
             match expected {
                 Some(parts) => { accepted += 1; assert_eq!(result.unwrap().parts.as_ref(), parts, "seed {seed}: {text}"); }
                 None => { refused += 1; assert!(result.is_err(), "seed {seed}: {text}"); }
