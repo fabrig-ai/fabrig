@@ -78,7 +78,8 @@ impl Configuration {
                 area: request.get("area").map(d::string).transpose()?.unwrap_or_else(|| owner.clone()),
             };
             let (places, ports) = places(object.get("places"), home)?;
-            let surfaces = object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into(), "tui".into()]);
+            let surfaces =
+                object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into(), "tui".into()]);
             for surface in &surfaces {
                 if surface != "web" && surface != "tui" {
                     return Err(refused(format!("surfaces: {surface} is neither web nor tui")));
@@ -150,7 +151,9 @@ fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
         for part in path(home, &name).components() {
             match part {
                 std::path::Component::CurDir => {}
-                std::path::Component::ParentDir => { directory.pop(); }
+                std::path::Component::ParentDir => {
+                    directory.pop();
+                }
                 part => directory.push(part.as_os_str()),
             }
         }
@@ -161,7 +164,10 @@ fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
             let mut check = || -> Result<String, Refusal> {
                 let list = d::numbers(list)?;
                 let unique: std::collections::BTreeSet<_> = list.iter().copied().collect();
-                if list.len() != 9 || unique.len() != 9 || list.iter().any(|port| *port == 0 || *port > u64::from(u16::MAX)) {
+                if list.len() != 9
+                    || unique.len() != 9
+                    || list.iter().any(|port| *port == 0 || *port > u64::from(u16::MAX))
+                {
                     return Err(refused("ports must be nine distinct nonzero ports"));
                 }
                 for port in &list {

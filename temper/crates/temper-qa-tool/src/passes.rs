@@ -120,10 +120,15 @@ pub struct PassStart {
 
 impl Ledger {
     fn takeable_build(&self, surfaces: &[String]) -> Option<&crate::Build> {
-        self.builds.iter().filter(|build| {
-            self.reached(build) && build.held.is_none() && build.order.is_some()
-                && self.cases.iter().any(|case| eligible(case, build, surfaces))
-        }).max_by_key(|build| build.order)
+        self.builds
+            .iter()
+            .filter(|build| {
+                self.reached(build)
+                    && build.held.is_none()
+                    && build.order.is_some()
+                    && self.cases.iter().any(|case| eligible(case, build, surfaces))
+            })
+            .max_by_key(|build| build.order)
     }
 
     /// Called after the loop's resumes and starts (qa/ledger.md, 4.17).

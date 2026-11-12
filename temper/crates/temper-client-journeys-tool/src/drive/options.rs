@@ -37,7 +37,8 @@ impl Options {
                     let list = String::from_utf8_lossy(value);
                     let parsed = list.split(',').map(str::parse::<u16>).collect::<Result<Vec<_>, _>>();
                     if !parsed.as_ref().is_ok_and(|values| {
-                        values.len() == 9 && !values.contains(&0)
+                        values.len() == 9
+                            && !values.contains(&0)
                             && values.iter().collect::<std::collections::BTreeSet<_>>().len() == 9
                     }) {
                         return Err(format!("--ports {list}: expected nine distinct nonzero ports"));

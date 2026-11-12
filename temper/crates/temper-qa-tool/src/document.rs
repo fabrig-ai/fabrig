@@ -55,7 +55,18 @@ impl Ledger {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
             let object = object(
                 &value,
-                &["head", "landings", "cases", "builds", "sessions", "lines", "passes", "findings", "notes", "place_waits"],
+                &[
+                    "head",
+                    "landings",
+                    "cases",
+                    "builds",
+                    "sessions",
+                    "lines",
+                    "passes",
+                    "findings",
+                    "notes",
+                    "place_waits",
+                ],
             )?;
             Ok(Self {
                 head: object.get("head").map(string).transpose()?,
@@ -67,10 +78,13 @@ impl Ledger {
                 passes: q::records(object, "passes")?.iter().map(q::pass).collect::<Result<_, _>>()?,
                 findings: q::records(object, "findings")?.iter().map(q::finding).collect::<Result<_, _>>()?,
                 notes: q::records(object, "notes")?.iter().map(q::note).collect::<Result<_, _>>()?,
-                place_waits: q::records(object, "place_waits")?.iter().map(|value| {
-                    let object = self::object(value, &["from", "to"])?;
-                    Ok(crate::PlaceWait { from: integer(object, "from")?, to: optional_number(object, "to")? })
-                }).collect::<Result<_, Refusal>>()?,
+                place_waits: q::records(object, "place_waits")?
+                    .iter()
+                    .map(|value| {
+                        let object = self::object(value, &["from", "to"])?;
+                        Ok(crate::PlaceWait { from: integer(object, "from")?, to: optional_number(object, "to")? })
+                    })
+                    .collect::<Result<_, Refusal>>()?,
             })
         };
         decode().map_err(|why: Refusal| refused(format!("ledger.json: {why}")))
