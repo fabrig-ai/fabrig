@@ -149,6 +149,10 @@ fn opened_chat(allowed: bool, funded: bool) -> (World, engine::Assignment) {
     (world, requester)
 }
 fn land_and_look(world: &mut World, requester: &engine::Assignment) {
+    land(world, requester);
+    next_sitting(world, 171);
+}
+fn land(world: &mut World, requester: &engine::Assignment) {
     let change = super::questions::make_change(world, requester, 93, engine::ChangeQuestions::None);
     let producer = super::questions::next_producer(world, change);
     let branch = super::questions::row(world, change).branch.clone();
@@ -196,7 +200,6 @@ fn land_and_look(world: &mut World, requester: &engine::Assignment) {
         }
     }
     assert_eq!(facts(world).landed, 1);
-    next_sitting(world, 171);
 }
 fn run(world: &World) -> engine::Assignment {
     world
@@ -290,6 +293,95 @@ fn a_look_after_a_landing_runs_the_agent_and_saves_its_brief() {
     assert_brief(&mut world);
     world.close();
 }
+#[test]
+fn its_words_name_the_people_who_signed_after_the_goals() {
+    for has_signers in [false, true] {
+        let (mut world, requester) = opened_chat(true, true);
+        land(&mut world, &requester);
+        let mut saves = Vec::new();
+        for (person, login, name) in [
+            (4, b"sam".as_slice(), b"Sam".as_slice()),
+            (7, b"seven".as_slice(), b"".as_slice()),
+            (9, b"former".as_slice(), b"Former member".as_slice()),
+        ] {
+            saves.push(Record::Core(jig_domain_core::Record::People(people::Stored::Person {
+                number: person,
+                identity: people::Identity {
+                    key: forge_top::user_key(1, person + 100),
+                    login: login.into(),
+                    name: name.into(),
+                },
+            })));
+        }
+        for record in world.store.rows.values() {
+            let mut record = record.clone();
+            match &mut record {
+                Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: PROJECT, holdings })) => {
+                    let mut members = holdings.to_vec();
+                    for person in [4, 7] {
+                        members.push(people::Holding { person, role: people::Role::Member });
+                    }
+                    *holdings = members.into_boxed_slice();
+                    saves.push(record);
+                }
+                Record::Forge { row } => {
+                    if let forge_top::Stored::LandingLog(log) = row.as_mut() {
+                        for landing in &mut log.landings {
+                            for change in &mut landing.changes {
+                                if has_signers {
+                                    change.signed = [4, 7, 9]
+                                        .into_iter()
+                                        .map(|person| forge_top::SignOff {
+                                            person,
+                                            head: landing.commit,
+                                            at: landing.at,
+                                        })
+                                        .collect();
+                                }
+                            }
+                        }
+                        saves.push(record);
+                    }
+                }
+                Record::Core(_) => {}
+            }
+        }
+        let mut header = world.store.header();
+        header.people = header.people.max(9);
+        saves.push(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))));
+        world.store.seed(saves.into_boxed_slice(), Box::new([]));
+        world.restart_same();
+        for event in &mut world.events {
+            if let engine::Event::Worker(engine::WorkerInput::Link {
+                link: engine::Link::Hello { hello, .. }, ..
+            }) = event
+            {
+                hello.bounds.message_bytes =
+                    world.env.limits.tasks.result_bytes.max(world.env.limits.tasks.message_bytes);
+                hello.bounds.inbox = world.env.limits.tasks.run_inbox;
+            }
+        }
+        settle(&mut world);
+        next_sitting(&mut world, 171);
+        let agent = run(&world);
+        let words = core::str::from_utf8(&live_task(&world, agent.task).spec.words).expect("status words are UTF-8");
+        let (_, after_goals) = words.split_once("Live goals:\n").expect("root adds goals");
+        assert!(after_goals.starts_with("Make the widget fix: 1 of 1 delegates done\n"), "{words}");
+        if has_signers {
+            assert!(
+                after_goals.ends_with(
+                    "People who signed:\n- person 4: Sam\n- person 7: seven\n- person 9: no longer a member\n"
+                ),
+                "{words}"
+            );
+        } else {
+            assert!(!words.contains("People who signed:"), "{words}");
+        }
+        finish(&mut world, &agent);
+        world.close();
+    }
+}
+
 #[test]
 fn the_run_holds_no_tools_no_grants_and_no_workspace() {
     let mut world = ready(true);
