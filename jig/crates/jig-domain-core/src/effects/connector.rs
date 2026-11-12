@@ -3,7 +3,7 @@
 //! The root translates numbered connectors' own types to these values;
 //! connector-owned payloads remain with their owner (domain/connectors.md, 2).
 
-pub use crate::below::effects::connector::*;
+pub use jig_domain_core_vocabulary::effects::connector::*;
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -12,29 +12,6 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Wall};
 
 use crate::{Core, Family, fresh, translate};
-
-/// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
-#[derive(Hash, Debug)]
-pub struct PersonSeed {
-    pub(crate) number: u64,
-    pub(crate) funder: tasks::Funder,
-    pub(crate) authority: tasks::Authority,
-    pub(crate) opens: (Option<tasks::Event>, Option<tasks::Event>),
-}
-
-impl PersonSeed {
-    /// The models its authority allows (jig/docs/design/domain/authority.md, 6.1).
-    #[must_use]
-    pub const fn models(&self) -> tasks::Models {
-        self.authority.models
-    }
-
-    /// The allocated task number.
-    #[must_use]
-    pub const fn number(&self) -> u64 {
-        self.number
-    }
-}
 
 const _: () =
     assert!(authority::NO_PROJECT == people::DEPLOYMENT, "projectless authority and people use the same number");

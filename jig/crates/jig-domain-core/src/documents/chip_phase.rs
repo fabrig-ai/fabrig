@@ -1,8 +1,8 @@
 //! Nonrecursive chip facts (`client/domain/objects.md`, 3 and 5). Durable
 //! lifecycle clocks remain distinct from best-effort engine receipt clocks.
 
-pub use crate::below::documents::chip_phase::*;
 use crate::{Core, Limits, documents::Missing};
+pub use jig_domain_core_vocabulary::documents::chip_phase::*;
 use jig_domain_fleet as fleet;
 use jig_domain_link::Operation;
 use jig_domain_tasks as tasks;

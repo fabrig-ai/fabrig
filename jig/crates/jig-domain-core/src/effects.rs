@@ -10,7 +10,7 @@
 //! | Judging | Final verdict | Terminal | Keep and committed make, or drop and goal news |
 //! | Kept | Outcome | Settled or uncertain | Writer settlement and task news |
 
-pub use crate::below::effects::*;
+pub use jig_domain_core_vocabulary::effects::*;
 
 pub mod connector;
 pub(crate) mod relays;

@@ -1,8 +1,8 @@
 //! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
 //! Cursors name a query and an owner key. The client only echoes them.
 
-pub use crate::below::reads::vocabulary::*;
 use crate::{Core, Record};
+pub use jig_domain_core_vocabulary::reads::vocabulary::*;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

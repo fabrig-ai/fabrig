@@ -1,5 +1,5 @@
 //! What a task waits on, derived from its live subtree (domain/engine/views.md, 3).
-pub use crate::below::runs::waits::*;
+pub use jig_domain_core_vocabulary::runs::waits::*;
 
 use crate::{Core, Limits};
 use jig_domain_fleet as fleet;

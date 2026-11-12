@@ -14,7 +14,7 @@
 //! | loading | missing transport range | retired | held gone |
 //! | retired | late duplicate terminal | retired | nothing |
 
-pub use crate::below::reads::*;
+pub use jig_domain_core_vocabulary::reads::*;
 
 pub(crate) mod activity;
 mod answers;

@@ -11,13 +11,12 @@
 
 pub mod acts;
 mod admission;
-mod below;
 pub mod documents;
 pub mod effects;
 mod funding;
 mod inbox;
 mod limits;
-use crate::below::numbers;
+use jig_domain_core_vocabulary::numbers;
 pub mod public;
 pub mod reads;
 mod routing;
@@ -27,7 +26,7 @@ pub mod start;
 mod stored;
 #[cfg(test)]
 mod tests;
-use crate::below::translate;
+use jig_domain_core_vocabulary::translate;
 pub(crate) mod vocabulary;
 
 extern crate alloc;
@@ -115,7 +114,9 @@ pub use crate::{
     },
 };
 
-pub use crate::below::{Config, ConfiguredPolicy, EndpointFacts, RECURRING, SeedProject, Settings, ToolFamilies};
+pub use jig_domain_core_vocabulary::{
+    Config, ConfiguredPolicy, EndpointFacts, RECURRING, SeedProject, Settings, ToolFamilies,
+};
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,

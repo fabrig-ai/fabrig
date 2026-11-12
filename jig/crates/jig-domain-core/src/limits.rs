@@ -1,7 +1,7 @@
 //! Limit validity and per-value policy and settings carriers for the core
 //! (`domain/engine/README.md`, section 5.6, and `domain/engine/briefs.md`, section 2, and `domain/engine/settings.md`, section 9; programming-model.md, 6.3).
 
-pub use crate::below::limits::*;
+pub use jig_domain_core_vocabulary::limits::*;
 
 #[cfg(test)]
 mod tests {

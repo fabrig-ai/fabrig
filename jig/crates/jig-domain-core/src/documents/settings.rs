@@ -1,10 +1,10 @@
 //! Settings inventory without values (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
 
-pub use crate::below::documents::settings::*;
 use crate::{
     Core,
     documents::{Missing, Text},
 };
+pub use jig_domain_core_vocabulary::documents::settings::*;
 use jig_domain_people as people;
 use skein_lib::{List, Map};
 

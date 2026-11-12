@@ -4,7 +4,7 @@
 //! document use the same judgments. Draft-dependent acts carry numerical and
 //! listed bounds; the client compares its form with these engine facts.
 
-pub use crate::below::acts::*;
+pub use jig_domain_core_vocabulary::acts::*;
 
 pub(crate) mod bounds;
 mod objects;

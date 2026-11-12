@@ -1,10 +1,10 @@
 //! The shared task line, constructed from a live or loaded ended owner row.
 
-pub use crate::below::documents::task_lines::*;
 use crate::{
     Core, Limits,
     documents::{Count, Missing, PhaseCounts, WaitsOn},
 };
+pub use jig_domain_core_vocabulary::documents::task_lines::*;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 

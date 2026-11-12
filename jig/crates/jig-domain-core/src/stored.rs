@@ -1,6 +1,6 @@
 //! The core's durable run and call identities (domain/engine/README.md, 5.4 and domain/engine/executors.md).
 
-pub use crate::below::stored::*;
+pub use jig_domain_core_vocabulary::stored::*;
 
 use crate::{Core, Counters, Family, Limits, fresh};
 

@@ -1,6 +1,6 @@
 //! Live run and restart correlation held by the core (domain/engine/README.md, 3, and domain/engine/executors.md, 2).
 
-pub use crate::below::runs::state::*;
+pub use jig_domain_core_vocabulary::runs::state::*;
 
 use crate::{CallKey, Core, RunChoice, TurnRecord};
 use alloc::boxed::Box;
