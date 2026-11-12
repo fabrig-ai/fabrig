@@ -3,6 +3,9 @@
 2026-11-11. Where the tree's code lags or departs from [branches.md](branches.md).
 
 - **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`) [in flight: change 265].
+- **Not yet:** 2, *Attempts, and the project's bound*: a change whose state becomes `Ended` from a hold keeps no record of it, `Change.ended_held` (`temper-engine-domain-forge-change/src/domain.rs`, `advance`; `temper-engine-domain-forge/src/domain.rs`, `end_change`) [in flight: change 922].
+- **Not yet:** 2, *Attempts, and the project's bound*: every step change that ends cancelled or failed holds the closer, whatever its reason or count, and the hold's words say no why (`temper-engine-domain-forge-closer/src/policy.rs`, `step`; `temper-engine-domain/src/route/forge_route/closer_route.rs`, `hold_words`) [in flight: change 932].
+- **Not yet:** 2, *Its authority across attempts*: a step's change is given the change policy's whole task count, and a step the closer cannot fund holds it, `the goal closer cannot delegate its next change within its authority`, even while its goal's run holds its funds (`closer_route.rs`, `delegate`, `start_closer_step`) [in flight: change 932].
 
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the
