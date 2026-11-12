@@ -77,7 +77,7 @@ impl Cluster {
     }
     /// Reuse the GitHub story's templates with a relay in place of its forge process.
     #[must_use]
-    pub fn github_relay(scratch: &Path, git: std::net::SocketAddr) -> Self {
+    pub(crate) fn github_relay(scratch: &Path, git: std::net::SocketAddr) -> Self {
         let directory = skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/github");
         let mut cluster = Self::read_from(scratch, &directory);
         cluster.specs.retain(|spec| spec["name"] != "forge");
@@ -96,6 +96,7 @@ impl Cluster {
     // Cluster tasks.executor_kinds has twenty-one places for the same delegation.
     // GitHub authority.executors has twenty-one stock places including the standing charters, closer procedure and close job.
     // GitHub tasks.executor_kinds has twenty-one places for the same delegation.
+    #[expect(clippy::must_use_candidate, reason = "the fixture callers assert on the returned observations")]
     pub fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
         let value: Value =

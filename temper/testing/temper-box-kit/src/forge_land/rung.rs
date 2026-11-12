@@ -1310,7 +1310,7 @@ pub mod tests {
 }
 
 pub mod twin_tests {
-    use super::*;
+    use super::{Time, twin_document};
     use skein_fake_llm_domain::{self as llm, api};
     use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 

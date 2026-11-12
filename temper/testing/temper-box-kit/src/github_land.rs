@@ -835,7 +835,7 @@ fn configure_engine(value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 512.into();
 }
 
-pub fn landing_reads() -> Vec<ctl::Call> {
+pub(crate) fn landing_reads() -> Vec<ctl::Call> {
     [
         &["task", "show", "2", "--json"][..],
         &["task", "show", "1", "--json"],
@@ -850,7 +850,7 @@ pub fn landing_reads() -> Vec<ctl::Call> {
     .collect()
 }
 
-pub fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
+pub(crate) fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
     use serde_json::json;
     let value = json!({"world_settings":{"landing":{"deployment":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}}});
     temper_real_loop_world::settings_items::forge_items(&temper_real_loop_world::settings::forge(&value))

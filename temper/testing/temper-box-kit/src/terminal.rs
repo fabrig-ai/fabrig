@@ -376,7 +376,7 @@ impl Typist {
 }
 
 pub mod tests {
-    use super::*;
+    use super::{Action, Complete, Done, Fd, Host, Op, Pipes, Streams, Time, VecDeque, Wall};
 
     pub fn a_command_waits_for_fresh_controls_when_returning_to_settings() {
         let mut pipes = Pipes::new(

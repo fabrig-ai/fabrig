@@ -131,6 +131,7 @@ pub fn run() {
     assert!(relay.refused().is_empty(), "relay refusals: {:?}", relay.refused());
 }
 
+#[expect(clippy::must_use_candidate, reason = "the fixture callers assert on the returned observations")]
 pub fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("fixture document")).expect("fixture JSON")
 }

@@ -3,6 +3,7 @@
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
 pub mod account_move;
 pub mod account_transfer;
+#[expect(clippy::must_use_candidate, reason = "the box fixture callers assert on commands and captured output")]
 pub mod box_link;
 pub mod boxed;
 pub mod case;

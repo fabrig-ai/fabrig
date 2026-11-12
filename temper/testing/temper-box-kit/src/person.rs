@@ -911,7 +911,7 @@ pub fn inbox_reply(entry: &[u8]) -> Step<Address> {
 }
 
 pub mod serve_gate_tests {
-    use super::*;
+    use super::{Fd, Host, Person, START_WITHIN, Time, found};
 
     pub fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
         let scratch = super::super::Scratch::new("person-serve-gate");
