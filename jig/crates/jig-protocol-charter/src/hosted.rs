@@ -2,7 +2,7 @@
 use crate::Section;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token};

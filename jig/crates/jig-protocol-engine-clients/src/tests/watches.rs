@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use skein_lib::{Reader, Token};
 const ENDED_WATCH: u64 = 17;
 fn stream_world() -> (fixtures::Exchange, [u8; 16]) {
@@ -381,7 +381,7 @@ fn an_absent_stream_digest_is_answered_signed_out() {
 
 #[test]
 fn an_accounts_document_is_watched_but_never_read() {
-    use jig_domain_core::{documents as d, reads};
+    use jig_domain_core_vocabulary::{documents as d, reads};
     use skein_lib::List;
     let document = d::Document::Accounts(Box::new(d::Accounts {
         readiness: List::with_capacity(0),

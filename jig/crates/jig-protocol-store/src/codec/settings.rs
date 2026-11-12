@@ -6,7 +6,7 @@
 use crate::settings_v3 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, settings};
+use jig_domain_core_vocabulary::{self as core, settings};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

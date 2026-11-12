@@ -256,12 +256,12 @@ pub fn key(random: &mut Rng) -> top::Key {
         },
     }
 }
-pub fn core_keys() -> [jig_domain_core::Key; 4] {
+pub fn core_keys() -> [jig_domain_core_vocabulary::Key; 4] {
     [
-        jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment),
-        jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(1)),
-        jig_domain_core::Key::People(jig_domain_people::Key::Person(1)),
-        jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
+        jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(1)),
+        jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Person(1)),
+        jig_domain_core_vocabulary::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
     ]
 }
 pub fn within(interval: &skein_kv::Range, tagged: &[u8]) -> bool {

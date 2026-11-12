@@ -7,7 +7,7 @@ mod point;
 mod settings;
 use crate::{Below, Event, Phase, Store, loads};
 use alloc::boxed::Box;
-use jig_domain_core::reads::{Loaded, Range, Scope};
+use jig_domain_core_vocabulary::reads::{Loaded, Range, Scope};
 use skein_lib::{Queue, Token};
 
 pub(crate) struct Spent {

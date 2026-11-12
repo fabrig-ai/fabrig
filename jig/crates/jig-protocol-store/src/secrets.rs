@@ -647,7 +647,7 @@ pub(crate) fn sweep(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Even
                 return;
             }
         };
-        let Some(key) = keys::encode(&jig_domain_core::Key::People(people), store.limits.store.key) else {
+        let Some(key) = keys::encode(&jig_domain_core_vocabulary::Key::People(people), store.limits.store.key) else {
             store.phase = Phase::Stopped;
             return;
         };

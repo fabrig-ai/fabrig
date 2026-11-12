@@ -2,7 +2,7 @@
 //! the sources it offers (configuration.md, 3 and 6; accounts.md, 3.4). No account, key or record.
 use crate::{Directories, Path, Problems, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::settings::CatalogueModel;
+use jig_domain_core_vocabulary::settings::CatalogueModel;
 use skein_json::Document;
 use skein_lib::List;
 
@@ -232,7 +232,7 @@ fn patterns(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
             Ok(pattern) => {
                 let mut valid = !pattern.is_empty();
                 for &byte in &pattern {
-                    if byte != b'*' && byte != b'?' && !jig_domain_core::settings::catalogue::valid_name(&[byte]) {
+                    if byte != b'*' && byte != b'?' && !jig_domain_core_vocabulary::settings::catalogue::valid_name(&[byte]) {
                         valid = false;
                     }
                 }

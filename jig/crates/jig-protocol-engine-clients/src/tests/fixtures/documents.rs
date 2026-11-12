@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{Duration, List, Wall};
 pub fn wire_limits() -> w::Limits {
@@ -18,7 +18,7 @@ pub fn frame_two_projects() -> d::Frame {
                 public: false,
                 project,
                 role,
-                name: jig_domain_core::documents::Text { bytes: Box::from(&b"Tally"[..]), cut: false },
+                name: jig_domain_core_vocabulary::documents::Text { bytes: Box::from(&b"Tally"[..]), cut: false },
                 pool: None,
                 creating: None,
                 models: jig_domain_authority::Models::NONE,

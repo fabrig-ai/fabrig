@@ -1,7 +1,7 @@
 //! Claimed tasks' files are cut before the root starts (protocol/store/transcripts.md, 4 and protocol/store/opening.md).
 use crate::{Arrived, Below, Event, OpenRefusal, Store, codec, keys, open, pages};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreRecord, Record};
+use jig_domain_core_vocabulary::{CoreRecord, Record};
 use skein_io::{file, kernel::Error};
 use skein_lib::{Queue, Token};
 pub(crate) const OWNER: Token = Token::new(0x5454);

@@ -692,7 +692,7 @@ fn decoded_verdict_rules_past_their_aggregate_byte_bound_are_refused() {
 
 mod phase;
 
-fn core_limits() -> jig_domain_core::Limits {
+fn core_limits() -> jig_domain_core_vocabulary::Limits {
     fixtures::CORE_LIMITS
 }
 
@@ -854,7 +854,7 @@ mod record;
 fn call_limits() -> crate::codec::View {
     crate::codec::limits(&core_limits()).expect("within core ceilings")
 }
-fn core_round_trip(row: jig_domain_core::CoreRecord) {
+fn core_round_trip(row: jig_domain_core_vocabulary::CoreRecord) {
     let limits = call_limits();
     let bytes = crate::codec::core::encode(&row, &limits).expect("within core bounds");
     assert_eq!(crate::codec::core::decode(&bytes, &limits), Ok(row));
@@ -865,7 +865,7 @@ fn a_call_record_of_each_part_reads_back() {
     }
 }
 fn a_refused_delegation_reads_back_with_its_problem() {
-    core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::DelegationRefused(fixtures::calls::problem())));
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(fixtures::calls::problem())));
 }
 fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     use jig_domain_tasks::LlmFault;
@@ -879,17 +879,17 @@ fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     ] {
         let mut problem = fixtures::calls::problem();
         problem.why = jig_domain_tasks::Refusal::Llm { model: 63, why };
-        core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::DelegationRefused(problem)));
+        core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(problem)));
     }
 }
 fn a_recalled_notes_page_reads_back() {
-    core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::NoteRecalled {
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::NoteRecalled {
         entries: Box::new([fixtures::note_entry()]),
         more: true,
     }));
 }
 fn a_settled_call_reads_back() {
-    use jig_domain_core as core;
+    use jig_domain_core_vocabulary as core;
     for answer in [
         core::SettledAnswer::Host { error: true, body: Box::from(b"denied".as_slice()) },
         core::SettledAnswer::Delivery {
@@ -1019,13 +1019,13 @@ mod cases;
 fn a_moved_call_part_round_trips_through_the_core_family() {
     use jig_domain_people::{HoldReason, Moved};
     for now in [Moved::Spec { revision: 2 }, Moved::Hold { revision: 3, reason: HoldReason::Budget }] {
-        core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::Moved { task: 1, now }));
+        core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::Moved { task: 1, now }));
     }
 }
 
 #[test]
 fn a_revised_call_part_round_trips_through_the_core_family() {
-    core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::Revised { task: 1, revision: 2 }));
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::Revised { task: 1, revision: 2 }));
 }
 
 #[test]
@@ -1122,7 +1122,7 @@ fn an_llm_key_answer_keeps_its_digest_without_the_value() {
 #[test]
 fn run_provider_bindings_round_trip_at_the_bound_and_refuse_one_more() {
     use jig_domain_authority::AccountBinding;
-    use jig_domain_core::CoreRecord;
+    use jig_domain_core_vocabulary::CoreRecord;
     const BINDINGS: u32 = jig_domain_tasks::MODELS;
     let limits = call_limits();
     let mut proof = fixtures::core_rows::run();
@@ -1198,7 +1198,7 @@ fn a_named_full_mask_drops_removed_models_without_becoming_all() {
     let mut names = skein_lib::List::with_capacity(64);
     for at in 0_u8..64 {
         names
-            .push(jig_domain_core::settings::ModelName {
+            .push(jig_domain_core_vocabulary::settings::ModelName {
                 name: Box::from([b'0'.checked_add(at).expect("ASCII name")]),
                 efforts: Box::new([]),
             })
@@ -1303,9 +1303,9 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
     let limits = tasks_limits();
     let mut names = skein_lib::List::with_capacity(64);
     for at in 0_u8..64 {
-        let mut name = skein_lib::bytes::zeroed(usize::try_from(jig_domain_core::MODEL_NAME_BYTES).unwrap());
+        let mut name = skein_lib::bytes::zeroed(usize::try_from(jig_domain_core_vocabulary::MODEL_NAME_BYTES).unwrap());
         name.fill(b'0'.checked_add(at).unwrap());
-        names.push(jig_domain_core::settings::ModelName { name, efforts: Box::new([]) }).unwrap();
+        names.push(jig_domain_core_vocabulary::settings::ModelName { name, efforts: Box::new([]) }).unwrap();
     }
     let names = names.into_boxed();
     let mut encoded = skein_lib::List::with_capacity(2);
@@ -1321,7 +1321,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
         let now = Box::new([
             names[0].clone(),
-            jig_domain_core::settings::ModelName { name: Box::from(b"new".as_slice()), efforts: Box::new([]) },
+            jig_domain_core_vocabulary::settings::ModelName { name: Box::from(b"new".as_slice()), efforts: Box::new([]) },
         ]);
         let decoded = crate::codec::tasks::decode(&bytes, &limits, now.as_ref()).unwrap();
         let t::Stored::PersonProposal(proposal) = decoded else { panic!("proposal") };
@@ -1331,7 +1331,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
     }
     assert_eq!(
         *encoded.get(1).unwrap() - *encoded.get(0).unwrap(),
-        64 * (4 + usize::try_from(jig_domain_core::MODEL_NAME_BYTES).unwrap())
+        64 * (4 + usize::try_from(jig_domain_core_vocabulary::MODEL_NAME_BYTES).unwrap())
     );
 }
 
@@ -1410,7 +1410,7 @@ fn account_refusals_keep_their_reasons_in_the_store() {
     for why in [t::AccountWhy::Unknown, t::AccountWhy::Provider, t::AccountWhy::Uses, t::AccountWhy::Limited] {
         let mut problem = fixtures::calls::problem();
         problem.why = t::Refusal::Account { account: 42, why };
-        core_round_trip(fixtures::calls::call(jig_domain_core::CallPart::DelegationRefused(problem)));
+        core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(problem)));
     }
 }
 
@@ -1633,7 +1633,7 @@ fn a_project_removed_outcome_round_trips() {
 fn a_deleted_mark_round_trips_with_its_number_only_key() {
     for project in [0, 2, u32::MAX] {
         people_round_trip(jig_domain_people::Stored::Deleted { project });
-        let key = jig_domain_core::Key::People(jig_domain_people::Key::Deleted(project));
+        let key = jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Deleted(project));
         assert!(jig_domain_people::Key::Deleted(project).live());
         let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
         let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -1656,7 +1656,7 @@ fn a_deletion_row_round_trips_at_each_step() {
             people_round_trip(Stored::Deletion { project: u32::MAX, step, grace });
         }
     }
-    let key = jig_domain_core::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
+    let key = jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
     let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
     assert_eq!(bytes.as_ref(), &[1, 2, 9, 0, 0, 0, 0, 255, 255, 255, 255]);
     assert_eq!(crate::keys::decode(&bytes), Some(key));

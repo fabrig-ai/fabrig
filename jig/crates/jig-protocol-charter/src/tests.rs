@@ -338,8 +338,8 @@ fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
 
 // Run inputs from the roots' report fixtures, with workspace tools configured
 // off where their starts do not prepare a workspace (domain/hosts/charters.md).
-fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -> jig_domain_core::RunCharter {
-    use jig_domain_core as core;
+fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -> jig_domain_core_vocabulary::RunCharter {
+    use jig_domain_core_vocabulary as core;
     use jig_domain_tasks as tasks;
     core::RunCharter {
         revision: 1,
@@ -737,11 +737,11 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
     }
 }
 
-fn hosted_fixture() -> jig_domain_core::Assignment {
-    use jig_domain_core as core;
+fn hosted_fixture() -> jig_domain_core_vocabulary::Assignment {
+    use jig_domain_core_vocabulary as core;
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
-    jig_domain_core::Assignment {
+    jig_domain_core_vocabulary::Assignment {
         live: core::LiveAsk { text: true, reasoning: false, input: true },
         brief: Box::new([]),
         conversation: 3,
@@ -791,7 +791,7 @@ fn hosted_fixture() -> jig_domain_core::Assignment {
 #[expect(clippy::too_many_lines, reason = "one hand-over pins its ordered sections, messages and settled calls")]
 fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     use jig_domain_brief::{Core, GatherMissing, GatherPlaced};
-    use jig_domain_core as core;
+    use jig_domain_core_vocabulary as core;
     use jig_domain_host as host;
     use skein_lib::Token;
     let mut value = hosted_fixture();

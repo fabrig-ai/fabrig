@@ -1,7 +1,7 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{live, pieces, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
 pub fn object(value: d::InboxObject, limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
     Ok(match value {

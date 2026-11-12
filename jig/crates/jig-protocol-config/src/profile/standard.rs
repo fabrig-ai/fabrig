@@ -5,7 +5,7 @@ use super::{Limits, Link};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_notes as notes;

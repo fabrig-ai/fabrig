@@ -57,7 +57,7 @@ impl Hosted {
     pub fn new(
         limits: &crate::Limits,
         application: crate::sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         seed: u64,
         not_ready: NotReady,
     ) -> Self {

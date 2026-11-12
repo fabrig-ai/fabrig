@@ -1,6 +1,6 @@
 //! Original history revisions, snapshots and lifecycle facts (protocol/client/wire.md, 1).
 use super::{objects, owner, w};
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits) -> Result<w::HistoryLine, w::Problem> {
     let change = match value.change {

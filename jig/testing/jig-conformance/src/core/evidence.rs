@@ -1,6 +1,6 @@
 //! Evidence supplied by an adapter without linking its root or connectors.
 use crate::referee as r;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// Borrowed core records, submitted mutations, and connector evidence.

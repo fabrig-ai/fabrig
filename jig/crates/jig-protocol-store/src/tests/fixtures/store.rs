@@ -6,7 +6,7 @@ use super::{
 use crate::{Arrived, Below, Io, Root, SecretOwner, Secrets};
 use crate::{Event, Limits, Request, Store, Stores, Write, codec, format, keys};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
 use skein_io::file_layer::{FileIo, Limits as FileLimits};
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Duration, Env, List, Queue, Token};
@@ -221,7 +221,7 @@ pub fn run_proof(task: u64) -> Record {
 }
 
 pub fn call(task: u64, completion: u32) -> Record {
-    let CoreRecord::Call(mut row) = calls::call(jig_domain_core::CallPart::Controlled) else {
+    let CoreRecord::Call(mut row) = calls::call(jig_domain_core_vocabulary::CallPart::Controlled) else {
         panic!("call fixture");
     };
     row.key.task = task;
@@ -301,7 +301,7 @@ pub fn sign_in_secret(number: u64, byte: u8) -> Secrets {
 pub fn codec_limits() -> codec::View {
     codec::limits(&CORE_LIMITS).expect("fixture codec limits")
 }
-pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core::TurnRecord {
+pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
     let mut row = core_rows::turn();
     row.task = task;
     row.attempt = attempt;
@@ -310,7 +310,7 @@ pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_co
     row.opens_window = false;
     row
 }
-pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core::TurnRecord {
+pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
     let mut row = turn(task, attempt, number, bytes);
     row.opens_window = true;
     row
@@ -422,7 +422,7 @@ pub fn script(store: &mut Store, mut below: Below, answers: &[Answer]) -> Box<[E
     found.into_boxed()
 }
 
-pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core::TurnRecord]) -> Box<[u8]> {
+pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_vocabulary::TurnRecord]) -> Box<[u8]> {
     let mut disk = List::with_capacity(4096);
     for _ in 0..turns.len().checked_mul(3).expect("bounded answers").checked_add(1).expect("opening") {
         let Some(request) = below.transcripts.pop() else { break };

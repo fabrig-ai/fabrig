@@ -2,7 +2,7 @@
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
-use jig_domain_core::{self as core, documents as d, reads, settings as s};
+use jig_domain_core_vocabulary::{self as core, documents as d, reads, settings as s};
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 

@@ -1,6 +1,6 @@
 //! Store requests and terminals (protocol/store/README.md, section 3 and protocol/store/loads.md and protocol/store/transcripts.md and protocol/store/secrets.md and protocol/store/opening.md).
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, RestoreRange, reads};
+use jig_domain_core_vocabulary::{self as core, RestoreRange, reads};
 use jig_domain_notes as notes;
 use skein_io::file;
 use skein_io::kernel::Fd;
