@@ -18,9 +18,9 @@ the look, 11 what is open.
   host each report and carries out the duties it asks back; the
   recorder keeps what crosses that seam, and the replay gives it back to
   the same host, natively.
-- **Recorded in a build of its own:** `temper-box-shell` built with its `record`
-  feature records every TUI it runs, from its start, into the TUI's
-  directory; the shipped `temper-box` holds none of it (section 2).
+- **Recorded when asked:** every build holds the recorder, and a TUI
+  started with `TEMPER_INTERNAL_RECORD` set records from its start into
+  the TUI's directory; without it, nothing is recorded (section 2).
 - **The browser's file, the TUI's records:** the same text, one record
   per line, the same shared records (the start's seed and clocks, a
   turn, a deadline, a mark, the small store's records), and records of
@@ -49,18 +49,20 @@ the look, 11 what is open.
 
 ## 2. The build
 
-- **The journey module,** `temper-client-shell-tui`'s `journey`, built
-  with the crate's `record` feature and in its tests: the file's lines,
-  the recorder, the replay, the redaction's and the scan's TUI part, and
-  the walk's logic. With `record` the crate depends on
-  `temper-client-shell-web`, natively, for the shared redaction and scan
-  (section 5). It is ordinary Rust, as the browser's `journey` module is.
-- **The recording build:** `temper-box-shell`'s feature `record`, which no other
-  package enables, turns on the crate's and has the binary give the run
-  a recording (`run::Settings.record`). A build of the workspace that
-  compiles the journey module for `temper-client-journeys` gives the run
-  the code but never a recording, so a `temper-box` built without its own
-  `record` records nothing.
+- **The journey module,** `temper-client-shell-tui`'s `journey`, in
+  every build: the file's lines, the recorder, the replay, the
+  redaction's and the scan's TUI part, and the walk's logic. The shared
+  redaction and scan are `temper-client-redaction`'s, which the
+  browser's journeys use too (section 5), so the client links no web
+  shell (`../../protocol/binaries.md`, 4). It is ordinary Rust, as the
+  browser's `journey` module is.
+- **Switched on by `TEMPER_INTERNAL_RECORD`** (`../../cli/README.md`, 8):
+  internal, read from the binary's captured environment where the TUI
+  starts, by the client's start and by the box's front alike; set to
+  any nonempty value, the start opens the TUI's directory for the
+  recording and gives the run a recording (`run::Settings.record`);
+  absent or empty, it gives none, and the run records nothing. The
+  journeys tool sets it in the TUI's environment (section 8).
 - **Nothing else changes in the TUI:** the recorder adds no node, no
   paint, no request and no file but its own (3.1).
 
@@ -459,9 +461,11 @@ recording's (3.2).
 `crates/temper-client-journeys-tool`, for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
-- **Built from the checkout:** the client `temper` with recording enabled (2), and
-  `fake-claude`, and the browser's bundle (`scripts/bundle.sh
-  --loopback`), each copied into a fresh scratch directory under `/tmp`.
+- **Built from the checkout:** the client `temper`, run with
+  `TEMPER_INTERNAL_RECORD=1` (2), and
+  `fake-claude`, and the browser's bundle (`scripts/bundle.sh`), each
+  copied into a fresh scratch directory under `/tmp`, the browser's
+  page opened with `internal-loopback-navigation=1` (`../web/README.md`, 2.1).
 - **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
   --fake-backends` from that copy serving that bundle, every directory
   in the scratch directory, and headless Chromium from
@@ -508,7 +512,7 @@ where 8.2 says otherwise:
   in a session of its own, with the TUI's environment of 8.2 but
   `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
   the front opens that terminal and takes its foreground. The front is
-  the same `temper-box`, built with `record`, and records into the TUI's
+  the same `temper-box`, given `TEMPER_INTERNAL_RECORD=1`, and records into the TUI's
   directory as bare `temper` does (3.1). No `temper` is started apart,
   and no approval is walked: the front signs in by the link the box
   hands it.

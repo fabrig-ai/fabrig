@@ -2,6 +2,10 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 2 and 3.1, 6 and 8.1: the `journey` module builds in the browser only with the shell's `record` feature, and the recording bundle is built apart with `scripts/bundle.sh --loopback --record`; no page setting turns the recorder on.
+
+- **Not yet:** 2: the redaction's and the scan's shared code is the shell's own `journey` module's; there is no `temper-client-redaction`.
+
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
 The five journeys' prints include the unpressed night switch, with no

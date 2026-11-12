@@ -624,11 +624,12 @@ component instead (`elements.md`, 1).
   is not followed and nothing is reported: the page stays as it is, and
   an application that may name one shows the address otherwise too, as
   a link. **Plaintext loopback** (`http://127.0.0.1:PORT/…` or
-  `http://[::1]:PORT/…`) is a target only in a build with skein-ui-web's
-  feature `loopback-navigation`, which a test's bundle turns on where its
-  fake peer (an issuer on loopback) has no TLS; no default turns it on,
-  and a shipped bundle never does. The check is a pure function of the
-  target and the feature, tested natively (`testing.md`).
+  `http://[::1]:PORT/…`) is a target only when the application makes
+  the browser's platform with loopback navigation on, a setting of the
+  platform, off by default, which an application turns on only for a
+  test's page, where its fake peer (an issuer on loopback) has no TLS;
+  skein-ui-web has no feature for it. The check is a pure function of
+  the target and the setting, tested natively (`testing.md`).
 - **A tab of the page's own,** for what a person does beside a page that
   stays (a provider's sign-in): the platform's three acts, one tab at a
   time, the shell's to ask and outside the transport's whole.
@@ -886,7 +887,7 @@ step 8) holds the rule itself; a server holds `bundle.md`, 4's.
 | an element override keeping the node's role and name (`elements.md`, 1) | A person reads the page with a screen reader as the fake person reads the tree (../README.md, 14.1): a role lost is a control a screen reader cannot name, and that the face, finding by role, cannot find. | any element, the page part adding ARIA's role where it differs; a component, for what no element gives (`elements.md`, 1) |
 | the parts' invariants (4.3) | A request that leaves before it is kept is lost or made twice after a reload; a turn inside a turn steps the state machine on a step half done; a patch applied to another tree than the one it is diffed from shows a page no build made. | its own order for the rest of the turn (4.2); the part replaced, the invariant taken with it and checked by skein's stories for a browser shell (`testing.md`, 2) |
 | nothing inline under the strict policy (`bundle.md`, 4) | A script that runs on the page runs as the person: it can send any exchange the application can. Admitting inline script admits any script injected into the page, and styles injected inline would read the page's text out (by attribute selectors, by a font's ligatures). The parts and the bundle need nothing inline, so any server can send the strict policy, whatever the application. | its JavaScript, from the origin (3.3, step 7); its stylesheets; a component (`elements.md`, 1) |
-| a navigation away to an origin path or an `https` address (section 8) | The tab leaves the application for the target, with the person's trust in the page: a plaintext address on the network can be read and rewritten on its way, and a `javascript:` or `data:` one runs on the page or as it. | a link the person presses (`elements.md`); plaintext loopback in a test's build, with `loopback-navigation` (`README.md`, section 8) |
+| a navigation away to an origin path or an `https` address (section 8) | The tab leaves the application for the target, with the person's trust in the page: a plaintext address on the network can be read and rewritten on its way, and a `javascript:` or `data:` one runs on the page or as it. | a link the person presses (`elements.md`); plaintext loopback with the platform's loopback navigation on, for a test's page (`README.md`, section 8) |
 | the closed list of a bundle's types (`bundle.md`, 4) | With `nosniff`, a file is the type the server says; the list holds only the types a page loads, each weighed under the policy, and keeps off the origin what a browser would run or render (XML, a PDF, a plugin's), which `'self'` would admit. | any file of those types, in the digest directory's `files/`, or at a root path (3.3, step 5) |
 
 ## 15. The worker's platform

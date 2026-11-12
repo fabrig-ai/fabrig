@@ -2,6 +2,10 @@
 
 2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
+- **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
+
+- **Not yet:** 4: the client's row has no `temper-client-redaction`, which the client doesn't link yet
+
 - **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses
 
 - **Not yet:** the whole document: `temper-box upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/table.rs`). The restored-forge link gap remains `../domain/root.status.md`, 8.1.  the deferred setup-close gap remains `README.status.md`, 4.  the baseline and rehearsal gaps remain `README.status.md`, 7.
@@ -19,19 +23,15 @@ reads the document. Its step test runs the built binary over a table of
 those cases (`crates/temper-engine/tests/suite/main.rs`). `serve` and
 the forge's commands are `temper-engine-shell`'s, which the box's
 `temper-box` runs too, under its own name and with its worker's half
-(`crates/temper-box-shell/src/worker_half.rs`). `temper-service`'s `worker`
-feature is on in the box's build and the worlds' and off in
-`temper-engine`'s, where a start of any shape but an engine alone is
-refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s
+(`crates/temper-box-shell/src/worker_half.rs`). `temper-engine` links
+the engine's service alone, where a start of any shape but an engine
+alone is refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s
 row: the worker's domain and smith's agent excluded, but its four named
 exceptions (1). It also holds the box's machine, `temper-box-machine`, and the
 fakes' crates, `temper-fake` with skein's fake forge, LLM and OAuth
 beneath it, which `temper-engine-shell`'s check of the document reads
 for its `box` limits and `demo` member, as the box's does (`components.md`;
-`../draft/deployment-binaries.status.md`). The gate builds the
-workspace whole, so its run of the step test runs a binary built with
-`worker` on; the feature-off service is compiled by `temper-engine`'s
-own build alone, as 1 accepts.
+`../draft/deployment-binaries.status.md`).
 
 - **Not yet:** 2: `temper-engine upgrade --check` and `--back`: jig's
   rehearsal and going back (jig's `protocol/store/opening.md`, 5) are not
