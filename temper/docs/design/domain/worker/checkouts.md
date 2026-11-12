@@ -64,14 +64,44 @@ runs as contained processes and whose output it parses.
   agent's write authority is the list of writable ones.
 - **One operation at a time.** A run holds its checkout from the moment
   its prepare is admitted, so a cancel aborts a prepare rather than
-  waiting it out; one waiting for another's store has nothing in flight,
-  and ends aborted at once. A checkout runs one operation at a time (a prepare, a
+  waiting it out; one queued for a permit (below) or waiting for another's
+  store has nothing in flight, and ends aborted at once. A checkout runs one operation at a time (a prepare, a
   push or a save), each a sequence of git operations with deadlines as
   data, one for the forge and one for the disk; the checkout arms no
   timers. A check out and a merge take the forge's deadline
   (`checkout.remote_timeout_ms`) and name their repository's identity, since
   each may fetch the file contents it lacks: such a lazy fetch runs within
   its operation, under that deadline and with that identity's credential.
+- **Preparations a few at a time.** At most `checkout.preparations`
+  prepares are active at once on a worker, 1 in both profiles
+  (`../../protocol/configuration/limits.md`), a run's and a job's alike,
+  since a job prepares through the checkout as a run does (`jobs.md`).
+  Each active prepare holds a permit; there are `checkout.preparations`
+  of them, and a limit of 0 refuses the worker's start, naming it.
+  - **Queued in order of arrival.** A prepare that passes the entrance
+    holds its workspace and borrows its stores as before, so a refusal
+    (every workspace held, the workstream's held by another run) comes at
+    once, never after a wait. With every permit taken it is queued, with
+    no operation in flight, and told as queued (`README.md`, section 6).
+    Each permit that comes back goes to the prepare queued longest.
+  - **Its deadlines count from its admission.** Admitted, a prepare takes
+    its permit and asks its first operation, as one that found a permit
+    free does at once; each operation's deadline counts from when it is
+    asked, so no time a prepare spent queued counts against any of them.
+  - **The permit comes back when the prepare has settled:** once it ends
+    ready, failed or aborted. A prepare waiting for another's store keeps
+    its permit while it waits. A cancelled prepare ends only once its
+    operation in flight has ended, whatever its end, so no git it started
+    still runs when the next prepare is admitted. A queued prepare asked
+    to abort or to release ends aborted at once and leaves the queue,
+    taking no permit.
+  - **Only preparing waits.** A push or a save takes no permit, so a
+    run's delivery never waits behind another run's preparation. Run
+    slots are as they were (`README.md`, section 5): an admitted run keeps
+    its slot while its preparation is queued.
+  - **So a forge meets a few clones at once,** one per worker by default,
+    after a worker's restart or a burst of due work alike
+    (`../../draft/redeploys.md`, 6.4).
 - **Prepare** fetches what the assignment names and checks out exactly its
   starting point. It fetches each branch of a repository at most once: a
   pin or a baseline naming a branch this prepare has fetched, or a commit
@@ -306,6 +336,11 @@ ID (2026-11-04).
   needs a decision for a branch that did not exist then.
 - **Code graph:** indexing a checkout for codebase-memory-mcp as part of
   preparing it, and keeping that index with the cache.
+- **Which queued preparation goes first.** Queued prepares are admitted in
+  order of arrival, a job's and a run's alike, a resumed run's no sooner
+  than a new one's (`checkouts.md`). Default: arrival; an order by kind, a
+  landing's jobs first, if a deployment shows them held behind runs'
+  preparations.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.

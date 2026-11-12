@@ -369,7 +369,7 @@ pub(crate) fn run(
     }
     eprintln!("init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page");
     let mut line =
-        String::from(if boxed { "init: start it with temper box" } else { "init: start it with temper serve" });
+        String::from(if boxed { "init: start it with temper box" } else { "init: start it with temper-box serve" });
     for (index, (name, value)) in
         [("config", &directories.config), ("data", &directories.data), ("cache", &directories.cache)].iter().enumerate()
     {

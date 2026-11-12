@@ -13,6 +13,7 @@ use crate::{
 
 const LIMITS: Limits = Limits {
     workspaces: 2,
+    preparations: 2,
     repositories: 2,
     name_bytes: 16,
     message_bytes: 64,
@@ -242,6 +243,20 @@ fn two(key: &[u8]) -> Spec {
 /// The workstream `key` with the writable `a` only.
 fn one(key: &[u8]) -> Spec {
     spec(key, Box::new([repository(b"a", true)]))
+}
+
+/// A queued prepare whose store is independent of the active maker's.
+fn other_store(key: &[u8]) -> Spec {
+    spec(key, Box::new([repository(b"b", true)]))
+}
+
+/// Drive the one-repository fixture from Make to its final `CheckOut`.
+fn checkout_one(h: &mut Harness, hold: Token) -> Token {
+    assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
+    assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Fetch);
+    let op = h.replaced(hold, commit(1));
+    assert_eq!(op.kind(), Kind::CheckOut);
+    workspace_of(&op)
 }
 
 fn message() -> Message {
@@ -492,7 +507,7 @@ fn evict(h: &mut Harness, old: Spec, new: Spec, cached: Cached, kind: Kind) {
 
 #[test]
 fn an_evicted_matching_clone_is_kept_when_reuse_is_enabled() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     evict(&mut h, one(b"old"), one(b"new"), Cached::Kept, Kind::Fetch);
     assert_eq!(h.domain.workstream(0), Some(&b"new"[..]), "the kept clone belongs to the new workstream at once");
     assert_eq!(h.domain.workstream(1), None);
@@ -500,46 +515,46 @@ fn an_evicted_matching_clone_is_kept_when_reuse_is_enabled() {
 
 #[test]
 fn an_evicted_matching_clone_is_made_again_by_default() {
-    let mut h = Harness::new(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::new(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     evict(&mut h, one(b"old"), one(b"new"), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_clone_from_another_remote_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     let repo = Repository { remote: remote(b"b"), ..repository(b"a", true) };
     evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_clone_in_another_directory_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     let repo = Repository { remote: remote(b"a"), ..repository(b"b", true) };
     evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_workspace_needing_one_more_repository_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     evict(&mut h, one(b"old"), two(b"new"), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_workspace_needing_one_fewer_repository_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     evict(&mut h, two(b"old"), one(b"new"), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_clone_starting_saved_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     let repo = Repository { start: Start::Saved { branch: bytes(b"saved/1") }, ..repository(b"a", true) };
     evict(&mut h, one(b"old"), spec(b"new", Box::new([repo])), Cached::Evicted, Kind::Make);
 }
 
 #[test]
 fn an_evicted_workspace_spoiled_by_a_broken_operation_is_made_again() {
-    let mut h = Harness::reusing(Limits { workspaces: 1, ..LIMITS });
+    let mut h = Harness::reusing(Limits { workspaces: 1, preparations: 1, ..LIMITS });
     let first = h.ready(1, one(b"old"));
     h.one(Event::Release { hold: first });
     let (hold, op) = h.prepare(2, one(b"old"));
@@ -1613,6 +1628,7 @@ fn the_facts_tell_what_happened_and_drop_what_does_not_fit() {
 fn limits_require_workspaces_repositories_and_representable_hold_slots() {
     assert!(valid(&LIMITS));
     assert!(!valid(&Limits { workspaces: 0, ..LIMITS }));
+    assert!(!valid(&Limits { preparations: 0, ..LIMITS }));
     assert!(!valid(&Limits { repositories: 0, ..LIMITS }));
     assert!(valid(&Limits { workspaces: u32::MAX / 2, ..LIMITS }));
     assert!(!valid(&Limits { workspaces: u32::MAX / 2 + 1, ..LIMITS }));
@@ -2430,6 +2446,176 @@ fn a_made_remote_needs_no_store_for_another_workstream() {
     );
     h.one(Event::Release { hold: first });
 }
+#[test]
+fn queued_prepare_starts_when_ready_with_a_fresh_deadline_and_its_own_facts() {
+    for fresh_store in [false, true] {
+        let mut h = Harness::new(Limits { preparations: 1, ..LIMITS });
+        let (first, _) = h.begin(1, one(b"a"));
+        h.facts();
+        let spec = if fresh_store { other_store(b"b") } else { one(b"b") };
+        let second = waiting(&mut h, 2, spec);
+        let client = Token::new(2);
+        assert_eq!(h.facts().as_slice(), &[Fact::Held { client, cached: Cached::New }, Fact::Queued { client },]);
+        h.env.now = NOW.saturating_add(Duration::from_secs(300));
+        assert_eq!(h.next(first, Done::Succeeded).kind(), Kind::Make);
+        let workspace = checkout_one(&mut h, first);
+        h.facts();
+        let requests = h.step(Event::Done { owner: first, done: Done::Succeeded });
+        let timeout = if fresh_store { h.env.limits.remote_timeout } else { h.env.limits.local_timeout };
+        let kind = if fresh_store { Kind::Store } else { Kind::Make };
+        assert_eq!(requests.len(), 2, "the returned permit is used in this step");
+        assert_eq!(
+            requests.get(0),
+            Some(&Request::Prepared {
+                client: Token::new(1),
+                prepared: Prepared::Ready { workspace, conflicts: Box::new([]) },
+            })
+        );
+        let Some(Request::Io { owner, op, deadline }) = requests.get(1) else { panic!("the queued prepare starts") };
+        assert_eq!((*owner, op.kind(), *deadline), (second, kind, h.env.now.saturating_add(timeout)));
+        assert_eq!(
+            h.facts().as_slice(),
+            &[
+                Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
+                Fact::Prepared {
+                    client: Token::new(1),
+                    prepared: crate::Preparation::Ready { workspace, conflicts: 0 }
+                },
+                Fact::Started { client, op: kind },
+            ]
+        );
+    }
+}
+
+#[test]
+fn queued_prepares_follow_arrival_order_when_permits_return() {
+    let mut h = Harness::new(Limits { workspaces: 4, preparations: 1, ..LIMITS });
+    let (mut active, _) = h.begin(1, one(b"a"));
+    let second = waiting(&mut h, 8, one(b"b"));
+    let third = waiting(&mut h, 3, one(b"c"));
+    let fourth = waiting(&mut h, 6, one(b"d"));
+    for next in [second, third, fourth] {
+        let mut requests = h.step(Event::Done { owner: active, done: failed(Fault::Broken) });
+        assert_eq!(requests.len(), 2, "one prepare ends and one starts");
+        let Request::Prepared { prepared: Prepared::Failed { .. }, .. } = requests.swap_remove(0).expect("ends") else {
+            panic!("the active prepare failed")
+        };
+        assert_eq!(io(requests.swap_remove(0).expect("admitted"), next).kind(), Kind::Store);
+        active = next;
+    }
+}
+
+#[test]
+fn queued_abort_and_release_remove_the_hold_without_io_or_cancel() {
+    for release in [false, true] {
+        let mut h = Harness::new(Limits { workspaces: 4, preparations: 1, ..LIMITS });
+        let (first, _) = h.begin(1, one(b"a"));
+        let second = waiting(&mut h, 2, one(b"b"));
+        let middle = waiting(&mut h, 3, one(b"c"));
+        let fourth = waiting(&mut h, 4, one(b"d"));
+        let event = if release { Event::Release { hold: middle } } else { Event::Abort { hold: middle } };
+        let requests = h.step(event);
+        let mut expected = List::uncapped();
+        expected.push(Request::Prepared { client: Token::new(3), prepared: Prepared::Aborted }).expect("room");
+        if release {
+            expected.push(Request::Released { client: Token::new(3) }).expect("room");
+        }
+        assert_eq!(requests, expected, "a queued hold has nothing to cancel");
+        let mut active = first;
+        for next in [second, fourth] {
+            let mut requests = h.step(Event::Done { owner: active, done: failed(Fault::Broken) });
+            assert_eq!(requests.len(), 2, "the cancelled middle hold is skipped");
+            io(requests.swap_remove(1).expect("oldest queued"), next);
+            active = next;
+        }
+    }
+}
+
+#[test]
+fn an_active_abort_keeps_the_permit_until_any_operation_end() {
+    for done in [Done::Succeeded, failed(Fault::Broken), failed(Fault::Cancelled), failed(Fault::TimedOut)] {
+        let mut h = Harness::new(Limits { preparations: 1, ..LIMITS });
+        let (first, _) = h.begin(1, one(b"a"));
+        let second = waiting(&mut h, 2, other_store(b"b"));
+        assert_eq!(h.one(Event::Abort { hold: first }), Request::Cancel { owner: first });
+        h.none(Event::Abort { hold: first });
+        let requests = h.step(Event::Done { owner: first, done: done.clone() });
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(1), prepared: Prepared::Aborted }));
+        let Some(Request::Io { owner, .. }) = requests.get(1) else { panic!("the oldest queued starts in this step") };
+        assert_eq!(*owner, second);
+    }
+}
+
+#[test]
+fn a_store_waiter_keeps_its_permit_until_it_ends() {
+    let mut h = Harness::new(Limits { workspaces: 3, preparations: 2, ..LIMITS });
+    let (first, _) = h.begin(1, one(b"a"));
+    let second = waiting(&mut h, 2, one(b"b"));
+    let third = waiting(&mut h, 3, other_store(b"c"));
+    assert_eq!(refused(h.one(Event::Push { hold: second, message: message() })), Refusal::Busy);
+    assert_eq!(refused(h.one(Event::Save { hold: second, message: message() })), Refusal::Busy);
+    let requests = h.step(Event::Abort { hold: second });
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(2), prepared: Prepared::Aborted }));
+    let Some(Request::Io { owner, op: Op::Store { remote: source, .. }, .. }) = requests.get(1) else {
+        panic!("ending a store wait returns its permit")
+    };
+    assert_eq!((*owner, source.as_ref()), (third, remote(b"b").as_ref()));
+    assert_eq!(h.one(Event::Abort { hold: first }), Request::Cancel { owner: first });
+}
+
+#[test]
+fn a_failed_store_resumes_its_oldest_waiter_before_admitting_queued_prepares() {
+    let mut h = Harness::new(Limits { workspaces: 3, preparations: 2, ..LIMITS });
+    let (first, store) = h.begin(1, one(b"a"));
+    let second = waiting(&mut h, 2, one(b"b"));
+    let third = waiting(&mut h, 3, one(b"c"));
+    let mut requests = h.step(Event::Done { owner: first, done: failed(Fault::Broken) });
+    assert_eq!(requests.len(), 2, "the admitted third now waits on the second's store");
+    assert_eq!(io(requests.swap_remove(1).expect("oldest store waiter"), second), store);
+    let requests = h.step(Event::Done { owner: second, done: Done::Succeeded });
+    assert_eq!(requests.len(), 2);
+    make(requests.get(0).expect("maker"), second, &[store_token(b"a")]);
+    make(requests.get(1).expect("admitted waiter"), third, &[store_token(b"a")]);
+}
+
+#[test]
+fn ready_pushes_and_saves_do_not_wait_for_preparation_permits() {
+    for save in [false, true] {
+        let mut h = Harness::new(Limits { workspaces: 3, preparations: 1, ..LIMITS });
+        let ready = h.ready(1, one(b"a"));
+        h.begin(2, one(b"b"));
+        let queued = waiting(&mut h, 3, one(b"c"));
+        assert_eq!(refused(h.one(Event::Push { hold: queued, message: message() })), Refusal::Busy);
+        assert_eq!(refused(h.one(Event::Save { hold: queued, message: message() })), Refusal::Busy);
+        let event = if save {
+            Event::Save { hold: ready, message: message() }
+        } else {
+            Event::Push { hold: ready, message: message() }
+        };
+        assert_eq!(io(h.one(event), ready).kind(), Kind::Commit);
+    }
+}
+
+#[test]
+fn entrance_refusals_do_not_wait_for_preparation_permits() {
+    let mut h = Harness::new(Limits { preparations: 1, ..LIMITS });
+    let (first, _) = h.begin(1, one(b"a"));
+    let second = waiting(&mut h, 2, one(b"b"));
+    for (spec, expected) in [
+        (one(b"a"), Refusal::Busy),
+        (one(b"c"), Refusal::Full),
+        (one(b"a-key-beyond-the-name-limit"), Refusal::Invalid),
+    ] {
+        assert_eq!(refused(h.one(Event::Prepare { client: Token::new(3), spec })), expected);
+    }
+    let mut requests = h.step(Event::Done { owner: first, done: failed(Fault::Broken) });
+    assert_eq!(requests.len(), 2);
+    io(requests.swap_remove(1).expect("only the admitted prepare queued"), second);
+    assert_eq!(h.step(Event::Done { owner: second, done: failed(Fault::Broken) }).len(), 1);
+}
+
 /// Admit a prepare that waits without asking io for anything.
 fn waiting(h: &mut Harness, client: u64, spec: Spec) -> Token {
     let Request::Held { client: to, hold } = h.one(Event::Prepare { client: Token::new(client), spec }) else {
@@ -2470,7 +2656,7 @@ fn concurrent_prepares_share_one_store_maker() {
 #[test]
 fn a_failed_or_cancelled_store_passes_to_only_the_oldest_waiter() {
     for fault in [Fault::Broken, Fault::Cancelled, Fault::Missing { missing: Missing::Repository }] {
-        let mut h = Harness::new(Limits { workspaces: 3, repositories: 1, ..LIMITS });
+        let mut h = Harness::new(Limits { workspaces: 3, preparations: 3, repositories: 1, ..LIMITS });
         // Fill the table so every making, including a successor's, carries aside.
         for name in [b"x", b"y", b"z"] {
             let mut repo = repository(b"a", false);
@@ -2658,8 +2844,8 @@ fn a_damaged_fetch_rebuilds_its_workspace_but_never_its_store() {
 }
 #[test]
 fn store_capacity_must_fit_even_when_hold_capacity_fits() {
-    assert!(valid(&Limits { workspaces: 1, repositories: u32::MAX, ..LIMITS }));
-    assert!(!valid(&Limits { workspaces: 2, repositories: u32::MAX, ..LIMITS }));
+    assert!(valid(&Limits { workspaces: 1, preparations: 1, repositories: u32::MAX, ..LIMITS }));
+    assert!(!valid(&Limits { workspaces: 2, preparations: 2, repositories: u32::MAX, ..LIMITS }));
 }
 
 #[test]

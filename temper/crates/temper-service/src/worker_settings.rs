@@ -196,6 +196,7 @@ fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
 pub(crate) fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkout::Limits {
     temper_worker_domain_checkout::Limits {
         workspaces: limits.workspaces,
+        preparations: limits.preparations,
         repositories: limits.repositories,
         name_bytes: limits.name_bytes,
         message_bytes: limits.message_bytes,
