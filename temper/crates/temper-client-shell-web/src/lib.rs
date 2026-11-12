@@ -22,11 +22,19 @@ pub mod host;
 mod internal;
 pub mod journey;
 pub mod limits;
-pub mod playground;
 pub mod public;
 pub mod records;
+/// The frame's reports (temper/docs/design/playground.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Control {
+    Pause,
+    Speed(skein_ui_web::bridge::Speed),
+    Reset,
+    Story(&'static str),
+    Log,
+}
 #[cfg(target_arch = "wasm32")]
-enum Report {
+pub enum Report {
     Start,
     Mark,
     Save,
@@ -38,12 +46,12 @@ enum Report {
     Copied(clipboard::Report),
     Screen(screen::Report),
     Place(Box<[u8]>),
-    Frame(playground::Control),
+    Frame(Control),
     World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
 /// The shared host loop (temper/docs/design/playground.md, 6).
-struct Shell<P: ShellPlatform> {
+pub struct Shell<P: ShellPlatform> {
     host: host::Host,
     recorder: Option<journey::Recorder>,
     page: Rc<RefCell<Page<'static>>>,
@@ -59,7 +67,7 @@ struct Shell<P: ShellPlatform> {
     heading_focus: focus::HeadingFocus,
 }
 #[cfg(target_arch = "wasm32")]
-trait ShellPlatform: platform::Platform {
+pub trait ShellPlatform: platform::Platform {
     type Timer;
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
     fn fired(timer: &mut Self::Timer);
@@ -83,7 +91,6 @@ impl ShellPlatform for platform::Browser<Report> {
     }
 }
 #[cfg(target_arch = "wasm32")]
-#[cfg_attr(not(feature = "playground"), wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn start() {
     let window = web_sys::window().expect("window");
     let host = window.location().hostname().expect("host");
@@ -211,6 +218,46 @@ fn night(document: &web_sys::Document, on: bool) {
 }
 #[cfg(target_arch = "wasm32")]
 impl<P: ShellPlatform> Shell<P> {
+    /// Builds the shared loop from the page's started host and browser parts
+    /// (temper/docs/design/client/web/README.md, 2.1).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the page supplies the host, DOM and platform parts of the shared loop"
+    )]
+    pub fn new(
+        host: host::Host,
+        page: Rc<RefCell<Page<'static>>>,
+        dom: Dom,
+        platform: P,
+        store: Store,
+        history: Rc<history::web::History>,
+        timer: P::Timer,
+        inbox: &Rc<Inbox<Report>>,
+    ) -> Self {
+        Self {
+            host,
+            recorder: None,
+            page,
+            dom,
+            platform,
+            store,
+            kept: Store::kept(b"temper.", None),
+            screen: screen::web::Screen::new(Rc::clone(inbox), Report::Screen),
+            clipboard: clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
+            history,
+            timer,
+            title: title::web::Title::default(),
+            heading_focus: focus::HeadingFocus::new(),
+        }
+    }
+    /// The page's platform, for its frame's controls and figures.
+    pub fn platform(&self) -> &P {
+        &self.platform
+    }
+    /// Ends this page's platform and its timer before a fresh life starts.
+    pub fn end(&mut self) {
+        self.platform.end(&mut self.timer);
+    }
     /// One inbox turn: each report given to the host, its duties carried, then the page drawn.
     fn turn(&mut self, inbox: &Inbox<Report>) {
         let now = self.begin();
@@ -222,7 +269,7 @@ impl<P: ShellPlatform> Shell<P> {
         }
         self.draw(new_page, now);
     }
-    fn begin(&mut self) -> skein_lib::Time {
+    pub fn begin(&mut self) -> skein_lib::Time {
         let (now, wall) = self.platform.clocks();
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
@@ -231,7 +278,7 @@ impl<P: ShellPlatform> Shell<P> {
         now
     }
     /// Carries one host report in order; navigation says whether a new page shows.
-    fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
+    pub fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
         let read_on = matches!(
             &report,
             Report::Fetch(
@@ -250,7 +297,7 @@ impl<P: ShellPlatform> Shell<P> {
         let shown = self.carry(inbox, duties, read_on);
         navigates.then_some(shown)
     }
-    fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
+    pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
         let mut ops = Vec::new();
         self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);

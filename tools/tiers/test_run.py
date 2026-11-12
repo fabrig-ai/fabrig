@@ -201,7 +201,7 @@ class RunnerTests(unittest.TestCase):
               "--noscript", "jig needs WebAssembly and scripts."]),
         )
         shell = "temper/crates/temper-client-shell-web"
-        cases += (("temper", "browser", "temper-client-shell-web", "temper-box", "TEMPER_TEST_BUNDLE",
+        cases += (("temper", "browser", "temper-client-web-page", "temper-box", "TEMPER_TEST_BUNDLE",
                    "temper-bundle", [],
                    ["--title", "temper", "--placeholder", f"{shell}/loading.html",
                     "--placeholder-stylesheet", f"{shell}/loading.css",

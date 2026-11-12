@@ -178,7 +178,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith/tests/session/Cargo.toml: smith-domain-session", until: "smith's round" },
     Exception { what: "smith/tests/session/Cargo.toml: smith-domain-tools", until: "smith's round" },
     Exception { what: "smith/tests/tools/Cargo.toml: smith-domain-tools", until: "smith's round" },
-    Exception { what: "temper/crates/temper-client-shell-web/Cargo.toml: [features]", until: "cli C5" },
     Exception { what: "temper/crates/temper-fake/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/crates/temper-playground/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: [features]", until: "cli C5" },
