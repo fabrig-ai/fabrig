@@ -45,11 +45,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "G8: jig/testing/jig-protocol-accounts-kit, as a dependency",
     },
     Exception {
-        package: "temper-real-loop-world",
-        path: "temper/tests/real-loop/tests/support/mod.rs",
-        until: "G8: the world's library's terminal module",
-    },
-    Exception {
         package: "temper-client-shell-terminal",
         path: "temper/crates/temper-client-shell-terminal/tests/support/world.rs",
         until: "its area, when it next works on its library's tests (tools/crates/design.md, 3.2)",
