@@ -36,19 +36,21 @@ fn base(root: &Path) -> String {
     reference
 }
 
+#[expect(clippy::case_sensitive_file_extension_comparisons, reason = "kept contract names use the exact .txt suffix")]
 fn contract_name(name: &str) -> bool {
     name.starts_with("host-tools-v") && name.ends_with(".txt")
 }
 
 fn landed(root: &Path, base: &str) -> Files {
-    let listed = git(root, &["ls-tree", "-r", "--name-only", "-z", base, "--", CONTRACT])
-        .expect("list base's kept contracts");
+    let listed =
+        git(root, &["ls-tree", "-r", "--name-only", "-z", base, "--", CONTRACT]).expect("list base's kept contracts");
     let mut files = Files::new();
     for bytes in listed.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
         let path = std::str::from_utf8(bytes).expect("git path is UTF-8");
         let name = Path::new(path).file_name().expect("contract filename").to_str().expect("UTF-8 filename");
         if contract_name(name) {
-            files.insert(name.to_owned(), git(root, &["show", &format!("{base}:{path}")]).expect("read kept base text"));
+            files
+                .insert(name.to_owned(), git(root, &["show", &format!("{base}:{path}")]).expect("read kept base text"));
         }
     }
     files
@@ -75,7 +77,9 @@ fn check(base: &Files, tree: &Files) -> Vec<String> {
     }
     let mut versions = BTreeSet::new();
     for name in tree.keys() {
-        let version = name.strip_prefix("host-tools-v").and_then(|tail| tail.strip_suffix(".txt"))
+        let version = name
+            .strip_prefix("host-tools-v")
+            .and_then(|tail| tail.strip_suffix(".txt"))
             .and_then(|number| number.parse::<u16>().ok());
         match version {
             Some(number) if number != 0 && *name == format!("host-tools-v{number}.txt") => {

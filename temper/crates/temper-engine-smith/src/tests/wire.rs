@@ -4,22 +4,26 @@ use std::{fs, path::Path};
 
 use smith_domain_run::HostEffect;
 
-use crate::{calls::{SPECS, Spec}, wire::{self, render}};
+use crate::{
+    calls::{SPECS, Spec},
+    wire::{self, render},
+};
 
 fn check_current(rendered: &[u8], kept: &[u8]) -> Result<(), &'static str> {
     if rendered == kept {
         Ok(())
     } else {
-        Err("the host tools' layout moved: move `wire::VERSION` to N+1 and write its text with `TEMPER_CONTRACT_WRITE=1`")
+        Err(
+            "the host tools' layout moved: move `wire::VERSION` to N+1 and write its text with `TEMPER_CONTRACT_WRITE=1`",
+        )
     }
 }
 
 #[test]
 fn host_tools_contract_is_current() {
     let rendered = render(&SPECS);
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("contract")
-        .join(format!("host-tools-v{}.txt", wire::VERSION));
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("contract").join(format!("host-tools-v{}.txt", wire::VERSION));
     if std::env::var_os("TEMPER_CONTRACT_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
         fs::create_dir_all(path.parent().expect("contract directory")).expect("create contract directory");
         fs::write(&path, &rendered).expect("write current host-tool contract");
@@ -41,7 +45,9 @@ fn schema_changes_require_a_version_but_descriptions_do_not() {
     specs.first_mut().expect("a declaration").schema = br#"{"type":"object","properties":{"new":{"type":"boolean"}}}"#;
     assert_eq!(
         check_current(&render(&specs), &kept),
-        Err("the host tools' layout moved: move `wire::VERSION` to N+1 and write its text with `TEMPER_CONTRACT_WRITE=1`")
+        Err(
+            "the host tools' layout moved: move `wire::VERSION` to N+1 and write its text with `TEMPER_CONTRACT_WRITE=1`"
+        )
     );
 }
 
