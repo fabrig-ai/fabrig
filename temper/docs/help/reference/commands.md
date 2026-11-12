@@ -22,11 +22,11 @@ Needs a terminal on stdin and stdout; without one, bare temper says it has no co
 
 `temper box [ARGUMENT...]`
 
-Run this build's temper-box, fetching it if needed.
+Run the TUI in front of this build's temper-box, fetching it if needed.
 
 - `ARGUMENT...`: Arguments for temper-box, passed on unchanged.
 
-Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. Runs the box in this process's place, including in a terminal.
+Finds temper-box beside this executable, then in the cache, then at the download site. A checkout build downloads none: build it with cargo build -p temper-box. In a terminal, runs the TUI in front of the box. Without a terminal, or with --echo steps, runs the box in this process's place.
 
 ### temper help
 

@@ -48,6 +48,26 @@ fn box_directories_resolve_flags_then_twins_then_xdg_then_home() {
 }
 
 #[test]
+fn the_front_needs_both_terminals_and_no_steps_echo() {
+    for (arguments, input, output, front) in [
+        (vec![], true, true, true),
+        (vec![], false, true, false),
+        (vec![], true, false, false),
+        (vec!["--echo", "steps"], true, true, false),
+        (vec!["--echo", "steps", "--echo", "none"], true, true, false),
+        (vec!["--echo", "none"], true, true, true),
+    ] {
+        let resolved =
+            resolve(&words(&arguments), &environment(&[("HOME", "/home/person")]), b"/working").expect("box arguments");
+        assert_eq!(
+            terminal_front(resolved.echo_steps, input, output),
+            front,
+            "{arguments:?}, input={input}, output={output}"
+        );
+    }
+}
+
+#[test]
 fn the_site_is_https_loopback_with_an_explicit_port_or_the_default() {
     for (value, host, port) in [
         (None, "fabrig.ai", 443),

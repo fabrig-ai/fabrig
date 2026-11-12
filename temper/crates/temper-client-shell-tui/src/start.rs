@@ -189,7 +189,31 @@ struct BoxStart {
     log: Box<[u8]>,
 }
 
+impl BoxStart {
+    fn settings(self, environment: &[EnvironmentEntry], working: &[u8]) -> Result<Front, Refused> {
+        let directory = skein_shell::open_root(path(working))
+            .map_err(|number| Refused::Directory(format!("cannot open working directory: errno {number}")))?;
+        Ok(Front {
+            executable: self.executable,
+            cache: self.cache,
+            arguments: self.arguments,
+            directory,
+            log: self.log,
+            environment: environment
+                .iter()
+                .map(|(name, value)| {
+                    let mut entry = name.to_vec();
+                    entry.push(b'=');
+                    entry.extend_from_slice(value);
+                    entry.into()
+                })
+                .collect(),
+        })
+    }
+}
+
 /// `temper box`'s terminal case; its arguments remain the box's to read.
+#[must_use]
 pub fn run_box(
     executable: &[u8],
     cache: &[u8],
@@ -200,13 +224,22 @@ pub fn run_box(
     clock: &Clock,
 ) -> u8 {
     let front = BoxStart {
-        executable: executable.into(), cache: cache.into(), arguments: arguments.into(),
-        link: link_file::path(path(data), temper_shell::environment::XDG_RUNTIME_DIR.value(environment), cfg!(target_os = "linux")),
+        executable: executable.into(),
+        cache: cache.into(),
+        arguments: arguments.into(),
+        link: link_file::path(
+            data,
+            temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
+            cfg!(target_os = "linux"),
+        ),
         log: path(data).join("box/logs/box.log").as_os_str().as_bytes().into(),
     };
     match start(None, environment, working, clock, Some(front)) {
         Ok(code) => code,
-        Err(why) => { eprint!("{}", why.line("temper")); 1 }
+        Err(why) => {
+            eprint!("{}", why.line("temper"));
+            1
+        }
     }
 }
 
@@ -260,17 +293,11 @@ fn start(
         })?);
         #[cfg(not(feature = "record"))]
         let record = None;
-        let front = front.map(|front| {
-            let directory = skein_shell::open_root(path(working)).map_err(|number|
-                Refused::Directory(format!("cannot open working directory: errno {number}")))?;
-            Ok(Front {
-                executable: front.executable, cache: front.cache, arguments: front.arguments, directory,
-                log: front.log,
-                environment: environment.iter().map(|(name, value)| {
-                    let mut entry = name.to_vec(); entry.push(b'='); entry.extend_from_slice(value); entry.into()
-                }).collect(),
-            })
-        }).transpose()?;
+        let front = front.map(|front| front.settings(environment, working)).transpose().inspect_err(|_| {
+            for fd in record.into_iter().chain([files, root, signals]) {
+                skein_shell::close_startup_fd(fd);
+            }
+        })?;
         let in_front = front.is_some();
         let settings = Settings {
             record,
@@ -294,8 +321,11 @@ fn start(
         let seed = skein_shell::seed().expect("kernel seed");
         let mut run = local_run(settings, root, user, seed, signals);
         let mut kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
-        let exit = if in_front { drive_front(&mut kernel, clock, &mut run) }
-                   else { skein_shell::drive(&mut kernel, clock, &mut run) };
+        let exit = if in_front {
+            drive_front(&mut kernel, clock, &mut run)
+        } else {
+            skein_shell::drive(&mut kernel, clock, &mut run)
+        };
         Ok((run, exit, seed))
     })();
     skein_fail_stop::before_report(None);
@@ -304,7 +334,9 @@ fn start(
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }
-    if run.terminated() { return Ok(1); }
+    if run.terminated() {
+        return Ok(1);
+    }
     if let Some(signed_in) = run.signed_in() {
         let mut bytes = b"http://".to_vec();
         bytes.extend_from_slice(signed_in);
@@ -312,15 +344,19 @@ fn start(
             keep_address(parent, bytes.into_boxed_slice(), user, seed, clock);
         }
     }
+    Ok(exit_code(&run, exit))
+}
+
+fn exit_code(run: &Run, exit: Exit) -> u8 {
     if let Some((code, words)) = run.box_exit() {
         use std::io::Write;
         let _ = std::io::stderr().lock().write_all(&words);
-        return Ok(code);
+        return code;
     }
-    Ok(match exit {
+    match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
-    })
+    }
 }
 
 // A termination signal is the process's shutdown path: the kernel may still own the box's
@@ -330,13 +366,18 @@ fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
         kernel.reap(run.completions());
         let skein_shell::Now { now, wall } = clock.now();
         run.iterate(now, wall);
-        if run.terminated() { return Exit::Code(1); }
+        if run.terminated() {
+            return Exit::Code(1);
+        }
         if run.is_empty() {
             assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
             return run.exit().expect("a drained run's exit");
         }
-        let wait = if run.work_pending(now) { skein_shell::Wait::No }
-            else { run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until) };
+        let wait = if run.work_pending(now) {
+            skein_shell::Wait::No
+        } else {
+            run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
+        };
         kernel.submit(run.submissions(), wait);
     }
 }

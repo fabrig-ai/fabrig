@@ -1,7 +1,10 @@
 //! The run's children and pipes (temper/docs/design/client/tui/box.md, The box's start and Its exit).
 use super::Front;
 use crate::host::Stop;
-use skein_io::{self as io, kernel::{Exit, Pipe, Signal, Spawn, Target, Way}};
+use skein_io::{
+    self as io,
+    kernel::{Exit, Pipe, Signal, Spawn, Target, Way},
+};
 use skein_lib::{Queue, Secret, Token, stream};
 use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
 
@@ -17,9 +20,18 @@ pub(super) enum Report {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind { Fetch, Box }
+enum Kind {
+    Fetch,
+    Box,
+}
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Source { Fetch, Error, Output, Link, Lines }
+enum Source {
+    Fetch,
+    Error,
+    Output,
+    Link,
+    Lines,
+}
 struct Read {
     token: Token,
     source: Source,
@@ -43,10 +55,9 @@ pub(super) struct Child {
     link: Vec<u8>,
     linked: bool,
     failure: Option<Box<[u8]>>,
-    stopped: bool,
-    second: bool,
+    stop: Option<Stop>,
     reaping: bool,
-    ended: bool,
+    ended: Option<Exit>,
     closing: bool,
     pub(super) requests: Queue<io::Request>,
     pub(super) reports: Queue<Report>,
@@ -54,36 +65,68 @@ pub(super) struct Child {
 impl Child {
     pub(super) fn new(settings: Front) -> Self {
         Self {
-            settings, active: None, wanted: Some(Kind::Fetch), process: None, life: None,
-            reads: Vec::new(), exit: None, box_exit: None, found: None, error: Vec::new(),
-            tail: Vec::new(), link: Vec::new(), linked: false, failure: None,
-            stopped: false, second: false, reaping: false, ended: false, closing: false,
-            requests: Queue::uncapped(), reports: Queue::uncapped(),
+            settings,
+            active: None,
+            wanted: Some(Kind::Fetch),
+            process: None,
+            life: None,
+            reads: Vec::new(),
+            exit: None,
+            box_exit: None,
+            found: None,
+            error: Vec::new(),
+            tail: Vec::new(),
+            link: Vec::new(),
+            linked: false,
+            failure: None,
+            stop: None,
+            reaping: false,
+            ended: None,
+            closing: false,
+            requests: Queue::uncapped(),
+            reports: Queue::uncapped(),
         }
     }
     fn spawn(&self, kind: Kind) -> Spawn {
         let (program, args, pipes) = match kind {
             Kind::Fetch => (
                 self.settings.executable.clone(),
-                vec![Box::from(b"internal".as_slice()), Box::from(b"fetch-box".as_slice()),
-                     Box::from(b"--cache".as_slice()), self.settings.cache.clone()],
-                vec![Pipe { child: 0, way: Way::Null, parent: None },
-                     Pipe { child: 1, way: Way::Out, parent: None },
-                     Pipe { child: 2, way: Way::Out, parent: None }],
+                vec![
+                    Box::from(b"internal".as_slice()),
+                    Box::from(b"fetch-box".as_slice()),
+                    Box::from(b"--cache".as_slice()),
+                    self.settings.cache.clone(),
+                ],
+                vec![
+                    Pipe { child: 0, way: Way::Null, parent: None },
+                    Pipe { child: 1, way: Way::Out, parent: None },
+                    Pipe { child: 2, way: Way::Out, parent: None },
+                ],
             ),
             Kind::Box => {
                 let mut args = vec![Box::from(b"--front".as_slice())];
                 args.extend(self.settings.arguments.iter().cloned());
-                (self.found.clone().expect("found box"), args,
-                 (0..5).map(|child| Pipe { child, way: if child == 0 { Way::In } else { Way::Out }, parent: None }).collect())
+                (
+                    self.found.clone().expect("found box"),
+                    args,
+                    (0..5)
+                        .map(|child| Pipe { child, way: if child == 0 { Way::In } else { Way::Out }, parent: None })
+                        .collect(),
+                )
             }
         };
-        Spawn { program, args: args.into(), env: self.settings.environment.clone(),
-                root: self.settings.directory, dir: Box::from(b".".as_slice()), pipes: pipes.into() }
+        Spawn {
+            program,
+            args: args.into(),
+            env: self.settings.environment.clone(),
+            root: self.settings.directory,
+            dir: Box::from(b".".as_slice()),
+            pipes: pipes.into(),
+        }
     }
     pub(super) fn progress(&mut self) {
         if let Some(kind) = self.wanted.take() {
-            if self.stopped {
+            if self.stop.is_some() {
                 self.end(Exit::Code(0));
             } else {
                 let owner = if kind == Kind::Fetch { FETCH } else { BOX };
@@ -92,11 +135,15 @@ impl Child {
                 self.exit = None;
                 self.reaping = false;
                 self.requests.push(io::Request::SpawnAlone { owner, spawn });
-                if kind == Kind::Box { self.reports.push(Report::Stage(BoxStage::Starting)); }
+                if kind == Kind::Box {
+                    self.reports.push(Report::Stage(BoxStage::Starting));
+                }
             }
         }
         for read in &mut self.reads {
-            if read.reading || read.closing { continue; }
+            if read.reading || read.closing {
+                continue;
+            }
             read.reading = true;
             let demand = match read.source {
                 Source::Fetch | Source::Lines => stream::Read::Scan {
@@ -105,48 +152,74 @@ impl Child {
                 },
                 Source::Error | Source::Output | Source::Link => stream::Read::Arrived { max: 8192 },
             };
-            self.requests.push(io::Request::Stream { stream: read.token,
-                down: stream::Down::Demand { read: demand, room: 0 } });
+            self.requests
+                .push(io::Request::Stream { stream: read.token, down: stream::Down::Demand { read: demand, room: 0 } });
         }
         if self.exit.is_some() && self.reads.is_empty() && !self.reaping {
             self.reaping = true;
-            if let Some(entity) = self.life.take() { self.requests.push(io::Request::Abort { entity }); }
-            if let Some(entity) = self.process { self.requests.push(io::Request::Abort { entity }); }
+            if let Some(entity) = self.life.take() {
+                self.requests.push(io::Request::Abort { entity });
+            }
+            if let Some(entity) = self.process {
+                self.requests.push(io::Request::Abort { entity });
+            }
         }
     }
     pub(super) fn event(&mut self, event: &io::Event) -> bool {
         match event {
             io::Event::Spawned { owner, child, pipes } if *owner == FETCH || *owner == BOX => {
                 self.process = Some(*child);
-                let sources: &[Source] = if *owner == FETCH { &[Source::Fetch, Source::Error] }
-                    else { self.life = pipes.first().copied(); &[Source::Output, Source::Output, Source::Link, Source::Lines] };
+                let sources: &[Source] = if *owner == FETCH {
+                    &[Source::Fetch, Source::Error]
+                } else {
+                    self.life = pipes.first().copied();
+                    &[Source::Output, Source::Output, Source::Link, Source::Lines]
+                };
                 let offset = usize::from(*owner == BOX);
                 for (token, source) in pipes.iter().skip(offset).zip(sources) {
-                    self.reads.push(Read { token: *token, source: *source, reading: false, closing: false, skipping: false });
+                    self.reads.push(Read {
+                        token: *token,
+                        source: *source,
+                        reading: false,
+                        closing: false,
+                        skipping: false,
+                    });
                 }
-                if self.closing { self.close(); }
-                else if self.stopped { self.stop_child(); }
+                if self.closing {
+                    self.close();
+                } else if self.stop.is_some() {
+                    self.stop_child();
+                }
                 true
             }
             io::Event::Exited { owner, exit } if *owner == FETCH || *owner == BOX => {
                 self.exit = Some(*exit);
-                if *owner == BOX { self.box_exit = Some(*exit); }
+                if *owner == BOX {
+                    self.box_exit = Some(*exit);
+                }
                 true
             }
             io::Event::Failed { owner, error } if *owner == FETCH || *owner == BOX => {
-                self.fail(format!("cannot start {}: {error:?}", if *owner == FETCH { "fetch-box" } else { "temper-box" }).into_bytes());
+                self.fail(
+                    format!("cannot start {}: {error:?}", if *owner == FETCH { "fetch-box" } else { "temper-box" })
+                        .into_bytes(),
+                );
                 true
             }
             io::Event::Closed { owner } if *owner == FETCH || *owner == BOX || self.process == Some(*owner) => {
                 self.process = None;
                 let kind = self.active.take();
-                if self.stopped {
+                if self.stop.is_some() {
                     self.end(self.box_exit.unwrap_or(Exit::Code(0)));
                 } else if kind == Some(Kind::Fetch) {
                     if self.exit == Some(Exit::Code(0)) && self.found.is_some() && self.failure.is_none() {
                         self.wanted = Some(Kind::Box);
                     } else if self.failure.is_none() {
-                        self.fail(if self.error.is_empty() { b"temper-box was not found".to_vec() } else { self.error.clone() });
+                        self.fail(if self.error.is_empty() {
+                            b"temper-box was not found".to_vec()
+                        } else {
+                            self.error.clone()
+                        });
                     }
                 } else if let Some(exit) = self.box_exit {
                     self.end(exit);
@@ -162,12 +235,24 @@ impl Child {
                 self.reads.retain(|read| read.token != *owner);
                 true
             }
-            io::Event::Closed { owner } if self.life == Some(*owner) => { self.life = None; true }
-            io::Event::Shutdown { .. } | io::Event::Failed { .. } | io::Event::Spawned { .. }
-            | io::Event::Exited { .. } | io::Event::Closed { .. } | io::Event::Stream { .. }
-            | io::Event::Resized | io::Event::Output { .. } | io::Event::Listening { .. }
-            | io::Event::Accepted { .. } | io::Event::Connecting { .. } | io::Event::Connected { .. }
-            | io::Event::Usage { .. } | io::Event::Window { .. } => false,
+            io::Event::Closed { owner } if self.life == Some(*owner) => {
+                self.life = None;
+                true
+            }
+            io::Event::Shutdown { .. }
+            | io::Event::Failed { .. }
+            | io::Event::Spawned { .. }
+            | io::Event::Exited { .. }
+            | io::Event::Closed { .. }
+            | io::Event::Stream { .. }
+            | io::Event::Resized
+            | io::Event::Output { .. }
+            | io::Event::Listening { .. }
+            | io::Event::Accepted { .. }
+            | io::Event::Connecting { .. }
+            | io::Event::Connected { .. }
+            | io::Event::Usage { .. }
+            | io::Event::Window { .. } => false,
         }
     }
     fn stream(&mut self, token: Token, up: &stream::Up) {
@@ -186,10 +271,12 @@ impl Child {
                     self.tail.drain(..remove);
                 }
                 Source::Link => {
-                    if self.failure.is_none() && !self.stopped {
+                    if self.failure.is_none() && self.stop.is_none() {
                         let room = LINK.saturating_add(1).saturating_sub(self.link.len());
                         self.link.extend(bytes.iter().take(room));
-                        if self.link.len() > LINK { self.no_link(); }
+                        if self.link.len() > LINK {
+                            self.no_link();
+                        }
                     }
                 }
                 Source::Fetch | Source::Lines => {
@@ -197,27 +284,40 @@ impl Child {
                         let whole = !read.skipping;
                         read.skipping = false;
                         if whole {
-                            if source == Source::Fetch { self.fetched(line); }
-                            else if let Some(line) = BoxLine::read(line) { self.reports.push(Report::Line(line)); }
+                            if source == Source::Fetch {
+                                self.fetched(line);
+                            } else if let Some(line) = BoxLine::read(line) {
+                                self.reports.push(Report::Line(line));
+                            }
                         }
-                    } else { read.skipping = true; }
+                    } else {
+                        read.skipping = true;
+                    }
                 }
             },
             stream::Up::End | stream::Up::Failed(_) => {
                 read.closing = true;
                 self.requests.push(io::Request::Abort { entity: token });
-                if source == Source::Link && !self.linked && self.failure.is_none() && !self.stopped {
-                    if matches!(up, stream::Up::End) { self.handed(); } else { self.no_link(); }
+                if source == Source::Link && !self.linked && self.failure.is_none() && self.stop.is_none() {
+                    if matches!(up, stream::Up::End) {
+                        self.handed();
+                    } else {
+                        self.no_link();
+                    }
                 }
             }
             stream::Up::Room => unreachable!("front pipes are read only"),
         }
     }
     fn fetched(&mut self, line: &[u8]) {
-        if self.stopped { return; }
+        if self.stop.is_some() {
+            return;
+        }
         if let Some(path) = line.strip_prefix(b"found ").filter(|path| path.starts_with(b"/") && !path.contains(&0)) {
             self.found = Some(path.into());
-        } else if let Some(words) = line.strip_prefix(b"fetched temper-box ").and_then(|words| words.strip_suffix(b" bytes")) {
+        } else if let Some(words) =
+            line.strip_prefix(b"fetched temper-box ").and_then(|words| words.strip_suffix(b" bytes"))
+        {
             let parts: Vec<_> = words.split(|byte| *byte == b' ').collect();
             let number = |bytes: &[u8]| std::str::from_utf8(bytes).ok()?.parse::<u64>().ok();
             let progress = match parts.as_slice() {
@@ -225,11 +325,16 @@ impl Child {
                 [done, b"of", total] => number(done).zip(number(total)).map(|(done, total)| (done, Some(total))),
                 _ => None,
             };
-            if let Some((done, total)) = progress { self.reports.push(Report::Stage(BoxStage::Fetching { done, total })); }
+            if let Some((done, total)) = progress {
+                self.reports.push(Report::Stage(BoxStage::Fetching { done, total }));
+            }
         }
     }
     fn handed(&mut self) {
-        let Some((engine, address)) = authority(&self.link) else { self.no_link(); return; };
+        let Some((engine, address)) = authority(&self.link) else {
+            self.no_link();
+            return;
+        };
         self.linked = true;
         self.reports.push(Report::Stage(BoxStage::Running));
         self.reports.push(Report::Link { engine, address, link: Secret::new(core::mem::take(&mut self.link).into()) });
@@ -238,7 +343,9 @@ impl Child {
         self.link.clear();
         self.fail(b"temper-box handed no link".to_vec());
         // A failed start is not the person's stop: its end leaves the TUI open.
-        if let Some(entity) = self.life.take() { self.requests.push(io::Request::Abort { entity }); }
+        if let Some(entity) = self.life.take() {
+            self.requests.push(io::Request::Abort { entity });
+        }
     }
     fn fail(&mut self, why: Vec<u8>) {
         if self.failure.is_none() {
@@ -248,46 +355,56 @@ impl Child {
         }
     }
     fn end(&mut self, exit: Exit) {
-        if !self.ended {
-            self.ended = true;
-            let end = match exit { Exit::Code(code) => BoxEnd::Exited { code },
-                Exit::Signal(signal) => BoxEnd::Killed { signal: u8::try_from(signal).expect("signal fits u8") } };
+        if self.ended.is_none() {
+            self.ended = Some(exit);
+            let end = match exit {
+                Exit::Code(code) => BoxEnd::Exited { code },
+                Exit::Signal(signal) => BoxEnd::Killed { signal: u8::try_from(signal).expect("signal fits u8") },
+            };
             self.reports.push(Report::Stage(BoxStage::Ended { end }));
         }
     }
     pub(super) fn stop(&mut self, stop: Stop) {
-        self.stopped = true;
-        self.second |= stop == Stop::Second;
+        self.stop = Some(if self.stop == Some(Stop::Second) { Stop::Second } else { stop });
         self.stop_child();
         if self.active.is_none() {
             self.wanted = None;
             // Failed fetches have already been reaped, so a quit has nothing to wait for.
-            self.ended = false;
             self.end(self.box_exit.unwrap_or(Exit::Code(0)));
         }
     }
     fn stop_child(&mut self) {
-        if self.active == Some(Kind::Fetch) || self.second {
-            if let Some(child) = self.process { self.requests.push(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child }); }
+        if (self.active == Some(Kind::Fetch) || self.stop == Some(Stop::Second))
+            && let Some(child) = self.process
+        {
+            self.requests.push(io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child });
         }
-        if let Some(entity) = self.life.take() { self.requests.push(io::Request::Abort { entity }); }
+        if let Some(entity) = self.life.take() {
+            self.requests.push(io::Request::Abort { entity });
+        }
     }
     pub(super) fn leave(&mut self) {
         self.wanted = None;
-        self.stopped = true;
+        self.stop = Some(Stop::First);
         self.stop_child();
     }
     pub(super) fn close(&mut self) {
         self.closing = true;
         self.wanted = None;
-        if let Some(entity) = self.life.take() { self.requests.push(io::Request::Abort { entity }); }
-        if let Some(entity) = self.process { self.requests.push(io::Request::Abort { entity }); }
+        if let Some(entity) = self.life.take() {
+            self.requests.push(io::Request::Abort { entity });
+        }
+        if let Some(entity) = self.process {
+            self.requests.push(io::Request::Abort { entity });
+        }
     }
     pub(super) fn pending(&self) -> bool {
-        self.wanted.is_some() || !self.requests.is_empty() || self.reads.iter().any(|read| !read.reading && !read.closing)
+        self.wanted.is_some()
+            || !self.requests.is_empty()
+            || self.reads.iter().any(|read| !read.reading && !read.closing)
     }
     pub(super) fn exit(&self) -> (u8, Box<[u8]>) {
-        if self.stopped && self.failure.is_none() && self.box_exit.unwrap_or(Exit::Code(0)) == Exit::Code(0) {
+        if self.stop.is_some() && self.failure.is_none() && self.box_exit.unwrap_or(Exit::Code(0)) == Exit::Code(0) {
             return (0, Box::new([]));
         }
         let mut words = b"temper: ".to_vec();
@@ -303,12 +420,16 @@ impl Child {
             let why = self.failure.as_deref().unwrap_or(b"temper-box handed no link");
             // fetch-box already writes the binary's prefix on its stderr.
             words.extend_from_slice(why.strip_prefix(b"temper: ").unwrap_or(why));
-            if !words.ends_with(b"\n") { words.push(b'\n'); }
+            if !words.ends_with(b"\n") {
+                words.push(b'\n');
+            }
             1
         };
         words.extend_from_slice(&self.tail);
         if ended.is_some() {
-            if !words.ends_with(b"\n") { words.push(b'\n'); }
+            if !words.ends_with(b"\n") {
+                words.push(b'\n');
+            }
             words.extend_from_slice(b"Log: ");
             words.extend_from_slice(&self.settings.log);
             words.push(b'\n');
@@ -318,11 +439,15 @@ impl Child {
 }
 
 fn authority(link: &[u8]) -> Option<(io::Addr, Box<[u8]>)> {
-    if link.is_empty() || link.len() > LINK { return None; }
+    if link.is_empty() || link.len() > LINK {
+        return None;
+    }
     let url = std::str::from_utf8(link).ok()?.strip_prefix("http://")?;
     let (authority, _) = url.split_once('/')?;
     let address = crate::start::address(format!("http://{authority}").as_bytes()).ok()?;
-    if address.port() == 0 { return None; }
+    if address.port() == 0 {
+        return None;
+    }
     Some((io::Addr::Ip(address), authority.as_bytes().into()))
 }
 

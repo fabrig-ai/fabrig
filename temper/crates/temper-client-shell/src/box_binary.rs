@@ -3,7 +3,7 @@ use crate::{CLIENT, Capture, SITE};
 use skein_shell::{Argument, Command, Reach, Set, Settings};
 use std::{
     ffi::OsStr,
-    io::{self, Write},
+    io::{self, IsTerminal, Write},
     os::unix::{ffi::OsStrExt, process::CommandExt},
     path::{Path, PathBuf},
 };
@@ -61,7 +61,7 @@ pub fn resolve(
             break;
         }
         if argument.as_ref() == b"--echo" {
-            echo_steps = rest.next().is_some_and(|value| value.as_ref() == b"steps");
+            echo_steps |= rest.next().is_some_and(|value| value.as_ref() == b"steps");
         }
     }
     Ok(BoxArguments { directories, echo_steps })
@@ -186,8 +186,8 @@ impl Write for Fetching<'_> {
     }
 }
 
-fn terminal_front(resolved: &BoxArguments, input: &impl io::IsTerminal, output: &impl io::IsTerminal) -> bool {
-    !resolved.echo_steps && input.is_terminal() && output.is_terminal()
+fn terminal_front(echo_steps: bool, input: bool, output: bool) -> bool {
+    !echo_steps && input && output
 }
 
 fn exec_command(file: &Path, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> std::process::Command {
@@ -202,11 +202,16 @@ fn exec_command(file: &Path, arguments: &[Box<[u8]>], environment: &[Environment
 pub(crate) fn run(arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
     let working = captured.working.as_ref().map_err(failure)?;
     let resolved = resolve(arguments, &captured.environment, working.as_os_str().as_bytes())?;
-    if terminal_front(&resolved, &io::stdin(), &io::stdout()) {
+    if terminal_front(resolved.echo_steps, io::stdin().is_terminal(), io::stdout().is_terminal()) {
         let executable = captured.executable.as_ref().map_err(failure)?;
         return Ok(temper_client_shell_tui::start::run_box(
-            executable.as_os_str().as_bytes(), &resolved.directories.cache, arguments, &resolved.directories.data,
-            &captured.environment, working.as_os_str().as_bytes(), &skein_shell::Clock::new(),
+            executable.as_os_str().as_bytes(),
+            &resolved.directories.cache,
+            arguments,
+            &resolved.directories.data,
+            &captured.environment,
+            working.as_os_str().as_bytes(),
+            &skein_shell::Clock::new(),
         ));
     }
     let inputs = Inputs::new(path(&resolved.directories.cache).into(), captured)?;

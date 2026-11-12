@@ -418,6 +418,9 @@ impl Host {
             return;
         };
         if self.handed {
+            if link.host.as_ref() != self.state().address() {
+                self.note = None;
+            }
             self.tell(Told::Address { address: link.host.clone() });
             self.handed = false;
         } else if link.host.as_ref() != self.state().address() {
@@ -661,6 +664,11 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
+        if self.state().front() && (self.words() == b"/quit" || self.words() == tui::EXIT) {
+            self.tell(Told::Cleared);
+            self.quit(duties);
+            return;
+        }
         if tui::landing(&self.root) {
             self.notice(tui::Notice::SigningIn);
             return;
@@ -1010,6 +1018,11 @@ impl Host {
         if !self.stopping || matches!(stage, tui::BoxStage::Ended { .. } | tui::BoxStage::Failed { .. }) {
             self.tell(Told::Stage { stage });
         }
+        if self.state().box_stage() == &tui::BoxStage::Stopping {
+            self.stopping = true;
+            self.need = None;
+            self.tell(Told::Stay);
+        }
         if ended && self.stopping {
             self.close(duties);
         }
@@ -1023,6 +1036,7 @@ impl Host {
         } else {
             self.stopping = true;
             self.need = None;
+            self.tell(Told::Stay);
             self.tell(Told::Stage { stage: tui::BoxStage::Stopping });
             duties.stop = Some(Stop::First);
         }

@@ -346,7 +346,9 @@ impl Run {
         }
         self.closing = true;
         self.local.closing = true;
-        if let Some(root) = &mut self.spawn_root { root.closing = true; }
+        if let Some(root) = &mut self.spawn_root {
+            root.closing = true;
+        }
         #[cfg(any(test, feature = "record"))]
         let saving = self.recording.is_some();
         #[cfg(not(any(test, feature = "record")))]
@@ -357,7 +359,11 @@ impl Run {
         self.shell.close();
         self.held.clear();
         if let Some(front) = &mut self.box_child {
-            if self.terminated { front.leave(); } else { front.close(); }
+            if self.terminated {
+                front.leave();
+            } else {
+                front.close();
+            }
         }
         self.opens.clear();
         if let Some(entity) = self.child {
@@ -378,8 +384,11 @@ impl Run {
         #[cfg(not(any(test, feature = "record")))]
         let duties = self.host.report(report);
         for request in duties.asked {
-            if self.front_ready { self.shell.down(request); }
-            else { self.held.push(request); }
+            if self.front_ready {
+                self.shell.down(request);
+            } else {
+                self.held.push(request);
+            }
         }
         if let Some(credential) = duties.keep {
             self.shell.keep(credential);
@@ -410,12 +419,20 @@ impl Run {
         }
         if let Some(stop) = duties.stop
             && let Some(front) = &mut self.box_child
-        { front.stop(stop); }
-        if duties.close { self.close(); }
+        {
+            front.stop(stop);
+        }
+        if duties.close {
+            self.close();
+        }
         if duties.local {
-            if self.front && !self.front_ready { self.local_wait = true; }
-            else if let Some(path) = &self.link_file { self.local.pending = Some(path.clone()); }
-            else { self.report(host::Report::Local { link: None }); }
+            if self.front && !self.front_ready {
+                self.local_wait = true;
+            } else if let Some(path) = &self.link_file {
+                self.local.pending = Some(path.clone());
+            } else {
+                self.report(host::Report::Local { link: None });
+            }
         }
     }
 
@@ -512,16 +529,19 @@ impl Run {
                 match report {
                     front::Report::Stage(stage) => self.report(host::Report::Stage(stage)),
                     front::Report::Line(line) => self.report(host::Report::Front(line)),
-                    front::Report::Link { engine, address, link } => {
+                    front::Report::Link { engine, address, link } if !self.closing => {
                         self.shell.point(engine);
                         self.address = address;
                         self.front_ready = true;
-                        while let Some(request) = self.held.pop() { self.shell.down(request); }
+                        while let Some(request) = self.held.pop() {
+                            self.shell.down(request);
+                        }
                         if self.local_wait {
                             self.local_wait = false;
                             self.report(host::Report::Local { link: Some(link) });
                         }
                     }
+                    front::Report::Link { .. } => {}
                 }
                 reported = true;
             }
@@ -617,7 +637,9 @@ impl Run {
             publish_files(&mut notes.submissions, &mut self.submit, 3);
         }
         publish_files(&mut self.local.submissions, &mut self.submit, 4);
-        if let Some(root) = &mut self.spawn_root { publish_files(&mut root.submissions, &mut self.submit, 5); }
+        if let Some(root) = &mut self.spawn_root {
+            publish_files(&mut root.submissions, &mut self.submit, 5);
+        }
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             publish_files(&mut recording.save.submissions, &mut self.submit, 2);
@@ -675,7 +697,9 @@ impl Host for Run {
             recording.save.progress(now);
         }
         self.local.progress(now);
-        if let Some(root) = &mut self.spawn_root { root.progress(now); }
+        if let Some(root) = &mut self.spawn_root {
+            root.progress(now);
+        }
         if let Some(notes) = &mut self.notes {
             notes.closing = self.closing && self.shell.is_empty();
             notes.progress(now);
@@ -704,7 +728,9 @@ impl Host for Run {
         if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
-        self.box_child.as_ref().is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
+        self.box_child
+            .as_ref()
+            .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
             || self.spawn_root.as_ref().is_some_and(|root| root.pending() || root.io.is_due(now))
             || self.local.pending()
             || self.local.io.is_due(now)
@@ -765,7 +791,9 @@ impl Host for Run {
             && self.told.is_empty()
     }
     fn exit(&self) -> Option<Exit> {
-        self.is_empty().then(|| Exit::Code(if self.refused || self.terminated { 1 } else { self.box_exit().map_or(0, |(code, _)| code) }))
+        self.is_empty().then(|| {
+            Exit::Code(if self.refused || self.terminated { 1 } else { self.box_exit().map_or(0, |(code, _)| code) })
+        })
     }
     fn operations(&self) -> u32 {
         self.operations
@@ -1119,9 +1147,8 @@ impl LocalFile {
 mod tests {
     use super::*;
 
-    #[test]
-    fn recording_keys_pass_to_the_host_without_a_root() {
-        let settings = Settings {
+    fn settings() -> Settings {
+        Settings {
             engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
@@ -1136,11 +1163,45 @@ mod tests {
             opener: None,
             record: None,
             front: None,
-        };
-        let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
+        }
+    }
+
+    #[test]
+    fn recording_keys_pass_to_the_host_without_a_root() {
+        let mut run = Run::new(settings(), Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
         for key in [Key::Alt('M'), Key::Alt('S'), Key::Alt('m'), Key::Alt('s')] {
             assert!(!run.record_key(&key), "no interception without a root: {key:?}");
         }
+    }
+
+    #[test]
+    fn a_signal_drops_a_link_already_waiting_to_be_reported() {
+        let mut settings = settings();
+        settings.front = Some(Front {
+            executable: b"/bin/temper".as_slice().into(),
+            cache: b"/cache".as_slice().into(),
+            arguments: Box::new([]),
+            environment: Box::new([]),
+            directory: Fd::new(5),
+            log: b"/data/box/logs/box.log".as_slice().into(),
+        });
+        let mut run =
+            Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4)).expect("synthetic descriptors");
+        run.started(None, Vec::new());
+        run.box_child.as_mut().expect("front").reports.push(front::Report::Link {
+            engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
+            address: b"[::1]:9400".as_slice().into(),
+            link: Secret::new(
+                b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                    .as_slice()
+                    .into(),
+            ),
+        });
+        run.event(&io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+        run.reports();
+        assert!(run.closing);
+        assert!(!run.front_ready, "no point or connection while closing");
+        assert!(run.held.is_empty());
     }
 }
