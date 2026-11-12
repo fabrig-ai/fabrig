@@ -8,6 +8,7 @@ use skein_lib::Queue;
 use skein_lib::{Decimal, Duration, List, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
+pub mod follows;
 mod rules;
 mod standing;
 pub mod wakes;
@@ -81,6 +82,7 @@ pub struct Facts {
     pub cut: bool,
     /// The project's triager, as its line names it; no read gives it yet.
     pub triager: Option<Box<[u8]>>,
+    pub follows: List<follows::Follow>,
     pub roles: List<Role>,
     pub roles_cut: bool,
     /// The address’s requested role; falls back to the first listed.
@@ -102,6 +104,8 @@ pub struct Parts {
     pub triager: bool,
     /// Positive sign-off counts, in words, by party.
     pub signed: List<(u64, Box<[u8]>)>,
+    pub follows: List<follows::Follow>,
+    pub card_follows: List<follows::Follow>,
     pub standing_roles: bool,
     pub roles_cut: bool,
     pub card: Option<u64>,
@@ -119,6 +123,8 @@ impl Default for Parts {
     fn default() -> Self {
         Self {
             signed: List::with_capacity(0),
+            follows: List::with_capacity(0),
+            card_follows: List::with_capacity(0),
             people: false,
             shared: None,
             triager: false,
@@ -195,8 +201,11 @@ pub fn parts(facts: &Facts) -> Parts {
         Some(detail) if Some(detail.task) == card => Some(detail),
         Some(_) | None => None,
     };
+    let (follows, card_follows) = follows::parts(facts, card);
     let mut parts = Parts {
         signed,
+        follows,
+        card_follows,
         people: !facts.people.is_empty(),
         shared: shared(facts),
         triager: facts.triager.is_some(),
@@ -308,6 +317,7 @@ pub fn gather(
         people,
         cut: project.cut,
         triager: None,
+        follows: List::with_capacity(0),
         roles: List::with_capacity(0),
         roles_cut: false,
         selected: None,
@@ -356,6 +366,8 @@ pub struct Team {
     sessions: sessions::Reader,
     changes_handle: Option<Handle>,
     changes: Option<Box<w::ChangesPanel>>,
+    follows_handle: Option<Handle>,
+    follows: Option<Box<w::FollowsPanel>>,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Reading {
@@ -383,6 +395,8 @@ impl Default for Team {
             sessions: sessions::Reader::default(),
             changes_handle: None,
             changes: None,
+            follows_handle: None,
+            follows: None,
         }
     }
 }
@@ -436,6 +450,18 @@ impl Team {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }
             self.changes = None;
+        }
+        if on_team && self.follows_handle.is_none() {
+            if let Some(subject) = crate::forge::follows::watch(project, &env.limits.forge) {
+                let handle = new_handle(next);
+                self.follows_handle = Some(handle);
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+            }
+        } else if !on_team {
+            if let Some(handle) = self.follows_handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            self.follows = None;
         }
         self.configure_others(you, on_team, &env.limits, next, out);
         self.standing.configure(project, address, next, out);
@@ -503,6 +529,9 @@ impl Team {
         if let Some(handle) = self.changes_handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
+        if let Some(handle) = self.follows_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
         *self = Self::default();
     }
     pub(super) fn told(
@@ -522,6 +551,14 @@ impl Team {
             return true;
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.follows_handle => {
+                self.follows = follows_panel(client, *handle, env.limits.forge, self.project).map(Box::new);
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.follows_handle => {
+                self.follows = None;
+                true
+            }
             Told::Changed { handle } if Some(*handle) == self.changes_handle => {
                 let panel = match client.document(*handle) {
                     Some(document) if document.state == jig_client::State::Ended => None,
@@ -602,6 +639,15 @@ impl Team {
         }
     }
 }
+fn follows_panel(client: &Client, handle: Handle, limits: crate::forge::Limits, project: Option<u32>) -> Option<w::FollowsPanel> {
+    let document = client.document(handle)?;
+    if document.state == jig_client::State::Ended {
+        return None;
+    }
+    let Latest::Family(record) = document.latest? else { return None };
+    let panel = temper_client_protocol_wire::decode_follows_panel(&record.bytes, &crate::forge::wire_limits(&limits)?)?;
+    if Some(panel.project()) == project { Some(panel) } else { None }
+}
 fn new_handle(next: &mut u64) -> Handle {
     let handle = Handle { asker: Owner::Pages.asker(), number: *next };
     *next = next.checked_add(1).expect("page handles fit");
@@ -658,12 +704,14 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
             people: List::with_capacity(0),
             cut: false,
             triager: None,
-            roles: List::with_capacity(0),
+            follows: List::with_capacity(0),
+        roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
             card: None,
         }
     };
+    facts.follows = follows::gather(state.follows.as_deref());
     state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
     if let Some(card) = &mut facts.card {
         card.sessions = state.sessions.rows(wall);
