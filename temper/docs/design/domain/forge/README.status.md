@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 5.1: a project's findings topic, its news to the task that holds a finding or the goal it is routed to, subscribed by the root in that decision [in flight: change 746].
+
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap
 in what reaches a person, the whole story's milestone N1,
 by plan `ui-reaches`. The crate `temper-protocol-reaches` holds the
@@ -255,7 +257,7 @@ runs it on the fake forge.
     place in it, and adoption's words leave out the queue, signatures,
     linear history, code owners and the App's bypass
     (`temper-service/src/family.rs`).
-  - 5.1: the findings topic and findings (`../findings.md`).
+  - 5.1: the findings topic's news on a finding's labels changing (`../findings.md`, section 3).
   - 5.3: a hold parked until a landing. An explicit landing subscription
     with no paths receives a known landing as kept news; it does not wake
     a parked hold.

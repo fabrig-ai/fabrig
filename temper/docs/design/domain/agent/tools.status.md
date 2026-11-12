@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
+
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut
   says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`)

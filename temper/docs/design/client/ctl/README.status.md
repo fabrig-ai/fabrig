@@ -63,12 +63,12 @@ The browser boundary check remains later work (section 11).
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 11).
 - **Not yet:** 7: area 3's `party make` and the host's `sign-in --service` (`tools.md`, sections 3 and 5), and the group `party` [in flight: change 724].
-- **Not yet:**  the groups `finding`, `qa` and
+- **Not yet:** the groups `finding` and `need`: `finding list`, `finding show`, `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` (`tools.md`, sections 1 to 3) [in flight: change 749].
+- **Not yet:**  the groups `qa` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
-   `repository receipts`, `finding list`, `finding show`, `qa marks`,
+   `repository receipts`, `qa marks`,
   `qa passes` and `hold list`.  `task move
-  --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold` and `project hold`.
+  --under`, `task succeed --by`, `qa choose`, `task hold` and `project hold`.
    area 2's procedure executor choice for `goal start`,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `deployment
   show`, `task move`, and the project's
