@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
-use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned};
+use rustls_std::pki_types::{CertificateDer, ServerName, pem::PemObject};
+use rustls_std::{ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use skein_json::{Document, Kind, document, tokenizer};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Intake, Queue, Time, Token, Wall};
@@ -199,7 +199,7 @@ impl Connection {
             roots.add(cert.expect("PEM certificate")).expect("valid trust anchor");
         }
         assert!(!roots.is_empty(), "live TLS needs trusted roots");
-        let mut config = ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        let mut config = ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
             .with_safe_default_protocol_versions()
             .expect("ring supports default TLS versions")
             .with_root_certificates(roots)

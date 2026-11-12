@@ -17,7 +17,7 @@ skein-sim.workspace = true
 skein-forge-kit.workspace = true
 skein-forge-connection.workspace = true
 skein-world.workspace = true
-rustls = { workspace = true, features = ["std"] }
+rustls-std = { workspace = true }
 skein-heap.workspace = true
 skein-fake-peers.workspace = true
 skein-fake-forge-domain.workspace = true

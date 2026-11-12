@@ -18,7 +18,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use rustls::server::ServerConfig;
+use rustls_std::server::ServerConfig;
 
 use skein_heap::{Meter, Span};
 use skein_lib::stream::{Down, Fault, Read, Up};

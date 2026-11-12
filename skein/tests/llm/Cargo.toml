@@ -22,7 +22,7 @@ skein-heap.workspace = true
 # Decode observed fixture framing with the existing independent reference reader.
 skein-http-kit.workspace = true
 # Caller-owned, certificate-verified transport for the opt-in live suite.
-rustls = { workspace = true, features = ["std"] }
+rustls-std = { workspace = true }
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
