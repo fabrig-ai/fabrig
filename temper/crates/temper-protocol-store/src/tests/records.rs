@@ -403,7 +403,13 @@ fn old_ended_rows_decode_with_or_without_a_hold() {
         wire.encode(&mut writer).expect("measured room");
         let mut expected = row.clone();
         expected.change.ended_held = ended_held;
-        assert_eq!(records::decode(&writer.finish(), &bounds), Ok(forge::Stored::Change(Box::new(expected))));
+        let forge::Stored::Change(decoded) = records::decode(&writer.finish(), &bounds).expect("old row decodes")
+        else {
+            panic!("change row")
+        };
+        assert_eq!(decoded.change.state, State::Ended);
+        assert_eq!(decoded.change.ended_held, ended_held);
+        assert_eq!(*decoded, expected);
     }
 }
 
