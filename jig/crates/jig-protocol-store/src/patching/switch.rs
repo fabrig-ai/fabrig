@@ -56,6 +56,7 @@ pub(crate) fn opened(store: &mut Store) {
 }
 
 pub(crate) fn ask(store: &mut Store, env: &Env<Limits>, owner: Token, above: &mut Queue<Event>, below: &mut Below) {
+    if store.rehearsal.is_some() { return open::refuse(store, owner, OpenRefusal::Failed, above); }
     let through = match store.phase {
         Phase::Ready { next, .. } => next.checked_sub(1).expect("ready has a next commit"),
         Phase::Closed | Phase::Stopped => return open::refuse(store, owner, OpenRefusal::Failed, above),

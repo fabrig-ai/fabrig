@@ -24,6 +24,7 @@ impl State {
     }
 }
 pub(crate) fn begin(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
+    if store.rehearsal.is_some() { return finish(store, Ok(true), above); }
     let result = next(store, below);
     finish(store, result, above);
 }

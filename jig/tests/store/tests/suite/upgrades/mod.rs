@@ -6,5 +6,6 @@ mod fresh_windows;
 mod generations;
 pub(crate) mod patching;
 mod upgrade_edges;
+mod rehearsal;
 
 mod baseline;

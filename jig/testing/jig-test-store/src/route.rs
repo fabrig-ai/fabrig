@@ -274,7 +274,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
         // The shell driving open owns progress; this root route prints no lines.
-        Event::Patched { .. }
+        Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } | Event::Patched { .. }
         | Event::Opened { .. }
         | Event::Kept { .. }
         | Event::Carried { .. }

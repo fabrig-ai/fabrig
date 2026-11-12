@@ -10,6 +10,12 @@ use skein_lib::{Queue, Secret, Token};
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
 pub enum Request {
+    /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
+    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
+    /// Name the previous generation again, before the active one's first own commit.
+    Back { owner: Token, root: Root },
+    /// End a rehearsal in any state and empty its scratch root.
+    Close { owner: Token },
     /// Open both stores in the deployment's directory (protocol/store/opening.md); the
     /// component's own rows and the core's header are checked before
     /// `Opened`. In skein-kv's memory mode, the worlds' component needs none.
@@ -501,6 +507,10 @@ pub enum Generations {
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
+    Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool },
+    Back { owner: Token, to: u64 },
+    BackRefused { owner: Token, why: BackRefusal },
+    Closed { owner: Token, removed: bool },
     /// Both stores are open and checked; `last` is the last durable commit.
     /// `installation` is the installation's identifier (protocol/store/README.md 4.4): the
     /// kept one, or, in an empty store, the drawn one its first commit keeps.
@@ -635,6 +645,22 @@ pub enum Event {
         patch: u32,
         counts: crate::Counts,
     },
+}
+
+/// A wire the deployment's last start kept (protocol/store/opening.md 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KeptWire {
+    pub name: Box<str>,
+    pub version: u32,
+}
+
+/// Why the active generation cannot go back (protocol/store/opening.md 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BackRefusal {
+    Busy,
+    NoPrevious,
+    Committed { manifest: u64, last: u64 },
+    Unreadable,
 }
 
 /// A directory adopted by the service (skein/docs/design/runtime/io/README.md, section 6).

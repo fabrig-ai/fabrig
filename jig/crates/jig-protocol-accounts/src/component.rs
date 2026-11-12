@@ -804,7 +804,7 @@ impl Component {
             | store::Event::Opened { .. }
             | store::Event::OpenRefused { .. }
             | store::Event::Site { .. }
-            | store::Event::Patched { .. }
+            | store::Event::Rehearsing { .. } | store::Event::Back { .. } | store::Event::BackRefused { .. } | store::Event::Closed { .. } | store::Event::Patched { .. }
             | store::Event::Committed { .. }
             | store::Event::Failed { .. }
             | store::Event::FrameTooLarge { .. }
@@ -1063,7 +1063,7 @@ impl Component {
                 | store::Event::Opened { .. }
                 | store::Event::OpenRefused { .. }
                 | store::Event::Site { .. }
-                | store::Event::Patched { .. }
+                | store::Event::Rehearsing { .. } | store::Event::Back { .. } | store::Event::BackRefused { .. } | store::Event::Closed { .. } | store::Event::Patched { .. }
                 | store::Event::Committed { .. }
                 | store::Event::Failed { .. }
                 | store::Event::FrameTooLarge { .. }

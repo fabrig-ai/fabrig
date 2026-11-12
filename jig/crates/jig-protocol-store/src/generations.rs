@@ -139,12 +139,21 @@ enum Step {
 pub(crate) struct Removing {
     levels: List<Level>,
     step: Step,
+    keep_root: bool,
 }
 pub(crate) fn remove(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Request>) -> Removing {
     let mut levels = List::with_capacity(DEPTH);
     queue.push(file::Request::OpenDirectory { owner: OWNER, root: parent.fd, name: name.clone(), no_follow: true });
     levels.push(Level { parent, name, root: None, entries: Box::new([]), next: 0 }).expect("first level fits");
-    Removing { levels, step: Step::Opening }
+    Removing { levels, step: Step::Opening, keep_root: false }
+}
+/// Empty a caller-owned scratch root, without removing the root itself (opening.md 5).
+pub(crate) fn empty(root: Root, queue: &mut Queue<file::Request>) -> Removing {
+    let name: Box<[u8]> = Box::from(b".".as_slice());
+    let mut levels = List::with_capacity(5);
+    queue.push(file::Request::OpenDirectory { owner: OWNER, root: root.fd, name: name.clone(), no_follow: true });
+    levels.push(Level { parent: root, name, root: None, entries: Box::new([]), next: 0 }).expect("scratch root fits");
+    Removing { levels, step: Step::Opening, keep_root: true }
 }
 fn top(removing: &mut Removing) -> &mut Level {
     let index = removing.levels.len().checked_sub(1).expect("a removal has a level");
@@ -240,6 +249,10 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
             let file::Event::Closed { .. } = arrived.event else {
                 return fail(removing, queue);
             };
+            if empty && removing.keep_root && removing.levels.len() == 1 {
+                removing.levels.truncate(0);
+                return Progress::Done;
+            }
             let level = top(removing);
             if empty {
                 queue.push(file::Request::Remove {
@@ -306,6 +319,7 @@ enum CopyStep {
 #[derive(Debug)]
 pub(crate) struct Copying {
     root: Root,
+    source_root: Root,
     from: u64,
     to: u64,
     chunk: u32,
@@ -324,9 +338,10 @@ pub(crate) struct Copying {
     progress: Progress,
 }
 pub(crate) fn copy(root: Root, from: u64, chunk: u32, below: &mut crate::Below) -> Copying {
-    let to = from.checked_add(1);
-    let valid = from != 0 && to.is_some() && chunk != 0;
-    let to = to.unwrap_or(from);
+    copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, below)
+}
+pub(crate) fn copy_between(source_root: Root, root: Root, from: u64, to: u64, chunk: u32, below: &mut crate::Below) -> Copying {
+    let valid = from != 0 && to != 0 && chunk != 0;
     if valid {
         below.transcripts.push(file::Request::MakeDirectory {
             owner: OWNER,
@@ -337,6 +352,7 @@ pub(crate) fn copy(root: Root, from: u64, chunk: u32, below: &mut crate::Below) 
     }
     Copying {
         root,
+        source_root,
         from,
         to,
         chunk,
@@ -469,7 +485,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             copying.destination = Some(Root { token: file, fd });
             queue.push(file::Request::OpenDirectory {
                 owner: OWNER,
-                root: copying.root.fd,
+                root: copying.source_root.fd,
                 name: map(copying.from, copying.map),
                 no_follow: true,
             });

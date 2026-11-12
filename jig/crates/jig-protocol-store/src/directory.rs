@@ -348,6 +348,16 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         crate::transcripts::cut::begin(store, above, below);
         return;
     }
+    if store.rehearsal.is_some() {
+        if store.directory.transcripts.is_some() {
+            crate::transcripts::cut::begin(store, above, below);
+        } else {
+            let source = crate::rehearsal::source(store);
+            store.directory.opening = Opening::TranscriptsOpen;
+            open_directory(source, Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
+        }
+        return;
+    }
     if pending(store).is_some() {
         open_directory(deployment(store), Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
     } else {
@@ -446,7 +456,7 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
         Opening::SweepSync { root } => sweep_synced(store, root, arrived, above, below),
         Opening::SweepClose(closing) => sweep_closed(store, closing, arrived, above, below),
         Opening::TranscriptsMade => transcripts_made(store, env, arrived, above, below),
-        Opening::TranscriptsOpen => transcripts_opened(store, arrived, above, below),
+        Opening::TranscriptsOpen => transcripts_opened(store, env, arrived, above, below),
         Opening::Pending(_) => unreachable!("pending routed before taking opening"),
         Opening::Idle | Opening::Stores | Opening::Patching(_) => refuse(store, above),
     }
@@ -817,11 +827,15 @@ fn transcripts_made(
     store.directory.opening = Opening::TranscriptsOpen;
     open_directory(root, Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
 }
-fn transcripts_opened(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
+fn transcripts_opened(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     let Some(opened) = opened(arrived) else {
         return refuse(store, above);
     };
     store.directory.transcripts = Some(opened);
+    if let Some(pending) = store.directory.patch.take() {
+        phase::begin(store, env, pending, above, below);
+        return;
+    }
     crate::transcripts::cut::begin(store, above, below);
 }
 fn open_stores(store: &mut Store, env: &Env<Limits>, opened: Root, above: &mut Queue<Event>, below: &mut Below) {
@@ -865,7 +879,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
                 Phase::Ready { .. } => {
                     if arrived.event.owner() == OWNER {
                         if pending(store).is_some() && store.directory.transcripts.is_none() {
-                            transcripts_opened(store, arrived, above, below);
+                            transcripts_opened(store, env, arrived, above, below);
                         } else {
                             directory(store, env, arrived, above, below);
                         }

@@ -272,3 +272,15 @@ impl Layouts {
         Ok(Self { component, core, tasks, people, notes, accounts, settings, secrets, skein_oauth, smith_transcript })
     }
 }
+
+/// Decode the last start's optional wires for rehearsal (protocol/store/opening.md 5).
+#[expect(clippy::disallowed_methods, reason = "the protocol codec validates stored wire names as UTF-8")]
+pub(crate) fn kept_wires(bytes: &[u8]) -> Option<Box<[crate::KeptWire]>> {
+    let row = crate::component_v3::Wires::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).ok()?;
+    let mut wires = List::with_capacity(crate::component_v3::CEILINGS.wires_wires);
+    for wire in row.wires() {
+        let name = core::str::from_utf8(wire.name()).ok()?;
+        wires.push(crate::KeptWire { name: Box::from(name), version: wire.version() }).expect("decoded wire count fits");
+    }
+    Some(wires.into_boxed())
+}

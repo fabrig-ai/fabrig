@@ -127,6 +127,7 @@ fn close_directories(store: &mut Store, below: &mut Below) {
     store.stores.secrets = skein_kv::Store::new(&store.limits.secrets);
 }
 fn dropping(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
+    if store.rehearsal.is_some() { return copying(store, above, below); }
     let dropping = generations::drop_previous(root(store), active(store), below);
     match dropping.progress() {
         Progress::Pending => state(store, Patching::Dropping(dropping)),
