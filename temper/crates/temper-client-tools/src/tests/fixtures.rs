@@ -116,7 +116,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["task", "hand-back", "41"],
     &["task", "notes", "41", "--project", "shop"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
-    &["project", "remove", "shop", "--key", "drop-shop"],
+    &["project", "delete", "shop", "--key", "drop-shop"],
     &[
         "goal",
         "start",

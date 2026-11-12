@@ -157,7 +157,7 @@ fn a_kept_project_removal_prints_its_operation_and_outcome() {
         let expected = if json {
             b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"document\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
         } else {
-            b"kept: remove-project, removed: project 7\n".as_slice()
+            b"kept: remove-project, deleted: project 7\n".as_slice()
         };
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
     }

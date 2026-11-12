@@ -175,6 +175,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::Forgotten { .. }
         | Refusal::Stale { .. }
         | Refusal::Full { .. }
+        | Refusal::LiveTasks { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
         | Refusal::Kept { .. }

@@ -295,6 +295,21 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
             settings_form::refusal(&settings_form::Refusal::Stale(value.newest), out);
             return;
         }
+        Refusal::LiveTasks { tasks, more } => {
+            plain_refusal(why, book, out);
+            let mut first = true;
+            for task in tasks {
+                out.put(if first { b" " } else { b", " });
+                out.number(*task);
+                first = false;
+            }
+            if *more != 0 {
+                out.put(b", and ");
+                out.number(u64::from(*more));
+                out.put(b" more");
+            }
+            return;
+        }
         Refusal::Full(value) => {
             out.put(b"full; oldest held revision ");
             out.number(u64::from(value.revision));
@@ -391,6 +406,7 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::KeyConflict
+        | Refusal::LiveTasks { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
         | Refusal::Kept { .. }

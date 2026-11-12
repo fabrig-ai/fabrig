@@ -27,6 +27,10 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
             limits,
             w::RefusalAccountMoveParts { why: wire_account_move_why(why, limits)? },
         )?),
+        c::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks::new(
+            limits,
+            w::RefusalLiveTasksParts { tasks: tasks.clone(), more: *more },
+        )?),
         c::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle::new(
             limits,
             w::RefusalCircleParts {

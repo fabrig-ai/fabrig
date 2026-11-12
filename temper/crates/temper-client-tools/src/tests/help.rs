@@ -294,7 +294,7 @@ const USAGES: &[&[u8]] = &[
     b"task hand-back TASK [--key KEY]\n",
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
-    b"project remove PROJECT --key KEY\n",
+    b"project delete PROJECT --key KEY\n",
     b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
     b"role list --project PROJECT [--after CURSOR]\n",
     b"role show TASK [--report]\n",
