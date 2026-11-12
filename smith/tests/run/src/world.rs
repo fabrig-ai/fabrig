@@ -1400,7 +1400,7 @@ impl World {
                     self.send(Lane::Agent, Delivery::Start { reply_to, host_run, charter, workspace });
                 }
                 event @ (run::Event::Message { .. } | run::Event::Drain { .. }) => {
-                    self.send(Lane::Agent, Delivery::Host(event))
+                    self.send(Lane::Agent, Delivery::Host(event));
                 }
                 run::Event::Cancel { run } => {
                     self.stats.cancels += 1;

@@ -386,7 +386,9 @@ impl World {
                 }
             }
             agent::Down::Acknowledge { .. } | agent::Down::Cancel => {}
-            agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
+            agent::Down::Message { .. } | agent::Down::Grant { .. } | agent::Down::Drain => {
+                panic!("unscripted down record")
+            }
         }
     }
 
