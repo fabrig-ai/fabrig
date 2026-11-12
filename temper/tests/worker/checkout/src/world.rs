@@ -167,6 +167,8 @@ pub struct Stats {
     /// those a cancel ended; cancels that lost their race; cancels for an
     /// operation that ended in the iteration they were sent.
     pub ops: u32,
+    /// Store requests overlapping an in-flight making of the same token.
+    pub store_overlaps: u32,
     pub op_timeouts: u32,
     pub op_broken: u32,
     pub cancels: u32,
@@ -316,6 +318,7 @@ pub struct World {
     /// The pushes of each hold's push or save under way, by remote.
     attempts: BTreeMap<(Token, Vec<u8>), Attempt>,
     ops: Ledger<Token, Pending>,
+    making: BTreeMap<Token, Token>,
     cancel_lost: BTreeSet<Token>,
     stats: Stats,
     told: Told,
@@ -377,6 +380,7 @@ impl World {
             transfers: BTreeMap::new(),
             attempts: BTreeMap::new(),
             ops: Ledger::new("operation"),
+            making: BTreeMap::new(),
             cancel_lost: BTreeSet::new(),
             stats: Stats::default(),
             told: Told::default(),
@@ -395,7 +399,6 @@ impl World {
             self.domain.reuse_workspaces();
         } else {
             self.disk.remove(b"ws");
-            self.disk.remove(b"stores");
         }
         self.stage = Stage::uncapped(self.settings.checkout);
         self.holds.clear();
@@ -457,6 +460,12 @@ impl World {
     #[must_use]
     pub fn workstream(&self, place: u32) -> &[usize] {
         &self.workstreams[usize::try_from(place).expect("a small world")]
+    }
+
+    /// Choose the repositories, in order, for a workstream's next prepares.
+    pub fn set_repositories(&mut self, workstream: usize, places: &[usize]) {
+        assert!(places.iter().all(|place| *place < self.repositories.len()));
+        self.workstreams[workstream] = places.to_vec();
     }
 
     /// Another party advances `branch` of the repository at `place`, at `at`.
@@ -1052,6 +1061,12 @@ impl World {
             }
             self.workspaces.insert(workspace);
         }
+        if let Op::Store { store, .. } = &op {
+            if self.making.values().any(|making| making == store) {
+                self.stats.store_overlaps += 1;
+            }
+            assert!(self.making.insert(owner, *store).is_none());
+        }
         let verifies = self.attempt(owner, client.operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
         let mut ends = self.now.saturating_add(span.draw(&mut self.rng));
@@ -1144,6 +1159,7 @@ impl World {
     /// The operation of `owner` ends, and io tells the checkout how.
     fn ran(&mut self, owner: Token) {
         let pending = self.ops.end(owner);
+        self.making.remove(&owner);
         self.cancel_lost.remove(&owner);
         let done = match pending.work {
             Work::Perform(op) => self.perform(owner, op),

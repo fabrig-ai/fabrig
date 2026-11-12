@@ -225,6 +225,11 @@ fn remote(name: &[u8]) -> Box<[u8]> {
     remote.finish()
 }
 
+fn store_token(name: &[u8]) -> Token {
+    let hash = skein_lib::sha256::digest(&remote(name));
+    Token::new(u64::from_be_bytes(hash[..8].try_into().expect("eight bytes")))
+}
+
 fn spec(key: &[u8], repositories: Box<[Repository]>) -> Spec {
     Spec { key: bytes(key), repositories }
 }
@@ -316,12 +321,19 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     let (hold, op) = h.begin(7, two(b"issue-1"));
     assert_eq!(
         op,
-        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
+        Op::Store {
+            store: store_token(b"a"),
+            aside: None,
+            remote: remote(b"a"),
+            identity: 0,
+            account: None,
+            git: None
+        }
     );
     assert_eq!(
         h.next(hold, Done::Succeeded),
         Op::Store {
-            store: Token::new(1_u64 << 32),
+            store: store_token(b"b"),
             aside: None,
             remote: remote(b"b"),
             identity: 0,
@@ -331,14 +343,14 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     );
     let op = h.next(hold, Done::Succeeded);
     let Op::Make { workspace, ref stores } = op else { panic!("a new workspace is made: {op:?}") };
-    assert_eq!(stores.as_ref(), &[Token::new(0), Token::new(1_u64 << 32)]);
+    assert_eq!(stores.as_ref(), &[store_token(b"a"), store_token(b"b")]);
     let identity = 0;
-    let clone_a = Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: Token::new(0) };
+    let clone_a = Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: store_token(b"a") };
     assert_eq!(h.next(hold, Done::Succeeded), clone_a);
-    let clone_b = Op::Clone { at: place(workspace, b"b"), remote: remote(b"b"), store: Token::new(1_u64 << 32) };
+    let clone_b = Op::Clone { at: place(workspace, b"b"), remote: remote(b"b"), store: store_token(b"b") };
     assert_eq!(h.next(hold, Done::Succeeded), clone_b);
     let fetch_a = Op::Fetch {
-        store: Token::new(0),
+        store: store_token(b"a"),
         into: Into::Fetched,
         at: place(workspace, b"a"),
         remote: remote(b"a"),
@@ -350,7 +362,7 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     let check_out_a = Op::CheckOut { at: place(workspace, b"a"), commit: commit(1), clean: true };
     assert_eq!(h.replaced(hold, commit(1)), check_out_a);
     let fetch_b = Op::Fetch {
-        store: Token::new(1_u64 << 32),
+        store: store_token(b"b"),
         into: Into::Fetched,
         at: place(workspace, b"b"),
         remote: remote(b"b"),
@@ -518,7 +530,7 @@ fn an_evicted_workspace_spoiled_by_a_broken_operation_is_made_again() {
     h.one(Event::Release { hold });
     h.facts();
     let (_, op) = h.prepare(3, one(b"new"));
-    assert_eq!(op, Op::Make { workspace, stores: Box::new([Token::new(0)]) });
+    assert_eq!(op, Op::Make { workspace, stores: Box::new([store_token(b"a")]) });
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
 }
 
@@ -531,7 +543,7 @@ fn reuse_considers_only_the_least_recently_used_idle_workspace() {
     h.one(Event::Release { hold: matching });
     h.facts();
     let (_, op) = h.prepare(3, one(b"new"));
-    assert_eq!(op, Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0)]) });
+    assert_eq!(op, Op::Make { workspace: Token::new(0), stores: Box::new([store_token(b"a")]) });
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(3), cached: Cached::Evicted }));
     let (_, op) = h.prepare(4, one(b"matching"));
     assert_eq!(op.kind(), Kind::Fetch, "the newer matching workspace stays with its workstream");
@@ -2285,7 +2297,7 @@ fn a_look_that_does_not_hold_makes_then_clones() {
         }
         assert_eq!(
             h.next(hold, Done::Looked { holds: false }),
-            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
+            Op::Make { workspace: Token::new(0), stores: Box::new([store_token(b"a"), store_token(b"b")]) }
         );
         assert_eq!(h.next(hold, Done::Succeeded).kind(), Kind::Clone);
     }
@@ -2297,10 +2309,7 @@ fn a_first_saved_start_makes_without_looking() {
         let mut h = if reuse { Harness::reusing(LIMITS) } else { Harness::new(LIMITS) };
         let repo = Repository { start: Start::Saved { branch: bytes(b"saved") }, ..repository(b"b", false) };
         let (_, op) = h.prepare(1, spec(b"work", Box::new([repository(b"a", true), repo])));
-        assert_eq!(
-            op,
-            Op::Make { workspace: Token::new(0), stores: Box::new([Token::new(0), Token::new(1_u64 << 32)]) }
-        );
+        assert_eq!(op, Op::Make { workspace: Token::new(0), stores: Box::new([store_token(b"a"), store_token(b"b")]) });
         assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::New }));
     }
 }
@@ -2396,28 +2405,201 @@ fn a_made_remote_needs_no_store_for_another_workstream() {
     let first = h.ready(1, one(b"a"));
     let (second, op) = h.begin(2, one(b"b"));
     let Op::Make { workspace, stores } = op else { panic!("no Store after the first made it: {op:?}") };
-    assert_eq!(stores.as_ref(), &[Token::new(0)]);
+    assert_eq!(stores.as_ref(), &[store_token(b"a")]);
     assert_eq!(
         h.next(second, Done::Succeeded),
-        Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: Token::new(0) }
+        Op::Clone { at: place(workspace, b"a"), remote: remote(b"a"), store: store_token(b"a") }
     );
     h.one(Event::Release { hold: first });
 }
+/// Admit a prepare that waits without asking io for anything.
+fn waiting(h: &mut Harness, client: u64, spec: Spec) -> Token {
+    let Request::Held { client: to, hold } = h.one(Event::Prepare { client: Token::new(client), spec }) else {
+        panic!("a waiter is admitted");
+    };
+    assert_eq!(to, Token::new(client));
+    hold
+}
+
+fn make(request: &Request, hold: Token, expected: &[Token]) {
+    let Request::Io { owner, op: Op::Make { stores, .. }, .. } = request else {
+        panic!("the prepare goes on without its own Store: {request:?}");
+    };
+    assert_eq!(*owner, hold);
+    assert_eq!(stores.as_ref(), expected);
+}
+
 #[test]
-fn concurrent_prepares_make_one_remote_independently() {
+fn concurrent_prepares_share_one_store_maker() {
     let mut h = Harness::new(LIMITS);
     let (first, store) = h.begin(1, one(b"a"));
-    let (second, same) = h.begin(2, one(b"b"));
-    assert_eq!(
-        store,
-        Op::Store { store: Token::new(0), aside: None, remote: remote(b"a"), identity: 0, account: None, git: None }
-    );
-    assert_eq!(same, store);
-    for hold in [first, second] {
-        let Op::Make { stores, .. } = h.next(hold, Done::Succeeded) else { panic!("each successful Store goes on") };
-        assert_eq!(stores.as_ref(), &[Token::new(0)]);
+    let Op::Store { store, .. } = store else { panic!("the first makes the store") };
+    let second = waiting(&mut h, 2, one(b"b"));
+    h.facts();
+    let requests = h.step(Event::Done { owner: first, done: Done::Succeeded });
+    assert_eq!(requests.len(), 2);
+    make(requests.get(0).expect("maker"), first, &[store]);
+    make(requests.get(1).expect("waiter"), second, &[store]);
+    let facts = h.facts();
+    for client in [1, 2] {
+        assert!(
+            facts.as_slice().contains(&Fact::Started { client: Token::new(client), op: Kind::Make }),
+            "each resumed operation is told as its own client's fact: {facts:?}"
+        );
     }
 }
+
+#[test]
+fn a_failed_or_cancelled_store_passes_to_only_the_oldest_waiter() {
+    for fault in [Fault::Broken, Fault::Cancelled, Fault::Missing { missing: Missing::Repository }] {
+        let mut h = Harness::new(Limits { workspaces: 3, repositories: 1, ..LIMITS });
+        // Fill the table so every making, including a successor's, carries aside.
+        for name in [b"x", b"y", b"z"] {
+            let mut repo = repository(b"a", false);
+            repo.remote = remote(name);
+            let hold = h.ready(10, spec(name, Box::new([repo])));
+            h.one(Event::Release { hold });
+        }
+        let (first, store) = h.begin(1, one(b"a"));
+        let Op::Store { aside: Some(_), .. } = store else { panic!("a full table evicts a remote") };
+        let second = waiting(&mut h, 2, one(b"b"));
+        let third = waiting(&mut h, 3, one(b"c"));
+        if fault == Fault::Cancelled {
+            assert_eq!(h.one(Event::Abort { hold: first }), Request::Cancel { owner: first });
+        }
+        let mut requests = h.step(Event::Done { owner: first, done: failed(fault) });
+        assert_eq!(requests.len(), 2, "only one waiter is asked");
+        let Request::Prepared { client, prepared: ending } = requests.swap_remove(0).expect("maker ends") else {
+            panic!("maker ends");
+        };
+        assert_eq!(client, Token::new(1));
+        match fault {
+            Fault::Cancelled => assert_eq!(ending, Prepared::Aborted),
+            Fault::Broken | Fault::Missing { .. } => {
+                let Prepared::Failed { failure, .. } = ending else { panic!("maker failed") };
+                let expected = if fault == Fault::Broken {
+                    Failure::Transient
+                } else {
+                    Failure::Missing { repository: 0, missing: Missing::Repository }
+                };
+                assert_eq!(failure, expected);
+            }
+            Fault::Refused | Fault::Unreachable | Fault::TimedOut => unreachable!(),
+        }
+        assert_eq!(io(requests.swap_remove(0).expect("successor"), second), store, "same token and aside");
+        if fault == (Fault::Missing { missing: Missing::Repository }) {
+            let mut requests = h.step(Event::Done { owner: second, done: failed(fault) });
+            assert_eq!(requests.len(), 2);
+            let Some(Request::Prepared { client, prepared: Prepared::Failed { .. } }) = requests.get(0) else {
+                panic!("second maker fails too");
+            };
+            assert_eq!(*client, Token::new(2));
+            assert_eq!(io(requests.swap_remove(1).expect("last waiter"), third), store);
+            let Prepared::Failed { failure, .. } = prepared(h.one(Event::Done { owner: third, done: failed(fault) }))
+            else {
+                panic!("each waiter tries once");
+            };
+            assert_eq!(failure, Failure::Missing { repository: 0, missing: Missing::Repository });
+        } else {
+            let requests = h.step(Event::Done { owner: second, done: Done::Succeeded });
+            assert_eq!(requests.len(), 2);
+            let Op::Store { store, .. } = store else { unreachable!() };
+            make(requests.get(0).expect("successor"), second, &[store]);
+            make(requests.get(1).expect("remaining waiter"), third, &[store]);
+        }
+    }
+}
+
+#[test]
+fn a_waiter_ends_at_once_without_cancelling_the_maker() {
+    for release in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let (first, op) = h.begin(1, one(b"a"));
+        let Op::Store { store, .. } = op else { panic!("maker") };
+        let second = waiting(&mut h, 2, one(b"b"));
+        assert_eq!(refused(h.one(Event::Push { hold: second, message: message() })), Refusal::Busy);
+        assert_eq!(refused(h.one(Event::Save { hold: second, message: message() })), Refusal::Busy);
+        let event = if release { Event::Release { hold: second } } else { Event::Abort { hold: second } };
+        let requests = h.step(event);
+        assert_eq!(requests.len(), if release { 2 } else { 1 });
+        assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(2), prepared: Prepared::Aborted }));
+        if release {
+            assert_eq!(requests.get(1), Some(&Request::Released { client: Token::new(2) }));
+        }
+        let request = h.one(Event::Done { owner: first, done: Done::Succeeded });
+        make(&request, first, &[store]);
+        if !release {
+            assert_eq!(h.one(Event::Release { hold: second }), Request::Released { client: Token::new(2) });
+        }
+    }
+}
+
+#[test]
+fn opposite_repository_orders_finish_with_one_store_per_remote() {
+    let mut h = Harness::new(LIMITS);
+    let (first, a) = h.begin(1, two(b"first"));
+    let (second, b) = h.begin(2, spec(b"second", Box::new([repository(b"b", false), repository(b"a", true)])));
+    let Op::Store { store: a, remote: source, .. } = a else { panic!("a maker") };
+    assert_eq!(source, remote(b"a"));
+    let Op::Store { store: b, remote: source, .. } = b else { panic!("b maker") };
+    assert_eq!(source, remote(b"b"));
+    h.none(Event::Done { owner: first, done: Done::Succeeded });
+    let requests = h.step(Event::Done { owner: second, done: Done::Succeeded });
+    assert_eq!(requests.len(), 2);
+    make(requests.get(0).expect("second"), second, &[b, a]);
+    make(requests.get(1).expect("first"), first, &[a, b]);
+    for (hold, client) in [(first, 1), (second, 2)] {
+        let mut op = h.next(hold, Done::Succeeded);
+        let mut ready = false;
+        for _ in 0..16_u32 {
+            let done = match &op {
+                Op::Store { .. } => panic!("exactly one Store per remote"),
+                Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
+                Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => Done::Succeeded,
+                Op::Look { .. }
+                | Op::Create { .. }
+                | Op::IsAncestor { .. }
+                | Op::DiffPaths { .. }
+                | Op::Merge { .. }
+                | Op::Commit { .. }
+                | Op::Push { .. } => panic!("branch preparation only"),
+            };
+            match h.one(Event::Done { owner: hold, done }) {
+                Request::Io { op: next, .. } => op = next,
+                Request::Prepared { client: to, prepared: Prepared::Ready { .. } } => {
+                    assert_eq!(to, Token::new(client));
+                    ready = true;
+                    break;
+                }
+                other @ (Request::Held { .. }
+                | Request::Prepared { .. }
+                | Request::Pushed { .. }
+                | Request::Saved { .. }
+                | Request::Released { .. }
+                | Request::Cancel { .. }) => {
+                    panic!("both become ready: {other:?}");
+                }
+            }
+        }
+        assert!(ready, "both become ready within the preparation steps");
+        h.one(Event::Release { hold });
+    }
+}
+
+#[test]
+fn store_tokens_survive_a_restart_and_repository_reordering() {
+    assert_eq!(store_token(b"a"), Token::new(8_130_188_230_355_731_069));
+    for [a, b] in [[b"a", b"b"], [b"b", b"a"]] {
+        let mut h = Harness::new(LIMITS);
+        let spec = spec(b"work", Box::new([repository(a, true), repository(b, false)]));
+        let (hold, first) = h.begin(1, spec);
+        for (op, name) in [(first, a), (h.next(hold, Done::Succeeded), b)] {
+            let Op::Store { store, .. } = op else { panic!("store") };
+            assert_eq!(store, store_token(name));
+        }
+    }
+}
+
 #[test]
 fn a_full_store_table_replaces_only_an_unborrowed_slot_under_a_new_token() {
     let mut h = Harness::new(Limits { repositories: 1, ..LIMITS });
@@ -2430,9 +2612,9 @@ fn a_full_store_table_replaces_only_an_unborrowed_slot_under_a_new_token() {
     replacement.repositories[0].remote = remote(b"c");
     let (_, op) = h.begin(3, replacement);
     let Op::Store { store, aside, .. } = op else { panic!("new remote needs a store") };
-    assert_eq!(aside, Some(Token::new(1_u64 << 32)), "the held store was not evicted");
+    assert_eq!(aside, Some(store_token(b"b")), "the held store was not evicted");
     assert_ne!(Some(store), aside);
-    assert_eq!(store.raw() >> 32_u32, 1, "the unborrowed slot has a new generation");
+    assert_eq!(store, store_token(b"c"), "the new remote names the store");
     h.one(Event::Release { hold: held });
 }
 #[test]
@@ -2499,7 +2681,7 @@ fn design_delivery_and_push_verification_fetch_through_the_repositorys_store() {
             op = h.next(hold, failed(Fault::TimedOut));
         }
         let Op::Fetch { store, remote: source, .. } = op else { panic!("design tip or push verification fetched") };
-        assert_eq!(store, Token::new(0));
+        assert_eq!(store, store_token(b"a"));
         assert_eq!(source, remote(b"a"));
     }
 }

@@ -17,6 +17,11 @@ use temper_worker_protocol_git::{
     sequence::{self, Next},
 };
 
+fn store_token(remote: &[u8]) -> Token {
+    let hash = skein_lib::sha256::digest(remote);
+    Token::new(u64::from_be_bytes(hash[..8].try_into().expect("eight bytes")))
+}
+
 struct World {
     root: PathBuf,
     identity: Identity,
@@ -28,11 +33,11 @@ impl World {
     fn advance_goal(&self, workspace: Token, remote: &[u8]) -> git::Commit {
         let at = git::Place { workspace, repository: b"peer".as_slice().into(), git: None };
         assert_eq!(
-            self.perform(git::Op::Clone { at: at.clone(), remote: remote.into(), store: Token::new(0) }),
+            self.perform(git::Op::Clone { at: at.clone(), remote: remote.into(), store: store_token(remote) }),
             git::Done::Succeeded
         );
         let git::Done::Fetched { commit: parent } = self.perform(git::Op::Fetch {
-            store: Token::new(0),
+            store: store_token(remote),
             at: at.clone(),
             remote: remote.into(),
             want: git::Want::Branch { branch: b"goal".as_slice().into() },
@@ -279,7 +284,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
         let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("delivered: {landings:?}") };
         assert_eq!(
             world.perform(git::Op::Fetch {
-                store: Token::new(0),
+                store: store_token(&remote),
                 at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
                 remote: remote.clone(),
                 want: git::Want::Branch { branch: push.into() },
