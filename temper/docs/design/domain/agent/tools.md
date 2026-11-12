@@ -351,22 +351,53 @@
   `question` at most 400 bytes, each option 120, `why` 400, a call past
   those refused at decoding, saying so. The forge judges it (`../forge/attention.md`,
   5 and 6): "Decided: carry on with TOOK." with a `Decided` row
-  saved, or "Ask: REASON. Ask with message, as a question; if your brief
-  says [Requested by person N], with delegate, a person task addressed to
-  person N.", REASON from its reach: "money always waits for your
+  saved, or "Ask: REASON. HOW", REASON from its reach: "money always waits for your
   person", "implementation asks your person, even when away",
   "implementation asks your person while they are here", "changes to
   path set N ask your person, even when away", whose name `settings
   project-classes` reads (`ask-temper.md`, 1), "your words say Asks: always", "your person's decided list is full for today" where the
   class decided and no row had room, and, for a caller with no person,
-  "no person is asked through you: ask your requester". Named and decided
-  once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
-  anything hard to reverse are `money` or `irreversible` and always wait,
-  by the charter's words (`../../protocol/configuration/stock.md`); a change
-  to the classes, a landing rule or a standing role's rules is `rules`.
-  A task that overturned words reach (`../../client/pages/README.md`) asks it
-  by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
-  answers a question for it, and one that skips the tool waits as ever.
+  "no person is asked through you". Named and decided
+  once, as `change`.
+  - **HOW names the one way its caller can ask,** never a tool it
+    lacks. The root reads it from the caller's task as it renders the
+    answer, and passes it to the renderer beside the answer (the
+    decision, `took` and `reach`, stays as stored): `Ask your requester
+    with message, as a question.` where the caller's requester is a task
+    and its authority holds the Message family; `Ask person N with
+    delegate, a person task addressed to them.` where its requester is
+    person N and its charter names the delegate family (`agents.md`, 2);
+    and, where neither holds, the answer reads "Not decided: REASON.
+    Nothing you hold asks anyone: decide within your brief, or leave
+    the choice and your recommendation in your result." in place of
+    the `Ask:` form. So a change's review, or an agent of a change with
+    questions `none` (`../forge/change/README.md`, 1), is never told to
+    call `message`; a repair of a change with questions `up` is told to
+    ask its change.
+  - Funds, sign-ins, machines, a plan's go-ahead and
+    anything hard to reverse are `money` or `irreversible` and always wait,
+    by the charter's words (`../../protocol/configuration/stock.md`); a change
+    to the classes, a landing rule or a standing role's rules is `rules`.
+    A task that overturned words reach (`../../client/pages/README.md`) asks it
+    by its requester's route (`agents.md`, 2), and waits. Nothing in the engine
+    answers a question for it, and one that skips the tool waits as ever.
+- **What a run reads names what it holds.** A declaration's description,
+  or a member's, names another host tool as the way for the run to do
+  something only where every run offered the first is offered the
+  second; elsewhere it says what to do in words that name no tool. A
+  member that takes another tool's shape (`propose`'s `amendment`, "as
+  amend's amendment") names no call, nor does a tool's effect on other
+  tasks (`introduce`'s). So `decided` reads "Ask whether you may decide
+  this for your person. Carry on only if decided; otherwise its answer
+  says how you can ask.", its `under` "The item with words of the
+  project's classes that covers this choice.", and `read_task`, offered
+  with the read family alone, "Specs/results, from=next. Durable
+  question numbers and answerers, for an answer."
+- **A proposed `amend` takes `amend`'s amendment** (jig's
+  `domain/tasks/proposals.md`): one naming no authority proposes the
+  target's authority kept, as `amend` takes it, and what it needs is
+  read from the target's authority; `authority shape` refuses only an
+  authority it names that is malformed.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and
