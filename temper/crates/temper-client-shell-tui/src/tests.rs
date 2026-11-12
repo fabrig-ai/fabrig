@@ -1355,7 +1355,6 @@ fn goal_host() -> Host {
         if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some()) {
             break;
         }
-
     }
     host.frame();
     host
