@@ -117,19 +117,79 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert!(welcome.steps.is_empty(), "welcome is already reached on a fresh box");
 
     let project = chain.recipes.iter().find(|recipe| recipe.name == "project-landing").expect("project-landing");
-    let setup = std::fs::read_to_string(Path::new(crate::JOURNEYS).join("project-landing/setup"))
-        .expect("project-landing journey setup");
-    let presses: Vec<_> =
-        setup.lines().filter(|line| line.starts_with("press ")).map(|line| format!("web {line}")).collect();
-    assert!(!presses.is_empty(), "journey has setup acts");
-    assert_eq!(
-        project.steps.iter().map(|line| String::from_utf8_lossy(line.line.print()).into_owned()).collect::<Vec<_>>(),
-        presses,
-        "project-landing keeps the journey's presses in order, without its trailing reload"
+    assert!(
+        project.steps.iter().any(|line| line.line.print() == b"ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello"),
+        "project-landing connects the fake Forgejo as its admin through the box's values"
     );
     assert_eq!(
         project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
         [br#"web see "work/hello is in Hello""#.as_slice()]
+    );
+}
+
+/// QA uses the fake Forgejo elsewhere, never the owned one (testing/qa/setups.md, 2, 5).
+#[test]
+fn committed_qa_recipes_never_set_up_the_owned_forge() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    for entry in std::fs::read_dir(&setups).expect("committed QA setups") {
+        let entry = entry.expect("setup entry");
+        if !entry.file_type().expect("setup file type").is_dir() {
+            continue;
+        }
+        let name = entry.file_name().into_string().expect("ASCII recipe name");
+        let chain = Chain::read(&setups, &name).expect("QA chain");
+        let recipe = chain.recipes.last().expect("recipe itself");
+        for line in recipe.steps.iter().chain(&recipe.check) {
+            if let Record::Ctl(args) = line.line.record() {
+                assert_ne!(
+                    args.iter().take(2).map(AsRef::as_ref).collect::<Vec<_>>(),
+                    [b"forge".as_slice(), b"setup"],
+                    "{} sets up the owned Forgejo",
+                    recipe.walk_line(line).source
+                );
+            }
+            if let Record::Web(Web::Act { name, act: skein_ui::Act::Press, .. }) = line.line.record() {
+                assert_ne!(name.as_ref(), b"Run on this machine", "{} presses the owned setup", recipe.walk_line(line).source);
+            }
+        }
+    }
+}
+
+/// Widget starts with the twin's B0 tree on the fake Forgejo (testing/qa/setups.md, 4.3, 5).
+#[test]
+fn widget_commits_the_b0_tree_before_waiting_on_checks() {
+    use crate::line::Forge;
+    use serde_json::Value;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let chain = Chain::read(&root.join("docs/development/qa/setups"), "widget").expect("widget chain");
+    let recipe = chain.recipes.last().expect("widget");
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(root.join("tests/real-loop/tests/fixtures/b0/forge.json")).expect("B0 forge fixture"),
+    )
+    .expect("B0 forge JSON");
+    let tree = fixture["repositories"]
+        .as_array()
+        .expect("repositories")
+        .iter()
+        .find(|repository| repository["name"] == "widget")
+        .expect("widget")["tree"]
+        .as_array()
+        .expect("widget tree");
+    let expected: CommitFiles = tree.iter().map(|entry| (
+        entry["path"].as_str().expect("tree path").as_bytes().into(),
+        entry["content"].as_str().expect("tree content").as_bytes().into(),
+    )).collect();
+    assert_eq!(recipe.files, expected, "widget files equal the complete B0 tree byte for byte");
+    let forge: Vec<_> = recipe.steps.iter().filter_map(|line| {
+        if let Record::Forge(record) = line.line.record() { Some(record) } else { None }
+    }).collect();
+    assert!(
+        matches!(forge.as_slice(), [Forge::Commit { repository, paths, .. }, Forge::Checks { repository: checked }]
+            if repository.as_ref() == b"playground/widget"
+                && checked == repository
+                && paths.iter().map(AsRef::as_ref).collect::<Vec<_>>() == [b"README.md".as_slice(), b"src/main.rs", b".forgejo/workflows/check.yml"]),
+        "widget commits the three B0 files once, then waits on playground/widget's checks: {forge:?}"
     );
 }
 
