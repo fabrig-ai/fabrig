@@ -106,7 +106,8 @@ impl Session {
                 Found::Node(_) | Found::Absent => {
                     let (controls, more) = self.face.boxed_matches();
                     let mut lines: Vec<_> = controls.iter().map(|seen| format!("{} {:?}", String::from_utf8_lossy(&seen.role), String::from_utf8_lossy(&seen.name))).collect();
-                    if more > 0 { lines.push(format!("{more} more controls")); } if lines.is_empty() { lines.push(format!("no {role:?} controls")); }
+                    if more > 0 { lines.push(format!("{more} more controls")); }
+                    if lines.is_empty() { lines.push(format!("no {role:?} controls")); }
                     self.event(Event::Description(lines.join("\n").into_bytes().into()));
                 }
             }
