@@ -416,6 +416,7 @@ pub fn make(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     start.deployment = configuration(&start.deployment);
+    let document = serde_json::from_slice(&start.deployment).expect("golden configuration JSON");
     let mut disk = machine::fresh();
     temper_playground::story::prepare(&mut disk, temper_playground::stories::A.deployment, start.seed);
     let store = Rc::new(RefCell::new(Store::new()));

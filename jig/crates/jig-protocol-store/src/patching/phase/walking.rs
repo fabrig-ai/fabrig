@@ -59,6 +59,9 @@ pub(crate) struct Walking {
     refusal: Option<OpenRefusal>,
 }
 impl Walking {
+    pub(super) fn ready(&self) -> bool {
+        match self.waiting { Waiting::Ready => true, Waiting::Site(_) | Waiting::Commit { .. } => false }
+    }
     #[cfg(test)]
     pub(crate) fn closing(&self) -> bool {
         self.step().is_none() && self.pending.plan.close()

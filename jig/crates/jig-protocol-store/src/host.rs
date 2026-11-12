@@ -156,7 +156,7 @@ impl Hosted {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.secrets.is_empty() || !self.sources.is_empty() || !self.above.is_empty() || self.drivers.work_pending(now)
+        !self.secrets.is_empty() || !self.sources.is_empty() || !self.above.is_empty() || crate::patching::phase::ready(&self.component) || self.drivers.work_pending(now)
     }
     #[must_use]
     pub fn closing(&self) -> bool {

@@ -285,6 +285,17 @@ pub(crate) fn event(
     }
 }
 /// Finish synchronous KV events with the current step's environment.
+pub(crate) fn ready(store: &Store) -> bool {
+    if store.phase == Phase::Stopped { return false; }
+    match directory::patching(store) {
+        Some(phase) => match phase {
+            Patching::Walking(walking) => walking.ready(),
+            Patching::Recovering { opened: 3 } | Patching::Sealing { number: 0, .. } => true,
+            Patching::Recovering { .. } | Patching::Mapping { .. } | Patching::Closing { .. } | Patching::Dropping(_) | Patching::Copying(_) | Patching::Sealing { .. } | Patching::Checking(_) => false,
+        },
+        None => false,
+    }
+}
 pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase == Phase::Stopped {
         return;
