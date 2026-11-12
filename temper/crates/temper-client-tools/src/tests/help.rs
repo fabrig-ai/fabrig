@@ -9,6 +9,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
+    (Some(jig::rows::ROLE_TALK_AT), "help_role_talk"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -59,6 +60,47 @@ fn the_help_prints_as_its_golden_files() {
             .expect("write help golden");
         }
         assert_eq!(fixtures::help(*tool), fixtures::golden(name), "{name}");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the help test compares rendered UTF-8 with the page's quoted lines")]
+fn review_recipe_quotes_the_waiting_changes_output() {
+    use temper_client_protocol_wire::v1 as w;
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let checking = page.text.split("## Checking it took\n").nth(1).expect("checking section");
+    let mut parts = super::change::approval_parts();
+    parts.step = w::Step::First;
+    parts.ci = w::Ci::Passed;
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    approval.number = 1;
+    approval.role = 1;
+    approval.freshness = w::RuleFreshness::Exact;
+    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    let output =
+        crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
+    assert_eq!(output.status, 0);
+    let output = core::str::from_utf8(&output.stdout).expect("text output");
+    let mut quoted = List::with_capacity(2);
+    for block in checking.split("```\n").skip(1).step_by(2) {
+        for line in block.lines() {
+            if line.starts_with("approval:") || line.starts_with("next:") {
+                quoted.push(line).expect("two quoted output lines");
+            }
+        }
+    }
+    assert_eq!(quoted.len(), 2, "quote both the approval and next lines");
+    for line in quoted.as_slice() {
+        let expected = line
+            .replace("PROJECT", "1")
+            .replace("ROLE", "1")
+            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+        let mut found = false;
+        for rendered in output.lines() {
+            found |= rendered == expected;
+        }
+        assert!(found, "quoted line differs from ctl: {expected}\n{output}");
     }
 }
 
@@ -266,7 +308,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\n",
+    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -293,10 +335,20 @@ const USAGES: &[&[u8]] = &[
     b"task hand-back TASK [--key KEY]\n",
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
     b"project make NAME --key KEY\n",
-    b"project remove PROJECT --key KEY\n",
+    b"project delete PROJECT --key KEY\n",
     b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
     b"role list --project PROJECT [--after CURSOR]\n",
-    b"role show TASK\n",
+    b"role show TASK [--report]\n",
+    b"role talk TASK TEXT [--timeout DURATION] --key KEY\nrole talk TASK --leave --key KEY\n",
+    b"draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH --key KEY\n",
+    b"draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH --key KEY\n",
+    b"draft list --project PROJECT [--until CONDITION] [--timeout DURATION]\n",
+    b"follow list --project PROJECT\n",
+    b"follow show --project PROJECT FOLLOW\n",
+    b"follow start --project PROJECT FOLLOW COMMIT --key KEY\n",
+    b"follow hold --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow skip --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow merge --project PROJECT FOLLOW COMMIT [COMMIT]... --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -512,6 +564,10 @@ fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
 #[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
+}
+#[test]
+fn the_draft_reference_is_what_the_table_renders() {
+    reference_matches(b"draft", b"ctl-draft");
 }
 #[test]
 fn the_forge_reference_is_what_the_table_renders() {

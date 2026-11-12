@@ -508,9 +508,11 @@ fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8])
     app(service);
     accepted(service, accepted_ids);
     let engine = service.engine.as_mut().unwrap();
-    let origin =
-        records::origin(connection::settings::Kind::GitHub, &engine.workers.forges.get(1).expect("fixture forge").api);
-    let access = records::access(
+    let origin = forge_records::origin(
+        connection::settings::Kind::GitHub,
+        &engine.workers.forges.get(1).expect("fixture forge").api,
+    );
+    let access = forge_records::access(
         connection::settings::Kind::GitHub,
         &origin,
         engine.forge_records.rows.forge(FORGE).unwrap(),

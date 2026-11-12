@@ -56,6 +56,7 @@ pub(crate) fn setup(
         | Ask::EndPlayground
         | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::Install { .. }
         | Ask::Accept { .. }

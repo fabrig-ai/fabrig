@@ -1,14 +1,7 @@
 //! Every recording field (client/web/journeys.md, 3.6).
-use super::Line;
+use super::{Framing, Line};
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
-
-/// Whether a length prefix counts a field's bytes (client/web/journeys.md, 3.6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Framing {
-    Framed,
-    Text,
-}
 
 /// Each byte field in order, except stream pieces, which `Streams` reads.
 #[must_use]

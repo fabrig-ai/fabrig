@@ -19,6 +19,10 @@ pub enum Kind {
     ProjectWords,
     /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     TemplateGoal,
+    /// A project's follow (temper/docs/design/domain/forge/follows.md, 2).
+    Follow,
+    /// A project dependency (temper/docs/design/domain/forge/dependencies.md, 2).
+    Dependency,
 }
 
 impl Kind {
@@ -34,6 +38,8 @@ impl Kind {
             Self::CharterWords => 9,
             Self::ProjectWords => 10,
             Self::TemplateGoal => 11,
+            Self::Follow => 12,
+            Self::Dependency => 13,
         }
     }
 
@@ -49,6 +55,8 @@ impl Kind {
             9 => Some(Self::CharterWords),
             10 => Some(Self::ProjectWords),
             11 => Some(Self::TemplateGoal),
+            12 => Some(Self::Follow),
+            13 => Some(Self::Dependency),
             _ => None,
         }
     }
@@ -128,6 +136,58 @@ pub struct TemplateGoal {
     pub close_out: bool,
 }
 
+/// A project's follow, kind 12 (temper/docs/design/domain/forge/follows.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Follow {
+    pub source: FollowSource,
+    pub target: FollowTarget,
+    pub owner: FollowOwner,
+    pub start: FollowStart,
+    pub producer: Option<Box<[u8]>>,
+    pub check: FollowCheck,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowSource {
+    pub repository: skein_forge::api::Repository,
+    pub branch: Box<[u8]>,
+    pub paths: Box<[Box<[u8]>]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowTarget {
+    pub repository: skein_forge::api::Repository,
+    pub branch: Box<[u8]>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FollowOwner {
+    Person(u64),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum FollowStart {
+    Owner,
+    Code,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowCheck {
+    pub workflow: Box<[u8]>,
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+}
+
+#[path = "settings/follow.rs"]
+mod follow;
+pub use follow::{follow_from, follow_record, producer_charter};
+
+/// A dependency on another project (temper/docs/design/domain/forge/dependencies.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Dependency {
+    pub project: u32,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Rule(LandingRule),
@@ -141,6 +201,8 @@ pub enum Value {
     ProjectWords(ProjectWords),
     /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     Goal(TemplateGoal),
+    Follow(Follow),
+    Dependency(Dependency),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -263,6 +325,10 @@ pub struct Bounds {
     pub segment_bytes: u32,
     /// Template numbers (temper/docs/design/protocol/configuration/settings.md, 2).
     pub templates: u32,
+    pub follows: u32,
+    pub dependencies: u32,
+    pub follow_paths: u32,
+    pub name_bytes: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -288,10 +354,17 @@ pub enum Refusal {
     Charter,
     Value,
     Replaced,
+    Retired,
     Way,
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
     Words,
+    FollowPaths,
+    FollowPath,
+    FollowProducer,
+    FollowCheck,
+    FollowBranch,
+    FollowFixed,
 }
 
 impl Refusal {
@@ -310,7 +383,14 @@ impl Refusal {
             Self::DeploymentSets => b"a deployment's rule names no path set",
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
+            Self::Retired => b"retired stored setting",
             Self::Replaced => b"the replaced value is no longer kept",
+            Self::FollowPaths => b"more paths than forge.follow_paths",
+            Self::FollowPath => b"a malformed path or one past 256 bytes",
+            Self::FollowProducer => b"its producer does not spell change parameter 11",
+            Self::FollowCheck => b"a check with an empty member or one past 256 bytes",
+            Self::FollowBranch => b"a branch past forge.name_bytes",
+            Self::FollowFixed => b"its source and target are fixed; remove it and add another",
             Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
             Self::Classes(refusal) => match refusal {
@@ -346,7 +426,13 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords
+        Kind::ProjectRules
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::ProjectWords
+        | Kind::Dependency
+        | Kind::Follow
             if item.scope == 0 =>
         {
             return Err(Refusal::Scope);
@@ -359,7 +445,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectClasses
         | Kind::CharterWords
         | Kind::ProjectWords
-        | Kind::TemplateGoal => {}
+        | Kind::TemplateGoal
+        | Kind::Dependency
+        | Kind::Follow => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
@@ -367,6 +455,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::CharterWords => bounds.charters,
         Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords => 1,
         Kind::TemplateGoal => bounds.templates,
+        Kind::Follow => bounds.follows,
+        Kind::Dependency => bounds.dependencies,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -375,7 +465,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
             Some(
-                Value::Charter(_)
+                Value::Dependency(_)
+                | Value::Follow(_)
+                | Value::Charter(_)
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::Ways(_)
@@ -390,7 +482,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -404,7 +498,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::Questions(_)) | None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Ways(_)
@@ -422,7 +518,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 },
                 None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -436,7 +534,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::Ways(_)) | None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -457,7 +557,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -478,7 +580,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -488,11 +592,48 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 ) => Err(Refusal::Value),
             };
         }
+        Kind::Dependency => {
+            return match &item.value {
+                Some(Value::Dependency(value)) if value.project != 0 => Ok(()),
+                None => Ok(()),
+                Some(
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::Follow => {
+            return match &item.value {
+                Some(Value::Follow(value)) => follow::judge(value, bounds),
+                None => Ok(()),
+                Some(
+                    Value::Dependency(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_),
+                ) => Err(Refusal::Value),
+            };
+        }
         Kind::TemplateGoal => {
             return match &item.value {
                 Some(Value::Goal(_)) | None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -598,6 +739,33 @@ pub fn requires(held: &[Held], repository: &Repository, branch: &[u8], touched: 
 #[must_use]
 pub fn rows(l: &Limits) -> Option<u32> {
     let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
-    let values = rules.checked_add(2)?.checked_add(l.judge_projects.checked_mul(2)?)?;
+    let values = rules
+        .checked_add(2)?
+        .checked_add(l.judge_projects.checked_mul(2)?)?
+        .checked_add(l.judge_projects.checked_mul(l.follows)?)?
+        .checked_add(l.judge_projects.checked_mul(l.dependencies)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
+}
+
+/// Name a retired stored setting in ctl's terms (protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn retired_words(key: SettingKey) -> Box<[u8]> {
+    let (name, number) = if key.kind == 6 {
+        (b"project-questions ".as_slice(), key.scope)
+    } else {
+        (b"forge-charter ".as_slice(), key.number)
+    };
+    let number = skein_lib::Decimal::of(u64::from(number));
+    let reason = b": retired stored setting";
+    let length = name
+        .len()
+        .checked_add(number.as_bytes().len())
+        .expect("bounded setting identity")
+        .checked_add(reason.len())
+        .expect("bounded refusal");
+    let mut words = skein_lib::Writer::new(length);
+    words.put(name).expect("sized setting name");
+    words.put(number.as_bytes()).expect("sized setting number");
+    words.put(reason).expect("sized refusal");
+    words.finish()
 }

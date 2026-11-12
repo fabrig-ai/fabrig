@@ -6,7 +6,7 @@ fn every_row_parses_and_the_rest_is_refused() {
     for (run_as, words, expected) in [
         ("temper-agent", vec![], Err((2, "temper-agent: no command; temper-agent --help lists them\n".into()))),
         ("temper-agent", vec!["--help"], Ok(Command::Print(AGENT.help()))),
-        ("temper-agent", vec!["--version"], Ok(Command::Print(AGENT.version_line()))),
+        ("temper-agent", vec!["--version"], Ok(Command::Print("temper-agent 0.0.0 (0123456789ab)\n".into()))),
         (
             "temper-agent",
             vec!["help", "tui"],
@@ -86,20 +86,21 @@ fn every_row_parses_and_the_rest_is_refused() {
         ),
     ] {
         let arguments: Vec<Box<[u8]>> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
-        assert_eq!(configure(AGENT.reach(run_as.as_bytes(), &arguments)), expected, "{run_as}: {words:?}");
+        assert_eq!(
+            configure(AGENT.reach(run_as.as_bytes(), &arguments), "0.0.0", "0123456789ab"),
+            expected,
+            "{run_as}: {words:?}"
+        );
     }
     let arguments = [Box::from(b"--frob".as_slice())];
-    assert_eq!(configure(skein_shell::Reached::Command(&RUN, &arguments)), Err((2, AGENT.unknown(&arguments))));
-    assert_eq!(configure(skein_shell::Reached::Unknown("no match\n".into())), Err((2, "no match\n".into())));
-}
-
-#[test]
-fn the_version_line_names_the_binary_its_version_and_commit() {
-    use temper_version::{COMMIT, VERSION};
-
-    assert_eq!(AGENT.version_line(), format!("temper-agent {VERSION} ({COMMIT})\n"));
-    let head = COMMIT.strip_suffix("-dirty").unwrap_or(COMMIT);
-    assert!(COMMIT == "unknown" || (head.len() == 12 && head.bytes().all(|byte| byte.is_ascii_hexdigit())), "{COMMIT}");
+    assert_eq!(
+        configure(skein_shell::Reached::Command(&RUN, &arguments), "0.0.0", "0123456789ab"),
+        Err((2, AGENT.unknown(&arguments)))
+    );
+    assert_eq!(
+        configure(skein_shell::Reached::Unknown("no match\n".into()), "0.0.0", "0123456789ab"),
+        Err((2, "no match\n".into()))
+    );
 }
 
 #[test]

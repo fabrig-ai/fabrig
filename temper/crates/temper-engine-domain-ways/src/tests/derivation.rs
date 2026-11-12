@@ -12,6 +12,7 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
     let items = items(ways.get(way).expect("stock way"), PROJECT, None);
     let ways = laid_ways(None, PROJECT, &items);
     Inputs {
+        sets: Box::default(),
         branch: b"main".as_slice().into(),
         repository: Some(Repository {
             host: b"forge".as_slice().into(),
@@ -42,8 +43,8 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
         by,
         merge_job: false,
         roles: Box::new([
-            Role { number: 0, name: b"owner".as_slice().into(), yours: true },
-            Role { number: 1, name: b"maintainer".as_slice().into(), yours: false },
+            Role { number: 0, name: b"owner".as_slice().into(), yours: true, holders: 1 },
+            Role { number: 1, name: b"maintainer".as_slice().into(), yours: false, holders: 0 },
         ]),
         agents: [1, 2, 5]
             .map(|charter| Agent {
@@ -713,7 +714,11 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             Opens::Rule { kind: 2, scope: PROJECT, number: 1 },
             "a person · decides whether it lands",
             "owner",
-            facts(&[("Role", "owner"), ("Asks", "1 of them")]),
+            facts(&[
+                ("Role", "owner"),
+                ("Asks", "1 of them"),
+                ("Counts", "code counts the sign-offs at this head; a clean update keeps them"),
+            ]),
         ),
         (&review, Step::Branch, Opens::Nothing, "a branch · where the change lands", "main", facts(&[])),
         (
@@ -916,4 +921,232 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         "invalid UTF-8 workflows and contexts are skipped whole"
     );
     bounds(&path);
+}
+
+fn path_rule() -> Inputs {
+    let mut input = inputs(0, false, false, Way::Queue, false);
+    let rule = &mut input.rules.first_mut().unwrap().rule;
+    rule.ci = false;
+    rule.up_to_date = false;
+    rule.sets = Box::new([1]);
+    input.sets = Box::new([temper_protocol_reaches::PathSet {
+        number: 1,
+        name: b"protocol core".as_slice().into(),
+        patterns: [b"protocol/**".as_slice(), b"src/wire.rs"].map(Box::from).into(),
+    }]);
+    input
+}
+
+#[test]
+fn a_path_only_sign_off_names_its_paths_and_counts_at_this_head() {
+    for (name, over) in [("protocol core", "if protocol core"), ("vsr's protocol core", "by path")] {
+        for (freshness, counts) in [
+            (JudgeFreshness::Exact, "code counts the sign-offs at this head"),
+            (JudgeFreshness::Clean, "code counts the sign-offs at this head; a clean update keeps them"),
+        ] {
+            let mut input = path_rule();
+            input.sets.first_mut().unwrap().name = name.as_bytes().into();
+            input.rules.first_mut().unwrap().rule.approvals.first_mut().unwrap().freshness = freshness;
+            let path = derive(&input);
+            bounds(&path);
+            let stops: Box<[_]> = path.stops.iter().filter(|stop| stop.step == Step::Approve).collect();
+            assert_eq!(stops.len(), 1);
+            let stop = stops.first().unwrap();
+            assert_eq!(stop.words.as_ref(), b"you");
+            assert_eq!(stop.over.as_ref(), over.as_bytes());
+            assert_eq!(stop.opens, Opens::Rule { kind: 2, scope: PROJECT, number: 1 });
+            let facts: Box<[_]> =
+                stop.card.facts.iter().map(|fact| (fact.label.as_ref(), fact.value.as_ref())).collect();
+            assert_eq!(
+                facts.as_ref(),
+                [
+                    (b"Only for".as_slice(), "protocol/** · src/wire.rs".as_bytes()),
+                    (b"Role", b"owner"),
+                    (b"Asks", b"1 of them"),
+                    (b"Counts", counts.as_bytes()),
+                ]
+            );
+        }
+    }
+    let mut input = path_rule();
+    input.rules.first_mut().unwrap().rule.sets = Box::new([2, 1]);
+    let path = derive(&input);
+    let stop = path.stops.iter().find(|stop| stop.step == Step::Approve).unwrap();
+    assert_eq!(stop.words.as_ref(), b"you approve");
+    assert!(stop.over.is_empty(), "a missing set covers every change");
+    assert_eq!(stop.card.facts.len(), 3);
+    assert_eq!(rules_by_path(&input), PathRules::empty());
+    input.sets = [
+        input.sets.first().unwrap().clone(),
+        temper_protocol_reaches::PathSet {
+            number: 2,
+            name: b"other".as_slice().into(),
+            patterns: Box::new([b"other/**".as_slice().into()]),
+        },
+    ]
+    .into();
+    let path = derive(&input);
+    let stop = path.stops.iter().find(|stop| stop.step == Step::Approve).unwrap();
+    assert_eq!(stop.over.as_ref(), b"by path");
+    assert_eq!(stop.card.facts.first().unwrap().value.as_ref(), "protocol/** · src/wire.rs · other/**".as_bytes());
+    let long: Box<[u8]> = [b'a'; 80].as_slice().into();
+    input.sets.first_mut().unwrap().patterns = [long.clone(), long.clone(), long.clone()].into();
+    let path = derive(&input);
+    bounds(&path);
+    let stop = path.stops.iter().find(|stop| stop.step == Step::Approve).unwrap();
+    let only_for = skein_lib::bytes::concat(&[long.as_ref(), " · …".as_bytes()]);
+    assert_eq!(stop.card.facts.first().unwrap().value, only_for);
+    let rules = rules_by_path(&input);
+    invariants::rules_bounds(&rules);
+    let paths = skein_lib::bytes::concat(&[
+        long.as_ref(),
+        " · ".as_bytes(),
+        long.as_ref(),
+        " · ".as_bytes(),
+        long.as_ref(),
+        " · …".as_bytes(),
+    ]);
+    assert_eq!(rules.rows.first().unwrap().paths, paths);
+}
+
+#[test]
+fn one_role_signs_once_and_path_rules_can_ask_more() {
+    let mut input = path_rule();
+    input.sets.first_mut().unwrap().name = b"payments".as_slice().into();
+    input.roles.first_mut().unwrap().holders = 3;
+    let mut every = input.rules.first().unwrap().clone();
+    every.rule.sets = Box::default();
+    let mut path = every.clone();
+    path.number = 2;
+    path.rule.sets = Box::new([1]);
+    path.rule.approvals.first_mut().unwrap().people = 2;
+    input.rules = Box::new([every, path]);
+    let path = derive(&input);
+    let stops: Box<[_]> = path.stops.iter().filter(|stop| stop.step == Step::Approve).collect();
+    assert_eq!(stops.len(), 1);
+    let stop = stops.first().unwrap();
+    assert_eq!(stop.words.as_ref(), b"one of you");
+    assert!(stop.over.is_empty());
+    assert_eq!(stop.opens, Opens::Rule { kind: 2, scope: PROJECT, number: 1 });
+    let facts: Box<[_]> = stop.card.facts.iter().map(|fact| fact.value.as_ref()).collect();
+    assert_eq!(
+        facts.as_ref(),
+        [
+            b"owner: the three of you".as_slice(),
+            b"1 of you; payments: 2",
+            b"code counts the sign-offs at this head; a clean update keeps them"
+        ]
+    );
+    input.roles.first_mut().unwrap().yours = false;
+    input.rules = Box::new([input.rules.get(1).unwrap().clone()]);
+    let path = derive(&input);
+    let stop = path.stops.iter().find(|stop| stop.step == Step::Approve).unwrap();
+    assert_eq!(stop.words.as_ref(), "an owner approves ×2".as_bytes());
+}
+
+#[test]
+fn only_path_rules_give_checks_and_gates_their_over_words() {
+    let mut input = path_rule();
+    input.repository.as_mut().unwrap().ci = true;
+    let rule = &mut input.rules.first_mut().unwrap().rule;
+    rule.ci = true;
+    rule.approvals = Box::default();
+    rule.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Clean }]);
+    let path = derive(&input);
+    for step in [Step::Check, Step::Review] {
+        let stops: Box<[_]> = path.stops.iter().filter(|stop| stop.step == step).collect();
+        assert_eq!(stops.len(), if step == Step::Check { 2 } else { 1 });
+        for stop in stops {
+            assert_eq!(stop.over.as_ref(), b"if protocol core");
+        }
+    }
+    let repair = path.stops.iter().find(|stop| stop.step == Step::Repair).unwrap();
+    assert_eq!(repair.over.as_ref(), b"tests, review");
+    let mut every = input.rules.first().unwrap().clone();
+    every.number = 2;
+    every.rule.sets = Box::default();
+    input.rules = Box::new([input.rules.first().unwrap().clone(), every]);
+    let path = derive(&input);
+    assert!(
+        path.stops
+            .iter()
+            .filter(|stop| [Step::Check, Step::Review].contains(&stop.step))
+            .all(|stop| stop.over.is_empty())
+    );
+}
+
+#[test]
+fn path_rows_combine_every_change_rules_and_explain_freshness() {
+    let mut input = path_rule();
+    let rules = rules_by_path(&input);
+    invariants::rules_bounds(&rules);
+    assert_eq!(
+        rules.rows.as_ref(),
+        [PathRule {
+            paths: "protocol/** · src/wire.rs".as_bytes().into(),
+            review: Box::default(),
+            sign_off: b"you".as_slice().into(),
+            lands: b"once you sign off".as_slice().into(),
+        }]
+    );
+    assert_eq!(
+        rules.note.as_ref(),
+        b"A sign-off is for one head. A change pushed after it needs signing again; taking main cleanly keeps it."
+    );
+    input.roles.first_mut().unwrap().holders = 3;
+    input.sets.first_mut().unwrap().name = b"payments".as_slice().into();
+    let mut every = input.rules.first().unwrap().clone();
+    every.number = 2;
+    every.rule.sets = Box::default();
+    every.rule.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Clean }]);
+    input.rules.first_mut().unwrap().rule.approvals.first_mut().unwrap().people = 2;
+    input.rules = Box::new([input.rules.first().unwrap().clone(), every]);
+    let rules = rules_by_path(&input);
+    invariants::rules_bounds(&rules);
+    let rows: Box<[_]> = rules
+        .rows
+        .iter()
+        .map(|row| (row.paths.as_ref(), row.review.as_ref(), row.sign_off.as_ref(), row.lands.as_ref()))
+        .collect();
+    assert_eq!(
+        rows.as_ref(),
+        [
+            (
+                "protocol/** · src/wire.rs".as_bytes(),
+                b"an agent".as_slice(),
+                b"two of you".as_slice(),
+                b"once two have signed this head".as_slice()
+            ),
+            (b"everything else", b"an agent", b"one of you", b"once signed"),
+        ]
+    );
+    input.rules.first_mut().unwrap().rule.approvals.first_mut().unwrap().freshness = JudgeFreshness::Exact;
+    assert_eq!(rules_by_path(&input).note.as_ref(), b"A sign-off is for one head.");
+    input.rules.get_mut(1).unwrap().rule.approvals.first_mut().unwrap().freshness = JudgeFreshness::Exact;
+    assert_eq!(
+        rules_by_path(&input).note.as_ref(),
+        b"A sign-off is for one head. A change pushed after it, or taking main, needs signing again."
+    );
+    input.rules.first_mut().unwrap().rule.sets = Box::default();
+    assert_eq!(rules_by_path(&input), PathRules::empty());
+}
+
+#[test]
+fn shared_owners_keep_the_current_stock_way() {
+    let mut own = inputs(0, false, false, Way::Queue, false);
+    own.roles.first_mut().unwrap().holders = 3;
+    let own = derive(&own);
+    let paths: Box<[_]> = (0..3)
+        .map(|way| {
+            let mut input = inputs(way, false, false, Way::Queue, false);
+            input.roles.first_mut().unwrap().holders = 3;
+            derive(&input)
+        })
+        .collect();
+    assert_eq!(current(&paths, &own), Some(0));
+    assert_eq!(own.stops.iter().find(|stop| stop.step == Step::Approve).unwrap().words.as_ref(), b"one of you");
+    assert_eq!(
+        paths.first().unwrap().stops.iter().find(|stop| stop.step == Step::Approve).unwrap().words.as_ref(),
+        b"one of you"
+    );
 }

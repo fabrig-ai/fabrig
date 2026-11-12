@@ -13,16 +13,17 @@ pub mod scan;
 mod setup;
 mod stream;
 mod walk;
-pub use fields::{Framing, fields_mut};
-pub use line::{Line, Unreadable, lines};
-pub use originals::{Kind, Original, Originals, SECRET_EVENT, kept_head, placeholder, typed};
+pub use fields::fields_mut;
+pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
+pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
-pub use redact::{Redacted, Unredacted, redact, redact_field};
+pub use redact::{Redacted, Unredacted, redact};
 pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use scan::{Found, Place, Shape, What, original, shape};
 pub use setup::{MarkWait, Setup, SetupStep, setup};
 pub use stream::{Event, Plain, Streams, Undecoded};
+pub use temper_client_redaction::{Framing, Kind, Original, Originals, placeholder, redact_field};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
@@ -48,7 +49,7 @@ impl Facts {
         let ways = self.ways.as_ref().map_or(temper_client_view::sign_in::Ways::NONE, |(content, origin)| {
             temper_client_view::sign_in::Ways::parse(&String::from_utf8_lossy(content), origin)
         });
-        let mut host = Host::new(self.seed, self.now, self.wall, self.zone_minutes, ways);
+        let mut host = Host::new(crate::limits::client(), self.seed, self.now, self.wall, self.zone_minutes, ways);
         let mut forges = temper_client_view::forge_sign_in::Forges::new();
         for content in &self.forges {
             forges.read(&String::from_utf8_lossy(content));

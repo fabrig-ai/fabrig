@@ -256,14 +256,25 @@ fn the_trees_fit_their_limits() {
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
-    // Home's three rows, five needs, Start and the whole brief coexist at their bounds.
+    // Three left-off rows, five needs, Start and four whole briefs coexist at their bounds.
     for bytes in [200_usize, 600] {
         use crate::view::{self, launchpad};
         let root = super::launchpad::home(None, &[]);
         let mut part = launchpad::read(&root, &tui, &words, f::NOW);
         part.project = Some(name.into());
         part.lines
-            .push(launchpad::Line { role: Role::Paragraph, words: "s".repeat(200).as_bytes().into(), style: None })
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"Four changes landed across four projects.".as_slice().into(),
+                style: None,
+            })
+            .unwrap();
+        part.lines
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: "s".repeat((32 + 2 + bytes) * 4 + 3).as_bytes().into(),
+                style: None,
+            })
             .unwrap();
         part.lines
             .push(launchpad::Line {
@@ -288,6 +299,7 @@ fn the_trees_fit_their_limits() {
         for _row in 0_u32..5 {
             needs
                 .push(launchpad::NeedRow {
+                    since: None,
                     mark: temper_client_view::shared::NeedMark::SignOff,
                     project: name.into(),
                     words: Box::new([b'w'; 512]),
@@ -295,14 +307,16 @@ fn the_trees_fit_their_limits() {
                 .unwrap();
         }
         part.needs = needs.into_boxed();
-        for length in [200, bytes] {
-            part.brief
-                .push(launchpad::Line {
-                    role: Role::Paragraph,
-                    words: "b".repeat(length).as_bytes().into(),
-                    style: Some(look::NOTE),
-                })
-                .unwrap();
+        for _project in 0_u32..4 {
+            for length in [32 + 2 + 200, bytes] {
+                part.brief
+                    .push(launchpad::Line {
+                        role: Role::Paragraph,
+                        words: "b".repeat(length).as_bytes().into(),
+                        style: Some(look::NOTE),
+                    })
+                    .unwrap();
+            }
         }
         part.brief
             .push(launchpad::Line {

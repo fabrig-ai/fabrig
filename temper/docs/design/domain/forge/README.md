@@ -6,8 +6,10 @@ Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 requirements and reads; a forge connected or not, and removed; adopting
 repositories, and what the picker offers; keeping up; a change's way to
 landing and the requirements its merge meets; landing queues, a forge's own merge
-queue among them; updates and conflicts; issues; and the ways temper
-takes part in what others own. Its protocol layer, the component that
+queue among them; updates and conflicts; issues; following another
+project's branch (`follows.md`); depending on another project
+(`dependencies.md`); and the ways temper takes part in what
+others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
 `../../protocol/forge/README.md`. What is still open is listed in section 11.
 
@@ -74,6 +76,9 @@ makes each call to a forge and hears its deliveries, is
 - **Issues stay, one per goal,** as a projection people can read: the
   goal, its plan as a task list, and its milestones. Pull requests refer
   to it.
+- **Landed drafts:** a draft in a repository, which its writer says is
+  ready to start a goal, read once at the landing branch's head and kept
+  with its commit, its chat and its goal once started (`drafts.md`).
 - **Plugged in as it is.** temper adopts repositories with whatever
   access it is given; webhooks, labels, protection and CI are all
   optional. Nothing is forced: pushes are fast-forwards, and merges are
@@ -115,7 +120,8 @@ makes each call to a forge and hears its deliveries, is
   the merge (`change/gates.md`, 2). None forces a push (`change/gates.md`, 2).
 - **Topics:** landings on a branch; CI on a head; a pull request's
   state; the comments and reviews on a participating object (section 5).
-- **Procedures:** the change (`change/README.md`).
+- **Procedures:** the change (`change/README.md`), and the follow, whose
+  task makes a follow change for each landing it keeps (`follows.md`).
 - **Requirements:** CI passed, up to date, a gate, an approval, which
   landing rules name as judges of the merge (`change/gates.md`, 2).
 - **Reads an agent may call:** each of the forge client's reads but
@@ -335,7 +341,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
 
 | Topic | Published when | Read by |
 |---|---|---|
-| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`../after-landing.md`, section 3); a subscription naming trailers (`../after-landing.md`, section 8) |
+| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`../after-landing.md`, section 3); follows of that branch (`follows.md`, section 3); a subscription naming trailers (`../after-landing.md`, section 8) |
 | CI on a head | a head's CI, as `keeping-up.md`, 3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 7) |

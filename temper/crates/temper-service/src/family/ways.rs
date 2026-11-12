@@ -49,6 +49,18 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
             )
             .ok()?;
     }
+    let mut rows = List::with_capacity(limits.path_rules_rows);
+    for row in document.rules.rows {
+        rows.push(
+            w::PathRule::new(
+                limits,
+                w::PathRuleParts { paths: row.paths, review: row.review, sign_off: row.sign_off, lands: row.lands },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    let rules = w::PathRules::new(limits, w::PathRulesParts { rows, note: document.rules.note }).ok()?;
     let panel = w::WaysPanel::new(
         limits,
         w::WaysPanelParts {
@@ -63,6 +75,7 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                 ),
                 None => None,
             },
+            rules,
             may_change: document.may_change,
         },
     )

@@ -80,6 +80,7 @@ fn observe_pull(d: &mut Domain) {
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,
+        follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
         heard: heard(false),
         gates: Box::new([]),
@@ -102,7 +103,7 @@ fn observe_pull(d: &mut Domain) {
         paths_whole: false,
         woken: false,
     };
-    decide_step(d, &env(), &pending, &mut Queue::uncapped());
+    decide_step(d, &env(), pending, &mut Queue::uncapped());
 }
 
 #[test]

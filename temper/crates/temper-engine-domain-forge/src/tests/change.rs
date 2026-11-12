@@ -1,5 +1,89 @@
 use super::*;
 
+#[test]
+fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    for (why, prior) in [(Hold::Repairs, None), (Hold::Resolutions, Some(Hold::Rejected))] {
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.change.state = State::Held { was: Box::new(State::Producing { requested: false }), why };
+        row.change.ended_held = prior;
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(
+            &mut d,
+            Event::Release {
+                task: fixtures::CHANGE,
+                root: fixtures::CHANGE,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: fixtures::OPEN,
+            },
+        );
+        let saved = d.change(fixtures::CHANGE).expect("ended row kept");
+        assert_eq!(saved.change.state, State::Ended);
+        assert_eq!(saved.change.ended_held, prior.or(Some(why)));
+    }
+}
+
+#[test]
+fn ending_landed_or_no_change_keeps_no_ending_hold() {
+    use temper_engine_domain_forge_change::State;
+    for (state, ended) in [
+        (
+            State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(1) },
+            State::Uncleared { merge: fixtures::HEAD },
+        ),
+        (State::Uncleared { merge: fixtures::HEAD }, State::Uncleared { merge: fixtures::HEAD }),
+        (
+            State::NoChange { words: b"nothing applies".as_slice().into() },
+            State::NoChange { words: b"nothing applies".as_slice().into() },
+        ),
+    ] {
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.change.state = state;
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(
+            &mut d,
+            Event::Release {
+                task: fixtures::CHANGE,
+                root: fixtures::CHANGE,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: fixtures::OPEN,
+            },
+        );
+        let saved = d.change(fixtures::CHANGE).expect("ended row kept");
+        assert_eq!(saved.change.state, ended);
+        assert_eq!(saved.change.ended_held, None);
+    }
+}
+
+#[test]
+fn a_relay_cannot_hold_an_ended_change() {
+    use temper_engine_domain_forge_change::{Hold, Questions, State};
+    for ended_held in [None, Some(Hold::Repairs)] {
+        let mut row = fixtures::opening_row();
+        row.change.state = State::Ended;
+        row.change.ended_held = ended_held;
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+        outputs(
+            &mut d,
+            Event::RelayRefused {
+                task: fixtures::CHANGE,
+                questions: Questions::default(),
+                words: b"relay failed".as_slice().into(),
+            },
+        );
+        let saved = d.change(fixtures::CHANGE).expect("ended row kept");
+        assert_eq!(saved.change.state, State::Ended);
+        assert_eq!(saved.change.ended_held, ended_held);
+    }
+}
+
 /// Reverse ancestry is read once per pair, including uncertain answers (keeping-up.md, 3).
 #[test]
 fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
@@ -101,6 +185,34 @@ const LATER_CHANGE: u64 = fixtures::CHANGE + 1;
 const FIRST_ENTRY: u64 = fixtures::OPEN + 1;
 const LATER_ENTRY: u64 = FIRST_ENTRY + 1;
 const LATER_BRANCH: &[u8] = b"temper/52";
+
+#[test]
+fn a_follow_changes_saved_row_and_restored_row_keep_its_landings() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    let follows = ChangeFollows { follow: 3, commits: Box::new([fixtures::HEAD, fixtures::BASE]) };
+    row.follows = Some(follows.clone());
+    let mut saved = None;
+    for request in outputs(&mut d, Event::Change { row }) {
+        if let Request::Save { record: Stored::Change(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("saved change");
+    assert_eq!(saved.follows, Some(follows.clone()));
+    let stored = Stored::Change(saved);
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = stored.clone();
+    let held = meter.end().held();
+    assert_eq!(stored_bytes(&cloned), Some(held));
+    drop(cloned);
+    let mut restored = domain();
+    outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut restored, Event::Restore { record: stored });
+    assert_eq!(restored.change(fixtures::CHANGE).unwrap().follows, Some(follows));
+}
 
 #[test]
 fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {

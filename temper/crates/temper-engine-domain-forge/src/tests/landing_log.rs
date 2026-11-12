@@ -71,6 +71,7 @@ fn a_pull_seen_merged_is_logged() {
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,
+        follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
         heard: heard(false),
         gates: Box::new([]),
@@ -94,7 +95,7 @@ fn a_pull_seen_merged_is_logged() {
         woken: false,
     };
     // A fresh read of a merged pull reaches the same step for external and forge-queue merges.
-    decide_step(&mut d, &env(), &pending, &mut out);
+    decide_step(&mut d, &env(), pending, &mut out);
     assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
     assert_eq!(saved(&out).len(), 1);
     let row = d.landing_log(REPO).unwrap();

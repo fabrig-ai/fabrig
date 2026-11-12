@@ -4,6 +4,7 @@ use skein_forge_setup::github::manifest::Target;
 use skein_lib::{List, Rng};
 use temper_engine_domain_forge as domain;
 use temper_protocol_records as records;
+use temper_protocol_records_forge as forge_records;
 
 fn service(states: u32, life: Duration) -> crate::Service {
     let ready = fixtures::ready().engine.expect("engine");
@@ -770,12 +771,12 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    let expected = records::origin(
+    let expected = forge_records::origin(
         skein_forge_connection::settings::Kind::GitHub,
         &engine.workers.forges.get(1).expect("fixture forge").api,
     );
     assert!(
-        records::access(
+        forge_records::access(
             skein_forge_connection::settings::Kind::GitHub,
             &expected,
             engine.forge_records.rows.forge(1).unwrap(),
@@ -911,6 +912,7 @@ fn local_store(token: bool) -> crate::store::Store {
 fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -1211,7 +1213,7 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
     for fault in [0_u8, 1, 2, 3, 4, 5] {
         let mut store = local_store(true);
         if fault == 3 || fault == 4 {
-            let origin = records::origin(
+            let origin = forge_records::origin(
                 if fault == 3 {
                     skein_forge_connection::settings::Kind::GitHub
                 } else {
@@ -1276,10 +1278,11 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
         for note in &engine.notes {
             named |= match (note, expected.as_ref()) {
                 (crate::Note::ForgeSetupStopped { number: 1, why }, Some(expected)) => why == expected,
-                (crate::Note::ForgeNotConnected { number: 1, why: records::NotConnected::OtherForge { .. } }, None) => {
-                    fault != 5
-                }
-                (crate::Note::ForgeNotConnected { number: 1, why: records::NotConnected::Unreadable }, None) => {
+                (
+                    crate::Note::ForgeNotConnected { number: 1, why: forge_records::NotConnected::OtherForge { .. } },
+                    None,
+                ) => fault != 5,
+                (crate::Note::ForgeNotConnected { number: 1, why: forge_records::NotConnected::Unreadable }, None) => {
                     fault == 5
                 }
                 _ => false,

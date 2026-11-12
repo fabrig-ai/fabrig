@@ -87,7 +87,8 @@ fn accepted(bytes: &[u8]) -> Result<v1::Accepted, Unreadable> {
     }
     v1::Accepted::new(&v1::CEILINGS, v1::AcceptedParts { values }).or(Err(Unreadable))
 }
-pub(super) fn decoded_origin(bytes: &[u8]) -> Result<v1::Origin, Unreadable> {
+/// Decode the origin record and reject an empty API address.
+pub fn decoded_origin(bytes: &[u8]) -> Result<v1::Origin, Unreadable> {
     let value = v1::Origin::decode(&v1::CEILINGS, &mut Reader::new(bytes)).or(Err(Unreadable))?;
     if value.api().is_empty() {
         return Err(Unreadable);

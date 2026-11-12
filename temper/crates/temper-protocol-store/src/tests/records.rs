@@ -3,6 +3,41 @@ use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
+fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
+    use skein_lib::{Env, Queue, Time, Wall};
+    use temper_engine_domain_forge_change::State;
+    let mut row = fixtures::change_row(State::Producing { requested: false });
+    let mut sha1 = [0_u8; 32];
+    sha1[..20].fill(0xaa);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([sha1, [0xbb; 32]]) };
+    row.follows = Some(follows.clone());
+    let task = row.task;
+    let stored = forge::Stored::Change(Box::new(row));
+    let mut limits = fixtures::LIMITS;
+    limits.follow_merge = 2;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("two landings fit");
+    let bytes = records::encode(&stored);
+    let decoded = records::decode(&bytes, &bounds).expect("stored follows");
+    assert_eq!(decoded, stored);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut restarted = forge::Domain::new(
+        &limits,
+        91,
+        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .unwrap();
+    restarted.restore_begin(env.wall);
+    forge::step(&mut restarted, &env, forge::Event::Restore { record: decoded }, &mut Queue::uncapped());
+    assert_eq!(restarted.change(task).unwrap().follows, Some(follows));
+    limits.follow_merge = 1;
+    let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller merge bound");
+    assert_eq!(records::decode(&bytes, &smaller), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
 fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for (name, row) in fixtures::names_holds_and_topics() {
@@ -37,7 +72,7 @@ fn a_truncated_row_fails_to_decode() {
         let bytes = records::encode(&row);
         for length in 0..bytes.len() {
             let prefix = bytes.get(..length).expect("prefix within row");
-            assert_eq!(records::decode(prefix, &bounds), Err(crate::Undecodable), "{name}, {length}");
+            assert_eq!(records::decode(prefix, &bounds), Err(crate::Undecodable::Malformed), "{name}, {length}");
         }
     }
 }
@@ -56,7 +91,7 @@ fn a_branch_past_name_bytes_fails_to_decode() {
     });
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
 }
 #[test]
 fn bounds_take_each_limit_from_its_source() {
@@ -122,7 +157,7 @@ fn outbox_decoding_refuses_fields_past_their_bounds() {
     for (name, write) in rows {
         let row = forge::Stored::Entry { entry: fixtures::entry(write, Condition::None), held: false };
         let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable), "{name}");
+        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed), "{name}");
     }
 }
 
@@ -153,7 +188,7 @@ fn an_answer_piece_past_its_limit_fails_to_decode() {
     let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
 }
 #[test]
 fn a_full_answer_at_the_fixture_limits_fits_its_pieces() {
@@ -198,7 +233,11 @@ fn malformed_answer_item_pieces_fail_to_decode() {
     ];
     for (name, piece) in cases {
         let row = fixtures::item_piece_row(piece);
-        assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable), "{name}");
+        assert_eq!(
+            records::decode(&fixtures::encoded_row(&row), &bounds),
+            Err(crate::Undecodable::Malformed),
+            "{name}"
+        );
     }
 }
 #[test]
@@ -216,7 +255,7 @@ fn answer_item_counts_past_rows_fail_to_decode() {
     let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -243,7 +282,7 @@ fn listing_answers_preserve_cut_and_refuse_records_without_it() {
             assert_eq!(records::decode(&bytes, &bounds), Ok(row));
             // A pre-cut named-call record ended at more: the cut byte is last.
             let old = bytes.get(..bytes.len().saturating_sub(1)).unwrap();
-            assert_eq!(records::decode(old, &bounds), Err(crate::Undecodable));
+            assert_eq!(records::decode(old, &bounds), Err(crate::Undecodable::Malformed));
         }
     }
 }
@@ -299,7 +338,7 @@ fn fixed_answer_lists_past_their_counts_fail_to_decode() {
     for (name, answer) in cases {
         let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
         let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable), "{name}");
+        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed), "{name}");
     }
 }
 
@@ -325,7 +364,7 @@ fn client_list_counts_take_their_domain_bounds() {
     {
         let row = forge::Stored::Client(Stored::Live(value));
         let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable), "{name}");
+        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed), "{name}");
     }
 }
 #[test]
@@ -360,6 +399,59 @@ fn a_change_in_each_state_round_trips_unchanged() {
         }
     }
 }
+#[test]
+fn an_ended_changes_hold_round_trips_in_its_state() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for ended_held in [None, Some(Hold::Repairs), Some(Hold::Resolutions), Some(Hold::Rejected), Some(Hold::Stalled)] {
+        let mut row = fixtures::change_row(State::Ended);
+        row.change.ended_held = ended_held;
+        let row = forge::Stored::Change(Box::new(row));
+        let bytes = records::encode(&row);
+        let wire = v11::Row::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
+        let v11::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        assert_eq!(wire.change().state().live(), &v11::ChangeLive::Ended);
+        assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn old_ended_rows_decode_with_or_without_a_hold() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let row = fixtures::change_row(State::Ended);
+    let bytes = records::encode(&forge::Stored::Change(Box::new(row.clone())));
+    for ended_held in [None, Some(Hold::Repairs)] {
+        let wire = v11::Row::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
+        let v11::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        let mut wire = wire.into_parts();
+        let mut change = wire.change.into_parts();
+        let mut holds = skein_lib::List::with_capacity(1);
+        if ended_held.is_some() {
+            holds.push(v11::ChangeHold::Repairs).expect("one hold");
+        }
+        // The unchanged schema's representation, independent of the domain encoder.
+        change.state =
+            v11::ChangeState::new(&v11::CEILINGS, v11::ChangeStateParts { live: v11::ChangeLive::Ended, holds })
+                .expect("old state");
+        wire.change = v11::Change::new(&v11::CEILINGS, change).expect("old change");
+        let value = v11::Value::Change(Box::new(v11::ChangeRow::new(&v11::CEILINGS, wire).expect("old row")));
+        let wire = v11::Row::new(&v11::CEILINGS, v11::RowParts { value }).expect("old row");
+        let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("row size"));
+        wire.encode(&mut writer).expect("measured room");
+        let mut expected = row.clone();
+        expected.change.ended_held = ended_held;
+        let forge::Stored::Change(decoded) = records::decode(&writer.finish(), &bounds).expect("old row decodes")
+        else {
+            panic!("change row")
+        };
+        assert_eq!(decoded.change.state, State::Ended);
+        assert_eq!(decoded.change.ended_held, ended_held);
+        assert_eq!(*decoded, expected);
+    }
+}
+
 #[test]
 fn a_changes_role_choices_round_trip_with_or_without_models() {
     use jig_domain_tasks::{LlmChoice, ModelEffort};
@@ -578,7 +670,7 @@ fn issue_fields_use_their_domain_limits_at_and_past_each_bound() {
             if extra == 0 {
                 assert_eq!(decoded, Ok(row), "{name} at limit");
             } else {
-                assert_eq!(decoded, Err(crate::Undecodable), "{name} past limit");
+                assert_eq!(decoded, Err(crate::Undecodable::Malformed), "{name} past limit");
             }
         }
     }
@@ -904,7 +996,7 @@ fn application_decoding_refuses_malformed_refusal_facts() {
         .expect("application");
         let row =
             v11::Row::new(&v11::CEILINGS, v11::RowParts { value: v11::Value::Application(application) }).expect("row");
-        assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
+        assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 
@@ -923,7 +1015,7 @@ fn an_application_adopted_name_past_its_bound_fails_to_decode() {
         kinds: row.kinds,
         protection: row.protection,
     });
-    assert_eq!(records::decode(&records::encode(&application(outcome)), &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&records::encode(&application(outcome)), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -938,7 +1030,7 @@ fn a_job_steps_name_past_its_limit_fails_to_decode() {
     let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("Fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -960,8 +1052,8 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
     let zero = forge::Stored::Writer(skein_forge_client::Writer { forge: 1, author: 0 });
     let bytes = records::encode(&zero);
     let other = crate::keys::encode(&forge::Key::Writer(2), u32::MAX).unwrap();
-    assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
-    assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable));
+    assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+    assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -983,7 +1075,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
             crate::keys::encode(&forge::Key::Binding(b"other@example.com".as_slice().into()), u32::MAX).unwrap();
-        assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
+        assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 #[test]
@@ -994,11 +1086,11 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
         let bytes = records::encode(&row);
         let key = crate::keys::encode(&forge::stored_key(&row), 511).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
-        assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable));
+        assert_eq!(records::decode(&bytes[..bytes.len() - 1], &bounds), Err(crate::Undecodable::Malformed));
         let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
         trailing.put(&bytes).unwrap();
         trailing.put(&[0]).unwrap();
-        assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable));
+        assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 #[test]
@@ -1054,7 +1146,7 @@ fn flight_rows_keep_both_key_fields_and_refuse_a_disagreeing_key() {
         let key = crate::keys::encode(&forge::Key::Flight { task, entry }, u32::MAX).expect("fixed key");
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other = crate::keys::encode(&forge::Key::Flight { task: task ^ 1, entry }, u32::MAX).expect("fixed key");
-        assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
+        assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 
@@ -1074,7 +1166,7 @@ fn review_failure_counts_take_the_gate_bound() {
         if count == fixtures::LIMITS.change_policy.gates {
             assert_eq!(records::decode(&bytes, &bounds), Ok(row));
         } else {
-            assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+            assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
         }
     }
 }
@@ -1090,7 +1182,7 @@ fn change_record_words_use_the_task_bound_instead_of_operation_bytes() {
     let bounds = crate::bounds(&fixtures::LIMITS, SPEC_BYTES).unwrap();
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     let smaller = crate::bounds(&fixtures::LIMITS, SPEC_BYTES - 1).unwrap();
-    assert_eq!(records::decode(&bytes, &smaller), Err(crate::Undecodable));
+    assert_eq!(records::decode(&bytes, &smaller), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -1400,15 +1492,15 @@ fn new_family_round_trip(row: &forge::Stored) {
     let bytes = records::encode(row);
     let key = crate::keys::encode(&forge::stored_key(row), u32::MAX).expect("row key");
     assert_eq!(records::row(&key, &bytes, &bounds), Ok(row.clone()));
-    assert_eq!(records::row(&[0], &bytes, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::row(&[0], &bytes, &bounds), Err(crate::Undecodable::Malformed));
     assert_eq!(
         records::decode(&bytes[..bytes.len().checked_sub(1).expect("versioned row is nonempty")], &bounds),
-        Err(crate::Undecodable)
+        Err(crate::Undecodable::Malformed)
     );
     let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small row"));
     trailing.put(&bytes).expect("row room");
     trailing.put(&[0]).expect("trailing byte room");
-    assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&trailing.finish(), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -1505,7 +1597,7 @@ fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
             if extra == 0 {
                 assert_eq!(decoded, Ok(row), "{field} at bound");
             } else {
-                assert_eq!(decoded, Err(crate::Undecodable), "{field} past bound");
+                assert_eq!(decoded, Err(crate::Undecodable::Malformed), "{field} past bound");
             }
         }
     }
@@ -1516,7 +1608,7 @@ fn store_ten_rows_are_refused_by_store_eleven() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let mut old = records::encode(&forge::Stored::ForgeNumber { last: 1 });
     old[1] = 10;
-    assert_eq!(records::decode(&old, &bounds), Err(crate::Undecodable));
+    assert_eq!(records::decode(&old, &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -1541,7 +1633,7 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
         if length == bound {
             assert_eq!(decoded, Ok(row));
         } else {
-            assert_eq!(decoded, Err(crate::Undecodable));
+            assert_eq!(decoded, Err(crate::Undecodable::Malformed));
         }
     }
 }
@@ -1573,7 +1665,7 @@ fn questions_open_follows_the_change_bound() {
             }
             row.questions.open = open.into_boxed();
             let row = forge::Stored::Change(Box::new(row));
-            let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+            let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable::Malformed) };
             assert_eq!(
                 records::decode(&records::encode(&row), &bounds),
                 expected,
@@ -1584,7 +1676,7 @@ fn questions_open_follows_the_change_bound() {
 }
 
 #[test]
-fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
+fn a_changes_questions_round_trip_unchanged() {
     use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State};
     const ASKER: u64 = 7;
     let mut row =
@@ -1592,8 +1684,6 @@ fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
     let mut open = skein_lib::List::uncapped();
     for (number, stands) in [
         (1, Stands::Taken),
-        (2, Stands::Foreman { task: None }),
-        (3, Stands::Foreman { task: Some(9) }),
         (4, Stands::Asked),
         (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
     ] {
@@ -1606,8 +1696,7 @@ fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
         })
         .unwrap();
     }
-    row.questions = Questions { route: Route::Foreman, taken: 3, open: open.into_boxed() };
-    row.foreman_charter = 6;
+    row.questions = Questions { route: Route::Up, taken: 3, open: open.into_boxed() };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(Box::new(row));
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
@@ -1637,7 +1726,7 @@ fn standard_sized_question_words_and_held_answers_round_trip() {
         } else {
             short.limits.held_answer -= 1;
         }
-        assert_eq!(records::decode(&bytes, &short), Err(crate::Undecodable));
+        assert_eq!(records::decode(&bytes, &short), Err(crate::Undecodable::Malformed));
     }
 }
 
@@ -1657,7 +1746,7 @@ fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
             stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
         }]);
         let row = forge::Stored::Change(Box::new(row));
-        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable::Malformed) };
         assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "answer bytes: {length}");
     }
 }
@@ -1678,7 +1767,7 @@ fn an_open_questions_words_are_bounded_by_the_forge_operation_bytes() {
             stands: Stands::Asked,
         }]);
         let row = forge::Stored::Change(Box::new(row));
-        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable::Malformed) };
         assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "question bytes: {length}");
     }
 }
@@ -1882,7 +1971,10 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         ] {
             let bytes = records::encode(&row);
             let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-            assert_eq!(records::row(&key, &bytes, &bounds), if extra == 0 { Ok(row) } else { Err(crate::Undecodable) });
+            assert_eq!(
+                records::row(&key, &bytes, &bounds),
+                if extra == 0 { Ok(row) } else { Err(crate::Undecodable::Malformed) }
+            );
         }
     }
     let mut row = landing_log(1, 1, 1);
@@ -2014,7 +2106,7 @@ fn rows_refuse_invalid_options_and_keys() {
         forge::Stored::Decided(decided_row(1, 0)),
         forge::Stored::Decided(forge::Decided { took: Some(2), ..decided_row(2, 0) }),
     ] {
-        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
     for (row, wrong) in [
         (forge::Stored::Away(away_row(false, 7, 1, 0)), forge::Key::Away { party: 8, project: 1 }),
@@ -2022,9 +2114,9 @@ fn rows_refuse_invalid_options_and_keys() {
     ] {
         let bytes = records::encode(&row);
         let key = crate::keys::encode(&wrong, u32::MAX).unwrap();
-        assert_eq!(records::row(&key, &bytes, &bounds), Err(crate::Undecodable));
+        assert_eq!(records::row(&key, &bytes, &bounds), Err(crate::Undecodable::Malformed));
         for len in 0..bytes.len() {
-            assert_eq!(records::decode(&bytes[..len], &bounds), Err(crate::Undecodable));
+            assert_eq!(records::decode(&bytes[..len], &bounds), Err(crate::Undecodable::Malformed));
         }
     }
 }
@@ -2210,6 +2302,42 @@ fn sign_offs_round_trip_on_changes_and_landing_logs() {
 }
 
 #[test]
+fn landed_drafts_round_trip_the_smallest_and_full_rows_and_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for full in [false, true] {
+        let path: Box<[u8]> = if full {
+            let mut path = skein_lib::Writer::new(1024);
+            path.put(&[b'p'; 1021]).unwrap();
+            path.put(b".md").unwrap();
+            path.finish()
+        } else {
+            b".md".as_slice().into()
+        };
+        let row = forge::Stored::LandedDraft(forge::LandedDraft {
+            repository: skein_forge::api::Repository {
+                forge: if full { u16::MAX } else { 0 },
+                repository: if full { u32::MAX } else { 0 },
+            },
+            path,
+            project: if full { u32::MAX } else { 0 },
+            branch: if full { Box::from([b'b'; 1024]) } else { Box::new([]) },
+            commit: if full { [255; 32] } else { [0; 32] },
+            title: if full { Box::from([b't'; 200]) } else { Box::new([]) },
+            writer: if full { u64::MAX } else { 0 },
+            at: skein_lib::Wall::from_nanos(if full { u64::MAX } else { 0 }),
+            chat: full.then_some(u64::MAX),
+            goal: full.then_some(u64::MAX),
+            ready: full,
+        });
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(key.first(), Some(&41));
+        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn pull_size_is_omitted_without_changing_the_stored_pull() {
     use skein_forge::api::{Answer, Size};
     let mut pull = fixtures::pull();
@@ -2220,4 +2348,48 @@ fn pull_size_is_omitted_without_changing_the_stored_pull() {
     assert_eq!(encoded, records::encode(&expected), "size changes no stored byte");
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(&encoded, &bounds), Ok(expected));
+}
+
+#[test]
+fn a_change_holding_a_retired_route_or_state_never_decodes() {
+    use crate::v11 as w;
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Producing { requested: true })));
+    let encoded = records::encode(&row);
+    for route in [true, false] {
+        let row = w::Row::decode(bounds.limits(), &mut skein_lib::Reader::new(&encoded)).unwrap();
+        let w::Value::Change(change) = row.into_parts().value else { panic!("stored change") };
+        let mut parts = change.into_parts();
+        let mut open = skein_lib::List::with_capacity(1);
+        if !route {
+            open.push(
+                w::Open::new(
+                    &w::CEILINGS,
+                    w::OpenParts {
+                        asker: 7,
+                        number: 1,
+                        line: Box::new([]),
+                        words: Box::new([]),
+                        stands: w::Stands::Retired,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        parts.questions = w::Questions::new(
+            &w::CEILINGS,
+            w::QuestionsParts { route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open },
+        )
+        .unwrap();
+        let row = w::Row::new(
+            &w::CEILINGS,
+            w::RowParts { value: w::Value::Change(Box::new(w::ChangeRow::new(&w::CEILINGS, parts).unwrap())) },
+        )
+        .unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+        row.encode(&mut bytes).unwrap();
+        assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));
+    }
 }

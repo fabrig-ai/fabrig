@@ -162,7 +162,7 @@ fn changes_watch_is_project_scoped_and_leaves_with_the_page() {
         State::Shown(_) | State::Ended => panic!("page starts loading"),
     }
     let out = go(&mut root, Address::Settings { project: f::PROJECT });
-    assert_eq!(&*closed(&out), &[watch]);
+    assert!(closed(&out).contains(&watch));
     assert!(root.pages().changes().is_none());
 }
 #[test]

@@ -4,7 +4,7 @@ use crate::Role;
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
-/// Maximum named tasks in circle and settings-full refusal records.
+/// Maximum named tasks in circle, settings-full and live-work refusal records.
 pub const NAMED_TASKS: u32 = 32;
 
 /// Who may accept a proposal of a refused request (client/domain/contract/requests.md, 5).
@@ -118,6 +118,11 @@ pub enum Refusal {
     Llm {
         model: u8,
         why: crate::LlmWhy,
+    },
+    /// An owner must end the project's live roots before deleting it.
+    LiveTasks {
+        tasks: Box<[u64]>,
+        more: u32,
     },
 }
 

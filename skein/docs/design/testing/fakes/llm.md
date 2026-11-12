@@ -220,6 +220,50 @@ a turn. Its answer, failures, pieces, holds, accounting and `(script,
 turn)` place belong to that turn; selection draws no randomness. A recap
 is not understood, but a known recap prompt can have its own rule.
 
+### 2.5 Strict
+
+- **A switch, off by default.** `Config.strict`, a `bool`. Off, a turn
+  no script answers takes "done" or the random answer, as 2.4 has it.
+  On, it fails instead, so that a world or a QA box whose scripts miss a
+  turn sees the turn fail rather than drift (temper's
+  `draft/landed-qa.md`, 6).
+- **What no script answers,** under the switch: a script that 2.4
+  selects, by a system cue, a request cue or as `otherwise`, called past
+  its last turn; and a call that nothing selects, no cue matching and
+  `otherwise` empty, which would take the random answer. A script with
+  turn rules always plays one of its turns (2.4), so it never runs past
+  its last.
+- **The failure,** in place of the answer, after the seeded chances
+  (2.3), as a failing line falls before any other line of its reply:
+  class `Invalid`, its report's code `no_script`, the peer's own request
+  id (3.1), no field, and provider text that names the conversation's
+  last request:
+  - `no script answers: past the N turns of the script cued "CUE"; last
+    request: "TEXT"`, for a cued or asked script past its last turn, N
+    its turns and CUE its cue; for `otherwise`, `past the N turns of
+    otherwise`;
+  - `no script answers: no cue matches; last request: "TEXT"`, for a
+    call nothing selects.
+
+  TEXT is the text of the query's last user message that holds text,
+  its text parts joined by a line feed: the person's latest request,
+  where 2.4 looks for a request's cue. At most its first 512 bytes, cut
+  back to a character boundary and followed by `…` when cut; empty when
+  no user message holds text. The text is one line of the message as
+  given, quotes and line feeds included, never escaped.
+- **No assistant message,** as with any failure (2.3): the same call made
+  again fails again, until the conversation changes.
+- **On the wire,** the byte peer renders it as its route renders
+  `Invalid` before a stream (2.3; ../../llm/README.md, sections 4.7 and
+  4.8): the route's status and error type, the code as the error's code,
+  and the provider text as the error's message, in place of the message
+  a code alone gives. So the client reads `Failure::Invalid`, its
+  report's code `no_script`, and the text in its detail
+  (../../llm/README.md, section 2.5).
+- **Nothing when off:** no script byte and no state; `configured`,
+  `played` and `played_by_input` take the switch from the `Config` they
+  are given, and every world that sets none keeps 2.4's answers.
+
 ## 3. Byte peer
 
 `Service` owns bounded routing across connections; `Server` owns one HTTP

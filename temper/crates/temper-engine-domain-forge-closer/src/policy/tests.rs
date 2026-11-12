@@ -10,6 +10,85 @@ fn facts() -> Facts {
         child: Child::Pending,
         landing_child: Child::Pending,
         released: false,
+        close_ended: 1,
+        land_ended: 1,
+        bound: 1,
+    }
+}
+
+#[test]
+fn ended_steps_retry_only_below_the_bound_and_not_for_their_branch() {
+    // kind, running, branch's reason, ended, pending, containment, decision
+    for (kind, running, branch, ended, pending, contains, expected) in [
+        (Step::Close, true, false, 2, false, Some(false), Decision::Make(Step::Close)),
+        (Step::Close, true, false, 2, true, Some(false), Decision::Wait),
+        (
+            Step::Close,
+            true,
+            false,
+            3,
+            false,
+            Some(false),
+            Decision::Hold(Hold::ClosingStep { step: Step::Close, change: 20 }),
+        ),
+        (
+            Step::Close,
+            true,
+            true,
+            1,
+            false,
+            Some(false),
+            Decision::Hold(Hold::ClosingStep { step: Step::Close, change: 20 }),
+        ),
+        (Step::Land, true, false, 2, false, None, Decision::Check),
+        (Step::Land, true, false, 2, false, Some(false), Decision::Make(Step::Land)),
+        (Step::Land, false, false, 2, false, Some(false), Decision::Make(Step::Land)),
+        (Step::Land, true, false, 2, true, Some(false), Decision::Wait),
+        (
+            Step::Land,
+            false,
+            false,
+            3,
+            false,
+            Some(false),
+            Decision::Hold(Hold::ClosingStep { step: Step::Land, change: 20 }),
+        ),
+        (
+            Step::Land,
+            true,
+            true,
+            1,
+            false,
+            Some(false),
+            Decision::Hold(Hold::ClosingStep { step: Step::Land, change: 20 }),
+        ),
+        (Step::Land, false, true, 1, false, Some(true), Decision::Report),
+    ] {
+        let mut f = facts();
+        f.bound = 3;
+        f.close_ended = if kind == Step::Close { ended } else { 9 };
+        f.land_ended = if kind == Step::Land { ended } else { 9 };
+        f.child = Child::Ended { branch };
+        f.landing_child = f.child;
+        f.pending = pending;
+        f.base_holds = contains;
+        let mut c = Closer::new();
+        c.closed = Some(f.landed.clone());
+        c.running = running.then_some(Running { step: kind, change: 20 });
+        c.landing = (kind == Step::Land).then_some(20);
+        let s = step(&c, &f);
+        assert_eq!(s.decision, expected, "{kind:?}, running {running}, branch {branch}, ended {ended}");
+        if s.decision == Decision::Wait && running {
+            assert_eq!(s.closer.retry, Some(kind));
+            f.pending = false;
+            assert_eq!(step(&s.closer, &f).decision, Decision::Make(kind));
+        }
+        if let Decision::Hold(_) = s.decision {
+            f.released = true;
+            let released = step(&s.closer, &f);
+            assert_eq!(released.decision, Decision::Make(kind));
+            assert_eq!(released.closer.hold, None);
+        }
     }
 }
 
@@ -60,7 +139,7 @@ fn report_last() {
 #[test]
 fn a_step_change_that_ended_without_landing_holds_the_closer() {
     let mut f = facts();
-    f.child = Child::Ended;
+    f.child = Child::Ended { branch: false };
     let mut c = Closer::new();
     c.running = Some(Running { step: Step::Close, change: 20 });
     assert_eq!(step(&c, &f).decision, Decision::Hold(Hold::ClosingStep { step: Step::Close, change: 20 }));
@@ -69,7 +148,7 @@ fn a_step_change_that_ended_without_landing_holds_the_closer() {
 #[test]
 fn a_release_makes_the_step_change_again() {
     let mut f = facts();
-    f.child = Child::Ended;
+    f.child = Child::Ended { branch: false };
     let mut c = Closer::new();
     c.running = Some(Running { step: Step::Close, change: 20 });
     let c = step(&c, &f).closer;
@@ -84,8 +163,8 @@ fn a_release_makes_the_step_change_again() {
 fn an_ended_landing_reports_when_the_base_holds_the_branch() {
     for running in [true, false] {
         let mut f = facts();
-        f.child = Child::Ended;
-        f.landing_child = Child::Ended;
+        f.child = Child::Ended { branch: false };
+        f.landing_child = Child::Ended { branch: false };
         f.base_holds = Some(true);
         let mut c = Closer::new();
         c.closed = Some(f.landed.clone());
@@ -102,8 +181,8 @@ fn an_ended_landing_reports_when_the_base_holds_the_branch() {
 fn an_ended_landing_holds_when_the_base_does_not_hold_the_branch() {
     for running in [true, false] {
         let mut f = facts();
-        f.child = Child::Ended;
-        f.landing_child = Child::Ended;
+        f.child = Child::Ended { branch: false };
+        f.landing_child = Child::Ended { branch: false };
         let mut c = Closer::new();
         c.closed = Some(f.landed.clone());
         c.landing = Some(20);
@@ -116,8 +195,8 @@ fn an_ended_landing_holds_when_the_base_does_not_hold_the_branch() {
 fn a_released_landing_reports_or_makes_a_new_landing() {
     for base_holds in [true, false] {
         let mut f = facts();
-        f.child = Child::Ended;
-        f.landing_child = Child::Ended;
+        f.child = Child::Ended { branch: false };
+        f.landing_child = Child::Ended { branch: false };
         f.base_holds = Some(base_holds);
         f.released = true;
         let mut c = Closer::new();
@@ -135,8 +214,8 @@ fn a_released_landing_reports_or_makes_a_new_landing() {
 #[test]
 fn an_ended_landing_reads_before_deciding_and_keeps_its_release() {
     let mut f = facts();
-    f.child = Child::Ended;
-    f.landing_child = Child::Ended;
+    f.child = Child::Ended { branch: false };
+    f.landing_child = Child::Ended { branch: false };
     f.base_holds = None;
     let mut c = Closer::new();
     c.closed = Some(f.landed.clone());

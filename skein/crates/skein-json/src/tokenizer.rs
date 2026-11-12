@@ -232,6 +232,7 @@ pub enum Waiting {
 pub struct Tokenizer {
     state: State,
     document: Document,
+    delivered: u64,
 }
 
 impl Tokenizer {
@@ -243,6 +244,7 @@ impl Tokenizer {
         assert!(limits.length < u32::MAX, "the end position fits u32");
         Tokenizer {
             state: State::Idle(Held::Nothing),
+            delivered: 0,
             document: Document {
                 expect: Expect::Value,
                 open: Stack::with_capacity(limits.depth),
@@ -268,6 +270,12 @@ impl Tokenizer {
     #[must_use]
     pub fn position(&self) -> Position {
         self.document.answer
+    }
+
+    /// Bytes delivered, including the delivery that passed [`Limits::length`].
+    #[must_use]
+    pub fn delivered(&self) -> u64 {
+        self.delivered
     }
 
     /// Starts a new stream after Done or Failed, retaining every capacity.
@@ -304,6 +312,7 @@ impl Tokenizer {
         self.document.expect = Expect::Value;
         self.document.mode = Mode::Next;
         self.document.read = 0;
+        self.delivered = 0;
         self.document.lines = Lines::FIRST;
         self.document.pending = Position::START;
         self.document.answer = Position::START;
@@ -332,6 +341,9 @@ pub fn up(tokenizer: &mut Tokenizer, env: &Env<Limits>, ev: Up, above: &mut Queu
     tokenizer.state = match state {
         State::Reading(reading) => match ev {
             Up::Bytes(bytes) => {
+                tokenizer.delivered = u64::from(document.read)
+                    .checked_add(skein_lib::len_u64(bytes.len()))
+                    .expect("a delivery and the document's u32 count fit u64");
                 let step = delivered(document, limits, reading, &bytes);
                 settle(document, step, above)
             }

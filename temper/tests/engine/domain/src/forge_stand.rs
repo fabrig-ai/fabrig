@@ -300,7 +300,8 @@ impl ForgeStand {
             panic!("one synchronous observation reply");
         };
         assert_eq!(to.into_token(), observation);
-        let answer = translate::answer(&op, result.expect("stand observation"), &self.limits);
+        let answer =
+            translate::answer(&op, result.expect("stand observation"), &self.limits).expect("stand projection");
         self.domain.reclaim();
         assert!(self.quiescent());
         assert!(!self.domain.is_due(self.env.now));
@@ -342,7 +343,7 @@ impl ForgeStand {
                 let call = to.into_token();
                 let op = self.pending.remove(&call).expect("one stand terminal");
                 let result = match result {
-                    Ok(answer) => Ok(translate::answer(&op, answer, &self.limits)),
+                    Ok(answer) => translate::answer(&op, answer, &self.limits),
                     Err(error) => Err(translate::error(error, self.env.now)),
                 };
                 replies.push(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(

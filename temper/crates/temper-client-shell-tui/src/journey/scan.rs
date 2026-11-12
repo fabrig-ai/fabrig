@@ -3,7 +3,7 @@ use super::redact::link_forms;
 use super::{Line, Originals, Refusal, Replay, What, fields_mut, lines};
 use jig_client::ApprovalCode;
 use skein_lib::bytes::find_from;
-use temper_client_shell_web::journey::scan::{original, shape};
+use temper_client_redaction::scan::{original, shape};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Place {

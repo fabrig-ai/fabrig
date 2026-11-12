@@ -30,6 +30,12 @@ pub(crate) fn landed(
     if !d.repositories.contains_key(&repository) {
         return;
     }
+    let follows = change.follows.clone();
+    if let Some(follows) = follows {
+        let project = d.repositories.get(&repository).expect("adopted landing").project;
+        crate::follows::followed(d, project, follows.follow, &follows.commits, out);
+    }
+    let change = d.changes.get(&task).expect("landed change");
     let logged = LoggedChange {
         task,
         pull: change.pull,

@@ -608,14 +608,13 @@ delegate from what it knows:
   checked as the rest of the batch is: its landing branch by the change's
   grants on the repository, its dependencies by jig's batch.
 - **`questions`:** how the change takes its agents' questions (../forge/change/questions.md,
-  1): `"none"`, a change that asks no one (`agents.md`, 2); `"foreman"`, each
-  question settled first by a foreman of its own; `"up"`, each passed
-  straight to the requester, a designer's change's way; left out, the
+  1): `"none"`, a change that asks no one (`agents.md`, 2); `"up"`, each
+  passed straight to the requester; left out, the
   project's setting (`../../protocol/configuration/settings.md`, 2, kind 6), whose
-  default is `"none"`. Any other value is refused, naming it. A change
-  taking `"foreman"` is given one more task per question of its bound
-  (`forge.change_policy.questions`, `../../protocol/configuration/limits.md`
-  ), beside the tasks above, for its foremen.
+  default is `"none"`. Any other value is refused, naming it, `"foreman"`
+  among them, alone and in a batch's member alike: that route is retired
+  (`../../draft/stock-charters.md`, 3), and the schema offers `"none"` and
+  `"up"` alone.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
   these as they are.
@@ -769,15 +768,6 @@ change, and the change lands, at a goal's run more than the chat's own
   says it (`tools.md`, 1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without
   plans, or plans without control.
-
-- **A change's foremen's LLM choice** (../forge/change/questions.md, 1): `llm` (`tools.md`, 1)
-  names the producer's and the reviews' roles, and a change's foremen
-  run at their charter's default, where the reference's draft gives
-  each change one for its foremen too
-  (`../../draft/reference-code-production.md`, sections 5 and 14). Default:
-  the foreman's charter's, the reference setting its model there
-  (`../../protocol/configuration/reference.md`); a `foreman` role once a plan
-  needs foremen of different weights.
 
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine/executors.md`, 3); temper's takes none.

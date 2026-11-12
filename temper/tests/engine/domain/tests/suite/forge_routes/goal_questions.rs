@@ -7,7 +7,7 @@ use super::*;
 use temper_engine_domain_forge_change::{Route, Stands};
 
 const CHANNEL: Token = Token::new(7);
-const WORKER_SLOTS: u32 = 3; // The goal, a producer and a foreman may run together.
+const WORKER_SLOTS: u32 = 3; // The goal and its producers may run together.
 const TWO_CHANGES: usize = 2;
 const DEPENDENCIES: u32 = 2; // B keeps A, whose work it started from, while adding C.
 const GOAL_AND_A: usize = 2;
@@ -15,13 +15,12 @@ const STEPS: u32 = 1000; // The goal-change world's bound for landing and hold r
 const QUESTION: &[u8] = b"Which behavior?\nKeep the design or widen it? I recommend the design.";
 const SECOND: &[u8] = b"May I widen the scope?\nKeep it small or add a file? I recommend keeping it small.";
 const ANSWER: &[u8] = b"Keep the design.";
-const REASONS: &[u8] = b"The design leaves this open.";
 const DEPENDENCY_ANSWER: &[u8] = b"Wait for C, then use its design.";
 const A_REPORT: &[u8] = b"Done: added A.\n## Left\n- none";
 const B_REPORT: &[u8] = b"Done: added B.\n## Left\n- none";
 const C_REPORT: &[u8] = b"Done: clarified the design.\n## Left\n- none";
-// A goal plus three changes, each with its six ordinary delegates and four foremen (C5/C6).
-const STORY_TASKS: u32 = 1 + 3 * (1 + 6 + 4);
+// A goal plus three changes, each with its six delegates.
+const STORY_TASKS: u32 = 1 + 3 * (1 + 6);
 // Each result retains the producer's report before the check evidence is cut.
 const RESULT_BYTES: u32 = 256;
 // Three change results, two topic notices, core news, a question and a hold escalation.
@@ -91,12 +90,22 @@ fn start(bound: Option<u32>) -> Story {
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     world.until(Until::Ready);
+    // Keep the goal's inbox credit distinct from its producer's question credit.
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(Token::new(96)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [96; 16],
+        ask: people::Ask::Say { project: 1, task: goal.task, words: b"Follow the plan.".as_slice().into() },
+    }));
+    world.until(Until::Ready);
+    world.scripted_read_inbox(&goal);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     assert_eq!(forge_hold(&world, &branch).expect("goal holds g").task, goal.task);
     let main = branch_tip(&mut world, b"main");
     assert_eq!(branch_tip(&mut world, &branch), main);
     let input = smith_domain_run::HostInput::attested(
-        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"foreman"},{"name":"b","words":"Add B","landing":"goal","after":["a"],"questions":"foreman"}]}"#.as_slice().into(),
+        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"up"},{"name":"b","words":"Add B","landing":"goal","after":["a"],"questions":"up"}]}"#.as_slice().into(),
     ).expect("bounded change input");
     let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
         smith_domain_run::CallName { activation: goal.attempt, completion: 1, position: 1 },
@@ -116,8 +125,8 @@ fn start(bound: Option<u32>) -> Story {
     world.until(Until::Ready);
     assert_eq!(world.assigned.len(), GOAL_AND_A, "B waits although a worker slot is free");
     assert_eq!(row(&world, a).base, branch);
-    assert_eq!(row(&world, a).questions.route, Route::Foreman);
-    assert!(live_task(&world, b).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
+    assert_eq!(row(&world, a).questions.route, Route::Up);
+    assert!(live_task(&world, b).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 2 }));
     Story { world, goal, a, b, branch, main, producer }
 }
 
@@ -140,23 +149,14 @@ fn park(world: &mut World, producer: &engine::Assignment) {
     park_after_turn(world, producer, None, turns);
 }
 
-fn ask_foreman(world: &mut World, producer: &engine::Assignment, change: u64) -> (u64, engine::Assignment) {
+fn ask_up(world: &mut World, producer: &engine::Assignment, change: u64) -> (u64, u64) {
     let question = world.producer_question(producer, 100 + producer.attempt, QUESTION);
     assert!(live_task(world, producer.task).questions.iter().any(|q| q.number == question));
     park(world, producer);
-    for _ in 0..STEPS {
-        world.tick();
-        if let Some(open) = row(world, change).questions.open.first()
-            && let Stands::Foreman { task: Some(task) } = open.stands
-            && let Some(run) = world.assigned.iter().find(|run| run.task == task)
-            && world.store.pending.is_empty()
-        {
-            let foreman = run.clone();
-            assert_panel(world, change, producer.task, question, QUESTION, forge_top::PanelStands::Foreman(Some(task)));
-            return (question, foreman);
-        }
-    }
-    panic!("foreman assigned: {:?}", row(world, change));
+    let tasks::Party::Task(requester) = live_task(world, change).requester else { panic!("change's requester") };
+    let up = passed_up(world, requester, change, QUESTION);
+    assert_panel(world, change, producer.task, question, QUESTION, forge_top::PanelStands::Asked);
+    (question, up)
 }
 
 fn assert_panel(world: &mut World, change: u64, asker: u64, number: u64, words: &[u8], stands: forge_top::PanelStands) {
@@ -182,7 +182,7 @@ fn assert_panel(world: &mut World, change: u64, asker: u64, number: u64, words: 
         &world.panels.iter().rev().find(|(watcher, _)| *watcher == wanted_watcher).expect("forge change panel").1;
     assert_eq!(panel.task, change);
     assert!(panel.within());
-    assert_eq!(panel.questions.route, Route::Foreman);
+    assert_eq!(panel.questions.route, Route::Up);
     assert_eq!(panel.questions.taken.limit, world.env.limits.forge.change_policy.questions);
     assert_eq!(panel.questions.taken.used, row(world, change).questions.taken);
     let line = words.split(|byte| *byte == b'\n').next().expect("question first line");
@@ -319,10 +319,9 @@ fn land(
 }
 
 fn settle_a(story: &mut Story) -> u64 {
-    let (question, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
-    story.world.foreman_verdict(&foreman, 1, ANSWER);
+    let (question, up) = ask_up(&mut story.world, &story.producer, story.a);
+    story.world.goal_answer(&story.goal, 105, story.a, up, ANSWER);
     let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);
-    assert!(replies(&story.world, story.goal.task, story.a).is_empty(), "the foreman answers without asking the goal");
     land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT)
 }
 
@@ -332,9 +331,7 @@ fn escalate_b(story: &mut Story) -> (engine::Assignment, u64, u64) {
     let producer = next_producer(&mut story.world, story.b);
     assert!(ended(&story.world, story.a).is_some(), "B starts after A lands");
     assert_eq!(row(&story.world, story.b).base, story.branch);
-    let (question, foreman) = ask_foreman(&mut story.world, &producer, story.b);
-    story.world.foreman_verdict(&foreman, 3, REASONS);
-    let up = passed_up(&mut story.world, story.goal.task, story.b, &[QUESTION, b"\n\nForeman:\n", REASONS].concat());
+    let (question, up) = ask_up(&mut story.world, &producer, story.b);
     assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Asked);
     assert!(replies(&story.world, producer.task, story.b).is_empty());
     (producer, question, up)
@@ -425,7 +422,7 @@ fn amend_spec(story: &mut Story, target: u64, spec: &str, completion: u32) {
 fn amending_with_explicit_parameters_replaces_them() {
     let cases: [(u32, &str, Box<[tasks::Parameter]>); 2] = [
         (94, "[]", Box::new([])),
-        (95, r#"[{"kind":"number","name":14,"value":1}]"#, Box::new([tasks::Parameter::Number { name: 14, value: 1 }])),
+        (95, r#"[{"kind":"number","name":14,"value":2}]"#, Box::new([tasks::Parameter::Number { name: 14, value: 2 }])),
     ];
     let mut story = start(None);
     let change = story.producer.task;
@@ -457,7 +454,7 @@ fn amending_only_words_preserves_change_parameters() {
 }
 
 #[test]
-fn a_foreman_settles_a_question_and_the_change_lands() {
+fn a_goal_answers_a_question_and_the_change_lands() {
     let mut story = start(None);
     let tip = settle_a(&mut story);
     assert_ne!(tip, story.main);
@@ -486,7 +483,7 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
     let (producer, question, up) = escalate_b(&mut story);
     let mut change = engine::ChangeCall::words(b"Clarify the design".as_slice().into(), None);
     change.landing = Some(engine::ChangeLanding::Goal);
-    change.questions = Some(engine::ChangeQuestions::Foreman);
+    change.questions = Some(engine::ChangeQuestions::Up);
     let engine::CallAnswer::Delegated(made) =
         story.world.scripted_call(&story.goal, 110, engine::Tool::Change { changes: Box::new([change]) })
     else {
@@ -533,8 +530,9 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
 #[test]
 fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
     let mut story = start(Some(1));
-    let (first, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
-    story.world.foreman_verdict(&foreman, 1, ANSWER);
+    let (first, up) = ask_up(&mut story.world, &story.producer, story.a);
+    story.world.goal_answer(&story.goal, 105, story.a, up, ANSWER);
+    story.world.scripted_read_inbox(&story.goal);
     let producer = resumed(&mut story.world, &story.producer, story.a, first, ANSWER);
     let question = story.world.producer_question(&producer, 110, SECOND);
     park(&mut story.world, &producer);
@@ -560,7 +558,6 @@ fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
     assert!(
         replies(&story.world, story.goal.task, story.a).iter().any(|word| word.words.as_ref() == expected.as_bytes())
     );
-    assert_eq!(story.world.assigned.iter().filter(|run| run.charter == 6).count(), 1);
     assert!(
         !replies(&story.world, story.goal.task, story.a).iter().any(|word| word.kind == tasks::MessageKind::Question)
     );
@@ -571,11 +568,6 @@ fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
     ));
     let up = passed_up(&mut story.world, story.goal.task, story.a, SECOND);
     assert_panel(&mut story.world, story.a, producer.task, question, SECOND, forge_top::PanelStands::Asked);
-    assert_eq!(
-        story.world.assigned.iter().filter(|run| run.charter == 6).count(),
-        1,
-        "release passes up without a second foreman"
-    );
     story.world.goal_answer(&story.goal, 112, story.a, up, ANSWER);
     let producer = resumed(&mut story.world, &producer, story.a, question, ANSWER);
     land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT);
@@ -637,11 +629,85 @@ fn recovered_question(story: &mut Story) -> u64 {
     number
 }
 
+fn waiting_text(run: &engine::Assignment) -> Option<&[u8]> {
+    run.sections.iter().find_map(|section| match &section.body {
+        engine::BriefBody::Text(text) if section.kind == engine::BriefKind::Core(jig_domain_brief::Core::Waiting) => {
+            Some(text.as_ref())
+        }
+        _ => None,
+    })
+}
+
+fn assert_waiting_question(run: &engine::Assignment, asker: u64, number: u64, words: &[u8]) {
+    let heading = format!(
+        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {number}); answer with message target={asker}, form=answer, question={number}:\n"
+    );
+    assert_eq!(waiting_text(run), Some([heading.as_bytes(), words, b"\n"].concat().as_slice()));
+}
+
+#[test]
+fn a_stock_goal_keeps_a_passed_up_question_in_front_of_each_fresh_run() {
+    let (mut world, goal, _) = super::goal_branch::running_stock_goal();
+    let change = super::questions::make_change(&mut world, &goal, 93, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    park(&mut world, &goal);
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, goal.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let question = world.producer_question(&producer, 100, QUESTION);
+    park(&mut world, &producer);
+    let first = next_goal_run(&mut world, &goal);
+    let up = first
+        .messages
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(change) && word.kind == tasks::MessageKind::Question)
+        .expect("start carries the change's question")
+        .number;
+    assert_eq!(waiting_text(&first), None, "start question is not repeated");
+    let defaults = super::goal_branch::stock_defaults();
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    let part = charter.parts.iter().find(|part| part.on.contains(tasks::Reasons::QUESTION)).expect("questions part");
+    assert!(
+        first.run.policy.instructions.windows(part.instructions.len()).any(|words| words == part.instructions.as_ref())
+    );
+    world.scripted_read_inbox(&first);
+    park(&mut world, &first);
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, goal.task).last_answer == Some(first.attempt) {
+            break;
+        }
+    }
+    assert!(
+        matches!(
+            live_task(&world, goal.task).phase,
+            tasks::Phase::Active(tasks::Active::Due | tasks::Active::Preparing)
+        ),
+        "question is due, or already preparing, never idle"
+    );
+    let next = next_goal_run(&mut world, &first);
+    assert_waiting_question(&next, change, up, QUESTION);
+    assert!(live_task(&world, goal.task).reasons.contains(tasks::Reasons::QUESTION));
+    world.goal_answer(&next, 110, change, up, ANSWER);
+    resumed(&mut world, &producer, change, question, ANSWER);
+    world.close();
+}
+
+fn next_goal_run(world: &mut World, previous: &engine::Assignment) -> engine::Assignment {
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(run) =
+            world.assigned.iter().rev().find(|run| run.task == previous.task && run.attempt > previous.attempt)
+        {
+            return run.clone();
+        }
+    }
+    panic!("goal is assigned again: {:?}", live_task(world, previous.task));
+}
+
 #[test]
 fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     let mut story = start(None);
-    let (question, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
-    story.world.foreman_verdict(&foreman, 3, REASONS);
+    let (question, _) = ask_up(&mut story.world, &story.producer, story.a);
     for _ in 0..STEPS {
         story.world.tick();
         if row(&story.world, story.a).questions.open.first().is_some_and(|open| open.stands == Stands::Asked)
@@ -653,6 +719,7 @@ fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     fresh_goal(&mut story);
     unsuccessful_answers(&mut story, question);
     let number = recovered_question(&mut story);
+    assert_waiting_question(&story.goal, story.a, number, QUESTION);
     assert_ne!(number, question, "escalation and producer credits differ");
     story.world.goal_answer(&story.goal, 121, story.a, number, ANSWER);
     let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);

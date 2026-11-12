@@ -1,7 +1,14 @@
 # records: status
 
-2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-12. Where the tree's code lags or departs from [records.md](records.md).
 
+
+- **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
+  `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
+  change 871].
+- **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
+  `drafts`*: no such request, outcome, subject or panel on the wire
+  [in flight: change 662].
 - **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
@@ -13,7 +20,7 @@
   or in `temper-service`'s routing.
   `../pages/README.md`, *Ready*: the unhandled Ready endings remain `../pages/welcome.status.md`, 1.
    the plan's first-use card remains `../pages/accounts.status.md`, 2.
-  the project's Delete act remains `../pages/settings.status.md`, 1. `../pages/README.md`, The welcome:
+  `../pages/README.md`, The welcome:
   the welcome role-scope gap remains `../pages/welcome.status.md`, 1.
   FORGE in "FORGE · not
   finished" as the forge's name; `forge/connect.rs` `unfinished` prints

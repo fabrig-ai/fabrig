@@ -258,6 +258,7 @@ enum Reading {
     Asked,
     Refresh,
     Failed,
+    Gone,
 }
 #[derive(Debug)]
 struct Other {
@@ -279,6 +280,9 @@ impl Default for Team {
     }
 }
 impl Team {
+    pub(crate) fn document(&self, project: u32) -> Option<&c::Project> {
+        if self.project == Some(project) { self.document.as_deref() } else { None }
+    }
     #[expect(
         clippy::match_like_matches_macro,
         reason = "the step crate excludes matches!; its address check uses if let"
@@ -375,9 +379,6 @@ impl Team {
             }));
         }
     }
-    pub(super) fn document(&self, project: u32) -> Option<&c::Project> {
-        if self.project == Some(project) { self.document.as_deref() } else { None }
-    }
     pub(crate) fn leave(&mut self, out: &mut Queue<Request>) {
         if let Some(handle) = self.handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
@@ -413,7 +414,10 @@ impl Team {
                 true
             }
             Told::Changed { handle } if *handle == super::me_handle() && self.project.is_some() => {
-                if self.reading != Reading::Asked {
+                if self.reading != Reading::Asked
+                    && let Some(me) = super::accounts::current_me(client)
+                    && super::contains(me, self.project)
+                {
                     self.reading = Reading::Refresh;
                 }
                 true
@@ -427,7 +431,13 @@ impl Team {
                     }
                     Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => None,
                 };
-                self.reading = if self.document.is_some() { Reading::Idle } else { Reading::Failed };
+                self.reading = if self.document.is_some() {
+                    Reading::Idle
+                } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) = page {
+                    Reading::Gone
+                } else {
+                    Reading::Failed
+                };
                 true
             }
             Told::Ended { handle, .. } if self.handle == Some(*handle) => {
@@ -498,7 +508,11 @@ pub fn shown(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
         return Shown::Reading;
     }
     let Some(document) = &state.document else {
-        return if state.reading == Reading::Failed { Shown::Unreadable } else { Shown::Reading };
+        return if state.reading == Reading::Failed || state.reading == Reading::Gone {
+            Shown::Unreadable
+        } else {
+            Shown::Reading
+        };
     };
     let you = match root.pages.me(root.client()) {
         Some(me) => me.party.number,
@@ -512,6 +526,29 @@ pub fn shown(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
     }
     Shown::Read(gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall))
 }
+/// An unlisted project's read outcome (client/pages/home.md, 1, A deleted project).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Missing {
+    Reading,
+    Deleted,
+    NotOurs,
+}
+
+/// Home and How work runs share the rail's project read, including its answer
+/// while the address keeps the same project.
+#[must_use]
+pub fn missing(root: &crate::Domain, project: u32) -> Missing {
+    let state = &root.pages.team;
+    if state.project != Some(project) {
+        return Missing::Reading;
+    }
+    match state.reading {
+        Reading::Asked | Reading::Refresh => Missing::Reading,
+        Reading::Gone => Missing::Deleted,
+        Reading::Idle | Reading::Failed => Missing::NotOurs,
+    }
+}
+
 /// The project's people counted for the rail while its document is read.
 #[must_use]
 pub fn people(root: &crate::Domain, project: u32) -> Option<u32> {

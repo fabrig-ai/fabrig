@@ -393,7 +393,7 @@ impl Connection {
                             let rows = core::mem::replace(rows, List::with_capacity(0));
                             Reply::Rows(rows.into_boxed())
                         }
-                        Some(document) => Reply::Document(document),
+                        Some(document) => Reply::Document(Box::new(document)),
                         None => Reply::Down,
                     },
                     Speech::GitHub { document, rows, .. } => match document.take() {

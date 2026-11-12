@@ -553,6 +553,7 @@ pub enum PersonProposalRoute {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonTaskRoute {
+    Leave(u64),
     Compound { project: u32, operations: u32, first_message: u64 },
     PoolSet { project: u32, person: u64 },
     Take(u64),

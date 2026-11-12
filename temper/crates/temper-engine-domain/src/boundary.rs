@@ -330,7 +330,6 @@ pub enum ChangeLanding {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
-    Foreman,
     Up,
 }
 
@@ -606,6 +605,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
     Forge(forge::Ask),
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
@@ -616,6 +616,7 @@ pub enum Application {
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Follow(Option<Box<[u8]>>),
     Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
@@ -630,6 +631,7 @@ pub enum ApplicationAnswer {
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
+    SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).

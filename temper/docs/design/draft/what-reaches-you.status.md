@@ -17,7 +17,9 @@ milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
 `../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
 `../domain/forge/change/questions.md`, 2, `../domain/landing.md`, 8,
 `../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
-milestone N2, and the sign-offs a merge counted, kept with its landing
+milestone N2, and by `../domain/forge/change/branch-path.md`'s *A rule
+by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
+2's *Rules by path*, milestone P3c, and the sign-offs a merge counted, kept with its landing
 for Work, Team and the brief, by `../domain/forge/change/gates.md`, 2,
 *Sign-offs kept at landing*, milestone N6, but for lag 7. Where the code lags them is their status
 files'.
@@ -28,10 +30,8 @@ files'.
     head, which the forge reads for rules by path alone
     (`../domain/forge/change/gates.md`, 2, *What a change touches*):
     N1's repair's.
-  - 7: the path draws no stop for a path set's sign-off, and How work
-    runs no rule by path (`surfaces.status.md`, 7), P3c of
-    `whole-story.execution.md`; who can still sign a waiting sign-off is
-    N5's.
+  - 7: no design says who can still sign a waiting sign-off: N5 of
+    `whole-story.execution.md`.
   - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line

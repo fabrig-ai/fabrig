@@ -34,7 +34,7 @@ fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
             Where::Landed { default_branch: false, .. } | Where::Queued { .. } => {}
         }
     }
-    Facts { goals: list(goals), changes: list(changes), chats: list(chats), landed_default }
+    Facts { goals: list(goals), changes: list(changes), chats: list(chats), landed_default, ..Facts::default() }
 }
 
 fn goal(task: u64, live: bool, activity: u64) -> Goal {
@@ -447,6 +447,7 @@ struct Fixture {
     goals: Token,
     chats: Token,
     changes: Token,
+    drafts: Token,
 }
 impl Fixture {
     fn new() -> Self {
@@ -467,6 +468,7 @@ impl Fixture {
         let mut goals = None;
         let mut chats = None;
         let mut changes = None;
+        let mut drafts = None;
         for request in &out {
             if let Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
@@ -483,6 +485,8 @@ impl Fixture {
                     Watchable::Family { .. } => {
                         if Some(subject.clone()) == crate::forge::changes::watch(f::PROJECT, &f::limits().forge) {
                             changes = Some(*watch);
+                        } else if Some(subject.clone()) == crate::forge::drafts::watch(f::PROJECT, &f::limits().forge) {
+                            drafts = Some(*watch);
                         }
                     }
                     Watchable::Jig(_) => {}
@@ -492,7 +496,14 @@ impl Fixture {
         while let Some(request) = initial.pop() {
             out.push(request);
         }
-        Self { root, out, goals: goals.unwrap(), chats: chats.unwrap(), changes: changes.unwrap() }
+        Self {
+            root,
+            out,
+            goals: goals.unwrap(),
+            chats: chats.unwrap(),
+            changes: changes.unwrap(),
+            drafts: drafts.unwrap(),
+        }
     }
     fn up(&mut self, up: Up) {
         let mut out = super::welcome::event(&mut self.root, Event::Client { event: jig_client::Event::Up { up } });
@@ -554,6 +565,18 @@ impl Fixture {
                 );
             }
         }
+    }
+    fn drafts(&mut self, rows: &[w::LandedDraft]) {
+        let panel =
+            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+        self.up(Up::FamilyDelivered {
+            watch: self.drafts,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::drafts_panel(&panel),
+            },
+        });
     }
     fn panel(&mut self) -> w::ChangesPanel {
         let mut queued = List::with_capacity(4);
@@ -626,6 +649,7 @@ fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
     fixture.lists();
     assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "changes unread");
     fixture.panel();
+    fixture.drafts(&[]);
     let mut reads = List::uncapped();
     for request in &fixture.out {
         if let Request::Unlinked {
@@ -775,6 +799,145 @@ fn work_limits() -> crate::Limits {
     limits
 }
 
+fn draft(path: &[u8], ready: bool, goal: Option<u64>, at: u64) -> w::LandedDraft {
+    w::LandedDraft::new(
+        &w::CEILINGS,
+        w::LandedDraftParts {
+            forge: 1,
+            owner: b"owner".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            path: path.into(),
+            branch: b"main".as_slice().into(),
+            commit: b"abc".as_slice().into(),
+            title: b"Catch up".as_slice().into(),
+            writer: 9,
+            at: wall(at).as_nanos(),
+            chat: Some(8),
+            goal,
+            ready,
+        },
+    )
+    .unwrap()
+}
+#[test]
+fn landed_drafts_place_only_when_listed_and_mix_newest_first_with_chats() {
+    let mut facts = facts(&[], &[], &[chat(2, 36_000, true), chat(1, 36_000, true)]);
+    for row in [
+        draft(b"new.md", true, None, 39_600),
+        draft(b"not-ready.md", false, None, 50_000),
+        draft(b"started.md", true, Some(42), 50_000),
+        draft(b"neither.md", false, Some(42), 50_000),
+        draft(b"z.md", true, None, 36_000),
+        draft(b"a.md", true, None, 36_000),
+    ] {
+        facts.landed.push(work::LandedDraft::row(&row)).unwrap();
+    }
+    let base = facts.landed.get(5).unwrap().clone();
+    for row in [
+        work::LandedDraft { name: b"aaa".as_slice().into(), ..base.clone() },
+        work::LandedDraft { owner: b"aaa".as_slice().into(), ..base.clone() },
+        work::LandedDraft { forge: 0, ..base },
+    ] {
+        facts.landed.push(row).unwrap();
+    }
+    facts.landed.push(facts.landed.get(0).unwrap().clone()).unwrap();
+    let placed = work::place(&facts, wall(NOW));
+    assert!(placed.in_flight.is_empty());
+    assert_eq!(
+        placed.drafts,
+        list(&[
+            card(Item::Landed(0), &[]),
+            card(Item::Draft(1), &[]),
+            card(Item::Draft(2), &[]),
+            card(Item::Landed(8), &[]),
+            card(Item::Landed(7), &[]),
+            card(Item::Landed(6), &[]),
+            card(Item::Landed(5), &[]),
+            card(Item::Landed(4), &[]),
+        ])
+    );
+    assert_eq!(placed.filters.drafts, 8);
+    facts.chats.clear();
+    let placed = work::place(&facts, wall(NOW));
+    assert_eq!(placed.filters.drafts, 6);
+    assert!(work::shown(&placed.filters, work::Overrides::default()).drafts);
+}
+#[test]
+fn facts_wait_for_drafts_and_gather_the_wire_rows() {
+    let mut fixture = Fixture::new();
+    fixture.lists();
+    fixture.panel();
+    assert!(work::facts(&fixture.root, f::PROJECT).is_none(), "drafts unread");
+    let rows = [
+        draft(b"ready.md", true, None, 40),
+        draft(b"started.md", true, Some(42), 50),
+        draft(b"later.md", false, None, 60),
+    ];
+    fixture.drafts(&rows);
+    let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+    let mut expected = List::uncapped();
+    for row in &rows {
+        expected.push(work::LandedDraft::row(row)).unwrap();
+    }
+    assert_eq!(facts.landed, expected);
+    assert_eq!(work::place(&facts, wall(NOW)).drafts, list(&[card(Item::Landed(0), &[]), card(Item::Draft(3), &[])]));
+}
+#[test]
+fn refused_or_ended_drafts_answer_with_no_rows() {
+    for reason in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
+        let mut fixture = Fixture::new();
+        fixture.lists();
+        fixture.panel();
+        fixture.up(Up::WatchEnded { watch: fixture.drafts, end: reason });
+        assert!(work::facts(&fixture.root, f::PROJECT).unwrap().landed.is_empty());
+    }
+}
+#[test]
+fn work_goals_and_changes_keep_the_drafts_watch_until_leaving() {
+    let mut fixture = Fixture::new();
+    fixture.lists();
+    fixture.panel();
+    fixture.drafts(&[draft(b"ready.md", true, None, 40)]);
+    fixture.out = Queue::uncapped();
+    for address in [
+        Address::Goals { project: f::PROJECT, filter: crate::GoalsFilter::All },
+        Address::Changes { project: f::PROJECT },
+        Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts },
+    ] {
+        let out = super::welcome::event(&mut fixture.root, Event::Went { place: Place::Address(address) });
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+                request
+            {
+                assert_ne!(*watch, fixture.drafts);
+            }
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { subject, .. } },
+            } = request
+            {
+                assert_ne!(Some(subject.clone()), crate::forge::drafts::watch(f::PROJECT, &work_limits().forge));
+            }
+        }
+        assert_eq!(work::facts(&fixture.root, f::PROJECT).unwrap().landed.len(), 1);
+    }
+    let out = super::welcome::event(
+        &mut fixture.root,
+        Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
+    );
+    let mut closed = false;
+    for request in &out {
+        if *request
+            == (Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: fixture.drafts } },
+            })
+        {
+            closed = true;
+        }
+    }
+    assert!(closed);
+    assert!(fixture.root.pages().drafts().is_none());
+}
+
 #[test]
 fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_branches() {
     let mut facts = Facts::default();
@@ -891,6 +1054,7 @@ fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
     for answer in 0_u32..4 {
         let mut fixture = Fixture::new();
         fixture.lists();
+        fixture.drafts(&[]);
         let mut panel = fixture.panel().into_parts();
         let mut row = panel.landed.get(0).unwrap().clone().into_parts();
         row.signed =

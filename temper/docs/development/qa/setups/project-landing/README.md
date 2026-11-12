@@ -1,0 +1,1 @@
+Hello has the empty work/hello repository on the Forgejo temper runs on this machine and a signed-in fake ChatGPT plan, with Home's status ready. This state serves the project's Home, Work, Needs you, Ask temper and How work runs pages, the web journeys starting after project-landing, and the TUI journeys' starting screens.

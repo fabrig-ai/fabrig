@@ -235,13 +235,11 @@ pub fn error(error: forge::Error, now: Time) -> client::Error {
         forge::Error::Protected => client::Error::Protected,
     }
 }
-#[must_use]
-pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::Answer {
+pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> Result<client::Answer, client::Error> {
     answer_as(asked, answer, l, 1, false)
 }
 
 /// Translate protection for the acting user, with the layer's signatures setting.
-#[must_use]
 #[expect(clippy::too_many_lines, reason = "each domain answer has an independent client projection")]
 pub fn answer_as(
     asked: &client::Op,
@@ -249,8 +247,8 @@ pub fn answer_as(
     l: &Limits,
     actor: u64,
     signatures: bool,
-) -> client::Answer {
-    match answer {
+) -> Result<client::Answer, client::Error> {
+    Ok(match answer {
         forge::Answer::Artifact { commit: head, artifact } => {
             let client::Op::Read(client::Read::Artifact { max_bytes, .. }) = asked else {
                 panic!("artifact read");
@@ -317,9 +315,12 @@ pub fn answer_as(
         forge::Answer::Commit(id) => client::Answer::Commit(commit(id)),
         forge::Answer::Cloned { branches, .. } => branches_answer(asked, branches),
         forge::Answer::PullFiles { head, files, more } => {
-            let client::Op::Read(client::Read::PullFiles { skip, sides, .. }) = asked else {
+            let client::Op::Read(client::Read::PullFiles { head: asked_head, skip, sides, .. }) = asked else {
                 panic!("pull files read")
             };
+            if *asked_head != commit(head) {
+                return Err(client::Error::Stale);
+            }
             let files = files.into_iter().skip(usize::try_from(*skip).expect("skip fits")).collect();
             client::Answer::PullFiles { head: commit(head), files: files_in(files, *sides), more, cut: false }
         }
@@ -420,7 +421,7 @@ pub fn answer_as(
         | forge::Answer::Comments(_)
         | forge::Answer::Pulls(_)
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
-    }
+    })
 }
 fn checks_answer(asked: &client::Op, checks: Box<[forge::CheckSummary]>) -> client::Answer {
     let head = match asked {
