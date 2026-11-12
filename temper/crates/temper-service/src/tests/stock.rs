@@ -314,6 +314,7 @@ fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
     assert!(coordinator.contains("**A failure:** read its report."));
     assert!(coordinator.contains("**Your closer's escalation**"));
     assert!(coordinator.contains("Never write g or land it yourself."));
+    assert!(coordinator.contains("pass it up to your person with `decide_escalation`"));
 }
 
 #[test]
@@ -561,7 +562,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (26_722, Setting::Charter(5)));
+    assert_eq!(run, (26_744, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing role's charter executor.
@@ -764,6 +765,7 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
+    assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
         "the question, its options, the one you'd take, why, its kind, the paths",

@@ -79,7 +79,7 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 11_279), (5, 26_722)] {
+    for (number, expected) in [(2, 11_279), (5, 26_744)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
