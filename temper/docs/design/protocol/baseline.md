@@ -176,6 +176,18 @@ store keeps its row until the first patch it meets writes the levels.
   ended and its landing recorded; the paused chat's turns read in the
   current version; the mid-run task's attempt crossed and its next one
   started; and the next task number above every kept one.
+- **Its configuration, as a start reads it:** the kept
+  `configuration.json` is the world's test configuration, whose small
+  profile sets limits below a production deployment's. Where a later
+  build raises a limit's floor (main's added brief section raised
+  `brief.sections`' floor by one, to 8 when `tasks.charter_documents`
+  is 0), or configures more of a thing than the override bounds (its
+  default charters, against `tasks.charters` 9), the test raises that
+  override to this build's floor or count in the copy it starts the
+  service with, and the file stays as kept. Nothing
+  else in the configuration is changed: a member the build refuses by
+  name stays a red for the change that refused it
+  (`../draft/upgrades.md`, 10).
 - **A step per patch over it:** `golden/baseline/patched.txt` holds one
   line per patch the open applies, `<owner> <patch> <records> <commits>`
   in plan order, from the start's `Patched` events; the test fails

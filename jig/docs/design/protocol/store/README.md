@@ -775,11 +775,11 @@ intervals, and its indexes, by the rules of section 7.
   to it (`README.md`, section 2, and `records.md`, section 3, and `opening.md`, section 1 to 4). Still open:
   - values nested in another owner's family as they run across owners'
     levels (skein's `data/codec/README.md`, section 10);
-  - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
-    are copied, not opened, so a smith patch that changes `Hit` is
-    refused `Pieces` until they open (skein's `data/codec/patches.md`, 3, and `data/codec/README.md`, 10
-    ); so are jig's own packed lists (`records.md`, 1), whose words make
-    a copying patch reach them and a converting one refuse;
+  - pieces whose items' conversion stops, a site or a held field in
+    reach, are refused `Pieces` (skein's `data/codec/patches.md`, 3, and
+    `data/codec/README.md`, 10): a patch of smith's `Hit` (`Found.hits`,
+    `pieces Hit`) or of jig's own packed lists (`records.md`, 1) is
+    opened piece by piece while their items convert without a site;
   - the core's records walked by a smith patch: the core's `Row` reaches
     `TurnRecord`, which holds smith's turn, so each smith patch runs the
     core's identity plan over every core record, though no row in the
