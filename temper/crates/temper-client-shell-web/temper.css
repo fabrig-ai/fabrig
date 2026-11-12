@@ -1272,6 +1272,9 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-rail .temper-projects[open]::details-content { display: block; position: static; width: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 #app > .temper-rail .temper-projects-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px var(--gf-shadow); }
 #app > .temper-rail .temper-projects-acts { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--gf-line); }
+@media (min-width: 761px) {
+  #app > .temper-rail .temper-projects-acts > .temper-projects-phone { display: none; }
+}
 #app > .temper-rail .temper-projects-acts > :is(a, button), #app > .temper-rail .temper-project-new input { padding: 7px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font-size: 13.5px; text-align: left; text-decoration: none; }
 #app > .temper-rail .temper-projects-acts > :is(a, button):hover, #app > .temper-rail .temper-project-new input:hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-rail .temper-project-new { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0; border: 0; }

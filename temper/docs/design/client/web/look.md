@@ -256,7 +256,13 @@
   "+ New change", the dashed box `div.temper-rail-new` keeps, one button or
   one link filling it, its menu the panel the box opened before; "Deployment"
   at the foot, a row as the link's state's, above the person's row, its
-  dots after its word. The rules go under `temper.css`'s marker `/* ==== ui:
+  dots after its word. The switcher's menu ends at "Rename PROJECT" where
+  offered and "New project" on a wide page; at 760 px and under it adds
+  "Team for PROJECT" where Team shows, "How work runs for PROJECT" and
+  "Deployment", in that order. Each of those three links carries
+  `temper-projects-phone`, hidden from 761 px under the switcher's acts;
+  the terminal still prints them (`../view.md`, 3; the look request
+  `switcher-links`). The rules go under `temper.css`'s marker `/* ==== ui:
   rail ==== */`, before the switcher's; the rules they replace go where they
   stand.
 - **Work's look** (`../pages/README.md`, *Work*; the mockup's `work.html` and
