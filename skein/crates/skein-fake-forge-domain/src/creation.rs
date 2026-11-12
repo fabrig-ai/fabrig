@@ -4,12 +4,12 @@ pub(crate) mod copy;
 
 use crate::{
     Config, Domain, Signature,
-    api::{Checks, Error, What},
+    api::{Error, What},
     git::{self, Object},
     store::{Repository, fits},
 };
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, Map, bytes::copy_of};
+use skein_lib::{Env, Map, bytes::copy_of};
 
 /// Makes a repository's first main commit, or leaves an existing name alone.
 /// `owner` is the organization owner's account; the protocol keeps its namespace.
@@ -54,16 +54,7 @@ pub fn create_repository(
         domain,
         Object { parent: None, merge_parent: None, tree, message: Box::new([]), author: None, committer: None },
     )?;
-    let checks = Checks {
-        cues: Box::new([]),
-        contexts: Box::new([]),
-        latency_min: Duration::ZERO,
-        latency_max: Duration::ZERO,
-        silent: 0,
-        passes: 1000,
-        reruns: 0,
-        cue: None,
-    };
+    let checks = config.made_checks.clone();
     let mut stored = Repository::new(limits, copy_of(name), copy_of(b"main"), first, checks, None, false);
     stored.id = id;
     stored.permissions.insert(owner, crate::api::Permission::Admin).expect("owner room");
@@ -89,16 +80,7 @@ pub fn create_empty_repository(domain: &mut Domain, config: &Config, name: &[u8]
         last = last.max(repository.id);
     }
     let id = last.checked_add(1).ok_or(Error::Full)?;
-    let checks = Checks {
-        cues: Box::new([]),
-        contexts: Box::new([]),
-        latency_min: Duration::ZERO,
-        latency_max: Duration::ZERO,
-        silent: 0,
-        passes: 1000,
-        reruns: 0,
-        cue: None,
-    };
+    let checks = config.made_checks.clone();
     let mut stored = Repository::empty(limits, copy_of(name), copy_of(b"main"), checks, None, false);
     stored.id = id;
     stored.permissions.insert(owner, crate::api::Permission::Admin).expect("owner room");

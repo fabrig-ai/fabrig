@@ -24,8 +24,8 @@ fn start(links: Links) -> Start {
         seeds.llm,
     );
     let forge = Rc::new(RefCell::new(skein_fake_peers::forge::Forge::new(
-        skein_fake_forge_domain::Domain::new(&documents::hosted_git::CONFIG, seeds.forge),
-        documents::hosted_git::CONFIG,
+        skein_fake_forge_domain::Domain::new(&documents::hosted_git::config(), seeds.forge),
+        documents::hosted_git::config(),
     )));
     let forge = temper_fake_git::Typed::new(forge, &fakes::forge_table());
     Start {

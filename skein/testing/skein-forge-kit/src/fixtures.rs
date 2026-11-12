@@ -234,7 +234,7 @@ pub fn fake_config() -> skein_fake_forge_domain::Config {
             name_bytes: 96,
             ..skein_fake_forge_domain::Limits::TEST
         },
-        ..skein_fake_forge_domain::Config::TEST
+        ..skein_fake_forge_domain::Config::test()
     }
 }
 

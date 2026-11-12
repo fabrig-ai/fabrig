@@ -3,7 +3,7 @@ use skein_scratch::Scratch;
 use std::{
     fs,
     io::{BufRead, BufReader},
-    os::unix::fs::PermissionsExt,
+    os::unix::{ffi::OsStringExt, fs::PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -29,6 +29,9 @@ case "$2" in
 list) cat catalogue ;;
 hash)
     if test -f "refuse-$3"; then cat "refuse-$3" >&2; exit 1; fi
+    if test -d expected-files && test "$3" = added; then
+        diff -r expected-files "$5/added/files" >&2
+    fi
     cat "hash-$3" ;;
 walk)
     name=$3; shift 3
@@ -39,7 +42,12 @@ walk)
         --bin) test "$2" = "$PWD/bin"; shift 2 ;;
         --bundle) test "$2" = "$PWD/bundle"; shift 2 ;;
         --scratch) test "$2" = "$PWD/box"; shift 2 ;;
-        --setups) test -d "$2"; shift 2 ;;
+        --setups)
+            test -d "$2"
+            if test -d expected-files && test "$name" = added; then
+                diff -r expected-files "$2/added/files"
+            fi
+            shift 2 ;;
         --strict) shift ;;
         --ports) shift 2 ;;
         *) exit 1 ;;
@@ -459,6 +467,94 @@ fn a_new_recipe_is_written_and_proven_from_its_parent_even_when_its_own_copy_exi
         world.place.recipe("welcome", &input, &["welcome".into()], &mut output).expect_err("build name").to_string(),
         "recipe welcome is among the build's setups"
     );
+}
+
+fn commit_input() -> RecipeInput {
+    RecipeInput {
+        after: "fresh".into(),
+        lines: vec![
+            r#"forge commit forgejo playground/widget "m" "a.txt" "dir/b.txt""#.into(),
+            "forge checks forgejo playground/widget".into(),
+            r#"web see "Ready""#.into(),
+        ],
+        readme: "Committed files.".into(),
+        scripts: None,
+    }
+}
+
+#[test]
+fn a_new_recipe_copies_commit_files_before_hash_and_walk() {
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    let expected = world.place.paths.directory.join("expected-files");
+    for root in [&files, &expected] {
+        fs::create_dir_all(root.join("dir")).expect("nested files");
+        fs::write(root.join("a.txt"), b"first\n").expect("first file");
+        fs::write(root.join("dir/b.txt"), b"second\0\xff").expect("second file");
+    }
+    fs::write(files.join("unmentioned"), b"do not copy").expect("unmentioned file");
+    let code = world.place.recipe("added", &commit_input(), &[], &mut Vec::new()).expect("copied before hash");
+    assert_eq!(code, 0);
+    let copied = world.place.setups.join("added/files");
+    assert_eq!(fs::read(copied.join("a.txt")).expect("first copied"), b"first\n");
+    assert_eq!(fs::read(copied.join("dir/b.txt")).expect("second copied"), b"second\0\xff");
+    assert!(!copied.join("unmentioned").exists());
+    assert_eq!(world.walks().len(), 1, "proven from fresh");
+}
+
+#[test]
+fn a_new_recipe_reads_quoted_commit_paths_as_bytes() {
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(&files).expect("pass files");
+    let paths = [b"a space.txt".as_slice(), b"a\"quote.txt", b"a\\slash.txt", b"a\xff.txt"];
+    for path in paths {
+        fs::write(files.join(std::ffi::OsString::from_vec(path.to_vec())), path).expect("commit file");
+    }
+    let mut input = commit_input();
+    input.lines[0] = r#"forge commit forgejo playground/widget "m with \"quotes\"" "a space.txt" "a\"quote.txt" "a\\slash.txt" "a\xff.txt""#.into();
+    input.lines.insert(1, r#"forge commit forgejo playground/widget "again" "a space.txt""#.into());
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("quoted paths"), 0);
+    let copied = world.place.setups.join("added/files");
+    assert_eq!(fs::read_dir(&copied).expect("copied files").count(), paths.len());
+    for path in paths {
+        assert_eq!(fs::read(copied.join(std::ffi::OsString::from_vec(path.to_vec()))).expect("copied bytes"), path);
+    }
+}
+
+#[test]
+fn commit_paths_cannot_escape_the_pass_or_recipe() {
+    for path in ["../escape", "/escape", "dir/../escape", "dir//escape", "./escape"] {
+        let mut world = World::new();
+        let files = world.home.directory.join("passes/1/files");
+        fs::create_dir_all(files.join("dir")).expect("pass files");
+        fs::write(files.join("escape"), b"inside").expect("inside");
+        fs::write(files.parent().expect("pass directory").join("escape"), b"outside").expect("outside");
+        let mut input = commit_input();
+        input.lines[0] = format!("forge commit forgejo playground/widget \"m\" \"{path}\"");
+        let why = world.place.recipe("added", &input, &[], &mut Vec::new()).expect_err("invalid path");
+        assert!(why.to_string().contains("invalid path"), "{why}");
+        assert!(!world.place.setups.join("added").exists());
+    }
+}
+
+#[test]
+fn a_missing_commit_file_refuses_by_name_and_removes_the_recipe() {
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(&files).expect("pass files");
+    fs::write(files.join("a.txt"), b"first").expect("first file");
+    let why = world.place.recipe("added", &commit_input(), &[], &mut Vec::new()).expect_err("missing file");
+    assert!(why.to_string().contains("dir/b.txt"), "{why}");
+    assert!(!world.place.setups.join("added").exists(), "no partially written recipe");
+    assert!(world.walks().is_empty());
+}
+
+#[test]
+fn a_recipe_without_commits_writes_no_files_directory() {
+    let mut world = World::new();
+    assert_eq!(world.recipe("fresh").0, 0);
+    assert!(!world.place.setups.join("added/files").exists());
 }
 
 #[test]

@@ -455,7 +455,7 @@ impl World {
         branches: u32,
         turn: bool,
         tier: Option<raw::Workflow>,
-        mut config: forge::Config,
+        config: forge::Config,
         passes: Option<u32>,
     ) -> World {
         let tiered = tier.is_some();
@@ -465,23 +465,7 @@ impl World {
             client: skein_forge_client::Limits { facts, ..CLIENT },
             ..LIMITS
         };
-        config.limits.branches = branches;
-        if tiered {
-            config.limits.statuses = 16;
-            config.limits.content_bytes = 512;
-            config.limits.commits = 32;
-        }
-        config.limits.workflows = u32::from(turn || tiered);
-        config.limits.workflow_runs = if tiered {
-            16
-        } else if turn {
-            4
-        } else {
-            0
-        };
-        config.limits.bypassing_users = protection
-            .as_ref()
-            .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+        let config = scenario_config(config, branches, turn, tiered, protection.as_ref());
         let mut fake = forge::Domain::new(&config, seed);
         forge::repository(
             &mut fake,
@@ -1061,7 +1045,7 @@ impl World {
         self.push_as(branch, path, content, 1);
     }
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
@@ -1158,7 +1142,7 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
-        let mut config = self.forge_env.limits;
+        let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
@@ -1613,6 +1597,32 @@ fn key(row: &top::Stored) -> top::Key {
     }
 }
 
+fn scenario_config(
+    mut config: forge::Config,
+    branches: u32,
+    turn: bool,
+    tiered: bool,
+    protection: Option<&raw::Protection>,
+) -> forge::Config {
+    config.limits.branches = branches;
+    if tiered {
+        config.limits.statuses = 16;
+        config.limits.content_bytes = 512;
+        config.limits.commits = 32;
+    }
+    config.limits.workflows = u32::from(turn || tiered);
+    config.limits.workflow_runs = if tiered {
+        16
+    } else if turn {
+        4
+    } else {
+        0
+    };
+    config.limits.bypassing_users =
+        protection.map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+    config
+}
+
 fn repository_config(repositories: u32) -> forge::Config {
     let mut config = fake_config();
     config.limits.repositories = repositories;
@@ -1666,6 +1676,7 @@ pub fn fake_config() -> forge::Config {
         rate_limit: 0,
         rate_window: Duration::from_secs(10),
         ci: 3,
+        made_checks: forge::Config::test().made_checks,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,
