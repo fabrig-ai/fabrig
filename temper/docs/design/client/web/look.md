@@ -132,20 +132,22 @@
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
   name in the signal colour (#c2410c). Its frame is the top bar
-  (*Outside a project*, below), 22 px by 32 px, the brand, temper box's line in 14 px muted words, its
-  "temper box" ink and bold, and the steps at its right in 14.5 px
+  (*Outside a project*, below), 22 px by 32 px, the brand and the steps at its right in 14.5 px
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
-  hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
-  under, temper box's line takes its own row under them. After the
-  steps, the top bar's end as on every page outside a project, signed
-  in the person's name and "Sign out". The bar packs its rows to their
+  hairlines, hovered ink; below 760 px only the current label shows. After the
+  steps, the top bar's end, the link region alone, which takes no room
+  but while it says "Offline" (the look request `welcome-top`). The bar packs its rows to their
   end (`justify-content: flex-end`) and the steps take the free space at
-  their left (`margin-left: auto`, where temper box's line took it at its
-  right), so that the steps and the end keep to the right, temper box's
-  line beside the brand, and an end the row cannot hold wraps to the
+  their left (`margin-left: auto`), so that the steps and the end keep
+  to the right, and an end the row cannot hold wraps to the
   right of the next; an end straight after the brand, before the
-  deployment's read answers, takes the free space at its own left. The main is
+  deployment's read answers, takes the free space at its own left.
+  temper box's line, on the Welcome step alone, is a paragraph 28 px
+  under the cards' note, in the note's size and muted colour, wrapping
+  as the note does, "temper box" in ink at 600, its link underlined in
+  the line's colour (`--gf-line-2`, 3 px under), in the line's own size
+  and colour (`welcome-top`). The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
@@ -180,7 +182,10 @@
   2026-11-04). Ready's pane is Model's, its lines 18 px apart:
   each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
   name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
-  forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
+  forge line's words, on Model's pane and Ready's alike: at the line's
+  text indent (24 px), 2 px under its words, muted, 13.5 px, underlined in
+  the line's colour (`--gf-line-2`, 3 px under), a quiet link under its
+  forge's words (the look request `forgejo-link`); a stopped line's "WHO didn’t answer" is in the signal's
   colour, its why 13.5 px under it, its "Try again" and quiet act a row under
   that (the request `model-check-pane`). After the lead,
   the first project's form, its

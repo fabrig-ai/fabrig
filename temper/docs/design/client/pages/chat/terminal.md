@@ -30,11 +30,17 @@
     `night` is on and removes it otherwise, from the record before the first
     page is drawn and in the step a press turns it; the terminal shells draw no
     night.
-  - *Entered:* the button ">_", named "Terminal, full screen", in a
-    browser's bar after the mode group or "+ Draft" and before "Start goal…" or
-    "Start over", on every chat, `NewChat` and `Ask`, on a phone too:
-    `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
-    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*). The press
+  - *Entered:* for now, by nothing on the page: no bar draws ">_" ("Terminal,
+    full screen"), on any chat, `NewChat` or `Ask`, on a phone either, now
+    that temper has its own TUI (`../../tui/README.md`); the button needs
+    care, and comes back later (the look request `no-terminal-button`,
+    2026-11-12). On a chat the bar's other parts move into its place; on
+    `Ask` the bar's right is empty. The look's code stays whole: a browser
+    whose kept look says terminal still opens in it, and *Left* (below)
+    still leaves it, so that no one is stranded; this request does not
+    decide the look's future. `terminal::Act::Enter`, which the button gave
+    and no control gives now, stays: it sets `terminal` and asks the shell for full
+    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*), and
     draws the terminal in that step, before the browser answers: every terminal
     act, and a list's closing on any event, moves the pages' shown count, as
     each change the view draws does (`../../README.md`, section 3). Full screen refused, the

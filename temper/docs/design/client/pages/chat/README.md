@@ -10,9 +10,15 @@
   and tab bar go, but for the rail's night switch, at the chat's bar's right
   (`../../view.md`, 3), and the tab bar of Ask temper's page and of an Ask temper chat, the
   phone's Ask tab (`../ask-temper.md`, 1, *Ask temper's page*). A chat differs from an Ask temper chat only in its path: a
-  chat's path is "PROJECT / Chats /", "‹" on a phone a
-  link to `Chats`; an Ask temper chat's is "PROJECT / Ask temper /", "‹" on a
+  chat's path is "Chats /", "‹" on a phone a
+  link to `Chats`; an Ask temper chat's is "Ask temper /", "‹" on a
   phone a link to `Ask { project }`, the rail's "Ask temper" current.
+  The path names no project, which the rail's switcher names, in a
+  browser and in the terminal alike (the look request `chat-path`,
+  2026-11-12); `NewChat`'s is a chat's (2). Ask temper's page before its
+  first message keeps its own path, PROJECT (`../ask-temper.md`, 1), and
+  an agent's page its lineage (`../task.md`); the browser's terminal look
+  keeps "✦ PROJECT /", having no rail (`terminal.md`, 1, *The top line*).
 - **A chat's bar** holds its path, its level-1 heading named "TN · TITLE", the
   chat's task number and its title (a chat's first message, whole), and at its
   right, in this order:
@@ -64,7 +70,11 @@
 
   The path yields to the right part: the crumbs take `flex: 1 1 320px`, so
   the right part keeps the bar's row while the path has 320 px, and the
-  heading's ellipsis takes up the rest. Below that the row wraps, and a
+  heading's ellipsis takes up the rest. The trail inside them keeps one
+  line at its own width (`flex: none; white-space: nowrap`), so that it
+  is the heading that shrinks, never the trail that breaks: at 1366 and
+  1440 px, the rail open, the bar is one line (the look request
+  `chat-path`). Below about 1100 px the row wraps, and a
   phone keeps the heading above the controls.
 - **A person's pause** is a chat held by a placed hold of that person's own,
   mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
@@ -124,9 +134,9 @@
   watches, so that `Act::StartChat`, `Act::ChatWords` and `Act::Suggest`
   are the page's, as they are Ask temper's page's. On the layout every
   chat takes:
-  - *Its bar:* the path "PROJECT / Chats /", "‹" on a phone a link to
-    `Chats`, and the level-1 heading "New chat". No project yet, in the
-    playground's start, the path is "Chats /" alone.
+  - *Its bar:* the path "Chats /", naming no project (1, *One layout for
+    every chat*), "‹" on a phone a link to `Chats`, and the level-1
+    heading "New chat", in the playground's start too.
   - *In the thread,* centred, `.meta-line`: "Say what you want; the agent
     works in OWNER/NAME.", OWNER/NAME the project's home repository, read as
     Home reads it; or, with none, "Say what you want. PROJECT has no
