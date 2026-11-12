@@ -404,10 +404,20 @@ fn a_plan_card_names_the_plan_display_brand_and_holder() {
 }
 #[test]
 fn a_key_only_card_names_the_brand_and_holder_once() {
-    assert_eq!(
-        card_heading(card_document(b"openai", b"", c::AccountKind::Key)),
-        "OpenAI API key · held by Pat".as_bytes()
-    );
+    for (provider, name) in [(b"openai".as_slice(), "OpenAI API key"), (b"anthropic", "Anthropic API key")] {
+        let (mut root, me_watch, _, _, watch) =
+            fixtures::root_at_full(d::Address::Accounts, &fixtures::domain_limits(), b"Shop");
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        me.party.name = text(b"Alice");
+        fixtures::deliver_me(&mut root, me_watch, me);
+        deliver(&mut root, watch.unwrap(), card_document(provider, b"", c::AccountKind::Key));
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let row = fixtures::find(view.tree(), Role::Disclosure, format!("{name} · held by Alice").as_bytes());
+            assert!(row.is_some(), "missing {name} · held by Alice");
+        }
+        let row = root.pages().accounts_document(root.client()).unwrap().accounts.get(0).unwrap();
+        assert_eq!(crate::pages::accounts::account_words(&root, &fixtures::words(), row, row.sources.get(0).unwrap(), false).as_ref(), name.as_bytes());
+    }
 }
 /// The key account's row controls are view reads (temper/docs/design/client/web/testing.md, 6).
 #[test]

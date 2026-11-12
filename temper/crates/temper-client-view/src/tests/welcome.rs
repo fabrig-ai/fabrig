@@ -1231,6 +1231,21 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
         }
     }
 }
+#[test]
+fn an_anthropic_key_in_the_welcome_names_its_console_and_brand() {
+    let mut root = super::connect_model::plans_root();
+    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome {
+        step: Step::Model { way: Some(d::ModelWay { provider: 18, kind: d::WayKind::Key, source: None }) },
+    }) });
+    model_back(&root);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        node(view.tree(), Role::Heading { level: 1 }, "An Anthropic API key");
+        let words = String::from_utf8(f::text(view.tree()).into_vec()).unwrap();
+        assert!(words.contains("From the Claude Console, under API keys. What temper’s agents use is billed to the key’s organization."));
+        assert!(words.contains("Nothing checks a key when it is added: a wrong one shows once Anthropic refuses a run."));
+        assert!(!words.contains("OpenAI"));
+    }
+}
 fn model_ending_in_welcome(end: jig_client::contract::AccountEnd) -> d::Domain {
     let mut root = super::connect_model::ending(end, b"alice@example.com");
     in_welcome(&mut root, d::WayKind::SignIn);
