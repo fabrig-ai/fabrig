@@ -147,6 +147,72 @@ fn the_hand_sheet_names_choices_fields_errors_and_acts() {
     }
 }
 #[test]
+fn stock_choices_show_their_words_and_a_budget_judged_on_press() {
+    for w in [f::words(), f::browser_words()] {
+        let mut open = Open::new(f::PROJECT, b"vsr".as_slice().into(), areas::facts(), true, None);
+        let (tree, bindings) = sheet(&open, &w);
+        let choices: Vec<_> =
+            tree.nodes().iter().filter(|n| n.role == Role::Choice).map(|n| n.name.as_deref().unwrap()).collect();
+        let listed = choices.iter().position(|n| *n == b"Prover").unwrap();
+        assert_eq!(
+            &choices[listed..],
+            &[b"Prover".as_slice(), b"Prover, from the stock", b"Porter, from the stock", b"Write one with Ask temper"]
+        );
+        assert!(has_text(&tree, b"Owns its area's tests: triages their reds and flakes and makes the repairs."));
+        assert!(has_text(&tree, b"Keeps its area's port in step with its source."));
+        assert!(f::find(&tree, Role::TextField, b"Its budget a week").is_none());
+        for (stock, title) in [
+            (hand::Stock::Prover, b"Prover, from the stock".as_slice()),
+            (hand::Stock::Porter, b"Porter, from the stock"),
+        ] {
+            assert_eq!(
+                decode(&tree, &bindings, Role::Choice, title, skein_ui::Act::Toggle),
+                Action::Pages(Act::HandArea(hand::Act::Stock(stock)))
+            );
+            open.role = None;
+            open.stock = Some(stock);
+            open.judged = false;
+            open.budget = Box::default();
+            let (tree, bindings) = sheet(&open, &w);
+            assert!(node(&tree, Role::Choice, title).states.as_slice().contains(&State::Selected));
+            assert!(
+                !node(&tree, Role::Choice, b"Write one with Ask temper").states.as_slice().contains(&State::Selected)
+            );
+            node(&tree, Role::Button, b"Hand it over");
+            assert_eq!(
+                decode(
+                    &tree,
+                    &bindings,
+                    Role::TextField,
+                    b"Its budget a week",
+                    skein_ui::Act::Input { value: b"40".as_slice().into() }
+                ),
+                Action::Pages(Act::HandArea(hand::Act::Budget(b"40".as_slice().into())))
+            );
+            assert!(!has_text(&tree, b"A budget is a whole number above zero."));
+            open.judged = true;
+            let (tree, _) = sheet(&open, &w);
+            assert!(has_text(&tree, b"A budget is a whole number above zero."));
+            open.budget = b"40".as_slice().into();
+            let (tree, _) = sheet(&open, &w);
+            assert!(!has_text(&tree, b"A budget is a whole number above zero."));
+        }
+        open.failure = Some(hand::Failure::Outcome(jig_client::Outcome::Answered(jig_client::Answered::Jig(
+            jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::Judged {
+                    at: 0,
+                    setting: jig_client::contract::Setting::Charter(jig_client::contract::SettingNumber { number: 15 }),
+                    why: jig_client::contract::Text::new(b"The prover cannot start here.".as_slice().into(), 128)
+                        .unwrap(),
+                },
+                at: None,
+            },
+        ))));
+        let (tree, _) = sheet(&open, &w);
+        assert!(has_text(&tree, b"The prover cannot start here."));
+    }
+}
+#[test]
 fn give_back_confirmation_names_the_requester_and_singular_or_plural_acts() {
     for w in [f::words(), f::browser_words()] {
         for (count, you, apply, title, line, keep, send) in [

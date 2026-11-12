@@ -118,7 +118,8 @@ impl Bindings {
                     (
                         PageAct::HandArea(
                             act @ (temper_client_domain::pages::team::hand::Act::Area(_)
-                            | temper_client_domain::pages::team::hand::Act::Role(_)),
+                            | temper_client_domain::pages::team::hand::Act::Role(_)
+                            | temper_client_domain::pages::team::hand::Act::Stock(_)),
                         ),
                         skein_ui::Act::Toggle,
                     ) => PageAct::HandArea(act.clone()),
@@ -138,6 +139,10 @@ impl Bindings {
                         PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(_)),
                         skein_ui::Act::Input { value },
                     ) => PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(value)),
+                    (
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Budget(_)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Budget(value)),
                     (PageAct::AmendWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::AmendWords { words: value }
                     }

@@ -1,4 +1,5 @@
 //! Hand-made reads pin Team's whole-record hand-off (client/pages/team.md, 1).
+mod stock;
 use super::*;
 use crate::pages::team::hand::{self, Act};
 use jig_client::{Answered, Down, Outcome, Readout};

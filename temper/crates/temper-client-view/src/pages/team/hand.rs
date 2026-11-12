@@ -11,7 +11,7 @@ use temper_client_domain::{
     Domain,
     pages::{
         Act as PageAct,
-        team::hand::{Act, Failure, NameProblem, Open},
+        team::hand::{Act, Failure, NameProblem, Open, Stock},
     },
 };
 
@@ -49,6 +49,9 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bind
     } else {
         areas(b, root, open, w, bindings);
         roles(b, open, w, bindings);
+        if open.stock.is_some() {
+            budget(b, root, open, w, bindings);
+        }
     }
     if let Some(failure) = &open.failure {
         b.open(Role::Slot);
@@ -77,7 +80,7 @@ fn areas(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut 
                 &area.name,
                 Act::Area(Some(area.name.clone())),
                 open.area.as_ref() == Some(&area.name),
-                open.busy(),
+                open.locked(),
                 bindings,
             );
             b.open(Role::Text);
@@ -95,7 +98,7 @@ fn areas(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut 
             b.close();
         }
         if areas.rows.len() < 16 {
-            choice(b, &w.say(Word::HandNew, &[]), Act::Area(None), open.area.is_none(), open.busy(), bindings);
+            choice(b, &w.say(Word::HandNew, &[]), Act::Area(None), open.area.is_none(), open.locked(), bindings);
         }
     }
     b.close();
@@ -116,7 +119,7 @@ fn field(b: &mut Builder, root: &Domain, open: &Open, w: &Words, name: bool, bin
     } else {
         Act::Words(Box::default())
     })));
-    if open.busy() {
+    if open.locked() {
         b.state(State::Disabled);
     }
     b.close();
@@ -149,9 +152,46 @@ fn roles(b: &mut Builder, open: &Open, w: &Words, bindings: &mut Bindings) {
     b.name(&w.say(Word::HandWhichRole, &[]));
     text(b, Role::Heading { level: 3 }, &w.say(Word::HandWhichRole, &[]));
     for role in &open.facts.roles {
-        choice(b, &role.name, Act::Role(Some(role.task)), open.role == Some(role.task), open.busy(), bindings);
+        choice(b, &role.name, Act::Role(Some(role.task)), open.role == Some(role.task), open.locked(), bindings);
     }
-    choice(b, &w.say(Word::HandWrite, &[]), Act::Role(None), open.role.is_none(), open.busy(), bindings);
+    for (stock, title, line) in [
+        (Stock::Prover, Word::HandProver, Word::HandProverLine),
+        (Stock::Porter, Word::HandPorter, Word::HandPorterLine),
+    ] {
+        b.open(Role::Slot);
+        b.style(look::SHEET_OPTION);
+        choice(b, &w.say(title, &[]), Act::Stock(stock), open.stock == Some(stock), open.locked(), bindings);
+        text(b, Role::Paragraph, &w.say(line, &[]));
+        b.close();
+    }
+    choice(
+        b,
+        &w.say(Word::HandWrite, &[]),
+        Act::Role(None),
+        open.role.is_none() && open.stock.is_none(),
+        open.locked(),
+        bindings,
+    );
+    b.close();
+}
+fn budget(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut Bindings) {
+    b.open(Role::Slot);
+    b.style(look::GOAL_FIELD);
+    b.open(Role::TextField);
+    b.style(look::GOAL_TEXT);
+    b.name(&w.say(Word::HandBudget, &[]));
+    b.value(&open.budget, temper_client_domain::pages::shown(root.pages()));
+    b.bind(bindings.insert(PageAct::HandArea(Act::Budget(Box::default()))));
+    if open.busy() {
+        b.state(State::Disabled);
+    }
+    b.close();
+    if open.judged && open.budget_value().is_none() {
+        b.open(Role::Text);
+        b.style(look::SHEET_ERROR);
+        w.text(b, Word::HandBudgetShape, &[]);
+        b.close();
+    }
     b.close();
 }
 fn choice(b: &mut Builder, title: &[u8], act: Act, selected: bool, busy: bool, bindings: &mut Bindings) {
@@ -173,7 +213,7 @@ fn foot(b: &mut Builder, open: &Open, w: &Words, bindings: &mut Bindings) {
     };
     let keep =
         if open.give.is_some() { if plural { Word::GiveKeepMany } else { Word::GiveKeep } } else { Word::HandNotNow };
-    let send = if open.give.is_none() && open.role.is_none() {
+    let send = if open.give.is_none() && open.role.is_none() && open.stock.is_none() {
         Word::HandAsk
     } else if !open.apply {
         Word::StopAskingPropose

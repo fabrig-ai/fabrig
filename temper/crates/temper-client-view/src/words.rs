@@ -527,6 +527,12 @@ pub enum Word {
     HandDuplicate,
     HandWordsShape,
     HandWrite,
+    HandProver,
+    HandProverLine,
+    HandPorter,
+    HandPorterLine,
+    HandBudget,
+    HandBudgetShape,
     HandAsk,
     HandNotNow,
     HandOver,
@@ -2025,7 +2031,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2574;
+const PHRASES: u32 = 2580;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2052,10 +2058,10 @@ const PHRASES: u32 = 2574;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4684;
+const SEGMENTS: u32 = 4690;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 61149;
-const ALL: [Word; 1888] = [
+const ENGLISH_BYTES: u32 = 61369;
+const ALL: [Word; 1894] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2562,6 +2568,12 @@ const ALL: [Word; 1888] = [
     Word::HandDuplicate,
     Word::HandWordsShape,
     Word::HandWrite,
+    Word::HandProver,
+    Word::HandProverLine,
+    Word::HandPorter,
+    Word::HandPorterLine,
+    Word::HandBudget,
+    Word::HandBudgetShape,
     Word::HandAsk,
     Word::HandNotNow,
     Word::HandOver,
@@ -4526,6 +4538,12 @@ impl Word {
             Self::HandDuplicate => 9208,
             Self::HandWordsShape => 9209,
             Self::HandWrite => 9210,
+            Self::HandProver => 9228,
+            Self::HandProverLine => 9229,
+            Self::HandPorter => 9230,
+            Self::HandPorterLine => 9231,
+            Self::HandBudget => 9232,
+            Self::HandBudgetShape => 9233,
             Self::HandAsk => 9211,
             Self::HandNotNow => 9212,
             Self::HandOver => 9213,
@@ -7938,6 +7956,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HandDuplicate => (&[b"", b" has an area named ", b" already."], &[Name, Name]),
         Word::HandWordsShape => (&[b"What it covers is 1 to 480 bytes, on one line."], &[]),
         Word::HandWrite => (&[b"Write one with Ask temper"], &[]),
+        Word::HandProver => (&[b"Prover, from the stock"], &[]),
+        Word::HandProverLine => (&[b"Owns its area's tests: triages their reds and flakes and makes the repairs."], &[]),
+        Word::HandPorter => (&[b"Porter, from the stock"], &[]),
+        Word::HandPorterLine => (&[b"Keeps its area's port in step with its source."], &[]),
+        Word::HandBudget => (&[b"Its budget a week"], &[]),
+        Word::HandBudgetShape => (&[b"A budget is a whole number above zero."], &[]),
         Word::HandAsk => (&[b"Ask temper"], &[]),
         Word::HandNotNow => (&[b"Not now"], &[]),
         Word::HandOver => (&[b"Hand it over"], &[]),
