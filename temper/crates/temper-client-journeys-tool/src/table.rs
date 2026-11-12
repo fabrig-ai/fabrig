@@ -154,13 +154,73 @@ pub(crate) const DRIVE: Command = Command {
     ..REPRINT
 };
 
+const RECIPES: Settings = Settings {
+    tool: "temper-client-journeys recipe",
+    about: "The recipes' directory.",
+    table: &[Setting {
+        name: "setups",
+        value: "DIR",
+        about: "Directory of named recipe directories.",
+        fallback: Fallback::Text(crate::recipe::SETUPS),
+        set: Set::Internal,
+        twin: None,
+        notes: "Relative to the working directory.",
+    }],
+};
+const RECIPE_SESSION: Settings = Settings {
+    tool: "temper-client-journeys recipe walk",
+    about: "A given build and scratch directory, fresh or restored from an ancestor.",
+    table: &[
+        SESSION.table[0],
+        SESSION.table[1],
+        SESSION.table[2],
+        Setting {
+            name: "from",
+            value: "ANCESTOR",
+            about: "Start with this member's check on its restored box.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "With --from, config/ and data/ must be directories; without it, both must be absent.",
+        },
+    ],
+};
+pub(crate) const RECIPE_HASH: Command = Command {
+    reach: Reach::Words(&["recipe", "hash"]),
+    forms: &["NAME [--setups DIR]"],
+    line: "Read a recipe's chain and print its SHA-256 hash.",
+    arguments: &[Argument { shown: "NAME", line: "Recipe name, 1–64 bytes of [a-z][a-z0-9-]*." }],
+    settings: &[&RECIPES],
+    notes: "Refusals name the recipe and its line or file, exit 1.",
+    ..REPRINT
+};
+pub(crate) const RECIPE_LIST: Command = Command {
+    reach: Reach::Words(&["recipe", "list"]),
+    forms: &["[--setups DIR]"],
+    line: "List recipes, parents and each README's first sentence, in name order.",
+    settings: &[&RECIPES],
+    notes: "An unreadable recipe is listed as refused; the catalogue goes on.",
+    ..REPRINT
+};
+pub(crate) const RECIPE_WALK: Command = Command {
+    reach: Reach::Words(&["recipe", "walk"]),
+    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]"],
+    line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
+    arguments: RECIPE_HASH.arguments,
+    settings: &[&RECIPES, &RECIPE_SESSION],
+    switches: DRIVE.switches,
+    variables: DRIVE.variables,
+    notes: "Chain scripts go to the box root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
+    ..REPRINT
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[REPRINT, ADD, AGAIN, DRIVE],
+    commands: &[REPRINT, ADD, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

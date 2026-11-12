@@ -18,6 +18,7 @@ pub mod again;
 pub mod drive;
 pub mod line;
 pub mod print;
+pub mod recipe;
 pub mod tui;
 pub mod tui_again;
 mod tui_driver;
