@@ -1,7 +1,7 @@
 //! Volatile party inbox projections from the task child's durable rows.
 //! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
 
-pub use crate::below::inbox::*;
+pub use jig_domain_core_vocabulary::inbox::*;
 
 mod census;
 

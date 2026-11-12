@@ -1,8 +1,8 @@
 //! A pending proposal's values are reviewed against the newest settings (domain/engine/settings.md, 6).
 
-pub use crate::below::documents::settings_review::*;
 use crate::{Core, Limits, settings as s};
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::documents::settings_review::*;
 use jig_domain_tasks as t;
 use skein_lib::List;
 

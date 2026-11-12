@@ -1,7 +1,7 @@
 //! A task's named or current default LLM choice (domain/tasks/README.md, section 3;
 //! domain/engine/executors.md, 1).
 
-pub use crate::below::runs::llm::*;
+pub use jig_domain_core_vocabulary::runs::llm::*;
 
 use alloc::boxed::Box;
 use jig_domain_people as people;

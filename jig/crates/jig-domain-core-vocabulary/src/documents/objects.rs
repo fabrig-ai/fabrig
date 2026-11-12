@@ -6,6 +6,7 @@
 use super::{
     AuthorityLine, Chip, ContractLine, Ending, HoldLine, Parameter, Part, PriorPhase, Proposer, Task, TaskLink, Text,
 };
+use crate::{Limits, documents::Missing};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
@@ -254,4 +255,26 @@ pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.lines).checked_add(2)?.checked_mul(super::offers::heap_bound(limits)?)?)?
         .checked_add(u64::try_from(size_of::<Proposal>()).ok()?)?
         .checked_add(u64::try_from(size_of::<PersonTask>()).ok()?)
+}
+
+/// The ended delegate's identity and outcome, made from its retained task row.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct EndedDelegate {
+    pub chip: Chip,
+    pub ended: Ending,
+    pub at: Option<Wall>,
+}
+
+/// Copy an ended delegate after the store reader has checked project visibility.
+pub fn ended_delegate_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<EndedDelegate, Missing> {
+    match &row.phase {
+        tasks::Phase::Ended(value) => Ok(EndedDelegate {
+            chip: super::small::chip_from_row(limits, row)?,
+            ended: super::task_tree::ending(limits, value)?,
+            at: row.ended_at,
+        }),
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+            Err(Missing::Unknown)
+        }
+    }
 }

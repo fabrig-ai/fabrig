@@ -4,7 +4,7 @@
 //! and translates the current hold reason without exposing a child's types.
 
 use crate::Core;
-pub use crate::below::settings::revisions::*;
+pub use jig_domain_core_vocabulary::settings::revisions::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 

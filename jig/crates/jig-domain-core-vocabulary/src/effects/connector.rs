@@ -10,6 +10,29 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Token, Wall};
 
+/// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
+#[derive(Hash, Debug)]
+pub struct PersonSeed {
+    pub number: u64,
+    pub funder: tasks::Funder,
+    pub authority: tasks::Authority,
+    pub opens: (Option<tasks::Event>, Option<tasks::Event>),
+}
+
+impl PersonSeed {
+    /// The models its authority allows (jig/docs/design/domain/authority.md, 6.1).
+    #[must_use]
+    pub const fn models(&self) -> tasks::Models {
+        self.authority.models
+    }
+
+    /// The allocated task number.
+    #[must_use]
+    pub const fn number(&self) -> u64 {
+        self.number
+    }
+}
+
 /// Core-authorized task identity and funding for one connector repair.
 #[derive(Hash, Debug)]
 pub struct RepairSeed {

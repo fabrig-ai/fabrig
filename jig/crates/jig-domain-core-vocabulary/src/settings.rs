@@ -631,7 +631,8 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
+#[expect(clippy::panic, reason = "the core's test fixtures assert their setup values")]
 impl Current {
     pub fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
         drop(self.resolved.remove(&number));

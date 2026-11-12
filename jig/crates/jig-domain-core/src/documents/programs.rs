@@ -1,9 +1,9 @@
 //! Secret-free per-host login observations, joined at read time (accounts.md, 3.4).
 
-pub use crate::below::documents::programs::*;
 use crate::{Core, documents::DocumentLimits};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
+pub use jig_domain_core_vocabulary::documents::programs::*;
 use jig_domain_link::{LoginState, SignOutResult};
 use skein_lib::{List, Token, bytes};
 fn detail(value: &[u8], limits: &DocumentLimits, cut: &mut bool) -> Box<[u8]> {

@@ -1,11 +1,11 @@
 //! Small live documents and the shared bounded chip construction.
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::documents::small::*;
 use crate::{
     Core, Limits,
     documents::{Chip, Count, Frame, FrameProjectRole, Missing, Run},
 };
+pub use jig_domain_core_vocabulary::documents::small::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;

@@ -40,9 +40,9 @@ pub use inbox_selection::{InboxSelection, inbox_selection_bound};
 pub use jig_domain_accounts::Use;
 pub use live_delegates::LiveDelegate;
 pub use objects::{
-    AmendmentChange, AmendmentState, Escalation, FundingOffer, HistoryLine, MilestoneLine, MilestonePhase, PersonTask,
-    Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting, ProposedTask, Question,
-    ResultDoc, RetainedAction, ShownResult, SpecLine,
+    AmendmentChange, AmendmentState, EndedDelegate, Escalation, FundingOffer, HistoryLine, MilestoneLine,
+    MilestonePhase, PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting,
+    ProposedTask, Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
 };
 pub use programs::{ProgramHost, ProgramLogin};
 pub use project_note::{

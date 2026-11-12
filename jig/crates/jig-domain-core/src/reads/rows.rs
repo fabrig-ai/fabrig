@@ -2,7 +2,6 @@
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! Deployment period spend includes removed projects (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::reads::rows::*;
 use crate::{
     Core, CoreKey, CoreRecord, Key, Limits, Record,
     documents::{self, Document, Missing, Proposer},
@@ -12,6 +11,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::reads::rows::*;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::List;

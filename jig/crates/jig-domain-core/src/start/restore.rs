@@ -1,5 +1,5 @@
 //! Store rows enter through the start that owns their child routing (jig/docs/design/domain/engine/restart.md).
-pub use crate::below::start::restore::*;
+pub use jig_domain_core_vocabulary::start::restore::*;
 
 use crate::{Core, Limits, Queue, Record, Restored, accounts, people, start::Phase, tasks};
 use skein_lib::Env;

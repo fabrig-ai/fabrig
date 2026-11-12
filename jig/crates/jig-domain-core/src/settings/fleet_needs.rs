@@ -1,7 +1,7 @@
 //! The core's configured charter requirements for fleet admission (domain/engine/fleet.md).
 
 use crate::Limits;
-pub use crate::below::settings::fleet_needs::*;
+pub use jig_domain_core_vocabulary::settings::fleet_needs::*;
 use jig_domain_fleet::Needs;
 use skein_lib::List;
 pub(crate) fn current(core: &crate::Core, limits: &Limits) -> Needs {

@@ -1,7 +1,7 @@
 //! The core's bounded task, dependency, attempt and transcript sections
 //! (domain/engine/briefs.md, section 1).
 
-pub use crate::below::runs::brief_text::*;
+pub use jig_domain_core_vocabulary::runs::brief_text::*;
 
 use alloc::boxed::Box;
 use jig_domain_notes as notes;

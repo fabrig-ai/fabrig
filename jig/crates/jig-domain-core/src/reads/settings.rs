@@ -1,6 +1,5 @@
 //! Dense revision reads (domain/engine/settings.md, 7; client/domain/contract/README.md, section 4).
 
-pub use crate::below::reads::settings::*;
 use crate::{
     Core, CoreRecord, Limits, Record, Request,
     reads::{
@@ -10,6 +9,7 @@ use crate::{
     settings,
 };
 use alloc::boxed::Box;
+pub use jig_domain_core_vocabulary::reads::settings::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue, ReplyTo};

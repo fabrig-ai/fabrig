@@ -1,6 +1,6 @@
 //! Configured charters and readiness (domain/engine/executors.md, 1 and domain/engine/fleet.md).
 
-pub use crate::below::settings::charters::*;
+pub use jig_domain_core_vocabulary::settings::charters::*;
 
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;

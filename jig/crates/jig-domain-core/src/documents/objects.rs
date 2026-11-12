@@ -3,25 +3,17 @@
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
 
-pub use crate::below::documents::objects::*;
+pub use jig_domain_core_vocabulary::documents::objects::*;
 
 mod party;
 
 use crate::{
     Core, Limits,
-    documents::{Chip, Ending, Missing, Parameter, Part, PartKey, PartKind, PriorPhase, Proposer, TaskLink, Text},
+    documents::{Missing, Parameter, Part, PartKey, PartKind, PriorPhase, Proposer, TaskLink, Text},
 };
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
-
-/// The ended delegate's identity and outcome, made from its retained task row.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct EndedDelegate {
-    pub chip: Chip,
-    pub ended: Ending,
-    pub at: Option<Wall>,
-}
 
 fn bound(limits: &Limits) -> usize {
     skein_lib::length::usize_of(limits.documents.lines)
@@ -665,20 +657,6 @@ pub fn history_from_row(limits: &Limits, row: &tasks::History) -> Result<History
         },
     })
 }
-/// Copy an ended delegate after the store reader has checked project visibility.
-pub fn ended_delegate_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<EndedDelegate, Missing> {
-    match &row.phase {
-        tasks::Phase::Ended(value) => Ok(EndedDelegate {
-            chip: super::small::chip_from_row(limits, row)?,
-            ended: super::task_tree::ending(limits, value)?,
-            at: row.ended_at,
-        }),
-        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
-            Err(Missing::Unknown)
-        }
-    }
-}
-
 /// Convert an immutable retained action, without borrowing its ended target.
 pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalAction) -> Result<RetainedAction, Missing> {
     Ok(match value {

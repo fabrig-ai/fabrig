@@ -1,6 +1,6 @@
 //! Deployment settings, defaults and revisions (domain/engine/settings.md).
 
-pub use crate::below::settings::*;
+pub use jig_domain_core_vocabulary::settings::*;
 
 pub mod application;
 pub mod change;

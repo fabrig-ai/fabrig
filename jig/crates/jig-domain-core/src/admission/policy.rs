@@ -1,6 +1,6 @@
 //! Party policy edits and snapshots (jig/docs/design/domain/authority.md, 6).
 
-pub use crate::below::admission::policy::*;
+pub use jig_domain_core_vocabulary::admission::policy::*;
 
 use crate::translate::{people_authority, requirement_to_authority};
 use alloc::boxed::Box;

@@ -1,12 +1,12 @@
 //! Fixed query keys and one bounded live scan per document (domain/engine/views.md, 2).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
-pub use crate::below::documents::task_query::*;
 use crate::{
     Core, Limits,
     documents::{Cursor, ExecutorKind, Missing, Window},
 };
 use core::cmp::Reverse;
+pub use jig_domain_core_vocabulary::documents::task_query::*;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Map, Wall};
 

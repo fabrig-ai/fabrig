@@ -1,5 +1,5 @@
 //! Retained protocol-rendered transcript text (domain/engine/executors.md, 2, and domain/engine/briefs.md, 1).
-pub use crate::below::runs::transcript_text::*;
+pub use jig_domain_core_vocabulary::runs::transcript_text::*;
 
 use crate::Transcript;
 use alloc::boxed::Box;

@@ -11,7 +11,7 @@
 //! | Changed | Decision finishing | Open or closing | Save and one feed per connector |
 //! | Closing | Last connector settles | Absent | Erase and forget asks |
 
-pub use crate::below::effects::projections::*;
+pub use jig_domain_core_vocabulary::effects::projections::*;
 
 use crate::{Ask, Core, CoreKey, CoreRecord, Limits, Record, Request, Write};
 use alloc::boxed::Box;

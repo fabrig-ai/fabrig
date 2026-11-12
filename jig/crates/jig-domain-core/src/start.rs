@@ -1,6 +1,6 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine/restart.md).
 
-pub use crate::below::start::*;
+pub use jig_domain_core_vocabulary::start::*;
 
 pub(crate) mod first;
 mod inbox;

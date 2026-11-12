@@ -2,7 +2,7 @@
 //! (`client/domain/pages.md`, section 3). Live membership follows the bounded
 //! requester walk; retained membership uses the supplied original ancestry.
 
-pub use crate::below::documents::inbox_selection::*;
+pub use jig_domain_core_vocabulary::documents::inbox_selection::*;
 
 use crate::{
     Core, Limits,
