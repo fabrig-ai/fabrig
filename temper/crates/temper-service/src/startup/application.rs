@@ -3,6 +3,7 @@
 mod demo;
 mod landing;
 mod public;
+pub mod push;
 mod read;
 pub mod sign_in;
 use super::{Problems, What};
@@ -19,6 +20,7 @@ use skein_lib::{List, bytes};
 pub struct Members {
     pub clients: Clients,
     pub sign_in: Option<sign_in::SignIn>,
+    pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
@@ -195,6 +197,9 @@ fn configured_limits(
             let Some(value_at) = object.member(document, name) else { continue };
             match config::read::integer(document, value_at, u64::MAX) {
                 Ok(value) => {
+                    if name == b"checkout.preparations" && value == 0 {
+                        problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
+                    }
                     if limits::handed_on(name) {
                         handed.push((bytes::copy_of(name), value)).expect("bounded overrides");
                     }
@@ -217,11 +222,11 @@ fn configured_limits(
     if limits.forge.changes > bound {
         problems.push(
             super::checks::own(b"forge.changes"),
-            What::TierChanges {
+            What::Half(crate::startup::EngineWhat::TierChanges {
                 count: limits.forge.changes,
                 bound,
                 ceiling: temper_protocol_store::tier_landings_ceiling(),
-            },
+            }),
         );
     }
     // Pass the resolved client capacity once, including the profile default.
@@ -280,45 +285,6 @@ fn workers(
     }
     workers
 }
-pub(super) fn worker_alone(
-    document: &Document,
-    at: u32,
-    directories: &config::Directories,
-    problems: &mut Problems,
-) -> Option<(Worker, limits::Limits)> {
-    let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, "application", &path, problems)?;
-    let ats = read::list(&mut object, document, b"workers", document.len(), &path, problems);
-    if match &ats {
-        Some(ats) => ats.len() != 1,
-        None => false,
-    } {
-        problems.push(path.member(b"workers"), What::WorkerAlone);
-    }
-    let worker = workers(document, ats, document.len(), directories, &path, problems).into_boxed().into_iter().next();
-    let mut overrides = List::with_capacity(document.len());
-    let limits = match read::required(&mut object, document, b"limits", &path, problems) {
-        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides),
-        None => None,
-    };
-    if let Some(limits) = limits {
-        super::checks::limits(&limits, &limits.git_component, problems);
-        let bounds = temper_protocol_worker_wire::Bounds {
-            repositories: limits.checkout.repositories,
-            name_bytes: limits.checkout.name_bytes,
-            remote_bytes: limits.checkout.name_bytes,
-            conflicts: limits.checkout.conflicts,
-            path_bytes: limits.checkout.path_bytes,
-            token_bytes: temper_protocol_worker_wire::v1::CEILINGS.token_token,
-            entries: limits.forges.installations,
-            entry_token_bytes: limits.forge_component.token_bytes,
-            text_bytes: temper_protocol_worker_wire::v1::CEILINGS.identity_name,
-        };
-        super::checks::channel(None, Some(&bounds), None, &limits, problems);
-    }
-    super::finish_shape(document, object, &path, problems);
-    Some((worker?, limits?))
-}
 fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<Webhooks> {
     let at = at?;
     if document.token(at)?.kind == Kind::Null {
@@ -347,7 +313,7 @@ pub fn parse(
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
     if object.member(document, b"charter").is_some() {
-        problems.push(path.member(b"charter"), What::CharterStored);
+        problems.push(path.member(b"charter"), What::Half(crate::startup::EngineWhat::CharterStored));
     }
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
     let clients = match clients_at {
@@ -356,6 +322,8 @@ pub fn parse(
     };
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
+    let push_at = object.member(document, b"push");
+    let push = push::parse(document, push_at, directories, problems);
     let landing_at = object.member(document, b"landing");
     let welcome = match object.member(document, b"welcome") {
         Some(at) => match config::read::boolean(document, at) {
@@ -397,7 +365,10 @@ pub fn parse(
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
         }
         if sign_in.is_some() {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::BoxSignIn);
+            problems.push(
+                path.member(b"machine").member(b"owned").member(b"sign_in"),
+                What::Half(crate::startup::EngineWhat::BoxSignIn),
+            );
         }
     }
     if let Some(sign_in) = &sign_in {
@@ -416,6 +387,7 @@ pub fn parse(
     Some(Members {
         clients: clients?,
         sign_in,
+        push,
         webhooks,
         machine: machine?,
         demo,
@@ -430,16 +402,27 @@ pub fn parse(
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
 pub fn files(members: &Members) -> Box<[config::File]> {
     let mut files = List::with_capacity(
-        members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),
+        members
+            .limits
+            .forge
+            .forges
+            .checked_mul(4)
+            .expect("bounded forge files")
+            .checked_add(3)
+            .expect("sign-in and push files"),
     );
     if let Some(sign_in) = &members.sign_in {
         sign_in::files(sign_in, members.limits.sign_in, &mut files);
+    }
+    if let Some(push) = &members.push {
+        files.push(push::file(push)).expect("push key file");
     }
     files.into_boxed()
 }
 #[derive(Debug)]
 pub struct Resolved {
     pub sign_in: Option<settings::SignIn>,
+    pub push: Option<settings::Push>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
 }
 pub(super) fn contents(
@@ -482,6 +465,10 @@ pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Proble
         Some(sign_in) => sign_in::resolve(sign_in, members.limits.sign_in, files, problems),
         None => None,
     };
+    let push = match &members.push {
+        Some(push) => push::resolve(push, files, problems),
+        None => None,
+    };
     let webhooks = match &members.webhooks {
         Some(value) => match value.listener {
             config::Address::Addr(listener) => Some(skein_forge_connection::hooks::Webhooks { listener }),
@@ -489,7 +476,7 @@ pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Proble
         },
         None => None,
     };
-    if problems.is_empty() { Some(Resolved { sign_in, webhooks }) } else { None }
+    if problems.is_empty() { Some(Resolved { sign_in, push, webhooks }) } else { None }
 }
 
 fn transport(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Transport> {

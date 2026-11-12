@@ -227,20 +227,152 @@ section 6).
   `domain/tasks/proposals.md`); a red after landing, while the landing
   is verified, is news for the goal, whose tree the landing is in
   (`../after-landing.md`, section 7). A step's change that ends without
-  landing (cancelled, failed) holds the closer, `ClosingStep`, its
-  words naming the step and the change, which escalates to the goal:
-  its release makes the step's change again, and its cancel ends the
-  closer, the goal's branch kept.
+  landing (cancelled, failed) is made again, or holds the closer,
+  `ClosingStep`, by its attempts (below), its words naming the step,
+  the change and why, which escalates to the goal: its release makes
+  the step's change again, and its cancel ends the closer, the goal's
+  branch kept. A question its step change passes up reaches the goal
+  through the closer (below).
+- **Its changes' questions go up to the goal.** The closer makes each
+  step's change with questions `up` (`change/questions.md`, 1; `"questions":
+  "up"` in the change it makes, whatever the project's questions), so that
+  the change's agents, the land step's CI repair and conflict resolution
+  and either step's repair, are delegated with the Message family and
+  may ask; their change passes each question up to its requester, the
+  closer, one at a time. The closer, a procedure, decides nothing: it
+  relays as a change does, one level up, and its goal answers as it
+  answers its own changes.
+  - *Taken:* at a step, a question in its inbox from its live step
+    change is taken and kept on its row: its asker, the asker's number
+    for it, its words as they came, and where it stands (taken, or
+    asked with the number of the closer's own question). At most one
+    stands, since its one live step change passes up one at a time; a
+    second from that change while one stands, and a question from any
+    other task, is answered, in the answer form to its number,
+    `The goal's closer decides nothing; it relays its own change's
+    questions to its goal.` Any other task's words are taken and
+    dropped, as before.
+  - *Passed up:* the closer asks its goal in the question form, its
+    words `Change C, the goal's STEP, asks:`, a blank line, then the
+    question's words whole, cut from their end to the message bound
+    and marked `…`; C the change's task number and STEP `landing` or
+    `status settlement`. The goal is woken by it as by any question
+    (jig's `domain/tasks/messages.md`, 3) and reads it labelled with how
+    to answer, the closer as its target.
+  - *The answer relayed down:* the goal's answer, in the answer form to
+    the closer's question, is taken at the step that reads it and
+    relayed to the change in the answer form to the asker's number, its
+    words whole, cut from their end to the message bound and marked
+    `…`, as the change cuts what it relays down
+    (`change/questions.status.md`, Departs). The change relays it to its
+    own asker, whose run goes on from where it parked; the closer's
+    record clears. Words from the goal answer nothing.
+  - *Its step change's words,* its notices of an asker that ended
+    (`change/questions.md`, 1), are passed up to the goal as words,
+    `Change C: ` then the words, cut and marked as above.
+  - *A change that ends first,* with its question on the closer's
+    record, ends it there: the closer drops it and tells its goal once,
+    in words, `Change C ended with its question open; it reached no
+    one: LINE` where the goal was not yet asked, and, where it was,
+    takes and drops the goal's answer when it comes, saying `Change C
+    ended; your answer to question Q goes no further: LINE`, Q the
+    closer's question and LINE the question's first line. The next
+    step's change starts with none.
+  - *Room and admission:* these messages share the step's `tasks.batch`
+    with the step's other messages; what finds no room stays on the
+    record and makes the next step due at once. The record is saved
+    only once jig admits the step, as a change's relay is
+    (`change/questions.md`, 1).
+  - *Kept across a restart:* the question, with where it stands, is
+    stored with the closer's row (`README.md`, section 9) and restored
+    with it; a row stored before reads as none.
+  - The closer counts no bound of its own: the change counts each
+    question against `forge.change_policy.questions` and holds past it
+    (`change/questions.md`, 1), and that hold escalates past the
+    closer to the goal as any of its holds does (above).
 - **A landing that ended is never the end.** When the land step's
   change ends cancelled or failed, the closer first reads afresh
   whether the base holds the goal's branch (the land step's own test,
   above): where it does, someone or something landed it meanwhile, and
   the closer goes on to report, its landing part `The landing: none,
   its base already held the goal's branch.`; where it does not, it
-  holds as above. Its release reads that again, and either reports or
-  makes a new landing change, never holding again on the landing that
-  ended: a hold names a change still to be made, never one that has
-  ended.
+  makes the next landing or holds, by its attempts (below). A release
+  reads that again, and either reports or makes a new landing change,
+  never holding again on the landing that ended: a hold names a change
+  still to be made, never one that has ended.
+- **Attempts, and the project's bound.** Each change the closer makes
+  for a step is an attempt at it, and one that ends cancelled or failed
+  counts against the project's `landing_attempts`
+  (`../../protocol/configuration/engine.md`), 3 when absent: the close
+  step's and the land step's each counted alone, over the closer's
+  life. A step's change that ends so:
+  - *for its branch's reason* holds the closer, whatever its count,
+    since another attempt at the same branch would meet the same: its
+    state, as it became `Ended`, was held for repairs past their bound
+    (`Repairs`), conflict resolutions past theirs (`Resolutions`), a
+    person's rejection of a required gate (`Rejected`), its pull
+    request closed without a merge (`PullClosed`) or its branch missing
+    (`BranchMissing`), the change's holds (`change/repairs.md`). The
+    change keeps the hold its state was in as that state becomes
+    `Ended`, as `Change.ended_held`, an `Option<Hold>`, none where it
+    was not held, so that its reason outlives the hold. The store keeps
+    it in the stored state it already has, an ended state with that
+    one hold (`ChangeState`'s `holds`), so that its format stays and
+    every row stored before reads as none. An ended change takes no
+    hold after its end (a relay refused, a bound passed): its state
+    stays `Ended`, so that stored form is its ending hold's alone, and
+    a row stored before with a hold over its ended state reads as
+    ended in that hold.
+  - *for any other reason* (a cancel while it went on, a lost or failed
+    run, a stall, any other hold, or none) is made again with no hold,
+    as a release makes it, waiting for new work first and, for a
+    landing, reading containment first, while fewer than
+    `landing_attempts` of the step's changes have ended so; at the
+    bound, it holds the closer.
+  - A release makes one attempt more, past the bound too, and its end
+    counts as any. A `landing_attempts` of 1 holds on every ended
+    change.
+  - The hold's words name why, after the change's ending:
+    `, held for its branch: WHAT`, WHAT `repairs`, `conflict
+    resolutions`, `a rejection`, `its pull request closed` or `its
+    branch missing`; or `; attempts ended without landing: K, the
+    project's bound L`. So `the landing T41 ended cancelled; attempts
+    ended without landing: 3, the project's bound 3`.
+- **Its authority across attempts.** The closer's budget and task
+  count (jig's `domain/tasks/lifecycle.md`, 11) fund each attempt up to
+  the bound:
+  - *Spend:* each step's change is given half of what the closer has
+    left, its budget less what it spent, what its ended delegates spent
+    and what it holds reserved. An ended change's unspent share goes
+    back to the closer as it ends (jig's `domain/authority.md`, section
+    7), so an attempt costs the closer what it spent, never its share.
+  - *Lent to its goal's run:* while a run of its goal holds the
+    closer's funds (jig's `domain/tasks/lifecycle.md`, 11), a step the
+    closer cannot fund waits, with no hold, keeping the step to make;
+    that run's answer gives the funds back and makes the closer due,
+    and the step is made then. So a release the goal's run makes takes
+    effect once that run has answered, and never holds the closer for
+    funds the run holds.
+  - *Tasks:* a change's subtree makes at most its share of the room,
+    sized for the bound. The room is the fewer of the tasks the closer
+    and its goal have left to make (jig's `domain/authority.md`,
+    section 3: a lifetime count, which an ended attempt never gives
+    back). The step's attempts left are `landing_attempts` less the
+    step's changes ended without landing, and at least 1. The change's
+    `delegation.tasks` is the fewer of what the forge's change policy
+    gives a change (`forge.change_policy.tasks`, with its `questions`
+    beside where a foreman answers them,
+    `../../protocol/configuration/limits.md`) and the room divided by
+    one more than the attempts left, less one for the change itself;
+    and at least 1.
+  - *Short:* a step the closer cannot fund or fit while no run of its
+    goal holds its funds holds the closer, its words `the goal closer
+    cannot delegate its next change within its authority: ` and what it
+    lacks: `spend: A left, its change's half must pass M`, A what it
+    has left and M the deployment's minimum run spend; `tasks: R left,
+    its change needs 2`; `depth`; or `its change's terms`, for any
+    other refusal. Its release reads afresh and makes the step where it
+    now fits.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
   `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it

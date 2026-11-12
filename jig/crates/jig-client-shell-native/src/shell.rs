@@ -79,6 +79,14 @@ impl Shell {
             closing: false,
         }
     }
+    /// Point at an engine before the first network request. Files may already be loaded.
+    pub fn point(&mut self, engine: io::Addr) {
+        assert!(!self.closing && self.held.is_empty() && self.requests.is_empty(), "point before requests");
+        assert!(self.transport.sockets.is_empty() && self.transport.below.is_empty(), "point before sockets");
+        self.transport.connections.point(engine.socket().expect("HTTP engine has an IP address").to_string());
+        self.transport.engine = engine;
+        self.engine = engine;
+    }
     /// Adopt the caller's directory descriptor and effective user, before startup.
     pub fn adopt(&mut self, root: Fd, user: u32, seed: u64) {
         self.files.adopt(root, user, seed);

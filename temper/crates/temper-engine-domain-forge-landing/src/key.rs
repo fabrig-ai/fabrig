@@ -96,6 +96,35 @@ pub fn key(
     base: Option<(Commit, &[Tree])>,
     limits: &KeyLimits,
 ) -> Keyed {
+    key_with_source(repository, name, definition, ignored, candidate, trees, base, *limits, None)
+}
+
+/// A follow check includes the padded source commit immediately after its definition.
+#[must_use]
+pub fn follow_key(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    source: Commit,
+    candidate: Commit,
+    trees: &[Tree],
+    limits: &KeyLimits,
+) -> Keyed {
+    key_with_source(repository, name, definition, &[], candidate, trees, None, *limits, Some(source))
+}
+
+#[expect(clippy::too_many_arguments, reason = "the canonical key has one optional follow source component")]
+fn key_with_source(
+    repository: Repository,
+    name: &[u8],
+    definition: &[u8],
+    ignored: &[Box<[u8]>],
+    candidate: Commit,
+    trees: &[Tree],
+    base: Option<(Commit, &[Tree])>,
+    limits: KeyLimits,
+    source: Option<Commit>,
+) -> Keyed {
     let (Ok(name_len), Ok(definition_len)) = (u16::try_from(name.len()), u16::try_from(definition.len())) else {
         return Keyed::TooLarge { bound: None, needed: 0 };
     };
@@ -107,15 +136,18 @@ pub fn key(
     hash.update(name);
     hash.update(&definition_len.to_be_bytes());
     hash.update(definition);
+    if let Some(source) = source {
+        hash.update(&source);
+    }
     if let Some((commit, trees)) = base {
-        let entries = match walk(ignored, commit, trees, *limits) {
+        let entries = match walk(ignored, commit, trees, limits) {
             Ok(entries) => entries,
             Err(problem) => return problem,
         };
         hash.update(&u32::try_from(entries.len()).expect("bounded filtered tree").to_be_bytes());
         hash_entries(&mut hash, entries);
     }
-    match walk(ignored, candidate, trees, *limits) {
+    match walk(ignored, candidate, trees, limits) {
         Ok(entries) => {
             hash_entries(&mut hash, entries);
             Keyed::Key(hash.finish())

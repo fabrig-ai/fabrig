@@ -1,6 +1,6 @@
 use super::fixtures::{self, Client, SUBJECT_TASK, TASK};
 use crate::{Event, Handle, Message, Readable, Request, With, contract as c};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{List, Reader, Secret, Time, Writer};
 
 fn client() -> Client {
@@ -203,12 +203,19 @@ fn link_consequences_precede_the_next_domain_request() {
     let mut limits = fixtures::limits();
     limits.exchanges = 3;
     let mut client = Client::with_limits(limits, List::with_capacity(0));
-    client.sign_in();
+    client.step(Event::SignIn { with: With::Held(fixtures::credential(&fixtures::CREDENTIAL)) });
+    client.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
+    let mut old_exchanges = List::with_capacity(3);
+    old_exchanges.push(client.exchange()).unwrap();
+    let me = client.opened_watch();
+    client.stream(fixtures::frame(me));
+    client.step(Event::Stored);
     for task in [20, 21] {
         client.step(Event::Watch {
             handle: Handle { number: task, ..TASK },
             subject: crate::Watchable::Jig(c::Subject::Task { task }),
         });
+        old_exchanges.push(client.exchange()).unwrap();
     }
     for handle in [TASK, fixtures::ME] {
         client.step(Event::Read { handle, read: Readable::Jig(c::Read::Project { project: 1 }) });
@@ -230,6 +237,11 @@ fn link_consequences_precede_the_next_domain_request() {
     assert_eq!([*first, *second], [TASK, fixtures::ME]);
     assert_eq!([watch_a.number, watch_b.number], [20, 21]);
 
+    // Ending the old sign-in cancels logical attempts, not their transport credit.
+    for exchange in &old_exchanges {
+        client.step(Event::Reply { exchange: *exchange, message: Box::new([]) });
+        assert!(client.requests().is_empty(), "late old terminals only free credit");
+    }
     // The new opening and two reads occupy the exchange edge; the next
     // two reads must wait, then leave in order as one slot is released.
     client.stream(fixtures::hello(jig_client_protocol_wire::VERSION));

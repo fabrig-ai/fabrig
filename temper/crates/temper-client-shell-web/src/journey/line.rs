@@ -351,24 +351,29 @@ impl Text<'_> {
 }
 
 #[derive(Debug)]
-enum Field {
+pub enum Field {
     Word(Box<[u8]>),
     Bytes(Box<[u8]>),
 }
-pub(super) struct Read {
+/// The journeys' shared strict field reader (client/web/journeys.md, 3.2).
+pub struct Read {
     fields: std::vec::IntoIter<Field>,
 }
 impl Read {
-    pub(super) fn remaining(&self) -> usize {
+    pub fn field(&mut self) -> Option<Field> {
+        self.fields.next()
+    }
+    #[must_use]
+    pub fn remaining(&self) -> usize {
         self.fields.len()
     }
-    pub(super) fn word(&mut self) -> Result<Box<[u8]>, &'static str> {
+    pub fn word(&mut self) -> Result<Box<[u8]>, &'static str> {
         match self.fields.next() {
             Some(Field::Word(word)) => Ok(word),
             _ => Err("expected word"),
         }
     }
-    pub(super) fn bytes(&mut self) -> Result<Box<[u8]>, &'static str> {
+    pub fn bytes(&mut self) -> Result<Box<[u8]>, &'static str> {
         match self.fields.next() {
             Some(Field::Bytes(bytes)) => Ok(bytes),
             _ => Err("expected quoted bytes"),
@@ -383,7 +388,7 @@ impl Read {
             .try_fold(0_u64, |value, digit| value.checked_mul(10)?.checked_add(u64::from(digit - b'0')))
             .ok_or("number overflow")
     }
-    pub(super) fn count(&mut self) -> Result<u32, &'static str> {
+    pub fn count(&mut self) -> Result<u32, &'static str> {
         u32::try_from(self.number()?).map_err(|_| "number overflow")
     }
     fn status(&mut self) -> Result<u16, &'static str> {
@@ -397,7 +402,7 @@ impl Read {
         Ok(result)
     }
 }
-pub(super) fn fields(mut line: &[u8]) -> Result<Read, &'static str> {
+pub fn fields(mut line: &[u8]) -> Result<Read, &'static str> {
     let mut fields = Vec::new();
     while !line.is_empty() {
         if line[0] == b'"' {

@@ -4,7 +4,6 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod core_wait;
 pub(crate) mod fixtures;
 mod limits;
-mod long_pass;
 mod store_route;
 
 mod store;
@@ -26,6 +25,7 @@ mod clients;
 mod clients_unwatch;
 mod worker;
 mod worker_admission;
+mod worker_alone;
 mod worker_git;
 #[path = "tests/worker_job_answers.rs"]
 mod worker_jobs;
@@ -36,6 +36,13 @@ mod box_link;
 mod checks;
 mod family;
 mod reference_landing;
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the shared test helper decodes the embedded reference fixture"
+)]
+#[path = "../../../testing/reference_settings.rs"]
+mod reference_settings;
 mod root_checks;
 mod startup;
 mod system;
@@ -61,3 +68,5 @@ mod room;
 mod workspace_reuse;
 
 mod link_room;
+
+mod mirrors;

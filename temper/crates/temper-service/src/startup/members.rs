@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 33] = [
+pub static SHAPES: [Shape; 34] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -31,6 +31,7 @@ pub static SHAPES: [Shape; 33] = [
         paths: &["application.clients"],
         line: "The clients’ listener and browser presentation.",
     },
+    Shape { name: "push", paths: &["application.push"], line: "The deployment’s push key and services." },
     Shape { name: "webhooks", paths: &["application.webhooks"], line: "The Forgejo deliveries listener." },
     Shape { name: "sign-in", paths: &["application.sign_in"], line: "The registration and people allowed to sign in." },
     Shape {
@@ -122,7 +123,7 @@ pub static SHAPES: [Shape; 33] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 118] = [
+pub static MEMBERS: [Member; 123] = [
     Member {
         shape: "document",
         name: "engine",
@@ -211,6 +212,42 @@ pub static MEMBERS: [Member; 118] = [
         bound: "engine shapes only",
         required: true,
         line: "The people’s sign-in registration, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "application",
+        name: "push",
+        kind: "push or null",
+        bound: "absent or null for none; engine shapes only",
+        required: false,
+        line: "The deployment’s push key, contact and services.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "key",
+        kind: "text",
+        bound: "private data file, 0o600; PKCS#8 PEM P-256; at most 1,024 bytes",
+        required: true,
+        line: "The kept VAPID signing key; its public half is the clients’.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "subject",
+        kind: "text",
+        bound: "mailto: or https: URI; 1 to 256 printable ASCII bytes, no space, quote or backslash",
+        required: true,
+        line: "Where the push services may reach the operator.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "services",
+        kind: "list of text or null",
+        bound: "1 to 8 origins; https, or http on loopback; null for https://fcm.googleapis.com, https://updates.push.services.mozilla.com and https://web.push.apple.com",
+        required: true,
+        line: "The allowed push services; hosts resolve at each send, HTTPS uses machine roots.",
         gone: None,
     },
     Member {
@@ -571,6 +608,15 @@ pub static MEMBERS: [Member; 118] = [
         bound: "relative repository path without parent segments; 1 to 4,096 bytes",
         required: false,
         line: "The close command’s path from the repository root; see temper help configuration’s close command.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "landing_attempts",
+        kind: "integer",
+        bound: "1 to 255; 3 when absent",
+        required: false,
+        line: "How many cancelled or failed changes per close or land step the goal closer makes again without judgement before asking its goal.",
         gone: None,
     },
     Member {

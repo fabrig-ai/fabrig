@@ -14,7 +14,8 @@ fn fixture() -> Host {
     fixture_forges(None)
 }
 fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.root = root::unlinked(&host.env.limits, 11);
     host.event(Event::Start { address: Address::Accounts, kept: List::with_capacity(0), with: None });
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
@@ -41,6 +42,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("me watch");
@@ -98,6 +100,7 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("forges watch");
@@ -156,6 +159,7 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("account request left the host")
@@ -327,12 +331,12 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
     write(&mut writer).expect("measured fixture");
     writer.finish()
 }
-fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v19::Owned {
-    use jig_client_protocol_wire::{VERSION, v19 as w};
+fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v20::Owned {
+    use jig_client_protocol_wire::{VERSION, v20 as w};
     w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
         .expect("fixture envelope")
 }
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent) {
+fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v20::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
     let bytes = encoded(event.measure(), |writer| event.encode(writer));
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -347,13 +351,14 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent)
 #[test]
 #[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
-    use jig_client_protocol_wire::{VERSION, v19 as w};
+    use jig_client_protocol_wire::{VERSION, v20 as w};
     use skein_lib::{Duration, Reader};
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";
     const RUN: u64 = 44;
     const ONE_LINE: u32 = 1;
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.start(TASK_PATH, Vec::new(), None);
     let activity = host
         .requests()
@@ -641,18 +646,16 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
 }
 
 #[test]
-#[cfg(not(feature = "small-window"))]
-fn the_ordinary_bundle_keeps_the_whole_document_bound() {
-    let client = limits::client();
+fn the_ordinary_setting_keeps_the_whole_document_bound() {
+    let client = limits::client_for(false);
     assert_eq!(client.window_bytes, None);
     assert_eq!(client.client.domain.long_text, 131_072);
     assert_eq!(client.client.domain.turn_text, 131_072);
 }
 
 #[test]
-#[cfg(feature = "small-window")]
-fn the_small_window_bundle_names_a_valid_narrower_window() {
-    let client = limits::client();
+fn the_small_window_setting_names_a_valid_narrower_window() {
+    let client = limits::client_for(true);
     assert_eq!(client.window_bytes, Some(32_768));
     assert_eq!(client.client.domain.long_text, 32_768);
     assert_eq!(client.client.domain.turn_text, 32_768);
@@ -671,7 +674,8 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
 fn a_stream_refused_full_reaches_the_client_link() {
     use jig_client_protocol_wire as w;
     for bound in [w::StreamBound::Component, w::StreamBound::Transport] {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+        let mut host =
+            Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
         host.start(b"/", Vec::new(), None);
         host.requests();
         host.heard(Heard::StreamRefused { status: 409 });
@@ -718,7 +722,7 @@ fn the_look_is_kept_and_full_screen_carried() {
         (None, None),
     ] {
         assert_eq!(value.and_then(records::decode_look), decoded, "{value:?}");
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let stored = value
             .map(|value| skein_ui_web::store::Record { key: records::LOOK_KEY.into(), value: value.into() })
             .into_iter()
@@ -737,7 +741,7 @@ fn the_look_is_kept_and_full_screen_carried() {
         (Look { night: true, ..light }, light, *b"0110"),
     ] {
         assert_eq!(records::encode_look(look), bytes);
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         host.event(Event::LookKept { look: before });
         host.event(Event::Act {
             action: root::Action::Pages(root::pages::Act::Terminal(root::pages::terminal::Act::Night)),
@@ -751,7 +755,7 @@ fn the_look_is_kept_and_full_screen_carried() {
         assert_eq!(host.report(Report::Start).keep_look, None, "a duty is taken once");
     }
     for on in [true, false] {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         host.out.push(Request::Screen { on });
         let duties = host.report(Report::Start);
         assert_eq!(duties.screen, Some(on));
@@ -763,7 +767,7 @@ fn the_look_is_kept_and_full_screen_carried() {
         (skein_ui_web::screen::Report::Left, None),
         (skein_ui_web::screen::Report::Refused, Some(root::pages::terminal::Listing::Model)),
     ] {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         host.event(Event::LookKept { look: terminal });
         host.event(Event::Act {
             action: root::Action::Pages(root::pages::Act::Terminal(root::pages::terminal::Act::Run {

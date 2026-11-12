@@ -218,7 +218,7 @@ fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     let (answer, parts) = merge_answer(&mut peer, &mut worker);
     assert_merge_answer(&answer, &parts);
     while let Some(note) = worker.notes().pop() {
-        if let crate::Note::WorkerJob { .. } = note {
+        if let crate::worker_alone::Note::WorkerJob { .. } = note {
             panic!("finished jobs have no failure note");
         }
     }
@@ -286,12 +286,12 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
         assert!(parts.is_empty());
         assert_eq!(
             worker.notes().pop(),
-            Some(crate::Note::WorkerJob {
+            Some(crate::worker_alone::Note::WorkerJob {
                 run: 99,
                 attempt: 2,
                 kind: 3,
                 verb: b"merge".as_slice().into(),
-                ending: temper_engine_domain::JobDiagnosticEnding::Refused(reason),
+                ending: crate::WorkerJobEnding::Refused(reason),
                 why: b"workspace items".as_slice().into(),
             })
         );
@@ -371,13 +371,10 @@ fn failed_jobs_name_the_workers_why_once() {
         assert_eq!(detail.as_ref(), &expected_detail[expected_detail.len().saturating_sub(bound)..]);
         let mut found = 0_u32;
         while let Some(note) = worker.notes().pop() {
-            if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
+            if let crate::worker_alone::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
                 assert_eq!((run, attempt, kind, verb.as_ref()), (JOB.raw(), 2, 3, b"merge".as_slice()));
                 assert_eq!(why.as_ref(), expected_why);
-                assert_eq!(
-                    ending,
-                    temper_engine_domain::JobDiagnosticEnding::Failed { failure, detail: detail.clone() }
-                );
+                assert_eq!(ending, crate::WorkerJobEnding::Failed { failure, detail: detail.clone() });
                 found += 1;
             }
         }
@@ -385,7 +382,7 @@ fn failed_jobs_name_the_workers_why_once() {
         merge_step(&mut worker, root::Event::Lost);
         merge_step(&mut worker, root::Event::Ready);
         while let Some(note) = worker.notes().pop() {
-            if let crate::Note::WorkerJob { .. } = note {
+            if let crate::worker_alone::Note::WorkerJob { .. } = note {
                 panic!("a kept answer resent has no second note");
             }
         }

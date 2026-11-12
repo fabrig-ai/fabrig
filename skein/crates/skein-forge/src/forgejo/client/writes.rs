@@ -110,6 +110,7 @@ fn target(request: &Request, out: &mut Target) -> (Method, bool) {
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }
@@ -294,6 +295,7 @@ fn write(json: &mut Encoder, request: &Request) {
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

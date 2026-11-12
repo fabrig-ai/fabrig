@@ -12,6 +12,70 @@ mod github;
 use fixtures::{ONE_REPLY, SEED, World, address, config, limits, protocol_limits, request};
 
 #[test]
+fn peer_image_is_busy_while_a_domain_call_awaits_its_reply() {
+    use skein_fake_forge_domain::{self as domain, api};
+    use skein_lib::{Env, ReplyTo, Token};
+    let mut world = World::new();
+    {
+        let mut shared = world.forge.borrow_mut();
+        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: shared.config.clone() };
+        let forge::Forge { domain, pending, .. } = &mut *shared;
+        domain::step(
+            domain,
+            &env,
+            domain::Event::Call {
+                reply_to: ReplyTo::new(Token::new(99)),
+                user: fixtures::USER,
+                repository: fixtures::boxed(fixtures::REPOSITORY),
+                op: api::Op::Read(api::Read::Labels),
+            },
+            pending,
+        );
+    }
+    assert_eq!(world.peer.image(), Err(forge::Refusal::Busy));
+    world.settle();
+    assert!(world.peer.image().is_ok());
+}
+#[test]
+fn peer_image_keeps_the_shared_endpoint_and_restores_it_before_the_first_pass() {
+    use skein_fake_forge_forgejo::delivery::Endpoint;
+    use skein_lib::Secret;
+    let mut world = World::new();
+    world.bind();
+    world.forge.borrow_mut().hooks = Some(Endpoint {
+        forge: 7,
+        host: fixtures::boxed(b"127.0.0.1:7201"),
+        secret: Secret::new(fixtures::boxed(b"retained hook")),
+    });
+    // The service has handed its endpoint back to the shared forge between passes.
+    let image = world.peer.image().expect("image between passes");
+    let shared = fixtures::shared();
+    shared.borrow_mut().hooks = Some(Endpoint {
+        forge: 9,
+        host: fixtures::boxed(b"127.0.0.1:7202"),
+        secret: Secret::new(fixtures::boxed(b"seed hook")),
+    });
+    let mut peer =
+        forge::Peer::new(address(), limits(), config(), protocol_limits(), shared.clone(), SEED).expect("fresh peer");
+    let before = peer.image().expect("seed image");
+    assert!(peer.restore(b"malformed").is_err());
+    assert_eq!(peer.image().expect("unchanged seed"), before);
+    peer.restore(&image).expect("restore shared endpoint");
+    {
+        let forge = shared.borrow();
+        let endpoint = forge.hooks.as_ref().expect("restored shared endpoint");
+        assert_eq!(
+            (endpoint.forge, endpoint.host.as_ref(), endpoint.secret.expose()),
+            (7, b"127.0.0.1:7201".as_slice(), b"retained hook".as_slice())
+        );
+    }
+    world.settle();
+    world.peer = peer;
+    world.forge = shared;
+    world.bind(); // take_endpoint sees an empty service and does not panic.
+    world.settle();
+}
+#[test]
 fn forge_peer_refuses_unusable_configuration_before_effects() {
     for case in fixtures::refusals() {
         assert_eq!(
@@ -78,9 +142,8 @@ fn a_second_fake_shares_names_replies_and_time() {
         .observations()
         .iter()
         .find_map(|record| {
-            if let forge::Observation::Call {
-                result: Ok(skein_fake_forge_domain::api::Answer::Commit(commit)), ..
-            } = record
+            if let forge::Observation::Call { result, .. } = record
+                && let Ok(skein_fake_forge_domain::api::Answer::Commit(commit)) = &**result
             {
                 Some(*commit)
             } else {

@@ -18,18 +18,28 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(target_arch = "wasm32")]
 mod focus;
 pub mod host;
-#[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
+#[cfg(any(target_arch = "wasm32", test))]
+mod internal;
 pub mod journey;
 pub mod limits;
-pub mod playground;
 pub mod public;
-pub mod records;
 #[cfg(target_arch = "wasm32")]
-enum Report {
+mod push;
+pub mod records;
+/// The frame's reports (temper/docs/design/playground.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Control {
+    Pause,
+    Speed(skein_ui_web::bridge::Speed),
+    Reset,
+    Story(&'static str),
+    Log,
+}
+#[cfg(target_arch = "wasm32")]
+pub enum Report {
+    Push(temper_client_domain::pages::told::Report),
     Start,
-    #[cfg(feature = "record")]
     Mark,
-    #[cfg(feature = "record")]
     Save,
     Due,
     TabRefused,
@@ -39,14 +49,14 @@ enum Report {
     Copied(clipboard::Report),
     Screen(screen::Report),
     Place(Box<[u8]>),
-    Frame(playground::Control),
+    Frame(Control),
     World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
 /// The shared host loop (temper/docs/design/playground.md, 6).
-struct Shell<P: ShellPlatform> {
+pub struct Shell<P: ShellPlatform> {
     host: host::Host,
-    #[cfg(feature = "record")]
+    push_inbox: Rc<Inbox<Report>>,
     recorder: Option<journey::Recorder>,
     page: Rc<RefCell<Page<'static>>>,
     dom: Dom,
@@ -61,7 +71,7 @@ struct Shell<P: ShellPlatform> {
     heading_focus: focus::HeadingFocus,
 }
 #[cfg(target_arch = "wasm32")]
-trait ShellPlatform: platform::Platform {
+pub trait ShellPlatform: platform::Platform {
     type Timer;
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
     fn fired(timer: &mut Self::Timer);
@@ -85,18 +95,30 @@ impl ShellPlatform for platform::Browser<Report> {
     }
 }
 #[cfg(target_arch = "wasm32")]
-#[cfg_attr(not(feature = "playground"), wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn start() {
+    push::manifest();
     let window = web_sys::window().expect("window");
-    let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
+    let host = window.location().hostname().expect("host");
+    let address = window.location().pathname().expect("path")
+        + &window.location().search().expect("query")
+        + &window.location().hash().expect("fragment");
+    let (settings, cleaned) = internal::internal(&host, &address);
+    if cleaned != address {
+        window
+            .history()
+            .expect("history")
+            .replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&cleaned))
+            .expect("remove internal settings");
+    }
+    let path = cleaned.split('#').next().expect("address before fragment");
     if matches!(temper_client_domain::address::parse(path.as_bytes()), temper_client_domain::Place::Public(_)) {
         public::web::start(path.as_bytes());
         return;
     }
-    start_signed_in();
+    start_signed_in(settings);
 }
 #[cfg(target_arch = "wasm32")]
-fn start_signed_in() {
+fn start_signed_in(settings: internal::Internal) {
     if !skein_ui_web::restart::Restart::new(
         3,
         skein_lib::Duration::from_secs(60),
@@ -128,35 +150,40 @@ fn start_signed_in() {
     #[cfg(debug_assertions)]
     assert_ne!(path.split('?').next(), Some("/test/panic"), "the test address panics at start");
     let inbox = Inbox::new();
-    #[cfg(feature = "record")]
-    record_keys(&document, &inbox);
+    if settings.record {
+        record_keys(&document, &inbox);
+    }
     let platform =
-        platform::Browser::new(fetch::web::Fetch::new(limits::EXCHANGES + 1, Rc::clone(&inbox), Report::Fetch));
+        platform::Browser::new(fetch::web::Fetch::new(limits::EXCHANGES + 1, Rc::clone(&inbox), Report::Fetch))
+            .with_loopback_navigation(settings.loopback_navigation);
     let store = Store::new(b"temper.", None);
-    let mut host = host::Host::new(facts.seed, facts.now, facts.wall, facts.offset, parsed_ways);
-    #[cfg(feature = "record")]
+    let mut host = host::Host::new(
+        limits::client_for(settings.small_window),
+        facts.seed,
+        facts.now,
+        facts.wall,
+        facts.offset,
+        parsed_ways,
+    );
     let mut forges = Vec::new();
-    host.forge_sign_in(forge_sign_in(
-        &document,
-        #[cfg(feature = "record")]
-        &mut forges,
-    ));
+    host.forge_sign_in(forge_sign_in(&document, &mut forges));
     let kept = Store::kept(b"temper.", None);
     let mut stored = store.read_all(&platform);
     stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
-    #[cfg(feature = "record")]
-    let recorder = Some(journey::Recorder::new(&journey::Facts {
-        seed: facts.seed,
-        now: facts.now,
-        wall: facts.wall,
-        primary: facts.primary,
-        zone_minutes: facts.offset,
-        ways: ways.map(|(content, origin)| (content.into_bytes().into(), origin.into_bytes().into())),
-        forges,
-        path: path.as_bytes().into(),
-        secret: secret.clone(),
-        stored: stored.clone(),
-    }));
+    let recorder = settings.record.then(|| {
+        journey::Recorder::new(&journey::Facts {
+            seed: facts.seed,
+            now: facts.now,
+            wall: facts.wall,
+            primary: facts.primary,
+            zone_minutes: facts.offset,
+            ways: ways.map(|(content, origin)| (content.into_bytes().into(), origin.into_bytes().into())),
+            forges,
+            path: path.as_bytes().into(),
+            secret: secret.clone(),
+            stored: stored.clone(),
+        })
+    });
     host.start(path.as_bytes(), stored, secret);
     night(&document, host.night());
     let page = Rc::new(RefCell::new(host::page(&host.bounds.tree, facts.primary)));
@@ -165,7 +192,7 @@ fn start_signed_in() {
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
     let mut shell = Shell {
         host,
-        #[cfg(feature = "record")]
+        push_inbox: Rc::clone(&inbox),
         recorder,
         page,
         dom,
@@ -179,6 +206,7 @@ fn start_signed_in() {
         title: title::web::Title::default(),
         heading_focus: focus::HeadingFocus::new(),
     };
+    push::state(Rc::clone(&inbox));
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
@@ -197,6 +225,47 @@ fn night(document: &web_sys::Document, on: bool) {
 }
 #[cfg(target_arch = "wasm32")]
 impl<P: ShellPlatform> Shell<P> {
+    /// Builds the shared loop from the page's started host and browser parts
+    /// (temper/docs/design/client/web/README.md, 2.1).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the page supplies the host, DOM and platform parts of the shared loop"
+    )]
+    pub fn new(
+        host: host::Host,
+        page: Rc<RefCell<Page<'static>>>,
+        dom: Dom,
+        platform: P,
+        store: Store,
+        history: Rc<history::web::History>,
+        timer: P::Timer,
+        inbox: &Rc<Inbox<Report>>,
+    ) -> Self {
+        Self {
+            host,
+            push_inbox: Rc::clone(inbox),
+            recorder: None,
+            page,
+            dom,
+            platform,
+            store,
+            kept: Store::kept(b"temper.", None),
+            screen: screen::web::Screen::new(Rc::clone(inbox), Report::Screen),
+            clipboard: clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
+            history,
+            timer,
+            title: title::web::Title::default(),
+            heading_focus: focus::HeadingFocus::new(),
+        }
+    }
+    /// The page's platform, for its frame's controls and figures.
+    pub fn platform(&self) -> &P {
+        &self.platform
+    }
+    /// Ends this page's platform and its timer before a fresh life starts.
+    pub fn end(&mut self) {
+        self.platform.end(&mut self.timer);
+    }
     /// One inbox turn: each report given to the host, its duties carried, then the page drawn.
     fn turn(&mut self, inbox: &Inbox<Report>) {
         let now = self.begin();
@@ -208,9 +277,8 @@ impl<P: ShellPlatform> Shell<P> {
         }
         self.draw(new_page, now);
     }
-    fn begin(&mut self) -> skein_lib::Time {
+    pub fn begin(&mut self) -> skein_lib::Time {
         let (now, wall) = self.platform.clocks();
-        #[cfg(feature = "record")]
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
         }
@@ -218,7 +286,7 @@ impl<P: ShellPlatform> Shell<P> {
         now
     }
     /// Carries one host report in order; navigation says whether a new page shows.
-    fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
+    pub fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
         let read_on = matches!(
             &report,
             Report::Fetch(
@@ -226,21 +294,18 @@ impl<P: ShellPlatform> Shell<P> {
             )
         );
         let report = self.host_report(report)?;
-        #[cfg(feature = "record")]
         let duties = if let Some(recorder) = &mut self.recorder {
             recorder.report(&mut self.host, &self.page.borrow(), report)
         } else {
             self.host.report(report)
         };
-        #[cfg(not(feature = "record"))]
-        let duties = self.host.report(report);
         let document = web_sys::window().expect("window").document().expect("document");
         night(&document, self.host.night());
         let navigates = duties.show.is_some();
         let shown = self.carry(inbox, duties, read_on);
         navigates.then_some(shown)
     }
-    fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
+    pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
         let mut ops = Vec::new();
         self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);
@@ -251,16 +316,15 @@ impl<P: ShellPlatform> Shell<P> {
     /// The host's report, or none for the shell's recording marks and saves; the timer told it fired.
     fn host_report(&mut self, report: Report) -> Option<host::Report> {
         match report {
+            Report::Push(report) => host::Report::Push(report),
             Report::Start => host::Report::Start,
             Report::Frame(_) | Report::World(_) => return None,
-            #[cfg(feature = "record")]
             Report::Mark => {
                 if let Some(recorder) = &mut self.recorder {
                     recorder.mark(&self.page.borrow());
                 }
                 return None;
             }
-            #[cfg(feature = "record")]
             Report::Save => {
                 self.save_recording(false);
                 return None;
@@ -288,6 +352,10 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        // Push permission is asked inside the press event, before any asynchronous work.
+        for duty in &duties.push {
+            push::carry(Rc::clone(&self.push_inbox), *duty);
+        }
         // Keep the person's gesture: tabs precede transport in this turn
         // (skein/docs/design/ui/web/README.md, section 9).
         for tab in &duties.tab {
@@ -312,7 +380,6 @@ impl<P: ShellPlatform> Shell<P> {
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
         }
-        #[cfg(feature = "record")]
         if duties.departs() {
             self.save_recording(true);
         }
@@ -390,13 +457,11 @@ impl<P: ShellPlatform> Shell<P> {
         self.heading_focus.finish(&document, heading, new_page, requested);
         self.history.restore();
         let deadline = self.host.deadline();
-        #[cfg(feature = "record")]
         if let Some(recorder) = &mut self.recorder {
             recorder.deadline(deadline);
         }
         self.platform.timer(&mut self.timer, deadline, now);
     }
-    #[cfg(feature = "record")]
     fn save_recording(&mut self, departing: bool) {
         if departing {
             if let Some(recorder) = self.recorder.take() {
@@ -437,17 +502,13 @@ fn forge_links(document: &web_sys::Document) {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn forge_sign_in(
-    document: &web_sys::Document,
-    #[cfg(feature = "record")] raw: &mut Vec<Box<[u8]>>,
-) -> temper_client_view::forge_sign_in::Forges {
+fn forge_sign_in(document: &web_sys::Document, raw: &mut Vec<Box<[u8]>>) -> temper_client_view::forge_sign_in::Forges {
     let mut facts = temper_client_view::forge_sign_in::Forges::new();
     let mut selector = String::from("meta[name='temper-forge-sign-in']");
     for _ in 0..temper_client_view::forge_sign_in::FORGES {
         let Some(meta) = document.query_selector(&selector).expect("forge meta selector") else { break };
         if let Some(content) = meta.get_attribute("content") {
             facts.read(&content);
-            #[cfg(feature = "record")]
             raw.push(content.into_bytes().into());
         }
         selector.push_str(" ~ meta[name='temper-forge-sign-in']");
@@ -457,7 +518,6 @@ fn forge_sign_in(
         let Some(meta) = document.query_selector(&selector).expect("forge off meta selector") else { break };
         if let Some(content) = meta.get_attribute("content") {
             facts.read_off(&content);
-            #[cfg(feature = "record")]
             raw.push([b"off ".as_slice(), content.as_bytes()].concat().into());
         }
         selector.push_str(" ~ meta[name='temper-forge-sign-in-off']");
@@ -465,7 +525,7 @@ fn forge_sign_in(
     facts
 }
 
-#[cfg(all(target_arch = "wasm32", feature = "record"))]
+#[cfg(target_arch = "wasm32")]
 fn record_keys(document: &web_sys::Document, inbox: &Rc<Inbox<Report>>) {
     use wasm_bindgen::{JsCast, closure::Closure};
     let inbox = Rc::clone(inbox);
@@ -496,7 +556,7 @@ fn record_keys(document: &web_sys::Document, inbox: &Rc<Inbox<Report>>) {
     listener.forget();
 }
 
-#[cfg(all(target_arch = "wasm32", feature = "record"))]
+#[cfg(target_arch = "wasm32")]
 fn save_recording(bytes: &[u8]) {
     use wasm_bindgen::{JsCast, closure::Closure};
     let parts = js_sys::Array::new();

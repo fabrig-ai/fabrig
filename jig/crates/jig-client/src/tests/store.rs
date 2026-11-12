@@ -192,16 +192,16 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     let mut c = Client::signed_in();
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     c.step(Event::Stored);
-    let record = jig_client_protocol_wire::v19::Owned::new(
-        &jig_client_protocol_wire::v19::CEILINGS,
-        jig_client_protocol_wire::v19::OwnedParts {
-            owner: jig_client_protocol_wire::v19::Owner::Jig,
+    let record = jig_client_protocol_wire::v20::Owned::new(
+        &jig_client_protocol_wire::v20::CEILINGS,
+        jig_client_protocol_wire::v20::OwnedParts {
+            owner: jig_client_protocol_wire::v20::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             record: Box::new([255]),
         },
     )
     .unwrap();
-    let message = fixtures::answer(&jig_client_protocol_wire::v19::KeyedAnswer::FinalAnswer(record));
+    let message = fixtures::answer(&jig_client_protocol_wire::v20::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });
     let [Request::Told { told }] = c.requests() else {
@@ -217,8 +217,8 @@ fn keyed_keys(requests: &[Request]) -> skein_lib::List<skein_lib::RequestKey> {
     let mut keys = skein_lib::List::with_capacity(fixtures::limits().exchanges);
     for request in requests {
         if let Request::Exchange { message: Message::Request(bytes), .. } = request {
-            let keyed = jig_client_protocol_wire::v19::Keyed::decode(
-                &jig_client_protocol_wire::v19::CEILINGS,
+            let keyed = jig_client_protocol_wire::v20::Keyed::decode(
+                &jig_client_protocol_wire::v20::CEILINGS,
                 &mut skein_lib::Reader::new(bytes),
             )
             .unwrap();

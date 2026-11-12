@@ -53,20 +53,22 @@ const LIMITS: Limits = Limits {
 
 /// Calls answered in a second, webhooks in two, and no faults unless a test
 /// asks for them.
-const CALM: Config = Config {
-    limits: LIMITS,
-    latency_min: Duration::from_secs(1),
-    latency_max: Duration::from_secs(1),
-    late_min: Duration::from_secs(30),
-    late_max: Duration::from_secs(30),
-    land_min: Duration::from_secs(3),
-    rate_window: Duration::from_secs(60),
-    ci: CI,
-    hook_min: Duration::from_secs(2),
-    hook_max: Duration::from_secs(2),
-    skew: Skew::None,
-    ..Config::TEST
-};
+fn calm() -> Config {
+    Config {
+        limits: LIMITS,
+        latency_min: Duration::from_secs(1),
+        latency_max: Duration::from_secs(1),
+        late_min: Duration::from_secs(30),
+        late_max: Duration::from_secs(30),
+        land_min: Duration::from_secs(3),
+        rate_window: Duration::from_secs(60),
+        ci: CI,
+        hook_min: Duration::from_secs(2),
+        hook_max: Duration::from_secs(2),
+        skew: Skew::None,
+        ..Config::test()
+    }
+}
 
 /// The users: the engine and CI write, a person reads, a maintainer writes,
 /// an admin administers, and a stranger has no permission.
@@ -85,13 +87,13 @@ const FIRST: u64 = 1;
 
 #[test]
 fn a_resolved_merge_keeps_both_parents_even_with_an_unchanged_tree() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let ours = h.commit(FIRST, &[(b"ours", b"one")]);
     let theirs = h.commit(FIRST, &[(b"theirs", b"two")]);
     h.push(ENGINE, b"work", ours).unwrap();
-    let tree = h.domain.inspect(&CALM, REPOSITORY, &Read::Tree { commit: ours }).unwrap();
+    let tree = h.domain.inspect(&calm(), REPOSITORY, &Read::Tree { commit: ours }).unwrap();
     let Answer::Tree(tree) = tree else { unreachable!("the fetched tree") };
-    let merged = crate::merge_commit(&mut h.domain, &CALM, ours, theirs, tree, b"merge message").unwrap();
+    let merged = crate::merge_commit(&mut h.domain, &calm(), ours, theirs, tree, b"merge message").unwrap();
     let object = h.domain.object(merged).unwrap();
     assert_eq!(object.parent, Some(ours));
     assert_eq!(object.merge_parent, Some(theirs));
@@ -108,7 +110,7 @@ fn a_resolved_merge_keeps_both_parents_even_with_an_unchanged_tree() {
 
 #[test]
 fn conditional_push_never_moves_a_branch_whose_head_changed() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let first = h.commit(FIRST, &[(b"one", b"one")]);
     let second = h.commit(first, &[(b"two", b"two")]);
     h.push(ENGINE, b"work", first).unwrap();
@@ -127,7 +129,7 @@ fn conditional_push_never_moves_a_branch_whose_head_changed() {
 
 #[test]
 fn push_new_uploads_only_under_an_empty_branch_lease() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"one", b"one")]);
     assert!(!h.domain.has(REPOSITORY).contains(&work));
     let op = Op::Git(Git::PushNew { branch: copy_of(b"landing"), commit: work });
@@ -149,11 +151,11 @@ fn push_new_uploads_only_under_an_empty_branch_lease() {
 
 #[test]
 fn a_converging_merge_dag_visits_each_commit_once() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let mut left = FIRST;
     let mut right = FIRST;
     for _ in 1..LIMITS.commits {
-        let next = crate::merge_commit(&mut h.domain, &CALM, left, right, files(&[]), b"").unwrap();
+        let next = crate::merge_commit(&mut h.domain, &calm(), left, right, files(&[]), b"").unwrap();
         left = right;
         right = next;
     }
@@ -552,7 +554,7 @@ fn numbers(list: &List<u64>) -> &[u64] {
 
 #[test]
 fn an_issue_is_opened_with_labels_and_read_back() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.ok(ENGINE, create(b"crash", b"it crashes", &[b"bug", b"kit"])), Answer::Created(1));
     assert_eq!(h.issue(PERSON, b"question"), 2, "issues share one numbering");
     let (item, comments) = h.item(1);
@@ -588,7 +590,7 @@ fn an_issue_is_opened_with_labels_and_read_back() {
 
 #[test]
 fn listings_page_least_recently_updated_first_by_page_number() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     for title in [b"one", b"two", b"six"] {
         h.issue(ENGINE, title);
     }
@@ -633,7 +635,7 @@ fn listings_are_at_the_forges_resolution_with_since_inclusive_and_ties_by_number
     let mut h = Harness::new(Config {
         latency_min: Duration::from_millis(100),
         latency_max: Duration::from_millis(100),
-        ..CALM
+        ..calm()
     });
     h.wait(Duration::from_millis(1500));
     for title in [b"one", b"two", b"six"] {
@@ -662,7 +664,7 @@ fn listings_are_at_the_forges_resolution_with_since_inclusive_and_ties_by_number
     };
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].number, 2, "since is taken at the resolution, inclusive");
-    let mut h = Harness::new(Config { resolution: Duration::ZERO, ..CALM });
+    let mut h = Harness::new(Config { resolution: Duration::ZERO, ..calm() });
     h.wait(Duration::from_millis(1500));
     h.issue(ENGINE, b"one");
     assert_eq!(h.item(1).0.created, Time::ZERO.saturating_add(Duration::from_millis(1500)), "the clock's own");
@@ -670,7 +672,7 @@ fn listings_are_at_the_forges_resolution_with_since_inclusive_and_ties_by_number
 
 #[test]
 fn statuses_and_comment_edits_move_updated_times_only_where_configured() {
-    let mut h = Harness::new(Config { status_updates: true, edit_updates: true, ..CALM });
+    let mut h = Harness::new(Config { status_updates: true, edit_updates: true, ..calm() });
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -689,7 +691,7 @@ fn statuses_and_comment_edits_move_updated_times_only_where_configured() {
 
 #[test]
 fn listings_filter_by_state_kind_labels_and_time() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(ENGINE, b"one");
     h.ok(ENGINE, create(b"two", b"", &[b"kit"]));
     h.ok(ENGINE, write(Write::Close { number: 1 }));
@@ -745,7 +747,7 @@ fn an_items_comments_come_a_page_at_a_time_after_an_id() {
         ("edited old comment is included", Some(0), true, false, &[1, 2][..], true),
         ("after still checks edited old comment", Some(0), true, true, &[3][..], false),
     ] {
-        let mut h = Harness::new(CALM);
+        let mut h = Harness::new(calm());
         let number = h.issue(ENGINE, b"talk");
         let other = h.issue(ENGINE, b"other");
         h.until(Time::ZERO.saturating_add(Duration::from_secs(10)));
@@ -796,7 +798,7 @@ fn an_items_comments_come_a_page_at_a_time_after_an_id() {
 
 #[test]
 fn a_comment_is_edited_or_deleted_by_its_author_or_a_writer() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(ENGINE, b"talk");
     let id = h.comment(PERSON, number, b"typo");
     let record = h.comment(ENGINE, number, b"the record");
@@ -819,7 +821,7 @@ fn a_comment_is_edited_or_deleted_by_its_author_or_a_writer() {
 
 #[test]
 fn labels_are_defined_before_they_are_set_and_set_as_a_whole() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(PERSON, b"triage");
     assert_eq!(h.call(ENGINE, set_labels(number, &[b"later"])), Err(Error::Missing(What::Label)));
     assert_eq!(h.call(PERSON, set_labels(number, &[b"bug"])), Err(Error::Forbidden), "labelling needs write");
@@ -839,7 +841,7 @@ fn labels_are_defined_before_they_are_set_and_set_as_a_whole() {
 
 #[test]
 fn labels_are_added_and_removed_leaving_the_others() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(PERSON, b"triage");
     let add = |labels: &[&[u8]]| write(Write::AddLabels { number, labels: names(labels) });
     let remove = |labels: &[&[u8]]| write(Write::RemoveLabels { number, labels: names(labels) });
@@ -864,7 +866,7 @@ fn labels_are_added_and_removed_leaving_the_others() {
 
 #[test]
 fn listings_filter_by_who_opened_the_items() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(ENGINE, b"ours");
     h.issue(PERSON, b"theirs");
     let by = |author: u64| {
@@ -892,7 +894,7 @@ fn listings_filter_by_who_opened_the_items() {
 
 #[test]
 fn an_item_is_closed_and_reopened_by_its_author_or_a_writer() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(PERSON, b"mine");
     let theirs = h.issue(ENGINE, b"theirs");
     assert_eq!(h.call(PERSON, write(Write::Close { number: theirs })), Err(Error::Forbidden));
@@ -908,7 +910,7 @@ fn an_item_is_closed_and_reopened_by_its_author_or_a_writer() {
 
 #[test]
 fn what_is_past_the_limits_is_refused() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let long = [b'x'; 40];
     assert_eq!(h.call(ENGINE, create(&long, b"", &[])), Err(Error::TooLarge));
     assert_eq!(h.call(ENGINE, create(b"", &long, &[])), Err(Error::TooLarge));
@@ -926,7 +928,7 @@ fn what_is_past_the_limits_is_refused() {
 
 #[test]
 fn what_is_missing_is_refused() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(ENGINE, b"one");
     assert_eq!(
         h.call_on(b"ai/nowhere", ENGINE, read(Read::Item { number: 1, after: 0, since: None })),
@@ -959,7 +961,7 @@ fn constructor_refuses_unrepresentable_derived_capacities() {
     ] {
         assert!(!crate::valid(&limits));
         std::panic::catch_unwind(|| {
-            drop(Domain::new(&Config { limits, ..CALM }, 1));
+            drop(Domain::new(&Config { limits, ..calm() }, 1));
         })
         .expect_err("unrepresentable limits");
     }
@@ -969,7 +971,7 @@ fn constructor_refuses_unrepresentable_derived_capacities() {
 
 #[test]
 fn a_push_fast_forwards_or_creates_and_is_otherwise_rejected() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     let more = h.commit(work, &[(b"src", b"two")]);
     let aside = h.commit(FIRST, &[(b"src", b"else")]);
@@ -993,7 +995,7 @@ fn a_push_fast_forwards_or_creates_and_is_otherwise_rejected() {
 
 #[test]
 fn another_party_advancing_a_branch_rejects_a_push_from_where_it_was() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     assert_eq!(h.push(ENGINE, b"work", work), Ok(Answer::Pushed(Pushed::Pushed)));
     let theirs =
@@ -1008,7 +1010,7 @@ fn another_party_advancing_a_branch_rejects_a_push_from_where_it_was() {
 
 #[test]
 fn a_branch_is_created_only_where_none_is() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.ok(ENGINE, create_branch(b"base", FIRST)), Answer::Branch(Created::Created));
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     assert_eq!(h.call(ENGINE, create_branch(b"other", work)), Err(Error::Missing(What::Commit)), "not pushed");
@@ -1020,7 +1022,7 @@ fn a_branch_is_created_only_where_none_is() {
 
 #[test]
 fn a_clone_has_every_branch_and_a_fetch_what_it_names() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     let cloned = h.ok(PERSON, Op::Git(Git::Clone));
@@ -1037,7 +1039,7 @@ fn a_clone_has_every_branch_and_a_fetch_what_it_names() {
 
 #[test]
 fn unreachable_and_refusing_repositories_fail_as_git_would() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     crate::set_refusing(&mut h.domain, REPOSITORY, true);
     assert_eq!(h.push(ENGINE, b"work", work), Err(Error::Refused));
@@ -1053,7 +1055,7 @@ fn unreachable_and_refusing_repositories_fail_as_git_would() {
 
 #[test]
 fn a_working_tree_commits_into_the_one_store() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let same = files(&[(b"README", b"hello"), (b"ci", b"green")]);
     assert_eq!(crate::commit(&mut h.domain, &h.env.limits, FIRST, same, b"discarded"), Ok(None), "nothing changed");
     assert!(h.domain.object(2).is_none(), "unchanged tree stores no message or object");
@@ -1082,7 +1084,7 @@ fn a_branch_is_deleted_unless_it_is_the_default_or_protected() {
         approvals: 0,
         dismiss_stale: false,
     });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     h.ok(ENGINE, create_branch(b"work", FIRST));
     assert_eq!(h.call(ENGINE, delete_branch(MAIN)), Err(Error::Protected), "the default");
     let release = h.commit(FIRST, &[(b"src", b"x")]);
@@ -1095,7 +1097,7 @@ fn a_branch_is_deleted_unless_it_is_the_default_or_protected() {
 
 #[test]
 fn deleting_a_branch_closes_the_pull_requests_from_or_into_it() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     let next = h.commit(work, &[(b"src", b"two")]);
     h.push(ENGINE, b"work", work).expect("pushed");
@@ -1136,7 +1138,7 @@ fn a_protected_branch_is_not_created() {
         approvals: 0,
         dismiss_stale: false,
     });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     assert_eq!(h.call(ENGINE, create_branch(b"release", FIRST)), Err(Error::Protected));
     assert_eq!(h.push(ENGINE, b"release", FIRST), Err(Error::Protected));
     assert_eq!(h.branch(b"release"), None);
@@ -1146,7 +1148,7 @@ fn a_protected_branch_is_not_created() {
 
 #[test]
 fn a_pull_request_follows_its_head_branch_while_it_is_open() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     assert_eq!(h.open(b"work"), Ok(Answer::Created(1)));
@@ -1171,7 +1173,7 @@ fn a_pull_request_follows_its_head_branch_while_it_is_open() {
 
 #[test]
 fn opening_a_pull_request_refuses_what_forgejo_refuses() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.issue(PERSON, b"first"), 1);
     assert_eq!(h.open(b"work"), Err(Error::Missing(What::Branch)));
     assert_eq!(h.open(MAIN), Err(Error::NothingToMerge));
@@ -1199,7 +1201,7 @@ fn opening_a_pull_request_refuses_what_forgejo_refuses() {
 
 #[test]
 fn a_merge_squashes_the_head_onto_the_base() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let tree = files(&[(b"README", b"hello"), (b"src", b"one")]);
     let work = crate::commit(&mut h.domain, &h.env.limits, FIRST, tree, b"").expect("room").expect("a change");
     let more = h.commit(work, &[(b"src", b"two")]);
@@ -1225,7 +1227,7 @@ fn a_merge_squashes_the_head_onto_the_base() {
 
 #[test]
 fn a_merge_conflicts_where_head_and_base_changed_a_path_differently() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"README", b"ours"), (b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1241,7 +1243,7 @@ fn a_merge_conflicts_where_head_and_base_changed_a_path_differently() {
 
 #[test]
 fn a_merge_at_a_head_that_moved_is_stale() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1255,7 +1257,7 @@ fn a_merge_at_a_head_that_moved_is_stale() {
 
 #[test]
 fn a_merge_of_what_the_base_has_already_is_refused() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1277,7 +1279,7 @@ fn protection_wants_green_ci_and_approvals_of_the_exact_head_where_stale_ones_ar
         approvals: 1,
         dismiss_stale: true,
     });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     assert_eq!(h.push(ENGINE, MAIN, work), Err(Error::Protected), "nothing is pushed to it");
     h.push(ENGINE, b"work", work).expect("pushed");
@@ -1315,7 +1317,7 @@ fn protection_counts_official_approvals_of_any_head_by_default() {
         approvals: 2,
         dismiss_stale: false,
     });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1340,7 +1342,7 @@ fn matches_merged(result: &Result<Answer, Error>) -> bool {
 
 #[test]
 fn reviews_are_kept_in_order_and_refused_where_forgejo_refuses() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(PERSON, b"question");
     assert_eq!(h.call(MAINTAINER, review(1, Verdict::Approve)), Err(Error::Missing(What::Pull)));
     let work = h.commit(FIRST, &[(b"src", b"one")]);
@@ -1362,7 +1364,7 @@ fn ci_reports_pending_then_a_drawn_verdict_or_never() {
     let mut setup = setup();
     setup.checks.contexts = names(&[b"ci", b"lint"]);
     setup.checks.passes = 0;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1374,7 +1376,7 @@ fn ci_reports_pending_then_a_drawn_verdict_or_never() {
     assert_eq!(h.domain.tally().verdicts, 2);
     let mut setup = crate::tests::setup();
     setup.checks.silent = 1000;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1389,7 +1391,7 @@ fn ci_runs_a_context_again_after_it_settled_once() {
     setup.checks.contexts = names(&[b"ci", b"lint"]);
     setup.checks.passes = 0;
     setup.checks.reruns = 1000;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1421,7 +1423,7 @@ fn a_pending_review_is_hidden_until_it_is_submitted_and_keeps_its_place() {
         approvals: 1,
         dismiss_stale: false,
     });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1462,7 +1464,7 @@ fn ci_follows_content_where_a_cue_is_configured() {
     let mut setup = setup();
     setup.checks.passes = 0;
     setup.checks.cue = Some(Cue::File { path: copy_of(b"ci"), green: copy_of(b"green") });
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let red = h.commit(FIRST, &[(b"ci", b"red")]);
     h.push(ENGINE, b"work", red).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1486,7 +1488,7 @@ fn ci_follows_the_message_only_when_its_cue_is_chosen() {
         let mut configured = setup();
         configured.checks.passes = 0;
         configured.checks.cue = Some(Cue::Message { fail: copy_of(b"FAIL") });
-        let mut h = Harness::with(CALM, configured);
+        let mut h = Harness::with(calm(), configured);
         let commit = crate::commit_tree(
             &mut h.domain,
             &h.env.limits,
@@ -1505,7 +1507,7 @@ fn ci_follows_the_message_only_when_its_cue_is_chosen() {
 
 #[test]
 fn ci_runs_once_per_commit_and_a_status_updates_the_pull_requests_on_it() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");
@@ -1530,7 +1532,7 @@ fn ci_runs_once_per_commit_and_a_status_updates_the_pull_requests_on_it() {
 
 #[test]
 fn wiki_pages_are_put_listed_read_and_deleted() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(h.ok(ENGINE, put(b"b", b"second")), Answer::Revision(1));
     assert_eq!(h.ok(MAINTAINER, put(b"a", b"first")), Answer::Revision(2));
     assert_eq!(h.ok(ENGINE, put(b"a", b"first, again")), Answer::Revision(3));
@@ -1554,7 +1556,7 @@ fn wiki_pages_are_put_listed_read_and_deleted() {
 
 #[test]
 fn a_subscriber_hears_of_each_change_by_webhook() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(PERSON, b"one");
     let id = h.comment(PERSON, 1, b"hi");
     h.ok(ENGINE, set_labels(1, &[b"bug"]));
@@ -1587,7 +1589,7 @@ fn a_subscriber_hears_of_each_change_by_webhook() {
     assert_eq!(h.domain.tally().hooks, 8);
     let mut setup = setup();
     setup.hooked = false;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     h.issue(PERSON, b"unheard");
     h.settle();
     assert!(h.heard().is_empty(), "no subscriber");
@@ -1595,19 +1597,19 @@ fn a_subscriber_hears_of_each_change_by_webhook() {
 
 #[test]
 fn webhooks_come_late_or_never() {
-    let mut h = Harness::new(Config { hooks_late: 1000, ..CALM });
+    let mut h = Harness::new(Config { hooks_late: 1000, ..calm() });
     h.issue(PERSON, b"one");
     let opened = h.env.now;
     h.settle();
     assert_eq!(h.heard().as_slice(), [(Change::Issue, Some(1))]);
     assert_eq!(h.env.now, opened.saturating_add(Duration::from_secs(29)), "late: thirty seconds from the change");
     assert_eq!(h.domain.tally().hooks_late, 1);
-    let mut h = Harness::new(Config { hooks_lost: 1000, ..CALM });
+    let mut h = Harness::new(Config { hooks_lost: 1000, ..calm() });
     h.issue(PERSON, b"one");
     h.settle();
     assert!(h.heard().is_empty());
     assert_eq!(h.domain.tally().hooks_lost, 1);
-    let mut h = Harness::new(Config { limits: Limits { hooks: 1, ..LIMITS }, ..CALM });
+    let mut h = Harness::new(Config { limits: Limits { hooks: 1, ..LIMITS }, ..calm() });
     h.issue(PERSON, b"one");
     h.comment(PERSON, 1, b"in flight");
     h.settle();
@@ -1617,7 +1619,7 @@ fn webhooks_come_late_or_never() {
 
 #[test]
 fn a_call_fails_before_it_is_made_or_times_out_after() {
-    let mut h = Harness::new(Config { unavailable: 1000, ..CALM });
+    let mut h = Harness::new(Config { unavailable: 1000, ..calm() });
     assert_eq!(h.call(PERSON, create(b"lost", b"", &[])), Err(Error::Unavailable));
     assert_eq!(
         h.inspect(&Read::Item { number: 1, after: 0, since: None }),
@@ -1625,7 +1627,7 @@ fn a_call_fails_before_it_is_made_or_times_out_after() {
         "nothing was done"
     );
     assert_eq!(h.domain.tally().unavailable, 1);
-    let mut h = Harness::new(Config { timeouts: 1000, ..CALM });
+    let mut h = Harness::new(Config { timeouts: 1000, ..calm() });
     assert_eq!(h.call(PERSON, create(b"made", b"", &[])), Err(Error::Timeout));
     assert_eq!(&*h.item(1).0.title, b"made", "it was done all the same");
     assert_eq!(h.domain.tally().timeouts, 1);
@@ -1633,7 +1635,7 @@ fn a_call_fails_before_it_is_made_or_times_out_after() {
 
 #[test]
 fn a_call_may_land_after_it_was_answered_as_timed_out() {
-    let mut h = Harness::new(Config { landing: 1000, ..CALM });
+    let mut h = Harness::new(Config { landing: 1000, ..calm() });
     assert_eq!(h.call(PERSON, create(b"later", b"", &[])), Err(Error::Timeout));
     assert_eq!(
         h.inspect(&Read::Item { number: 1, after: 0, since: None }),
@@ -1662,7 +1664,7 @@ fn a_call_may_land_after_it_was_answered_as_timed_out() {
 #[test]
 fn the_forges_clock_is_its_own() {
     let skew = Skew::Behind(Duration::from_secs(100));
-    let mut h = Harness::new(Config { skew, rate_limit: 1, ..CALM });
+    let mut h = Harness::new(Config { skew, rate_limit: 1, ..calm() });
     h.wait(Duration::from_secs(1_000));
     h.issue(PERSON, b"one");
     let (item, _) = h.item(1);
@@ -1688,7 +1690,7 @@ fn the_forges_clock_is_its_own() {
 
 #[test]
 fn a_late_answer_comes_after_the_late_latency() {
-    let mut h = Harness::new(Config { late: 1000, ..CALM });
+    let mut h = Harness::new(Config { late: 1000, ..calm() });
     h.issue(PERSON, b"slow");
     assert_eq!(h.env.now, Time::ZERO.saturating_add(Duration::from_secs(30)));
     assert_eq!(h.domain.tally().late, 1);
@@ -1696,7 +1698,7 @@ fn a_late_answer_comes_after_the_late_latency() {
 
 #[test]
 fn a_rate_limit_refuses_with_when_it_resets() {
-    let mut h = Harness::new(Config { rate_limit: 2, ..CALM });
+    let mut h = Harness::new(Config { rate_limit: 2, ..calm() });
     h.issue(PERSON, b"one");
     h.issue(PERSON, b"two");
     let reset = Time::ZERO.saturating_add(Duration::from_secs(60));
@@ -1709,7 +1711,7 @@ fn a_rate_limit_refuses_with_when_it_resets() {
 
 #[test]
 fn a_forge_full_of_calls_answers_at_once_as_unavailable() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     for token in 0..=u64::from(LIMITS.calls) {
         let op = read(Read::Permission { user: PERSON });
         let event = Event::Call {
@@ -1756,7 +1758,7 @@ fn run(seed: u64) -> Run {
         hook_max: Duration::from_secs(3),
         hooks_late: 200,
         hooks_lost: 200,
-        ..CALM
+        ..calm()
     };
     let mut setup = setup();
     setup.checks.passes = 500;
@@ -1803,7 +1805,7 @@ fn run(seed: u64) -> Run {
 
 #[test]
 fn observations_say_what_happened_content_and_all() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(PERSON, b"crash");
     let id = h.comment(ENGINE, 1, b"looking");
     h.ok(ENGINE, edit(id, b"fixing"));
@@ -1849,7 +1851,7 @@ fn observations_say_what_happened_content_and_all() {
 
 #[test]
 fn observations_beyond_the_queue_are_dropped_and_counted() {
-    let mut h = Harness::new(Config { limits: Limits { observations: 2, ..LIMITS }, ..CALM });
+    let mut h = Harness::new(Config { limits: Limits { observations: 2, ..LIMITS }, ..calm() });
     for title in [b"one", b"two", b"six"] {
         h.issue(PERSON, title);
     }
@@ -1861,7 +1863,7 @@ fn observations_beyond_the_queue_are_dropped_and_counted() {
 
 #[test]
 fn a_pull_request_is_found_by_its_branches_and_statuses_by_their_commit() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     let find = read(Read::PullFor { head: copy_of(b"work"), base: copy_of(MAIN) });
@@ -1892,7 +1894,7 @@ fn a_pull_request_is_found_by_its_branches_and_statuses_by_their_commit() {
 fn observations_and_webhooks_follow_branches_pull_requests_and_the_wiki() {
     let mut setup = setup();
     setup.checks.silent = 1000;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     h.ok(ENGINE, define(b"later"));
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
@@ -1929,7 +1931,7 @@ fn observations_and_webhooks_follow_branches_pull_requests_and_the_wiki() {
 
 #[test]
 fn webhooks_name_the_branch_and_commit_a_push_or_status_is_about() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.settle();
@@ -1954,7 +1956,7 @@ fn refused_writes_and_rejected_pushes_are_observed() {
         dismiss_stale: false,
     });
     setup.checks.silent = 1000;
-    let mut h = Harness::with(CALM, setup);
+    let mut h = Harness::with(calm(), setup);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     let aside = h.commit(FIRST, &[(b"src", b"else")]);
     h.push(ENGINE, b"work", work).expect("pushed");
@@ -2014,7 +2016,7 @@ fn request(number: u64, reviewers: &[u64]) -> Op {
 
 #[test]
 fn an_items_title_and_body_are_edited_by_its_author_or_a_writer() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(PERSON, b"tpyo");
     let theirs = h.issue(ENGINE, b"theirs");
     h.wait(Duration::from_secs(10));
@@ -2041,7 +2043,7 @@ fn an_items_title_and_body_are_edited_by_its_author_or_a_writer() {
 
 #[test]
 fn dependencies_are_set_as_a_whole_within_a_repository_without_cycles() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     for title in [b"one", b"two", b"six", b"ten"] {
         h.issue(ENGINE, title);
     }
@@ -2059,7 +2061,7 @@ fn dependencies_are_set_as_a_whole_within_a_repository_without_cycles() {
 
 #[test]
 fn reviewers_are_requested_as_a_set_until_they_review() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(PERSON, b"question");
     assert_eq!(h.call(ENGINE, request(1, &[MAINTAINER])), Err(Error::Missing(What::Pull)));
     let work = h.commit(FIRST, &[(b"src", b"one")]);
@@ -2078,7 +2080,7 @@ fn reviewers_are_requested_as_a_set_until_they_review() {
 
 #[test]
 fn one_comment_and_the_defined_labels_are_read() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let number = h.issue(ENGINE, b"talk");
     let id = h.comment(PERSON, number, b"hello");
     let Answer::Comment { number: on, comment } = h.ok(ENGINE, read(Read::Comment { id })) else {
@@ -2091,7 +2093,7 @@ fn one_comment_and_the_defined_labels_are_read() {
 
 #[test]
 fn a_repository_has_what_its_branches_reach_and_what_was_pushed() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     let more = h.commit(work, &[(b"src", b"two")]);
     let stray = h.commit(FIRST, &[(b"src", b"stray")]);
@@ -2105,7 +2107,7 @@ fn a_repository_has_what_its_branches_reach_and_what_was_pushed() {
 
 #[test]
 fn more_callers_than_rate_windows_wait_for_the_first_to_end() {
-    let mut h = Harness::new(Config { rate_limit: 5, ..CALM });
+    let mut h = Harness::new(Config { rate_limit: 5, ..calm() });
     let started = h.env.now;
     for user in 10..10 + u64::from(LIMITS.users) {
         assert_eq!(h.call(user, read(Read::Labels)), Err(Error::Forbidden), "taken, then refused for permission");
@@ -2121,7 +2123,7 @@ fn more_callers_than_rate_windows_wait_for_the_first_to_end() {
 
 #[test]
 fn a_full_store_refuses_counted_and_says_it_has_no_room() {
-    let mut h = Harness::new(Config { limits: Limits { commits: 3, ..LIMITS }, ..CALM });
+    let mut h = Harness::new(Config { limits: Limits { commits: 3, ..LIMITS }, ..calm() });
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     crate::advance(&mut h.domain, &h.env, REPOSITORY, MAIN, b"other", b"x", MAINTAINER).expect("the last room");
     assert_eq!(h.domain.room().commits, 0);
@@ -2134,7 +2136,7 @@ fn a_full_store_refuses_counted_and_says_it_has_no_room() {
 
 #[test]
 fn statuses_of_commits_no_head_shows_are_forgotten_to_make_room() {
-    let mut h = Harness::new(Config { limits: Limits { statuses: 3, ..LIMITS }, ..CALM });
+    let mut h = Harness::new(Config { limits: Limits { statuses: 3, ..LIMITS }, ..calm() });
     let one = h.commit(FIRST, &[(b"src", b"one")]);
     let two = h.commit(one, &[(b"src", b"two")]);
     let other = h.commit(FIRST, &[(b"lib", b"one")]);
@@ -2171,7 +2173,7 @@ fn every_call_is_answered_once_under_every_fault() {
             rate_window: Duration::from_secs(5),
             hooks_late: 100,
             hooks_lost: 100,
-            ..CALM
+            ..calm()
         };
         let mut h = Harness::seeded(config, setup(), seed);
         let mut rng = skein_lib::Rng::new(seed);
@@ -2235,7 +2237,7 @@ fn every_call_is_answered_once_under_every_fault() {
 
 #[test]
 fn modify_and_delete_or_two_adds_conflict_unless_they_agree() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     // The head deletes the readme, which the base changed.
     let deleted = crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"ci", b"green")]), b"")
         .expect("room")
@@ -2256,7 +2258,7 @@ fn modify_and_delete_or_two_adds_conflict_unless_they_agree() {
     assert_eq!(h.call(ENGINE, merge(2, added)), Err(Error::Conflict), "two adds");
     assert!(matches_merged(&h.call(ENGINE, merge(3, same))), "two adds that agree");
     // The other way: the base deletes what a head changed.
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let edited = h.commit(FIRST, &[(b"README", b"edited")]);
     h.push(ENGINE, b"edit", edited).expect("pushed");
     h.open(b"edit").expect("opened");
@@ -2268,11 +2270,12 @@ fn modify_and_delete_or_two_adds_conflict_unless_they_agree() {
 }
 
 mod hooks;
+mod image;
 
 #[test]
 fn a_directory_reads_as_its_immediate_entries() {
     use crate::api::{Entry, EntryKind};
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = crate::commit(
         &mut h.domain,
         &h.env.limits,
@@ -2307,7 +2310,7 @@ fn a_directory_reads_as_its_immediate_entries() {
 }
 #[test]
 fn a_path_under_no_key_is_missing() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     assert_eq!(
         h.call(ENGINE, read(Read::File { commit: FIRST, path: copy_of(b"absent/nested") })),
         Err(Error::Missing(What::File))

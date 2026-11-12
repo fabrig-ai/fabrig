@@ -428,7 +428,7 @@ pub(crate) fn named_action(
                 env,
                 to,
                 key,
-                crate::reads::run_task::Read { task, field, from, room },
+                crate::reads::run_task::Read { task, field, from, room, joined: false },
             );
         }
         NamedAction::PersonRead(read) => return crate::reads::person::run(core, env, to, key, read),
@@ -625,6 +625,7 @@ pub(crate) fn named_action(
                         | jig_domain_people::Refusal::Judged { .. }
                         | jig_domain_people::Refusal::Stale { .. }
                         | jig_domain_people::Refusal::Full { .. }
+                        | jig_domain_people::Refusal::LiveTasks { .. }
                         | jig_domain_people::Refusal::Circle { .. }
                         | jig_domain_people::Refusal::Dependency { .. }
                         | jig_domain_people::Refusal::Kept { .. }

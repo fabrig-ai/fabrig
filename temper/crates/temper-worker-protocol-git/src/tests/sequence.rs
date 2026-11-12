@@ -62,7 +62,7 @@ fn standard_rows() {
     let commit = fixtures::commit_op(None);
     let merging = fixtures::commit_op(Some(fixtures::COMMIT));
     let push = fixtures::push_op(Some(fixtures::EXPECTED));
-    let merge = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT };
+    let merge = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None };
     let fetch = git::Op::Fetch {
         store: skein_lib::Token::new(9),
         into: git::Into::Fetched,

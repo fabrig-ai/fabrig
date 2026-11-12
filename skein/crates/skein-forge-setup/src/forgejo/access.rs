@@ -32,6 +32,7 @@ enum Phase {
     Delete,
     Save,
 }
+/// A repository's collaborator and remade listener hook (forge/setup/forgejo.md, 1.5).
 #[derive(Debug)]
 pub(crate) struct Access {
     id: Option<u64>,
@@ -40,7 +41,6 @@ pub(crate) struct Access {
     phase: Phase,
     url: Option<Box<[u8]>>,
     page: u32,
-    kept: Option<u64>,
 }
 pub(crate) enum Move {
     Send(Request),
@@ -55,10 +55,10 @@ pub(crate) enum Fail {
 }
 impl Access {
     pub fn new(id: u64, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
-        Self { id: Some(id), bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1, kept: None }
+        Self { id: Some(id), bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1 }
     }
     pub fn named(at: Repo, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
-        Self { id: None, bot: bot.into(), path: Some(at), phase: Phase::Repository, url, page: 1, kept: None }
+        Self { id: None, bot: bot.into(), path: Some(at), phase: Phase::Repository, url, page: 1 }
     }
     /// The first request: the repository by the given id or path.
     pub fn begin(&mut self) -> Request {
@@ -126,7 +126,8 @@ impl Access {
     fn answer(&mut self, shared: &mut Shared, answer: Reply) -> Result<Move, Why> {
         match self.phase {
             Phase::Repository => match answer {
-                Reply::Document(Document::Repository(repo)) => {
+                Reply::Document(document) => {
+                    let Document::Repository(repo) = *document else { return Err(Why::Unexpected) };
                     if let Some(id) = self.id
                         && repo.id != id
                     {
@@ -137,25 +138,24 @@ impl Access {
                     self.phase = Phase::Permission;
                     Ok(Move::Send(Request::Permission { at, login: self.bot.clone() }))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Permission => match answer {
-                Reply::Document(Document::Permission(permission)) => match permission.permission {
-                    Permission::Write | Permission::Admin | Permission::Owner => Ok(self.hook(shared)),
-                    Permission::None | Permission::Read => {
-                        self.phase = Phase::Add;
-                        Ok(Move::Send(Request::AddCollaborator {
-                            at: self.path.clone().expect("repository read before permission"),
-                            login: self.bot.clone(),
-                            permission: Grant::Write,
-                        }))
+                Reply::Document(document) => {
+                    let Document::Permission(permission) = *document else { return Err(Why::Unexpected) };
+                    match permission.permission {
+                        Permission::Write | Permission::Admin | Permission::Owner => Ok(self.hook(shared)),
+                        Permission::None | Permission::Read => {
+                            self.phase = Phase::Add;
+                            Ok(Move::Send(Request::AddCollaborator {
+                                at: self.path.clone().expect("repository read before permission"),
+                                login: self.bot.clone(),
+                                permission: Grant::Write,
+                            }))
+                        }
                     }
-                },
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
                 }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Add => match answer {
                 Reply::Empty => Ok(self.hook(shared)),
@@ -164,13 +164,15 @@ impl Access {
                 }
             },
             Phase::Settings => match answer {
-                Reply::Document(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
+                Reply::Document(document) => {
+                    let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
+                    if settings.max_response_items == 0 {
+                        return Err(Why::Unexpected);
+                    }
                     shared.cap = Some(settings.max_response_items);
                     Ok(self.listing(shared))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Listing => self.rows(shared, answer),
             Phase::Delete => match answer {
@@ -180,10 +182,11 @@ impl Access {
                 }
             },
             Phase::Save => match answer {
-                Reply::Document(Document::Hook(_)) => Ok(Move::Done),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
+                Reply::Document(document) => {
+                    let Document::Hook(_) = *document else { return Err(Why::Unexpected) };
+                    Ok(Move::Done)
                 }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Secret | Phase::Draw | Phase::Write => unreachable!("host effects handled before replies"),
         }
@@ -226,10 +229,7 @@ impl Access {
             active: true,
         };
         self.phase = Phase::Save;
-        Move::Send(match self.kept {
-            Some(id) => Request::EditRepoHook { at: self.at(), id, hook },
-            None => Request::CreateRepoHook { at: self.at(), hook },
-        })
+        Move::Send(Request::CreateRepoHook { at: self.at(), hook })
     }
     fn rows(&mut self, shared: &Shared, answer: Reply) -> Result<Move, Why> {
         let Reply::Rows(rows) = answer else {
@@ -239,18 +239,10 @@ impl Access {
             let Row::Hook(hook) = row else {
                 return Err(Why::Unexpected);
             };
-            if Some(&hook.url) != self.url.as_ref() {
-                continue;
-            }
-            if let Some(kept) = self.kept {
-                if kept == hook.id {
-                    continue;
-                }
-                self.kept = Some(kept.min(hook.id));
+            if Some(&hook.url) == self.url.as_ref() {
                 self.phase = Phase::Delete;
-                return Ok(Move::Send(Request::DeleteRepoHook { at: self.at(), id: kept.max(hook.id) }));
+                return Ok(Move::Send(Request::DeleteRepoHook { at: self.at(), id: hook.id }));
             }
-            self.kept = Some(hook.id);
         }
         if rows.len() < usize_of(shared.cap.expect("cap read before listing")) {
             Ok(self.save(shared))

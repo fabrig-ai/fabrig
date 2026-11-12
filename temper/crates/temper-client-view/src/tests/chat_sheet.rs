@@ -161,12 +161,16 @@ impl Case {
                         w::Watch::Change(_)
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Drafts(_)
+                        | w::Watch::Follows(_)
                         | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
+                        | w::Watch::Findings(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Status(_)
                         | w::Watch::Away
+                        | w::Watch::Devices
                         | w::Watch::Decided(_) => continue,
                     };
                     Up::FamilyDelivered {

@@ -62,6 +62,25 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn tester_recipe_enables_the_shell_but_keeps_the_coding_charters_tools() {
+    let text = find(b"tester-that-cannot-land").expect("tester recipe").text;
+    let command = text
+        .lines()
+        .find(|line| line.starts_with("temper ctl DIR settings show charter 2 --json"))
+        .expect("copy stock coding charter 2");
+    assert!(command.contains(".shell = true"), "the stock shell is disabled; the tester must run tests");
+    assert!(!command.contains(".tools ="), "keep the coding charter's tool-family bits");
+    assert!(command.contains(".instructions ="), "give the tester its own instructions");
+    assert!(command.contains("Report each test, its path, its content and its result. Fix nothing."));
+}
+
+#[test]
+fn chat_help_shows_the_goal_questions_answer_form() {
+    let text = find(b"chat").expect("chat page").text;
+    assert!(text.contains("`G asks (question Q; answer with message target=G, form=answer, question=Q): ...`"));
+}
+
+#[test]
 fn task_help_explains_refused_invalid_results() {
     let found = search(&PAGES, b"invalid results", 20).expect("search words");
     assert!(found.hits.as_slice().iter().any(|hit| hit.page == "task"), "invalid results must find task help");
@@ -164,7 +183,7 @@ fn budget_help_sizes_a_hundred_change_goal() {
     for instruction in [
         "For a goal of up to a hundred changes",
         "100 change procedures, 100 producers, 200 reviews and 100 repairs",
-        "12 coordinator/foreman tasks including the goal",
+        "12 coordinator tasks including the goal",
         "512 tasks in the tree, 511 delegated tasks",
         "412K units",
         "five delegation levels below the goal",
@@ -252,7 +271,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "notes 3",
         "rules ceiling, policy 1's ceiling and the creator-role authority",
         "coordinator charter 5",
-        "designer charter 7",
+        "fifteen executor places",
         "merge job 3",
         "Policy 1 affects future projects. Existing projects need project-policy",
         "saved whole current `project-policy` settings item",
@@ -261,6 +280,9 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
     ] {
         assert!(text.contains(instruction), "the reference's README must explain: {instruction}");
     }
+    for retired in ["charter 7", "charter 8", "\"charter\": 7", "\"charter\": 8"] {
+        assert!(!text.contains(retired), "reference recipe names retired {retired}");
+    }
     for command in [
         "settings show rules --json",
         "settings show policy 1 --json",
@@ -268,7 +290,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "select(.number == $role)",
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
-        "map(select(. != {\"charter\": 12}))",
+        "map(select(. != {\"charter\": 12} and . != {\"charter\": 13} and . != {\"charter\": 6}))",
     ] {
         assert!(text.contains(command), "the reference's recipe must use: {command}");
     }
@@ -500,6 +522,22 @@ fn public_reading_says_what_may_show_and_what_the_pages_hold() {
         assert!(walk.contains(requirement), "public reading walk must name {requirement}");
     }
     assert!(!walk.contains("without exposing"));
+}
+
+#[test]
+fn box_and_tui_help_distinguish_the_front_and_its_once_per_build_download() {
+    for (name, alone) in [(b"box".as_slice(), "`temper-box` alone"), (b"tui", "`temper-box` runs the box without it")] {
+        let page = find(name).expect("front help page");
+        for check in [head, template, links, placeholders, voice] {
+            check(page).unwrap_or_else(|why| panic!("{why}"));
+        }
+        let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(text.contains("`temper box` in a terminal runs"));
+        assert!(text.contains("TUI in front"));
+        assert!(text.contains("downloading `temper-box` once"), "the box is downloaded once if needed");
+        assert!(text.contains("if needed"));
+        assert!(text.contains(alone));
+    }
 }
 
 #[test]

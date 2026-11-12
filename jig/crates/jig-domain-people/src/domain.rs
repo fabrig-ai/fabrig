@@ -47,6 +47,7 @@ enum Start {
 #[derive(Hash, Debug)]
 pub struct Domain {
     deletions: Map<u32, crate::KeptDeletion>,
+    deleted: Set<u32>,
     start: Start,
     start_at: Option<Wall>,
     restore_failure: Option<crate::RestoreFailure>,
@@ -89,6 +90,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Whether this number is marked deleted (jig/docs/design/domain/people/acts.md, 2).
+    #[must_use]
+    pub fn deleted(&self, project: u32) -> bool {
+        self.deleted.contains(&project)
+    }
+
     /// Kept deletions, restored at start (jig/docs/design/domain/people/acts.md, 2).
     #[must_use]
     pub fn deletions(&self) -> &Map<u32, crate::KeptDeletion> {
@@ -149,6 +156,7 @@ impl Domain {
         }
         Domain {
             deletions: Map::with_capacity(limits.projects),
+            deleted: Set::with_capacity(limits.projects),
             start: Start::NotStarted,
             start_at: None,
             restore_failure: None,
@@ -547,7 +555,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
         Event::Waiting { task, entries } => {
             domain.assert_projection_event();
-            replace_waiting(domain, &env.limits, task, &entries);
+            replace_waiting(domain, &env.limits, task, &entries, out);
         }
         Event::ApplyRoles { reply_to, request } => {
             let result = apply_roles(domain, env, request, out);

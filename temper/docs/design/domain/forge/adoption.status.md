@@ -2,14 +2,18 @@
 
 2026-11-11. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
-- **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected` [in flight: change 261].
+- **Not yet:** the opening's first bullet: a context adoption of a
+  repository another project writes, kept for its project and read by its
+  lookups, runs and follows [in flight: change 97].
+
+- **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected`.
 
 - **Not yet:** 6, *Only under a box*: a link restored by a connector built
   without `--box` survives when its person remains the deployment's sole
   owner. `temper-engine-domain-forge/src/link.rs`, `owner`, clears only a
   different person; `person_of` blocks new links outside the box, but
   `forges.rs`, `link`, still returns the retained one and the root's
-  `forge_person` uses it. No story covers that transition [in flight: change 566].
+  `forge_person` uses it. No story covers that transition.
 
 `change/repairs.md` has no known implementation gap in a pull's files page
 answering `TooLarge`: its identity and gathered content remain, the

@@ -44,7 +44,6 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectQuestions::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Questions(match record.route() {
                 v1::QuestionsRoute::None => Route::None,
-                v1::QuestionsRoute::Foreman => Route::Foreman,
                 v1::QuestionsRoute::Up => Route::Up,
             })
         }
@@ -65,9 +64,21 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let parts = v1::ProjectWords::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::ProjectWords(settings::ProjectWords { headline: parts.headline, lede: parts.lede })
         }
+        13 => settings::Value::Dependency(settings::Dependency {
+            project: v1::Dependency::decode(&v1::CEILINGS, &mut reader).ok()?.project(),
+        }),
+        12 => settings::Value::Follow(settings::follow_from(v1::Follow::decode(&v1::CEILINGS, &mut reader).ok()?)),
         11 => {
             let record = v1::TemplateGoal::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Goal(settings::TemplateGoal { design: record.design(), close_out: record.close_out() })
+        }
+        14 => {
+            let record = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::ProjectAreas(areas_from(record))
+        }
+        15 => {
+            let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
         }
         _ => return None,
     };
@@ -81,6 +92,18 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 #[must_use]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
+        settings::Value::ProjectAreas(value) => {
+            let record = wire_areas(value);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::ProjectTriager(value) => {
+            let record = wire_triager(value);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Rule(rule) => {
             let record = wire_rule(rule);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -101,6 +124,18 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
         }
         settings::Value::Classes(classes) => {
             let record = temper_protocol_reaches::classes_record(classes).expect("admitted classes fit the record");
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Dependency(value) => {
+            let record = wire_dependency(*value);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Follow(follow) => {
+            let record = settings::follow_record(follow).expect("admitted follow fits the record");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             writer.finish()
@@ -146,7 +181,17 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::CharterWords(line) => wire_charter_words(line).measure(),
         settings::Value::ProjectWords(words) => wire_project_words(words).measure(),
         settings::Value::Goal(goal) => wire_goal(*goal).measure(),
+        settings::Value::Dependency(value) => wire_dependency(*value).measure(),
+        settings::Value::Follow(follow) => {
+            settings::follow_record(follow).expect("admitted follow fits the record").measure()
+        }
+        settings::Value::ProjectAreas(value) => wire_areas(value).measure(),
+        settings::Value::ProjectTriager(value) => wire_triager(value).measure(),
     }
+}
+
+fn wire_dependency(value: settings::Dependency) -> v1::Dependency {
+    v1::Dependency::new(&v1::CEILINGS, v1::DependencyParts { project: value.project }).expect("fixed dependency field")
 }
 
 fn rule(record: v1::LandingRule) -> settings::LandingRule {
@@ -177,6 +222,7 @@ fn rule(record: v1::LandingRule) -> settings::LandingRule {
             .expect("decoded approval count");
     }
     settings::LandingRule {
+        sets: parts.sets.into_boxed(),
         pattern: GatePattern { segments: pattern.segments.into_boxed(), last },
         enforce: parts.enforce,
         ci: parts.ci,
@@ -253,6 +299,7 @@ fn wire_rule(rule: &settings::LandingRule) -> v1::LandingRule {
             up_to_date: rule.up_to_date,
             gates,
             approvals,
+            sets: List::from_boxed(rule.sets.clone()),
         },
     )
     .expect("rule within schema ceilings")
@@ -265,7 +312,6 @@ fn wire_charter(charter: u32) -> v1::ForgeCharter {
 fn wire_questions(route: Route) -> v1::ProjectQuestions {
     let route = match route {
         Route::None => v1::QuestionsRoute::None,
-        Route::Foreman => v1::QuestionsRoute::Foreman,
         Route::Up => v1::QuestionsRoute::Up,
     };
     v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route }).expect("fixed route field")
@@ -296,4 +342,60 @@ fn wire_project_words(words: &settings::ProjectWords) -> v1::ProjectWords {
 fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
     v1::TemplateGoal::new(&v1::CEILINGS, v1::TemplateGoalParts { design: goal.design, close_out: goal.close_out })
         .expect("fixed goal fields")
+}
+
+fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
+    match value {
+        settings::AreaOwner::Task(number) => v1::AreaOwner::Task(
+            v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Party(number) => v1::AreaOwner::Party(
+            v1::AreaParty::new(&v1::CEILINGS, v1::AreaPartyParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Role(number) => v1::AreaOwner::Role(
+            v1::AreaRole::new(&v1::CEILINGS, v1::AreaRoleParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Charter(number) => v1::AreaOwner::Charter(
+            v1::AreaCharter::new(&v1::CEILINGS, v1::AreaCharterParts { number }).expect("fixed owner number"),
+        ),
+    }
+}
+fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
+    match value {
+        v1::AreaOwner::Task(number) => settings::AreaOwner::Task(number.number()),
+        v1::AreaOwner::Party(number) => settings::AreaOwner::Party(number.number()),
+        v1::AreaOwner::Role(number) => settings::AreaOwner::Role(number.number()),
+        v1::AreaOwner::Charter(number) => settings::AreaOwner::Charter(number.number()),
+    }
+}
+fn wire_areas(value: &settings::ProjectAreas) -> v1::ProjectAreas {
+    let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
+    for area in &value.areas {
+        areas
+            .push(
+                v1::Area::new(
+                    &v1::CEILINGS,
+                    v1::AreaParts {
+                        name: area.name.clone(),
+                        words: area.words.clone(),
+                        owner: owner_record(area.owner),
+                    },
+                )
+                .expect("admitted area fits"),
+            )
+            .expect("counted areas");
+    }
+    v1::ProjectAreas::new(&v1::CEILINGS, v1::ProjectAreasParts { areas }).expect("admitted areas fit")
+}
+fn wire_triager(value: &settings::ProjectTriager) -> v1::ProjectTriager {
+    v1::ProjectTriager::new(&v1::CEILINGS, v1::ProjectTriagerParts { owner: owner_record(value.owner) })
+        .expect("fixed triager fields")
+}
+fn areas_from(value: v1::ProjectAreas) -> settings::ProjectAreas {
+    let mut areas = List::uncapped();
+    for area in value.into_parts().areas.into_boxed() {
+        let v1::AreaParts { name, words, owner } = area.into_parts();
+        areas.push(settings::Area { name, words, owner: owner_from(owner) }).expect("decoded areas");
+    }
+    settings::ProjectAreas { areas: areas.into_boxed() }
 }

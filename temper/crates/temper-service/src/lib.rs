@@ -4,24 +4,29 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
+#[path = "worker/job_ending.rs"]
+mod worker_job_ending;
+#[path = "worker_alone/vocabulary.rs"]
+mod worker_vocabulary;
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
+pub use worker_job_ending::JobEnding as WorkerJobEnding;
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
-pub mod long_pass;
+pub use temper_service_core::long_pass;
 pub mod settings;
 pub mod startup;
 pub mod stock;
 pub use startup::{Named, StoreLimits, named, startup, store_limits};
-pub use temper_protocol_records::NotConnected;
+pub use temper_protocol_records_forge::NotConnected;
 pub mod system;
 pub use system::{STAGES, Service, Stage, iterate, iterate_stage};
 pub mod store;
 #[cfg(test)]
 mod tests;
-pub mod tokens;
+pub use temper_service_core::tokens;
 
 pub mod accounts;
 pub mod assignment;
@@ -37,6 +42,8 @@ pub mod values;
 #[cfg(feature = "worker")]
 mod worker;
 #[cfg(feature = "worker")]
+pub mod worker_alone;
+#[cfg(feature = "worker")]
 mod worker_git;
 #[cfg(feature = "worker")]
 pub mod worker_route;
@@ -47,7 +54,7 @@ pub use worker::{Worker, WorkerRuntime};
 #[cfg(not(feature = "worker"))]
 mod unbuilt;
 #[cfg(not(feature = "worker"))]
-pub use unbuilt::{Worker, WorkerRuntime};
+pub use unbuilt::{Worker, WorkerRuntime, worker_alone};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod core_wait;
@@ -58,7 +65,9 @@ mod route;
 mod setup;
 mod start_refusal;
 mod stop;
-pub use start_refusal::refused_start;
+pub mod upgrade;
+pub use start_refusal::{refused_row_start, refused_start};
+pub use store::UnreadableRow;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
@@ -106,9 +115,15 @@ pub enum Stop {
     },
     /// The deployment's namespace binding was refused.
     Binding,
+    /// A current stored setting names a retired value or number.
+    Setting(temper_engine_domain_forge::settings::SettingKey),
     /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
+    },
+    /// A temper row refused decoding at restart (protocol/store.md, 5).
+    StoreRow {
+        row: UnreadableRow,
     },
     Listener {
         listener: Listening,
@@ -169,6 +184,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A client stream closed on its queue or translation bound (client/engine.md).
+    ClientStreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,
@@ -200,7 +220,7 @@ pub enum Note {
         attempt: u64,
         kind: u32,
         verb: Box<[u8]>,
-        ending: JobDiagnosticEnding,
+        ending: WorkerJobEnding,
         why: Box<[u8]>,
     },
     /// A forge read refusal with its task, tool, layer and authority findings.
@@ -342,13 +362,7 @@ pub enum Listening {
     Webhooks,
 }
 
-/// The peer's refusal code, or a local opening/decoding refusal.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Refusal {
-    Peer(u16),
-    Terms,
-    Malformed,
-}
+pub use temper_service_core::Refusal;
 
 pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
 pub use jig_protocol_worker_wire::Loss as WorkerLoss;
@@ -363,10 +377,25 @@ impl Service {
         if let Some(engine) = &mut self.engine {
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
             engine.forge.github = Some(github);
+            engine.clients.pushes.roots = Some(roots.clone());
             engine.forge.roots = Some(roots);
         }
     }
 
+    /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
+    pub fn unresolved_pushes(&self) -> Box<[(skein_lib::Token, Box<[u8]>, u16)]> {
+        match &self.engine {
+            Some(engine) => engine.clients.pushes.unresolved(),
+            None => Box::new([]),
+        }
+    }
+    pub fn resolved_push(&mut self, token: skein_lib::Token, address: Option<core::net::SocketAddr>) {
+        if let Some(engine) = &mut self.engine {
+            engine.clients.pushes.resolved(token, address, engine.env.now, &mut engine.clients.io);
+        }
+    }
     /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge/engine.md, 2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
@@ -413,3 +442,6 @@ impl Service {
         }
     }
 }
+
+/// A stream edge or translation refusal (jig/docs/design/protocol/client/README.md, 5).
+pub use jig_protocol_engine_clients::StreamFailure;

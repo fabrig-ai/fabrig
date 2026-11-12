@@ -28,6 +28,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 - `workers`: list of application-worker, one entry per top-level worker, in the same order; required; init writes list (1 entry). The workers’ workspace directories and git programs.
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.
 - `sign_in`: sign-in or null, engine shapes only; required; init writes null. The people’s sign-in registration, or null for none.
+- `push`: push or null, absent or null for none; engine shapes only; optional; init leaves it out. The deployment’s push key, contact and services.
 - `landing`: landing, engine shapes only; optional; init leaves it out. The projects’ landing ways, checks and tiers.
 - `webhooks`: webhooks or null, engine shapes only; required; init writes object. The Forgejo webhook listener, or null for none.
 - `charter`: refused: the forge's charters live in the store; read them with temper ctl settings show forge-charter 1
@@ -53,6 +54,14 @@ Shape: `application-clients`. Paths: `application.clients`. The clients’ liste
 - `listener`: address, socket address; loopback when printed links or approvals are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
 - `bundle`: text or null, absolute directory; at most 1,048,576 bytes; required; init writes null. The browser bundle directory, or null for the binary’s bundle.
 - `public`: text or null, origin; at most 267 bytes; required; init writes null. The public browser origin, or null for the listener’s address.
+
+## application.push
+
+Shape: `push`. Paths: `application.push`. The deployment’s push key and services.
+
+- `key`: text, private data file, 0o600; PKCS#8 PEM P-256; at most 1,024 bytes; required; init leaves it out. The kept VAPID signing key; its public half is the clients’.
+- `subject`: text, mailto: or https: URI; 1 to 256 printable ASCII bytes, no space, quote or backslash; required; init leaves it out. Where the push services may reach the operator.
+- `services`: list of text or null, 1 to 8 origins; https, or http on loopback; null for https://fcm.googleapis.com, https://updates.push.services.mozilla.com and https://web.push.apple.com; required; init leaves it out. The allowed push services; hosts resolve at each send, HTTPS uses machine roots.
 
 ## application.webhooks
 
@@ -131,6 +140,7 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `combine`: landing-combine, stock merge for main, squash for other; optional; init leaves it out. How each train combines its member.
 - `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command’s path from the repository root; see The merge command, below.
 - `close_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The close command’s path from the repository root; see temper help configuration’s close command.
+- `landing_attempts`: integer, 1 to 255; 3 when absent; optional; init leaves it out. How many cancelled or failed changes per close or land step the goal closer makes again without judgement before asking its goal.
 - `gates`: list of repository-checks, at most forge.repositories; optional; init leaves it out. Each repository’s test gates and tiers.
 - `check_timeout_ms`: integer, 1,000 to 86,400,000; none when absent; optional; init leaves it out. Delivery checks’ wall bound for change producers, repairs and resolutions, including goal landings; read each attempt, or the agent’s bound when absent.
 - `gate_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many runner faults a landing gate may retry.

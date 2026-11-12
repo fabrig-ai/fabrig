@@ -1765,8 +1765,8 @@ fn document_run_with_limit(bound: u32) -> (World, u64, u64) {
     let (mut world, signed, task) = settings_run_with_limits(true, None, limits);
     // The fake wire accepts Small's bounds independently of the core's admission bounds.
     let (config, mut wire) = run_configuration();
-    wire.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
-    wire.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
+    wire.core.authority.segments = jig_protocol_store::settings_v3::CEILINGS.document_name;
+    wire.core.authority.segment_bytes = jig_protocol_store::settings_v3::CEILINGS.segment_bytes;
     world.settings_input_limits(wire.core, &config.core.settings.models);
     (world, signed, task)
 }
@@ -1868,4 +1868,64 @@ fn charter_rule_document() -> core::Document {
         path: b"RULES.md".as_slice().into(),
         heading: None,
     }
+}
+
+#[test]
+fn overlays_are_reviewed_accepted_rejected_and_withdrawn_when_stale() {
+    let mut world = start(64);
+    let owner = sign_in(&mut world);
+    let overlay = settings::Overlay { instructions: b"Proposed words".as_slice().into(), ..settings::Overlay::empty() };
+    let value = settings::Value::Overlay(Box::new(overlay));
+    let item = settings::Item { setting: settings::Setting::Charter(1), edit: settings::Edit::Set(value.clone()) };
+    let proposal = proposed(&propose(&mut world, owner, 1, 1, Box::new([item.clone()])));
+    let documents::ProposalAction::Settings { review: Some(review), .. } =
+        proposal_document(&mut world, owner, OWNER, proposal).action
+    else {
+        panic!("settings review")
+    };
+    let Some(settings::Value::Charter(would_be)) = &review.items.get(0).unwrap().would_be else {
+        panic!("overlaid would-be charter")
+    };
+    assert_eq!(would_be.policy.instructions.as_ref(), b"Answer within the granted authority.\n\nProposed words");
+    decide(
+        &mut world,
+        owner,
+        2,
+        OWNER,
+        proposal,
+        people::ProposalDecision::Reject { reason: b"Not yet".as_slice().into() },
+        None,
+    );
+    assert!(!world.store.rows.contains_key(&proposal_set_key(OWNER, proposal)));
+    assert_eq!(world.domain.settings().newest(), 1);
+    let proposal = proposed(&propose(&mut world, owner, 3, 1, Box::new([item.clone()])));
+    decide(&mut world, owner, 4, OWNER, proposal, people::ProposalDecision::Accept, Some(people::Running::Stays));
+    assert_eq!(world.domain.settings().value(item.setting), Some(&value));
+    assert!(matches!(
+        change(&mut world, owner, 7, 2, Box::new([item.clone()])),
+        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+            why: people::Malformed::SettingsUnchanged,
+            ..
+        }))
+    ));
+    let stale_item = settings::Item {
+        setting: item.setting,
+        edit: settings::Edit::Set(settings::Value::Overlay(Box::new(settings::Overlay {
+            instructions: b"Later overlay".as_slice().into(),
+            ..settings::Overlay::empty()
+        }))),
+    };
+    let stale = proposed(&propose(&mut world, owner, 5, 2, Box::new([stale_item])));
+    let edit = template_edit(&world, 7);
+    changed(&change(&mut world, owner, 6, 2, Box::new([edit])), 3);
+    assert!(!world.store.rows.contains_key(&proposal_set_key(OWNER, stale)));
+    let reads::Answer::Ended(history) =
+        read(&mut world, owner, reads::Read::Proposal { proposer: people::Proposer::Party(OWNER), proposal: stale })
+    else {
+        panic!("withdrawn history")
+    };
+    let reads::EndedValue::PersonProposal { proposal, .. } = history.value else { panic!("party proposal") };
+    assert!(matches!(proposal.state, tasks::PersonProposalState::Withdrawn { .. }));
+    restart(&mut world, configuration().0);
+    assert_eq!(world.domain.settings().value(item.setting), Some(&value));
 }

@@ -15,6 +15,7 @@ fn an_asking_chat_reads_the_forge() {
                 combine_main: engine::Combine::Merge,
                 combine_other: engine::Combine::Squash,
                 gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+                landing_attempts: engine::LANDING_ATTEMPTS,
                 check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,

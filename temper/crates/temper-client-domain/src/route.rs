@@ -13,7 +13,13 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         crate::pages::acted(&mut root.pages);
     }
     match event {
+        Event::Push(report) => pages(root, env, crate::pages::Event::Push(report), out),
         Event::AskApproval => crate::asked::ask(root, env, out),
+        Event::Launchpad => {
+            let mut requests = Queue::uncapped();
+            root.pages.enable_launchpad(&mut requests);
+            route_pages(root, env, &mut requests, out);
+        }
         Event::ScreenLeft => pages(
             root,
             env,
@@ -65,6 +71,8 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
+    // Findings subscriptions follow the event's foreground reads and acts.
+    crate::pages::findings::reconcile(root, env, out);
 }
 fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
@@ -91,6 +99,10 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
 pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     playground_facts(root);
+    root.pages.push = match root.forge.deployment() {
+        Some(answer) => answer.push,
+        None => None,
+    };
     let task_document = match &event {
         crate::pages::Event::Told {
             told: jig_client::Told::Changed { handle } | jig_client::Told::Page { handle, .. },
@@ -98,7 +110,8 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
             Some(task) => *handle == task.document,
             None => false,
         },
-        crate::pages::Event::Started
+        crate::pages::Event::Push(_)
+        | crate::pages::Event::Started
         | crate::pages::Event::Left
         | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }
@@ -168,6 +181,7 @@ fn route_pages(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted pages output") {
+            crate::pages::Request::Push(duty) => out.push(Request::Push(duty)),
             crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
             crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
             crate::pages::Request::OpenTab { provider } => {
@@ -205,6 +219,7 @@ pub(crate) fn route_forge(
                     | Address::Inbox { .. }
                     | Address::Chats { .. }
                     | Address::NewChat { .. }
+                    | Address::Told
                     | Address::Remembered
                     | Address::Members
                     | Address::Limits
@@ -425,6 +440,7 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     root.pages.suggest(env, &root.client, &words, &mut child);
     while let Some(request) = child.pop() {
         match request {
+            crate::pages::Request::Push(duty) => out.push(Request::Push(duty)),
             crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
             crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
             crate::pages::Request::OpenTab { .. } => unreachable!("a suggestion asks no sign-in"),
@@ -543,6 +559,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

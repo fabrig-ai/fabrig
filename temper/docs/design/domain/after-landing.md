@@ -379,11 +379,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   (or queue merges) into that repository while one of its landings is
   red, instead.
 - **A goal that has ended,** or a landing temper did not make: the red
-  is kept as a red of no goal's, which findings file (`findings.md`,
-  section 4), and the project's triager is told. The tier keeps them
-  within its bound; past it, the oldest is dropped and counted on the
-  tier's record, never holding the tier, so that no repository's
-  verification stops for want of a triage.
+  is a red of no goal's, which the root files as a finding of its
+  project in the decision that keeps the verdict, once per landing it
+  reddens (`findings.md`, section 4), with no area, so that the project's
+  triager holds it and hands it on (`areas.md`, section 5). Past the
+  project's findings' bound it is not filed, never holding the tier, so
+  that no repository's verification stops for want of a triage.
 
 Red news fits `tasks.message_bytes` in order: header and test IDs as whole
 lines, then the run URL, then failed-job log ends sharing the remaining room
@@ -518,7 +519,9 @@ blamed landing's full commit (2026-11-04).
   and its title, at most 256 bytes, since a change's close takes its row
   and temper's `Changes` page still names it (`../client/forge/README.md`,
   section 3; a visitor's public queue merges read its commits and tasks
-  alone, 11.2 there), its trailers within `trailers` and
+  alone, 11.2 there), the sign-offs counted at its merge, at most
+  `SIGN_OFFS`, each its person, head and time (`forge/change/gates.md`,
+  2, *Sign-offs kept at landing*), its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
   with its count); a ring, written at each move of a watched landing
   branch (section 8), at each merge of temper's, when a change sees its

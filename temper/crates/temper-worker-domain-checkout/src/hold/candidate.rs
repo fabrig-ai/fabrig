@@ -30,15 +30,17 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
     match step {
         Step::Head | Step::Upstream => Op::Fetch {
             at,
-            store: borrowed(holding, repository).store.token(),
+            store: borrowed(holding, repository).token,
             remote: spec.remote.clone(),
             want: Want::Commit { commit: if step == Step::Head { *head } else { upstream.expect("upstream step") } },
             into: Into::Fetched,
             identity: spec.identity,
             account: spec.account,
         },
-        Step::Checkout => Op::CheckOut { at, commit: *base, clean: true },
-        Step::Merge => Op::Merge { at, theirs: *head },
+        Step::Checkout => {
+            Op::CheckOut { at, commit: *base, clean: true, identity: spec.identity, account: spec.account }
+        }
+        Step::Merge => Op::Merge { at, theirs: *head, identity: spec.identity, account: spec.account },
         Step::Brings => Op::Brings { at, head: *head, base: *base, upstream: upstream.expect("upstream step") },
         Step::Commit { squash } => {
             let message = if squash { squash_message } else { message };

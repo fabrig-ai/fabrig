@@ -19,7 +19,7 @@ fn decode(
     inspect: bool,
     withheld: bool,
 ) -> Result<c::Turn, jig_protocol_transcript::Undecodable> {
-    let bound = jig_client_protocol_wire::v19::CEILINGS.turn_carried_bytes;
+    let bound = jig_client_protocol_wire::v20::CEILINGS.turn_carried_bytes;
     let mut limits = jig_protocol_transcript::Limits::new(
         bound,
         c::TurnLimits {
@@ -82,9 +82,32 @@ pub(super) fn activity(task: u64, answer: &Answer, names: &SeeNames, lines: &mut
                 (b"its run".as_slice().into(), join(&[b"decision ", &words::number(*revision)]))
             }
             t::Line::Milestone { .. } => (b"its run".as_slice().into(), b"phase changed".as_slice().into()),
-            t::Line::Stood { .. } | t::Line::SessionEnded { .. } | t::Line::Kept { .. } => {
-                (b"its run".as_slice().into(), b"parked".as_slice().into())
+            t::Line::TalkOpened { party: number } => {
+                (party(t::Party::Person(*number), names), b"Talk opened".as_slice().into())
             }
+            t::Line::TalkEnded { lapsed, .. } => (
+                b"its run".as_slice().into(),
+                if *lapsed { b"Talk lapsed".as_slice().into() } else { b"Talk ended".as_slice().into() },
+            ),
+            t::Line::SessionEnded { end: t::SessionEnd::Talk, .. } => {
+                (b"its run".as_slice().into(), b"session ended by a talk".as_slice().into())
+            }
+            t::Line::SessionEnded { end: t::SessionEnd::Left, .. } => {
+                (b"its run".as_slice().into(), b"session ended as its person left".as_slice().into())
+            }
+            t::Line::NowWritten { line, .. } => (b"its run".as_slice().into(), join(&[b"Wrote its Now: ", line])),
+            t::Line::Stood { .. }
+            | t::Line::SessionEnded {
+                end:
+                    t::SessionEnd::Quiet
+                    | t::SessionEnd::Bound
+                    | t::SessionEnd::Unoffered
+                    | t::SessionEnd::Fresh
+                    | t::SessionEnd::Closed
+                    | t::SessionEnd::Rules,
+                ..
+            }
+            | t::Line::Kept { .. } => (b"its run".as_slice().into(), b"parked".as_slice().into()),
         };
         lines
             .push(join(&[&words::time(line.at), " · ".as_bytes(), &who, " · ".as_bytes(), &what, b"\n"]))

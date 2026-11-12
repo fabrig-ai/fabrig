@@ -78,7 +78,9 @@ pub(crate) fn failed(
             Some(text) => lines(text, limits)?,
             None => Box::new([]),
         },
-        Some(Cue::Message { .. } | Cue::File { .. } | Cue::PullFile { .. }) | None => workflow.fails.clone(),
+        Some(Cue::Declared { .. } | Cue::Message { .. } | Cue::File { .. } | Cue::PullFile { .. }) | None => {
+            workflow.fails.clone()
+        }
     };
     let Some(selected) = selection(workflow, run, limits)? else {
         return merge(ids, &workflow.flaky);

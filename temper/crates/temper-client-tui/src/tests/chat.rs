@@ -571,7 +571,12 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
     view
 }
 fn data(entries: Box<[Entry]>) -> Chat {
-    Chat { to_end: 1, entries, pane: None, notes: foot::Notes { lines: Box::default(), gave_up: None, log: None } }
+    Chat {
+        to_end: 1,
+        entries,
+        pane: None,
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None },
+    }
 }
 struct Row {
     name: &'static str,

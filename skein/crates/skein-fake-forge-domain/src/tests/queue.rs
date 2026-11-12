@@ -48,7 +48,7 @@ fn a_queue_rule_refuses_direct_merges_only_on_its_base() {
             approvals: 0,
             dismiss_stale: false,
         });
-        let mut h = Harness::with(CALM, setup);
+        let mut h = Harness::with(calm(), setup);
         let head = h.commit(FIRST, &[(b"src", b"one")]);
         h.push(ENGINE, b"alice", head).unwrap();
         h.open(b"alice").unwrap();
@@ -97,7 +97,7 @@ fn queue_harness(silent: bool) -> Harness {
             limits: Limits { branches: 10, name_bytes: 128, statuses: 16, hooks: 64, observations: 128, ..LIMITS },
             latency_min: Duration::ZERO,
             latency_max: Duration::ZERO,
-            ..CALM
+            ..calm()
         },
         configured,
     )
@@ -266,7 +266,7 @@ fn full_store_at_rebuild_keeps_entry_waiting_and_records_refusal() {
     let mut h = queue_harness(true);
     let (first, _, first_group) = admit(&mut h, b"alice", &[(b"alice", b"one")]);
     let (second, _, _) = admit(&mut h, b"bob", &[(b"bob", b"two")]);
-    let config = h.env.limits;
+    let config = h.env.limits.clone();
     for _ in 0..config.limits.commits {
         if crate::commit_tree(&mut h.domain, &config, FIRST, None, files(&[]), b"") == Err(Error::Full) {
             break;

@@ -18,7 +18,7 @@ by kind and number, or project for project settings; rules have no number: `char
   two filters and uses 0. Goals and Changes hide no rail entry;
   work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
-  names none: `none`, `foreman` or `up`. The stock uses `none`.
+  names none: `none` or `up`. The stock uses `none`.
 - A project's classes say which questions agents decide and tell you about,
   ask you, or ask you even when away (`temper help project`).
 - A charter's words (`charter-words`) are the line How work runs says the
@@ -46,17 +46,26 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
-The stock has charters 1, 2, 4, 5, 6, 9, 10, 11 and 12, and templates 1
+A charter overlay replaces only named default fields and appends text, taking
+later defaults. A file item uses `"overlay"` instead of `"set"`: literal
+`instructions` and `parts`, or `"charters":["."]` for directories relative to
+the file (`-` requires absolute paths). See `temper help charter` for assembly.
+`settings apply FILE...` joins overlays in order, later named fields winning;
+all other duplicate settings, and set/remove/reset beside an overlay, are refused.
+`settings propose` takes one file. Show marks replacements and additions;
+`--json` exports the literal `overlay` beside `value`, naming no directory.
+
+The stock has charters 1, 2, 4, 5, 9, 10, 11 and 12, and templates 1
 for a chat, 2 for a goal, 4 for a draft goal, 5 for Ask temper and 6 for a
 design session. Charter 5 coordinates a draft goal. Charter 10 is a
 model's trial and is never offered. Charter 12 is the drafter: it writes a
 draft with you as a design session's document, reads code through the
-forge, and starts nothing. Its rules offer eight charter executors
-(1, 2, 4, 5, 6, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
+forge, and starts nothing. Its rules offer seven charter executors
+(1, 2, 4, 5, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
 roles 0, 1 and 2.
 
-A setting's whole value is JSON, as `settings show` prints it. For members,
-types and bounds, read `temper help settings-fields`.
+Values are JSON, as `settings show` prints. Members, types and bounds:
+`temper help settings-fields`.
 
 Ask temper reads settings with `see settings`. Its answers fit the host
 answer allowance in parts of at most 6,144 body bytes; `more: TOKEN`
@@ -203,12 +212,12 @@ Changing the current reserve alone leaves incompatible held versions.
 
 For members needing a restart, read `temper help configuration`.
 
-- temper does not patch a member: an item sets a whole value.
+- An item replaces a whole value or overlay; it never patches a stored one.
 - ctl sends values within `temper help settings-fields` bounds; the
   deployment may refuse them past its own limits.
 - Providers, listeners, workers and limits are configured at start;
   changes need a restart. Limits must hold the stock's settings or start
   refuses. Another model or new stock can change the limits needed.
-- Stock floors are nine charters, five templates and fifteen executor kinds
-  (eight charters, three procedures, one job and three roles); your settings
+- Stock floors are eight charters, five templates and fourteen executor kinds
+  (seven charters, three procedures, one job and three roles); your settings
   may need more.

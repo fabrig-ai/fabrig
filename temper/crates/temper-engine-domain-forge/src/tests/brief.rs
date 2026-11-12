@@ -87,7 +87,7 @@ fn gather_run(checks: Box<[Status]>, log: &[u8], budget: u32, run: Option<skein_
     assert_eq!(*read, Read::Checks { commit: HEAD });
     let owner = *owner;
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), LIMITS.client.rows, env().now, &mut out));
     for _ in 0..LIMITS.client.rows.saturating_mul(2).saturating_add(1) {
         let Some(request) = out.pop() else { break };
         if let Request::BriefClient {
@@ -109,6 +109,7 @@ fn gather_run(checks: Box<[Status]>, log: &[u8], budget: u32, run: Option<skein_
                     truncated: tail > 0,
                 }),
                 LIMITS.client.rows,
+                env().now,
                 &mut out
             ));
         } else if let Request::BriefClient { event: skein_forge_client::Event::Read { read: Read::Run { .. }, .. } } =
@@ -118,7 +119,7 @@ fn gather_run(checks: Box<[Status]>, log: &[u8], budget: u32, run: Option<skein_
                 Some(run) => Ok(Answer::Run(run.clone())),
                 None => Err(skein_forge::api::Error::Missing),
             };
-            assert!(brief::brief_answer(&mut d, owner, answer, LIMITS.client.rows, &mut out));
+            assert!(brief::brief_answer(&mut d, owner, answer, LIMITS.client.rows, env().now, &mut out));
         } else if let Request::BriefSized { section: SECTION, size: Ok(size) } = request {
             assert!(size <= budget);
         } else {
@@ -265,7 +266,11 @@ fn text(bytes: &[u8]) -> &str {
 }
 
 fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
-    outputs(d, Event::PlanBrief { section: SECTION, source, partner: None });
+    planned_read_partner(d, source, budget, None)
+}
+
+fn planned_read_partner(d: &mut Domain, source: BriefSource, budget: u32, partner: Option<Token>) -> Token {
+    outputs(d, Event::PlanBrief { section: SECTION, source, partner });
     let mut env = env();
     env.limits.brief_bytes = 4608;
     let mut out = Queue::uncapped();
@@ -289,6 +294,15 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
 }
 
 fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Domain, Token) {
+    pending_pull_item_partner(body, state, head, None)
+}
+
+fn pending_pull_item_partner(
+    body: &[u8],
+    state: change::State,
+    head: [u8; 32],
+    partner: Option<Token>,
+) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
@@ -299,10 +313,24 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
     row.change.clean = Box::new([head]);
     row.change.state = state;
     outputs(&mut d, Event::Change { row });
-    let owner = planned_read(
+    if let Some(section) = partner {
+        outputs(
+            &mut d,
+            Event::PlanBrief {
+                section,
+                source: BriefSource::Ci {
+                    item: BriefItem { repository: REPO.repository, number: 1 },
+                    head: BriefCommit(head),
+                },
+                partner: None,
+            },
+        );
+    }
+    let owner = planned_read_partner(
         &mut d,
         BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(head) },
         4608,
+        partner,
     );
     let item = skein_forge::api::Summary {
         labels: Box::default(),
@@ -321,19 +349,112 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
         owner,
         Ok(Answer::Item { item, comments: Box::default(), more: false }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     (d, owner)
 }
 
 fn pending_pull(body: &[u8], state: change::State) -> (Domain, Token) {
-    let (mut d, owner) = pending_pull_item(body, state, HEAD);
+    pending_pull_partner(body, state, None)
+}
+
+fn pending_pull_partner(body: &[u8], state: change::State, partner: Option<Token>) -> (Domain, Token) {
+    let (mut d, owner) = pending_pull_item_partner(body, state, HEAD, partner);
     let mut out = Queue::uncapped();
     let mut pull = fixtures::open_pull();
     pull.commit = HEAD;
     pull.base_commit = None;
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
     (d, owner)
+}
+
+#[test]
+fn stale_files_pause_a_pull_section_and_wake_its_change_even_with_a_partner() {
+    const PARTNER: Token = Token::new(100);
+    for (state, partner) in [
+        (change::State::Resolving { requested: true, base: fixtures::BASE }, None),
+        (change::State::Repairing { requested: true, why: change::Repair::Ci }, Some(PARTNER)),
+    ] {
+        let (mut d, owner) = pending_pull_partner(b"Whole body", state, partner);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Stale),
+            LIMITS.client.rows,
+            env().now,
+            &mut out
+        ));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefReadRefused {
+                section: SECTION,
+                stage: "files",
+                reason: "the change's head moved",
+                heads: None,
+                error: Some(skein_forge::api::Error::Stale),
+            })
+        );
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Capacity,
+                    words: Box::from(b"the change's head moved".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.take_brief(SECTION).is_none(), "capacity never becomes words");
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
+    }
+}
+
+#[test]
+fn stale_at_other_pull_stages_stays_permanent() {
+    for compared in [false, true] {
+        let state = change::State::Resolving { requested: true, base: fixtures::BASE };
+        let (mut d, owner) =
+            if compared { pending_pull(b"Whole body", state) } else { pending_pull_item(b"Whole body", state, HEAD) };
+        let mut out = Queue::uncapped();
+        if compared {
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+                LIMITS.client.rows,
+                env().now,
+                &mut out,
+            ));
+            out.clear();
+        }
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Stale),
+            LIMITS.client.rows,
+            env().now,
+            &mut out
+        ));
+        assert!(out.pop().is_some());
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Permanent,
+                    words: Box::from(b"the forge refused this read".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.procedure_wakes.is_empty());
+    }
 }
 
 #[test]
@@ -376,7 +497,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
         let mut pull = fixtures::open_pull();
         pull.commit = head;
         let mut out = Queue::uncapped();
-        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
+        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
         assert_eq!(
             out.pop(),
             Some(Request::BriefClient {
@@ -394,6 +515,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
             owner,
             Ok(Answer::PullFiles { head, files: Box::new([]), more: false, cut: false }),
             LIMITS.client.rows,
+            env().now,
             &mut out
         ));
         assert_eq!(
@@ -411,6 +533,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
             owner,
             Ok(Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 0, changed: 0 }),
             LIMITS.client.rows,
+            env().now,
             &mut out
         ));
         let bytes = take(&mut d);
@@ -428,17 +551,31 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
 
 #[test]
 fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
-    for writer in [
-        None,
-        Some(Writer::Run { task: 8, attempt: 2 }),
-        Some(Writer::Lost { task: 8, attempt: 1 }),
-        Some(Writer::Entry(17)),
-    ] {
-        let (mut d, owner) = pending_pull_item(
-            b"Whole body",
+    for (writer, state, fate) in [
+        (None, change::State::Resolving { requested: true, base: fixtures::BASE }, BriefFate::Transient),
+        (
+            Some(Writer::Run { task: 8, attempt: 2 }),
             change::State::Resolving { requested: true, base: fixtures::BASE },
-            [1; 32],
-        );
+            BriefFate::Transient,
+        ),
+        (
+            Some(Writer::Lost { task: 8, attempt: 1 }),
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            BriefFate::Transient,
+        ),
+        (
+            Some(Writer::Entry(17)),
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            BriefFate::Transient,
+        ),
+        (None, change::State::Gating { head: [1; 32], asked: Box::new([]) }, BriefFate::Capacity),
+        (
+            Some(Writer::Run { task: 8, attempt: 2 }),
+            change::State::Repairing { requested: true, why: change::Repair::Ci },
+            BriefFate::Capacity,
+        ),
+    ] {
+        let (mut d, owner) = pending_pull_item(b"Whole body", state, [1; 32]);
         outputs(
             &mut d,
             Event::Restore {
@@ -455,7 +592,7 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
         let mut pull = fixtures::open_pull();
         pull.commit = [99; 32];
         let mut out = Queue::uncapped();
-        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
+        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
         assert_eq!(
             out.pop(),
             Some(Request::BriefReadRefused {
@@ -470,10 +607,7 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
             out.pop(),
             Some(Request::BriefSized {
                 section: SECTION,
-                size: Err(BriefUnread {
-                    fate: BriefFate::Capacity,
-                    words: Box::from(b"the change's head moved".as_slice()),
-                })
+                size: Err(BriefUnread { fate, words: Box::from(b"the change's head moved".as_slice()) })
             })
         );
         assert!(out.is_empty());
@@ -503,6 +637,7 @@ fn a_review_brief_reads_on_at_the_cut_page_and_skip() {
                 cut,
             }),
             LIMITS.client.rows,
+            env().now,
             &mut out
         ));
         assert_eq!(
@@ -522,6 +657,7 @@ fn a_review_brief_reads_on_at_the_cut_page_and_skip() {
         owner,
         Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     let text = take(&mut d);
@@ -537,7 +673,14 @@ fn a_late_brief_answer_for_completed_work_is_dropped() {
             pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
         let files = Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false };
         if compared {
-            assert!(brief::brief_answer(&mut d, owner, Ok(files.clone()), LIMITS.client.rows, &mut Queue::uncapped()));
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(files.clone()),
+                LIMITS.client.rows,
+                env().now,
+                &mut Queue::uncapped()
+            ));
         }
         let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
         row.change.state = change::State::Landed { since: env().wall, merge: fixtures::BASE };
@@ -554,7 +697,7 @@ fn a_late_brief_answer_for_completed_work_is_dropped() {
             files
         };
         let mut out = Queue::uncapped();
-        assert!(brief::brief_answer(&mut d, owner, Ok(answer), LIMITS.client.rows, &mut out));
+        assert!(brief::brief_answer(&mut d, owner, Ok(answer), LIMITS.client.rows, env().now, &mut out));
         assert!(out.is_empty(), "a completed change drops the late answer: {out:?}");
         assert!(d.brief_fetches.is_empty());
         assert!(d.brief_pending.is_empty());
@@ -596,7 +739,14 @@ fn a_completed_change_does_not_retry_a_busy_brief() {
     let (mut d, owner) =
         pending_pull(b"Whole body", change::State::Resolving { requested: true, base: fixtures::BASE });
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Busy),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     d.changes.get_mut(&fixtures::CHANGE).expect("live change").change.state = change::State::Ended;
     d.reclaim();
     brief::retry(&mut d, &mut out);
@@ -618,6 +768,7 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
         owner,
         Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     take(&mut d)
@@ -634,6 +785,7 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
         owner,
         Ok(Answer::PullFiles { head: HEAD, files, more: false, cut: false }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     assert_eq!(
@@ -658,6 +810,7 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
             changed: 0
         }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     take(&mut d)
@@ -727,6 +880,7 @@ fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
         owner,
         Ok(Answer::Reviews { reviews: Box::default(), more: false, cut: false }),
         LIMITS.client.rows,
+        env().now,
         &mut Queue::uncapped()
     ));
     take(&mut d)
@@ -785,6 +939,7 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
             cut: false
         }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     let Some(Request::BriefClient {
@@ -810,6 +965,7 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
             cut: false
         }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     let bytes = take(&mut d);
@@ -834,6 +990,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
             owner,
             Ok(Answer::Reviews { reviews: reviews.into(), more: false, cut: false }),
             LIMITS.client.rows,
+            env().now,
             &mut out
         ));
         if let Some(Request::BriefClient {
@@ -845,6 +1002,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
                 owner,
                 Ok(Answer::Remarks { remarks: Box::new([]), more: false, cut: false }),
                 LIMITS.client.rows,
+                env().now,
                 &mut out
             ));
         }
@@ -950,13 +1108,27 @@ fn pending_checks() -> (Domain, Token) {
 fn pending_job() -> (Domain, Token, Read) {
     let (mut d, owner) = pending_checks();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(red_checks())), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Checks(red_checks())),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
         panic!("one pinned job read: {out:?}")
     };
     assert!(out.is_empty());
     let Read::Run { .. } = read else { panic!("classify the failed job's run first") };
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Missing), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Missing),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
         panic!("one pinned job read after classification: {out:?}")
     };
@@ -968,7 +1140,14 @@ fn pending_job() -> (Domain, Token, Read) {
 fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
     let (mut d, owner, read) = pending_job();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Busy),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     assert!(out.is_empty(), "a refusal cannot retry in the same drain");
     assert!(!brief::waiting(&d));
     brief::retry(&mut d, &mut out);
@@ -993,6 +1172,7 @@ fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
             truncated: false,
         }),
         LIMITS.client.rows,
+        env().now,
         &mut out
     ));
     let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
@@ -1015,7 +1195,14 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     let deadline = env().now.saturating_add(Duration::from_secs(30));
     let mut out = Queue::uncapped();
     for _ in 0_u32..3 {
-        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Busy),
+            LIMITS.client.rows,
+            env().now,
+            &mut out
+        ));
         assert!(out.is_empty());
         d.reclaim();
         brief::retry(&mut d, &mut out);
@@ -1026,7 +1213,14 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
             })
         );
     }
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Busy),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty(), "the original deadline stays in force");
     assert_eq!(brief::next_deadline(&d), Some(deadline));
@@ -1067,6 +1261,7 @@ fn an_inflight_job_at_the_gather_deadline_leaves_the_section_late() {
                 owner,
                 Err(skein_forge::api::Error::Busy),
                 LIMITS.client.rows,
+                env().now,
                 &mut out
             ));
             assert_eq!(brief::next_deadline(&d), Some(deadline));
@@ -1091,7 +1286,14 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
     let (mut d, owner) = pending_checks();
     let deadline = env().now.saturating_add(Duration::from_secs(30));
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Busy),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     assert_eq!(brief::next_deadline(&d), Some(deadline));
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty());
@@ -1115,7 +1317,14 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
 fn dropping_a_busy_section_ends_its_retry() {
     let (mut d, owner, _) = pending_job();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Err(skein_forge::api::Error::Busy),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
     assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
     d.reclaim();
     brief::retry(&mut d, &mut out);
@@ -1294,4 +1503,217 @@ fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
     let words = text(&bytes);
     assert!(words.contains("the runner's: set-up failed; run again 1 time at this head, failed again"), "{words}");
     assert!(words.contains("could not prepare job"));
+}
+
+fn resolving() -> change::State {
+    change::State::Resolving { requested: true, base: fixtures::BASE }
+}
+
+fn compared(d: &mut Domain, owner: Token) {
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+        LIMITS.client.rows,
+        env().now,
+        &mut out,
+    ));
+}
+
+#[test]
+fn oversized_files_name_the_count_only_when_the_pull_gave_one() {
+    for count in [Some(17), None] {
+        let (mut d, owner) = pending_pull_item(b"Whole body", resolving(), HEAD);
+        let mut pull = fixtures::open_pull();
+        pull.commit = HEAD;
+        pull.size = match count {
+            Some(files) => Some(skein_forge::api::Size { files, additions: 0, deletions: 0 }),
+            None => None,
+        };
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                skein_forge::api::Bound::AnswerBytes,
+                4096,
+                5000
+            ))),
+            LIMITS.client.rows,
+            env().now,
+            &mut out,
+        ));
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::Compare {
+                before: HEAD,
+                after: fixtures::BASE,
+                files: Box::new([]),
+                ahead: 0,
+                behind: 0,
+                changed: 0
+            }),
+            LIMITS.client.rows,
+            env().now,
+            &mut out,
+        ));
+        let bytes = take(&mut d);
+        let clause = if count.is_some() { "the pull changes 17 files; " } else { "" };
+        let notice = format!(
+            "[files omitted from page 1: past forge.client.answer_bytes (4096): 5000 bytes; {clause}read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n"
+        );
+        assert!(text(&bytes).contains(&notice), "{}", text(&bytes));
+        assert_eq!(text(&bytes).contains("the pull changes"), count.is_some());
+    }
+}
+
+#[test]
+fn the_pull_cutoff_is_three_quarters_rounded_down_and_saturating() {
+    for (start, span, expected) in [
+        (19, 30_000_000_000, 22_500_000_019),
+        (19, 3, 21),
+        (19, 1, 19),
+        (0, u64::MAX, 13_835_058_055_282_163_711),
+        (u64::MAX - 1, 30, u64::MAX - 1),
+    ] {
+        let (mut d, _) = pending_pull(b"Whole body", resolving());
+        let now = Time::from_nanos(start);
+        let deadline = now.saturating_add(Duration::from_nanos(span));
+        brief::set_context(&mut d, SECTION, 9, deadline, now);
+        assert_eq!(brief::next_deadline(&d), Some(Time::from_nanos(expected)));
+    }
+}
+
+#[test]
+fn busy_files_and_comparison_complete_at_the_cutoff_not_as_busy() {
+    for compare in [false, true] {
+        let (mut d, owner) = pending_pull(b"Whole body", resolving());
+        if compare {
+            compared(&mut d, owner);
+        }
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Err(skein_forge::api::Error::Busy),
+            LIMITS.client.rows,
+            env().now,
+            &mut out
+        ));
+        let cutoff = env().now.saturating_add(Duration::from_millis(22_500));
+        assert_eq!(brief::next_deadline(&d), Some(cutoff));
+        brief::expire(&mut d, Time::from_nanos(cutoff.as_nanos() - 1), &mut out);
+        assert!(out.is_empty());
+        brief::expire(&mut d, cutoff, &mut out);
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefReadRefused {
+                section: SECTION,
+                stage: if compare { "compare" } else { "files" },
+                reason: "not read by the section's cutoff",
+                heads: None,
+                error: None,
+            })
+        );
+        assert!(matches!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Ok(_) })));
+        assert!(out.is_empty());
+        let bytes = take(&mut d);
+        let notice = if compare {
+            "[comparison omitted: not read by the section's cutoff]\n"
+        } else {
+            "[files omitted from page 1: not read by the section's cutoff; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]\n"
+        };
+        assert!(text(&bytes).ends_with(notice), "{}", text(&bytes));
+        d.reclaim();
+        brief::retry(&mut d, &mut out);
+        assert!(out.is_empty());
+        assert!(d.briefs_idle());
+    }
+}
+
+#[test]
+fn item_and_pull_reads_still_wait_to_the_deadline() {
+    for item in [false, true] {
+        for busy in [false, true] {
+            let (mut d, mut owner) = pending_pull_item(b"Whole body", resolving(), HEAD);
+            if item {
+                outputs(&mut d, Event::DropBrief { section: SECTION });
+                owner = planned_read(
+                    &mut d,
+                    BriefSource::Pull {
+                        item: BriefItem { repository: REPO.repository, number: 1 },
+                        head: BriefCommit(HEAD),
+                    },
+                    4608,
+                );
+            }
+            let mut out = Queue::uncapped();
+            if busy {
+                assert!(brief::brief_answer(
+                    &mut d,
+                    owner,
+                    Err(skein_forge::api::Error::Busy),
+                    LIMITS.client.rows,
+                    env().now,
+                    &mut out
+                ));
+            }
+            let deadline = env().now.saturating_add(Duration::from_secs(30));
+            assert_eq!(brief::next_deadline(&d), if busy { Some(deadline) } else { None });
+            brief::expire(&mut d, env().now.saturating_add(Duration::from_millis(22_500)), &mut out);
+            assert!(out.is_empty());
+            brief::expire(&mut d, deadline, &mut out);
+            if busy {
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::BriefReadRefused {
+                        section: SECTION,
+                        stage: if item { "item" } else { "pull" },
+                        reason: "the forge client is busy",
+                        heads: None,
+                        error: Some(skein_forge::api::Error::Busy),
+                    })
+                );
+                assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::busy()) }));
+            } else {
+                assert!(out.is_empty());
+                assert!(!d.briefs_idle());
+            }
+        }
+    }
+}
+
+#[test]
+fn an_answer_at_the_cutoff_starts_no_next_files_page_or_comparison() {
+    for more in [false, true] {
+        let (mut d, owner) = pending_pull(b"Whole body", change::State::Gating { head: HEAD, asked: Box::new([]) });
+        let mut out = Queue::uncapped();
+        let cutoff = env().now.saturating_add(Duration::from_millis(22_500));
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::PullFiles {
+                head: HEAD,
+                files: Box::new([skein_forge::api::File {
+                    path: Box::from(b"too late".as_slice()),
+                    before: None,
+                    after: None,
+                }]),
+                more,
+                cut: false
+            }),
+            LIMITS.client.rows,
+            cutoff,
+            &mut out,
+        ));
+        assert!(matches!(out.pop(), Some(Request::BriefReadRefused { stage: "files", .. })));
+        assert!(matches!(out.pop(), Some(Request::BriefSized { size: Ok(_), .. })));
+        assert!(out.is_empty(), "no next read");
+        let bytes = take(&mut d);
+        assert!(!text(&bytes).contains("too late"));
+        assert!(text(&bytes).contains("[files omitted from page 1: not read by the section's cutoff; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"));
+    }
 }

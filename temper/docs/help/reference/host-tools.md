@@ -4,13 +4,36 @@ Kind: reference
 
 Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.
 
+A run calls only the tools in its own list: a tool here that your list lacks is not yours.
+
 File, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.
+
+## finding
+
+file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number
+
+A write.
+Offered where the run's charter names the delegate family.
+
+- `act`: one of `file`, `hand`, `route`, `backlog`, `drop`, `list` or `show`; required.
+- `kind`: one of `qa`, `flake`, `red`, `review` or `feedback`; optional.
+- `severity`: one of `low`, `medium` or `high`; optional.
+- `area`: text; optional.
+- `title`: text; optional.
+- `body`: text; optional.
+- `number`: an integer; optional.
+- `why`: text; optional.
+- `goal`: an integer; optional.
+- `reason`: text; optional.
+- `state`: text; optional.
+- `mine`: true or false; optional.
 
 ## decided
 
-Ask whether you may decide this for your person. Carry on only if decided; otherwise ask them with message, as a question.
+Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.
 
 A write.
+Offered to every run but an asking one.
 
 - `question`: text; required. The question, at most 400 bytes.
 - `options`: a list; required. Two to six options, each at most 120 bytes.
@@ -18,13 +41,14 @@ A write.
 - `why`: text; required. Why you chose it, at most 400 bytes.
 - `kind`: one of `wording`, `retry`, `implementation`, `tests`, `dependency`, `departure`, `money`, `irreversible`, `rules` or `other`; required.
 - `paths`: a list; optional. At most 16 repository-relative paths the choice would change, each 1 to 256 bytes with no leading /.
-- `under`: an integer from 1 to 20; optional. The item with words of settings project-classes that covers this choice.
+- `under`: an integer from 1 to 20; optional. The item with words of the project's classes that covers this choice.
 
 ## goal
 
 Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change.
 
 A write.
+Offered where the run's charter names the delegate family.
 
 - `words`: text; required.
 - `advisor`: true or false; optional. Set by a goal alone, for a survey that changes nothing.
@@ -35,6 +59,7 @@ A write.
 Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.
 
 A write.
+Offered where the run's charter names the delegate family.
 
 - `words`: text; required. What to change: the files, and the exact text where it matters. It is all the change's coder reads.
 - `repository`: text; optional. The repository, as owner/name; leave it out when the project has one you may write.
@@ -44,6 +69,7 @@ A write.
 Make a batch of direct delegates within your authority. tracked {priority} makes one a goal, the lower first. For a change to a repository, call change.
 
 A write.
+Offered where the run's charter names the delegate family.
 
 - `batch`: a list; required. The tasks: each with executor, spec, contract, authority; optionally deadline_seconds, tracked, dependencies, wake, llm.
 
@@ -52,6 +78,7 @@ A write.
 Amend a live delegate at its spec revision within authority. Omitted parameters remain; lists replace. Authority and instructions are whole.
 
 A write.
+Offered to every run but an asking one.
 
 - `target`: an integer of at least 1; required. The delegate's number.
 - `revision`: an integer of at least 0; optional. The spec revision you last read. Leave it out only to change a tracked delegate's priority alone.
@@ -62,6 +89,7 @@ A write.
 Send words, a question, or the answer to a question, to a task you reference. Its run reads it at its next turn.
 
 A write.
+Offered where the run's authority holds the message family.
 
 - `target`: an integer of at least 1; required. The task's number.
 - `form`: one of `words`, `question` or `answer`; required. words; a question, which its run may answer; or an answer, naming the question.
@@ -73,6 +101,7 @@ A write.
 Cancel a live delegate and every task below it, with a reason.
 
 A write.
+Offered to every run but an asking one.
 
 - `target`: an integer of at least 1; required. The delegate's number.
 - `reason`: text; required. Why it is cancelled.
@@ -82,6 +111,7 @@ A write.
 Release a held delegate, naming its hold revision. One a party's hold holds is theirs to release: propose it.
 
 A write.
+Offered to every run but an asking one.
 
 - `target`: an integer of at least 1; required. The held delegate's number.
 - `revision`: an integer of at least 0; required. The hold's revision, as you last read it.
@@ -92,6 +122,7 @@ A write.
 Give two tasks you reference a reference to each other, so that each can message the other.
 
 A write.
+Offered to every run but an asking one.
 
 - `left`: an integer of at least 1; required. One task's number.
 - `right`: an integer of at least 1; required. The other task's number.
@@ -101,6 +132,7 @@ A write.
 Hear of a task you reference, held or ended, or of a timer, once or periodic. Answers the subscription's number.
 
 A write.
+Offered to every run but an asking one.
 
 - `kind`: one of `task` or `timer`; required. task, to hear of a task; timer, to hear at a time.
 - `target`: an integer of at least 1; optional. For task: the task's number.
@@ -114,6 +146,7 @@ A write.
 Remove one of your subscriptions.
 
 A write.
+Offered to every run but an asking one.
 
 - `subscription`: an integer of at least 1; required. The subscription's number, as subscribe answered it.
 
@@ -122,6 +155,7 @@ A write.
 Decide a proposal waiting for you: accept it, reject it with a reason, or pass it up to the holder above.
 
 A write.
+Offered to every run but an asking one.
 
 - `proposer`: an integer of at least 1; required. The proposing task's number.
 - `proposal`: an integer of at least 1; required. The proposal's number among its proposer's.
@@ -133,6 +167,7 @@ A write.
 Decide a held descendant's escalation: release it, reject it with a reason, or pass it up to the holder above.
 
 A write.
+Offered to every run but an asking one.
 
 - `task`: an integer of at least 1; required. The held task's number.
 - `revision`: an integer of at least 1; required. Its hold's revision, as you last read it.
@@ -144,6 +179,7 @@ A write.
 Ask the covering holder to act beyond your authority. A release from a party's hold names task, hold and the hold's revision, and waits for its owner.
 
 A write.
+Offered to every run but an asking one.
 
 - `action`: one of `batch`, `effect`, `amend`, `widen` or `release`; required. The act; each takes the members named for it below.
 - `task`: an integer of at least 1; optional. For amend, widen and release: the task's number.
@@ -163,6 +199,7 @@ A write.
 Withdraw one of your pending proposals.
 
 A write.
+Offered to every run but an asking one.
 
 - `proposal`: an integer of at least 1; required. The proposal's number, as propose answered it.
 
@@ -171,6 +208,7 @@ A write.
 Write a note in a scope for later runs to recall, or revise one, whole or by a line range, naming the revision you read.
 
 A write.
+Offered to every run but an asking one.
 
 - `scope`: an object; required. {kind}: deployment; project, with project; goal, with project and goal; resources, with project, connector, pattern.
 - `description`: text; required. What the note is about: a search reads it.
@@ -178,7 +216,7 @@ A write.
 - `references`: a list; optional. The numbers of the tasks it refers to.
 - `name`: an integer of at least 1; optional. To revise a note: its name. Leave it out for a new note.
 - `recalled`: an integer of at least 1; optional. To revise a note: the revision you read, from your brief, recall or your last write's answer.
-- `first`: an integer of at least 1; optional. To change lines, with name, recalled and remove: the 1-based first line replaced; the note's lines + 1 to append.
+- `first`: an integer of at least 1; optional. To change lines, with name, recalled and remove: the 1-based first line replaced; with remove 0, any line past the last appends.
 - `remove`: an integer of at least 0; optional. With first: how many lines go; 0 to insert.
 - `join`: true or false; optional. With first and remove: true continues the line before first without a newline, for long lines.
 
@@ -187,6 +225,7 @@ A write.
 Recall a note by its name, or search the descriptions of the notes in some scopes, a page at a time.
 
 A read.
+Offered to every run but an asking one.
 
 - `kind`: one of `name` or `search`; required. name, by its name; search, by words in scopes.
 - `name`: an integer of at least 1; optional. For name: the note's name.
@@ -199,6 +238,7 @@ A read.
 Hear forge news: landings on a branch, CI on heads, pull request state, or comments and reviews on an issue or pull request.
 
 A write.
+Offered to every run but an asking one.
 
 - `topic`: an object; required. {kind,repository?}: owner/name|{forge,repository}, else sole readable; landings+branch,ci+head,pull/participation+number
 - `own_change`: an integer of at least 1; optional. For landings: your change task's number; its own landing does not wake you.
@@ -209,6 +249,7 @@ A write.
 Make one write on an adopted repository through the forge's connector: an issue, a comment or a status, among the forge's writes.
 
 A write.
+Offered to every run but an asking one.
 
 - `repository`: an object; required. The repository, as {forge, repository}: the forge's number and the repository's.
 - `resource`: an object; required. What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}.
@@ -216,9 +257,10 @@ A write.
 
 ## read_task
 
-Specs/results, from=next. Durable question numbers/answerers: message form=answer, question
+Specs/results, from=next. Durable question numbers and answerers, for an answer.
 
 A read.
+Offered where the run's authority holds the read family.
 
 - `task`: an integer of at least 1; required.
 - `field`: one of `specification` or `result`; optional.
@@ -229,6 +271,7 @@ A read.
 Read the deployment's settings: the inventory with no member, or a setting, a revision's record or a page of the history; a long answer goes on from an offset.
 
 A read.
+Offered where the run's charter names the settings family and its authority holds it.
 
 - `setting`: an object; optional. One setting's whole value, named as a settings file names it.
 - `revision`: an integer from 1 to 4294967295; optional. Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it.
@@ -240,6 +283,7 @@ A read.
 Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep your document separate.
 
 A write.
+Offered where the run's charter names the settings family and its authority holds it.
 
 - `against`: an integer from 1 to 4294967295; required. The newest revision you read. A proposal against an older one is stale, and you hear the newest.
 - `reason`: text; required. Why; the owners read it.
@@ -251,6 +295,7 @@ A write.
 Issues/pulls, oldest updates first; forge.client.rows/answer_bytes bounded. Advance page.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `since`: an integer from 0 to 18446744073709551615, 0 when absent; optional. Only items updated at or after this time, in nanoseconds.
@@ -262,6 +307,7 @@ A read.
 Issue/pull and comments within forge.client.rows/answer_bytes. Advance after for comments; read_items for summaries.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `number`: an integer from 1 to 18446744073709551615; required. The issue's or pull request's number.
@@ -272,6 +318,7 @@ A read.
 Pull within forge.client.rows/answer_bytes. Files: read_pull_files by page, or read_file by path at head/base.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `number`: an integer from 1 to 18446744073709551615; required. The pull request's number.
@@ -281,6 +328,7 @@ A read.
 Find a pull by head/base within forge.client.rows/answer_bytes. Files: read_pull_files by page or read_file by path at head/base.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `head`: text; required. The branch it merges from.
@@ -291,6 +339,7 @@ A read.
 Pull reviews within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. owner/name; omit or empty for sole project repo.
 - `number`: an integer from 1 to 18446744073709551615; required. Pull #.
@@ -302,6 +351,7 @@ A read.
 Commit statuses within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `commit`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
@@ -312,6 +362,7 @@ A read.
 Review remarks within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. owner/name; omit or empty for sole project repo.
 - `number`: an integer from 1 to 18446744073709551615; required. Pull #.
@@ -324,6 +375,7 @@ A read.
 Branch head within forge.client.answer_bytes; read_branches with a longer prefix lists names.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `branch`: text; required. The branch's name.
@@ -333,6 +385,7 @@ A read.
 List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `prefix`: text; required. A nonempty prefix of the names, as temper/.
@@ -342,6 +395,7 @@ A read.
 Whole pull files within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut. read_file at head/base.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. owner/name; omit or empty for sole project repo.
 - `number`: an integer from 1 to 18446744073709551615; required. Pull #.
@@ -354,6 +408,7 @@ A read.
 Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `before`: text; required. The earlier commit's id: 40 or 64 lowercase hexadecimal digits.
@@ -364,6 +419,7 @@ A read.
 Combined checks within forge.client.rows/answer_bytes; read_statuses by page, then read_job for a failed job.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `commit`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
@@ -373,6 +429,7 @@ A read.
 File prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `head`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
@@ -384,6 +441,7 @@ A read.
 Failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `head`: text; required. The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits.
@@ -397,6 +455,7 @@ A read.
 Branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `branch`: text; required. The branch's name.
@@ -406,6 +465,7 @@ A read.
 Repository settings within forge.client.answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 
@@ -414,6 +474,7 @@ A read.
 Collaborators within forge.client.rows/answer_bytes; advance page. read_permission reads one user.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `page`: an integer from 1 to 4294967295, 1 when absent; optional. The page.
@@ -423,6 +484,7 @@ A read.
 User permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.
 
 A read.
+Offered to every run but an asking one.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
 - `user`: an integer from 1 to 18446744073709551615; required. The forge user's id.
@@ -432,6 +494,7 @@ A read.
 Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.
 
 A read.
+Offered to every run but an asking one.
 
 - `topic`: text; optional. A page's name, such as index.
 - `from`: an integer of at least 0; optional. The offset to read from, as next: gave it; 0 when absent.
@@ -442,6 +505,7 @@ A read.
 Read temper by address, as your person, in your project: its work, changes, settings, proposals, pages and files. Each answer ends with what to read next.
 
 A read.
+Offered to an asking run, where its authority holds the asking family.
 
 - `address`: text; required. One line, as your instructions list addresses: settings charter 1, help, more TOKEN.
 
@@ -450,6 +514,7 @@ A read.
 Keep this chat's one document: write it whole first, its first line # TITLE; then append a section, or replace the one under the same ## heading.
 
 A write.
+Offered to an asking run, where its authority holds the asking family.
 
 - `action`: one of `write`, `append` or `replace`; required. write: the whole document; append: a section at its end; replace: the section under body's first ## heading.
 - `body`: text; required. Markdown: the whole document, or one section beginning with its ## heading.
@@ -459,6 +524,7 @@ A write.
 Keep a line about your person across their chats, only when they ask: add one, or change or drop one by its number. Each answer is the whole list.
 
 A write.
+Offered to an asking run, where its authority holds the asking family.
 
 - `action`: one of `add`, `change` or `drop`; required.
 - `line`: an integer from 1 to 4294967295; optional. The line's number, for change and drop.

@@ -16,7 +16,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
 
   | Kind | Number | Value | Read |
   |---|---|---|---|
-  | charter | the charter's, from 1 | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3) | at each run's preparation, from the run's revision (3) |
+  | charter | the charter's, from 1 | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
   | template | the template's, from 1 | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
@@ -33,7 +33,9 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   read them from the document (7).
 - **The current settings are the defaults with the stored changes over
   them.** A change sets a setting's value whole, or removes a default,
-  so that it is no longer offered. A setting no change names follows its
+  so that it is no longer offered; a charter's change may instead set
+  an overlay, kept over its default, which each start lays over the
+  default it is given (`overlays.md`). A setting no change names follows its
   default, whatever the binary makes it. A reset erases a setting's
   change: it follows its default again. A setting no default has is
   added by a change that sets it, and its removal, like its reset,
@@ -502,7 +504,10 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     withdraws stale proposals of settings (6); new work takes it,
     running work keeps its own. A model a change is over stays as that
     change left it, so one a person turned off stays off, and a release's
-    new model comes in at its default;
+    new model comes in at its default. An overlay masks nothing: a
+    charter's default that differs under its overlay changes the
+    current settings, the overlay laid over the new default
+    (`overlays.md`, 4);
   - *the current settings are checked whole* (1): a start whose
     settings fail is refused, naming the setting, the change over it if
     any, and what fails, as a document failing its check always was;

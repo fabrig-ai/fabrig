@@ -355,6 +355,8 @@ pub(crate) fn refused(
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::MakeProject(_)
+        | w::Ask::Talk(_)
+        | w::Ask::Leave(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -569,6 +571,20 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     for alternative in value.alternatives() {
                         if found.is_none() {
                             found = settings_model(alternative, models);
+                        }
+                    }
+                    found
+                }
+                w::SettingValue::Overlay(value) => {
+                    let mut found = None;
+                    if let Some(model) = value.model() {
+                        found = settings_model(model, models);
+                    }
+                    if let Some(alternatives) = value.alternatives() {
+                        for model in alternatives {
+                            if found.is_none() {
+                                found = settings_model(model, models);
+                            }
                         }
                     }
                     found

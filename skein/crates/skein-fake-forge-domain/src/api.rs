@@ -716,6 +716,14 @@ pub struct Comment {
     pub edited: Option<Time>,
 }
 
+/// The fake's own counts at a pull request's head (testing/fakes/forge.md, 2.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Size {
+    pub files: u64,
+    pub additions: u64,
+    pub deletions: u64,
+}
+
 /// A pull request: its branches, its head commit (which follows the head
 /// branch while it is open), whether and how it merged, its reviews oldest
 /// first, and the latest status of each context on its head.
@@ -754,6 +762,7 @@ pub struct Pull {
     pub reviewers: Box<[u64]>,
     pub reviews: Box<[Review]>,
     pub statuses: Box<[Status]>,
+    pub size: Size,
 }
 
 /// Why an entry left the queue without landing.
@@ -1015,6 +1024,8 @@ pub enum Cue {
     File { path: Box<[u8]>, green: Box<[u8]> },
     /// Fails when the commit message contains `fail`, and passes otherwise.
     Message { fail: Box<[u8]> },
+    /// Judges the first rule line declared in the head's file, passing when absent.
+    Declared { path: Box<[u8]> },
 }
 
 /// A protected branch: nothing is pushed to it, creates it or deletes it,

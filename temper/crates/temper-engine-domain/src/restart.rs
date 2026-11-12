@@ -329,7 +329,9 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                 Phase::Link => domain.work.push(Work::ForgeRestored),
                 Phase::Sweep => sweep(domain, env, decision),
                 Phase::Switch => {
-                    if domain.start_pending {
+                    if domain.rehearsal.is_some() {
+                        domain.rehearsal = Some(true);
+                    } else if domain.start_pending {
                         assert!(crate::domain::now(domain, Request::Store(crate::StoreRequest::Switch)), "switch door");
                     } else {
                         domain.work.push(Work::StartDone(phase));
@@ -479,6 +481,12 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             }
         }
         Record::Forge { row } => {
+            if let forge::Stored::RefusedSetting(key) = row.as_ref()
+                && domain.start_phase().is_some()
+            {
+                domain.stop_start(crate::StartStop::Setting(*key));
+                return;
+            }
             if let forge::Stored::Repository(repository) = row.as_ref() {
                 crate::route::forge_route::report_adoption(domain, repository);
             }

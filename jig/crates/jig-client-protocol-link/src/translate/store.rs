@@ -4,7 +4,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
-use jig_client_protocol_wire::{self as wire, v19 as w};
+use jig_client_protocol_wire::{self as wire, v20 as w};
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
@@ -77,6 +77,12 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::Withdraw(value) => c::Ask::Withdraw { project: value.project(), proposal: value.proposal() },
         w::Ask::Create(value) => super::operations::restore_create(&value, limits)?,
         w::Ask::Compound(value) => super::compound::restore(value, limits)?,
+        w::Ask::Talk(value) => c::Ask::Talk {
+            project: value.project(),
+            task: value.task(),
+            words: pages::long_text(value.words(), limits)?,
+        },
+        w::Ask::Leave(value) => c::Ask::Leave { project: value.project(), task: value.task() },
         w::Ask::Message(value) => {
             c::Ask::Message { project: value.project(), task: value.task(), words: text(value.words(), limits)? }
         }

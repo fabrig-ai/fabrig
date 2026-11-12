@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 19, last: 19 },
+                versions: VersionRange { first: 20, last: 20 },
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -173,6 +173,8 @@ fn batch_task(number: u64, spec: SpecificationDocument, executor: Executor, budg
 #[must_use]
 pub fn task() -> Task {
     Task {
+        talk: None,
+        session: None,
         dependency_facts: skein_lib::List::with_capacity(0),
         kept_account: None,
         run_wait: None,

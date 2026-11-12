@@ -12,6 +12,64 @@ use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 use skein_lib::{Id, List, Map, usize_of};
 
+/// Counts the same differing paths as `PullFiles`, without its page or answer cap.
+/// Lines match as a multiset (testing/fakes/forge.md, 2.2).
+pub(crate) fn size(domain: &Domain, base: Option<u64>, head: u64) -> crate::api::Size {
+    let empty = Map::with_capacity(0);
+    let before = match base {
+        Some(base) => &domain.object(base).expect("stored merge base").tree,
+        None => &empty,
+    };
+    let after = &domain.object(head).expect("stored pull head").tree;
+    let mut size = crate::api::Size { files: 0, additions: 0, deletions: 0 };
+    for (path, old) in before {
+        let new = after.get(&**path);
+        if new != Some(old) {
+            count_file(
+                &mut size,
+                old,
+                match new {
+                    Some(bytes) => bytes,
+                    None => b"",
+                },
+            );
+        }
+    }
+    for (path, new) in after {
+        if !before.contains_key(&**path) {
+            count_file(&mut size, b"", new);
+        }
+    }
+    size
+}
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "slice splitting takes a borrowed byte predicate")]
+fn newline(byte: &u8) -> bool {
+    *byte == b'\n'
+}
+fn count_file(size: &mut crate::api::Size, before: &[u8], after: &[u8]) {
+    size.files = size.files.checked_add(1).expect("bounded trees");
+    let mut lines =
+        Map::with_capacity(u32::try_from(before.split_inclusive(newline).count()).expect("bounded file bytes"));
+    for line in before.split_inclusive(newline) {
+        let line = line.strip_suffix(b"\n").unwrap_or(line);
+        let count = lines.get(line).copied().unwrap_or(0u64);
+        lines
+            .insert(copy_of(line), count.checked_add(1).expect("bounded file bytes"))
+            .expect("at most one entry per base line");
+        size.deletions = size.deletions.checked_add(1).expect("bounded tree bytes");
+    }
+    for line in after.split_inclusive(newline) {
+        let line = line.strip_suffix(b"\n").unwrap_or(line);
+        match lines.get_mut(line) {
+            Some(count) if *count > 0 => {
+                *count = count.checked_sub(1).expect("positive count");
+                size.deletions = size.deletions.checked_sub(1).expect("unmatched base line");
+            }
+            Some(_) | None => size.additions = size.additions.checked_add(1).expect("bounded tree bytes"),
+        }
+    }
+}
+
 pub(crate) fn changed(
     domain: &Domain,
     limits: &Limits,
@@ -148,12 +206,12 @@ pub(crate) fn checks(repository: &Repository, limits: &Limits, commit: u64, ci_u
     Ok(Answer::Checks(summaries.into_boxed()))
 }
 
-pub(crate) fn job(repository: &Repository, id: u64) -> Result<Answer, Error> {
-    let job = job_view(repository, id)?;
+pub(crate) fn job(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) -> Result<Answer, Error> {
+    let job = job_view(domain, limits, repository, id)?;
     Ok(Answer::Job { steps: job.steps.clone(), job })
 }
 
-fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
+fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) -> Result<crate::api::Job, Error> {
     let (_, mut job) = crate::actions::latest(repository, id)?;
     let run = crate::actions::run(repository, job.run)?;
     if run.run.workflow.is_none() && job.state == crate::api::RunState::Completed {
@@ -162,11 +220,19 @@ fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> 
             Some(crate::api::Conclusion::Failure) => Check::Failed,
             None => unreachable!("a completed CI job has a conclusion"),
         };
+        let cue = crate::ci::effective(
+            domain,
+            run.run.commit,
+            &job.name,
+            crate::ci::cue(&repository.checks, &job.name),
+            run.pull,
+            limits,
+        );
         job.steps = crate::actions::outcome_steps(
             &job.name,
             state,
             *repository.failing.get(usize_of(job.index)).expect("CI context"),
-            crate::ci::cue(&repository.checks, &job.name),
+            cue.as_ref(),
             run.pull,
             repository.opening.get(usize_of(job.index)).expect("CI context"),
         );
@@ -174,8 +240,15 @@ fn job_view(repository: &Repository, id: u64) -> Result<crate::api::Job, Error> 
     Ok(job)
 }
 
-pub(crate) fn log(repository: &Repository, id: u64, attempt: u32, step: Option<u32>) -> Result<Answer, Error> {
-    let job = job_view(repository, id)?;
+pub(crate) fn log(
+    domain: &Domain,
+    limits: &Limits,
+    repository: &Repository,
+    id: u64,
+    attempt: u32,
+    step: Option<u32>,
+) -> Result<Answer, Error> {
+    let job = job_view(domain, limits, repository, id)?;
     let steps = &job.steps;
     if job.attempt != attempt || steps.is_empty() {
         return Err(Error::Missing(What::Job));

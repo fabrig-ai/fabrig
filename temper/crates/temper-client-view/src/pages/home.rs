@@ -326,7 +326,7 @@ fn needs(
 ) {
     let Some(inbox) = root.pages().inbox() else { return };
     let session = root.pages().needs();
-    let open = session.needs(inbox, root.forge().approvals());
+    let open = session.all(inbox, root.forge().approvals());
     let (count, cut) = match facts.needs {
         Needs::Count { count, cut } => (count, cut),
         Needs::Unknown => (0, false),
@@ -356,7 +356,7 @@ fn needs(
         .min();
     }
     super::ask::answered_lines(b, root, &lines, w, bindings);
-    super::home_cards::cards(b, root, &open, false, w, bindings, times);
+    super::home_cards::all(b, root, &open, false, w, bindings, times);
     b.close();
 }
 fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
@@ -943,9 +943,18 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
     b.name(name);
     b.text(Run::Plain, name);
     b.close();
-    if missing {
+    let word = if let Address::Home { .. } = root.pages().address() {
+        match temper_client_domain::pages::team::missing(root, project) {
+            temper_client_domain::pages::team::Missing::Reading => None,
+            temper_client_domain::pages::team::Missing::Deleted => Some(Word::ProjectDeleted),
+            temper_client_domain::pages::team::Missing::NotOurs => Some(Word::ProjectNotYours),
+        }
+    } else {
+        Some(Word::ProjectNotYours)
+    };
+    if missing && let Some(word) = word {
         b.open(Role::Paragraph);
-        w.text(b, Word::ProjectNotYours, &[Hole::Number(u64::from(project))]);
+        w.text(b, word, &[Hole::Number(u64::from(project))]);
         b.close();
         let chats = w.say(Word::Chats, &[]);
         crate::link(b, &chats, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));

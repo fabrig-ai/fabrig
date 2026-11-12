@@ -12,20 +12,10 @@ pub struct Asked<'a> {
     pub words: &'a [u8],
 }
 
-/// How the open question's foreman ended.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Settled<'a> {
-    Answer(&'a [u8]),
-    Finish(&'a [u8]),
-    Escalate(&'a [u8]),
-    Failed(&'a [u8]),
-}
-
 /// What a step heard for the relay.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RelayHeard<'a> {
     pub asked: &'a [Asked<'a>],
-    pub foreman: Option<(u64, Settled<'a>)>,
     /// The requester's answer to the change's question, its words.
     pub answer: Option<&'a [u8]>,
     /// Askers among the open questions' that have ended.
@@ -39,16 +29,12 @@ pub struct RelayHeard<'a> {
 /// What the root applies for a change's relay.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RelayAct {
-    /// Delegate a foreman for the first open question.
-    Foreman { asker: u64, number: u64 },
     /// Answer the asker's question with these words.
     Answer { asker: u64, number: u64, words: Box<[u8]> },
-    /// Ask the requester, with the foreman's reasons if any.
+    /// Ask the requester.
     Ask { asker: u64, number: u64, reasons: Box<[u8]> },
     /// Tell the requester that a question's asker ended.
     Left { asker: u64, number: u64, line: Box<[u8]>, answered: bool },
-    /// Cancel a foreman whose asker ended.
-    Cancel { task: u64 },
     /// Hold the change past its bound.
     Hold,
 }
@@ -107,7 +93,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 }
                 room = room.saturating_sub(1);
             }
-            RelayAct::Foreman { .. } | RelayAct::Cancel { .. } | RelayAct::Hold => {}
+            RelayAct::Hold => {}
         }
         if question.stands == Stands::Taken && act != RelayAct::Hold {
             taken = if heard.released { 1 } else { taken.saturating_add(1) };
@@ -116,7 +102,6 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
         match &act {
             RelayAct::Answer { .. } => {
                 match question.stands {
-                    Stands::Foreman { .. } => heard.foreman = None,
                     Stands::Asked => heard.answer = None,
                     Stands::Held { .. } => {}
                     Stands::Taken => unreachable!("a taken question is delegated or passed up"),
@@ -129,16 +114,11 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 acts.push(act).expect("relay acts fit a list");
                 break;
             }
-            RelayAct::Foreman { .. } => {
-                question.stands = Stands::Foreman { task: None };
-                acts.push(act).expect("relay acts fit a list");
-                break;
-            }
             RelayAct::Hold => {
                 acts.push(act).expect("relay acts fit a list");
                 break;
             }
-            RelayAct::Cancel { .. } | RelayAct::Left { .. } => {
+            RelayAct::Left { .. } => {
                 unreachable!("ended askers are removed before working the head")
             }
         }
@@ -167,12 +147,6 @@ fn take_questions(
             } else {
                 *room = room.saturating_sub(1);
                 match question.stands {
-                    Stands::Foreman { task } => {
-                        acts.push(left(question, false)).expect("relay acts fit a list");
-                        if let Some(task) = task {
-                            acts.push(RelayAct::Cancel { task }).expect("relay acts fit a list");
-                        }
-                    }
                     Stands::Taken => acts.push(left(question, false)).expect("relay acts fit a list"),
                     Stands::Held { .. } => acts.push(left(question, true)).expect("relay acts fit a list"),
                     Stands::Asked => unreachable!("an asked question waits for its answer"),
@@ -213,29 +187,9 @@ fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32
                 return Some(RelayAct::Hold);
             }
             match route {
-                Route::Foreman if !spent => Some(RelayAct::Foreman { asker, number }),
-                Route::Foreman | Route::Up => Some(RelayAct::Ask { asker, number, reasons: Box::new([]) }),
+                Route::Up => Some(RelayAct::Ask { asker, number, reasons: Box::new([]) }),
                 Route::None => unreachable!("a route of none returns before taking questions"),
             }
-        }
-        Stands::Foreman { task } => {
-            let (settled_task, settled) = heard.foreman?;
-            if let Some(task) = task
-                && *task != settled_task
-            {
-                return None;
-            }
-            Some(match settled {
-                Settled::Answer(words) => RelayAct::Answer { asker, number, words: bytes::copy_of(words) },
-                Settled::Finish(words) => RelayAct::Answer {
-                    asker,
-                    number,
-                    words: joined(b"Finish: the work done holds; list the rest under Left.\n", words),
-                },
-                Settled::Escalate(words) | Settled::Failed(words) => {
-                    RelayAct::Ask { asker, number, reasons: joined(b"Foreman:\n", words) }
-                }
-            })
         }
         Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?) }),
         Stands::Held { answer } => {

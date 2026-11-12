@@ -215,6 +215,7 @@ fn made_and_restored_forges_supply_their_checkout_credential() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let item = d
             .workspace_item(items::Seed {
+                project: 5,
                 modify: false,
                 task: 1,
                 parent: None,
@@ -231,6 +232,7 @@ fn made_and_restored_forges_supply_their_checkout_credential() {
 
 pub(super) fn setting_rule() -> setting::LandingRule {
     setting::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: GateLast::Open(Box::new([])),
@@ -246,11 +248,12 @@ pub(super) fn setting_rule() -> setting::LandingRule {
 #[test]
 fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
     let limits = Limits { judge_projects: 2, landing_rules: 3, setting_proposals: 4, ..LIMITS };
-    assert_eq!(setting::rows(&limits), Some(150)); // (9 rules + 2 charters + 4 project values) * (2 + 4 + 4).
+    assert_eq!(setting::rows(&limits), Some(270)); // (9 rules + 2 charters + 4 project values + 4 follows + 8 dependencies) * (2 + 4 + 4).
     assert_eq!(
         setting::rows(&Limits {
             judge_projects: 0,
             decided_per_project: 64,
+            findings_per_project: 256,
             landing_rules: 0,
             setting_proposals: 0,
             setting_history: 0,
@@ -269,7 +272,7 @@ fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
         let Err(error) = Domain::new(
             &limits,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[],
             false,

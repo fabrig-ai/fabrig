@@ -1,6 +1,6 @@
 //! People rows translated exhaustively (protocol/store/records.md, 1).
 //! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
-use crate::people_v14 as wire;
+use crate::people_v15 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as domain;
@@ -34,11 +34,11 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     Some(limits)
 }
 
-/// Derive the people-v13 bounds before checking its schema ceilings.
+/// Derive the people-v15 bounds before checking its schema ceilings.
 ///
 /// `None` means the derivation's checked arithmetic cannot represent a bound.
-/// A returned value may exceed `people_v14::CEILINGS`; callers must use
-/// `people_v14::check_limits` before using it to encode or decode records.
+/// A returned value may exceed `people_v15::CEILINGS`; callers must use
+/// `people_v15::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/limits.md).
 #[must_use]
@@ -55,6 +55,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         // A restore leaves out at most a proposal's application items and one project's policy
         // (domain/engine/settings.md, 10, Bounded).
         outcome_restored_left_out: jig_domain_tasks::SETTINGS_ITEMS.checked_add(1)?,
+        refusal_live_tasks_tasks: domain::NAMED_TASKS,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,
@@ -166,6 +167,9 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Deleted { project } => {
+            wire::Value::Deleted(wire::StoredDeleted::new(limits, wire::StoredDeletedParts { project: *project })?)
+        }
         domain::Stored::Public { project } => {
             wire::Value::Public(wire::StoredPublic::new(limits, wire::StoredPublicParts { project: *project })?)
         }
@@ -247,6 +251,7 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
+        wire::Value::Deleted(value) => domain::Stored::Deleted { project: value.project() },
         wire::Value::Public(value) => domain::Stored::Public { project: value.project() },
         wire::Value::Deletion(value) => {
             let wire::StoredDeletionParts { project, step, grace } = value.into_parts();

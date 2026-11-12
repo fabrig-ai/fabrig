@@ -118,8 +118,8 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   under `generations/` to open, and start again."
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
-  the first release, which records no patch levels, and this start has
-  changed nothing in it. A store from before the first release is not
+  the baseline, the first build whose stores later builds upgrade, and this
+  start has changed nothing in it. A store from before the baseline is not
   translated, so every start refuses this one until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
@@ -271,7 +271,10 @@ generation `A` to `A + 1`:
    goes on over the copy, still open, as 1's step 7 goes on over an
    active generation (the run proofs' cuts, which cut the shared
    transcripts to the copy's committed lengths, `A`'s, since patching
-   writes no frame; the installation's identifier), and answers
+   writes no frame; the installation's identifier). The model catalogue
+   overlay (`records.md`) is read by the binary's serving codec here,
+   after all pending patches; the initial open that plans those patches
+   does not decode model settings through that codec. The open answers
    `Opened` with `pending`: a patched generation awaits its switch. The
    root's restart restores from it as from any store, and asks for the
    switch (`Request::Switch`) once its restores are whole
@@ -394,9 +397,12 @@ impl PatchSets {
   from the component's own table (`README.md`, 4.4), the application's from its
   keys' encoders (`README.md`, section 7). A set with no kept text is an owner
   before its baseline, level none; otherwise its level is its patches'
-  count. Every real set is empty until the baseline (temper's
-  `draft/upgrades.md`, 4.1), so no store is behind and open patches
-  nothing; the component's tests hand it fixture owners' sets:
+  count. From the baseline, temper's store shell hands the four real
+  sets, `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` of this crate,
+  `JIG_PATCH_SET` of `jig-protocol-accounts` (the lowest jig crate that
+  sees every jig family, since it depends on this one) and temper's own
+  (temper's `protocol/baseline.md`, 4), each kept
+  at level 0 with no patch until a landing brings one; the component's tests hand it fixture owners' sets:
   `jig-test-patches` in the application's slot and `jig-test-patches-jig`
   in jig's, so that the order across owners is shown, and
   `jig-test-patches-smith` in smith's, a fixture turn family whose frames
@@ -517,6 +523,17 @@ Event::Patched { owner: Token, of: Owner, patch: u32, counts: Counts }
 pub struct Counts { pub records: u64, pub commits: u64 }
 ```
 
+- **A site's other stored inputs:** while a written site is outstanding,
+  `Store::patch_page` reads a bounded page of public application rows from
+  the copy's map, with relative keys and an exclusive cursor. Its bytes
+  have the levels reached by the walk: a range preceding the site's
+  range has already passed this patch. The caller uses that kept layout,
+  checks the row's identity, and replaces its context before answering the
+  site. No secrets are read, no serving codec is selected by the component,
+  and no input is retained for a later record. Outside a written stop the
+  method refuses. It reads at most the store's admitted operations per
+  page and reports the same data failure as the patch's walk.
+
 - **The shell that answers** is the store's shell, the one that names
   the owners' crates and drives the store's open: the application's
   (temper's `temper-service`, its `Store`); jig has no production
@@ -593,8 +610,8 @@ deployment's lock as a start does (1, step 1).
 - **A rehearsal** is a start that stops before its switch step. It
   never writes the directory it is given, a copy of a stopped
   deployment's such as a backup: it reads `active` and that
-  generation's maps, copies them into a scratch deployment under the
-  application's cache directory as that generation, and opens the
+  generation's maps, copies them into a scratch deployment as that
+  generation, and opens the
   scratch as any start does (1 and 2), with its patch sets, the
   transcripts read where they are and never cut, and no generation
   dropped. The plan, the copy, the patches and the restores (loaded and
@@ -610,7 +627,23 @@ deployment's lock as a start does (1, step 1).
   (3), from which the application says whether its workers may
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
-  removed as it ends.
+  emptied as it ends.
+- **Every record decoded** in a rehearsal, after the copy and before
+  the plan, whether or not a pending patch changes its family (the
+  user's words of 2026-11-11): each family of each set, at the version `A`
+  holds it (its owner's level in `A`'s row, 0 by `BASELINE` (`records.md`,
+  3), and the family's kept version at that level, from its first kept
+  version through the set's patches' blocks), is walked over its
+  ranges of `A`'s maps (3, `Keys`), each record decoded as a generic
+  value of that version's kept text from its range's root; a family of
+  frames, each frame of each transcript from its frames' root. A start
+  never does it: its patches decode what they change, and its codecs
+  the rest as read. The first record that does not decode ends the
+  rehearsal there, with `Event::Undecodable` naming its family, version
+  and place, and the plan does not run; all decoding, `Event::Decoded`
+  with the count, and the plan runs. An owner whose level the binary
+  does not know (ahead, unleveled) is not walked: the plan's refusal
+  says why.
 - **Going back** (`Store::back`, over the deployment's directory): once
   a patched generation is active, its previous one, `A`, stays on disk
   (`README.md`, section 2), and `active` may name it again until `A + 1`'s first
@@ -628,20 +661,28 @@ deployment's lock as a start does (1, step 1).
   backup.
 
 ```rust
-Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written
+Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
 Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool }           // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
+Event::Decoded { owner: Token, records: u64 }                                              // every record of A decoded; the plan runs
+Event::Undecodable { owner: Token, family: Box<str>, version: u32, at: Undecoded }          // the rehearsal's last event but `Closed`
+pub enum Undecoded { Record { map: KeptMap, key: Box<[u8]> }, Frame { transcript: Box<str>, offset: u64 } }
 Request::Back { owner: Token, root: Root }
 pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 }, Unreadable }
 Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`
 Event::BackRefused { owner: Token, why: BackRefusal }
 pub fn levels(sets: &PatchSets) -> Levels             // the binary's levels, for its versions' lines
 Request::Close { owner: Token }                       // a rehearsal's end, in any state; refused for any other store
-Event::Closed { owner: Token, removed: bool }         // false on a file's fault: the next rehearsal removes the rest
+Event::Closed { owner: Token, removed: bool }         // `scratch` emptied; false on a file's fault: the next rehearsal removes the rest
 ```
 
-A rehearsal's store refuses `Request::Switch`, though its root never
-asks, and its close (`Request::Close`; an engine's store ends with its
-process and has none) removes the scratch; a rehearsal that crashed
-leaves one, which the next rehearsal removes before it copies. Its
-patches answer `Patched` as a start's do.
+The scratch is a `Root` like the directory: a directory the
+application makes under its cache directory and adopts before it
+asks, as it adopts the directory. The store never removes that directory, only what is under it, deepest
+first as 1, step 5 removes a stray; making and removing the directory
+itself are the application's. A rehearsal's store refuses
+`Request::Switch`, though its root never asks, and its close
+(`Request::Close`; an engine's store ends with its process and has
+none) empties the scratch, `removed` saying it is empty; a rehearsal
+that crashed leaves entries there, which the next rehearsal removes
+before it copies. Its patches answer `Patched` as a start's do.

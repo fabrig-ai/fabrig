@@ -2,7 +2,7 @@
 use crate::translate::too_large;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{List, Writer, bytes};
 pub(crate) fn wire_revision(value: c::Revision, limits: &w::Limits) -> Result<w::Revision, w::Problem> {
     w::Revision::new(limits, w::RevisionParts { value: value.value })
@@ -579,6 +579,13 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
         }
         c::Ask::Create { project, tasks } => super::operations::create(*project, tasks, limits)?,
         c::Ask::Compound { project, operations } => super::compound::encode(*project, operations, limits)?,
+        c::Ask::Talk { project, task, words } => w::Ask::Talk(w::Message::new(
+            limits,
+            w::MessageParts { project: *project, task: *task, words: bytes::copy_of(words.bytes()) },
+        )?),
+        c::Ask::Leave { project, task } => {
+            w::Ask::Leave(w::Stop::new(limits, w::StopParts { project: *project, task: *task })?)
+        }
         c::Ask::Message { project, task, words } => w::Ask::Message(w::Message::new(
             limits,
             w::MessageParts { project: *project, task: *task, words: bytes::copy_of(words.bytes()) },

@@ -13,8 +13,11 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
+    Push(crate::pages::told::Report),
     /// The native client's ask for an approval (client/README.md, 4.1).
     AskApproval,
+    /// The TUI's reads across projects (client/tui/pages/launchpad.md, 2).
+    Launchpad,
     /// The browser left full screen, whoever left it (client/pages/README.md).
     ScreenLeft,
     /// At start, the kept store’s look (client/pages/README.md).
@@ -73,6 +76,7 @@ pub enum Tab {
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    Push(crate::pages::told::Duty),
     /// Full screen in the turn of a person’s terminal act (client/pages/README.md).
     Screen {
         on: bool,

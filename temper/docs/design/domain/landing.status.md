@@ -6,35 +6,12 @@ Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
 
-- **Not yet:** 4.1, 9, 12: one landing per train, formed level-triggered
-  from the waiting changes in the queue's order; a unit of more than one
-  change refused by a hold naming its changes; sealed landings; the
-  train's branch on `Landing` (`temper-engine-domain-forge/src/landing.rs`,
-  `forge_route/landing_route.rs`: a landing forms per ready change, joins
-  a cross-repository closure, and waits for one project-wide turn)
-  [in flight: change 824].
-- **Not yet:** 6.1, 7.1, 13.1: a gate's `base`, key version 2 and
-  `temper_base`; `gate_timeout` and `gate_retries` from the project's
-  settings (`gate_retries` is the literal 2) [in flight: change 825].
-- **Not yet:** 3 (landed at its prefix), 5.1, 5.2, 8, 10, 11, 13.1
-  (`combine`), 15: rounds on the landing's branch `temper/<root>/l<task>`
-  prepared by the worker's prepare job, merged or squashed; the round's
-  pull request fast-forwarded; a squashed member's pull request recorded
-  merged; the purpose's opening, closing, deletion and record operations
-  (the change rebases its own branch, kind 11, and the member's pull
-  request is fast-forwarded) [in flight: change 830].
-- **Not yet:** 3 (judging at its prefix), 4.2 (holds, news), 4.3,
-  7.1 (*Bounded*), 7.3: judgement at the prefix, leaving with its
-  reasons and its place kept, the holds past each bound, and the goal's
-  news at each step [in flight: change 833].
-- **Not yet:** 4.2 (*Drained*): a landing in a draining hold's scope
-  going on through the turn once proving, idle and held while
-  preparing. It waits on jig's drain and project-scoped placed holds
-  (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10:
-  `jig-domain-tasks/src/placed.rs`, `shaped` takes only a subtree stop).
-- **Not yet:** 14: `landing show` and `landing list` with the train,
-  round, branch, candidate and combining; the changes view per train; a
-  change's panel naming its landing and way [in flight: change 834].
+- **Not yet:** 8: the turn's merge of a member reads no comparison of
+  main's tip and its candidate, so a rule by path covers every member.
+- **Not yet:** 4.2 (*Drained*): a landing in a draining hold’s scope
+  going on through the turn once proving, idle and held while preparing.
+  It waits on jig’s drain and project-scoped placed holds
+  (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 15, 16: the real-process story

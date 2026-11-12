@@ -147,7 +147,7 @@ fn exchange(duties: &Duties, approval_ask: bool) -> Token {
 fn approval_saves() -> [Box<[u8]>; 3] {
     let (mut world, duties) = World::new();
     let initial = world.save();
-    // Jig's v19 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
+    // Jig's v20 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
     asked.extend_from_slice(&32_u32.to_be_bytes());
     asked.extend_from_slice(&[7; 32]);

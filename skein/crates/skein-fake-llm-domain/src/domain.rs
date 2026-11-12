@@ -15,6 +15,10 @@ use crate::{cache, limits, pieces, respond};
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
+    /// Fail a call no script answers instead of answering "done" or at random.
+    ///
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.5.
+    pub strict: bool,
     /// Calls held at once. A call beyond them is refused as overloaded.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -212,7 +216,7 @@ impl Played {
         let fallback = if otherwise.turns.is_empty() { &[][..] } else { core::slice::from_ref(&otherwise) };
         let mut held = limits::rules(rules);
         for group in [&*cued, &*asked, fallback] {
-            if !pieces::valid(group) {
+            if !pieces::valid(group) || !crate::take::valid(group) {
                 return Err(Error::InvalidRequest);
             }
             held = match limits::scripts(group) {

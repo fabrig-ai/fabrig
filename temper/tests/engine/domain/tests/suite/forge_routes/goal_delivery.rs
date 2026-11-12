@@ -29,6 +29,7 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
         StoryLimits { slots: Some(WORKER_SLOTS), result_bytes: Some(RESULT_BYTES), ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,
@@ -67,21 +68,10 @@ fn change_keys(world: &World) -> Vec<Key> {
 }
 
 fn assert_design_first_recipe() {
-    let settings: serde_json::Value =
-        serde_json::from_str(include_str!("../../../../../../docs/examples/reference/settings.json"))
-            .expect("reference settings");
-    let coordinator = &settings["items"][0]["set"];
-    let shared = coordinator["instructions"].as_str().expect("shared instructions");
-    let results = coordinator["parts"][2]["instructions"].as_str().expect("result instructions");
-    for words in [shared, results] {
-        assert!(words.contains("Use after only for live prerequisites"), "the recipe must limit after to live tasks");
-        assert!(
-            words.contains(
-                "once design has landed into g, cite its path and section in words and omit its ended task from after"
-            ),
-            "the recipe must cite landed design without an ended dependency"
-        );
-    }
+    let stock = crate::stock::defaults(RESULT_BYTES);
+    let charter = crate::reference_settings::charter(&stock, 5);
+    let shared = std::str::from_utf8(&charter.policy.instructions).expect("shared instructions");
+    assert!(shared.contains("live changes by task number"), "the recipe names live dependencies");
     let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
     assert!(ask.contains("Use after only for live prerequisites"), "Ask temper must propose live dependencies");
     assert!(ask.contains("cite design's repository path and section in words; omit its ended task from after"));
@@ -171,30 +161,13 @@ fn coding_from_landed_design(mut world: World, goal: &engine::Assignment, branch
 }
 
 fn assert_confirmed_design_recipe() {
-    let settings: serde_json::Value =
-        serde_json::from_str(include_str!("../../../../../../docs/examples/reference/settings.json"))
-            .expect("reference settings");
-    let coordinator = &settings["items"][0]["set"];
-    for (place, words) in [
-        ("shared", coordinator["instructions"].as_str().expect("shared instructions")),
-        ("first-run batch", coordinator["parts"][0]["instructions"].as_str().expect("first instructions")),
-        ("designer result", coordinator["parts"][2]["instructions"].as_str().expect("result instructions")),
-    ] {
-        assert!(
-            words.contains("Do not issue dependent coding until all required design is confirmed landed into g"),
-            "{place}: coding dispatch must wait for confirmed design landing"
-        );
-        assert!(
-            words.contains("A push, delivery or designer report is insufficient"),
-            "{place}: production evidence must not stand in for landing confirmation"
-        );
-    }
+    let stock = crate::stock::defaults(RESULT_BYTES);
+    let charter = crate::reference_settings::charter(&stock, 5);
+    let first = std::str::from_utf8(&charter.parts[0].instructions).expect("first instructions");
+    assert!(first.contains("deliver a design before you cut the changes that need it"));
     let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
     assert!(ask.contains("confirm all required design landed into g before dispatching coding"));
     assert!(ask.contains("A push, delivery or designer report is insufficient"));
-    let first = coordinator["parts"][0]["instructions"].as_str().expect("first instructions");
-    assert!(first.contains("Keep coding that uses pending design out of the first batch"));
-    assert!(!first.contains("and the changes the design already specifies, after S where they use its shapes"));
 }
 
 fn live_design_allows_early_coding() {

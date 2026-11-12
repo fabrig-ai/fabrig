@@ -52,6 +52,8 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
         ordinary.start_sweep();
         assert!(ordinary.start_complete(&env));
         assert!(out.is_empty(), "seed {seed}");
+        // Live projections' arrivals are separate from the census's output.
+        let mut ordinary_out = Queue::uncapped();
         let mut pending = Vec::new();
         for task in 1..=8 {
             let kind = match rng.below(4) {
@@ -73,7 +75,12 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             let index = usize::try_from(rng.below(len_u64(pending.len()))).expect("index into eight items");
             let entry = pending.swap_remove(index);
             assert!(selected.start_project(&limits, P::Waiting { task: entry.task, entries: Box::new([entry]) }));
-            p::step(&mut ordinary, &env, p::Event::Waiting { task: entry.task, entries: Box::new([entry]) }, &mut out);
+            p::step(
+                &mut ordinary,
+                &env,
+                p::Event::Waiting { task: entry.task, entries: Box::new([entry]) },
+                &mut ordinary_out,
+            );
         }
         let mut positions: Vec<u64> = (1..=8).collect();
         while !positions.is_empty() {
@@ -118,7 +125,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
                 &mut ordinary,
                 &env,
                 p::Event::ChatState { party: PERSON, project: PROJECT, task, last_reply: 4, live, seen, replies },
-                &mut out,
+                &mut ordinary_out,
             );
         }
         assert!(selected.start_project(&limits, P::EndedConversation { task: 31 }));

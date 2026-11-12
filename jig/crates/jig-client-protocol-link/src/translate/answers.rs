@@ -3,7 +3,7 @@ use crate::Limits;
 use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
@@ -68,6 +68,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
         w::DocumentOutcome::NoteEdited(row) => c::DocumentOutcome::NoteEdited { name: row.name() },
         w::DocumentOutcome::ServiceMade(row) => c::DocumentOutcome::ServiceMade { person: row.person() },
         w::DocumentOutcome::Adopted(row) => c::DocumentOutcome::Adopted { project: row.project() },
+        w::DocumentOutcome::Left(row) => c::DocumentOutcome::Left { task: row.task() },
         w::DocumentOutcome::Stopped(row) => c::DocumentOutcome::Stopped { task: row.task() },
         w::DocumentOutcome::Cancelled(row) => c::DocumentOutcome::Cancelled { task: row.task() },
         w::DocumentOutcome::Lifted(row) => c::DocumentOutcome::Lifted { hold: row.hold(), released: row.released() },
@@ -487,6 +488,7 @@ fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
     super::facts::ending(value, limits)
 }
 
+#[expect(clippy::too_many_lines, reason = "one total match preserves every wire refusal")]
 pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(match value {
         w::Refusal::Role(row) => {
@@ -497,6 +499,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
             c::Refusal::Role { held: opt0 }
         }
         w::Refusal::Taken(row) => c::Refusal::Taken { by: row.by() },
+        w::Refusal::LiveTasks(value) => c::Refusal::LiveTasks { tasks: value.tasks().clone(), more: value.more() },
         w::Refusal::Circle(value) => c::Refusal::Circle { tasks: value.tasks().clone(), cut: value.cut() },
         w::Refusal::Kept(value) => c::Refusal::Kept { pending: value.pending().clone() },
         w::Refusal::Dependency(value) => c::Refusal::Dependency {

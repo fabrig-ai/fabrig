@@ -6,6 +6,8 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{REPO, World, changes, translate};
 
+mod cutoff;
+
 const SECTION: Token = Token::new(245);
 const BYTES: u32 = 2048;
 
@@ -51,6 +53,11 @@ fn resolver(files: u32, extra_commits: u32, missing: bool) -> (World, u64, api::
 }
 
 fn gather(world: &mut World, pull: u64, head: api::Commit) {
+    start_gather(world, pull, head);
+    world.run_for(5);
+}
+
+fn start_gather(world: &mut World, pull: u64, head: api::Commit) {
     world.take_seen();
     world.take_calls();
     world.event(top::Event::GatherBriefHeld {
@@ -63,7 +70,35 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
         bytes: BYTES,
         max_job_bytes: 0,
     });
+}
+
+#[test]
+fn a_resolvers_files_read_at_a_moved_head_pauses_and_wakes_its_change() {
+    let (mut world, pull, head, _) = resolver(3, 0, false);
+    start_gather(&mut world, pull, head);
+    world.run_until_read(&api::Read::PullFiles { number: pull, head, page: 1, skip: 0, sides: true });
+    world.push_file(b"temper/51", b"shared", b"pushed meanwhile");
+    assert_ne!(translate::commit(world.branch(b"temper/51")), head);
     world.run_for(5);
+    assert!(
+        world.seen().contains(&top::Request::BriefSized {
+            section: SECTION,
+            size: Err(top::BriefUnread {
+                fate: top::BriefFate::Capacity,
+                words: Box::from(b"the change's head moved".as_slice()),
+            }),
+        }),
+        "the resolution pauses without a permanent try: {:?}",
+        world.seen()
+    );
+    assert!(world.seen().contains(&top::Request::BriefReadRefused {
+        section: SECTION,
+        stage: "files",
+        reason: "the change's head moved",
+        heads: None,
+        error: Some(api::Error::Stale),
+    }));
+    assert!(world.seen().contains(&top::Request::WakeProcedure { task: changes::change_row().change.task }));
 }
 
 fn completed(world: &mut World, pull: u64, head: api::Commit, files: u32, commits: usize) {
@@ -276,7 +311,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 format!("Head: {pinned}"),
                 "Title: Change".into(),
                 "Description".into(),
-                "[files omitted from page 1: past forge.client.answer_bytes (65536): at least 65537 bytes; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
+                "[files omitted from page 1: past forge.client.answer_bytes (65536): at least 65537 bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
             ] {
                 assert!(text.contains(&context), "missing context {context}: {text}");
             }

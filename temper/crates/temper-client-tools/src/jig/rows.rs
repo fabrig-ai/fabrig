@@ -1,7 +1,7 @@
 //! The read and host-tool records, in their published order.
 use super::table::{
     Keyed, Kind,
-    Occurs::{Optional, Required},
+    Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
 pub const ME: Tool = Tool {
@@ -141,13 +141,16 @@ pub const RUN: Tool = Tool {
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
-    line: b"Sign in with the link the deployment printed",
+    line: b"Sign in with a printed link or a service file",
     prints: b"Your party, as me prints it",
     result: b"sign_in",
-    forms: &[&[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")]],
+    forms: &[
+        &[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")],
+        &[flag(b"service", b"FILE", Kind::File, Required, b"The private file party make wrote")],
+    ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token and the engine's address into DIR. A link\nsigns in once, and expires; `the sign-in link was refused` (exit\n1) asks for a fresh link. With every sign-in in use, it says when\nthe earliest ends and until when this link stays usable. It leaves\nthe link's file as it was.\n",
+    notes: b"It writes the token and the engine's address into DIR. A link\nsigns in once, and expires; `the sign-in link was refused` (exit\n1) asks for a fresh link. With every sign-in in use, it says when\nthe earliest ends and until when this link stays usable. It leaves\nthe link's file as it was. With --service FILE, sign in as the\nservice at the address FILE holds. FILE must be owner-only and\nin party make's form; otherwise exit 1 before sending anything.\n",
 };
 pub const SIGN_OUT: Tool = Tool {
     name: b"sign-out",
@@ -285,6 +288,7 @@ pub const ANSWER: Tool = Tool {
 with task take before answering; task hand-back returns it to the role.
 Use the printed revision: a changed contract refuses a stale answer.
 Choice codes belong to the contract; TEXT explains the choice.
+CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.
 TEXT's bound is the most any call takes; a person task may ask for less:
 task show prints what it asks, and a refusal past it names the bound.
 ",
@@ -411,7 +415,7 @@ pub const ACCOUNTS: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 5,
-    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\n",
+    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\nEach readiness row names its payer: a project payer's row is for work\nthe project pays for itself, while your party's pool work uses its\nparty payer's row.\n",
 };
 pub const MODELS: Tool = Tool {
     name: b"model list",
@@ -714,7 +718,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     prints: b"`revision R`, the new revision",
     result: b"change_settings",
     forms: &[&[
-        positional(b"items", b"FILE", Kind::File, Required, b"The settings file, JSON, or -"),
+        positional(b"items", b"FILE", Kind::File, Repeated { most: super::settings_file::FILES }, b"The settings files in order, JSON, with - at most once"),
         flag(b"against", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The newest revision you read"),
         flag(
             b"running",
@@ -876,7 +880,7 @@ pub const PROJECT_SHOW: Tool = Tool {
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so.\n",
+    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
 };
 pub const PROJECT_FUND: Tool = Tool {
     name: b"project fund",
@@ -945,6 +949,7 @@ pub const TASK_NOTES: Tool = Tool {
 pub const ROLE_START_AT: u8 = 72;
 pub const ROLE_LIST_AT: u8 = 73;
 pub const ROLE_SHOW_AT: u8 = 74;
+pub const ROLE_TALK_AT: u8 = 75;
 /// Standing roles (client/ctl/tools.md, 2 and 3).
 pub const ROLE_START: Tool = Tool {
     name: b"role start",
@@ -976,13 +981,37 @@ pub const ROLE_LIST: Tool = Tool {
 };
 pub const ROLE_SHOW: Tool = Tool {
     name: b"role show",
-    line: b"Read a standing role's task document and its Now whole",
-    prints: b"The task document, then its whole Now with note number, revision and time, or `no Now yet`",
+    line: b"Read a standing role's task document and its Now or weekly report whole",
+    prints: b"The task document, its open talk, then its whole Now or report with note number, revision and time, or `no Now yet` / `no report yet`", 
     result: b"role",
-    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number")]],
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+        switch(b"report", b"Read its weekly report instead of its Now"),
+    ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"The Now is the lowest-numbered note described now in the role's\nown task scope. A supplied cut body is marked, never silently lost.\n",
+    notes: b"The Now or report is the lowest-numbered note described now or\nreport in the role's own task scope. A supplied cut body is marked.\n",
+};
+
+pub const ROLE_TALK: Tool = Tool {
+    name: b"role talk",
+    line: b"Talk with a standing role, or leave your talk",
+    prints: b"The role's reply, or `left: task N`; refusals exit 2; a timeout, hold or end before its reply exits 3 with what came",
+    result: b"role_reply",
+    forms: &[
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"Words for the role"),
+            flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long to wait; 300 seconds when absent, at most 3600"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            super::table::Argument { occurs: Required, ..switch(b"leave", b"End your talk and its session") },
+        ],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Your first words open a talk; later words continue it. Waits as\ntask show TASK --until replied, then reads the role's turns after\nthese words. Refusals: not a standing role; talking with PARTY;\nno talk to leave. TEXT and --leave cannot be used together.\n",
 };
 
 pub const GOAL_START_AT: u8 = 62;
@@ -1089,17 +1118,17 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
-/// Appended position for removing an owned project (client/ctl/tools.md, 3).
-pub const PROJECT_REMOVE_AT: u8 = 71;
-pub const PROJECT_REMOVE: Tool = Tool {
-    name: b"project remove",
-    line: b"Remove your own project, closing it at once and deleting it whole after",
-    prints: b"`removed: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
+/// Appended position for deleting an owned project (client/ctl/tools.md, 3).
+pub const PROJECT_DELETE_AT: u8 = 71;
+pub const PROJECT_DELETE: Tool = Tool {
+    name: b"project delete",
+    line: b"Delete your own project, closing it at once and deleting it whole after",
+    prints: b"`deleted: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
     result: b"project_removed",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"Only an owner removes a project, a fresh store's default project among them. Each live chat is asked to finish within its chat template's grace from me; no chat template, no grace. No confirmation. A project not in your me sends nothing, exit 2. A member who is not its owner, or a project already being deleted, is refused, exit 2. A key replay prints the same removal while deletion lasts. A restored request prints kept: remove-project, removed: project N, with no name.\n",
+    notes: b"Only an owner deletes a project, a fresh store's default project among them. Live tasks refuse it in jig's words, naming the live roots: end them first, then use a new key. No confirmation. A number is sent as given, in me or not; a name is resolved through me, and one not there sends nothing, exit 2, unknown project. The ask has no grace and uses no chat template. A member who is not its owner, an unknown project, or one already being deleted under another key is refused, exit 2. A key replay prints the same deletion after it ends as while it lasts, within the engine's retention. A restored request prints kept: remove-project, deleted: project N, with no name. project show PROJECT then says project N was deleted, exit 2.\n",
 };
 
 /// Appended host position for claiming role-addressed person work.
@@ -1130,6 +1159,22 @@ pub const HAND_BACK: Tool = Tool {
 };
 
 /// Appended position for creating a project without setting up a forge.
+pub const PARTY_MAKE_AT: u8 = 88;
+pub const PARTY_MAKE: Tool = Tool {
+    name: b"party make",
+    line: b"Make a service party in a project with a role",
+    prints: b"`made: party N`; writes the address and one-time credential to FILE, never to output",
+    result: b"party_make",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project, by name or number"),
+        flag(b"role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The role's number"),
+        flag(b"out", b"FILE", Kind::File, Required, b"A new private file for sign-in --service"),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"The service's name"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"The project's owner makes a party with no person, holding ROLE.\nFILE existing refuses the call before anything is sent, exit 1.\nThe host writes FILE at 0o600, with this engine's address and\nthe credential answered once. The credential is never printed\nor passed in argv. A key replay prints the party and writes nothing.\n",
+};
 pub const PROJECT_MAKE_AT: u8 = 70;
 /// Create a project from policy 1 and return its number under a kept key.
 pub const PROJECT_MAKE: Tool = Tool {
@@ -1141,4 +1186,126 @@ pub const PROJECT_MAKE: Tool = Tool {
     keyed: Keyed::Required,
     area: 1,
     notes: b"Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
+};
+
+// Findings and needs (client/ctl/tools.md, 2 and 3).
+pub const FINDING_LIST_AT: u8 = 89;
+pub const FINDING_SHOW_AT: u8 = 90;
+pub const FINDING_FILE_AT: u8 = 91;
+pub const FINDING_HAND_AT: u8 = 92;
+pub const FINDING_ROUTE_AT: u8 = 93;
+pub const FINDING_BACKLOG_AT: u8 = 94;
+pub const FINDING_DROP_AT: u8 = 95;
+pub const NEED_ASK_AT: u8 = 96;
+const FINDING: super::table::Argument = positional(
+    b"finding",
+    b"FINDING",
+    Kind::Finding,
+    Required,
+    b"P/N: the project's name or number and its finding number",
+);
+const AREA: super::table::Argument = flag(b"area", b"AREA", Kind::Literal, Required, b"The area's name in the project");
+pub const FINDING_LIST: Tool = Tool {
+    name: b"finding list",
+    line: b"Read a project's areas, triager and findings, newest first",
+    prints: b"Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding",
+    result: b"findings",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"state", b"new|routed|backlog|dropped", Kind::Word { set: &[b"new", b"routed", b"backlog", b"dropped"] }, Optional, b"Only this state"),
+        switch(b"mine", b"Only findings held by you or a role you hold"),
+    ]],
+    keyed: Keyed::Never, area: 2,
+    notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n",
+};
+pub const FINDING_SHOW: Tool = Tool {
+    name: b"finding show",
+    line: b"Read one finding whole",
+    prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body",
+    result: b"finding",
+    forms: &[&[FINDING]],
+    keyed: Keyed::Never,
+    area: 2,
+    notes: b"FINDING is P/N, P the project's name or number.\n",
+};
+pub const FINDING_FILE: Tool = Tool {
+    name: b"finding file",
+    line: b"File a finding, held by its area's owner or the triager",
+    prints: b"filed: P/N, held by HOLDER",
+    result: b"finding_filed",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(
+            b"kind",
+            b"qa|flake|red|review|feedback",
+            Kind::Word { set: &[b"qa", b"flake", b"red", b"review", b"feedback"] },
+            Required,
+            b"What kind of finding",
+        ),
+        flag(
+            b"severity",
+            b"low|medium|high",
+            Kind::Word { set: &[b"low", b"medium", b"high"] },
+            Optional,
+            b"medium when absent",
+        ),
+        flag(b"area", b"AREA", Kind::Literal, Optional, b"The area's name; the triager's when absent"),
+        positional(b"title", b"TEXT", Kind::Text, Required, b"Its title, 1 to 200 bytes"),
+        positional(b"body", b"FILE", Kind::File, Required, b"Its body, at most 4096 bytes; - reads stdin"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"An unknown area exits 2 naming the project's areas.\n",
+};
+pub const FINDING_HAND: Tool = Tool {
+    name: b"finding hand",
+    line: b"Hand a finding on to an area's owner, with why",
+    prints: b"handed: P/N, held by HOLDER",
+    result: b"finding_handed",
+    forms: &[&[FINDING, AREA, positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only its holder or a project owner hands it on. Its new owner hears why.\n",
+};
+pub const FINDING_ROUTE: Tool = Tool {
+    name: b"finding route",
+    line: b"Route a finding to a live goal of its project",
+    prints: b"routed: P/N",
+    result: b"finding_routed",
+    forms: &[&[FINDING, flag(b"goal", b"TASK", Kind::Number, Required, b"The live goal's task number")]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"The goal hears it. Only the holder or a project owner may triage.\n",
+};
+pub const FINDING_BACKLOG: Tool = Tool {
+    name: b"finding backlog",
+    line: b"Put a finding in the backlog",
+    prints: b"backlog: P/N",
+    result: b"finding_backlog",
+    forms: &[&[FINDING]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only its holder or a project owner may triage.\n",
+};
+pub const FINDING_DROP: Tool = Tool {
+    name: b"finding drop",
+    line: b"Drop a finding and keep the reason",
+    prints: b"dropped: P/N",
+    result: b"finding_dropped",
+    forms: &[&[FINDING, positional(b"reason", b"REASON", Kind::Text, Required, b"Why, 1 to 400 bytes")]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
+};
+pub const NEED_ASK: Tool = Tool {
+    name: b"need ask", line: b"Ask a person a question with choices and why", prints: b"done: task N, need", result: b"need",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"party", b"PARTY", Kind::Number, Optional, b"The person party to address; an alternative to --role"),
+        flag(b"role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Optional, b"The role to address; role 0, the owners, when neither is named"),
+        super::table::repeated(b"choice", b"TEXT", Kind::Literal, 6, b"An answer choice; two to six, in code order from 1"),
+        flag(b"why", b"TEXT", Kind::Text, Required, b"Why the answer is needed"),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"The question"),
+    ]], keyed: Keyed::Required, area: 3,
+    notes: b"Makes a person task without a template. The spec is the question,\na blank line, then Why: and the why. Choices are numbered from 1;\nthe specification's byte parameters keep their words under those codes.\nRead its answer with task show TASK. Jig's refusal prints in its words, exit 2.\n",
 };

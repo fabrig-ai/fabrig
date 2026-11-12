@@ -67,12 +67,14 @@ fn the_trees_fit_their_limits() {
         scene_marks: 2,
         scene_bytes: 256,
     };
-    let front_text = 50 * 512 + 8192 + 4096;
+    // /log and stopping each retain fifty lines, two nodes per extra line.
+    let front_text = 2 * 50 * 512 + 8192 + 4096;
+    let front_nodes = 192 + 2 * 50;
     let with_front = skein_ui::Limits {
-        nodes: chat.nodes + 192,
+        nodes: chat.nodes + front_nodes,
         text_bytes: chat.text_bytes + front_text,
         bindings: chat.bindings + 1,
-        patches: chat.patches + 192 * 4,
+        patches: chat.patches + front_nodes * 4,
         ..chat
     };
     assert_eq!(crate::limits(&domain, &chat, 512), Some(with_front));
@@ -256,14 +258,25 @@ fn the_trees_fit_their_limits() {
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
-    // Home's three rows, five needs, Start and the whole brief coexist at their bounds.
+    // Three left-off rows, five needs, Start and four whole briefs coexist at their bounds.
     for bytes in [200_usize, 600] {
         use crate::view::{self, launchpad};
         let root = super::launchpad::home(None, &[]);
         let mut part = launchpad::read(&root, &tui, &words, f::NOW);
         part.project = Some(name.into());
         part.lines
-            .push(launchpad::Line { role: Role::Paragraph, words: "s".repeat(200).as_bytes().into(), style: None })
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"Four changes landed across four projects.".as_slice().into(),
+                style: None,
+            })
+            .unwrap();
+        part.lines
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: "s".repeat((32 + 2 + bytes) * 4 + 3).as_bytes().into(),
+                style: None,
+            })
             .unwrap();
         part.lines
             .push(launchpad::Line {
@@ -288,6 +301,7 @@ fn the_trees_fit_their_limits() {
         for _row in 0_u32..5 {
             needs
                 .push(launchpad::NeedRow {
+                    since: None,
                     mark: temper_client_view::shared::NeedMark::SignOff,
                     project: name.into(),
                     words: Box::new([b'w'; 512]),
@@ -295,14 +309,16 @@ fn the_trees_fit_their_limits() {
                 .unwrap();
         }
         part.needs = needs.into_boxed();
-        for length in [200, bytes] {
-            part.brief
-                .push(launchpad::Line {
-                    role: Role::Paragraph,
-                    words: "b".repeat(length).as_bytes().into(),
-                    style: Some(look::NOTE),
-                })
-                .unwrap();
+        for _project in 0_u32..4 {
+            for length in [32 + 2 + 200, bytes] {
+                part.brief
+                    .push(launchpad::Line {
+                        role: Role::Paragraph,
+                        words: "b".repeat(length).as_bytes().into(),
+                        style: Some(look::NOTE),
+                    })
+                    .unwrap();
+            }
         }
         part.brief
             .push(launchpad::Line {
@@ -367,6 +383,6 @@ fn chat_views() -> crate::view::chat::Chat {
         pane: None,
         to_end: 1,
         entries: Box::new([Entry::Viewed(pieces)]),
-        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None },
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None, stopping: None },
     }
 }

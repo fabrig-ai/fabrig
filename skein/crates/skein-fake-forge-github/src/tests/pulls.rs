@@ -223,7 +223,7 @@ fn github_fake_mergeable_is_null_until_drawn_head_or_base_settle_deadline() {
         config.settle_min = Duration::from_secs(3);
         config.settle_max = Duration::from_secs(7);
         config.resolution = Duration::ZERO;
-        let mut h = f::Harness::with_domain(f::limits(), f::config(), config);
+        let mut h = f::Harness::with_domain(f::limits(), f::config(), config.clone());
         h.drain_timers = false;
         let (number, head) = r::pull(&mut h);
         let token = r::token(&mut h);
@@ -264,4 +264,53 @@ fn github_fake_mergeable_is_null_until_drawn_head_or_base_settle_deadline() {
         replays.push(deadlines).expect("two replays");
     }
     assert_eq!(replays.get(0), replays.get(1));
+}
+
+#[test]
+fn github_fake_pull_size_reaches_both_read_plans() {
+    let mut h = r::harness();
+    let base = skein_fake_forge_domain::commit(
+        &mut h.domain,
+        &h.env.limits,
+        h.first,
+        Box::new([a::File { path: f::boxed(b"old"), content: f::boxed(b"before\n") }]),
+        b"base",
+    )
+    .unwrap()
+    .unwrap();
+    r::call(&mut h, a::Op::Git(a::Git::Push { branch: f::boxed(b"trunk"), commit: base, expected: None }));
+    let head = skein_fake_forge_domain::commit(
+        &mut h.domain,
+        &h.env.limits,
+        base,
+        Box::new([
+            a::File { path: f::boxed(b"old"), content: f::boxed(b"after\n") },
+            a::File { path: f::boxed(b"new"), content: f::boxed(b"one\ntwo\nthree\n") },
+        ]),
+        b"head",
+    )
+    .unwrap()
+    .unwrap();
+    r::call(&mut h, a::Op::Git(a::Git::Push { branch: f::boxed(b"feature"), commit: head, expected: None }));
+    let a::Answer::Created(number) = r::call(
+        &mut h,
+        a::Op::Write(a::Write::OpenPull {
+            title: f::boxed(b"size"),
+            body: Box::new([]),
+            head: f::boxed(b"feature"),
+            base: f::boxed(b"trunk"),
+            opens_empty: false,
+        }),
+    ) else {
+        panic!("pull")
+    };
+    let token = r::token(&mut h);
+    for read in [
+        api::Read::Pull { number, ci: false },
+        api::Read::PullFor { head: f::boxed(b"feature"), base: f::boxed(b"trunk") },
+    ] {
+        let api::Answer::Pull(pull) = r::read(&mut h, &token, read).unwrap() else { panic!("pull answer") };
+        assert_eq!(pull.size, Some(api::Size { files: 2, additions: 4, deletions: 1 }));
+        assert_eq!(pull.commit, r::object(head));
+    }
 }

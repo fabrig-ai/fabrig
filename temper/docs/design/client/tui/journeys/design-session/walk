@@ -2,6 +2,7 @@ walk 1
 see "then press Approve."
 approve
 see "Ask temper"
+see "/draft    a design session"
 mark
 key paste "/draft Plan a farewell line for hello."
 key enter

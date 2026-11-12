@@ -72,7 +72,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, &peers);
+        let given = steps(config, b"/effective/data/", &peers, None, false);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -106,10 +106,13 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
         ] {
             assert_eq!(step.name(), name);
             assert_eq!(step.kind(), temper_forge_setup::Kind::Long);
-            assert_eq!(
-                step.arguments(),
-                [b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"].map(Box::<[u8]>::from)
-            );
+            let mut expected = vec![b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"];
+            if name == b"fake github" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/github-forge.state"]);
+            } else if name == b"fake forgejo" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/forgejo-forge.state"]);
+            }
+            assert_eq!(step.arguments(), expected.into_iter().map(Box::<[u8]>::from).collect::<Vec<_>>());
             assert_eq!(step.listeners(), &[listen]);
             assert_eq!(step.ready(), None);
         }
@@ -177,7 +180,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         effective["workers"][0]["agent"]["arguments"],
         json!(["internal", "agent", "/effective/config/agent.json"])
     );
-    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][2]);
+    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][3]);
     assert_eq!(docs, write(&temper, &agent, &paths, &peers).expect("deterministic rewrite"));
 }
 
@@ -641,16 +644,16 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     let Some(Need::Read(Item::AdminToken)) = out.pop() else { panic!("read the admin token") };
     reachable::step(&mut machine, Event::Read(Some(Secret::new(token.as_slice().into()))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
-    reachable::step(&mut machine, Event::Reply(Reply::Document(Document::User(user))), &mut out);
+    reachable::step(&mut machine, Event::Reply(Reply::Document(Box::new(Document::User(user)))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else {
         panic!("ordinary reachability must accept the seeded admin despite its different login")
     };
     reachable::step(
         &mut machine,
-        Event::Reply(Reply::Document(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
+        Event::Reply(Reply::Document(Box::new(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
             max_response_items: 32,
             default_paging_num: 30,
-        }))),
+        })))),
         &mut out,
     );
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
@@ -669,7 +672,9 @@ fn written_anthropic_entries_are_replaced_once() {
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
+    assert_program_provider(llm, &temper);
     for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
+        assert!(!endpoints.as_array().unwrap().iter().any(|e| e["name"] == "anthropic-api"));
         let selected: Vec<_> = endpoints.as_array().unwrap().iter().filter(|e| e["number"] == 2).collect();
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0]["name"], "fake-claude");
@@ -741,5 +746,19 @@ fn the_fake_list_preserves_openais_stock() {
             "the fake omits stock model {:?}",
             row.model.name
         );
+    }
+}
+
+#[test]
+fn box_forge_documents_declare_head_owned_ci() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    for bytes in [&docs.forgejo, &docs.github] {
+        let doc = json(bytes);
+        assert_eq!(doc["owner"], "fake-person");
+        assert_eq!(doc["repositories"][0]["name"], "widget");
+        assert_eq!(doc["repositories"][0]["ci"], json!({"declared":".fake-forge/ci"}));
+        assert_eq!(doc["made_ci"], json!({"declared":".fake-forge/ci"}));
+        crate::forge::Document::decode(bytes).expect("generated forge document");
     }
 }

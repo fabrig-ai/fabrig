@@ -391,6 +391,8 @@ impl super::Runtime {
         faces: &mut [crate::BrowserFace<'_>],
         people: &[&mut dyn super::Play],
         now: Time,
+        page_query: &[u8],
+        page_addresses: fn(&[u8]) -> bool,
     ) {
         for (index, face) in faces.iter_mut().enumerate() {
             if !self.closing.active()
@@ -411,7 +413,7 @@ impl super::Runtime {
                     if let Some(pid) = self.browser_pid {
                         command.watch_process(pid);
                     }
-                    face.absolute(link);
+                    face.absolute(super::page_with_query(&link, page_query, page_addresses));
                 }
                 Progress::Kept { name, value } => {
                     self.kept.push(super::Kept { person: u32::try_from(index).expect("person fits"), name, value });

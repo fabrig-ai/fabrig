@@ -190,6 +190,7 @@ impl World {
                 rules.ceiling.grants = ceiling_grants.into_boxed();
                 if let Some(freshness) = approval {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+                        sets: Box::new([]),
                         connector: 0,
                         kind: 4,
                         enforce: true,
@@ -326,7 +327,7 @@ impl World {
     }
 
     fn external(&mut self, user: u64, op: raw::Op) -> raw::Answer {
-        let mut config = self.fake_env.limits;
+        let mut config = self.fake_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = self.env.with(config);
@@ -493,7 +494,7 @@ impl World {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let result = match result {
-                        Ok(answer) => Ok(translate::answer(&op, answer, &self.env.limits.forge.client)),
+                        Ok(answer) => translate::answer(&op, answer, &self.env.limits.forge.client),
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }

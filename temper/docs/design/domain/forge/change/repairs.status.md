@@ -1,14 +1,16 @@
 # repairs: status
 
-2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-12. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`) [in flight: change 596].
-- **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`) [in flight: change 601].
 
-- **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`) [in flight: change 262].
-- **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`) [in flight: change 263].
+- **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
+- **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
-- **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 37].
+- **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).
+- **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`).
+
+- **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`).
+
 
 - **Not yet:**
   - the whole document: the request-to-repair fuzzy coverage remains `gates.status.md`, 1.

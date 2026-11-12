@@ -1,9 +1,9 @@
-use super::{Choice, FIELDS, FORMS, Field, Form, Value, Width, Word, most};
+use super::{Choice, FIELDS, FORMS, Field, Form, Shape, Value, Width, Word, most, overlay_replaces};
 use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"A settings file is a `file`, below; each section is one shape of JSON object, and each bullet one of its members, with its type, its bound and what it does. Read a value with `settings show`, given its kind and number, edit it, and set it whole. A bound here is what ctl sends; the deployment may still refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend is in the deployment's units, those of its models' prices. Hex is bytes in lower-case hexadecimal: `666f726765` is `forge`.";
+pub const INTRO: &[u8] = b"Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -51,6 +51,22 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
                     out.put(b"\n");
                 }
             }
+        }
+        if form.shape == Shape::Overlay {
+            out.put(b"As `charter`'s fields, replacing the default whole: ");
+            let mut first = true;
+            for field in fields {
+                if overlay_replaces(field) {
+                    if !first {
+                        out.put(b", ");
+                    }
+                    first = false;
+                    out.put(b"`");
+                    out.put(field.name);
+                    out.put(b"`");
+                }
+            }
+            out.put(b".\n\n");
         }
         for field in fields {
             if field.shape != form.shape {
@@ -138,7 +154,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             unreachable!("nested shape has a form")
         }
         Value::Setting => out.put(
-            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`",
+            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`",
         ),
     }
 }

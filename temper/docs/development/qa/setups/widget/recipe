@@ -1,0 +1,10 @@
+recipe 1
+after "project-landing"
+ctl project make widget --key qa-widget-project
+ctl repository make --project widget --forge 1 playground/widget --until adopted --key qa-widget
+forge commit forgejo playground/widget "Seed widget from B0" "README.md" "src/main.rs" ".forgejo/workflows/check.yml"
+forge checks forgejo playground/widget
+web reload "/projects/2"
+web see "playground/widget is in widget"
+ctl project show widget
+web see "Nothing needs you."

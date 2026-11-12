@@ -393,7 +393,7 @@ impl Connection {
                             let rows = core::mem::replace(rows, List::with_capacity(0));
                             Reply::Rows(rows.into_boxed())
                         }
-                        Some(document) => Reply::Document(document),
+                        Some(document) => Reply::Document(Box::new(document)),
                         None => Reply::Down,
                     },
                     Speech::GitHub { document, rows, .. } => match document.take() {
@@ -499,6 +499,7 @@ fn forgejo_row_bound(request: &request::Request) -> Option<u32> {
         | Request::DeleteRepoHook { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

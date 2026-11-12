@@ -414,7 +414,7 @@ them as it does any Forgejo.
   | `tls` | `{"root"}`, or null for plaintext | `root` an absolute path: the test root's file, which the fake writes (below) |
   | `models` | a list of `{"name", "window", "output"}` | 1 to 8, each as a provider's model's members are (../configuration/README.md, section 2) |
   | `cued` | a list of `{"cue", "turns"}`, each with `inputs` optional | at most 8, as `llm.asked` is; each cue looked for in the system text (skein's `testing/fakes/llm.md`, 2.4) |
-  | `asked`, `otherwise` | as `llm.asked` and `llm.otherwise`, each of `asked` with `inputs` optional | the same |
+  | `asked`, `otherwise` | as `llm.asked` and `llm.otherwise`, each of `asked` with `inputs` optional | the same, but `otherwise` may be empty: a call no cue selects then takes skein's random answer, or fails under its strict switch (skein's `testing/fakes/llm.md`, 2.4 and 2.5) |
   | `control` | an address, jig's format, optional | a socket address on loopback, port 0 for the kernel's; required when a turn holds a piece |
 
   A script's `inputs` are its turn rules (skein's `testing/fakes/llm.md`, 2.4):
@@ -450,6 +450,19 @@ them as it does any Forgejo.
   line falls in its turn and whose calls it fails are skein's (its
   2.3): a refused document is refused at the start, naming the turn.
 
+  A turn's lines may also hold a take, `{"take", "before", "after"}`,
+  here and in `--scripts` alone and never in a deployment's document:
+  skein's `Line::Take` (skein's `testing/fakes/llm.md`, 2.6), `take` its
+  name and `before` and `after` non-empty text. A later line of its turn
+  takes its value where its text, or its call's arguments, hold
+  `{{NAME}}`, or where an argument's whole value is the string
+  `"{{#NAME}}"`, a JSON number then; so a twin's call names the task,
+  pull request or head of the deployment it plays on
+  (`../../testing/qa/setups.md`, 4). A take counts among its turn's
+  lines; its bounds, and what a turn with no value answers, are
+  skein's: a document past them is refused at the start, naming the
+  turn.
+
   The forge's:
 
   | Member | Type | Bounds |
@@ -470,6 +483,15 @@ them as it does any Forgejo.
   verdict, the `Checks` latency with its least and its most alike
   (skein's `testing/fakes/forge.md`, 2.3). Each at most 60000; absent, 0, as the
   box's fakes and a runner's run.
+
+  `temper-box fake llm --document FILE [--scripts SCRIPTS] [--strict]`:
+  with `--scripts`, SCRIPTS, a JSON object of `cued`, `asked` and
+  `otherwise`, each optional, absent as empty, and each as the LLM
+  document's, takes the place of the document's three, which are then
+  checked as the document's are; any other member is refused, naming
+  it. With `--strict`, the domain's `Config.strict` is on (skein's
+  `testing/fakes/llm.md`, 2.5). The box's fake backends give both
+  (`box.md`, 5).
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper-box init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before

@@ -12,10 +12,14 @@ mod ci_brief;
 mod closer;
 mod completed_reads;
 mod connect;
+mod devices;
 mod dismissed;
+mod drafts;
 mod early;
+mod findings;
 pub(crate) mod fixtures;
 mod flight;
+mod follow_check;
 mod forge_user;
 mod goal_branch;
 mod goal_start;
@@ -38,6 +42,7 @@ mod release;
 mod removal;
 mod requires;
 mod restore_fit;
+mod rules_by_path;
 mod runs;
 mod saved_close;
 mod settings;
@@ -117,8 +122,19 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -288,7 +304,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -321,6 +338,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 }
 pub(crate) fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -536,6 +554,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -566,8 +585,11 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -630,6 +652,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -660,8 +683,11 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -717,6 +743,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -747,8 +774,11 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -828,7 +858,8 @@ fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
     let mut d = Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: b"test".as_slice().into(),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -1077,6 +1108,7 @@ fn workspace_items_are_sized_context_is_read_only_and_saved_work_starts_the_next
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,
@@ -1100,6 +1132,7 @@ fn a_workspace_item_names_its_forges_git_identity() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,
@@ -1968,7 +2001,7 @@ fn routing_domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &configured(),
         false,
@@ -2167,7 +2200,8 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -2186,7 +2220,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         let result = Domain::new(
             &LIMITS,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[forge],
             false,
@@ -2351,8 +2385,8 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
 }
 #[test]
 fn configured_forges_are_bounded_at_construction() {
-    fn config() -> skein_forge_client::Config {
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
+    fn config() -> Config {
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
     let count = usize::try_from(LIMITS.forges).unwrap();
     let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
@@ -2819,7 +2853,7 @@ fn two_forges_repositories_with_one_id_resolve_apart() {
         repository.provider.forge = forge;
         repository.home = forge == 1;
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository.clone()) });
-        assert_eq!(d.repository_tag(5, tag(forge, REPO.repository)), Some(&repository));
+        assert_eq!(d.repository_tag(5, tag(forge, REPO.repository)).as_ref(), Some(&repository));
     }
     for forge in [1, 3] {
         let provider = skein_forge::api::Repository { forge, repository: REPO.repository };
@@ -2988,6 +3022,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         let item = d
             .workspace_item(items::Seed {
+                project: 5,
                 modify: false,
                 task: CHILD,
                 parent: Some(fixtures::CHANGE),
@@ -3068,6 +3103,7 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                 }
                 let item = d
                     .workspace_item(items::Seed {
+                        project: 5,
                         modify: false,
                         task: 90,
                         parent: Some(task),
@@ -3333,6 +3369,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,

@@ -294,7 +294,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             preparation: row.landing.preparation,
             stale_proofs: row.landing.stale_proofs,
             branch: row.landing.branch.clone(),
-            round: encode_round(&row.landing.round),
+            round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
             own_hold: match row.landing.phase {
                 d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
                 d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(
@@ -400,7 +400,10 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             preparation,
             stale_proofs,
             branch,
-            round: decode_round(round),
+            round: match round {
+                Some(round) => decode_round(round),
+                None => d::Round::new(Box::new([])),
+            },
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),

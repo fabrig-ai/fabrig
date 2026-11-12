@@ -33,6 +33,17 @@
   asking and its offers numbered as any control (1, *Why it
   reached you*); its project's `decided` document is one *Decided
   for you* watches, the unfiltered inbox watching `me`'s first projects.
+- **A finding that is the person's** (`../../domain/areas.md`, section 5)
+  is a card that needs them, from the forge's `findings` subject with
+  `mine` and `new`, watched for each of `me`'s projects as `decided` is
+  (`../forge/records.md`): its tag "Finding", then "PROJECT › P/N TITLE",
+  and its wait since it was filed; its kind, severity and area, "no area"
+  where it has none; the last hand-off's why, quoted, with who handed
+  it; and its acts, "Hand on", an area's menu and a line of why, "Route
+  to a goal", the project's live goals' menu, "Backlog" and "Drop with
+  reason", each the forge's request, a refusal said in its words. Kind
+  holds "Finding" among its choices. The card leaves once the finding
+  leaves `new` or stops being theirs.
 - **An update's card** has its heading as the link that opens it and marks
   a result seen. It repeats no project line or task-number link. The heading
   says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
@@ -173,7 +184,7 @@
     report keeps the ordinary person-task card.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (`../forge/records.md`), its kind "an approval", its question, context,
-    review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
+    size, review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
     "Review on GitHub ↗" or "Review on Forgejo ↗" first and primary, one tap
     to the forge's review page (`../../draft/forge-identity.md`, section 8), and
     in the terminal's inbox "Later" too, its key
@@ -226,8 +237,8 @@
     under its question on Home's cards (`home.md`, 1, *The cards*), as the
     whole story's `needs.html` and `home.html` place it, from one domain function
     every shell calls (`pages::needs::why`), its words the view's shared ones
-    (`temper_client_view::shared::why`), so that the TUI's launchpad can say
-    it too. By the card's kind:
+    (`temper_client_view::shared::why`), so that the TUI's walk says it
+    too (`../tui/pages/launchpad.md`, 6). By the card's kind:
     - *A question,* by `message` or a person task in words. Its asking task
       is a question's sender where that is a task (`from`,
       `Requester::Task`), else the question's own task, and a person task's

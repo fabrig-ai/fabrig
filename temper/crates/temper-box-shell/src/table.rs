@@ -1,14 +1,15 @@
-//! The box's table and the tree's tables (temper/docs/design/cli/README.md, 6 and 9).
+//! The box's table (temper/docs/design/cli/README.md, 6).
 use crate::{box_command, directories, fake};
-use skein_shell::{Argument, Command, Reach, Set, Switch, Table, Variable};
+use skein_shell::{Argument, Command, Reach, Set, Switch, Table};
 use temper_engine_shell::commands::{FETCH, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 use temper_shell::{environment, table::HELP};
 
 pub const TABLE: Table = Table {
     binary: "temper-box",
     line: "temper on this machine, as one box.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &COMMANDS,
     settings: &[],
     variables: &[
@@ -16,45 +17,40 @@ pub const TABLE: Table = Table {
         &temper_service_shell::CUT_AT_LISTEN,
         &temper_engine_shell::forge_sign_in::NO_REGISTRATION,
         &super::fake_backends::FAKE_BOX_PORTS,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_client_bundle::INTERNAL_BUNDLE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
-pub const TREE: [&Table; 4] =
-    [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER, &temper_agent_shell::AGENT];
-
 const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
-const TUI_VARIABLES: &[&Variable] = &[
-    &environment::PATH,
-    &environment::TERM,
-    &environment::COLORTERM,
-    &environment::COLORFGBG,
-    &environment::DISPLAY,
-    &environment::WAYLAND_DISPLAY,
-    &environment::SSH_CONNECTION,
-    &environment::SSH_TTY,
-    &environment::XDG_RUNTIME_DIR,
-    &skein_shell::HOME,
-    skein_shell::Base::State.variable(),
-];
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
-    table: &[skein_shell::Setting {
-        name: "bundle",
-        value: "BUNDLE",
-        set: Set::Internal,
-        twin: None,
-        about: "The web client's bundle directory; a relative path is taken from the working directory.",
-        fallback: skein_shell::Fallback::Text(""),
-        notes: "Requires --fake-backends; absent, use the configured bundle.",
-    }],
+    table: &[
+        skein_shell::Setting {
+            name: "bundle",
+            value: "BUNDLE",
+            set: Set::Internal,
+            twin: None,
+            about: "The web client's bundle directory; a relative path is taken from the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; absent, use the configured bundle.",
+        },
+        skein_shell::Setting {
+            name: "scripts",
+            value: "FILE",
+            set: Set::Internal,
+            twin: None,
+            about: "A JSON script file; repeat to join in order, relative to the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; replaces generated model scripts for this start.",
+        },
+    ],
 };
 const INTERNAL: Command = Command {
     reach: Reach::Words(&[]),
@@ -88,9 +84,15 @@ pub(crate) const BOX: Command = Command {
             notes: "An isolated deployment under DATA/box/fake-backends, sharing the cache.",
         },
         Switch {
-            name: "no-tui",
+            name: "strict",
             set: Set::Internal,
-            line: "Run the box with no TUI in front, as on a pipe.",
+            line: "Fail a model turn no script answers.",
+            notes: "Requires --fake-backends.",
+        },
+        Switch {
+            name: "front",
+            set: Set::Internal,
+            line: "Run as temper box's child, on its parent's pipes.",
             notes: "",
         },
     ],
@@ -102,10 +104,10 @@ pub(crate) const BOX: Command = Command {
         &environment::XDG_RUNTIME_DIR,
         &environment::JOB,
     ],
-    notes: "In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
+    notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 29] = [
+const COMMANDS: [Command; 30] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -144,6 +146,8 @@ Refused, changing nothing, when the configuration directory already holds temper
     temper_worker_shell::PROGRAM_LOGIN,
     HELP,
     temper_engine_shell::commands::VERSIONS,
+    temper_engine_shell::commands::UPGRADE_CHECK,
+    temper_engine_shell::commands::UPGRADE_BACK,
     FETCH,
     PREPARE,
     RUN,
@@ -209,27 +213,21 @@ Refused, changing nothing, when the configuration directory already holds temper
     },
     FORGE_CHILD,
     Command {
-        reach: Reach::Words(&["internal", "tui"]),
-        set: Set::Internal,
-        forms: &["--box ADDRESS"],
-        line: "Run the TUI in front of the box that started it, signed in by the link the box hands it.",
-        arguments: &[Argument { shown: "ADDRESS", line: "The box's engine, http://HOST:PORT, on loopback." }],
-        settings: &[],
-        switches: &[],
-        variables: TUI_VARIABLES,
-        notes: "",
-    },
-    Command {
         reach: Reach::Words(&["fake", "llm"]),
         set: Set::Internal,
         forms: &[
-            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]",
-            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE]",
+            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]",
+            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]",
         ],
         line: "Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.",
         arguments: &[DIRECTORIES],
         settings: &[&fake::LLM_SETTINGS, &directories::SETTINGS],
-        switches: &[],
+        switches: &[Switch {
+            name: "strict",
+            set: Set::Internal,
+            line: "Fail a turn no script answers.",
+            notes: "",
+        }],
         variables: &[&environment::LISTEN_FDS],
         notes: "",
     },
@@ -237,8 +235,8 @@ Refused, changing nothing, when the configuration directory already holds temper
         reach: Reach::Words(&["fake", "forge"]),
         set: Set::Internal,
         forms: &[
-            "[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]",
-            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE]",
+            "[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]",
+            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]",
         ],
         line: "Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.",
         arguments: &[DIRECTORIES, FORGE],

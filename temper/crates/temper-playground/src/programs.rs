@@ -32,6 +32,11 @@ pub trait Harness: 'static {
     fn agent_settings() -> temper_service::settings::Agent {
         documents::agent()
     }
+    /// Override sets for a test phase's open; the playground keeps production's sets.
+    #[must_use]
+    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
+        None
+    }
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.
@@ -275,6 +280,9 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    if let Some(sets) = H::patch_sets() {
+        service.patch_sets(sets);
+    }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");
     Process::Service(Box::new(ServiceHost::new(service, H::Service::started(root, inherited), parameters)))

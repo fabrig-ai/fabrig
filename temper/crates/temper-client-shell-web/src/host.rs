@@ -14,6 +14,7 @@ use temper_client_view as view;
 
 /// One report of a turn, as the shell gives it to the host (client/web/journeys.md, 2).
 pub enum Report {
+    Push(root::pages::told::Report),
     Screen(skein_ui_web::screen::Report),
     Copied { token: u32, written: root::copy::Written },
     Start,
@@ -36,6 +37,7 @@ pub enum TabAct {
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub push: Vec<root::pages::told::Duty>,
     pub screen: Option<bool>,
     pub keep_look: Option<[u8; 4]>,
     pub tab: Vec<TabAct>,
@@ -73,11 +75,18 @@ pub struct Host {
     copy: Option<(u32, Box<[u8]>)>,
     keep_look: Option<[u8; 4]>,
     screen: Option<bool>,
+    push: Vec<root::pages::told::Duty>,
 }
 impl Host {
     #[must_use]
-    pub fn new(seed: u64, now: Time, wall: Wall, zone_minutes: i32, ways: view::sign_in::Ways) -> Self {
-        let client = limits::client();
+    pub fn new(
+        client: root::Limits,
+        seed: u64,
+        now: Time,
+        wall: Wall,
+        zone_minutes: i32,
+        ways: view::sign_in::Ways,
+    ) -> Self {
         assert!(limits::valid(&client), "web capacities are checked");
         let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
         let mut root = root::new(&client, seed);
@@ -98,6 +107,7 @@ impl Host {
             copy: None,
             keep_look: None,
             screen: None,
+            push: Vec::new(),
             navigate: None,
             replace: None,
         }
@@ -179,6 +189,7 @@ impl Host {
     }
     pub fn report(&mut self, report: Report) -> Duties {
         match report {
+            Report::Push(report) => self.event(Event::Push(report)),
             Report::Screen(report) => match report {
                 skein_ui_web::screen::Report::Left => self.event(Event::ScreenLeft),
                 skein_ui_web::screen::Report::Entered | skein_ui_web::screen::Report::Refused => {}
@@ -194,6 +205,7 @@ impl Host {
         }
         let (asked, writes, tab) = self.duties();
         Duties {
+            push: std::mem::take(&mut self.push),
             screen: self.screen.take(),
             keep_look: self.keep_look.take(),
             tab,
@@ -295,6 +307,7 @@ impl Host {
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Push(duty) => self.push.push(duty),
                 Request::Screen { on } => self.screen = Some(on),
                 Request::KeepLook { look } => self.keep_look = Some(records::encode_look(look)),
                 Request::Tab { tab: request } => tab.push(match request {
@@ -432,7 +445,7 @@ mod zone_tests {
     #[test]
     fn the_host_keeps_the_shells_zone_before_start() {
         for zone in [0_i32, 120_i32, -300_i32] {
-            let host = Host::new(11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
+            let host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
             assert_eq!(host.root.zone_minutes(), zone);
         }
     }
@@ -444,7 +457,7 @@ mod tab_tests {
 
     #[test]
     fn tab_requests_keep_their_order_and_do_not_depart() {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let to = b"https://issuer.example/sign-in".as_slice();
         for tab in [root::Tab::Open { provider: 17 }, root::Tab::Point { to: to.into() }, root::Tab::Close] {
             host.out.push(Request::Tab { tab });
@@ -464,7 +477,7 @@ mod tab_tests {
 
     #[test]
     fn a_tab_refusal_has_no_duty_yet() {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let duties = host.report(Report::TabRefused);
         assert!(duties.tab.is_empty());
         assert!(duties.asked.is_empty());

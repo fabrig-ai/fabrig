@@ -169,6 +169,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
     let (mut core, limits) = tree_core();
     let mut root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     root.wake.questions = questions;
+    root.wake.words = tasks::WakeRule::Never;
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([root]));
     let child = new_row(&core, 2, tasks::Funder::Task(1), None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Task(1), Box::new([child]));
@@ -247,8 +248,7 @@ fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
     }
 }
 
-fn arrive(core: &mut Core, limits: &Limits, kind: tasks::MessageKind) {
-    let from = if kind == tasks::MessageKind::Question { tasks::Party::Task(2) } else { tasks::Party::Person(1) };
+fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) {
     watch_outputs(
         core,
         limits,
@@ -343,11 +343,12 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
         Arrival::BeforeComplete,
         Arrival::BeforeWorkspace,
     ] {
-        for (name, parts, questions, kind, kept) in [
-            ("new question", true, true, tasks::MessageKind::Question, false),
-            ("non-waking question", true, false, tasks::MessageKind::Question, true),
-            ("person words", true, true, tasks::MessageKind::Words, false),
-            ("no parts", false, true, tasks::MessageKind::Question, false),
+        for (name, parts, questions, from, kind, kept) in [
+            ("new question", true, true, tasks::Party::Task(2), tasks::MessageKind::Question, false),
+            ("non-waking question", true, false, tasks::Party::Task(2), tasks::MessageKind::Question, false),
+            ("non-waking words", true, false, tasks::Party::Task(2), tasks::MessageKind::Words, true),
+            ("person words", true, true, tasks::Party::Person(1), tasks::MessageKind::Words, false),
+            ("no parts", false, true, tasks::Party::Task(2), tasks::MessageKind::Question, false),
         ] {
             let (mut core, limits) = preparing_parts(parts, questions);
             let prepared = core.contexts.get(&1).unwrap().clone();
@@ -375,7 +376,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             if arrival == Arrival::BeforeWorkspace {
                 watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
             }
-            arrive(&mut core, &limits, kind);
+            arrive(&mut core, &limits, from, kind);
             assert_eq!(core.contexts.contains_key(&1), kept, "{arrival:?}: {name}: context current");
             if !kept {
                 let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = core.tasks.task(1).unwrap().phase else {
@@ -453,4 +454,116 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             assert_eq!(row.inbox.len(), 1, "{arrival:?}: kept word keeps its place");
         }
     }
+}
+
+#[test]
+fn overlay_run_preparation_selects_default_then_overlay_parts() {
+    let (mut core, mut limits) = make_tree();
+    limits.run_bytes = 2048;
+    let charter = core.current.test_charter_mut(1);
+    charter.policy.resume = false;
+    charter.policy.instructions = b"S".as_slice().into();
+    charter.parts = Box::new([part(Reasons::FIRST, b"F")]);
+    let overlay = crate::settings::Overlay {
+        instructions: b"O".as_slice().into(),
+        parts: Box::new([part(Reasons::FIRST, b"OF"), part(Reasons::RESULT, b"skip")]),
+        ..crate::settings::Overlay::empty()
+    };
+    let items = [crate::settings::Item {
+        setting: crate::settings::Setting::Charter(1),
+        edit: crate::settings::Edit::Set(crate::settings::Value::Overlay(Box::new(overlay))),
+    }];
+    crate::settings::check_change(&core.current, &items, &core.settings, &core.connectors, &limits).unwrap();
+    drop(crate::settings::apply(&mut core.current, &items, 1));
+    charters::rebuild(&mut core.current, &limits);
+    // A skipped question comes first, so the run-inbox cap is applied after filtering.
+    limits.tasks.run_inbox = 1;
+    for (number, from, kind) in [
+        (1, tasks::Party::Task(2), tasks::MessageKind::Question),
+        (2, tasks::Party::Person(1), tasks::MessageKind::Words),
+    ] {
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::Message {
+                reply_to: ReplyTo::new(Token::new(number)),
+                project: 1,
+                operation: tasks::Message {
+                    task: 1,
+                    word: tasks::Word {
+                        number,
+                        from,
+                        kind,
+                        words: b"person".as_slice().into(),
+                        at: Wall::EPOCH,
+                        hits: 1,
+                        eligible: true,
+                    },
+                },
+            },
+        );
+    }
+    runs::run_choice::host(&mut core, &limits, Token::new(7), &[b"scripted"]);
+    watch_outputs(&mut core, &limits, Event::Account(accounts::Event::Want));
+    watch_outputs(
+        &mut core,
+        &limits,
+        Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
+            form: Form::Credential(Scheme::Bearer),
+            account: 1,
+            generation: 1,
+            valid: Duration::from_secs(60),
+        })),
+    );
+    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
+    core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
+    core.begin_transcript(1, 0, None);
+    watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+    let attempt = core.workspace_flight(1).unwrap().1;
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            holds: Box::new([]),
+            writes: Some(Box::new([])),
+            credentials: Box::new([]),
+            workspace: None,
+        },
+    );
+    let mut prepared = None;
+    for request in &out {
+        if let Request::Now(now) = request
+            && let Now::RunPrepared { run, messages, .. } = now.as_ref()
+        {
+            prepared = Some((run, messages));
+        }
+    }
+    let (run, messages) = prepared.expect("prepared run");
+    assert_eq!(run.policy.instructions.as_ref(), b"S\n\nO\n\nF\n\nOF");
+    let mut numbers = List::with_capacity(limits.tasks.run_inbox);
+    for word in messages {
+        numbers.push(word.number).unwrap();
+    }
+    assert_eq!(numbers.as_slice(), [2]);
+    let proof = core.proofs.get(&1).unwrap();
+    assert_eq!(proof.outstanding.as_ref(), [2]);
+    assert_eq!(proof.offered, Some(2));
+    let mut work = Queue::uncapped();
+    let reasons = core.contexts.get(&1).unwrap().reasons;
+    preparation::route_claim_prepared(
+        &mut core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+        &mut work,
+        1,
+        attempt,
+        run.budget,
+        Box::new([]),
+    );
+    let Some(Work::Event(Event::Tasks(tasks::Event::Claim { offered, reasons: claimed, .. }))) = work.pop() else {
+        panic!("prepared claim");
+    };
+    assert_eq!(claimed, reasons);
+    assert_eq!(offered, Reasons::EMPTY);
 }

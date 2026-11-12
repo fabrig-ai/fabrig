@@ -40,7 +40,7 @@
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
   `make_repository`, `MakeRepository`, `dismiss_making`, `DismissMaking`,
-  `dismiss`, `Dismiss`, `looked`, `Looked`,
+  `dismiss`, `Dismiss`, `looked`, `Looked`, `set_draft`, `SetDraft`,
   `start_playground` and `end_playground`, the last two with no fields
   (below). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -186,6 +186,66 @@
   outcome: *looked*, `looked`, no fields, once the row has committed;
   *forge refused*, `too large`, the family's bound reached; or *unknown*,
   no longer held, which the subject `status` answers.
+- **`AddDevice`:** of the party's own scope, from a person
+  (`../../domain/forge/attention.md`, 7.1): `endpoint`, 1 to 1,024
+  bytes; `p256dh`, 65 bytes; `auth`, 16 bytes; `label`, 1 to 60 bytes of
+  UTF-8. The browser takes them from its push subscription, the keys
+  as `PushSubscription.getKey` gives them; `temper ctl push add` from a
+  subscription's JSON (`../ctl/tools.md`, 3). Its outcome: *added*,
+  `device_added`, the device's number (u32), once the row has
+  committed; *device refused*, `device_refused`, `DeviceRefusal`:
+  `person` (the party is a service), `off` (this deployment doesn't
+  push), `service` (the endpoint isn't a URL of one of the deployment's
+  push services), `malformed` (a key or the label) or `too_many`; or
+  *unknown*, no longer held, which the subject `devices` answers.
+- **`RemoveDevice`:** of the party's own scope
+  (`../../domain/forge/attention.md`, 7.1): `number`, u32. Its outcome:
+  *removed*, `device_removed`, no fields, once the row's erasure has
+  committed; *device refused*, `unknown`, the party holds no such
+  device; or *unknown*, no longer held.
+
+  Both requests' variants follow `FollowAct`'s, the last, in the
+  order above, and their outcomes follow the last outcome's, so the
+  records already on the wire keep their bytes.
+- **`SetDraft`:** of the project it names, from any party with a role
+  there, as `SetAway` (`../../domain/forge/drafts.md`, 2): `project`, u32;
+  `repository`, an option of `DraftRepository`: `owner` and `name`, at
+  most 1024 bytes each, none for the project's home; `path`, at most 1024
+  bytes; and `change`, `DraftChange`: `ready`, `ReadyDraft`, with `chat`,
+  an optional u64; `not_ready`, no fields; or `started`, `StartedDraft`,
+  with `goal`, u64. Appended after the family's last request, so that
+  every request before it keeps its tag. Its outcome: *drafted*,
+  `drafted`, the row as it stands once committed, a `LandedDraft`
+  (*A project's landed drafts*, below); *draft refused*,
+  `draft_refused`, `DraftRefusal`: `no_repository`, `path`, `missing`,
+  `not_a_file`, `unreachable`, `unknown` or `full`, as the domain names
+  them; or *unknown*, no longer held, which the subject `drafts`
+  answers. Both outcomes are appended after the family's last.
+- **`FileFinding`:** of the project it names, from any party with a role
+  there (`../../domain/areas.md`, section 7): `project`, u32; `kind`, a
+  `FindingKind`, `qa`, `flake`, `red`, `review` or `feedback`;
+  `severity`, a `Severity`, `low`, `medium` or `high`; `area`, option,
+  an area's name, at most 32 bytes; `title`, 1 to 200 bytes; `body`, at
+  most 4,096 bytes (`../../domain/findings.md`, section 2). Its outcome:
+  *filed*, `filed`, `Filed { number }`, once the row has committed;
+  *finding refused*, `finding_refused`, a `FindingRefusal` (below); or
+  *unknown*, no longer held, which the subject `findings` answers.
+- **`HandFinding`:** of the project it names, from the finding's holder
+  or a project owner (`../../domain/areas.md`, section 7): `project`,
+  u32; `number`, u32; `area`, at most 32 bytes; `why`, 1 to 200 bytes.
+  Its outcome: *handed*, `handed`, no fields, once committed; *finding
+  refused*; or *unknown*.
+- **`TriageFinding`:** of the project it names, from the same: `project`,
+  u32; `number`, u32; `act`, a `Triage`: `route`, the goal's task (u64);
+  `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
+  (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
+  `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+- **`FindingRefusal`:** `no_area`, the project's areas' names, at most
+  16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
+  `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
+  route's task not a live goal of the project; `ended`, the finding
+  already `routed` or `dropped`; or `words`, a field past its bounds or
+  not UTF-8, naming it.
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -272,7 +332,10 @@
   no row of the `forges` watch can say so (`deployment.md`), and a wait
   for a host reads it as the fact of a box (`../pages/accounts.md`, 2); and
   `program_login` (optional bytes, at most 8,192), *the printed command*
-  below. On the wire it is `Reading`'s `deployment`, beside `playground`.
+  below; and `push` (optional bytes, 65), the public half of the
+  deployment's VAPID key, which a browser subscribes with, none while
+  push is off (`../../domain/forge/attention.md`, 7.3), the record's last
+  field. On the wire it is `Reading`'s `deployment`, beside `playground`.
 - **The printed command:** what the pages print works when pasted. Where
   the deployment's one worker is on the engine's machine
   (`../../protocol/configuration/README.md`, section 1, the standalone shape),
@@ -366,12 +429,12 @@
     head: none, pending, approved, or changes asked;
   - its repairs, its resolutions and its updates, each used of its
     limit (u32 each);
-  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none, foreman
+  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none
     or up; the questions taken, used of its limit (u32 each); and its
     open questions, at most 8 in the order taken, each with its asker's
     task (u64) and the question's number there (u32), the first line of
     its words (at most 256 bytes, cut on a UTF-8 boundary and marked),
-    and where it stands: taken, with its foreman (its task, u64), asked
+    and where it stands: taken, asked
     of the change's requester, or answered and held for the change's
     dependencies. A change past its bound
     shows the question that held it among them, as its hold says.
@@ -466,6 +529,14 @@
   side watches it once,* for the session, as it does `dismissed`, a watch
   refused or ended kept as such, with no rows: then the switch draws off and
   its act is not offered.
+- **A person's devices, the subject `devices`:** of the party's own
+  scope, with no fields, its window unused; on the wire `Watching`'s
+  `devices`, after its last variant, one subject for the deployment and
+  each watcher's own rows, as `away`. Its document, `Devices`
+  (`../../domain/forge/attention.md`, 7.1): `rows`, at most 8, each
+  `DeviceRow { number, label, at, endpoint }`, in number order. *The
+  client watches it* while Telling you is open (`../pages/told.md`), and
+  `temper ctl push list` reads it (`../ctl/tools.md`, 2).
 - **What was decided for a person, the subject `decided`:** of the project's
   scope, on the wire `Watching`'s `decided`, `DecidedSubject { project }`, its
   window unused. Its document, `Decisions` (`../../domain/forge/attention.md`, 5):
@@ -479,6 +550,31 @@
   project while a page that shows it is open, at most `DECIDED_PROJECTS`, 4,
   at once (`../pages/home.md`, 1, *Decided for you*), and decodes each reach by the kit's
   `reach_from`.
+- **A project's findings, the subject `findings`:** of the project's
+  scope, for a party with a role there; on the wire `Watching`'s
+  `findings`, `FindingsSubject { project, state, mine }`, `state` an
+  option of `new`, `routed`, `backlog` or `dropped`, `mine` whether only
+  the reader's (`../../domain/areas.md`, section 5). The root makes its
+  document, since holders read the core (`../../domain/areas.md`,
+  section 4). Its document, `Findings`: `project`; `rows`, at most 128,
+  newest first, each `FindingRow { number, kind, severity, area, state,
+  title, holder, at, why, hander }`, `holder` a `Holder`, `at` when it was
+  filed, `why` the last hand-off's, option, and `hander` who made that
+  hand-off, a task or a party as `filer` is, option, present with `why`
+  (`../../domain/findings.md`, 2; `../pages/needs-you.md`, 1); `areas`, at most 16, each
+  `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
+  `holder` an option of `Holder`, none where its owner does not stand;
+  `triager`, its owner, option, and its holder; and `cut`, whether rows
+  were left out. Marked at each committed decision that writes one of
+  the project's findings or saves its kind 12 or 13; a holder that
+  stops standing shows at the next mark. *Needs you watches it* with
+  `mine` and `state` `new` for each project the person is in
+  (`../pages/needs-you.md`, 1).
+- **One finding, the read `Finding`:** `FindingRead { project, number }`,
+  in the project's scope by a party with a role there. Its answer,
+  `FindingAnswer`: its `FindingRow`, its `body`, its `filer`, a task or a
+  party, its `goal`, option, the task it was routed to, and its
+  `reason`, option, a drop's; or `no_finding`.
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
@@ -525,8 +621,13 @@
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
-    landing's, 32 bytes; and `default_branch`, whether the branch the
-    landing moved is its repository's default branch;
+    landing's, 32 bytes; `default_branch`, whether the branch the
+    landing moved is its repository's default branch; and `signed`, at
+    most 8, the landing log's sign-offs of the change, in its order, each
+    a `ChangesSigned`: `party`; `head`, the commit their review named, 32
+    bytes; and `at`, when they reviewed, nanoseconds since the epoch
+    (`../../domain/forge/change/gates.md`, 2, *Sign-offs kept at
+    landing*);
   - `landed_more`, what `landed` cut;
   - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
     set, at most `forge.changes_landed`, newest first, so that landings
@@ -537,6 +638,22 @@
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
   merge.
+- **A project's landed drafts, the subject `drafts`:** of the project's
+  scope, for a party with a role there, its window unused
+  (`../../domain/forge/drafts.md`, 3); on the wire `Watching`'s `drafts`,
+  `DraftsSubject`: `project`, appended after the family's last subject.
+  Work watches it while open, as it does `changes` (`../pages/work.md`,
+  1). Its document, `DraftsPanel`: `project`; and `drafts`, at most 64,
+  newest `at` first, then the lower path, each a `LandedDraft`:
+  - `forge`, u16; `owner` and `name`, its repository's, at most 1024
+    bytes each; `path`, at most 1024 bytes;
+  - `branch`, at most 1024 bytes, and `commit`, at most 64 bytes, the
+    commit's id as the forge names it;
+  - `title`, at most 200 bytes, empty with none;
+  - `writer`, the party, u64; `at`, nanoseconds since the epoch;
+  - `chat` and `goal`, optional u64s; `ready`, bool.
+
+  It is marked at each row written or erased.
 - **What changed since the person last looked, the subject `status`:** of
   the project's scope, for a party with a role there, its window unused;
   on the wire `Watching`'s `status`, `StatusSubject`: `project`. `Home`
@@ -571,10 +688,23 @@
   - the approval it waits on: `scope`, 0 for the deployment's rules or the
     project's number; `rule`; `role`; `required`; `counted`, the people
     counted so far;
-  - `behind`, the changes waiting behind it in its landing branch's order;
-    `whole`, whether its reviews were read whole;
+  - `sets`, at most 6, each an `ApprovalSet`: `number`, u8, and `name`, at
+    most 40 bytes, the sets of the approval's rule the change touches;
+  - `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - who can still sign (`../../domain/forge/change/questions.md`, 2, *Who
+    can still sign*): `signed`, at most 8, the people counted at the head;
+    `can_sign`, at most 8, the people who can still give the next
+    sign-off, the watcher first where among them; and `can_sign_more`,
+    u32, how many more can past those. Each is an `ApprovalPerson`:
+    `person`, u64, the deployment's person number, and `name`, at most 64
+    bytes, empty where none is known;
+  - `size`, option, last, `ApprovalSize`: the pull request's size at the
+    head its reviews were read at, as the forge counts it
+    (`../../domain/forge/change/questions.md`, 2): `files`, `additions`
+    and `deletions`, u32 each, a count past 4294967295 kept at it; and
+    `cut`, bool, whether one was; none where the forge gave none;
 
   then `more`, the rows past the bound. Times are nanoseconds since the
   epoch. Every client of the party's watches it once, for the session (`../pages/needs-you.md`, 1, *What the client
@@ -619,21 +749,32 @@
   - `project`; `ways`, at most 4, the stock's in their order, each a
     `StockWay`: `name`, at most 64 bytes; `headline`, at most 120, How
     work runs' heading while the project runs it; `line`, at most 256; `path`, its
-    path over the project; `items`, at most 8, each a `ProposalItem`, what
+    path over the project; `items`, at most 10, each a `ProposalItem`, what
     "Use this" sends; `delegation`, whether the project's policy lacks the
-    delegation the way needs (13.10 there);
+    delegation the way needs (13.10 there); `roles`, at most 4, the
+    standing roles it brings (`../../protocol/configuration/settings.md`,
+    8), each a `WayRole`: `charter`, u32; `words`, at most 480 bytes;
+    `budget`, u64, a week's; and `running`, whether the project runs a
+    live standing role by that charter, which "Use this" starts where
+    not;
   - `current`, option, the index of the way the project runs; `own`, the
     project's own path; `words`, option, the project's words, kind 10, a
     `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480
-    (`../../protocol/configuration/settings.md`, 2); `may_change`, whether the
-    reader may change the project's settings, an owner of it.
+    (`../../protocol/configuration/settings.md`, 2); `rules`, a `PathRules`,
+    the project's rules by path (`../../domain/forge/change/branch-path.md`,
+    *Rules by path*): `rows`, at most 9, each a `PathRule`, `paths` at most
+    256 bytes, `review`, `sign_off` and `lands` at most 64 each, an empty
+    `review` or `sign_off` for none; and `note`, at most 160, empty for
+    none; no rows where the project holds no rule by path; `may_change`,
+    whether the reader may change the project's settings, an owner of it.
 
   Marked at each committed change of settings, at each adoption into the
-  project or removal from it, and at a change of the reader's role. A
+  project or removal from it, and at a change of any person's role in the
+  project, since how many hold a role words its sign-offs. A
   path's bounds are set so that the worst document the root makes, the
   stock's ways and the project's own path, each at 24 stops of the
-  largest agent's card, fits one decision's delivery in the smallest
-  profile.
+  largest agent's card, with its rules by path at every bound, fits one
+  decision's delivery in the smallest profile.
 - **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
   512 bytes, a `view` block's line (`../pages/chat/conversation.md`, 3), read in the project's scope by a
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,

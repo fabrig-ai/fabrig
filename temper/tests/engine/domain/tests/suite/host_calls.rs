@@ -8,6 +8,91 @@ use temper_engine_domain::{self as engine, Delivery};
 use temper_engine_domain_world::direct::Driver;
 
 #[test]
+fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
+    use super::findings as fixture;
+    use temper_engine_domain_forge::{self as forge, settings::AreaOwner};
+    let mut bounds = fixture::limits();
+    bounds.call_records = 16;
+    let (mut driver, run) = fixture::driver_with_limits(&bounds);
+    assert_eq!(driver.root.tasks().task(run.task).unwrap().label, 3);
+    fixture::settings(&mut driver, Some(fixture::area(AreaOwner::Party(1))), Some(AreaOwner::Task(run.task)));
+    let file = br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"reproduce"}"#;
+    driver.protocol.defer_render = true;
+    let before = driver.transactions.len();
+    let first = decoded_task_call(&mut driver, &run, 31, b"finding", file);
+    assert_eq!(fixture::row(&driver, 1).filer, forge::Filer::Task(run.task));
+    let writes = driver.transactions[before..].iter().find(|writes| writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Finding(_))))).expect("finding decision");
+    assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Finding(_), .. }))), "answer shares the finding's decision");
+    assert!(
+        writes.iter().any(|write| matches!(
+            write,
+            engine::Write::Save(engine::Record::Core(jig_domain_core::Record::Core(
+                jig_domain_core::CoreRecord::Call(_)
+            )))
+        )),
+        "core named call shares the decision"
+    );
+    driver.protocol.defer_render = false;
+    driver.protocol.pending_renders.clear();
+    fixture::restart(&mut driver, &run);
+    let replay = decoded_task_call(&mut driver, &run, 31, b"finding", file);
+    assert_eq!(replay, first, "unsettled answer survives restart under its name");
+    let second = decoded_task_call(&mut driver, &run, 32, b"finding", file);
+    assert!(
+        matches!(second, engine::CallAnswer::Finding(ref answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge::FindingReply { number: 2, .. })))
+    );
+    let applied = driver.store.applied;
+    let listed = decoded_task_call(&mut driver, &run, 33, b"finding", br#"{"act":"list","mine":true}"#);
+    assert_eq!(driver.store.applied, applied, "list is a read");
+    let engine::CallAnswer::Finding(list) = listed else { panic!("finding list") };
+    let engine::FindingToolAnswer::List(list) = *list else { panic!("list snapshot") };
+    assert_eq!(list.rows.iter().map(|row| row.number).collect::<Vec<_>>(), [2, 1]);
+    assert_eq!(list.rows[0].holder, forge::Holder::Task(run.task));
+    decoded_task_call(
+        &mut driver,
+        &run,
+        34,
+        b"finding",
+        br#"{"act":"hand","number":1,"area":"tests","why":"test scope"}"#,
+    );
+    assert_eq!(fixture::row(&driver, 1).area.as_deref(), Some(b"tests".as_slice()));
+    assert_eq!(fixture::row(&driver, 1).hander, Some(forge::Filer::Task(run.task)));
+    let denied =
+        decoded_task_call(&mut driver, &run, 35, b"finding", br#"{"act":"drop","number":1,"reason":"not mine"}"#);
+    assert!(temper_engine_smith::answer(&denied).error(), "a task cannot triage the party's finding");
+    decoded_task_call(&mut driver, &run, 36, b"finding", br#"{"act":"backlog","number":2}"#);
+    assert_eq!(fixture::row(&driver, 2).state, forge::FindingState::Backlog);
+    decoded_task_call(&mut driver, &run, 37, b"finding", br#"{"act":"drop","number":2,"reason":"duplicate"}"#);
+    assert_eq!(fixture::row(&driver, 2).reason.as_deref(), Some(b"duplicate".as_slice()));
+    let applied = driver.store.applied;
+    let shown = decoded_task_call(&mut driver, &run, 38, b"finding", br#"{"act":"show","number":2}"#);
+    assert_eq!(driver.store.applied, applied, "show is a read");
+    assert!(String::from_utf8_lossy(temper_engine_smith::answer(&shown).text()).contains("reason: duplicate"));
+    let settled = driver.store.rows.clone();
+    assert_eq!(decoded_task_call(&mut driver, &run, 31, b"finding", file), first);
+    assert_eq!(driver.store.rows, settled, "settled replay files no second finding");
+    decoded_task_call(&mut driver, &run, 39, b"finding", file);
+    let ask = temper_engine_domain_world::walking::goal_from(
+        driver.chat_ask(1, b"fix finding"),
+        jig_domain_people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 1, deadline: None, priority: 1 },
+    );
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::default(),
+        reply_to: skein_lib::ReplyTo::new(Token::new(800)),
+        sign_in: driver.session(),
+        key: [80; 16],
+        ask,
+    }));
+    driver.settle();
+    let goal = driver.root.tasks().view_tasks().iter().find(|task| task.number != run.task).expect("live goal").number;
+    let input = format!(r#"{{"act":"route","number":3,"goal":{goal}}}"#);
+    decoded_task_call(&mut driver, &run, 40, b"finding", input.as_bytes());
+    assert_eq!(fixture::row(&driver, 3).goal, Some(goal));
+    assert_eq!(fixture::row(&driver, 3).state, forge::FindingState::Routed);
+}
+
+#[test]
 fn an_undecodable_call_is_answered_as_an_error_with_no_commit() {
     let (mut driver, run) = Driver::chat();
     let (applied, rows) = (driver.store.applied, driver.store.rows.clone());
@@ -132,7 +217,10 @@ fn decoded_task_call(
     } else {
         driver.settle();
     }
-    driver.answered(call).expect("task call answered").clone()
+    driver
+        .answered(call)
+        .unwrap_or_else(|| panic!("task call {call} not answered: {:?}", driver.delivered.last()))
+        .clone()
 }
 
 fn coordinator() -> (Driver, engine::Assignment) {
@@ -569,20 +657,20 @@ fn reference_goal_leaves_ci_selection_to_its_closer() {
     let goal = reference_result_wake(&mut world, &goal);
     assert_no_coordinator_close_out(&goal);
     let instructions = String::from_utf8_lossy(&goal.run.policy.instructions);
-    assert!(instructions.contains("On a change that failed, read why"));
-    assert!(instructions.contains("When your closer escalates"));
-    assert!(instructions.contains("your closer waits for it and lands the new head"));
+    assert!(instructions.contains("**A failure:** read its report."));
+    assert!(instructions.contains("**Your closer's escalation**"));
+    assert!(instructions.contains("the closer waits for it and lands the new head"));
     world.close();
 }
 
 fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> engine::Assignment {
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Report the design", Box::new([]));
-    delegate.executor = tasks::Executor::Agent { charter: 7 };
+    delegate.executor = tasks::Executor::Agent { charter: 2 };
     delegate.authority.tools = tasks::Tools(0);
     delegate.authority.budget.spend = 10_000;
     let answer = world.scripted_call(goal, 90, engine::Tool::Delegate { batch: Box::new([delegate]) });
     assert!(matches!(answer, engine::CallAnswer::Delegated(_)), "{answer:?}");
-    let reporter = person_assignment(world, 7, None);
+    let reporter = person_assignment(world, 2, None);
     person_park(world, goal);
     person_end(
         world,
@@ -602,6 +690,55 @@ fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> 
 
 // temper/docs/design/protocol/configuration/reference.md: delivered rules and retained
 // evidence stay in producer reports; scripted choices do not prove model compliance.
+pub(super) fn scripted_task_read(
+    world: &mut PersonWorld,
+    run: &engine::Assignment,
+    number: u32,
+    task: u64,
+    result: bool,
+) -> String {
+    let input = if result { format!(r#"{{"task":{task},"field":"result"}}"#) } else { format!(r#"{{"task":{task}}}"#) };
+    let call = person_tool(run, number, b"read_task", input.as_bytes());
+    let answer = world.scripted_call(run, u64::from(number), call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, 4096);
+    String::from_utf8(rendered.text().to_vec()).expect("rendered task read")
+}
+
+#[test]
+fn a_goal_reads_its_live_changes_result_as_its_specification() {
+    let (mut world, goal) = reference_person_world("none");
+    let spec = "Explain live result reads.";
+    let (change, _) = implementation_change(&mut world, &goal, 5, spec, 2);
+    let input = format!(r#"{{"task":{change},"field":"result"}}"#);
+    let call = person_tool(&goal, 6, b"read_task", input.as_bytes());
+    let answer = world.scripted_call(&goal, 6, call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, 4096);
+    let text = String::from_utf8_lossy(rendered.text());
+    assert!(!rendered.error(), "{text}");
+    assert!(text.starts_with(&format!("Task {change}, spec revision ")), "{text}");
+    assert!(text.contains("\nState: active\n"), "{text}");
+    assert!(text.contains("\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.\nWords from 0:\n"), "{text}");
+    assert!(text.contains(spec), "{text}");
+    world.close();
+}
+
+#[test]
+fn a_goal_reads_its_changes_running_and_retained_coding_agent() {
+    let (mut world, goal) = reference_person_world("none");
+    let spec = "Add the descendant task read explanation.";
+    let (change, producer) = implementation_change(&mut world, &goal, 5, spec, 2);
+    let text = scripted_task_read(&mut world, &goal, 6, producer.task, false);
+    assert!(text.contains(spec), "{text}");
+    assert!(text.contains("active"), "{text}");
+    let report = "Done: descendant read covered.\n## Left\n- no further work\n";
+    implementation_land(&mut world, change, &producer, report.as_bytes());
+    assert!(world.root.tasks().task(producer.task).is_none(), "producer retained outside the core");
+    let (read, _) = implementation_report(&mut world, &goal, producer.task);
+    assert_eq!(read, report);
+    settle_implementation(&mut world);
+    world.close();
+}
+
 #[test]
 fn producers_keep_unresolved_acceptance_evidence_in_left() {
     for covered in [false, true] {
@@ -629,7 +766,6 @@ fn help_trimming_requires_existing_fact_preservation_evidence() {
     for retained in [false, true] {
         let (mut world, goal) = reference_person_world("none");
         assert_no_coordinator_close_out(&goal);
-        assert_help_preservation_instructions(&goal);
         let spec = "Trim change help to add the early-start explanation and resolving pointer. \
                     Existing facts at risk: read_task supplies the answer number. Require a \
                     before/after fact mapping and named retention assertion alongside addition checks.";
@@ -676,24 +812,10 @@ fn help_trimming_report(retained: bool) -> String {
 fn assert_help_preservation_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
     for rule in [
-        "existing facts at risk",
-        "before/after fact mapping",
-        "named retention assertions",
-        "Passing addition tests and page bounds cannot settle missing preservation evidence",
-        "unresolved acceptance",
+        "keep the requested change and unrelated base content",
+        "restore losses a review names",
+        "never remove content to pass checks",
     ] {
-        assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
-    }
-    let rules: &[&str] = match run.charter {
-        2 => &[
-            "read_task supplies the answer number",
-            "report missing preservation evidence as unresolved acceptance",
-            "Left",
-        ],
-        5 => &["identify existing facts at risk and require a before/after fact mapping"],
-        other => panic!("help preservation charter {other}"),
-    };
-    for rule in rules {
         assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
     }
 }
@@ -739,16 +861,7 @@ fn row_timing_report(measured: bool) -> String {
 
 fn assert_row_timing_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    for rule in [
-        "each requested deliverable",
-        "each requested row's measured timing",
-        "suite wall time and an arithmetic average cannot establish individual row costs",
-        "An unmet requested deliverable remains unfinished",
-        "passing CI or a status-file entry",
-        "changing the requested scope requires the person's decision",
-        "report the missing measurements as unfinished",
-        "Left",
-    ] {
+    for rule in ["what you don't know is unknown", "## Left"] {
         assert!(instructions.contains(rule), "producer requested measurements require: {rule}");
     }
 }
@@ -773,16 +886,7 @@ fn acceptance_report(covered: bool) -> String {
 
 fn assert_acceptance_instructions(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    for rule in [
-        "assertions added or extended",
-        "existing coverage",
-        "checks actually run",
-        "Page bounds and link validity",
-        "explanation or pointer",
-        "map each acceptance item to a named assertion at the lowest tier",
-        "add or extend tests when existing assertions do not cover it",
-        "Left",
-    ] {
+    for rule in ["**Done** is your acceptance", "**A new test must bite:**", "## Left"] {
         assert!(instructions.contains(rule), "producer acceptance evidence requires: {rule}");
     }
 }
@@ -992,7 +1096,13 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
     let mut charters = defaults.charters.to_vec();
     for item in reference_person_settings() {
         match item.edit {
-            Edit::Set(Value::Charter(mut charter)) => {
+            Edit::Set(Value::Overlay(overlay)) => {
+                let stock = defaults
+                    .charters
+                    .iter()
+                    .find(|charter| item.setting == jig_domain_core::settings::Setting::Charter(charter.number))
+                    .expect("stock charter");
+                let mut charter = jig_domain_core::settings::overlaid(stock, &overlay);
                 // Scripted turns use the fake worker's model and no checkout document reads.
                 charter.policy.model = model.clone();
                 charter.spend = defaults.charters[0].spend;
@@ -1001,7 +1111,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
                 }
                 charter.documents = Box::new([]);
                 charters.retain(|old| old.number != charter.number);
-                charters.push(*charter);
+                charters.push(charter);
             }
             Edit::Set(Value::Template(template)) => {
                 let mut templates = defaults.templates.to_vec();
@@ -1070,10 +1180,7 @@ fn reference_executor_authority(authority: &mut jig_domain_authority::Authority)
         .filter(|kind| {
             matches!(
                 kind,
-                Executor::Charter(2 | 4 | 5 | 6 | 7)
-                    | Executor::Procedure(2..=4)
-                    | Executor::Job(3)
-                    | Executor::Role(0)
+                Executor::Charter(2 | 4 | 5) | Executor::Procedure(2..=4) | Executor::Job(3) | Executor::Role(0)
             )
         })
         .collect();
@@ -1110,9 +1217,9 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
     let mut defaults = reference_person_defaults();
     let configured = defaults.policies.get(&1).expect("policy").clone();
     reference_missing_role(&mut defaults, missing);
-    // The reference coordinator instruction text plus its assignment carriers and 25% headroom.
+    // The stock goal's full policy and parts under the reference overlays.
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
-    limits.journal.run_bytes = 26_000;
+    limits.journal.run_bytes = 65_536;
     let mut world = PersonWorld::configured_stock_limits(&defaults, &crate::stock::box_model(), &limits);
     world.adopt();
     if missing == "existing" {
@@ -1335,7 +1442,7 @@ fn person_question_round_trip(world: &mut PersonWorld, goal: &engine::Assignment
 }
 
 fn reference_person_escalation(world: &mut PersonWorld, goal: &engine::Assignment) -> (engine::Assignment, u64, u64) {
-    let call = person_tool(goal, 70, b"change", br#"{"words":"Resolve the person-only choice","questions":"foreman"}"#);
+    let call = person_tool(goal, 70, b"change", br#"{"words":"Resolve the person-only choice","questions":"up"}"#);
     let engine::CallAnswer::Delegated(made) = world.scripted_call(goal, 70, call.tool) else {
         panic!("change created")
     };
@@ -1349,8 +1456,6 @@ fn reference_person_escalation(world: &mut PersonWorld, goal: &engine::Assignmen
         panic!("producer asks")
     };
     person_park(world, &producer);
-    let foreman = person_assignment(world, 6, None);
-    world.foreman_verdict(&foreman, 3, b"Only the person can choose.");
     for _ in 0..200 {
         world.tick();
         if let Some(question) = world
@@ -1363,14 +1468,17 @@ fn reference_person_escalation(world: &mut PersonWorld, goal: &engine::Assignmen
             .find(|word| word.from == tasks::Party::Task(change) && word.kind == tasks::MessageKind::Question)
             && world.store.pending.is_empty()
         {
-            assert!(String::from_utf8_lossy(&question.words).contains("Only the person can choose."));
+            assert!(
+                String::from_utf8_lossy(&question.words)
+                    .contains("Choose 1: keep the design, or 2: widen it. Recommend 1.")
+            );
             assert!(
                 world.root.tasks().task(producer.task).expect("producer").questions.iter().any(|q| q.number == message)
             );
             return (producer, change, question.number);
         }
     }
-    panic!("foreman escalates to coordinator: {:?}", world.root.tasks().task(goal.task).expect("goal").inbox);
+    panic!("question reaches coordinator: {:?}", world.root.tasks().task(goal.task).expect("goal").inbox);
 }
 
 fn person_assignment(world: &mut PersonWorld, charter: u32, after: Option<&engine::Assignment>) -> engine::Assignment {
@@ -1687,11 +1795,10 @@ fn a_goal_reads_a_whole_design_result_in_practical_pages() {
 // temper/docs/design/protocol/configuration/reference.md: only the closer closes the goal.
 fn assert_no_coordinator_close_out(run: &engine::Assignment) {
     let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
-    let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";
-    assert_eq!(instructions.matches(prohibition).count(), 1);
-    let rest = instructions.replace(prohibition, "");
-    for removed in ["read_task", "read_job", "full or docs", "close-out", "check each acceptance item"] {
-        assert!(!rest.contains(removed), "coordinator retains removed duty: {removed}");
+    assert!(instructions.contains("No agent merges or lands."));
+    assert!(instructions.contains("A goal never finishes itself: its closer lands g and ends it."));
+    for removed in ["read_job", "full or docs", "check each acceptance item"] {
+        assert!(!instructions.contains(removed), "coordinator retains removed duty: {removed}");
     }
 }
 

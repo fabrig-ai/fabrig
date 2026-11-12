@@ -4,8 +4,8 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use temper_worker_domain_checkout::git;
 
-// Kept layout reaches its workspaces open after five completions; fresh layout makes it after four.
-const KEPT_BEFORE_OPEN: u8 = 6;
+// Completions before opening kept workspaces or making fresh ones.
+const KEPT_BEFORE_OPEN: u8 = 8;
 const FRESH_BEFORE_WORKSPACES: u8 = 5;
 
 fn directory(dir: Fd, name: &[u8]) -> Op {
@@ -15,7 +15,7 @@ fn open(path: &[u8], how: OpenHow) -> Op {
     Op::Open { root: Fd::new(3), path: Box::from(path), how }
 }
 fn rename(from_dir: Fd, from: &[u8], to: &[u8]) -> Op {
-    Op::Rename { from_dir, from: Box::from(from), to_dir: fixtures::TRASH, to: Box::from(to), no_replace: false }
+    Op::Rename { from_dir, from: Box::from(from), to_dir: fixtures::TRASH, to: Box::from(to), no_replace: true }
 }
 fn remove(dir: Fd, name: &[u8], directory: bool) -> Op {
     Op::Remove { dir, name: Box::from(name), directory }
@@ -42,26 +42,49 @@ fn listed(component: &mut fixtures::Started, name: &[u8]) {
 }
 
 #[test]
-fn the_start_moves_workspaces_and_home_into_trash_and_makes_them_afresh() {
-    let mut component = fixtures::Started::version_checked();
-    let expected = [
-        directory(Fd::new(3), b"trash"),
-        open(b"trash", OpenHow::DirectoryNoFollow),
-        rename(Fd::new(3), b"workspaces", b"1000"),
-        rename(Fd::new(3), b"stores", b"1001"),
-        rename(Fd::new(3), b"home", b"1002"),
-        directory(Fd::new(3), b"workspaces"),
-        directory(Fd::new(3), b"stores"),
-        directory(Fd::new(3), b"home"),
-        open(b"workspaces", OpenHow::DirectoryNoFollow),
-        open(b"stores", OpenHow::DirectoryNoFollow),
-    ];
-    for operation in expected {
-        assert_eq!(component.file_operation(), operation);
-        assert_eq!(component.below.out.events.pop(), None);
-        component.complete_ok();
+fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
+    for existing in [true, false] {
+        let mut component = fixtures::Started::version_checked();
+        let exists = if existing { Some(Error::Exists) } else { None };
+        let missing = if existing { None } else { Some(Error::NotFound) };
+        for (operation, error) in [
+            (directory(Fd::new(3), b"trash"), exists),
+            (open(b"trash", OpenHow::DirectoryNoFollow), None),
+            (rename(Fd::new(3), b"workspaces", b"1000"), missing),
+            (rename(Fd::new(3), b"making", b"1001"), missing),
+            (rename(Fd::new(3), b"home", b"1002"), missing),
+            (directory(Fd::new(3), b"workspaces"), None),
+            (directory(Fd::new(3), b"stores"), exists),
+            (directory(Fd::new(3), b"making"), None),
+            (directory(Fd::new(3), b"home"), None),
+            (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
+            (open(b"stores", OpenHow::DirectoryNoFollow), None),
+            (open(b"making", OpenHow::DirectoryNoFollow), None),
+        ] {
+            assert_eq!(component.file_operation(), operation);
+            assert_eq!(component.below.out.events.pop(), None);
+            if let Some(error) = error {
+                component.complete_err(error);
+            } else {
+                component.complete_ok();
+            }
+        }
+        assert_eq!(component.below.out.events.pop(), Some(Event::Started));
     }
-    assert_eq!(component.below.out.events.pop(), Some(Event::Started));
+}
+
+#[test]
+fn a_start_skips_a_trash_name_left_by_an_earlier_start() {
+    let mut component = fixtures::Started::version_checked();
+    component.file_operation();
+    component.complete_err(Error::Exists);
+    component.file_operation();
+    component.complete_ok();
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1000"));
+    component.complete_err(Error::Exists);
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1001"));
+    component.complete_ok();
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"making", b"1002"));
 }
 
 #[test]
@@ -150,7 +173,7 @@ fn a_conflicted_path_gone_a_directory_or_a_link_holds_no_marker() {
 #[test]
 fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..10 {
+    for _ in 0_u8..12 {
         component.file_operation();
         component.complete_ok();
     }
@@ -182,7 +205,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
 #[test]
 fn no_sweep_pass_starts_after_shutdown() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..10 {
+    for _ in 0_u8..12 {
         component.file_operation();
         component.complete_ok();
     }
@@ -190,7 +213,7 @@ fn no_sweep_pass_starts_after_shutdown() {
     assert_eq!(component.file_operation(), open(b"trash", OpenHow::DirectoryNoFollow));
     component.down(Request::Shutdown);
     component.complete_ok();
-    for fd in [fixtures::TRASH, fixtures::STORES, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in [fixtures::TRASH, fixtures::MAKING, fixtures::STORES, fixtures::WORKSPACES, fixtures::TRASH] {
         assert_eq!(component.file_operation(), Op::Close { fd });
         component.complete_ok();
     }
@@ -238,18 +261,21 @@ fn a_layout_failure_closes_descriptors_and_makes_the_start_unusable() {
 }
 
 #[test]
-fn a_kept_start_replaces_home_and_opens_existing_or_new_workspaces_without_following_links() {
+fn a_kept_start_replaces_making_and_home_and_keeps_workspaces_and_stores() {
     for existing in [true, false] {
         let mut component = fixtures::Started::version_checked_keeping();
         for (operation, error) in [
             (directory(Fd::new(3), b"trash"), None),
             (open(b"trash", OpenHow::DirectoryNoFollow), None),
-            (rename(Fd::new(3), b"home", b"1000"), None),
+            (rename(Fd::new(3), b"making", b"1000"), if existing { None } else { Some(Error::NotFound) }),
+            (rename(Fd::new(3), b"home", b"1001"), if existing { None } else { Some(Error::NotFound) }),
             (directory(Fd::new(3), b"workspaces"), if existing { Some(Error::Exists) } else { None }),
             (directory(Fd::new(3), b"stores"), if existing { Some(Error::Exists) } else { None }),
+            (directory(Fd::new(3), b"making"), None),
             (directory(Fd::new(3), b"home"), None),
             (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
             (open(b"stores", OpenHow::DirectoryNoFollow), None),
+            (open(b"making", OpenHow::DirectoryNoFollow), None),
         ] {
             assert_eq!(component.file_operation(), operation);
             if let Some(error) = error {

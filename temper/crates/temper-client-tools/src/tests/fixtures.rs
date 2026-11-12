@@ -56,10 +56,80 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
     owned.into_boxed()
 }
 /// One argv per table row and form; the help derivation shares these examples.
+pub(crate) const PUSH_SUBSCRIPTION: &[u8] = br#"{"endpoint":"http://push.test:4000/sub","keys":{"p256dh":"BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4","auth":"BTBZMqHH6r4Tts7J_aSIgg"}}"#;
+pub(crate) const FOLLOW_START: &[&str] =
+    &["follow", "start", "--project", "shop", "1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--key", "follow-start"];
+pub(crate) const FOLLOW_HOLD: &[&str] = &[
+    "follow",
+    "hold",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "waits",
+    "--key",
+    "follow-hold",
+];
+pub(crate) const FOLLOW_SKIP: &[&str] = &[
+    "follow",
+    "skip",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "build only",
+    "--key",
+    "follow-skip",
+];
+pub(crate) const FOLLOW_MERGE: &[&str] = &[
+    "follow",
+    "merge",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "--key",
+    "follow-merge",
+];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    FOLLOW_START,
+    FOLLOW_HOLD,
+    FOLLOW_SKIP,
+    FOLLOW_MERGE,
+    &["follow", "list", "--project", "shop"],
+    &["follow", "show", "--project", "shop", "1"],
+    &["finding", "list", "--project", "shop"],
+    &["finding", "show", "shop/12"],
+    &["finding", "file", "--project", "shop", "--kind", "red", "title", "-", "--key", "file"],
+    &["finding", "hand", "3/12", "--area", "docs", "why", "--key", "hand"],
+    &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
+    &["finding", "backlog", "3/12", "--key", "backlog"],
+    &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    &[
+        "need",
+        "ask",
+        "--project",
+        "3",
+        "--choice",
+        "yes",
+        "--choice",
+        "no",
+        "--why",
+        "the deploy waits",
+        "Ship it?",
+        "--key",
+        "ask",
+    ],
+    &["party", "make", "--project", "1", "--role", "2", "--out", "service", "scout"],
+    &["sign-in", "--service", "service"],
     &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
+    &["role", "talk", "41", "Hello", "--key", "talk"],
+    &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -71,7 +141,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["task", "hand-back", "41"],
     &["task", "notes", "41", "--project", "shop"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
-    &["project", "remove", "shop", "--key", "drop-shop"],
+    &["project", "delete", "shop", "--key", "drop-shop"],
     &[
         "goal",
         "start",
@@ -171,6 +241,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "forge-charter", "1"],
     &["settings", "show", "project-classes", "shop"],
     &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "follow", "1", "--project", "shop"],
+    &["settings", "show", "dependency", "1", "--project", "shop"],
     &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
@@ -184,6 +256,12 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
     &["task", "text", "1"],
+    &["push", "list"],
+    &["push", "add", "subscription.json"],
+    &["push", "remove", "1"],
+    &["draft", "ready", "--project", "shop", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
+    &["draft", "list", "--project", "shop"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -394,7 +472,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let record =
         w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
     let limits = jig_client_protocol_link::Limits::new(
@@ -670,6 +748,10 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
+                | crate::jig::rows::FINDING_FILE_AT
+                | crate::jig::rows::FINDING_HAND_AT
+                | crate::jig::rows::FINDING_SHOW_AT
+                | crate::jig::rows::ROLE_TALK_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -828,7 +910,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 92;
+pub(super) const TOOL_FORMS: u32 = 118;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -938,3 +1020,6 @@ pub(crate) fn offer_programs(root: &mut Harness) {
     me.providers = provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
 }
+
+mod drafts;
+pub(crate) use drafts::*;

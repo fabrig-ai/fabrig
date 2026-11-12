@@ -25,8 +25,9 @@ whom; its delegates, their states, and the
   one's hold's (`executors.md`, 3), and the results that came since (the plan, for a
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
-  last turn, when it does not resume; the proposals and escalations
-  waiting for its decision; the index of its notes; for a run that
+  last turn, when it does not resume; what waits for it, the waiting
+  section: the questions asked of it still open (1.2) and the proposals
+  and escalations waiting for its decision; the index of its notes; for a run that
   explains to its person, that person's preferences, whole (2.1); for a
   standing task, its Now, whole (../tasks/standing.md, section 6); a
   transcript's tail,
@@ -84,6 +85,10 @@ How it counts decides what becomes of the task:
   6). The task backs off within that class's allowance and, past it,
   is held for `Failures` of that class, its hold naming the reason.
 
+A brief that fails, however it counts, gives its brief slot back at once,
+its sections still gathering dropped, before its task pauses or backs
+off, so another task's brief takes the slot while it waits.
+
 Which is which, by what `executors.md`, 1 prepares:
 
 | The failure | Counts as | Section and words |
@@ -116,6 +121,48 @@ failure as it happens, with the task, for the application's log: only there
 does a failure that then resolves itself leave a trace once the notice moves
 on.
 
+### 1.2 The open questions in the waiting section
+
+A question a delegate asks stays open until it is answered or ends
+(../tasks/lifecycle.md, 8), but its message is taken from the inbox
+by the turn that reads it (../tasks/messages.md, 2). A run that reads
+a question and ends without answering it would leave the next run
+nothing to go on, so every brief shows the open questions:
+
+- **Which.** Each question asked of the task that is still open: its
+  asker holds the question's credit (../tasks/lifecycle.md, 8), with
+  the task as its answerer, and the task has heard no answer to it.
+  A question this run's start carries as a message is left out, since
+  the run reads it whole as a message.
+- **Which runs.** Every run that starts from a brief. A run that resumes
+  has no brief; its window already holds the question it read
+  (`executors.md`, 2).
+- **Its form.** The waiting section, core kind `Waiting`, opens with
+  the line `Questions asked of you, still open, oldest first:` and
+  lists them oldest first, each as one line and then its words whole,
+  as its asker sent them:
+
+  ```
+  Task 12 asks (question 40); answer with message target=12, form=answer, question=40:
+  Which of the two error forms does 3.2 mean?
+  ```
+
+  The number is the one `message`'s answer form takes: the number of
+  the message the task heard, never a number the asker was itself
+  asked by.
+- **Its place.** Optional, as every section but those a run runs for,
+  and kept before every other optional section; past its budget it is
+  cut from its end, as a core section's text is, and says how much.
+- **Its words.** Read from what the core keeps of each open question
+  for its asker's credit, with no store read where it keeps them. If
+  the core keeps a question's words nowhere, the brief loads them from
+  the question's activity line, as other core sections load what they
+  show.
+
+The same open questions are among every run's reasons
+(../tasks/messages.md, 6), and one left open wakes the task again
+(../tasks/lifecycle.md, 2).
+
 ## 2. Notes
 
 Notes are what agents learn and pass on: a service that is slow to warm
@@ -147,8 +194,10 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Whole, or by a line range.** A call writes a body whole, or, naming an
   entry and the revision it read, replaces a range of that body's lines:
   `first`, 1-based, and `remove`, a count of lines, 0 to insert, its body the
-  text that takes their place. An append is `first` the body's lines + 1 and
-  `remove` 0. Lines count as the answer's do, below. A newline is added only
+  text that takes their place. An append is `remove` 0 and `first` past the
+  body's last line: the body's lines + 1, or any line beyond it, which writes
+  at the end as the body's lines + 1 does, and is answered as that write is,
+  its `first` the line it changed. Lines count as the answer's do, below. A newline is added only
   where two lines would otherwise join, and nothing else of the body or the text
   changes, so a body with no final newline keeps none unless a line follows it.
   With `join: true`, the replacement continues the line before `first` without
@@ -161,7 +210,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Stored whole.** A revision stores the resulting body, so that a reader, a
   client and `recall` see no parts, and a revision is a body as any other.
 - **Refusals say what to do next,** and each leaves the note as it was: moved
-  says the entry's revision; a range past the end says the body's lines; a
+  says the entry's revision; a `first` of 0, or a range that removes lines
+  past the end, says the body's lines; a
   result past `notes.body_bytes` says its bytes and the bound.
 - **Its answer says what changed.** A write answered carries, beside the
   note's name and revision, `lines`, the new body's lines, and, from the

@@ -25,6 +25,19 @@ fn an_address_is_an_engine_on_loopback_and_never_a_link() {
 }
 
 #[test]
+fn recording_requires_a_nonempty_captured_variable() {
+    for (entries, expected) in [
+        (vec![], false),
+        (vec![("TEMPER_INTERNAL_RECORD", "")], false),
+        (vec![("TEMPER_INTERNAL_RECORD", "1")], true),
+        (vec![("TEMPER_INTERNAL_RECORD", "no")], true),
+        (vec![("OTHER", "1")], false),
+    ] {
+        assert_eq!(tui::recording(&environment(&entries)), expected, "{entries:?}");
+    }
+}
+
+#[test]
 fn the_directory_is_the_state_directorys() {
     for (entries, expected) in [
         (vec![("XDG_STATE_HOME", "/s"), ("HOME", "/h")], Some("/s/temper/tui")),
@@ -239,14 +252,14 @@ fn the_lines_name_the_binary() {
             ],
         ),
         (
-            "temper-client",
+            "temper-box",
             [
-                "temper-client: the TUI needs a terminal on stdin and stdout\n",
-                "temper-client: not an address: ARG\n",
-                "temper-client: a sign-in link is never an argument: run temper-client http://HOST:PORT and paste it\n",
-                "temper-client: the engine's address must be on loopback\n",
-                "temper-client: /s/temper/tui: cannot open its files\n",
-                "temper-client: no command; temper-client --help lists them\n",
+                "temper-box: the TUI needs a terminal on stdin and stdout\n",
+                "temper-box: not an address: ARG\n",
+                "temper-box: a sign-in link is never an argument: run temper-box http://HOST:PORT and paste it\n",
+                "temper-box: the engine's address must be on loopback\n",
+                "temper-box: /s/temper/tui: cannot open its files\n",
+                "temper-box: no command; temper-box --help lists them\n",
             ],
         ),
     ] {

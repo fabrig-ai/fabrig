@@ -94,7 +94,7 @@ fn make(world: &mut World, signed: u64, model: Option<u8>) -> u64 {
     let people::Reply::Outcome(people::Outcome::Created { first, .. }) = reply else { panic!("created: {reply:?}") };
     first
 }
-fn host(world: &mut World) {
+pub(super) fn host(world: &mut World) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
@@ -125,11 +125,11 @@ fn a_set_model_is_in_the_next_tasks_charter_with_no_charter_change() {
     apply(&mut world, signed, set(value.clone()));
     assert_eq!(world.domain.settings().charter(1), Some(&original));
     assert_eq!(world.domain.core_mut().charter(1).expect("resolution").policy.alternatives.as_ref(), &[value.model]);
+    host(&mut world);
     let me = frame(&mut world, signed);
     assert!(me.projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 8));
     let task = make(&mut world, signed, Some(8));
     assert_eq!(fixtures::live_row(&world, task).settings.task, 2);
-    host(&mut world);
     assert_eq!(world.assigned.as_ref().expect("new model run").run.policy.model.name.as_ref(), b"person-model");
     fixtures::finish_chat(&mut world, 0, b"Done");
 }
@@ -179,7 +179,9 @@ fn a_release_adds_its_new_model_at_the_next_start() {
     assert!(world.domain.core_mut().charter_of(task).policy.alternatives.is_empty());
     assert_eq!(world.domain.core_mut().charter(1).expect("release resolution").policy.alternatives.len(), 1);
     let signed = sign_in(&mut world);
+    host(&mut world);
     assert!(frame(&mut world, signed).projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 1));
+    fixtures::finish_chat(&mut world, 0, b"Done");
 }
 
 #[test]
@@ -276,6 +278,7 @@ fn a_number_no_setting_has_is_a_hole() {
     apply(&mut world, signed, set(value));
     assert_eq!(world.domain.core_mut().settings.models.len(), 64);
     assert!(world.domain.core_mut().settings.models[2..63].iter().all(core::Model::is_hole));
+    host(&mut world);
     let me = frame(&mut world, signed);
     assert_eq!(
         me.projects.as_slice()[0].offer.as_slice().iter().map(|row| row.model).collect::<Vec<_>>(),

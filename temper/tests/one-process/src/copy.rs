@@ -151,7 +151,7 @@ fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
 
 pub(crate) fn catalogue(sources: &[Source], workflow: bool) -> temper_fake_git_hosted::Typed {
     use skein_fake_forge_domain::{self as domain, api};
-    let mut config = temper_playground::documents::hosted_git::CONFIG;
+    let mut config = temper_playground::documents::hosted_git::config();
     // A slow migration and the recovered engine's request can coexist.
     config.limits.calls = 2;
     let mut domain = domain::Domain::new(&config, fixtures::SEED);
@@ -296,11 +296,8 @@ impl Judge {
             .observations()
             .iter()
             .find_map(|observation| {
-                if let Observation::Call {
-                    op: Op::Write(Write::Copy { owner, name, .. }),
-                    result: Ok(skein_fake_forge_domain::api::Answer::Copied { repository, .. }),
-                    ..
-                } = observation
+                if let Observation::Call { op: Op::Write(Write::Copy { owner, name, .. }), result, .. } = observation
+                    && let Ok(skein_fake_forge_domain::api::Answer::Copied { repository, .. }) = &**result
                     && owner.as_ref() == b"acme"
                     && name.as_ref() == b"copied"
                 {

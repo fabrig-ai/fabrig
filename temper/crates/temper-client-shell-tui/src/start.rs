@@ -1,7 +1,7 @@
 //! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
 use crate::{
     limits,
-    run::{Run, Settings},
+    run::{Front, Run, Settings},
 };
 use skein_io::{
     file::Expect,
@@ -32,14 +32,18 @@ pub enum Refused {
 impl Refused {
     #[must_use]
     pub fn line(&self, name: &str) -> String {
-        let why = match self {
+        format!("{name}: {}\n", self.reason(name))
+    }
+
+    #[must_use]
+    pub fn reason(&self, name: &str) -> String {
+        match self {
             Self::NotATerminal => "the TUI needs a terminal on stdin and stdout".into(),
             Self::NotAnAddress(argument) => format!("not an address: {}", String::from_utf8_lossy(argument)),
             Self::Link => format!("a sign-in link is never an argument: run {name} http://HOST:PORT and paste it"),
             Self::NotLoopback => "the engine's address must be on loopback".into(),
             Self::Directory(why) => why.clone(),
-        };
-        format!("{name}: {why}\n")
+        }
     }
 }
 
@@ -63,6 +67,12 @@ pub fn directory(environment: &[EnvironmentEntry]) -> Result<PathBuf, Refused> {
         return Err(Refused::Directory("TUI directory: XDG_STATE_HOME or HOME must be an absolute path".into()));
     };
     Ok(base.join("temper/tui"))
+}
+
+/// Whether the captured environment requests recording (temper/docs/design/cli/README.md, 8).
+#[must_use]
+pub fn recording(environment: &[EnvironmentEntry]) -> bool {
+    temper_shell::environment::INTERNAL_RECORD.value(environment).is_some()
 }
 
 #[must_use]
@@ -163,12 +173,12 @@ pub fn terminal_refusal(name: &str, given: bool) -> String {
 }
 
 #[must_use]
-pub fn run(name: &str, argument: Option<&[u8]>, clock: &Clock) -> u8 {
+pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry], working: &[u8], clock: &Clock) -> u8 {
     if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
         eprint!("{}", terminal_refusal(name, argument.is_some()));
         return 1;
     }
-    match start(argument, clock) {
+    match start(argument, environment, working, clock, None) {
         Ok(code) => code,
         Err(why) => {
             eprint!("{}", why.line(name));
@@ -177,21 +187,83 @@ pub fn run(name: &str, argument: Option<&[u8]>, clock: &Clock) -> u8 {
     }
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C3: the client's environment selects directories, links and terminal settings; temper's table will pass it"
-)]
-fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
+struct BoxStart {
+    executable: Box<[u8]>,
+    cache: Box<[u8]>,
+    arguments: Box<[Box<[u8]>]>,
+    link: Option<PathBuf>,
+    log: Box<[u8]>,
+}
+
+impl BoxStart {
+    fn settings(self, environment: &[EnvironmentEntry], working: &[u8]) -> Result<Front, Refused> {
+        let directory = skein_shell::open_root(path(working))
+            .map_err(|number| Refused::Directory(format!("cannot open working directory: errno {number}")))?;
+        Ok(Front {
+            executable: self.executable,
+            cache: self.cache,
+            arguments: self.arguments,
+            directory,
+            log: self.log,
+            environment: environment
+                .iter()
+                .map(|(name, value)| {
+                    let mut entry = name.to_vec();
+                    entry.push(b'=');
+                    entry.extend_from_slice(value);
+                    entry.into()
+                })
+                .collect(),
+        })
+    }
+}
+
+/// `temper box`'s terminal case; its arguments remain the box's to read.
+#[must_use]
+pub fn run_box(
+    executable: &[u8],
+    cache: &[u8],
+    arguments: &[Box<[u8]>],
+    data: &[u8],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    clock: &Clock,
+) -> u8 {
+    let front = BoxStart {
+        executable: executable.into(),
+        cache: cache.into(),
+        arguments: arguments.into(),
+        link: link_file::path(
+            data,
+            temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
+            cfg!(target_os = "linux"),
+        ),
+        log: path(data).join("box/logs/box.log").as_os_str().as_bytes().into(),
+    };
+    match start(None, environment, working, clock, Some(front)) {
+        Ok(code) => code,
+        Err(why) => {
+            eprint!("{}", why.line("temper"));
+            1
+        }
+    }
+}
+
+fn start(
+    argument: Option<&[u8]>,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    clock: &Clock,
+    front: Option<BoxStart>,
+) -> Result<u8, Refused> {
     let given = argument.map(address).transpose()?;
-    let environment = skein_shell::environment();
-    let directory = directory(&environment)?;
+    let directory = directory(environment)?;
     let user = skein_shell::effective_user();
     directories::make_private(&directory, user).map_err(Refused::Directory)?;
     let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
         .ok()
         .and_then(|bytes| kept(bytes.expose()));
-    let link_file =
-        std::env::current_dir().ok().and_then(|working| link_path(&environment, working.as_os_str().as_bytes()));
+    let link_file = link_path(environment, working);
     let (engine, boxed) = {
         let link = link_file.as_deref().and_then(|path| link_file::read(path, user));
         let bytes = link.as_ref().map(skein_lib::Secret::expose);
@@ -199,8 +271,9 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
         (engine, on_box(bytes, engine))
     };
     let note = read_note(&directory, engine, user);
-    let scheme = scheme(&environment);
-    let depth = depth(&environment);
+    let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
+    let scheme = scheme(environment);
+    let depth = depth(environment);
     let Ok(Input::Terminal { kept, size }) = skein_shell::raw_input(Fd::new(0), Keys::Pass) else {
         return Err(Refused::NotATerminal);
     };
@@ -217,18 +290,25 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             skein_shell::close_startup_fd(signals);
             Refused::Directory(format!("{}: cannot open sign-in parent: errno {number}", directory.display()))
         })?;
-        #[cfg(feature = "record")]
-        let record = Some(skein_shell::open_root(parent).map_err(|number| {
-            skein_shell::close_startup_fd(files);
-            skein_shell::close_startup_fd(root);
-            skein_shell::close_startup_fd(signals);
-            Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
-        })?);
-        #[cfg(not(feature = "record"))]
-        let record = None;
+        let record = if recording(environment) {
+            Some(skein_shell::open_root(parent).map_err(|number| {
+                skein_shell::close_startup_fd(files);
+                skein_shell::close_startup_fd(root);
+                skein_shell::close_startup_fd(signals);
+                Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
+            })?)
+        } else {
+            None
+        };
+        let front = front.map(|front| front.settings(environment, working)).transpose().inspect_err(|_| {
+            for fd in record.into_iter().chain([files, root, signals]) {
+                skein_shell::close_startup_fd(fd);
+            }
+        })?;
+        let in_front = front.is_some();
         let settings = Settings {
             record,
-            front: None,
+            front,
             engine: skein_io::Addr::Ip(engine),
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
@@ -240,7 +320,7 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             depth,
             size: skein_ui_screen::Size { rows: size.rows, columns: size.columns },
             limits: limits::tui(),
-            opener: opener(&environment, cfg!(target_os = "linux"), &|path| {
+            opener: opener(environment, cfg!(target_os = "linux"), &|path| {
                 std::fs::metadata(path)
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             }),
@@ -248,7 +328,11 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
         let seed = skein_shell::seed().expect("kernel seed");
         let mut run = local_run(settings, root, user, seed, signals);
         let mut kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
-        let exit = skein_shell::drive(&mut kernel, clock, &mut run);
+        let exit = if in_front {
+            drive_front(&mut kernel, clock, &mut run)
+        } else {
+            skein_shell::drive(&mut kernel, clock, &mut run)
+        };
         Ok((run, exit, seed))
     })();
     skein_fail_stop::before_report(None);
@@ -257,6 +341,9 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }
+    if run.terminated() {
+        return Ok(1);
+    }
     if let Some(signed_in) = run.signed_in() {
         let mut bytes = b"http://".to_vec();
         bytes.extend_from_slice(signed_in);
@@ -264,17 +351,55 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             keep_address(parent, bytes.into_boxed_slice(), user, seed, clock);
         }
     }
-    Ok(match exit {
+    Ok(exit_code(&run, exit))
+}
+
+fn exit_code(run: &Run, exit: Exit) -> u8 {
+    if let Some((code, words)) = run.box_exit() {
+        use std::io::Write;
+        let _ = std::io::stderr().lock().write_all(&words);
+        return code;
+    }
+    match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
-    })
+    }
+}
+
+// A termination signal is the process's shutdown path: the kernel may still own the box's
+// wait and pipe reads. Its buffers stay owned by Kernel's shutdown path until process exit.
+fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
+    loop {
+        kernel.reap(run.completions());
+        let skein_shell::Now { now, wall } = clock.now();
+        run.iterate(now, wall);
+        if run.terminated() {
+            return Exit::Code(1);
+        }
+        if run.is_empty() {
+            assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
+            return run.exit().expect("a drained run's exit");
+        }
+        let wait = if run.work_pending(now) {
+            skein_shell::Wait::No
+        } else {
+            run.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
+        };
+        kernel.submit(run.submissions(), wait);
+    }
 }
 
 #[must_use]
 pub fn local_run(mut settings: Settings, root: Fd, user: u32, seed: u64, signals: Fd) -> Run {
     let link = settings.link_file.take();
+    let front = settings.front.is_some();
     let run = Run::new(settings, root, user, seed, Fd::new(0), Fd::new(1), signals).expect("TUI descriptors");
     let Some(path) = link else { return run };
+    if front {
+        // The box may not have made its data directory yet. Open beneath / on later local duties.
+        let Ok(root) = skein_shell::open_root(Path::new("/")) else { return run };
+        return run.with_local_path(root, path.strip_prefix(b"/").expect("absolute link path"));
+    }
     let Some(parent) = self::path(&path).parent() else { return run };
     let Ok(root) = skein_shell::open_root(parent) else { return run };
     run.with_local_link(root, &path)

@@ -7,9 +7,9 @@ use jig_client::{Client, Key, Outcome, Told, contract as c};
 use skein_lib::{List, Queue};
 
 /// Catalogue ceilings enforced by the received client wire.
-pub const MODELS: u32 = jig_client_protocol_wire::v19::CEILINGS.me_project_models;
-pub const MODEL_ACCOUNTS: u32 = jig_client_protocol_wire::v19::CEILINGS.me_model_accounts;
-pub const EFFORTS: u32 = jig_client_protocol_wire::v19::CEILINGS.me_model_efforts;
+pub const MODELS: u32 = jig_client_protocol_wire::v20::CEILINGS.me_project_models;
+pub const MODEL_ACCOUNTS: u32 = jig_client_protocol_wire::v20::CEILINGS.me_model_accounts;
+pub const EFFORTS: u32 = jig_client_protocol_wire::v20::CEILINGS.me_model_efforts;
 
 /// The search admits at most this many UTF-8 bytes.
 pub const FIND: u32 = 256;
@@ -399,6 +399,7 @@ fn keeps_requested(outcome: &Outcome) -> bool {
                 | c::DocumentOutcome::NoteEdited { .. }
                 | c::DocumentOutcome::ServiceMade { .. }
                 | c::DocumentOutcome::Adopted { .. }
+                | c::DocumentOutcome::Left { .. }
                 | c::DocumentOutcome::Stopped { .. }
                 | c::DocumentOutcome::Cancelled { .. }
                 | c::DocumentOutcome::Released { .. }

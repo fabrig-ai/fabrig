@@ -1,0 +1,12 @@
+recipe 1
+after "welcome"
+ctl project make Hello --key qa-hello-project
+ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello
+ctl forge list --until made:1
+web reload "/welcome"
+web press button "Continue with ChatGPT"
+web see "Everything is connected."
+web reload "/projects/1"
+web see "work/hello is in Hello"
+ctl project show Hello
+web see "Nothing needs you."

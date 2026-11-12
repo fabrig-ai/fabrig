@@ -82,6 +82,11 @@ impl Connections {
             events: VecDeque::new(),
         }
     }
+    pub(super) fn point(&mut self, host: String) {
+        assert_eq!(self.next, 1, "point before any network request");
+        assert!(self.pending.is_empty() && self.exchanges.is_empty(), "no queued network request");
+        self.host = host;
+    }
     #[must_use]
     pub fn host(&self) -> &str {
         &self.host

@@ -516,12 +516,16 @@ The default, for a project with no prepare command:
 - **Then the branch fast-forwards to the candidate,** by the merge of
   the round's pull request, fast-forward only, at the candidate (skein's
   `Write::Merge { how: FastForwardOnly }`), made by the landing task
-  and judged by the landing rules at the candidate (`forge/change/gates.md`, 2, where `ci` is the
+  and judged by the landing rules at the candidate (`forge/change/gates.md`, 2, where a rule by path compares the train’s branch tip read afresh
+  with its candidate, and `ci` is the
   test gates by receipt at the candidate, a gate's verdict counts at the
   member's prefix as section 3 says, and an approval counts the
   member's pull request's reviews at the heads it counts at, the prefix
   being a clean merge of the member's head, or a squash with that
   merge's tree).
+  On GitHub, the landing advances the branch with a fast-forward-only
+  `Write::UpdateRef`; temper’s App must always bypass a rule requiring
+  a pull request (`forge/adoption.md`, 4).
 - **The member lands** once the branch's tip, read back, is the
   candidate: the landing's state records it landed at its prefix, then
   its pull request reads merged, then its change is told it landed, at
@@ -670,6 +674,17 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   round, counted from 1, the
   round's pull request, its stale rounds and its faults per key, and,
   held, its cause.
+- **Single landings outside a train:** an upgraded v15 landing keeps its
+  phase, members, preparation, candidates, gate proofs, asks and pending
+  effects. Its target is the stored adopted repository's default branch,
+  and its round is absent. It finishes through the single-landing
+  procedure: preparation updates the member, gates follow its branch,
+  and the turn merges its pull request at the proved candidate. It opens
+  no round branch or pull request. The domain represents an absent round
+  by an empty round branch; only the single-landing procedure handles it.
+  A new landing always has a named round branch. Such a single landing
+  holds its train until it ends; already pending effects retain their
+  purposes and identities.
 - **`Receipt`,** keyed by the project, the repository, the gate and the
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean merges' heads, its

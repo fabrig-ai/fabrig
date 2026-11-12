@@ -23,11 +23,13 @@ skein-io.workspace = true
 skein-world.workspace = true
 jig-client-kit.workspace = true
 jig-client-test-kit.workspace = true
+jig-client-test-records.workspace = true
 skein-fake-person.workspace = true
 jig-client-test-domain.workspace = true
 jig-test-domain.workspace = true
 jig-core-kit.workspace = true
 jig-domain-core.workspace = true
+jig-domain-notes.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-people.workspace = true
@@ -74,6 +76,9 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+settings-form.workspace = true
+temper-client-shell-cli.workspace = true
+skein-shell.workspace = true
 skein-ui-text.workspace = true
 skein-fake-forge-domain.workspace = true
 jig-boundary.workspace = true

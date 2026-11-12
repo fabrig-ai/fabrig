@@ -879,7 +879,7 @@ impl World {
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -890,6 +890,7 @@ impl World {
                             self.worker_env.limits.reply_bytes,
                             job,
                             page,
+                            ask,
                         ),
                     }
                 }
@@ -995,15 +996,17 @@ impl World {
         let result = match self.forge.api(name, 1, api::op(op, client)) {
             Ok(answer) => {
                 let answer = api::answer(op, answer, client);
-                if skein_forge::measure::answer(&answer).expect("fake answer size") > u64::from(client.answer_bytes) {
+                if let Ok(answer) = &answer
+                    && skein_forge::measure::answer(answer).expect("fake answer size") > u64::from(client.answer_bytes)
+                {
                     Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))
                 } else {
-                    Ok(answer)
+                    answer
                 }
             }
             Err(error) => Err(api::error(
                 error,
-                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::CONFIG, self.env.now),
+                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
         self.root_events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
@@ -1077,6 +1080,7 @@ impl World {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
             Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
             Delivery::Application { to, outcome } => {
                 assert_eq!(to.into_token(), ADOPTION);
@@ -1124,6 +1128,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
@@ -1404,7 +1409,7 @@ impl World {
         let mut world = Self::configured_with(seed, goal.clone(), true, questioning_config);
         world.goal_branch = true;
         let moving = Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", br#"{"path":"goal.txt","content":"goal moved\n"}"#),
                 call(b"finish", br#"{"title":"Advance the goal","body":"Give the waiting producer new context."}"#),
@@ -1540,7 +1545,7 @@ impl World {
 
 fn questioning_script() -> Script {
     Script {
-        cue: b"Read only what the change needs".as_slice().into(),
+        cue: b"Run only what your change needs".as_slice().into(),
         turns: Box::new([
             call(b"write", br#"{"path":"first.txt","content":"first delivery\n"}"#),
             call(b"deliver", br#"{"title":"First edit","body":"Keep this work."}"#),
@@ -1559,6 +1564,7 @@ fn questioning_script() -> Script {
 fn questioning_config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,

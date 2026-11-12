@@ -165,7 +165,8 @@ fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
                         kind: match gate.kind {
                             temper_engine_domain_forge_change::GateKind::Agent => w::PublicGateKind::Review,
                             temper_engine_domain_forge_change::GateKind::Person => w::PublicGateKind::Approval,
-                            temper_engine_domain_forge_change::GateKind::Check => w::PublicGateKind::Check,
+                            temper_engine_domain_forge_change::GateKind::Check
+                            | temper_engine_domain_forge_change::GateKind::Follow => w::PublicGateKind::Check,
                         },
                         blocks: gate.blocking,
                         verdict: match gate.verdict {

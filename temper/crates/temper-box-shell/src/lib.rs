@@ -24,7 +24,7 @@ use directories::Directories;
 pub mod box_command;
 pub mod claude_code;
 pub mod table;
-pub use table::{TABLE, TREE};
+pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
@@ -38,9 +38,11 @@ pub use temper_shell::link_file;
 pub mod open;
 mod program_login;
 pub use temper_engine_shell::setup;
-mod tui_front;
+mod serve;
+mod served;
 mod worker_half;
 use json::CONFIG_BYTES;
+pub use served::Service;
 #[cfg(test)]
 pub(crate) use temper_service_shell::host;
 use temper_shell::directories::{errno, unread};
@@ -50,6 +52,10 @@ pub enum Command {
     Overview,
     Version,
     Versions,
+    Upgrade {
+        directories: Directories,
+        request: temper_engine_shell::upgrade::Request,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -68,13 +74,15 @@ pub enum Command {
     Box {
         directories: Directories,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
     },
     BoxFakeBackends {
         directories: Directories,
         bundle: Option<PathBuf>,
+        scripts: Vec<PathBuf>,
+        strict: bool,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
     },
     ProgramLogin {
         directories: Directories,
@@ -85,9 +93,6 @@ pub enum Command {
     },
     AgentList {
         configuration: PathBuf,
-    },
-    TuiFront {
-        address: Box<[u8]>,
     },
     Open {
         arguments: Vec<OsString>,
@@ -172,27 +177,33 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let (directories, rest) =
         directories::resolve(arguments, environment, working).map_err(|why| refused(&why.to_string()))?;
-    let no_tui_count = rest.iter().filter(|word| word.as_ref() == b"--no-tui").count();
-    if no_tui_count > 1 {
+    let front_count = rest.iter().filter(|word| word.as_ref() == b"--front").count();
+    if front_count > 1 {
         return Err(refused("invalid arguments"));
     }
-    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect();
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--front").collect();
     let (echo, rest) = box_command::echo(&rest, environment).map_err(|why| refused(&why))?;
-    let no_tui = no_tui_count == 1;
+    let front = front_count == 1;
+    if front && echo == temper_box_machine::host::Echo::Steps {
+        return Err(refused("--front cannot be used with --echo steps"));
+    }
     if rest.is_empty() {
-        return Ok(Command::Box { directories, echo, no_tui });
+        return Ok(Command::Box { directories, echo, front });
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
-        if word.as_ref() == b"--bundle" {
+        if word.as_ref() == b"--bundle" || word.as_ref() == b"--scripts" {
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
+        } else if word.as_ref() != b"--fake-backends" && word.as_ref() != b"--strict" {
+            return Err(refused(&format!("unknown flag {}", String::from_utf8_lossy(word))));
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
-    let bundle = fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
+    let fake_backends::Options { bundle, scripts, strict } =
+        fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front })
 }
 
 fn configure_row(
@@ -214,6 +225,10 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
+        ["upgrade", mode @ ("--check" | "--back")] => {
+            return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
+                .map(|(directories, request)| Command::Upgrade { directories, request });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -229,12 +244,6 @@ fn configure_row(
         ["internal", "agent-list"] | ["--list", "internal", "agent-list"] => {
             return match arguments {
                 [configuration] => Ok(Command::AgentList { configuration: path(configuration).into() }),
-                _ => Err(invalid()),
-            };
-        }
-        ["internal", "tui"] => {
-            return match arguments {
-                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
                 _ => Err(invalid()),
             };
         }
@@ -274,8 +283,18 @@ fn configure_row(
     }
 }
 
-pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], run_as: &[u8]) -> Result<u8, String> {
+pub fn run(
+    command: Command,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    run_as: &[u8],
+    version: &'static str,
+    commit: &'static str,
+) -> Result<u8, String> {
     let exit = match command {
+        Command::Upgrade { directories, request } => {
+            return temper_engine_shell::upgrade::run("temper-box", &directories, &request, Some(&worker_half::Half));
+        }
         Command::Overview => {
             print!("{}", TABLE.help());
             return Ok(0);
@@ -285,7 +304,7 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             return Ok(0);
         }
         Command::Version => {
-            print!("{}", TABLE.version_line());
+            print!("{}", skein_shell::Table { version, commit, ..TABLE }.version_line());
             return Ok(0);
         }
         Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments, environment)),
@@ -297,20 +316,17 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed } => serve::run(
-            "temper",
-            environment,
-            working,
+        Command::Serve { directories, boxed } => serve::run("temper", environment, working, &directories, boxed)?,
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front } => fake_backends::run(
             &directories,
-            boxed,
-            Some(&worker_half::Half { environment: environment.into() }),
-        )?,
-        Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui, environment)
-                .map_err(|why| prefixed("temper-box", &why))?
-        }
-        Command::Box { directories, echo, no_tui } => {
-            box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
+            &fake_backends::Options { bundle, scripts, strict },
+            echo,
+            front,
+            environment,
+        )
+        .map_err(|why| prefixed("temper-box", &why))?,
+        Command::Box { directories, echo, front } => {
+            box_command::run(&directories, echo, front, environment).map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -352,7 +368,6 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
-        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new(), environment, working)),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {
@@ -363,9 +378,9 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
-use temper_engine_shell::serve;
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
-pub use temper_service_shell::host::{Host, ending as service_ending};
+pub use temper_service_shell::host::ending as service_ending;
+pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
 fn prepare(
@@ -374,16 +389,8 @@ fn prepare(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<service::Service, String> {
-    serve::prepare(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        bytes,
-        owned,
-    )
+) -> Result<Service, String> {
+    serve::prepare("temper", environment, working, directories, bytes, owned)
 }
 #[cfg(test)]
 fn prepare_with_store(
@@ -392,16 +399,8 @@ fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<(service::Service, Box<[u8]>), String> {
-    serve::prepare_with_store(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        bytes,
-        owned,
-    )
+) -> Result<(Service, Box<[u8]>), String> {
+    serve::prepare_with_store("temper", environment, working, directories, bytes, owned)
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -411,14 +410,7 @@ pub fn operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    serve::operations_in(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        config,
-    )
+    serve::operations_in("temper", environment, working, directories, config)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(
@@ -427,27 +419,14 @@ pub fn boxed_operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    serve::boxed_operations_in(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        config,
-    )
+    serve::boxed_operations_in("temper", environment, working, directories, config)
 }
 pub fn prepare_in(
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
-) -> Result<service::Service, String> {
-    serve::prepare_in(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-    )
+) -> Result<Service, String> {
+    serve::prepare_in("temper", environment, working, directories)
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -455,15 +434,8 @@ pub fn prepare_in_with(
     working: &[u8],
     directories: &Directories,
     given: &service::stock::Given,
-) -> Result<service::Service, String> {
-    serve::prepare_in_with(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        given,
-    )
+) -> Result<Service, String> {
+    serve::prepare_in_with("temper", environment, working, directories, given)
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -473,15 +445,7 @@ pub fn operations_in_with(
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    serve::operations_in_with(
-        "temper",
-        environment,
-        working,
-        Some(&worker_half::Half { environment: environment.into() }),
-        directories,
-        config,
-        given,
-    )
+    serve::operations_in_with("temper", environment, working, directories, config, given)
 }
 /// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {

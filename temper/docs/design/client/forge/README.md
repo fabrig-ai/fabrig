@@ -295,11 +295,38 @@ its own:
     "This project's landing rule N"; then, where it asks for one person, "
     asks for one approval by ROLE.", ROLE "an owner", "a maintainer", "a
     member" or "an observer" for roles 0 to 3, "someone with role R" for
-    another; where it asks for more, " asks for P approvals by ROLES; C so
-    far.", ROLES "owners", "maintainers", "members", "observers" or "people
-    with role R", P and C in digits;
-  - "1 more change waits behind this one." or "N more changes wait behind
-    this one.", while any does;
+    another; where it asks for more, " asks for P approvals by ROLES.",
+    ROLES "owners", "maintainers", "members", "observers" or "people
+    with role R", P in digits;
+  - for a rule by path, the row's `sets` (`../../domain/forge/change/questions.md`,
+    2): "Signs off changes to NAME.", NAME each set's name, joined "A and
+    B" or "A, B and C", "path set N" for one with no name, so "Signs off
+    changes to vsr's protocol core." (`../../draft/what-reaches-you.md`,
+    section 7); none for a rule naming no set. Nothing waits behind such a
+    change, which is out of its queue, so the card counts none;
+  - who can still sign, from the row's `signed`, `can_sign` and
+    `can_sign_more` (`../../domain/forge/change/questions.md`, 2, *Who can
+    still sign*; `../../draft/whole-story.execution.md`, N5), where C, the
+    row's `counted`, is above zero or the viewer's review wouldn't count;
+    none otherwise, as `whole-story/team/needs.html` says none on a card
+    nobody has signed whose review is the viewer's to give. P is the row's
+    `required`. A person is said by their `name`, "you" for the viewer's
+    own party, and "someone" for an empty name. Its parts:
+    - *who signed,* where C is above zero: "C of P signed: NAMES", C and P
+      in digits, NAMES the `signed` people joined "A", "A and B" or "A, B
+      and C", those counted past them closing it as "and one other" or
+      "and N others" ("Sam, Ann and 2 others");
+    - *who can,* where `can_sign` holds anyone: its people in order joined
+      "A", "A or B" or "A, B or C", `can_sign_more` closing it as "or one
+      other" or "or N others"; then " can give " and the next sign-off:
+      "it" where P is one, else "the" and C + 1 as an ordinal word, "first"
+      to "ninth", past which "the next";
+    - *the sentence:* the two parts joined "; " and closed with ".", "1 of 2
+      signed: Sam; you or Kit can give the second."; who signed alone
+      where nobody can still sign, "1 of 2 signed: Sam.", the too few
+      sentence below saying why; who can alone where nobody has signed,
+      its first letter in capitals, "Kit or Sam can give it."; neither,
+      no sentence;
   - "There are too many reviews to read them all, so one may already count.",
     where its reviews weren't read whole;
   - where the viewer's review wouldn't count, why. Too few: "Fewer people can
@@ -307,8 +334,23 @@ its own:
     project's people change." No account: "temper knows no Forgejo account of
     yours, so your review wouldn't count.", "GitHub" on GitHub. Another role:
     "It waits for a review by ROLE; yours wouldn't count.", ROLE as above.
+- **Its size,** where the row has one (`records.md`, the subject `approvals`):
+  under the context, a row of chips, the whole story's `.chips` in
+  `pair/needs.html`, `temper-chips`, holding one plain chip, `temper-chip`:
+  "+A -D in N files", A the additions, D the deletions and N the files,
+  each in digits as the client writes a count, "in 1 file" for one, the
+  words " in N files" in an element of their own, which Home's card hides
+  on a phone (`../pages/home.md`, 1, *On a phone*); the
+  sign before D is `pair/needs.html`'s hyphen. A cut size, the row's `cut`,
+  follows each count kept at 4294967295 with "+", as a cut count is said
+  elsewhere ("N+"). It is the size at the head the reviews were read at,
+  the head the review link opens. With no size there is no row of chips
+  and nothing in its place (`../../draft/surfaces.md`, 14). The chip is
+  words alone: no act, no link.
 - **Its acts:** where the viewer's review would count and the card has an
-  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", in
+  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", or,
+  for a row with `sets`, "Sign off on Forgejo ↗" or "Sign off on GitHub ↗"
+  (`../../draft/what-reaches-you.md`, section 7), in
   `.choices`, a link opening the review in a new tab; otherwise no primary, so
   an owner still sees a wait nobody can end and is never sent to a review that
   would come back unknown. Then the pair: "Open", to the change's `Task { task
@@ -332,7 +374,9 @@ its own:
   - an address that isn't a safe `http` or `https` URL is none.
 - **On Home,** the first card as here, its primary in `.choices`, then quiet
   "Open" and quiet "Later"; as one of the others, its line, SHORT and at the
-  right its kind and age (`../pages/README.md`, *Home*).
+  right its kind and age (`../pages/README.md`, *Home*). Home's cards
+  draw its size under its question, as `pair/home.html` does, and on a
+  phone as `pair/phone-home.html` does (`../pages/home.md`, 1, *The cards*).
 - **On a goal's page,** a band for a change under that goal (`../pages/goal.md`,
   2).
 - **In the terminal,** none: its inbox's list stays as it is
@@ -470,7 +514,13 @@ above:
   and 5.1's "since when" need), each a field of `ChangePanel` added in
   the version move that first needs it.
 - **A change's files in the client:** whether the panel lists the files a
-  change touches, from the connector's read, short of showing the diff.
+  change touches, from the connector's read, short of showing the diff;
+  and whether an approval's card lists them with their counts, as
+  `pair/needs.html`'s table does, its first files and then "N more
+  files" with the rest's, where 4.1 draws the size alone. Default: the
+  size alone, the forge's counts at the head, which a listing capped by
+  the forge could not give whole; the panel draws no size until the
+  mockups or a draft draw one there.
 - **A change's questions on its page** (`served.md`, 2; `../../domain/forge/change/questions.md`,
   1). Default: the panel carries them and `ctl`'s `change show`
   prints them; the change's task page shows none until the web client's

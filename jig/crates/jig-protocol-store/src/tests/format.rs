@@ -34,7 +34,10 @@ fn a_format_row_of_another_tasks_version_is_refused_naming_tasks() {
     let wanted = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
     let mut found = wanted;
     found.tasks = 5;
-    assert_eq!(format::check(&found, &wanted), Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: 9 }));
+    assert_eq!(
+        format::check(&found, &wanted),
+        Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: u32::from(wanted.tasks) })
+    );
 }
 #[test]
 fn a_format_row_of_another_deployment_is_refused() {
@@ -52,10 +55,10 @@ fn another_family_is_refused_naming_the_first_difference() {
     for (family, found, version, expected) in [
         (Family::Component, codec::component::Format { component: 2, core: 6, ..wanted }, 2, 3),
         (Family::Core, codec::component::Format { core: 5, tasks: 4, ..wanted }, 5, 6),
-        (Family::People, codec::component::Format { people: 10, notes: 2, ..wanted }, 10, 14),
+        (Family::People, codec::component::Format { people: 10, notes: 2, ..wanted }, 10, 15),
         (Family::Notes, codec::component::Format { notes: 2, accounts: 2, ..wanted }, 2, 1),
         (Family::Accounts, codec::component::Format { accounts: 1, application: 2, ..wanted }, 1, 2),
-        (Family::Settings, codec::component::Format { settings: 0, ..wanted }, 0, 1),
+        (Family::Settings, codec::component::Format { settings: 0, ..wanted }, 0, u32::from(wanted.settings)),
         (Family::Application, codec::component::Format { application: 2, deployment: [9; 16], ..wanted }, 2, 1),
     ] {
         assert_eq!(
@@ -260,11 +263,11 @@ fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
     let families = [
         (layouts.component, current.component, include_bytes!("../../schema/component-v3.schema").as_slice()),
         (layouts.core, current.core, include_bytes!("../../schema/core-v6.schema").as_slice()),
-        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v9.schema").as_slice()),
-        (layouts.people, current.people, include_bytes!("../../schema/people-v14.schema").as_slice()),
+        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v10.schema").as_slice()),
+        (layouts.people, current.people, include_bytes!("../../schema/people-v15.schema").as_slice()),
         (layouts.notes, current.notes, include_bytes!("../../schema/notes-v1.schema").as_slice()),
         (layouts.accounts, current.accounts, include_bytes!("../../schema/accounts-v2.schema").as_slice()),
-        (layouts.settings, current.settings, include_bytes!("../../schema/settings-v1.schema").as_slice()),
+        (layouts.settings, current.settings, include_bytes!("../../schema/settings-v3.schema").as_slice()),
         (layouts.secrets, 1, include_bytes!("../../schema/secrets-v1.schema").as_slice()),
     ];
     let mut digests = skein_lib::Set::with_capacity(u32::try_from(families.len()).expect("eight families"));

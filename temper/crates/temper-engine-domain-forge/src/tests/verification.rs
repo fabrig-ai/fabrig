@@ -80,8 +80,19 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -118,7 +129,8 @@ fn domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -158,6 +170,7 @@ fn configured() -> [Configured; 2] {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -192,6 +205,7 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),
@@ -201,6 +215,7 @@ fn opening_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -238,21 +253,23 @@ fn opening_row() -> ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
-    d.repositories.insert(REPO, adopted()).expect("adoption");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("adoption");
     let mut tiers = List::uncapped();
     for (name, branch) in names {
         tiers
@@ -424,7 +441,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
         ended: env().wall,
     });
     let mut out = Queue::uncapped();
-    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false }, &mut out);
+    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false, message_bytes: 4096 }, &mut out);
     out
 }
 

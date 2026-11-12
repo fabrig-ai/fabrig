@@ -33,12 +33,16 @@ fn configuration() -> engine::Config {
 }
 
 fn world() -> ClientWorld {
+    configured_world([configuration(), configuration()])
+}
+fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
     let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
     let mut limits = front.engine.env.limits;
     limits.people.initial_owners = 2;
+    limits.tasks.charters = u32::try_from(configs[0].core.defaults.charters.len()).expect("fixture charters");
     limits.documents.text_bytes = WHOLE_SETTING_BYTES;
     let forge = front.engine.forge.take();
-    front.engine = Driver::configured(Store::with_limits(&limits), [configuration(), configuration()], &limits);
+    front.engine = Driver::configured(Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
     front.engine.settle();
     let mut world = World::new(
@@ -69,6 +73,7 @@ fn client_value(value: &settings::Value) -> c::SettingValue {
 fn value_json(setting: c::Setting, value: c::SettingValue) -> String {
     let text = temper_client_tools::jig::render::settings_text(
         &c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: Some(value),
@@ -283,6 +288,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     use skein_lib::{Duration, Reader, Writer};
     use temper_client_protocol_wire::v1 as w;
     match value {
+        c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
@@ -570,7 +576,7 @@ fn revision_world() -> ClientWorld {
     limits.people.initial_owners = 2;
     limits.people.requests = 16;
     limits.settings.history = 4;
-    limits.tasks.charters = 12; // Kind 9's stock lines run up to charter 12.
+    limits.tasks.charters = 16; // Kind 9's stock lines run up to charter 16.
     let mut config = restore_configuration(&limits);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.number = 6;
@@ -602,6 +608,29 @@ fn forge_revision_file(charter: u32, ci: bool) -> String {
     format!(
         r#"{{"items":[{{"setting":{{"kind":"landing-rule","number":1,"project":1}},"set":{{"pattern":{{"segments":["666f726765"],"last":{{"exact":"6d61696e"}}}},"enforce":true,"ci":{ci},"up_to_date":false,"gates":[],"approvals":[]}}}},{{"setting":{{"kind":"forge-charter","number":1}},"set":{charter}}}]}}"#
     )
+}
+
+#[test]
+fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"landing-rule","project":1,"number":1},"set":{"pattern":{"segments":["6272616e6368"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[],"sets":[1]}}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"sets.json", b"--against", b"1", b"--key", b"rule-sets"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    for json in [false, true] {
+        let mut words = vec![b"settings".as_slice(), b"show", b"landing-rule", b"1", b"--project", b"1"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains("\"sets\":[1]"), "{shown}");
+    }
 }
 
 #[test]
@@ -682,7 +711,7 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
     })
 }
 
-const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"up"}]}"#;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks ways, questions and words through the joined ctl path")]
@@ -706,7 +735,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
     for (kind, value) in [
         (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"way":0}"#),
-        (b"project-questions", "\"foreman\""),
+        (b"project-questions", "\"up\""),
     ] {
         for selector in [b"1".as_slice(), project.as_ref()] {
             let shown = call(&mut world, agent, &[b"settings", b"show", kind, selector]);
@@ -721,7 +750,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let revision = call(&mut world, agent, &[b"revision", b"show", b"2"]);
     assert!(revision.contains("project-ways 1") && revision.contains("project-questions 1"), "{revision}");
     assert!(!revision.contains("application kind"), "{revision}");
-    let changed = PROJECT_WAYS_FILE.replace("foreman", "up").replace("\"changes\":false", "\"changes\":true");
+    let changed = PROJECT_WAYS_FILE.replace("up", "none").replace("\"changes\":false", "\"changes\":true");
     let number = fixtures::give_with_file(
         &mut world,
         agent,
@@ -731,10 +760,10 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let applied = fixtures::answered(&mut world, agent, number);
     assert_eq!(applied.status, 0, "{applied:?}");
     let shown = call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1"]);
-    assert!(shown.contains("\"up\""), "{shown}");
+    assert!(shown.contains("\"none\""), "{shown}");
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
-    assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+    assert!(historical.contains("\"value\":\"up\""), "{historical}");
     for (kind, selector, value, owners, name, initial) in [
         (
             b"charter-words".as_slice(),
@@ -848,6 +877,12 @@ fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
 #[test]
 fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name() {
     let mut world = world();
+    let mut hello = temper_engine_domain_world::protocol::hello(skein_lib::Token::new(7), Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
+    {
+        hello.bounds.message_bytes = world.front().engine.env.limits.tasks.message_bytes;
+    }
+    world.front().engine.send(hello);
     let agent = fixtures::agent(&mut world);
     let (setting, mut value) = show_value(&mut world, agent, &KINDS[1]);
     let c::SettingValue::Template(template) = &mut value else { panic!("template") };
@@ -876,4 +911,74 @@ fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name(
     assert_eq!(refused.status, 1, "{refused:?}");
     assert_eq!(world.root(agent).agent().kept(), 0, "no kept change-settings");
     assert!(world.kept(agent).is_empty(), "no saved change-settings");
+}
+
+fn overlay_configuration(new_default: bool) -> engine::Config {
+    let mut config = configuration();
+    let mut charter = config.core.defaults.charters[0].clone();
+    charter.number = 2;
+    charter.policy.instructions =
+        if new_default { b"new default".as_slice() } else { b"old default".as_slice() }.into();
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(charter);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    config
+}
+#[test]
+fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_restart() {
+    use temper_client_tools::jig::call::{SettingsFile, Value};
+    let mut world = configured_world([overlay_configuration(false), overlay_configuration(false)]);
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"charter","number":2},"overlay":{"charters":["set"],"shell":false}}]}"#;
+    let mut files = skein_lib::List::uncapped();
+    for (name, text) in
+        [(b"common.md".as_slice(), b"common".as_slice()), (b"implementer.md", b"our implementation rules")]
+    {
+        files.push(settings_form::overlay::Markdown { name: name.into(), text: text.into() }).expect("set file");
+    }
+    let mut directories = skein_lib::List::uncapped();
+    directories.push(settings_form::overlay::Directory { path: b"set".as_slice().into(), files }).expect("set");
+    let number = fixtures::give_with_loaded_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"settings.json", b"--against", b"1", b"--key", b"overlay-set"],
+        &Value::SettingsFile(Box::new(SettingsFile {
+            name: b"settings.json".as_slice().into(),
+            bytes: file.as_slice().into(),
+            directories,
+        })),
+    );
+    let answer = fixtures::answered(&mut world, agent, number);
+    assert_eq!(answer.status, 0, "{answer:?}");
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2"]);
+    assert!(shown.contains("old default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
+    assert!(shown.contains("overlay replaces: shell"), "{shown}");
+    let json = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2", b"--json"]);
+    assert!(!json.contains("charters"), "{json}");
+    let literal = json.rsplit_once(",\"overlay\":").expect("exported overlay").1.strip_suffix('}').expect("JSON end");
+    let reset = br#"{"items":[{"setting":{"kind":"charter","number":2},"edit":"reset"}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"reset.json", b"--against", b"2", b"--key", b"reset-overlay"],
+        reset,
+    );
+    assert_eq!(fixtures::answered(&mut world, agent, number).status, 0);
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"overlay":{literal}}}]}}"#);
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"copy.json", b"--against", b"3", b"--key", b"copy-overlay"],
+        file.as_bytes(),
+    );
+    assert_eq!(fixtures::answered(&mut world, agent, number).status, 0);
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("charter 2: overlay"), "{inventory}");
+    world.front().engine.reopen(overlay_configuration(true));
+    world.front().engine.settle();
+    let agent = fixtures::agent(&mut world);
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"charter", b"2"]);
+    assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("charter 2: overlay"), "{inventory}");
 }

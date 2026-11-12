@@ -258,41 +258,14 @@ pub(crate) fn allows(needs: &Needs, eligible: &[bool], version: Version) -> bool
     !known
 }
 
-/// Served model needs in configured order, checked against their endpoint bounds.
-pub(crate) fn declarations(needs: &Needs, endpoints: &[crate::EndpointBound]) -> Box<[bool]> {
-    let mut count = 0_u32;
-    for charter in &needs.charters {
-        count = count.checked_add(u32::try_from(charter.models.len()).expect("model count")).expect("model count");
-    }
-    let mut result = List::with_capacity(count);
-    for charter in &needs.charters {
-        for need in &charter.models {
-            let mut declared = false;
-            for model in endpoints {
-                if model.endpoint == need.endpoint && model.window >= need.window && model.output >= need.output {
-                    declared = true;
-                }
-            }
-            result.push(declared).expect("one bit per model need");
-        }
-    }
-    result.into_boxed()
-}
-
-pub(crate) fn allows_models(needs: &Needs, declarations: &[bool], models: &[ModelNeed]) -> bool {
+/// Check the run's source-selected endpoints against this host's declared bounds.
+pub(crate) fn allows_models(endpoints: &[crate::EndpointBound], models: &[ModelNeed]) -> bool {
     for model in models {
-        let mut at = 0_usize;
         let mut found = false;
-        for charter in &needs.charters {
-            for configured in &charter.models {
-                if configured.endpoint == model.endpoint
-                    && configured.window >= model.window
-                    && configured.output >= model.output
-                    && declarations.get(at) == Some(&true)
-                {
-                    found = true;
-                }
-                at = at.checked_add(1).expect("bounded configured model index");
+        for endpoint in endpoints {
+            if endpoint.endpoint == model.endpoint && endpoint.window >= model.window && endpoint.output >= model.output
+            {
+                found = true;
             }
         }
         if !found {
@@ -337,7 +310,6 @@ pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs:
     for (_, id) in &domain.tokens {
         let channel = domain.channels.get_mut(*id).expect("connected channel");
         channel.eligible = eligibility(&domain.needs, &channel.evidence.endpoints);
-        channel.declarations = declarations(&domain.needs, &channel.evidence.endpoints);
         for (at, charter) in domain.needs.charters.iter().enumerate() {
             let fits = charter_shortfall(charter, &channel.evidence).is_none()
                 && deployment_shortfall(&domain.needs, &channel.evidence).is_none();

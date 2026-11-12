@@ -85,7 +85,7 @@ impl Typed {
     }
     pub fn commit_tree(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> u64 {
         let mut forge = self.forge.borrow_mut();
-        let config = forge.config;
+        let config = forge.config.clone();
         let files =
             tree.into_iter().map(|(path, content)| api::File { path: path.into(), content: content.into() }).collect();
         domain::commit_tree(&mut forge.domain, &config, parent, merging, files, message).expect("scenario commit room")
@@ -95,7 +95,7 @@ impl Typed {
         let remote = repository(remote);
         let mut forge = self.forge.borrow_mut();
         let token = forge.next_reply();
-        let env = Env { now: forge.now, wall: Wall::EPOCH, limits: forge.config };
+        let env = Env { now: forge.now, wall: Wall::EPOCH, limits: forge.config.clone() };
         let Forge { domain, pending, .. } = &mut *forge;
         domain::step(
             domain,
@@ -236,7 +236,7 @@ impl Remote for Typed {
             return Some(Self::commit_tree(self, parent, merging, tree, message));
         }
         let mut forge = self.forge.borrow_mut();
-        let config = forge.config;
+        let config = forge.config.clone();
         let files =
             tree.into_iter().map(|(path, content)| api::File { path: path.into(), content: content.into() }).collect();
         match merging {

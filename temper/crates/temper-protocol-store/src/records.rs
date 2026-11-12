@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v11 as w};
+use crate::{Bounds, Undecodable, v16 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -10,6 +10,9 @@ mod away;
 mod change;
 mod client;
 mod closer;
+mod drafts;
+mod findings;
+mod follows;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
@@ -30,12 +33,17 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
+        d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
+        d::Stored::RefusedSetting(_) => unreachable!("a refused setting is never saved"),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
         d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
         d::Stored::LandingLog(row) => w::Value::LandingLog(landing_log::encode(row)),
@@ -107,11 +115,15 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 
 /// Decode one supported row with the checked startup bounds.
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
+    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
+        w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
+        w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
+        w::Value::LandedDraft(row) => d::Stored::LandedDraft(drafts::decode(row)?),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
+        w::Value::Finding(row) => d::Stored::Finding(findings::decode(row)?),
         w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
         w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
@@ -129,7 +141,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
-        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value))),
+        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value)?)),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
@@ -184,18 +196,34 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
 /// Restore a decoded record only when its durable key agrees with the row.
 pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = decode(value, bounds)?;
-    let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable)?;
+    let row = match decode(value, bounds) {
+        Ok(row) => row,
+        Err(Undecodable::Setting(setting)) => {
+            let encoded = crate::keys::encode(&d::Key::Setting(setting), u32::MAX).ok_or(Undecodable::Malformed)?;
+            return if encoded.as_ref() == key {
+                Err(Undecodable::Setting(setting))
+            } else {
+                Err(Undecodable::Malformed)
+            };
+        }
+        Err(Undecodable::Malformed) => return Err(Undecodable::Malformed),
+    };
+    let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable::Malformed)?;
     if encoded.as_ref() != key {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     Ok(row)
 }
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        change_follows_commits: forge.follow_merge,
+        follow_source_paths: forge.follow_paths,
+        follow_source_branch: forge.name_bytes,
+        follow_target_branch: forge.name_bytes,
         landing_rule_gates: forge.change_policy.gates,
         landing_rule_approvals: forge.roles,
+        landing_rule_sets: 6,
         rule_pattern_segments: forge.authority_segments.checked_mul(forge.name_bytes.checked_add(8)?)?,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
         answer_name_name: forge.client.answer_bytes,
@@ -287,6 +315,21 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_row_entries: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,
+        follow_row_branch: forge.name_bytes,
+        follow_row_stopped_some: forge.follow_reason_bytes,
+        follow_row_queue: forge.follow_queue,
+        // Only the head change produces, and it relays one question at a time.
+        follow_row_questions: 1,
+        follow_question_words: forge.client.op_bytes,
+        follow_question_answer_some: forge.client.op_bytes,
+        follow_row_skips: forge.follow_skips,
+        follow_entry_commits: forge.follow_commits,
+        follow_files_files: forge.client.answer_bytes.checked_add(forge.follow_files.checked_mul(4)?)?,
+        follow_commit_message: forge.follow_message_bytes,
+        follow_skip_reason: forge.follow_reason_bytes,
+        follow_reason_reason: forge.follow_reason_bytes,
+        follow_reason_act_reason: forge.follow_reason_bytes,
+        follow_merge_act_afters: forge.follow_merge,
         tier_row_observations: 8_192,
         tier_row_tier: 32,
         tier_row_goals: forge.holds,
@@ -318,8 +361,9 @@ fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject 
 }
 fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {
     use temper_client_protocol_wire::v1;
-    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
-    record.encode(&mut writer).or(Err(Undecodable))?;
-    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
+    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
+    let record =
+        v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
     Ok(temper_protocol_reaches::subject_from(&record))
 }

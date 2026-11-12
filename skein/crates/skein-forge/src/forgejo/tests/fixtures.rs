@@ -281,7 +281,9 @@ impl Run {
                         demand = if self.plan.take_cut() { client::cut(&mut decoder) } else { next };
                     }
                     Step::Done(document) => break Body::Document(document),
-                    Step::Malformed(error) => break Body::Malformed(error),
+                    Step::Malformed(error) => {
+                        break Body::Malformed(error.with_document_bound(self.limits.json.length, feed.delivered()));
+                    }
                 }
             }
         } else if client::encode(request, &self.limits).unwrap().method == Method::Get {

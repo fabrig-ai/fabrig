@@ -17,7 +17,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   - `sign_in`: a sign-in to the provider, made in a browser;
   - `key`: an API key, read from a private file;
   - `program`: a program's own login, such as Claude Code's, on each
-    host that runs it.
+    host that runs it. A Claude subscription connects through Claude Code;
+    a Claude Console API key is a `key` source instead.
 - **A source's state,** as `account list` prints it: `moving`,
   `asking`, `granted`, `later` (a limit reached, until a time),
   `sign_in_again`, `misconfigured`, `unloaded` (with where and why),
@@ -36,7 +37,9 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 - **Connected:** a provider's sign-in starts from ctl and finishes in
   a browser on the engine's machine, where the provider sends it back;
   a key is added from a file; a program's login is declared, made on
-  each host with `temper-box program-login`, then verified.
+  each host with `temper-box program-login`, then verified. For a Claude
+  Console API key, use `account add-key` with `anthropic`'s provider number
+  as `me` prints it, and the private file holding the key.
 - **Limited:** a source that reaches a provider's limit waits,
   `later`, until its time, or until retried.
 - **Signed out or forgotten:** a source is signed out; an account, or

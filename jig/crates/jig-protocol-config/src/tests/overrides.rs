@@ -690,7 +690,7 @@ fn batch_past_the_schema_keeps_its_binding_count() {
             bound: crate::CodecBound {
                 field: b"tasks-v9.TaskInterests.result_followups",
                 needed: 1025,
-                ceiling: jig_protocol_store::tasks_v9::CEILINGS.task_interests_result_followups,
+                ceiling: jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups,
             },
         },
     );
@@ -723,4 +723,34 @@ fn zero_capacity_sides_keep_their_family_bound_problem() {
     ] {
         problem(bytes, &[b"limits", b"overrides", member], what);
     }
+}
+
+#[test]
+fn client_queue_and_sign_in_exchange_overrides_are_checked() {
+    let limits = parse(
+        br#"{"profile":"standard","overrides":{"clients.queued_bytes":500000000,"clients.exchanges_per_client":8}}"#,
+    )
+    .expect("client overrides");
+    assert_eq!(limits.clients.queued_bytes, 500_000_000);
+    assert_eq!(limits.clients.exchanges_per_client, 8);
+    for (json, name) in [
+        (
+            br#"{"profile":"standard","overrides":{"clients.queued_bytes":127}}"#.as_slice(),
+            b"clients.queued_bytes".as_slice(),
+        ),
+        (br#"{"profile":"standard","overrides":{"clients.queued_bytes":0}}"#, b"clients.queued_bytes"),
+        (br#"{"profile":"standard","overrides":{"clients.queued_bytes":4294967296}}"#, b"clients.queued_bytes"),
+        (br#"{"profile":"standard","overrides":{"clients.exchanges_per_client":0}}"#, b"clients.exchanges_per_client"),
+        (
+            br#"{"profile":"standard","overrides":{"clients.exchanges_per_client":4294967296}}"#,
+            b"clients.exchanges_per_client",
+        ),
+    ] {
+        problem(json, &[b"limits", b"overrides", name], What::Override);
+    }
+    let limits =
+        parse(br#"{"profile":"standard","overrides":{"clients.queued_bytes":128,"clients.exchanges_per_client":1}}"#)
+            .expect("minimum overrides");
+    assert_eq!(limits.clients.queued_bytes, 128);
+    assert_eq!(limits.clients.exchanges_per_client, 1);
 }

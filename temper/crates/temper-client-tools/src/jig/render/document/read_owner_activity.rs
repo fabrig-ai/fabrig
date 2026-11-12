@@ -94,6 +94,17 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Activity::NowWritten { attempt, line } => {
+            out.object_start();
+            out.key(b"now_written");
+            out.object_start();
+            out.key(b"attempt");
+            out.unsigned(*attempt);
+            out.key(b"line");
+            out.string(line.bytes());
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Activity::Stood { attempt, words } => {
             out.object_start();
             out.key(b"stood");
@@ -102,6 +113,26 @@ pub(super) fn encode_owner_activity(
             out.unsigned(*attempt);
             out.key(b"words");
             out.string(words.bytes());
+            out.object_end();
+            out.object_end();
+        }
+        jig_client::contract::Activity::TalkOpened { party } => {
+            out.object_start();
+            out.key(b"talk_opened");
+            out.object_start();
+            out.key(b"party");
+            out.unsigned(*party);
+            out.object_end();
+            out.object_end();
+        }
+        jig_client::contract::Activity::TalkEnded { party, lapsed } => {
+            out.object_start();
+            out.key(b"talk_ended");
+            out.object_start();
+            out.key(b"party");
+            out.unsigned(*party);
+            out.key(b"lapsed");
+            out.boolean(*lapsed);
             out.object_end();
             out.object_end();
         }
@@ -118,6 +149,8 @@ pub(super) fn encode_owner_activity(
                 jig_client::contract::SessionEnd::Unoffered => b"unoffered",
                 jig_client::contract::SessionEnd::Fresh => b"fresh",
                 jig_client::contract::SessionEnd::Closed => b"closed",
+                jig_client::contract::SessionEnd::Talk => b"talk",
+                jig_client::contract::SessionEnd::Left => b"left",
                 jig_client::contract::SessionEnd::Rules => b"rules",
             });
             out.object_end();

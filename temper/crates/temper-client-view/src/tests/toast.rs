@@ -89,12 +89,18 @@ fn way_answer(kept: bool) -> d::Domain {
             )
             .unwrap()])),
             delegation: false,
+            roles: List::with_capacity(0),
         },
     )
     .unwrap();
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
             words: None,
             project: f::PROJECT,
             ways: List::from_boxed(Box::new([way])),

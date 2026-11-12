@@ -133,6 +133,14 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   is read as `merge_job` is, its errors named at
   `application.landing.projects[i].close_job`; a path past its bounds
   refuses the start at its member.
+- **The goal closer's attempts,** beside `close_job`, by either way:
+  `landing_attempts`, a u8 from 1 to 255, 3 when absent: how many of a
+  goal closer's changes for one step, its close step's or its land
+  step's, may end cancelled or failed, each made again with no one's
+  judgement, before the closer asks its goal
+  (`../../domain/forge/branches.md`, 2). A project with no landing
+  entry has 3. One past its bounds, 0 among them, refuses the start at
+  its member, `application.landing.projects[i].landing_attempts`.
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
@@ -154,6 +162,7 @@ member for member:
 | `up_to_date` | boolean | the change's head must contain its base's tip |
 | `gates` | list of `{"number": u32, "blocking": boolean, "freshness": "exact" or "clean"}` | the gates every change it covers asks for (`../../domain/forge/change/gates.md`, 1): an agent's review, or one of a repository's checks when it has no CI; at most the forge's `change_policy.gates` |
 | `approvals` | list of `{"role": u32, "people": u32, "freshness": "exact" or "clean"}` | `people` distinct people holding `role` in the project approve the change, each by a review on the forge (`../../domain/forge/change/gates.md`, 2) |
+| `sets` | list of u8, at most 6 | the path sets of the project's classes (`../../domain/forge/attention.md`, 6) the rule covers a change by: each a set's number, 1 to 6, at most once. Empty covers every change into the branches its pattern covers; a rule of kind 1, the deployment's, names none |
 
 - **`freshness`,** a gate's or an approval's, says at which later heads
   a verdict still counts: `exact`, the head it was given at; `clean`,
@@ -162,11 +171,21 @@ member for member:
   requirement, the age within which its facts must have been read: CI,
   gates and approvals are guarded, and up to date is observed with a
   freshness of 0 (`../../domain/forge/change/gates.md`, 2).
+- **`sets`** make a rule by path (`../../draft/what-reaches-you.md`,
+  section 7): a rule naming sets covers a change into a branch its pattern
+  covers only where the change touches one of them at the head judged,
+  for its CI, up to date, gates and approvals alike
+  (`../../domain/forge/change/gates.md`, 2). A number at which the
+  project's classes hold no set counts as touched, so a set removed from
+  the classes leaves its rule covering every change, never none. An
+  `exact` approval asks again at each new head, a clean update's among
+  them, so a rule by path on a busy branch wants `clean`
+  (`../../domain/forge/queues.md`).
 - **Bounds:** a project appears in `projects` at most once, and must be
   one of `engine.projects`; a rule's bounds are those the forge judges
   it by (`settings.md`, 2).
 - **Feeds** `Config.landings`: each project's way, gates, tiers, merge
-  job and turn's settings.
+  job, close job, goal closer's attempts and turn's settings.
 
 **`clients`:** the clients' listener, which `temper-service` owns
 (`../../client/engine.md`), and the browser's bundle it serves
@@ -255,6 +274,39 @@ path and each script's cue, and reads the key at the playground's start,
 which makes the scripted account with it (../setup/playground.md); with `null`,
 the playground is not offered.
 
+**`push`:** pushing to people's devices (`../../domain/forge/attention.md`,
+7.3), absent or `null` for none. Unlike the members above, it may be
+missing, so a document written before it reads as it did: absent is
+`null`, and nothing is pushed.
+
+```json
+"push": {
+  "key": "push.key",
+  "subject": "mailto:operator@example.com",
+  "services": null
+}
+```
+
+| Member | Type | Bounds | Feeds |
+|---|---|---|---|
+| `key` | a data path | a secrets' file (`README.md`, section 5), private, 0o600, at most skein's `VAPID_PEM_BYTES`, PKCS#8 PEM of a P-256 key with its public half (skein's `net/push.md`, 3), as `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out push.key` writes it; one skein's `Vapid::from_pkcs8_pem` refuses refuses the start, naming the file | each push's VAPID token; its public half, the deployment's read's `push` (`../../client/forge/records.md`) |
+| `subject` | a string | a `mailto:` or `https:` URI, 1 to skein's `SUBJECT_BYTES` | each token's `sub`: where a push service may reach the operator |
+| `services` | a list, or `null` | `null` for Google's, Mozilla's and Apple's push services, `https://fcm.googleapis.com`, `https://updates.push.services.mozilla.com` and `https://web.push.apple.com`; otherwise 1 to 8 origins, each `https` and a host with an optional port, or `http` to a loopback host, for a test's fake push service | which endpoints a device may name (`AddDevice`'s `service` refusal) and where pushes go; each host resolved when a push is sent, over TLS with the machine's roots for `https` |
+
+- **What else push needs,** none of it configuration: the web client at
+  the deployment's name over HTTPS, `clients.public` (`../sign-in.md`,
+  section 2), since a browser subscribes only on a secure origin; and
+  the key kept for good, since every device subscribed with its public
+  half (`../../domain/forge/attention.md`, 7.3).
+
+**`mail`:** sending mail, designed and not built
+(`../../domain/forge/attention.md`, 7.4); absent or `null` for none, as
+`push`. On: `host`, a host name; `port`, 465 for TLS from the start or
+587 for STARTTLS; `from`, an address of 3 to 254 bytes; `user`, 1 to 256
+bytes; `password`, a data path, a secrets' file, private, 0o600. Until
+it is built, the start refuses a document naming `mail` as it refuses
+any member it doesn't know.
+
 **What the engine root's `Config` takes,** field by field:
 
 | Field | From |
@@ -268,6 +320,7 @@ the playground is not offered.
 | `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
+| `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 
 Beside the root: the forge component takes each kept forge's number,
 kind, address and transport from its record, and its kind's log

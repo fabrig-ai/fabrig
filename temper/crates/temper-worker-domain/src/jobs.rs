@@ -207,11 +207,13 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Reque
         tooling::Request::Ended { owner, end } => {
             let end = match end {
                 tooling::End::Finished { result, deliver } => {
-                    let delivery = if deliver { delivery(domain, owner) } else { None };
-                    if deliver && delivery.is_none() {
-                        host::JobEnd::Failed { detail: Box::from(b"no unique writable repository".as_slice()) }
+                    if deliver {
+                        match delivery(domain, owner, env.limits.host.detail_bytes) {
+                            Ok(delivery) => host::JobEnd::Finished { result, delivery: Some(delivery) },
+                            Err(detail) => host::JobEnd::Failed { detail },
+                        }
                     } else {
-                        host::JobEnd::Finished { result, delivery }
+                        host::JobEnd::Finished { result, delivery: None }
                     }
                 }
                 tooling::End::Failed { detail } => host::JobEnd::Failed { detail },
@@ -227,9 +229,75 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Reque
     route::host_step(domain, env, host::Event::Job(event));
 }
 
-fn delivery(domain: &Domain, owner: Token) -> Option<Box<[u8]>> {
-    let workspace = *domain.jobs.get(&owner)?;
-    workspace::job_directory(domain, workspace).1
+fn delivery(domain: &Domain, owner: Token, detail_bytes: u32) -> Result<Box<[u8]>, Box<[u8]>> {
+    let most = usize::try_from(detail_bytes).expect("a u32 fits usize");
+    let Some(workspace) = domain.jobs.get(&owner) else {
+        let why = b"no unique writable repository: no checkout";
+        return Err(Box::from(why.get(..why.len().min(most)).expect("bounded missing checkout detail")));
+    };
+    if let Some(writable) = workspace::job_directory(domain, *workspace).1 {
+        return Ok(writable);
+    }
+    Err(repository_detail(workspace::job_roots(domain, *workspace), most))
+}
+
+fn repository_access(root: &workspace::Root) -> &[u8] {
+    if root.writable { b" writable" } else { b" read-only" }
+}
+
+fn repositories_more(left: usize) -> Box<[u8]> {
+    if left == 0 {
+        return Box::new([]);
+    }
+    let number = Decimal::of(u64::try_from(left).expect("the admitted repository count fits u64"));
+    skein_lib::bytes::concat(&[b", and ", number.as_bytes(), b" more"])
+}
+
+/// Keep the cause's beginning: the hub keeps the tail of an oversized detail.
+fn repository_detail(roots: &[workspace::Root], most: usize) -> Box<[u8]> {
+    let prefix = b"no unique writable repository: saw ";
+    if most < prefix.len() {
+        return Box::from(prefix.get(..most).expect("bounded repository detail prefix"));
+    }
+    let mut keep = 0;
+    let mut size = prefix.len();
+    let omitted = repositories_more(roots.len());
+    let all_omitted = size.checked_add(omitted.len()).expect("bounded count suffix");
+    if all_omitted <= most {
+        size = all_omitted;
+    }
+    let mut length = prefix.len();
+    for (index, root) in roots.iter().enumerate() {
+        let entries = index.checked_add(1).expect("admitted repository count");
+        let left = roots.len().checked_sub(entries).expect("a prefix of the roots");
+        let separator = if index == 0 { 0 } else { 2 };
+        length = length
+            .checked_add(separator)
+            .expect("bounded repository separator")
+            .checked_add(root.name.len())
+            .expect("admitted repository names")
+            .checked_add(repository_access(root).len())
+            .expect("bounded repository access words");
+        let candidate = length.checked_add(repositories_more(left).len()).expect("bounded count suffix");
+        if candidate <= most {
+            keep = entries;
+            size = candidate;
+        }
+    }
+    let mut text = Writer::new(size);
+    text.put(prefix).expect("repository detail prefix fits");
+    for (index, root) in roots.get(..keep).expect("selected whole roots").iter().enumerate() {
+        if index != 0 {
+            text.put(b", ").expect("measured repository separator");
+        }
+        text.put(&root.name).expect("measured repository name");
+        text.put(repository_access(root)).expect("measured repository access");
+    }
+    if size > text.written() {
+        let left = roots.len().checked_sub(keep).expect("selected roots are a prefix");
+        text.put(&repositories_more(left)).expect("measured omitted repositories");
+    }
+    text.finish()
 }
 
 pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, owner: Token, workspace: Token, delivery: &[u8]) {

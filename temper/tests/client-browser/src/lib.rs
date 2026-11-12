@@ -34,12 +34,51 @@ pub const FIRST_CHAT: &[u8] = b"T1";
 /// Its address.
 pub const FIRST_CHAT_ADDRESS: &[u8] = b"/chats/1";
 
-/// The `temper` binary beside the test executable.
+const PAGE_QUERY: &[u8] = b"internal-loopback-navigation=1&internal-small-window=1";
+
+/// The page's addresses (client/web/testing.md, 3), excluding the service's
+/// GitHub routes and their closed queries (client/forge/served.md, 1).
+fn is_page(address: &[u8]) -> bool {
+    let address = address.split(|byte| *byte == b'?' || *byte == b'#').next().expect("address before query");
+    let path = if let Some(scheme) = skein_lib::bytes::find(address, b"://") {
+        let authority = &address[scheme + 3..];
+        authority.iter().position(|byte| *byte == b'/').map_or(b"".as_slice(), |at| &authority[at..])
+    } else {
+        address
+    };
+    let Some(forge) = path.strip_prefix(b"/forges/") else { return true };
+    let digits = forge.iter().take_while(|byte| byte.is_ascii_digit()).count();
+    digits == 0 || !matches!(&forge[digits..], b"/github/manifest" | b"/github/redirect" | b"/github/setup")
+}
+
+/// A fresh load, adding the tier's settings only to the page (client/web/testing.md, 3).
+#[must_use]
+pub fn page_address(address: &[u8]) -> Box<[u8]> {
+    skein_fake_person_browser::harness::page_with_query(address, PAGE_QUERY, is_page)
+}
+
+/// The tier's printed and command-opened pages carry the same settings as explicit loads.
+#[must_use]
+pub fn harness(setup: Setup<'_>) -> skein_fake_person_browser::Harness {
+    skein_fake_person_browser::Harness::new(setup).page_query(PAGE_QUERY).page_addresses(is_page)
+}
+
+/// The `temper-box` binary beside the test executable.
 #[must_use]
 pub fn temper() -> PathBuf {
+    binary("temper-box")
+}
+
+/// The static host beside the test executable (temper/docs/design/testing/tools.md, 5).
+#[must_use]
+pub fn playground_serve() -> PathBuf {
+    binary("temper-playground-serve")
+}
+
+fn binary(name: &str) -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(Path::parent).expect("target directory").join("temper-box");
-    assert!(binary.is_file(), "build the browser server with cargo build -p temper-box: {}", binary.display());
+    let binary = exe.parent().and_then(Path::parent).expect("target directory").join(name);
+    assert!(binary.is_file(), "build the browser server with cargo build -p {name}: {}", binary.display());
     binary
 }
 #[must_use]
@@ -101,7 +140,7 @@ pub fn first_chat_steps(words: &[u8]) -> Vec<Step> {
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let mut steps = vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: crate::page_address(b"/chats".as_slice()) }),
         see(live()),
         connected(),
     ];
@@ -135,7 +174,7 @@ pub fn playground_chat(words: &[u8]) -> Vec<Step> {
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     // With no chat that started work, Work has no Chats filter.
     let mut steps = vec![
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: crate::page_address(b"/chats".as_slice()) }),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
     ];
     steps.extend(start_change(true));
@@ -355,6 +394,14 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("reserved deployment JSON"));
         tier
     }
+    /// The box's serve step, on this deployment's directories rather than its startup command.
+    #[must_use]
+    pub fn box_serve(&self) -> Vec<std::ffi::OsString> {
+        let mut args = vec!["internal".into(), "serve".into()];
+        args.extend(configuration::flags(self.scratch.path()));
+        args.push("--box".into());
+        args
+    }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
         let mut args = Vec::new();
@@ -448,6 +495,39 @@ fn copy_bundle(from: &Path, to: &Path) {
 mod tests {
     use super::configuration::{UNREACHED, documents};
     use std::path::Path;
+    #[test]
+    fn the_page_excludes_only_the_three_decimal_github_routes() {
+        for (path, page) in [
+            ("/forges/1/github/manifest", false),
+            ("/forges/12/github/redirect", false),
+            ("/forges/0/github/setup", false),
+            ("/forges", true),
+            ("/forges/connect?forge=1", true),
+            ("/chats", true),
+            ("/", true),
+            ("/projects/1/settings/repositories", true),
+            ("/forges/1/github", true),
+            ("/forges//github/manifest", true),
+            ("/forges/1x/github/manifest", true),
+            ("/forges/1/github/manifest/", true),
+            ("/forges/1/github/setup/other", true),
+        ] {
+            for prefix in ["", "http://127.0.0.1:9", "http://127.0.0.1:41000"] {
+                for suffix in ["", "?state=abc", "#t", "?x=1#t"] {
+                    let address = format!("{prefix}{path}{suffix}");
+                    assert_eq!(super::is_page(address.as_bytes()), page, "{address}");
+                    let opened = super::page_address(address.as_bytes());
+                    let expected = if page {
+                        skein_fake_person_browser::harness::with_query(address.as_bytes(), super::PAGE_QUERY)
+                    } else {
+                        address.as_bytes().into()
+                    };
+                    assert_eq!(opened, expected, "{address}");
+                }
+            }
+        }
+    }
+
     fn tier_configuration() -> (serde_json::Value, serde_json::Value) {
         let (agent, value) =
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
@@ -505,7 +585,7 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
         let bound = &agent["endpoints"][0]["limits"];
-        assert_eq!(defaults.charters.len(), 10);
+        assert_eq!(defaults.charters.len(), 12);
         for charter in &defaults.charters {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)

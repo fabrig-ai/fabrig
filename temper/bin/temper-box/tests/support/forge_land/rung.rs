@@ -1321,13 +1321,14 @@ mod twin_tests {
     #[test]
     fn the_twin_waits_for_the_childs_result_after_a_forge_notification() {
         for (fresh, prior, expected) in [
-            ("Initial work", 0, "goal"),
-            ("this work is to be agreed", 1, "goal"),
-            ("Delegated tasks: 3", 2, "wait"),
-            ("The repository contains a minimal Rust binary:", 3, "message"),
-            (ANSWER, 5, "change"),
             ("2: forge landing before the child's result", 7, "wait"),
-            ("4: Result from task 4: Landed: pull request #2", 8, "finish"),
+            (
+                "Result from task 4:\n1d0b14e4db018fed000000000000000300000000\n\
+                 pull request #2 of playground/widget\n\
+                 Landed: pull request #2 merged into main as 1d0b14e4db01.",
+                8,
+                "finish",
+            ),
         ] {
             assert_eq!(answer(fresh, prior), expected, "fresh input: {fresh}");
         }

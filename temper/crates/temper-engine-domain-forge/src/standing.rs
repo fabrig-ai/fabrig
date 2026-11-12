@@ -7,23 +7,29 @@ use temper_engine_domain_forge_change as change;
 
 use crate::{
     ChangeEvidence, Criterion, Domain, GateCandidate, JudgeFreshness, JudgeVerdict, Limits, Repository, Requires,
-    Reviewer, domain::branch_resource_name, gates, judge, landing, settings,
+    Reviewer, Touched, domain::branch_resource_name, gates, judge, landing, settings,
 };
 
 impl Domain {
     /// Read the procedure's waits from the deployment's and project's held rules.
     #[must_use]
-    pub fn held_requires(&self, repository: &Repository, branch: &[u8]) -> Requires {
+    pub fn held_requires(&self, repository: &Repository, branch: &[u8], touched: Touched) -> Requires {
         let held = self.landing_rules(repository.project);
-        let Some(name) = branch_resource_name(repository, branch) else {
+        let Some(_) = branch_resource_name(repository, branch) else {
             return Requires { ci: true, up_to_date: true };
         };
-        settings::requires(&held, &name)
+        settings::requires(&held, repository, branch, touched)
     }
 
     /// Select every covering rule's gates, with advisory rules holding nothing.
     #[must_use]
-    pub fn held_gates(&self, limits: &Limits, repository: &Repository, branch: &[u8]) -> Option<Box<[change::Gate]>> {
+    pub fn held_gates(
+        &self,
+        limits: &Limits,
+        repository: &Repository,
+        branch: &[u8],
+        touched: Touched,
+    ) -> Option<Box<[change::Gate]>> {
         branch_resource_name(repository, branch)?;
         let held = self.landing_rules(repository.project);
         let capacity = limits.landing_rules.checked_mul(limits.change_policy.gates)?.checked_mul(2)?;
@@ -31,7 +37,7 @@ impl Domain {
         let mut required = List::with_capacity(capacity);
         for held in &held {
             let rule = &held.rule;
-            if !gates::covers_branch(&rule.pattern, repository, branch) {
+            if !gates::covers(rule, repository, branch, touched) {
                 continue;
             }
             for gate in &rule.gates {
@@ -63,6 +69,67 @@ impl Domain {
             }
         }
         Some(selected)
+    }
+
+    /// Keep the change's own gates beside the rules selected at this head.
+    pub(crate) fn step_gates(
+        &self,
+        limits: &Limits,
+        row: &crate::ChangeRow,
+        repository: &Repository,
+        touched: Touched,
+    ) -> Option<Box<[change::Gate]>> {
+        let selected = self.held_gates(limits, repository, &row.base, touched)?;
+        let rules = self.landing_rules(repository.project);
+        let mut gates: List<change::Gate> = List::with_capacity(limits.change_policy.gates);
+        for gate in &row.change.gates {
+            let mut by_path = false;
+            for held in &rules {
+                if held.rule.sets.is_empty() || !gates::covers(&held.rule, repository, &row.base, Touched::UNKNOWN) {
+                    continue;
+                }
+                for named in &held.rule.gates {
+                    let check = !repository.ci && repository.checks.contains(&named.number);
+                    let configured = change::Gate {
+                        number: u64::from(named.number),
+                        kind: if check { change::GateKind::Check } else { change::GateKind::Agent },
+                        blocking: check || (held.rule.enforce && named.blocking),
+                        freshness: if check {
+                            change::Freshness::Exact
+                        } else {
+                            match named.freshness {
+                                JudgeFreshness::Exact => change::Freshness::Exact,
+                                JudgeFreshness::Clean => change::Freshness::Clean,
+                            }
+                        },
+                        eager: false,
+                    };
+                    by_path |= *gate == configured;
+                }
+            }
+            if !by_path {
+                gates.push(*gate).ok()?;
+            }
+        }
+        for gate in selected {
+            let mut present = false;
+            for own in gates.iter_mut() {
+                if own.number == gate.number {
+                    present = true;
+                    own.blocking |= gate.blocking;
+                    if gate.freshness == change::Freshness::Exact {
+                        own.freshness = change::Freshness::Exact;
+                    }
+                    if gate.kind == change::GateKind::Check {
+                        own.kind = change::GateKind::Check;
+                    }
+                }
+            }
+            if !present {
+                gates.push(gate).ok()?;
+            }
+        }
+        Some(gates.into_boxed())
     }
 
     pub(crate) fn judge_held_landing(
@@ -102,14 +169,7 @@ impl Domain {
         requested
     }
 
-    fn held_landing_verdict(
-        &self,
-        up_to_date: bool,
-        task: u64,
-        head: skein_forge::api::Commit,
-        evidence: &ChangeEvidence,
-        reviewers: &[Reviewer],
-    ) -> Option<(JudgeVerdict, Option<Criterion>)> {
+    fn landing_change(&self, task: u64, head: skein_forge::api::Commit) -> Option<&crate::ChangeRow> {
         let landing = self.landing.rows.get(&task);
         let mut change_task = task;
         if let Some(row) = landing {
@@ -125,14 +185,61 @@ impl Domain {
                 return None;
             }
         }
-        let row = self.changes.get(&change_task)?;
+        self.changes.get(&change_task)
+    }
+
+    /// The enforcing approvals covering the exact merge evidence, including a turn member's.
+    #[must_use]
+    pub fn landing_sign_offs(
+        &self,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Box<[crate::SignOff]> {
+        let Some(row) = self.landing_change(task, head) else { return Box::new([]) };
+        let Some(criteria) = self.landing_criteria(row, head, evidence, false) else { return Box::new([]) };
+        let mut approvals = List::uncapped();
+        for criterion in criteria {
+            match criterion {
+                Criterion::Approval { role, freshness, .. } => {
+                    approvals.push((role, freshness)).expect("admitted criteria");
+                }
+                Criterion::Ci | Criterion::UpToDate | Criterion::Gate { .. } => {}
+            }
+        }
+        let mut clean = List::uncapped();
+        for commit in &row.change.clean {
+            clean.push(*commit).expect("admitted clean history");
+        }
+        if let Some(landing) = self.landing.rows.get(&task) {
+            for member in &landing.landing.members {
+                if member.candidate == Some(head) {
+                    if let Some(commit) = member.head {
+                        clean.push(commit).expect("admitted landing member");
+                    }
+                    break;
+                }
+            }
+        }
+        judge::sign_offs(&approvals.into_boxed(), head, clean.as_slice(), reviewers)
+    }
+
+    fn landing_criteria(
+        &self,
+        row: &crate::ChangeRow,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        up_to_date: bool,
+    ) -> Option<Box<[Criterion]>> {
         let repository = self.repositories.get(&row.repository)?;
         branch_resource_name(repository, &row.base)?;
         let rules = self.landing_rules(repository.project);
+        let touched = if evidence.head == Some(head) { evidence.touched } else { Touched::UNKNOWN };
         let mut criteria = List::uncapped();
         for held in &rules {
             let rule = &held.rule;
-            if !rule.enforce || !gates::covers_branch(&rule.pattern, repository, &row.base) {
+            if !rule.enforce || !gates::covers(rule, repository, &row.base, touched) {
                 continue;
             }
             if up_to_date {
@@ -160,8 +267,23 @@ impl Domain {
                     .ok()?;
             }
         }
+        Some(criteria.into_boxed())
+    }
+
+    fn held_landing_verdict(
+        &self,
+        up_to_date: bool,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Option<(JudgeVerdict, Option<Criterion>)> {
+        let landing = self.landing.rows.get(&task);
+        let row = self.landing_change(task, head)?;
+        let repository = self.repositories.get(&row.repository)?;
+        let criteria = self.landing_criteria(row, head, evidence, up_to_date)?;
         let mut result = JudgeVerdict::Met;
-        for criterion in criteria.into_boxed() {
+        for criterion in criteria {
             let verdict = match landing {
                 Some(landing) => landing::judge(self, landing, criterion, head, evidence, reviewers)?,
                 None => judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers),
@@ -183,7 +305,7 @@ impl Domain {
         let Some(_) = branch_resource_name(repository, &row.base) else { return approvals.into_boxed() };
         let held = self.landing_rules(repository.project);
         for held in &held {
-            if !held.rule.enforce || !gates::covers_branch(&held.rule.pattern, repository, &row.base) {
+            if !held.rule.enforce || !gates::covers(&held.rule, repository, &row.base, self.touched_at(row)) {
                 continue;
             }
             for approval in &held.rule.approvals {

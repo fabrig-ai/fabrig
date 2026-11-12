@@ -191,7 +191,8 @@ impl FakeForge {
             fake_call,
             Pending { root_call: call, generation: if late { u64::MAX } else { self.generation }, op, effect },
         );
-        let env = Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config };
+        let env =
+            Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config.clone() };
         let mut queue = Queue::uncapped();
         fake::step(
             &mut self.domain,
@@ -214,7 +215,8 @@ impl FakeForge {
         }
     }
     pub fn poll(&mut self, clock: Clock) -> Vec<engine::Event> {
-        let env = Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config };
+        let env =
+            Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config.clone() };
         if self.domain.is_due(env.now) {
             let mut queue = Queue::uncapped();
             fake::fire(&mut self.domain, &env, &mut queue);
@@ -271,7 +273,7 @@ impl FakeForge {
                             call: pending.root_call,
                             cost: 1,
                             result: match result {
-                                Ok(answer) => Ok(translate::answer(&pending.op, answer, &self.client_limits)),
+                                Ok(answer) => translate::answer(&pending.op, answer, &self.client_limits),
                                 Err(error) => Err(translate::error(error, fake::time(&self.config, env.now))),
                             },
                         },
@@ -393,7 +395,8 @@ impl FakeForge {
     pub fn external_as(&mut self, clock: Clock, user: u64, op: raw::Op) -> raw::Answer {
         let token = Token::new(self.serial);
         self.serial += 1;
-        let env = Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config };
+        let env =
+            Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config.clone() };
         let mut queue = Queue::uncapped();
         fake::fire(&mut self.domain, &env, &mut queue);
         while let Some(request) = queue.pop() {
@@ -451,7 +454,8 @@ impl FakeForge {
         );
     }
     pub fn advance(&mut self, clock: Clock, branch: &[u8], body: &[u8]) -> api::Commit {
-        let env = Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config };
+        let env =
+            Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: self.config.clone() };
         let commit = fake::advance(
             &mut self.domain,
             &env,

@@ -149,6 +149,7 @@ fn target(request: &Request, out: &mut Target) {
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }
@@ -212,6 +213,9 @@ fn pull() -> PullRequest {
         merge_base: None,
         mergeable: false,
         requested_reviewers: Box::from([]),
+        changed_files: None,
+        additions: None,
+        deletions: None,
     }
 }
 fn status() -> CommitStatus {
@@ -429,6 +433,7 @@ impl Items {
             | Item::Presence => unreachable!("item root selection"),
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the item scalar table exhaustively assigns each field")]
     fn scalar(&mut self, kind: Kind, key: &'static [u8], value: Value) -> Result<(), Malformed> {
         match value {
             Value::Input(_) => unreachable!("dispatch input table"),
@@ -447,6 +452,9 @@ impl Items {
                         self.pull.number = number;
                     }
                 }
+                b"changed_files" => self.pull.changed_files = Some(number),
+                b"additions" => self.pull.additions = Some(number),
+                b"deletions" => self.pull.deletions = Some(number),
                 b"total_count" => self.combined.total_count = number,
                 b"repo_id" => {
                     if kind == Kind::Item(Item::Head) {

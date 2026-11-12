@@ -21,7 +21,7 @@ pub(crate) fn inputs(
     let repositories = domain.forge.readable_repositories(project);
     let repository = match repository.or(domain.forge.home(project)) {
         Some(home) => Some(home),
-        None => repositories.first().copied(),
+        None => repositories.first(),
     };
     let landing = match repository {
         Some(repository) => repository.settings.default_branch.clone(),
@@ -49,8 +49,12 @@ pub(crate) fn inputs(
                     ways::Role {
                         number: role.number,
                         name: role_name(role.number),
+                        holders: holders(domain, project, role.number),
                         yours: match domain.core.people.role(party, project) {
-                            Some(held) => held.number() == role.number,
+                            Some(held) => {
+                                held.number() == role.number
+                                    && domain.core.people.kind(party) == Some(jig_domain_people::Kind::Person)
+                            }
                             None => false,
                         },
                     },
@@ -83,6 +87,7 @@ pub(crate) fn inputs(
         branch,
         repository,
         rules,
+        sets: path_sets(domain, project, items),
         start,
         producer: charters.change,
         reviewer: charters.review,
@@ -91,6 +96,49 @@ pub(crate) fn inputs(
         roles: ordered.into_boxed(),
         agents: agents.into_boxed(),
     }
+}
+
+fn holders(domain: &Domain, project: u32, role: u32) -> u32 {
+    let mut count = 0_u32;
+    if let Some(members) = domain.core.people.project_members(project) {
+        for member in members {
+            if member.role.number() == role
+                && domain.core.people.kind(member.person) == Some(jig_domain_people::Kind::Person)
+            {
+                count = count.saturating_add(1);
+            }
+        }
+    }
+    count
+}
+
+fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper_protocol_reaches::PathSet]> {
+    let mut classes = domain.forge.project_classes(project);
+    for item in items {
+        if item.kind != 8 || item.scope != project || item.number != 1 {
+            continue;
+        }
+        match &item.edit {
+            ways::Edit::Remove => {
+                classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+            }
+            ways::Edit::Set(value) => match value {
+                settings::Value::Classes(value) => classes = value.clone(),
+                settings::Value::Rule(_)
+                | settings::Value::Charter(_)
+                | settings::Value::Goal(_)
+                | settings::Value::Questions(_)
+                | settings::Value::Ways(_)
+                | settings::Value::CharterWords(_)
+                | settings::Value::ProjectWords(_)
+                | settings::Value::Dependency(_)
+                | settings::Value::Follow(_)
+                | settings::Value::ProjectAreas(_)
+                | settings::Value::ProjectTriager(_) => {}
+            },
+        }
+    }
+    classes.sets
 }
 
 fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Repository, other: bool) -> ways::Repository {
@@ -156,6 +204,10 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::Questions(_)
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
+                | settings::Value::ProjectAreas(_)
+                | settings::Value::ProjectTriager(_)
+                | settings::Value::Dependency(_)
+                | settings::Value::Follow(_)
                 | settings::Value::ProjectWords(_),
             ..
         })
@@ -223,6 +275,12 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         let items = ways::items(way, project, project_ways(domain, project));
         let path = ways::derive(&inputs(domain, project, party, &items, None, None));
         paths.push(path.clone()).expect("stock ways");
+        let mut roles = List::uncapped();
+        for role in &way.roles {
+            roles
+                .push(ways::WayRoleEntry { role: role.clone(), running: role_running(domain, project, role.charter) })
+                .expect("stock way roles");
+        }
         entries
             .push(ways::WayEntry {
                 name: way.name.clone(),
@@ -230,19 +288,36 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
                 line: way.line.clone(),
                 path,
                 items,
+                roles: roles.into_boxed(),
                 delegation: way.delegation && lacks_delegation(domain, project),
             })
             .expect("stock ways");
     }
-    let own = ways::derive(&inputs(domain, project, party, &[], None, None));
+    let own_inputs = inputs(domain, project, party, &[], None, None);
+    let own = ways::derive(&own_inputs);
     ways::WaysDocument {
         project,
         ways: entries.into_boxed(),
         current: ways::current(&paths.into_boxed(), &own),
         own,
         words: domain.forge.project_words(project).cloned(),
+        rules: ways::rules_by_path(&own_inputs),
         may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
+}
+
+fn role_running(domain: &Domain, project: u32, charter: u32) -> bool {
+    for view in domain.core.tasks.view_tasks() {
+        if view.project == project
+            && let Some(task) = domain.core.tasks.task(view.number)
+            && task.label == 3
+            && task.ended_at.is_none()
+            && task.executor == (jig_domain_tasks::Executor::Agent { charter })
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn lacks_delegation(domain: &Domain, project: u32) -> bool {
@@ -284,6 +359,11 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
         Record::People(
             jig_domain_people::Stored::Roles { project, .. } | jig_domain_people::Stored::Policy { project, .. },
         ) => mark(domain, *project),
+        Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task))
+            if task.label == 3 =>
+        {
+            mark(domain, task.project);
+        }
         Record::Core(_) | Record::People(_) | Record::Tasks(_) | Record::Notes(_) | Record::Accounts(_) => {}
     }
 }
@@ -330,7 +410,11 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Making(_)
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
+        | forge::Key::Device { .. }
+        | forge::Key::LandedDraft { .. }
         | forge::Key::Away { .. }
+        | forge::Key::Finding { .. }
+        | forge::Key::Follow { .. }
         | forge::Key::Decided { .. } => {}
     }
 }

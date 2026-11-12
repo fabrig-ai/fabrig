@@ -13,15 +13,22 @@
   `Goals { project, filter }` and `Changes { project }` (1, *Goals*;
   `../forge/pages.md`, *Changes*), and Chats is reached from it (`chats.md`, 1).
   Choosing a filter is a move.
-  - **Its reads** are the three lists it joins, each as its own page reads
-    it: the goals' (*Goals*: the goals' query, its live group watched and its
-    ended group read, a report per row, the project's needs); the changes'
-    (*Changes*: the subject `changes`, and a `task` per row of its queues,
-    its `landed` and its `landed_default`); and the
-    person's chats' (*The Chats page*: the chats' query and its documents'
-    notes). Work under each filter, `Goals` and `Changes` open the same three,
-    and a move among them keeps them open, as a move of Goals' filter keeps its
-    reads; leaving them for any other page closes them.
+  - **Its reads** are the four lists it joins, the first three each as its
+    own page reads it: the goals' (*Goals*: the goals' query, its live group
+    watched and its
+  
+    ended group read, a report per row, the project's needs);
+    the changes' (*Changes*: the subject `changes`, and a `task` per row of its queues,
+    its `landed` and its `landed_default`); the person's chats' (*The Chats page*: the chats' query and its
+    documents' notes); and the project's landed drafts, the subject `drafts`
+    (`../forge/records.md`, *A project's landed drafts*), a watch refused or
+    ended counting as answered with none; and, to name who signed, the project's people, jig's
+    `Read::Project { project }` on opening and again on each `me`
+    delivery while none is pending, as Team reads them (`team.md`, 1,
+    *Its reads*), or the rail's read of it where one serves. Work under each filter, `Goals` and
+    `Changes` open the same four, and a move among them keeps them open, as a
+    move of Goals' filter keeps its reads; leaving them for any other page
+    closes them.
   - **Its head,** on each of its filters: the kicker "PROJECT · Work"; the
     level-1 heading, counted from the list's sections (below): "N in
     flight", "N drafts" ("One draft") and "N landed this week", the parts at
@@ -29,7 +36,7 @@
     numbers in words from one to nine and in digits from ten, as *Changes*'
     heading has them: "Four in flight, two drafts, 23 landed this week.";
     with all three at zero, "Nothing in flight yet."; no heading until the
-    three reads have answered. Then the lede: "Everything on PROJECT, in the
+    four reads have answered. Then the lede: "Everything on PROJECT, in the
     words of the agent doing it. A goal opens to its tasks and changes; a
     chat that started work sits with what it started; a draft waits for its
     goal." Then, in `small`, the landing's line, *Changes*' one function,
@@ -56,7 +63,8 @@
     - "In flight · N", "newest activity first": a card for each live goal;
       for each change on its way to landing that no listed goal or chat holds;
       and for each chat with a change on its way, by the rules below;
-    - "Drafts · N", "a goal starts from each": a card for each draft;
+    - "Drafts · N", "a goal starts from each": a card for each draft being
+      written and for each landed draft listed;
     - "Landed this week · N", with "All", to `Changes { project }`, at its
       right: the work that reached a default branch in the seven days
       before now, by the changes' `landed_default` rows
@@ -77,7 +85,7 @@
       the section, its quiet line with it, isn't drawn.
   - **What goes where** is one pure function of the domain's,
     `temper_client_domain::pages::work::place(&Facts, wall) -> Work`, over
-    plain facts that `work::facts(root, project)` gathers from the three
+    plain facts that `work::facts(root, project)` gathers from the four
     reads. It places each item by its own facts, never by the project's
     settings or its way, so that a move of the settings hides nothing that
     exists (`../../draft/surfaces.md`, sections 5 and 12):
@@ -90,15 +98,20 @@
       card alone; any other change on its way is a card of its own;
     - a chat is in In flight while a change on its way belongs to it; its card
       holds every listed change that belongs to it, on its way or landed;
-    - a draft is a chat of the person's with a document (`chat/document.md`, 1);
-      a draft's chat with a change on its way is in In flight
-      too;
-    - every live item, a live goal, a change on its way, a chat with one and
-      a draft, is placed exactly once in each section it belongs to, and at
-      least once;
+    - a draft being written is a chat of the person's with a document
+      (`chat/document.md`, 1); a draft's chat with a change on its way is in
+      In flight too;
+    - a landed draft is a row of the subject `drafts`, in Drafts while it is
+      listed, ready and with no goal (`../../domain/forge/drafts.md`, 1),
+      whoever wrote it; never in In flight;
+    - every live item, a live goal, a change on its way, a chat with one, a
+      draft being written and a landed draft listed, is placed exactly once in
+      each section it belongs to, and at least once;
     - In flight's order is the newest activity first: a goal's or a chat's
-      `last_activity`, a change's `ready_since`; Drafts' the newest
-      `last_activity` first; a tie the lower task number first.
+      `last_activity`, a change's `ready_since`; Drafts' the newest first, a
+      draft being written by its chat's `last_activity`, a landed draft by its
+      `at`; a tie the lower task number first, drafts being written before
+      landed ones, and landed ones by forge, owner, name, then path.
     - Landed this week takes the `landed_default` rows whose `at` is in
       the seven days before `wall`, `wall` included, each once by its task:
       a row that belongs to a goal is that goal's row, and a goal has one
@@ -114,7 +127,8 @@
     `budget` as the goal's page says it (`goal.md`, 2), left out with no budget. Then
     its headline, *Goals*' row's. Then, while it has delegates, its bar, done
     of total as *Goals*' "6 / 9" counts them. Then a row for each change on
-    the card: "✓", its title and "landed CLOCK"; or "·", its title and
+    the card: "✓", its title, " · signed by NAMES" while it kept
+    sign-offs (*Who signed*), and "landed CLOCK"; or "·", its title and
     "checking" or "queued 2nd", in *Changes*' words. Then, while it has a
     report, its byline: "Written by the goal at CLOCK", its report's `at`.
   - **A change's card:** the tag "change" in code's colour, `.who.c`; its
@@ -127,15 +141,51 @@
     name, as the Chats page's row says what it writes, and "a chat with you",
     its last activity in the clock form; then its chat's title; then "Open
     the draft", to its `Chat`.
+  - **A landed draft's card** (`../../domain/forge/drafts.md`), as
+    `work.html`'s witness catch-up: its from line, the tag "draft" in the
+    person's colour, then, joined by " · ", FILE, its path's last segment;
+    "landed in DIR", DIR its path less that segment, ending `/`, or at the
+    repository's root its repository's name and `/`; and "ready since
+    CLOCK", its `at` in the clock form: "FILE · landed in docs/ · ready
+    since Fri 14:10". Then its title, when it has one. Then,
+    while the project has a tracked template (*Ways*), its choices, the
+    mockup's `.choices`:
+    - while kind 7's `way` (`settings.md`, 2) is one of them, "Start a goal:
+      WAY", `.choice.rec`, WAY that way's name (*Ways*), with the `small`
+      "PROJECT’s way", which opens the start sheet for the draft and starts
+      the goal at once, as the sheet's "Start goal" would (`goal.md`, 3, *From
+      a landed draft*); then "Another way", `.choice`, which opens the sheet
+      alone;
+    - otherwise "Start a goal…", `.choice.rec`, which opens the sheet alone.
+
+    It names no repository, commit or chat: `temper ctl draft list` does
+    (`../ctl/areas.md`, area 7).
   - **A landed row:** its landing's time in the mono face, in the clock
     form; then a goal's row its goal's title, the title of the goal's chip
     in its change's `lineage_chips`, else its change's title (a goal's
     landing takes the goal's title as its words, `../../domain/forge/branches.md`,
     2), a link to the goal's `Task`; a change's row its change's title, a
-    link to its change's `Task`; and at its right its landing's commit,
+    link to its change's `Task`; then " · signed by NAMES", in the
+    byline's style, while the `landed_default` row the row was made from
+    kept sign-offs, a goal's row its newest landing's (*Who signed*); and
+    at its right its landing's commit,
     its first seven hex digits as a short commit is written
     (`../web/public.md`, 3, *A short commit*), after "a chat with you · " on a
     chat's change's row.
+  - **Who signed** (`../../domain/forge/change/gates.md`, 2, *Sign-offs
+    kept at landing*), as the whole story's `team/work.html` draws it: a
+    landed row's `signed`, from the changes' `landed` or `landed_default`
+    row it was made from, named as Team names people (`team.md`, 1):
+    "you" for the person reading, first, then the others in `signed`'s
+    order, each the member's name, or its login where the name is empty;
+    then, as one more item, the parties the project's document doesn't
+    list, "one other" or "N others", N in words from two to nine, then
+    digits. Two items are joined by " and ", more by ", " with " and "
+    before the last: "signed by you", "signed by you and Sam", "signed by
+    you, Sam and Kit", "signed by Sam and one other", "signed by two
+    others". While the project's people are unread, refused or failed, no
+    row says who signed. One pure function of the domain's,
+    `temper_client_domain::pages::work::signed`, gives the words.
   - **Under Drafts,** Work's head and filters, then the Drafts section alone.
   - **Before an answer and with nothing:** a section claims nothing until its
     reads have answered (`README.md`'s intro). With all three answered and nothing
@@ -143,10 +193,11 @@
     by its address with none says "None.", as Goals' filter does.
   - **In the terminal** the page prints as lines: its head; the filters as
     numbered links; each card a numbered link with its from line and its
-    headline, its rows under it; each landed row a numbered link.
-  - **What no read gives,** landed drafts ready to start a goal
-    (`../../draft/surfaces.md`, section 5), a chat's delegates other than its
-    changes, and who made a change, is `../README.md`, section 5's (*Work's later parts*).
+    headline, its rows under it, but a landed draft's, which opens no page:
+    its from line and its title, then its choices as numbered buttons; each
+    landed row a numbered link.
+  - **What no read gives,** a chat's delegates other than its changes, and
+    who made a change, is section 2's (*Work's later parts*).
 - **Goals** (the greenfield mock's `goals.html`), at `/projects/<project>/goals`,
   in the project's frame, is Work under its Goals filter (1, *Work*):
   Work's head and filters, "Goals" current, take its kicker's place, and
@@ -221,11 +272,13 @@
 ## 2. Open questions
 
 - **Work's later parts** (1, *Work*; `../../draft/surfaces.md`, section 5):
-  a landed draft ready to start a goal, named with its repository, path
-  and commit (`../../draft/whole-story.execution.md`, P8); what a chat's
-  delegates did other than its changes; and who made a change. No read
-  gives any of them. Default: a draft is a chat's document, a chat's card
-  holds its changes, and a change's card names no maker.
+  what a chat's delegates did other than its changes; and who made a
+  change. No read gives either. Default: a chat's card holds its changes,
+  and a change's card names no maker.
+- **A goal's card from a landed draft** (1, *Work*): `work.html` has a
+  goal's from line say "from your draft, Thursday"; the card names no
+  draft. Default: so; a landed draft's row names its goal, which a later
+  card may read.
 - **A week's landings past the log** (1, *Work*): Landed this week reads the
   landing log (`../../domain/after-landing.md`, section 10), a ring of
   `landings_kept` landings per repository, through `landed_default`'s

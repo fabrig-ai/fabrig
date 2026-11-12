@@ -1,6 +1,7 @@
 # tooling: status
 
-2026-11-10. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-12. Where temper's code lags or departs from [tooling.md](tooling.md).
+
 
 - **Not yet:** 4: temper's own prepare, its `request.json` (`combine`,
   `train_upstream`, a member's `message` and `squash` with its trailers)

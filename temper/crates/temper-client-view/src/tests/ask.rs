@@ -206,6 +206,7 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
                     )
                     .unwrap()])),
                     delegation: false,
+                    roles: List::with_capacity(0),
                 },
             )
             .unwrap()
@@ -214,6 +215,11 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
     w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
             words: None,
             project: f::PROJECT,
             ways: List::from_boxed(ways),

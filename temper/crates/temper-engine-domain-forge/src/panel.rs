@@ -65,13 +65,13 @@ pub struct PanelQuestion {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PanelStands {
     Taken,
-    Foreman(Option<u64>),
     Asked,
     Held,
 }
 /// Last judged reviews, unsaved and bound to the merge head (domain/forge/change/gates.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReviewFacts {
+    pub size: Option<skein_forge::api::Size>,
     pub head: Option<[u8; 32]>,
     pub reviews_complete: bool,
     pub reviewers: Box<[crate::Reviewer]>,
@@ -261,7 +261,7 @@ impl Domain {
                 None => None,
             },
             ci: self.observed_ci(row),
-            ci_required: repository.ci && self.requires(repository, &row.base).ci,
+            ci_required: repository.ci && self.requires(repository, &row.base, self.touched_at(row)).ci,
             gates: panel_gates(row, head),
             approvals: self.panel_approvals(row),
             unmapped_reviews: self.panel_unmapped(row),
@@ -343,7 +343,6 @@ fn panel_questions(row: &ChangeRow, limits: &Limits) -> PanelQuestions {
             line: question.line.clone(),
             stands: match &question.stands {
                 change::Stands::Taken => PanelStands::Taken,
-                change::Stands::Foreman { task } => PanelStands::Foreman(*task),
                 change::Stands::Asked => PanelStands::Asked,
                 change::Stands::Held { .. } => PanelStands::Held,
             },

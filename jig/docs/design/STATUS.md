@@ -6,7 +6,8 @@ a person requests, never told that nothing is awaited, its finish parked
 and only a cancel ending it, its budget carved again each period, its
 runs in sessions that resume while its model's prompt cache is warm and
 start fresh across them, its Now, the note described `now` in its own
-scope, whole in every brief (`domain/tasks/standing.status.md`). A task's `ended_by` may name a closer, a procedure
+scope, whole in every brief, each write a `NowWritten` line in its activity; a person talks with
+it by `Talk` and `Leave`, its session warm while they are there (`domain/tasks/standing.status.md`). A task's `ended_by` may name a closer, a procedure
 jig makes as the task's own delegate where it would have numbered the
 `NothingAwaited` notice, whose success ends the task with no run, whose
 failure escalates to it, and which waits for work the task makes while
@@ -47,13 +48,14 @@ a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
 whole one, but the core-world crash-coverage departure remains `protocol/store/README.status.md`, 9. An
 application's own kinds of setting, a project's policy in a change of
-settings and a settings revision's `Restore` are built, but the settings-holder gap remains `domain/engine/settings.status.md`, 6, and ignored restore stories remain `domain/engine/settings.status.md`, 10; a setting reset to a default
+settings, a charter's overlay kept over its default
+(`domain/engine/overlays.md`) and a settings revision's `Restore` are built, but the settings-holder gap remains `domain/engine/settings.status.md`, 6, and ignored restore stories remain `domain/engine/settings.status.md`, 10; a setting reset to a default
 its connector neither reports nor names as dropped keeps its state at the
 next start (`domain/engine/README.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;
 `domain/engine/settings.md`, 6). Derived run-wait refusals carry admitted hosts'
-bound shortfalls and required/offered figures through the v19 client
+bound shortfalls and required/offered figures through the v20 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).

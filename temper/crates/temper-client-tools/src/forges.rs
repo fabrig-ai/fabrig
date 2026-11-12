@@ -638,16 +638,23 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::SetAway(_)
         | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
+        | temper_client_protocol_wire::v1::Request::FileFinding(_)
+        | temper_client_protocol_wire::v1::Request::HandFinding(_)
+        | temper_client_protocol_wire::v1::Request::TriageFinding(_)
+        | temper_client_protocol_wire::v1::Request::SetDraft(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::DismissMaking(_)
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Reachable(_)
+        | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Replace(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
+        | temper_client_protocol_wire::v1::Request::AddDevice(_)
+        | temper_client_protocol_wire::v1::Request::RemoveDevice(_)
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };
     state.pending.insert(key, SettingUp { intent, called: None });

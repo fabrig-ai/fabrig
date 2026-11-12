@@ -9,7 +9,7 @@ use super::{Undecodable, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{List, Reader, Wall, bytes};
 fn opaque(value: &[u8], limits: &Limits) -> Result<c::Bytes, w::Problem> {
     match c::Bytes::new(bytes::copy_of(value), limits.client().text) {
@@ -25,7 +25,7 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
 }
 
 /// A line's words, whole within `long_text` (client/domain/client/README.md, 11).
-fn long_text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
+pub(super) fn long_text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().long_text) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),

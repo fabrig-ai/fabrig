@@ -35,10 +35,20 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
-            if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, &why) {
+            if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, step, &why) {
                 return;
             }
             if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
+                return;
+            }
+            if connector == domain.config.forge_connector
+                && forge_route::follow_route::refused(domain, task, step, &why)
+            {
+                if let core::StepRefusal::Refused(problem) = &why
+                    && domain.facts.try_push(crate::Fact::StepRefused { task, step, problem: problem.clone() }).is_err()
+                {
+                    domain.facts_lost = domain.facts_lost.saturating_add(1);
+                }
                 return;
             }
             let pending = domain.forge_delegating.remove(&(task, step));
@@ -143,7 +153,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Application { request, token, owner, retention, role, person, .. } => {
-            super::applications::admitted(domain, request, token, owner, retention, role, person, env);
+            super::applications::admitted(domain, request, token, owner, retention, role, person, env, decision);
             None
         }
         core::Ask::ApplicationPartAnswered { request, outcome } => {
@@ -151,7 +161,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Effect(ask) => {
-            forge_route::effect_ask(domain, env, connector, ask);
+            forge_route::effect_ask(domain, env, decision, connector, ask);
             None
         }
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
@@ -529,6 +539,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 forge_route::start_closer_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {
+                forge_route::follow_route::step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
                 forge_route::start_tier_step(domain, env, &context);
             } else {
@@ -570,7 +582,7 @@ fn hold_changed_charter(
             match kind {
                 Some(GateKind::Agent) => (b"review", row.review_charter),
                 Some(GateKind::Check) => (b"producer", row.producing_charter),
-                Some(GateKind::Person) | None => return false,
+                Some(GateKind::Person | GateKind::Follow) | None => return false,
             }
         }
         Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
@@ -657,7 +669,8 @@ fn step_made(
     step: u64,
     child: Option<u64>,
 ) {
-    forge_route::closer_made(domain, task, child);
+    forge_route::follow_route::made(domain, task, step, child);
+    forge_route::closer_made(domain, task, step, child);
     if domain.forge.tier_task(task).is_some()
         && let Some(row) = domain.core.tasks.task(task)
     {
@@ -667,14 +680,13 @@ fn step_made(
         if let Some(kind) = pending.delegate
             && let Some(child) = child
         {
+            if kind == super::forge_change::Delegate::Close {
+                forge_route::close_made(domain, task, child);
+            }
             // Jobs prepare at activation, after their parent row names them.
             super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
         }
-        if let Some(mut relayed) = pending.relayed {
-            if pending.foreman {
-                let question = relayed.questions.open.first_mut().expect("the made foreman has a head question");
-                question.stands = super::forge_change::Stands::Foreman { task: child };
-            }
+        if let Some(relayed) = pending.relayed {
             let event = match pending.refusal {
                 Some(words) => forge::Event::RelayRefused { task, questions: relayed.questions, words },
                 None => forge::Event::Relayed { task, questions: relayed.questions },

@@ -12,6 +12,7 @@ pub enum Shape {
     Item,
     Setting,
     Charter,
+    Overlay,
     CharterPart,
     Document,
     Model,
@@ -67,6 +68,12 @@ pub enum Shape {
     LandingLast,
     ForgeCharter,
     TemplateGoal,
+    Dependency,
+    Follow,
+    FollowSource,
+    FollowTarget,
+    FollowOwner,
+    FollowCheck,
     ProjectWays,
     ProjectQuestions,
     ProjectClasses,
@@ -74,6 +81,10 @@ pub enum Shape {
     PathSet,
     CharterWords,
     ProjectWords,
+    ProjectAreas,
+    ProjectTriager,
+    Area,
+    AreaOwner,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -182,6 +193,7 @@ pub enum Limit {
     LandingOpen,
     LandingGates,
     LandingApprovals,
+    LandingSets,
     ClassesItems,
     ClassesSets,
     ClassWords,
@@ -259,7 +271,8 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             | Limit::LandingExact
             | Limit::LandingOpen
             | Limit::LandingGates
-            | Limit::LandingApprovals => landing_limit(limit, limits),
+            | Limit::LandingApprovals
+            | Limit::LandingSets => landing_limit(limit, limits),
         },
     })
 }
@@ -288,6 +301,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
             .min(kinds::CEILINGS.landing_open_value),
         Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
         Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+        Limit::LandingSets => limits.kinds.landing_rule_sets.min(kinds::CEILINGS.landing_rule_sets),
         _ => unreachable!("landing limit"),
     }
 }
@@ -304,7 +318,11 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"forge-charter" => Some(Shape::ForgeCharter),
         b"charter-words" => Some(Shape::CharterWords),
         b"project-words" => Some(Shape::ProjectWords),
+        b"project-areas" => Some(Shape::ProjectAreas),
+        b"project-triager" => Some(Shape::ProjectTriager),
         b"template-goal" => Some(Shape::TemplateGoal),
+        b"follow" => Some(Shape::Follow),
+        b"dependency" => Some(Shape::Dependency),
         b"project-ways" => Some(Shape::ProjectWays),
         b"project-questions" => Some(Shape::ProjectQuestions),
         b"project-classes" => Some(Shape::ProjectClasses),
@@ -338,6 +356,11 @@ pub fn members(shape: Shape) -> &'static [Field] {
     }
     FIELDS.get(start..end).expect("grouped fields")
 }
+// client/ctl/overlays.md, 1: replaced members share the charter's rows.
+fn overlay_replaces(field: &Field) -> bool {
+    field.shape == Shape::Charter && ![b"number".as_slice(), b"instructions", b"parts", b"wake"].contains(&field.name)
+}
+
 /// `charter.model.name`, or from any shape, `model.name`: each word after
 /// the first a member reached through `Value::Shape`, a list's member
 /// with or without `[]` (`policy.roles[].number`); for the pages' check.
@@ -365,8 +388,10 @@ pub fn resolve(path: &[u8]) -> Option<&'static Field> {
                 None => (word, false),
             };
             let mut found = None;
-            for member in members(shape?) {
-                if member.name == name && (!listed || member.list.is_some()) {
+            let current = shape?;
+            for member in &FIELDS {
+                let belongs = member.shape == current || (current == Shape::Overlay && overlay_replaces(member));
+                if belongs && member.name == name && (!listed || member.list.is_some()) {
                     found = Some(member);
                     break;
                 }

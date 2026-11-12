@@ -65,50 +65,67 @@ struct Prepared {
     bytes: Box<[u8]>,
     listeners: Listeners,
     peers: Peers,
+    steps: Box<[temper_forge_setup::Step]>,
     // Held through drive; closing the descriptor releases the OS lock even after a crash.
     _lock: locks::Lock,
 }
-pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<Option<PathBuf>, String> {
+#[derive(Default)]
+pub(crate) struct Options {
+    pub bundle: Option<PathBuf>,
+    pub scripts: Vec<PathBuf>,
+    pub strict: bool,
+}
+pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<Options, String> {
     let mut fake = false;
-    let mut bundle = None;
+    let mut options = Options::default();
     let mut words = rest.iter();
     while let Some(word) = words.next() {
         match word.as_bytes() {
             b"--fake-backends" if !fake => fake = true,
-            b"--bundle" if bundle.is_none() => {
-                let value = words.next().ok_or("--bundle BUNDLE: missing directory")?;
+            b"--strict" if !options.strict => options.strict = true,
+            flag @ (b"--bundle" | b"--scripts") if flag == b"--scripts" || options.bundle.is_none() => {
+                let flag = String::from_utf8_lossy(flag);
+                let value = words.next().ok_or_else(|| format!("{flag}: missing path"))?;
                 let value = value.as_bytes();
                 if value.is_empty() || value.contains(&0) || value.starts_with(b"--") {
-                    return Err("--bundle BUNDLE: expected a nonempty path without NUL".into());
+                    return Err(format!("{flag}: expected a nonempty path without NUL"));
                 }
                 let path = crate::path(working).join(crate::path(value));
                 let name = path.as_os_str().as_bytes();
                 if !path.is_absolute() || name.contains(&0) || name.len() > 4096 {
-                    return Err("--bundle BUNDLE: expected an absolute path of at most 4096 bytes without NUL".into());
+                    return Err(format!("{flag}: expected an absolute path of at most 4096 bytes without NUL"));
                 }
-                bundle = Some(path);
+                if flag == "--scripts" {
+                    options.scripts.push(path);
+                } else {
+                    options.bundle = Some(path);
+                }
             }
-            _ => return Err("invalid box arguments: expected --fake-backends [--bundle BUNDLE]".into()),
+            _ => {
+                return Err(
+                    "invalid box arguments: expected --fake-backends [--bundle BUNDLE] [--scripts FILE]... [--strict]"
+                        .into(),
+                );
+            }
         }
     }
     if !fake {
-        return Err("--bundle BUNDLE requires --fake-backends".into());
+        return Err("--bundle, --scripts and --strict require --fake-backends".into());
     }
-    Ok(bundle)
+    Ok(options)
 }
 pub(crate) fn run(
     source: &Directories,
-    bundle: Option<&Path>,
+    options: &Options,
     echo: temper_box_machine::host::Echo,
-    no_tui: bool,
+    front: bool,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let adapter = sibling(&binary)?;
     let chosen = ports_from(environment)?;
-    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } =
-        prepare(source, bundle, &adapter, chosen.as_ref(), environment)?;
-    let first = backends::steps(&directories.config, &peers);
+    let Prepared { directories, bytes, mut listeners, peers, steps, _lock: lock } =
+        prepare(source, options, &adapter, chosen.as_ref(), environment)?;
     let opening = crate::box_command::Opening {
         log_lines: Box::new([]),
         after_block: opening_lines(&directories, &peers, &binary),
@@ -117,14 +134,71 @@ pub(crate) fn run(
         &directories,
         &bytes,
         std::mem::take(&mut listeners.0),
-        first,
+        steps,
         echo,
-        no_tui,
+        front,
         opening,
         environment,
     );
     drop(lock);
     result
+}
+/// Per-start scripts and arguments; retained peer documents are never rewritten (protocol/setup/box.md, 5).
+fn scripts_for_start(
+    dirs: &Directories,
+    peers: &Peers,
+    options: &Options,
+) -> Result<Box<[temper_forge_setup::Step]>, String> {
+    let path = crate::path(&dirs.config).join("llm-scripts.json");
+    if options.scripts.is_empty() {
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+            Err(why) => return Err(format!("{}: {why}", path.display())),
+        }
+        return Ok(backends::steps(&dirs.config, &dirs.data, peers, None, options.strict));
+    }
+    let document = peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?;
+    let joined = join_scripts(&options.scripts, &document)?;
+    write(&path, &joined, path.exists())?;
+    Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
+}
+fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
+    let mut joined = Json::Object(
+        ["cued", "asked", "otherwise"]
+            .into_iter()
+            .map(|name| (name.as_bytes().into(), Json::Array(Vec::new())))
+            .collect(),
+    );
+    let mut content = joined.encode()?;
+    for file in files {
+        let refuse = |why| format!("{}: {why}", file.display());
+        let source =
+            skein_shell::read_file(file, temper_fake::DOCUMENT_BYTES).map_err(|why| refuse(crate::unread(why)))?;
+        let check = |scripts: &[u8]| {
+            temper_fake::llm::Document::decode_with_scripts(document, Some(scripts))
+                .map_err(|why| refuse(String::from_utf8_lossy(&why.line()).into_owned()))
+        };
+        check(&source)?;
+        let Json::Object(members) = Json::decode(&source).map_err(&refuse)? else {
+            unreachable!("script reader checked the object");
+        };
+        for (name, value) in members {
+            let name = std::str::from_utf8(&name).expect("checked script member");
+            let target = joined.at_mut(name).map_err(&refuse)?;
+            if name == "otherwise" {
+                *target = value;
+            } else {
+                let (Json::Array(target), Json::Array(mut given)) = (target, value) else {
+                    unreachable!("script reader checked the arrays");
+                };
+                target.append(&mut given);
+            }
+        }
+        content = joined.encode().map_err(&refuse)?;
+        check(&content)?;
+    }
+    Ok(content)
 }
 fn bytes(path: &Path) -> Box<[u8]> {
     path.as_os_str().as_bytes().into()
@@ -449,7 +523,9 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
             }
         }
     }
-    let agent = temper_worker_shell::agent::preflight(named)?;
+    let agent = temper_worker_shell::agent::preflight_worker(
+        named.worker.as_ref().ok_or("workers: standalone takes one worker")?,
+    )?;
     for program in agent.programs {
         if !contained(&dirs.data, &program.directory) {
             return Err("agent.programs.directory: must stay under effective data".into());
@@ -459,15 +535,14 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         Some(bundle) => {
             let _checked = provisioned_bundle(Some(crate::path(bundle)), named.bundle_limits)?;
         }
-        None => return Err("application.clients.bundle: effective document must name its loopback bundle".into()),
+        None => return Err("application.clients.bundle: effective document must name its bundle".into()),
     }
     Ok(())
 }
 fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clients) -> Result<PathBuf, String> {
     let instructions =
-        "run scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
-    let path =
-        path.ok_or_else(|| format!("application.clients.bundle: no provisioned loopback bundle; {instructions}"))?;
+        "run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
+    let path = path.ok_or_else(|| format!("application.clients.bundle: no provisioned bundle; {instructions}"))?;
     let page = path.join("index.html");
     public_path(&page)
         .map_err(|why| format!("application.clients.bundle: {}: {why}; {instructions}", page.display()))?;
@@ -552,11 +627,12 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
 )]
 fn prepare(
     source_dirs: &Directories,
-    bundle: Option<&Path>,
+    options: &Options,
     adapter: &Path,
     chosen: Option<&Chosen>,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Prepared, String> {
+    let bundle = options.bundle.as_deref();
     let (root, effective) = directories(source_dirs)?;
     let source_config = resolved(Path::new("/"), &source_dirs.config)?;
     if source_config.starts_with(&root) {
@@ -607,8 +683,16 @@ fn prepare(
         }
         let content = public(&effective.document())?;
         let peers = checked_peers(&effective, &content)?;
+        let steps = scripts_for_start(&effective, &peers, options)?;
         let bytes = replace_bundle(&effective, content, bundle, adapter)?;
-        return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
+        return Ok(Prepared {
+            directories: effective,
+            bytes,
+            listeners: Listeners(Vec::new()),
+            peers,
+            steps,
+            _lock: lock,
+        });
     }
     let written = crate::init::write_with_program(
         &effective,
@@ -682,6 +766,7 @@ fn prepare(
     )?;
     validate(&effective, &documents.temper, adapter)?;
     let peers = checked_peers(&effective, &documents.temper)?;
+    let steps = scripts_for_start(&effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
     for (listener, address) in
@@ -689,7 +774,7 @@ fn prepare(
     {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, _lock: lock })
+    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, steps, _lock: lock })
 }
 #[cfg(test)]
 mod tests;

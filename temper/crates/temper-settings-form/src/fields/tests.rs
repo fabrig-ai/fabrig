@@ -5,11 +5,12 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 65] = [
+const SHAPES: [Shape; 76] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
+    Shape::Overlay,
     Shape::CharterPart,
     Shape::Document,
     Shape::Model,
@@ -64,6 +65,12 @@ const SHAPES: [Shape; 65] = [
     Shape::LandingLast,
     Shape::ForgeCharter,
     Shape::TemplateGoal,
+    Shape::Dependency,
+    Shape::Follow,
+    Shape::FollowSource,
+    Shape::FollowTarget,
+    Shape::FollowOwner,
+    Shape::FollowCheck,
     Shape::ProjectWays,
     Shape::ProjectQuestions,
     Shape::ProjectClasses,
@@ -71,6 +78,10 @@ const SHAPES: [Shape; 65] = [
     Shape::PathSet,
     Shape::CharterWords,
     Shape::ProjectWords,
+    Shape::ProjectAreas,
+    Shape::ProjectTriager,
+    Shape::Area,
+    Shape::AreaOwner,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -283,19 +294,24 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         continue;
                     }
                     if shape == Shape::Item {
+                        let overlay = kind == b"charter" && target(edit) == Shape::Overlay;
                         let edit_only = match edit {
                             Edit::Word(chosen, _) => chosen.shape == Shape::Item && chosen.name == b"edit",
                             Edit::Base | Edit::Alternative(..) | Edit::Null(_) | Edit::Omit(_) => false,
                         };
-                        if field.name
-                            == if edit_only && kind != b"project-policy" {
-                                b"set".as_slice()
-                            } else {
-                                b"edit".as_slice()
-                            }
-                        {
+                        let selected = if overlay {
+                            b"overlay".as_slice()
+                        } else if edit_only && kind != b"project-policy" {
+                            b"edit".as_slice()
+                        } else {
+                            b"set".as_slice()
+                        };
+                        if field.name != b"setting" && field.name != selected {
                             continue;
                         }
+                    }
+                    if shape == Shape::Overlay && field.name == b"charters" {
+                        continue;
                     }
                     if shape == Shape::Setting
                         && field.name == b"project"
@@ -305,6 +321,10 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-questions"
                         && kind != b"project-classes"
                         && kind != b"project-words"
+                        && kind != b"project-areas"
+                        && kind != b"project-triager"
+                        && kind != b"follow"
+                        && kind != b"dependency"
                     {
                         continue;
                     }
@@ -317,6 +337,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             b"project-questions",
                             b"project-classes",
                             b"project-words",
+                            b"project-areas",
+                            b"project-triager",
                         ]
                         .contains(&kind)
                     {
@@ -423,6 +445,12 @@ fn matches_base(edit: Edit) -> bool {
     }
 }
 
+fn optional_follow(field: &Field) -> bool {
+    (field.shape == Shape::Follow && [b"start".as_slice(), b"producer"].contains(&field.name))
+        || (field.shape == Shape::FollowSource && [b"branch".as_slice(), b"paths"].contains(&field.name))
+        || (field.shape == Shape::FollowTarget && field.name == b"branch")
+}
+
 #[test]
 fn every_generated_file_decodes() {
     decodes(Edit::Base);
@@ -437,10 +465,12 @@ fn every_generated_file_decodes() {
         if field.null {
             decodes(Edit::Null(field));
         }
-        if (field.shape == Shape::Charter && field.name == b"parts")
+        if (field.shape == Shape::Overlay && field.name != b"charters")
+            || (field.shape == Shape::Charter && field.name == b"parts")
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_follow(field)
         {
             decodes(Edit::Omit(field));
         }
@@ -459,9 +489,11 @@ fn every_generated_file_decodes() {
 #[test]
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
-        if field.shape == Shape::Item
+        if field.shape == Shape::Overlay
+            || field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
+            || (field.shape == Shape::LandingRule && field.name == b"sets")
             || (field.shape == Shape::Charter
                 && [b"wake".as_slice(), b"tools", b"rest", b"parts"].contains(&field.name))
             || (field.shape == Shape::Llm && field.name == b"later")
@@ -469,6 +501,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_follow(field)
         {
             continue;
         }
@@ -623,7 +656,7 @@ Kind: reference
 
 Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
 
-A settings file is a `file`, below; each section is one shape of JSON object, and each bullet one of its members, with its type, its bound and what it does. Read a value with `settings show`, given its kind and number, edit it, and set it whole. A bound here is what ctl sends; the deployment may still refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend is in the deployment's units, those of its models' prices. Hex is bytes in lower-case hexadecimal: `666f726765` is `forge`.
+Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
 
 ## file
 
@@ -646,7 +679,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }
@@ -757,8 +790,8 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     let page = super::page(&limits);
     for needle in [
         b"`resources`: list of at most 2, each `symbol`".as_slice(),
-        b"Optional; absent means an empty list",
-        b"forge connector 1, symbol 1 is its own goal branch",
+        b"Optional, default []",
+        b"Forge connector 1, symbol 1: its own goal branch",
     ] {
         let mut found = false;
         for word in page.windows(needle.len()) {
@@ -766,4 +799,31 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
         }
         assert!(found, "field catalogue describes the resource contract");
     }
+}
+
+#[test]
+fn overlay_members_resolve_and_optional_literals_and_directories_decode() {
+    for field in members(Shape::Overlay) {
+        let mut path = skein_lib::Writer::new(8 + field.name.len());
+        path.put(b"overlay.").expect("prefix");
+        path.put(field.name).expect("member");
+        assert!(same(resolve(&path.finish()).expect("overlay member resolves"), field));
+        if field.name != b"charters" {
+            decodes(Edit::Omit(field));
+        }
+    }
+    for (overlay, charter) in
+        [(b"overlay.turns".as_slice(), b"charter.turns".as_slice()), (b"overlay.model", b"charter.model")]
+    {
+        let field = resolve(overlay).expect("replacement resolves");
+        assert!(same(field, resolve(charter).expect("charter row")), "replacement shares the charter row");
+    }
+    for path in [b"overlay.number".as_slice(), b"overlay.wake", b"overlay.model[]"] {
+        assert!(resolve(path).is_none(), "not an overlay member: {path:?}");
+    }
+    assert_eq!(resolve(b"overlay.model.name").expect("model row").shape, Shape::Model);
+    assert_eq!(resolve(b"overlay.parts[].on").expect("parts row").shape, Shape::CharterPart);
+    let directories = br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["."]}}]}"#;
+    let items = crate::file::decode(directories, &Limits::standard()).expect("directory form");
+    assert_eq!(crate::overlay::directories(&items).len(), 1);
 }

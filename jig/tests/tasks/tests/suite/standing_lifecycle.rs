@@ -207,3 +207,209 @@ fn standing_idle_with_a_live_delegate_has_no_stall_bound() {
     assert!(world.records.contains_key(&Key::Live(2)));
     cancel(&mut world);
 }
+
+fn talk_event(world: &mut World, party: u64) -> Event {
+    let number = world.record(1).last_message + 1;
+    Event::Talk {
+        reply_to: world.to(),
+        project: 1,
+        operation: tasks::Message {
+            task: 1,
+            word: Word {
+                number,
+                from: Party::Person(party),
+                kind: MessageKind::Words,
+                words: b"talk".as_slice().into(),
+                at: world.env.wall,
+                hits: 1,
+                eligible: true,
+            },
+        },
+    }
+}
+fn leave_event(world: &mut World, party: u64, maintainer: bool) -> Event {
+    Event::Leave { reply_to: world.to(), project: 1, task: 1, party, maintainer }
+}
+fn talk_lines(world: &World) -> Vec<Line> {
+    world
+        .records
+        .values()
+        .filter_map(|row| match row {
+            Stored::Activity(row) if row.task == 1 => match &row.line {
+                Line::SessionEnded { .. } | Line::TalkOpened { .. } | Line::TalkEnded { .. } => Some(row.line.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+#[test]
+fn a_talk_and_its_words_commit_together_and_closed_parks_keep_it_across_restart() {
+    let mut world = world(871);
+    world.claim(1, 1);
+    let event = talk_event(&mut world, 1);
+    world.stage(event);
+    let lines: Vec<_> = world
+        .staged_requests()
+        .iter()
+        .filter_map(|r| match r {
+            Request::Save { record: Stored::Activity(row) } => Some(row.line.clone()),
+            _ => None,
+        })
+        .collect();
+    assert!(matches!(
+        lines.as_slice(),
+        [
+            Line::SessionEnded { attempt: 1, end: tasks::SessionEnd::Talk },
+            Line::TalkOpened { party: 1 },
+            Line::Words { message: 1, .. }
+        ]
+    ));
+    assert!(world.record(1).talk.is_none(), "nothing published before durability");
+    world.durable();
+    world.deliver();
+    assert_eq!(world.record(1).inbox[0].number, 1);
+    assert!(world.record(1).session.is_none());
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    wake(&mut world);
+    world.claim(1, 2);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    let talk = world.record(1).talk;
+    let session = world.record(1).session;
+    assert_eq!(session.unwrap().first, 2, "Closed is not judged during a talk");
+    world.restart();
+    assert_eq!(world.record(1).talk, talk);
+    assert_eq!(world.record(1).session, session);
+    world.elapse(Duration::from_secs(600));
+    let event = talk_event(&mut world, 1);
+    world.send(event);
+    assert_eq!(world.record(1).session, session);
+    assert_eq!(
+        talk_lines(&world),
+        [Line::SessionEnded { attempt: 1, end: tasks::SessionEnd::Talk }, Line::TalkOpened { party: 1 }]
+    );
+    cancel(&mut world);
+}
+#[test]
+fn leave_ends_both_records_while_a_live_run_goes_on_and_the_next_claim_is_fresh() {
+    let mut world = world(872);
+    world.claim(1, 1);
+    let event = talk_event(&mut world, 1);
+    world.send(event);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    wake(&mut world);
+    world.claim(1, 2);
+    let event = leave_event(&mut world, 2, true);
+    world.stage(event);
+    let lines: Vec<_> = world
+        .staged_requests()
+        .iter()
+        .filter_map(|r| match r {
+            Request::Save { record: Stored::Activity(row) } => Some(row.line.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        lines,
+        [Line::TalkEnded { party: 1, lapsed: false }, Line::SessionEnded { attempt: 2, end: tasks::SessionEnd::Left }]
+    );
+    world.durable();
+    world.deliver();
+    assert!(world.record(1).session.is_none() && world.record(1).talk.is_none());
+    assert!(matches!(world.record(1).phase, Phase::Active(Active::Running { attempt: 2 })));
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    wake(&mut world);
+    world.claim(1, 3);
+    assert_eq!(world.record(1).session.unwrap().first, 3);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    cancel(&mut world);
+}
+#[test]
+fn other_parties_are_refused_unchanged_until_lapse_then_their_talk_opens() {
+    let mut world = world(873);
+    world.claim(1, 1);
+    let event = talk_event(&mut world, 1);
+    world.send(event);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    wake(&mut world);
+    world.claim(1, 2);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    let before = world.record(1).clone();
+    for event in [talk_event(&mut world, 2), leave_event(&mut world, 2, false)] {
+        world.stage(event);
+        assert!(world.staged_requests().iter().any(|r| matches!(r, Request::Refused { .. })));
+        world.durable();
+        world.deliver();
+        assert_eq!(world.record(1), &before);
+    }
+    world.elapse(Duration::from_secs(1_801));
+    let event = talk_event(&mut world, 2);
+    world.send(event);
+    assert_eq!(world.record(1).talk.unwrap().party, 2);
+    let lines = talk_lines(&world);
+    assert_eq!(
+        &lines[2..],
+        [
+            Line::TalkEnded { party: 1, lapsed: true },
+            Line::SessionEnded { attempt: 2, end: tasks::SessionEnd::Left },
+            Line::TalkOpened { party: 2 }
+        ]
+    );
+    let event = leave_event(&mut world, 2, false);
+    world.send(event);
+    let before = world.record(1).clone();
+    let event = leave_event(&mut world, 2, false);
+    world.send(event);
+    assert_eq!(world.record(1), &before);
+    cancel(&mut world);
+}
+#[test]
+fn a_lapsed_talk_ends_in_the_next_wakes_claim_but_not_an_idle_restart() {
+    let mut world = world(874);
+    world.claim(1, 1);
+    let event = talk_event(&mut world, 1);
+    world.send(event);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    wake(&mut world);
+    world.claim(1, 2);
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    let talk = world.record(1).talk;
+    world.elapse(Duration::from_secs(1_801));
+    world.restart();
+    assert_eq!(world.record(1).talk, talk);
+    wake(&mut world);
+    world.claim(1, 3);
+    assert!(world.record(1).talk.is_none());
+    assert_eq!(world.record(1).session.unwrap().first, 3);
+    assert_eq!(
+        &talk_lines(&world)[2..],
+        [Line::TalkEnded { party: 1, lapsed: true }, Line::SessionEnded { attempt: 2, end: tasks::SessionEnd::Left }]
+    );
+    read(&mut world);
+    world.terminal(1, End::Parked);
+    cancel(&mut world);
+}
+#[test]
+fn a_nonstanding_talk_and_a_leave_without_a_talk_change_nothing() {
+    let mut world = World::new(875, LIMITS);
+    assert_eq!(world.make(Party::Person(1), vec![task(1, &[])]), Reply::Made(vec![1]));
+    world.claim(1, 1);
+    let before = world.record(1).clone();
+    for event in [talk_event(&mut world, 1), leave_event(&mut world, 1, true)] {
+        world.stage(event);
+        assert!(world.staged_requests().iter().any(|r| matches!(r, Request::Refused { .. })));
+        world.durable();
+        world.deliver();
+        assert_eq!(world.record(1), &before);
+    }
+    cancel(&mut world);
+}

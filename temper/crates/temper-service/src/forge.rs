@@ -477,16 +477,26 @@ pub(crate) fn prepare(
 }
 
 pub(crate) fn config(
-    _settings: &settings::Engine,
+    settings: &settings::Engine,
     deployment: [u8; 16],
-) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {
-    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, Box::new([]))
+) -> (temper_engine_domain_forge::Config, Box<[forge::GitIdentity]>) {
+    (
+        temper_engine_domain_forge::Config {
+            push: match &settings.push {
+                Some(push) => Some(push.services.clone()),
+                None => None,
+            },
+            namespace: Box::new(deployment),
+            writers: Box::new([]),
+        },
+        Box::new([]),
+    )
 }
 
 /// What a forge connect starts from.
 pub(crate) enum Start {
     /// The forge's records, with their accepted installations.
-    Restored(temper_protocol_records::Start),
+    Restored(temper_protocol_records_forge::Start),
     /// An adoption's fresh access.
     Adopted(skein_forge_connection::Access),
 }

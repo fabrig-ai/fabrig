@@ -152,13 +152,18 @@ temper-client-shell-terminal    the terminal: temper's host, its settings and li
 temper-client-tui               the TUI: its state, its events, its pages as skein-ui's tree, its words, its look's names and its theme (6.11 to 6.16)
 └── skein-ui-screen             skein's full-screen shell's renderer: the theme, the frame, the focus (skein's ui-screen.md)
 temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
-└── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+├── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+└── temper-client-redaction     the journeys' shared originals, redaction and scan, which the TUI's and the browser's recorders share (tui/journeys.md, 2)
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
-temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
-temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
-temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
+temper-box-shell                the box's binary's crate; `temper-box open` runs the line client (../protocol/binaries.md)
+temper                         the deployment's client binary, bin/temper: its `main` hands temper-version's line to its crate (../cli/README.md, 2)
+temper-client-shell             `temper`'s crate: `temper [ADDRESS]` runs the TUI, `temper box` the TUI in front of a box, `temper ctl` the agents' tools (../cli/README.md, 7.4)
+└── temper-fetch-shell          the fetch of `temper-box` for `temper box` (box-binary.md)
+temper-client-shell-web         the browser: temper's shell, a library for wasm32 and on every target, its host ordinary Rust (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
-└── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+├── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+└── temper-client-redaction     the journeys' shared originals, redaction and scan (web/journeys.md, 2)
+temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/README.md, 2.1)
 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4)
@@ -171,8 +176,8 @@ jig-client-fake-person-browser  jig's attack stories (jig's `protocol/browser/te
 temper-client-world             tests/client: temper's client joined to temper's engine root (section 10)
 skein-fake-person-browser       the person in Chromium, through skein-browser (web/testing.md)
 temper-client-browser-world     tests/client-browser: the browser tier (web/testing.md)
-temper-client-gallery           tools/gallery: the browser's pages in named states, as static documents (web/gallery.md)
-temper-client-journeys          tools/journeys: recorded walks replayed through the shipped host and printed as pages (journeys.md)
+temper-client-gallery-tool      crates/temper-client-gallery-tool: the browser's pages in named states, as static documents (web/gallery.md)
+temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/temper-client-journeys: recorded walks replayed through the shipped hosts and printed (web/journeys.md; tui/journeys.md); QA's drive session and recipes (drive.md; recipe.md)
 ```
 
 - **The crate graph.** `temper-client-domain` depends on skein-lib,
@@ -222,15 +227,14 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   limits beside them; and `start`, the TUI's arguments and start (`tui/README.md`, 1, 2
   ): the address, the directory and what it keeps, the engine's link
   file read, the terminal's scheme and depth, the opener, and `run`.
-- **The clients' shared start.** The client's `temper`, the box's
-  `temper-box` and `temper-client` use the same client code, in the
-  shells they link, never through another binary
-  (`../draft/deployment-binaries.md`, section 4):
-  - `temper [ADDRESS]` and `temper-client [ADDRESS]` call
-    `temper_client_shell_tui::start::run`, given the binary's name for
-    the lines it prints (`tui/README.md`, 1); the box runs that TUI by
-    `temper-box internal tui` until C3 (`../cli/README.md`, 6);
-  - `temper ctl` and `temper-client ctl` call
+- **The clients' shared start.** The client's `temper` and the box's
+  `temper-box` use the same client code, in the shells they link, never
+  through another binary (`../draft/deployment-binaries.md`, section 4):
+  - `temper [ADDRESS]` calls `temper_client_shell_tui::start::run`, given
+    the binary's name for the lines it prints (`tui/README.md`, 1), and
+    `temper box` runs the same TUI in front of a `temper-box --front`
+    child (`tui/box.md`; `box-binary.md`); the box runs no TUI;
+  - `temper ctl` and `temper-box ctl` call
     `temper_client_shell_cli::start::run`, whose lines name `temper ctl`
     in both (`ctl/README.md`, 6.1);
   - an argument naming an engine's address or a sign-in link is read by
@@ -402,8 +406,8 @@ credential.
   does (jig's `client/domain/objects.md`, section 1; jig's
   `client/domain/contract/documents.md`, 4). Closing a chat says only what closing
   changes (*The sheet,* below). Removing a forge says what goes and what stays on the
-  forge (`forge/deployment.md`); deleting a project asks for the project's
-  name, and sends nothing until it is typed whole (`pages/README.md`). Pause and Resume, on a
+  forge (`forge/deployment.md`); deleting a project names it and says what
+  goes with it (*The sheet,* below; `pages/settings.md`, 1). Pause and Resume, on a
   chat, a goal or an agent's task, are undone by each other and sent at once. A
   goal's Close says that what landed on its branch stays there (`pages/task.md`, 4). Where the document offers an act
   as proposable (jig's `client/domain/contract/documents.md`, 3), the card says
@@ -425,6 +429,7 @@ credential.
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
   | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
   | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+  | deleting a project | "Delete NAME?", NAME the project's name as `me` gives it | "NAME leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone." | "Keep it" | "Delete project" |
 
   - *What it changes,* under a hairline, each line present only where it holds,
     and no count at zero:

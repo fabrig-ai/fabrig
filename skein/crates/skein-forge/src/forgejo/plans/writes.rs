@@ -212,14 +212,14 @@ impl Plan {
         let document = match body {
             Body::Document(document) => Some(document),
             Body::Empty => None,
-            Body::Malformed(crate::forgejo::decode::Malformed::Bound { .. }) => {
+            Body::Malformed(error) => {
                 return Err(self.error(if self.asked() == Asked::BeforeWrite {
-                    api::Error::TooLarge(api::Excess::unnamed())
+                    failure::malformed(error)
                 } else {
                     api::Error::Timeout
                 }));
             }
-            Body::Malformed(_) | Body::Raw { .. } => return Err(self.error(api::Error::Timeout)),
+            Body::Raw { .. } => return Err(self.error(api::Error::Timeout)),
         };
         self.check_pull_ids(document.as_ref())?;
         self.check_repository(document.as_ref())?;

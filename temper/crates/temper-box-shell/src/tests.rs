@@ -6,7 +6,6 @@ mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
-mod tui;
 
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
@@ -372,7 +371,7 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
     .expect("worker-alone fixture");
     assert!(store.is_empty(), "no deployment root");
     assert_eq!(owned.len(), 1, "only the worker root");
-    assert!(service.setup_page(1, b"state", skein_lib::Time::ZERO).is_none());
+    let super::Service::Worker(_) = service else { panic!("worker service has no engine or setup host") };
     assert!(!directory.join("state").exists(), "no store directory created");
     super::close(owned);
     fs::remove_dir_all(directory).expect("worker-alone fixture");

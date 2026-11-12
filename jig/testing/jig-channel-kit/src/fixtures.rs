@@ -298,6 +298,26 @@ pub fn provider_at(
     transport: skein_fake_peers::Transport,
     dialect: skein_fake_llm_protocol::documents::Provider,
 ) -> skein_fake_peers::llm::Peer {
+    provider_played_at(
+        address,
+        skein_fake_llm_domain::api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
+        credential,
+        latency,
+        transport,
+        dialect,
+    )
+}
+
+/// A byte peer with system-, request-cued and fallback scripts.
+#[must_use]
+pub fn provider_played_at(
+    address: std::net::SocketAddr,
+    scripts: skein_fake_llm_domain::api::Scripts,
+    credential: skein_llm::Credential,
+    latency: Duration,
+    transport: skein_fake_peers::Transport,
+    dialect: skein_fake_llm_protocol::documents::Provider,
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
     let mut config = skein_llm_kit::fake::config();
     config.latency_min = latency;
@@ -333,7 +353,13 @@ pub fn provider_at(
         },
         credential,
         protocol,
-        skein_fake_llm_domain::Domain::try_scripted(&config, 17, scripts).expect("bounded provider scripts"),
+        skein_fake_llm_domain::Domain::played(
+            &config,
+            17,
+            scripts,
+            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        )
+        .expect("bounded provider scripts"),
         config,
     )
     .expect("configured provider")

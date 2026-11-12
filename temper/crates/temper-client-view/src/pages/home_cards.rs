@@ -12,6 +12,10 @@ use temper_client_domain::{
     pages::{Act, needs},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Home's need variants carry approval size and signer context beside their acts"
+)]
 pub(crate) fn cards(
     b: &mut Builder,
     root: &Domain,
@@ -21,7 +25,7 @@ pub(crate) fn cards(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    for need in needs.iter().take(3) {
+    for (index, need) in needs.iter().take(3).enumerate() {
         if !needs::ready(root, *need) {
             continue;
         }
@@ -35,8 +39,18 @@ pub(crate) fn cards(
             question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-        if let needs::Need::Card(card) = need {
-            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+        match need {
+            needs::Need::Card(card) => {
+                super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+            }
+            needs::Need::Approval(row) => super::approval::size(b, row, w),
+        }
+        if index == 0
+            && let needs::Need::Approval(row) = need
+        {
+            for line in &super::approval::sentences(row, super::approval::viewer(root), w) {
+                ask::text(b, Role::Paragraph, line, look::ASK_CONTEXT);
+            }
         }
         b.open(Role::Slot);
         b.style(look::NEED_ACTS);
@@ -80,14 +94,7 @@ pub(crate) fn cards(
                 if row.yours == temper_client_domain::forge::approvals::Yours::Counts
                     && skein_ui::markdown::safe_url(&row.address)
                 {
-                    let forge = w.say(
-                        match row.kind {
-                            temper_client_domain::forge::forges::Kind::GitHub => Word::ApprovalGitHub,
-                            temper_client_domain::forge::forges::Kind::Forgejo => Word::ApprovalForgejo,
-                        },
-                        &[],
-                    );
-                    let label = w.say(Word::ApprovalReview, &[Hole::Name(forge)]);
+                    let label = super::approval::review_words(row, w);
                     b.open(Role::Link);
                     b.style(look::RECOMMENDED);
                     b.name(&label);
@@ -203,4 +210,42 @@ pub(crate) fn ask_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
         look::ASK_QUIET,
     );
     b.close();
+}
+
+// Findings share the browser list, without changing the terminal inbox's card set.
+pub(crate) fn all(
+    b: &mut Builder,
+    root: &Domain,
+    open: &[temper_client_domain::pages::findings::Need<'_>],
+    across: bool,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    for need in open.iter().take(3) {
+        match need {
+            temper_client_domain::pages::findings::Need::Existing(need) => {
+                cards(b, root, &[*need], across, w, bindings, times);
+            }
+            temper_client_domain::pages::findings::Need::Finding(card) => {
+                super::findings::preview(b, root, card, w, bindings, times);
+            }
+        }
+    }
+    let more = open.len().saturating_sub(3);
+    if more > 0 {
+        let label = if more == 1 {
+            w.say(Word::HomeCardsOneMore, &[])
+        } else {
+            w.say(Word::HomeCardsMore, &[Hole::Number(u64::try_from(more).expect("needs fit"))])
+        };
+        ask::link(
+            b,
+            bindings,
+            &label,
+            Address::Inbox {
+                filter: Filter { project: if across { None } else { root.pages().project() }, ..Filter::ALL },
+            },
+        );
+    }
 }

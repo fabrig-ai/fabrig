@@ -3,17 +3,17 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+#[path = "../patches/mod.rs"]
+pub mod patches;
+
+
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
 pub mod v1;
 mod codec;
-// Browser clients need only the schema and byte codecs; startup access pulls
-// in the native forge/TLS stack and is enabled explicitly by its consumers.
-#[cfg(feature = "forge")]
-mod forge;
-pub use codec::{PASTED_BYTES, PASTED_PAYLOAD, PastedError, decode, decode_pasted, encode, encode_pasted};
-#[cfg(feature = "forge")]
-pub use forge::{ForgeRows, NotConnected, Origin, Rows, Start, access, origin};
+pub use codec::{
+    PASTED_BYTES, PASTED_PAYLOAD, PastedError, decode, decode_pasted, decoded_origin, encode, encode_pasted,
+};
 
 pub const FAMILY_FORGE: u16 = 1;
 pub const VERSION: u16 = 1;

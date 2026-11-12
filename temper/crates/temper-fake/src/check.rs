@@ -80,7 +80,7 @@ const WORD: &[u8] = b"temper";
 #[expect(clippy::too_many_lines, reason = "one exhaustive evidence reducer for durable forge families")]
 pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits) -> Result<Evidence, Reason> {
     // Evidence can outlive the task limits of the engine which wrote it.
-    let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v11::CEILINGS.change_row_title)
+    let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v16::CEILINGS.change_row_title)
         .ok_or(Reason::StoreUnreadable)?;
     let count = u32::try_from(rows.len()).or(Err(Reason::StoreUnreadable))?;
     let mut repositories = Map::with_capacity(count);
@@ -153,6 +153,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Issue(_)
             | d::Stored::Release(_)
             | d::Stored::Application { .. }
+            | d::Stored::RefusedSetting(_)
             | d::Stored::Setting(_)
             | d::Stored::Making(_)
             | d::Stored::Dismissed { .. }
@@ -162,10 +163,14 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Forge(_)
             | d::Stored::ForgeNumber { .. }
             | d::Stored::Playground(_)
+            | d::Stored::Follow(_)
             | d::Stored::Tier(_)
             | d::Stored::ProjectFacts(_)
+            | d::Stored::Device(_)
+            | d::Stored::LandedDraft(_)
             | d::Stored::Away(_)
             | d::Stored::Decided(_)
+            | d::Stored::Finding(_)
             | d::Stored::Looked(_)
             | d::Stored::LandingLog(_)
             | d::Stored::Closer(_)

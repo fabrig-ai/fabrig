@@ -119,6 +119,7 @@ pub trait Play {
 mod commands;
 mod request;
 mod script;
+pub mod session;
 pub use script::{Script, Step, TabSeen};
 #[derive(Clone, Copy)]
 pub enum ServerAction {
@@ -142,6 +143,8 @@ pub struct Harness {
     server: PathBuf,
     args: Vec<OsString>,
     sent: Sent,
+    page_query: Box<[u8]>,
+    page_addresses: fn(&[u8]) -> bool,
     prefix: Box<[u8]>,
     output: Output,
     names: Names,
@@ -160,6 +163,8 @@ impl Harness {
             server: setup.server,
             args: setup.args,
             sent: setup.printed.sent,
+            page_query: Box::default(),
+            page_addresses: lines::every_address,
             prefix: setup.printed.prefix.into(),
             output: setup.printed.on,
             names: setup.printed.names,
@@ -169,6 +174,20 @@ impl Harness {
             expected: setup.expected,
             origins: setup.origins,
         }
+    }
+    /// Adds query parameters to pages opened from server or command output,
+    /// before any fragment. Kept output and command stdin remain as printed.
+    #[must_use]
+    pub fn page_query(mut self, query: &[u8]) -> Self {
+        self.page_query = query.into();
+        self
+    }
+    /// Names the addresses that carry the page query. By default, every address does.
+    /// The predicate receives the opening address unchanged, absolute or path-only.
+    #[must_use]
+    pub fn page_addresses(mut self, page: fn(&[u8]) -> bool) -> Self {
+        self.page_addresses = page;
+        self
     }
     /// Sets the whole run's horizon for a program with bounds of its own on each step.
     /// No test sets it: every test stands on the forty-second horizon
@@ -214,8 +233,8 @@ pub(crate) mod capacity;
 pub(crate) mod closing;
 mod lines;
 mod peers;
-pub use lines::printed;
 pub(crate) use lines::{opening, restart, server_pipes, substitute};
+pub use lines::{page_with_query, printed, with_query};
 #[derive(PartialEq, Eq, Debug)]
 enum ServerState {
     Running,
@@ -936,13 +955,13 @@ impl Runtime {
         {
             let raw_index = if setup.names == Names::Address { 0 } else { self.opening };
             self.held[self.opening] = self.raw_lines.get(raw_index).cloned();
-            let url = if setup.sent == Sent::Command { "about:blank" } else { &line.url };
-            url.clone_into(&mut faces[self.opening].first_url);
-            self.ask(Request::Page {
-                person: person(self.opening),
-                page: page(self.opening),
-                url: url.as_bytes().into(),
-            });
+            let url = if setup.sent == Sent::Command {
+                "about:blank".as_bytes().into()
+            } else {
+                page_with_query(line.url.as_bytes(), &setup.page_query, setup.page_addresses)
+            };
+            faces[self.opening].first_url = String::from_utf8(url.to_vec()).expect("printed URL is UTF-8");
+            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url });
             return true;
         }
         false
@@ -1049,7 +1068,7 @@ impl Runtime {
             if self.tick(setup, &mut faces, people, time.now) {
                 opening_page = false;
             }
-            self.drive_commands(&mut faces, people, time.now);
+            self.drive_commands(&mut faces, people, time.now, &setup.page_query, setup.page_addresses);
             if self.outcome.is_none() {
                 for (index, face) in faces.iter_mut().enumerate() {
                     if let Some((step, why)) = step_failure(people[index], face, time.now) {

@@ -8,7 +8,7 @@ use skein_lib::{
 };
 use skein_ui_screen_terminal::Key;
 use std::collections::BTreeMap;
-use temper_client_shell_web::journey::redact_field;
+use temper_client_redaction::redact_field;
 use temper_client_tui::BoxLine;
 
 pub struct Redacted {
@@ -74,7 +74,11 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
             fields
         }
         Line::Found(bytes) => bytes.iter_mut().map(|bytes| (bytes, Text)).collect(),
-        Line::BoxLine(bytes) | Line::Address(bytes) | Line::Signed(bytes) | Line::Browse(bytes) => vec![(bytes, Text)],
+        Line::BoxLine(bytes)
+        | Line::BoxStage(bytes)
+        | Line::Address(bytes)
+        | Line::Signed(bytes)
+        | Line::Browse(bytes) => vec![(bytes, Text)],
         Line::Mark(print) | Line::End(print) => print.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Journey { .. }
         | Line::Front
@@ -99,6 +103,8 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Opened { .. }
         | Line::Unstream
         | Line::Quit
+        | Line::StopBox
+        | Line::StopBoxAgain
         | Line::Deadline(_) => Vec::new(),
     }
 }
@@ -150,6 +156,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             Line::Found(None)
             | Line::Journey { .. }
             | Line::Front
+            | Line::BoxStage(_)
             | Line::Local
             | Line::Noted(_)
             | Line::Note(_)
@@ -182,6 +189,8 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Signed(_)
             | Line::Browse(_)
             | Line::Quit
+            | Line::StopBox
+            | Line::StopBoxAgain
             | Line::Deadline(_)
             | Line::Mark(_)
             | Line::End(_) => {}

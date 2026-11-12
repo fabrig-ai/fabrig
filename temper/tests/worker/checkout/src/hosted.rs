@@ -39,10 +39,10 @@ pub fn spawn_of(command: &Command) -> Spawn {
         | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(git::Kind::Commit),
-        Command::CheckOut { .. } | Command::Clean => Some(git::Kind::CheckOut),
+        Command::CheckOut { .. } => Some(git::Kind::CheckOut),
         Command::Merge { .. } => Some(git::Kind::Merge),
         Command::DiffPaths { .. } => Some(git::Kind::DiffPaths),
-        Command::Version => None,
+        Command::Version | Command::Clean => None,
         Command::Origin { .. } => Some(git::Kind::Look),
     };
     let mut pipes =
@@ -64,6 +64,8 @@ pub fn spawn_of(command: &Command) -> Spawn {
     }
 }
 
+/// The protocol world's synchronous forge configuration, shared by the worlds.
+pub use crate::forge::config;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_peers::forge::Forge;
 use skein_lib::{Duration, List};
@@ -73,8 +75,6 @@ use temper_fake_checkout::{
     git::{self as local, Remote, Tree},
 };
 use temper_fake_git::{Answer, Typed, answer, check, id::id};
-/// The protocol world's synchronous forge configuration, shared by the worlds.
-pub const CONFIG: domain::Config = crate::forge::CONFIG;
 /// Each protocol or refusal case has its own equivalent checkout fixture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
@@ -130,7 +130,7 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_forgejo:
 /// The transcript's repository name, with an unborn fixture for fixture/empty.
 #[must_use]
 pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
-    let mut domain = domain::Domain::new(&CONFIG, 1);
+    let mut domain = domain::Domain::new(&config(), 1);
     let setup = api::Setup {
         workflows: Box::new([]),
         id: 2,
@@ -161,14 +161,14 @@ pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
         hooked: false,
     };
     let base = if full == b"fixture/empty" {
-        domain::unborn_repository(&mut domain, &CONFIG, setup);
+        domain::unborn_repository(&mut domain, &config(), setup);
         0
     } else {
-        domain::repository(&mut domain, &CONFIG, setup)
+        domain::repository(&mut domain, &config(), setup)
     };
     domain::grant(&mut domain, full, 1, api::Permission::Write);
     domain::grant(&mut domain, full, 2, api::Permission::Read);
-    let forge = Rc::new(RefCell::new(Forge::new(domain, CONFIG)));
+    let forge = Rc::new(RefCell::new(Forge::new(domain, config())));
     let mut transport = Typed::new(forge, &table(full, protected));
     let identity = identity();
     transport.authenticate(Some(&(identity.login, identity.token)));

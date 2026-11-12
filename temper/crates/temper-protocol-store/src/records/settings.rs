@@ -43,7 +43,7 @@ fn decode_pattern(value: w::RulePattern, bounds: &Bounds) -> Result<GatePattern,
     let mut reader = Reader::new(&segments);
     let mut parts = List::with_capacity(bounds.forge().authority_segments);
     for _ in 0..=bounds.forge().authority_segments {
-        let piece = skein_codec::piece::split(&mut reader).or(Err(Undecodable))?;
+        let piece = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))?;
         let Some(piece) = piece else {
             let last = match last {
                 w::PatternLast::Exact(segment) => GateLast::Exact(segment.into_parts().name),
@@ -51,13 +51,13 @@ fn decode_pattern(value: w::RulePattern, bounds: &Bounds) -> Result<GatePattern,
             };
             return Ok(GatePattern { segments: parts.into_boxed(), last });
         };
-        let part = w::Segment::decode(bounds.limits(), &mut Reader::new(&piece)).or(Err(Undecodable))?;
-        parts.push(part.into_parts().name).or(Err(Undecodable))?;
+        let part = w::Segment::decode(bounds.limits(), &mut Reader::new(&piece)).or(Err(Undecodable::Malformed))?;
+        parts.push(part.into_parts().name).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
-    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals } = value;
+    let d::LandingRule { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value;
     let mut encoded_gates = List::with_capacity(u32::try_from(gates.len()).expect("bounded gates"));
     for gate in gates {
         let d::RuleGate { number, blocking, freshness } = gate;
@@ -93,12 +93,13 @@ fn encode_rule(value: &d::LandingRule) -> w::LandingRule {
             up_to_date: *up_to_date,
             gates: encoded_gates,
             approvals: encoded_approvals,
+            sets: List::from_boxed(sets.clone()),
         },
     )
     .expect(FITS)
 }
 fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule, Undecodable> {
-    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals } = value.into_parts();
+    let w::LandingRuleParts { pattern, enforce, ci, up_to_date, gates, approvals, sets } = value.into_parts();
     let mut decoded_gates = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
         let w::RuleGateParts { number, blocking, freshness } = gate.into_parts();
@@ -114,6 +115,7 @@ fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule,
             .expect("same count");
     }
     Ok(d::LandingRule {
+        sets: sets.into_boxed(),
         pattern: decode_pattern(pattern, bounds)?,
         enforce,
         ci,
@@ -146,6 +148,18 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                             .expect("matching table records"),
                     )
                 }
+                d::Value::Dependency(value) => w::SettingValue::Dependency(
+                    w::Dependency::new(&w::CEILINGS, w::DependencyParts { project: value.project }).expect(FITS),
+                ),
+                d::Value::Follow(follow) => {
+                    let record = d::follow_record(follow).expect(FITS);
+                    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured follow length"));
+                    record.encode(&mut writer).expect("measured follow room");
+                    w::SettingValue::Follow(
+                        w::Follow::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .expect("matching follow records"),
+                    )
+                }
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
                 d::Value::Questions(route) => w::SettingValue::Questions(
                     w::ProjectQuestions::new(
@@ -153,7 +167,6 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                         w::ProjectQuestionsParts {
                             route: match route {
                                 temper_engine_domain_forge_change::Route::None => w::Route::None,
-                                temper_engine_domain_forge_change::Route::Foreman => w::Route::Foreman,
                                 temper_engine_domain_forge_change::Route::Up => w::Route::Up,
                             },
                         },
@@ -189,6 +202,8 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::ProjectAreas(value) => w::SettingValue::Areas(wire_areas(value)),
+                d::Value::ProjectTriager(value) => w::SettingValue::Triager(wire_triager(value)),
                 d::Value::Charter(number) => w::SettingValue::Charter(
                     w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: *number }).expect(FITS),
                 ),
@@ -205,7 +220,21 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
 }
 pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::SettingRow, Undecodable> {
     let w::SettingRowParts { kind, scope, number, slot, edit } = value.into_parts();
-    d::Kind::of(kind).ok_or(Undecodable)?;
+    d::Kind::of(kind).ok_or(Undecodable::Malformed)?;
+    let refused = Undecodable::Setting(d::SettingKey {
+        kind,
+        scope,
+        number,
+        slot: match &slot {
+            w::SettingSlot::Default => d::SettingSlot::Default,
+            w::SettingSlot::Change => d::SettingSlot::Change,
+            w::SettingSlot::Replaced(value) => d::SettingSlot::Replaced(value.number()),
+            w::SettingSlot::Proposal(value) => d::SettingSlot::Proposal(value.number()),
+        },
+    });
+    if kind == 3 && number == 3 {
+        return Err(refused);
+    }
     let slot = match slot {
         w::SettingSlot::Default => d::SettingSlot::Default,
         w::SettingSlot::Change => d::SettingSlot::Change,
@@ -216,10 +245,19 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
         w::SettingEdit::Set(value) => {
             let w::SizedValueParts { value, size } = value.into_parts();
             let value = match value {
+                w::SettingValue::Follow(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
+                    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
+                    let record = v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
+                        .or(Err(Undecodable::Malformed))?;
+                    d::Value::Follow(d::follow_from(record))
+                }
+                w::SettingValue::Dependency(value) => d::Value::Dependency(d::Dependency { project: value.project() }),
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),
                 w::SettingValue::Questions(value) => d::Value::Questions(match value.into_parts().route {
                     w::Route::None => temper_engine_domain_forge_change::Route::None,
-                    w::Route::Foreman => temper_engine_domain_forge_change::Route::Foreman,
+                    w::Route::Retired => return Err(refused),
                     w::Route::Up => temper_engine_domain_forge_change::Route::Up,
                 }),
                 w::SettingValue::Ways(value) => {
@@ -229,28 +267,32 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
                 w::SettingValue::Classes(record) => {
                     use temper_client_protocol_wire::v1;
-                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
-                    record.encode(&mut writer).or(Err(Undecodable))?;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
+                    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
                     let record = v1::ProjectClasses::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
-                        .or(Err(Undecodable))?;
+                        .or(Err(Undecodable::Malformed))?;
                     let classes = temper_protocol_reaches::classes_from(&record);
-                    classes.check().or(Err(Undecodable))?;
+                    classes.check().or(Err(Undecodable::Malformed))?;
 
                     d::Value::Classes(classes)
                 }
                 w::SettingValue::Line(value) => {
                     let line = value.into_parts().line;
                     if !d::words_fit(&line, d::LINE_BYTES) {
-                        return Err(Undecodable);
+                        return Err(Undecodable::Malformed);
                     }
                     d::Value::CharterWords(line)
                 }
                 w::SettingValue::Words(value) => {
                     let w::ProjectWordsParts { headline, lede } = value.into_parts();
                     if !d::words_fit(&headline, d::HEADLINE_BYTES) || !d::words_fit(&lede, d::LEDE_BYTES) {
-                        return Err(Undecodable);
+                        return Err(Undecodable::Malformed);
                     }
                     d::Value::ProjectWords(d::ProjectWords { headline, lede })
+                }
+                w::SettingValue::Areas(value) => d::Value::ProjectAreas(areas_from(value)),
+                w::SettingValue::Triager(value) => {
+                    d::Value::ProjectTriager(d::ProjectTriager { owner: owner_from(value.into_parts().owner) })
                 }
                 w::SettingValue::Goal(value) => {
                     let w::TemplateGoalParts { design, close_out } = value.into_parts();
@@ -263,4 +305,60 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
         w::SettingEdit::Reset => d::Edit::Reset,
     };
     Ok(d::SettingRow { key: d::SettingKey { kind, scope, number, slot }, edit })
+}
+
+fn owner_record(value: d::AreaOwner) -> w::AreaOwner {
+    match value {
+        d::AreaOwner::Task(number) => {
+            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("fixed owner number"))
+        }
+        d::AreaOwner::Party(number) => w::AreaOwner::Party(
+            w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("fixed owner number"),
+        ),
+        d::AreaOwner::Role(number) => {
+            w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("fixed owner number"))
+        }
+        d::AreaOwner::Charter(number) => w::AreaOwner::Charter(
+            w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number }).expect("fixed owner number"),
+        ),
+    }
+}
+fn owner_from(value: w::AreaOwner) -> d::AreaOwner {
+    match value {
+        w::AreaOwner::Task(number) => d::AreaOwner::Task(number.number()),
+        w::AreaOwner::Party(number) => d::AreaOwner::Party(number.number()),
+        w::AreaOwner::Role(number) => d::AreaOwner::Role(number.number()),
+        w::AreaOwner::Charter(number) => d::AreaOwner::Charter(number.number()),
+    }
+}
+fn wire_areas(value: &d::ProjectAreas) -> w::ProjectAreas {
+    let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
+    for area in &value.areas {
+        areas
+            .push(
+                w::Area::new(
+                    &w::CEILINGS,
+                    w::AreaParts {
+                        name: area.name.clone(),
+                        words: area.words.clone(),
+                        owner: owner_record(area.owner),
+                    },
+                )
+                .expect("admitted area fits"),
+            )
+            .expect("counted areas");
+    }
+    w::ProjectAreas::new(&w::CEILINGS, w::ProjectAreasParts { areas }).expect("admitted areas fit")
+}
+fn wire_triager(value: &d::ProjectTriager) -> w::ProjectTriager {
+    w::ProjectTriager::new(&w::CEILINGS, w::ProjectTriagerParts { owner: owner_record(value.owner) })
+        .expect("fixed triager fields")
+}
+fn areas_from(value: w::ProjectAreas) -> d::ProjectAreas {
+    let mut areas = List::uncapped();
+    for area in value.into_parts().areas.into_boxed() {
+        let w::AreaParts { name, words, owner } = area.into_parts();
+        areas.push(d::Area { name, words, owner: owner_from(owner) }).expect("decoded areas");
+    }
+    d::ProjectAreas { areas: areas.into_boxed() }
 }

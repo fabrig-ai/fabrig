@@ -1,7 +1,7 @@
 //! The TUI's screens and paints (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md;
 //! skein/docs/design/ui/screen.md, sections 4 and 5).
 //!
-//! The frames are written by hand from the view trees and theme contracts.
+//! Frames pin the view trees and theme contracts; `SKEIN_CODEGEN_WRITE=1` rewrites them.
 
 use super::fixtures as f;
 use crate::{Refusal, Scheme, Told, Tui, theme};
@@ -108,6 +108,13 @@ pub(crate) fn check(rows: &[Golden<'_>]) {
         let mut frame = Frame::new(*size);
         render(tree, &theme(*scheme, *background), *size, &mut focus, &mut frame);
         let printed = frame.print();
+        if temper_test_env::rewrite() {
+            let path = skein_scratch::paths::tree()
+                .join("crates/temper-client-tui/src/tests/golden")
+                .join(format!("{name}.txt"));
+            std::fs::write(path, &printed).expect("write the TUI golden");
+            continue;
+        }
         if printed.as_ref() != *want {
             mismatches.push(format!(
                 "{name}\nexpected:\n{}\nrendered:\n{}",

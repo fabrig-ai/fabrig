@@ -1,7 +1,7 @@
 # The gallery
 
-`temper-client-gallery` (`tools/gallery`), a program of temper's
-workspace, prints the browser's pages in named states into a
+`temper-client-gallery` (`bin/temper-client-gallery`, calling
+`crates/temper-client-gallery-tool`), a program of temper's workspace, prints the browser's pages in named states into a
 directory, as static documents, for screenshots beside the mockups
 and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (`testing.md`), and the gallery draws what the
@@ -92,20 +92,20 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
-| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
+| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red, and What follows what, vsr-rs following vsr's repository two behind with its check passing and fabrig depending on vsr-rs; the whole story's `home.html`, and `phone-home.html` at a phone's width |
 | `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
 | `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
 | `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`../pages/README.md`, *Away*, *On All projects*) |
 | `all-home-away-on` | `all-home-away` after a press, each answer Away: the switch "Away until 08:00", pressed, and the toast "Away turned on for 2 projects: agents decide within their limits." |
 | `night-all-home` | `all-home` by night |
-| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../../draft/surfaces.md`, 12, Pair) |
+| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗", its size "+142 -18 in 4 files" under its question as `pair/home.html` draws it, and a question (`../../draft/surfaces.md`, 12, Pair) |
 | `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
 | `home-step-stock` | a project's Home with a brief and Decided for you, no need (12, Stock) |
 | `home-step-scale` | a project's Home with a question and a funds card (12, At scale) |
 | `needs-list` | Needs you across two projects, three open: the first open, the others closed rows; Decided for you under them; the whole story's `needs.html`, and `phone-need.html` at a phone's width |
 | `needs-list-second` | `needs-list` with its second row opened |
 | `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
-| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first |
+| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first, its size under its context as `pair/needs.html`'s second card draws it, "+142 -18 in 4 files" |
 | `night-needs` | `needs-list` by night |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
@@ -192,12 +192,18 @@ from the engine's own answers, is where the look is tuned.
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
 | `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; What reaches you from Agents review's stock classes, "While you’re away, they are decided with the recommended choice and listed."; the foot's switches (`../pages/settings.md`, 2, *The page*) |
 | `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line; What reaches you from You approve's classes: no "Agents decide, then tell you", every movable kind under "Asks you", "They ask even while you’re away.", and no "Away until" |
-| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer as `whole-story/how.html` draws them: the chat, Ask temper, the drafter, the coordinator, the coding agent, the foreman and the status agent, each `who` saying when it runs and what it does, Budgets' row "Goals", "80" |
+| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer as `whole-story/how.html` draws them: the chat, Ask temper, the drafter, the coordinator, the coding agent and the status agent, each `who` saying when it runs and what it does, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
 | `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
 | `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
+| `how-rules` | `how-reaches` with its path set named "protocol core" and a rule by path naming it, as the whole story's `how.html` draws vsr's: no stock way current, "Yours" shown, the project's words' heading "Draft first, with the protocol core asking you"; on its path, on main's segment after its check and repair, the stop "you" with "if protocol core" over it; Rules by path with "+ A rule", no "Review" column, a row of the set's patterns signed off by "you", "once you sign off", and the note |
+| `how-rules-card` | `how-rules` with the sign-off's stop pressed: its card, "Only for" the set's patterns, "Role" "owner", "Asks" "1 of them" and "Counts" |
+| `how-team` | hand-made deliveries as the whole story's `team/how.html` draws shop's, three owners, the reader one of them: "Yours" shown, its path with "review" and "one of you"; Rules by path with "Review", a row "payments/", "an agent", "two of you", "once two have signed this head", then "everything else", "an agent", "one of you", "once signed", and the note |
+| `night-how-team` | `how-team` with the night switch pressed: the table's chips by night |
+| `how-follows` | `how-draft` with a hand-made `follows` document, project document and standing roles: What follows a landing's box "cowsql/vsr-rs follows cowsql/vsr", "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat.", "Each waits for Pat's word.", its check's workflow, "2 behind · check passes at" its source commit's twelve digits, its chips "code hears the landing", "an agent ports" and "code checks"; the box "Tiers on main" from the path's tier, "code runs" and "an agent repairs"; Budgets' head "a week · renews Tuesday", a standing role's row, its title, "a standing role · 28 left" and "40", then "Goals", "80" (`../pages/settings.md`, 2) |
+| `night-how-follows` | `how-follows` with the night switch pressed: the chips' marks, code's square among them, by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |
@@ -284,9 +290,9 @@ from the engine's own answers, is where the look is tuned.
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
 | `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
 | `rail-across` | *Needs you* across projects, a need in each of two projects: the switcher names "All projects"; the rail's "Needs you 2", current, counting both, its Home to `AllHome`, and the phone's Home and "Needs 2" the same; its Work and How work runs the project last open (`../view.md`, 3, *All projects*) |
-| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
+| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts, as `work.html`'s, a design session's being written and the witness catch-up, landed and ready, with "Start a goal: WAY", WAY its project's way as `../pages/work.md`, 1, *Ways*, names it, and "Another way"; four changes landed this week |
 | `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
-| `work-drafts` | `work` under Drafts: the drafts' cards alone |
+| `work-drafts` | `work` under Drafts: the drafts' cards alone, the landed draft's among them |
 | `work-goals` | `work` under Goals: Work's head and filters, the goals' list under them, its heading at level 2 |
 | `work-changes` | `work` under Changes: Work's head and filters, the queue and what landed under them |
 | `work-empty` | hand-made deliveries with nothing listed: "Nothing in flight yet.", All alone among the filters |
@@ -306,6 +312,16 @@ from the engine's own answers, is where the look is tuned.
 | `night-remembered-full` | `remembered-full` with the night look on |
 | `night-remembered-changing` | `remembered-changing` with the night look on |
 | `night-remembered-refused` | `remembered-refused` with the night look on |
+| `told-not-set-up` | "Telling you" on a deployment that doesn't push: its quiet band (`../pages/told.md`) |
+| `told-off` | "Telling you" with this browser off, "Turn on", and two devices under "Your devices", each with "Remove" |
+| `told-on` | `told-off` with this browser on: "On since …", "Turn off", and its row marked "This browser" |
+| `told-cannot` | "Telling you" on an iPhone's browser that can't be pushed to: its words and the Home Screen's line, no act |
+| `told-refused` | `told-off` after "Turn on" refused as `too_many`: its line under the row |
+| `night-told-not-set-up` | `told-not-set-up` with the night look on |
+| `night-told-off` | `told-off` with the night look on |
+| `night-told-on` | `told-on` with the night look on |
+| `night-told-cannot` | `told-cannot` with the night look on |
+| `night-told-refused` | `told-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`../pages/README.md`): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
@@ -324,6 +340,7 @@ from the engine's own answers, is where the look is tuned.
 | `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." then "Keep asking" and "Stop asking: let agents decide implementation choices" on the line |
 | `needs-stop-asking` | `needs-why` with its rule open for an owner: "Let agents decide implementation choices, then tell you." with "Apply"; "Keep asking" on the line, none under the offers |
 | `needs-stop-asking-set` | a question that changes a path set, its rule "Stop asking: let agents decide some changes to protocol core" open for a member: the words offer's sentence over its field, the split, each with "Propose" |
+| `needs-sign-off-part` | a sign-off's card open for a member, its rule by path asking two members, one signed: "This project's landing rule 1 asks for 2 approvals by members.", "Signs off changes to payments.", "1 of 2 signed: Sam; you or Kit can give the second." and "Sign off on Forgejo ↗" first (`../forge/README.md`, 4.1, *Its context*; `whole-story/team/needs.html`) |
 | `needs-only-you` | the unfiltered *Needs you* (`../pages/README.md`, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
 | `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
 | `night-needs-only-you` | `needs-only-you` with the night look on |
@@ -452,6 +469,8 @@ from the engine's own answers, is where the look is tuned.
 | `team` | hand-made deliveries after the whole story's `team/team.html`: two people, both owners of the project, the person reading with two questions and a review waiting, "Three things wait on you.", and Sam with a question waiting on one of Sam's chats, "One question waits on Sam."; "Two of you."; "owners of shop" at People's head's right, and each box "Owner"; a service member left out |
 | `team-alone` | one person, the project's owner, nothing waiting: "Just you.", People's head its title alone, and one box, "Owner" and "Nothing waits on you." |
 | `night-team` | `team` with the night look on |
+| `team-role` | hand-made deliveries after the whole story's `team.html`: one person, the project's owner, nothing waiting, "Just you."; a standing role, Prover, its task 52, which they started on 2 November; "Standing roles" with Prover's row, current, its Now's first line and "21 of 40"; Prover's card: "A standing role · since 2 November · started by you" and "Pause"; "Its Now · written at 02:41" and its four lines, each a list item; "Its rules · change by proposal" and its charter's "Asked to"; "Wakes on": "News from the forge, on 2 topics", "every 30 minutes", a timer, "Mondays 06:00", and "Task 61's result", "at once"; "Sessions this week": one with a run live, "Sun 01:52 · running", and two ended, "Sat 16:20 · 22 min" with its `Stood` words and "Fri 23:05 · 31 min" with none, each with its cost, and the line under them; then People, one box |
+| `night-team-role` | `team-role` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
 | `task-releasing-uncertain` | a release with an uncertain effect and its two choices |
@@ -483,11 +502,11 @@ from the engine's own answers, is where the look is tuned.
 
 ## 3. Its tests
 
-In `tools/gallery`'s own tests, in the view's world: each state's tree
+In `crates/temper-client-gallery-tool`'s own tests, in the view's world: each state's tree
 read by skein's fake person (`../../testing/fakes.md`, 4), as the
 gallery builds it.
 
-- **The names:** the states' names, in order, are `tools/gallery/names.txt`,
+- **The names:** the states' names, in order, are `crates/temper-client-gallery-tool/names.txt`,
   kept by hand, so a name gone, changed or added fails until the file
   says so.
 - **Each state holds what its name says:** a table of rows, each a

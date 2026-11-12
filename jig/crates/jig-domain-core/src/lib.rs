@@ -67,7 +67,7 @@ pub use crate::{
     funding::pools::CreateStart,
     limits::{
         CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
-        brief_holds_documents, charter_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
+        brief_holds_documents, charter_owned_bytes, overlay_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
     public::{
@@ -187,6 +187,20 @@ pub struct Settings {
     pub key_bytes: u32,
     /// The driver's redirect bound: the most bytes a pasted sign-in address may have.
     pub redirect_bytes: u32,
+}
+
+impl Settings {
+    /// The provider's credential endpoint, where configured (protocol/configuration.md, 3).
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
+    pub fn direct_endpoint(&self, provider: u32) -> Option<&EndpointFacts> {
+        for endpoint in &self.endpoints {
+            if endpoint.direct.contains(&provider) {
+                return Some(endpoint);
+            }
+        }
+        None
+    }
 }
 
 /// Jig's authority bits for the engine's tool families.
@@ -644,6 +658,8 @@ pub use effects::connector::PersonSeed;
 pub struct EndpointFacts {
     /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
     pub providers: Box<[u32]>,
+    /// Providers that name this endpoint as their direct way (protocol/configuration.md, 3).
+    pub direct: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,
     pub program: Option<Box<[u8]>>,

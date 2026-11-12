@@ -218,7 +218,8 @@ pub struct Session {
     answered: List<Answered>,
     later: List<ObjectKey>,
     refused: List<(ObjectKey, Outcome)>,
-    at: Option<ObjectKey>,
+    pub(super) at: Option<ObjectKey>,
+    pub(super) findings: super::findings::Store,
     reply: Option<ObjectKey>,
     pub reply_beyond: u64,
     toast: Option<(Toasted, Time)>,
@@ -231,6 +232,7 @@ impl Default for Session {
             later: List::with_capacity(CAPACITY),
             refused: List::with_capacity(CAPACITY),
             at: None,
+            findings: super::findings::Store::new(),
             reply: None,
             reply_beyond: 0,
             toast: None,
@@ -272,7 +274,10 @@ impl Session {
                 count = count.checked_add(1).expect("approval rows fit");
             }
         }
-        Count { count, cut: inbox.next.is_some() || approvals.more() > 0 }
+        Count {
+            count: count.checked_add(self.findings.count(Some(project))).expect("needs fit"),
+            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(Some(project)),
+        }
     }
     /// The rail's count across projects, each need once, with all approvals.
     #[must_use]
@@ -291,7 +296,10 @@ impl Session {
         for _row in approvals.rows() {
             count = count.checked_add(1).expect("approval rows fit");
         }
-        Count { count, cut: inbox.next.is_some() || approvals.more() > 0 }
+        Count {
+            count: count.checked_add(self.findings.count(None)).expect("needs fit"),
+            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(None),
+        }
     }
     #[must_use]
     pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]> {
@@ -427,6 +435,7 @@ impl Session {
             | Address::Changes { .. }
             | Address::Team { .. }
             | Address::Chats { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -850,6 +859,7 @@ pub(crate) fn act(
             }
         }
         Act::Open { object } => {
+            pages.needs.findings.shown = None;
             pages.needs.at = Some(object);
             match pages.address {
                 Address::Inbox { .. } => return,
@@ -861,6 +871,7 @@ pub(crate) fn act(
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Work { .. }
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits
@@ -890,6 +901,7 @@ pub(crate) fn act(
                 | Address::Chats { .. }
                 | Address::Changes { .. }
                 | Address::Team { .. }
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits

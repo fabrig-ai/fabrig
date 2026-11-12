@@ -336,6 +336,7 @@ pub fn config(seed: u64) -> engine::Config {
             },
             settings: jig_domain_core::Settings {
                 endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 1,
@@ -373,7 +374,8 @@ pub fn config(seed: u64) -> engine::Config {
             connectors: Box::new([0]),
         },
         landings: skein_lib::Map::with_capacity(1),
-        forge: skein_forge_client::Config {
+        forge: temper_engine_domain_forge::Config {
+            push: None,
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
         },
@@ -886,6 +888,7 @@ impl World {
     )]
     fn delivery(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story issues no source sign-out"),
             Delivery::WebReply { reply: people::Reply::SignedIn { person, sign_in, .. }, .. } => {
                 self.referee.signed_in(&self.store.rows, person, sign_in).expect("durable sign-in");
@@ -997,6 +1000,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

@@ -1,6 +1,10 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
+
+
+- **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
+
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -63,10 +67,6 @@ world's `the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's
 `how`, `how-approve`, `how-draft` and `how-yours` hold it; their render
 check follows landing.
 
-- **Not yet:** 2, *Roles*: the view `roles` gives the drafter no row,
-  and a role's `who` says when it runs alone, so Roles says no
-  charter's words (`../../domain/forge/change/branch-path.md`, *The
-  project's roles*) [in flight: change 314].
 
 `README.md`, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and `../view.md`, 3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
@@ -151,13 +151,13 @@ across fresh state directories and explicit configuration/cache paths.
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
-`../README.md`, section 2, and `../tui/README.md`, sections 1 and 2 have the clients' start, one for two binaries:
-`temper [ADDRESS]` and `temper-client [ADDRESS]` run
-`temper-client-shell-tui`'s `start` under their own names, both `ctl`s
-run `temper-client-shell-cli`'s, an argument's address or link is read
-by `temper-client-shell-terminal`'s `address`, and the link file and the
-private directories are `temper-shell`'s. The TUI's start has its table
-of refusals under both names.
+`../README.md`, section 2, and `../tui/README.md`, sections 1 and 2 have
+shared starts: `temper [ADDRESS]` runs `temper-client-shell-tui`'s `start`,
+given its captured environment and working directory; `temper ctl` and
+`temper-box ctl` run `temper-client-shell-cli`'s. An argument's address or
+link is read by `temper-client-shell-terminal`'s `address`, and the link
+file and private directories are `temper-shell`'s. The TUI's start has a
+table of refusals under its caller's name.
 
 - **Departs:** 2: a way the `ways` read gives with an empty
   `headline`, which no stock way has and a test world's may, heads How
@@ -183,9 +183,7 @@ of refusals under both names.
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
    the plan's first-use card remains `accounts.status.md`, 2.
-  Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no such act in `temper-client-domain`. `README.md`, The welcome:
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.

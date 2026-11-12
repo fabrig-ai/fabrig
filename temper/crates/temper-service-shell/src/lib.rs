@@ -3,11 +3,7 @@ use jig_protocol_config as config;
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use skein_shell::{Clock, Config, Kernel};
-use std::{
-    fmt::Write,
-    os::unix::{ffi::OsStrExt, fs::FileTypeExt},
-    path::Path,
-};
+use std::{fmt::Write, os::unix::ffi::OsStrExt, path::Path};
 use temper_service::{self as service, settings::Files};
 use temper_shell::directories::EnvironmentEntry;
 use temper_shell::{
@@ -16,6 +12,7 @@ use temper_shell::{
 };
 pub mod host;
 mod restart_fault;
+pub mod upgrade;
 pub use host::{Host, ending};
 
 /// jig's form of the three directories (temper/docs/design/protocol/components.md).
@@ -105,85 +102,69 @@ pub fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
 pub fn held_refusal(why: skein_shell::ListenersRefusal) -> String {
     format!("held listener: {}", listener_words(why))
 }
-fn box_refusal(why: service::system::BoxRefusal) -> String {
-    use service::system::BoxRefusal;
-    let words = match why {
-        BoxRefusal::Sockets { limit } => {
-            format!("the box's pipes need two free socket slots; the service socket limit is {limit}")
-        }
-        BoxRefusal::Adopted => "the box's pipes were already adopted".into(),
-        BoxRefusal::NoEngine => "the box's pipes need an engine".into(),
-        BoxRefusal::ZeroLine => "the box's pipes need a nonzero application.limits.overrides.box.line_bytes".into(),
-    };
-    format!("--box: {words}")
-}
-/// The first links' secrets on a boxed serve's standard input (protocol/setup/box.md, 1).
-fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
-    use std::io::Read;
-    let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
-    let limit = both.checked_add(1).expect("small secret bound");
-    let mut bytes = Vec::with_capacity(limit);
-    input
-        .take(u64::try_from(limit).expect("small secret bound"))
-        .read_to_end(&mut bytes)
-        .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
-    if bytes.is_empty() {
-        Ok((None, None))
-    } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), None))
-    } else if bytes.len() == both {
-        let local = bytes.split_off(service::clients::LINK_SECRET_BYTES);
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), Some(Secret::new(local.into_boxed_slice()))))
-    } else {
-        Err("--box: stdin: expected the first link's secret".into())
-    }
+/// The service's ending rendered under its binary, including output failure.
+pub type Ending<S> = fn(&S, &str, bool, &Directories, &[u8]) -> (String, u8);
+
+/// A binary's adapter to its service (protocol/services.md, 7).
+/// The shell owns scheduling and output; these plain functions supply the service's operations and words.
+pub struct Served<S> {
+    pub stages: &'static [service::Stage],
+    pub iterate_stage: fn(&mut S, service::Stage, skein_lib::Time, skein_lib::Wall),
+    pub resolve: fn(&mut S),
+    pub completions: fn(&mut S) -> &mut skein_lib::Queue<skein_io::kernel::Complete>,
+    pub submissions: fn(&mut S) -> &mut skein_lib::Queue<skein_io::kernel::Submit>,
+    pub operations: fn(&S) -> u32,
+    pub work_pending: fn(&S, skein_lib::Time) -> bool,
+    pub next_mechanism_deadline: fn(&S) -> Option<skein_lib::Time>,
+    pub next_policy_deadline: fn(&S) -> Option<skein_lib::Time>,
+    pub is_empty: fn(&S) -> bool,
+    pub shutdown: fn(&mut S),
+    pub ending: Ending<S>,
+    pub handover: fn(&mut S),
+    pub listening: fn(&mut S, &str) -> Option<(String, bool)>,
+    pub note: fn(&mut S, &str) -> Option<String>,
+    pub link: fn(&mut S) -> Option<Box<[u8]>>,
+    pub local_link: fn(&mut S) -> Option<Box<[u8]>>,
+    pub check_wait_boundary: fn(&S, skein_lib::Time),
+    pub adopt_listener: fn(&mut S, Fd, std::net::SocketAddr) -> Result<(), Fd>,
+    pub adopt_signals: fn(&mut S, Fd) -> Result<(), Fd>,
 }
 
-/// A start's service, its store's path (empty for a worker alone), and the box's line bound (0 outside a box).
-pub struct Prepared {
-    pub service: temper_service::Service,
+/// A start's service, its store's path (empty for a worker alone), and the binary's adoption state.
+pub struct Prepared<S, A = ()> {
+    pub service: S,
     pub store: Box<[u8]>,
-    pub line_bytes: u32,
+    pub adoption: A,
 }
-/// The first links' secrets a boxed serve reads on its standard input (protocol/setup/box.md, 1).
-pub struct Secrets {
-    pub link: Option<skein_lib::Secret>,
-    pub local: Option<skein_lib::Secret>,
-}
-/// Run serve for `binary` on the start `prepare` makes from the document's bytes, keeping the descriptors it opens in `owned`.
-pub fn run(
+/// Run serve on the binary's service. Its hooks check inputs before reading the document,
+/// prepare the service, then adopt binary-specific descriptors after the inherited listeners.
+pub fn run<S, B, A>(
     binary: &str,
     directories: &Directories,
     environment: &[EnvironmentEntry],
-    boxed: bool,
-    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, Secrets) -> Result<Prepared, String>,
+    served: Served<S>,
+    before: impl FnOnce(usize) -> Result<B, String>,
+    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
+    adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
-    run_inner(binary, directories, environment, boxed, prepare)
+    run_inner(binary, directories, environment, served, before, prepare, adopt)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
-fn run_inner(
+fn run_inner<S, B, A>(
     binary: &str,
     directories: &Directories,
     environment: &[EnvironmentEntry],
-    boxed: bool,
-    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, Secrets) -> Result<Prepared, String>,
+    served: Served<S>,
+    before: impl FnOnce(usize) -> Result<B, String>,
+    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
+    adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
     let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
-    let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
-    let answers = requests + 1;
-    if boxed && cfg!(target_os = "linux") {
-        for fd in [requests, answers] {
-            if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
-                return Err(format!("--box: fd {fd} is not an open pipe"));
-            }
-        }
-    }
-    let (link_secret, local_secret) = if boxed { given_secret(&mut std::io::stdin().lock())? } else { (None, None) };
+    let input = before(listeners.len())?;
     let bytes = directories.read()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let prepared = prepare(&bytes, &mut owned, Secrets { link: link_secret, local: local_secret });
-    let Prepared { mut service, store, line_bytes } = match prepared {
+    let Prepared { mut service, store, adoption } = match prepare(&bytes, &mut owned, input) {
         Ok(prepared) => prepared,
         Err(why) => {
             close(owned);
@@ -191,25 +172,24 @@ fn run_inner(
         }
     };
     for (fd, addr) in listeners {
-        if let Err(fd) = service.adopt_listener(fd, addr) {
+        if let Err(fd) = (served.adopt_listener)(&mut service, fd, addr) {
             close(owned);
             return Err(format!("listener: fd {} at {addr} refused", fd.raw()));
         }
     }
-    if boxed {
-        owned.extend([Fd::new(requests), Fd::new(answers)]);
-        if let Err(why) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
-            close(owned);
-            return Err(box_refusal(why));
-        }
+    if let Err(why) = adopt(&mut service, &mut owned, adoption) {
+        close(owned);
+        return Err(why);
     }
     let opened = skein_shell::open_termination_signals()
         .map_err(|errno| format!("signals: errno {errno}"))
         .and_then(|signals| {
             owned.push(signals);
-            service.adopt_signals(signals).map_err(|_| "signals refused".into())
+            (served.adopt_signals)(&mut service, signals).map_err(|_| "signals refused".into())
         })
-        .and_then(|()| Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string()));
+        .and_then(|()| {
+            Kernel::open(Config { operations: (served.operations)(&service) }).map_err(|why| why.to_string())
+        });
     let mut kernel = match opened {
         Ok(kernel) => kernel,
         Err(why) => {
@@ -217,7 +197,7 @@ fn run_inner(
             return Err(why);
         }
     };
-    let mut host = Host::with_binary(binary, service, directories.clone(), environment);
+    let mut host = Host::with_binary(binary, service, served, directories.clone(), environment);
     host.store = store;
     host.link_file = link_file;
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);

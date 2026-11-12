@@ -28,10 +28,10 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("serve");
     assert_eq!(output.status.code(), Some(1));
-    // Two executor places in four policy authorities add 64 bytes.
+    // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6359 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6423 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -496,11 +496,13 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         temper_box_shell::Command::Box {
             directories: support::configuration::directories(scratch.path()),
             echo: temper_box_machine::host::Echo::None,
-            no_tui: true,
+            front: false,
         },
         &[],
         b"/",
         b"temper-box",
+        "0.0.0",
+        "0123456789ab",
     )
     .expect_err("box refused")
 }
@@ -586,11 +588,13 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             temper_box_shell::Command::Box {
                 directories: support::configuration::directories(scratch.path()),
                 echo: temper_box_machine::host::Echo::None,
-                no_tui: true,
+                front: false,
             },
             &[],
             b"/",
-            b"temper-box"
+            b"temper-box",
+            "0.0.0",
+            "0123456789ab",
         ),
         Err(format!(
             "temper-box: configuration {}: absent; temper init writes one\n",
@@ -877,7 +881,9 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
-                let mut service = result.expect("charter shortfalls warn");
+                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
+                    panic!("standalone service")
+                };
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),
@@ -973,7 +979,8 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     let own = &own;
     assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
-    let prepared = service::worker_settings::prepare(worker, agent, own).expect("complete worker bounds");
+    let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
+        .expect("complete worker bounds");
     // Each receiver one byte below its sender's bound fails its own rule.
     let mut short = prepared.root.clone();
     short.host.event_bytes = u64::from(agent.bounds.message_bytes).checked_sub(1).expect("nonempty message");
@@ -1026,11 +1033,13 @@ fn every_command_checks_setup_before_reading_files() {
                 temper_box_shell::Command::Box {
                     directories: support::configuration::directories(scratch.path()),
                     echo: temper_box_machine::host::Echo::None,
-                    no_tui: true,
+                    front: false,
                 },
                 &[],
                 b"/",
                 b"temper-box",
+                "0.0.0",
+                "0123456789ab",
             )
             .expect_err("box refused"),
         ),
@@ -1621,10 +1630,10 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             )
         );
         let path = scratch.path().display();
-        let command = if boxed { "box" } else { "serve" };
-        assert!(lines.ends_with(&format!(
-            "init: start it with temper {command} --config {path} --data {path} --cache {path}\n"
-        )));
+        let command = if boxed { "temper box" } else { "temper-box serve" };
+        assert!(
+            lines.ends_with(&format!("init: start it with {command} --config {path} --data {path} --cache {path}\n"))
+        );
 
         let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
         assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });

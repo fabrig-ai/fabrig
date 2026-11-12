@@ -98,9 +98,12 @@ temper ctl DIR task message TASK TEXT --key KEY
 
 `project make NAME --key KEY` makes a project; `project show` reads it,
 `project fund` sets spend and `project amend` changes visibility.
-`project remove PROJECT --key KEY` removes your own project, a fresh
-store's default among them, with no confirmation. PROJECT is its number
-or name from `me` (temper help project).
+`project delete PROJECT --key KEY` deletes your own project, a fresh
+store's default among them, with no confirmation. End its live tasks first;
+a refusal names their roots. PROJECT is a number, sent even after it leaves
+`me`, or a name from `me`; an unknown name sends nothing. The same number
+and key get the first answer after deletion too. `project show` then says
+`project 3 was deleted`, exit 2 (temper help project).
 
 **Waits.** A read of one subject waits when given `--since DIGEST`,
 the digest a read of it printed, or `--until CONDITION`, or both:
@@ -181,7 +184,7 @@ both do. `--until changed` returns at the subject's next change.
 - A kept request is answered only within its retention; past it, its
   outcome is unknown, and reading again tells what happened.
 - ctl opens no browser, runs no program.
-sign-in  Sign in with the link the deployment printed
+sign-in  Sign in with a printed link or a service file
 sign-out  End the sign-in and leave the token empty
 pending  List the requests DIR keeps, without reaching the engine
 help  Read the page ctl and the groups, a group's tools, or one tool's record
@@ -190,16 +193,22 @@ inbox  Read what waits on your party, then its updates
 task  Tasks: read one and its parts, and act on it
 chat  Chats: start one, read its conversation, close it
 goal  Goals: start one from a project template
-role  Standing roles: start one, list them, read one and its Now
+role  Standing roles: start, list, read their Now or report, and talk
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
+finding  Findings: file, read, hand on and triage them
+need  Needs: ask a person with choices and why
+follow  Follows: read a project's follows and their lag and parity
 landing  Landings: read one or a project's landings
+draft  Landed drafts: say ready or not ready, list them
 repository  Repositories: make, copy or adopt one into a project
 forge  Forges: read them, set one up, connect it, accept an installation, read what it reaches
 account  LLM accounts: read them, connect one, manage its keys and sources, move one in or out
 model  Models: read those your party may use
 settings  The settings: read them, change them, or propose a change to their owners
 revision  Settings revisions: read one or the history, move running work to the newest
-project  Projects: make or remove one, read periods and pools, set spend and visibility
+party  Parties: make a service with a project's role
+project  Projects: make or delete one, read periods and pools, set spend and visibility
+push  Push devices: list, add or remove your subscriptions
 playground  The playground: start it, or end it and set up temper

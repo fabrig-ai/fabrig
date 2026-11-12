@@ -6,7 +6,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
 // One shipped client's watches, including me (protocol/configuration/limits.md).
-const ROOM: u32 = 22;
+const ROOM: u32 = root::WATCHES_PER_STREAM;
 const FIRST: Token = Token::new(1_000);
 const EXTRA: Token = Token::new(2_000);
 const OTHER_REPLY: Token = Token::new(3_000);
@@ -67,7 +67,7 @@ fn take_delivery(driver: &mut Driver) {
 fn a_full_room_refuses_busy_and_a_finished_watch_gives_it_back() {
     let mut driver = driver(1);
     fill(&mut driver, ROOM);
-    assert_eq!(documents(&driver), 22, "every watch in the room is admitted");
+    assert_eq!(documents(&driver), usize::try_from(ROOM).unwrap(), "every watch in the room is admitted");
     let session = driver.session();
     watch(&mut driver, session, EXTRA);
     assert!(busy(&driver, EXTRA));
@@ -78,7 +78,7 @@ fn a_full_room_refuses_busy_and_a_finished_watch_gives_it_back() {
     driver.immediate.clear();
     watch(&mut driver, session, EXTRA);
     assert!(!busy(&driver, EXTRA));
-    assert_eq!(documents(&driver), 23, "the finished watch gave its place back");
+    assert_eq!(documents(&driver), usize::try_from(ROOM + 1).unwrap(), "the finished watch gave its place back");
 }
 
 #[test]
@@ -95,12 +95,12 @@ fn a_closing_watch_holds_its_room_until_its_delivery_is_taken() {
     driver.immediate.clear();
     watch(&mut driver, session, EXTRA);
     assert!(!busy(&driver, EXTRA));
-    assert_eq!(documents(&driver), 23, "the delivery terminal released the place");
+    assert_eq!(documents(&driver), usize::try_from(ROOM + 1).unwrap(), "the delivery terminal released the place");
 }
 
 #[test]
 fn two_parties_share_the_deployments_room() {
-    for (streams, room) in [(1, ROOM), (2, 44)] {
+    for (streams, room) in [(1, ROOM), (2, ROOM * 2)] {
         let mut driver = driver(streams);
         driver.send(root::Event::Party(root::PartyInput::SignedIn {
             held: None,

@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
+- **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
+
 - **Not yet:** 2: no supplied record establishes a real-box walk of
   the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
@@ -43,7 +45,7 @@ and unchanged accounting. No real-provider result is supplied;
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
   2: a plan's first use, its card in the conversation. 
-  the project's Delete act remains `settings.status.md`, 1. `README.md`, The welcome:
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.

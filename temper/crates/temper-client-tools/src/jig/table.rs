@@ -84,6 +84,8 @@ pub enum Kind {
     File,
     Duration,
     Proposal,
+    /// A project name or number and a finding number, P/N.
+    Finding,
     Digest,
     Condition,
     Project {
@@ -114,6 +116,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         Kind::File if argument.name == b"items" || argument.name == b"instructions" || argument.name == b"spec" => {
             Bound::Bytes { most: limits.ask_bytes }
         }
+        Kind::File if argument.name == b"body" => Bound::Bytes { most: 4096 },
         Kind::Duration if argument.name == b"timeout" => {
             Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
         }
@@ -122,6 +125,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         | Kind::Duration
         | Kind::Word { .. }
         | Kind::Proposal
+        | Kind::Finding
         | Kind::Digest
         | Kind::Condition
         | Kind::Project { .. }
@@ -167,9 +171,23 @@ pub const fn repeated(
     flag(name, shown, kind, Occurs::Repeated { most }, line)
 }
 
+/// A repeated settings-file input takes at least one file; other repeats may be absent.
+#[must_use]
+pub fn required(argument: &Argument) -> bool {
+    match argument.occurs {
+        Occurs::Required => true,
+        Occurs::Optional => false,
+        Occurs::Repeated { .. } => argument.place == Place::Positional && argument.kind == Kind::File,
+    }
+}
+
 /// The published vocabulary of argument placeholders.
 pub const PLACEHOLDERS: &[&[u8]] = &[
     b"HOLD",
+    b"FINDING",
+    b"AREA",
+    b"PARTY",
+    b"FOLLOW",
     b"TASK",
     b"PROJECT",
     b"FORGE",
@@ -213,6 +231,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"ORG",
     b"REPOSITORY",
     b"BRANCH",
+    b"COMMIT",
     b"PREFIX",
     b"GATE",
     b"LABEL",
@@ -220,6 +239,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"APP",
     b"ROLE",
     b"FILE",
+    b"PATH",
     b"TEXT",
     b"REASON",
     b"KEY",

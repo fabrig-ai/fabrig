@@ -19,6 +19,7 @@ pub mod changes;
 pub mod local;
 pub mod moves;
 pub mod recovery;
+pub mod service;
 pub mod setup;
 pub mod waits;
 pub use recovery::{dropped, kept_chat, other_party, small_store};
@@ -36,6 +37,10 @@ pub const PARTIAL: usize = 3; // More than one short write is needed for every h
 pub const FULL_STREAMS: u32 = 2; // A small engine bound shared by the full-stream stories.
 #[expect(clippy::struct_excessive_bools, reason = "independent scripted file and network facts")]
 pub struct Frame {
+    pub service_mode: bool,
+    pub service_replay: bool,
+    pub hold_service_erase: bool,
+    pub made_services: u32,
     pub move_answers: VecDeque<moves::Answer>,
     pub move_requests: Vec<(w::AskAccountHolder, w::AccountChange)>,
     pub file_steps: Vec<&'static str>,
@@ -129,6 +134,7 @@ impl Frame {
     pub fn act(words: &[&[u8]]) -> Self {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
+        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::PARTY_MAKE_AT);
         let file_parent = arguments::file_root(&parsed).map(|_| FILE_PARENT);
         let files = arguments::text_files(&parsed)
             .into_iter()
@@ -150,6 +156,10 @@ impl Frame {
         )
         .expect("native limits");
         Self {
+            service_mode,
+            service_replay: false,
+            hold_service_erase: false,
+            made_services: 0,
             move_answers: VecDeque::new(),
             move_requests: Vec::new(),
             file_steps: Vec::new(),
@@ -408,6 +418,9 @@ impl Frame {
     }
     fn open_file(&mut self, root: Fd, path: &[u8], how: OpenHow) -> Result<Done, Error> {
         self.opened.push(path.into());
+        if self.service_mode && path == b"record" && how == OpenHow::ReadNoFollow && !self.record_exists {
+            return Err(Error::NotFound);
+        }
         if path == b"record" && matches!(how, OpenHow::CreateNoFollow { .. }) {
             self.record_how = Some(how);
             self.record_root = Some(root);
@@ -633,7 +646,7 @@ impl Frame {
         }
         socket.answered = true;
         match path.as_slice() {
-            b"/jig/v1/sign-in/link" => {
+            b"/jig/v1/sign-in/link" | b"/jig/v1/sign-in/deployment" => {
                 self.link_posts.push(socket.request[end + 4..].into());
                 self.link_bearers.push(head.lines().find_map(|line| {
                     line.strip_prefix("Authorization: Bearer ").map(|value| {
@@ -746,6 +759,8 @@ impl Frame {
                 if let Some(answer) = &self.act_retry {
                     let body = encode!(answer);
                     self.reply(fd, &body);
+                } else if self.service_mode {
+                    self.service_reply(fd, &body);
                 } else {
                     if self.complete_acts {
                         self.answer_new = Some(());
@@ -761,7 +776,8 @@ impl Frame {
                 self.hold_stores = Some(());
                 self.reply(fd, &encode!(w::SignOutAnswer::SignedOut));
             }
-            b"/jig/v1/stream-gone" | b"/jig/v1/unwatch" => self.reply(fd, &[]),
+            b"/jig/v1/stream-gone" => self.reply(fd, &[]),
+            b"/jig/v1/unwatch" => self.reply(fd, &encode!(w::CloseAnswer::Closed)),
             _ => panic!("unexpected HTTP route"),
         }
     }

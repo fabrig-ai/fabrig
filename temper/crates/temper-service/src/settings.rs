@@ -71,7 +71,7 @@ pub struct Author {
     pub email: Box<[u8]>,
 }
 
-pub use jig_protocol_config::Files;
+pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
 #[derive(Debug)]
@@ -112,6 +112,7 @@ pub struct Engine {
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
     pub sign_in: Option<SignIn>,
+    pub push: Option<Push>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
@@ -123,28 +124,6 @@ pub struct Engine {
     pub limits: super::limits::Limits,
 }
 
-/// The adapters recognized by smith, separate from a program source's name.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Adapter {
-    ClaudeCode,
-}
-impl Adapter {
-    #[must_use]
-    pub fn name(self) -> &'static [u8] {
-        match self {
-            Self::ClaudeCode => b"claude_code",
-        }
-    }
-}
-/// Smith's checked bound for each program path.
-pub const PROGRAM_PATH_BYTES: usize = 4096;
-/// Secret-free declaration, retained once by the worker; never a login.
-#[derive(Clone, Debug)]
-pub struct Program {
-    pub adapter: Adapter,
-    pub path: Box<[u8]>,
-    pub directory: Box<[u8]>,
-}
 #[cfg(not(feature = "worker"))]
 pub use crate::unbuilt::Agent;
 #[cfg(feature = "worker")]
@@ -159,6 +138,14 @@ pub struct Worker {
     pub root: Box<[u8]>,
     /// The absolute path of the git program, or none on this machine.
     pub git: Option<Box<[u8]>>,
+}
+
+/// Checked push key and destinations (domain/forge/attention.md, 7.3).
+#[derive(Debug)]
+pub struct Push {
+    pub key: skein_push::Vapid,
+    pub subject: Box<[u8]>,
+    pub services: Box<[Box<[u8]>]>,
 }
 
 /// Checked Google registration; the client secret is private startup input.

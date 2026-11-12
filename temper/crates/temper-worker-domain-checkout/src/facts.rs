@@ -19,6 +19,8 @@ pub enum Fact {
     Refused { client: Token, refusal: Refusal },
     /// A prepare was admitted, and its workspace held, found in the cache so.
     Held { client: Token, cached: Cached },
+    /// The prepare is waiting for a preparation permit, with no io in flight.
+    Queued { client: Token },
     /// An operation was asked of io.
     Started { client: Token, op: Kind },
     /// The operation in flight ended so.

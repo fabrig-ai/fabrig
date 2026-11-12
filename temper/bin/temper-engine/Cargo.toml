@@ -17,10 +17,12 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-version.workspace = true
 temper-engine-shell.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 skein-scratch.workspace = true
 temper-shell.workspace = true
 temper-protocol-store.workspace = true

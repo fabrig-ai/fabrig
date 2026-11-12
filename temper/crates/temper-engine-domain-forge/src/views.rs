@@ -7,6 +7,8 @@ use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 mod changes;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, TrainLanding};
+mod follows;
+pub use follows::{DependencyView, FollowLagEntry, FollowView, FollowsView, follows_subject};
 
 /// The changes waiting on a person's approval, the party's own scope (domain/forge/change/questions.md, 2).
 pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
@@ -24,14 +26,18 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Document {
+    Findings(crate::Findings),
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
+    Follows(FollowsView),
     Changes(ChangesView),
     Status(crate::StatusView),
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
+    Devices(crate::DevicesView),
+    Drafts(crate::DraftsView),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -141,6 +147,8 @@ impl Domain {
             ApplicationScope::Own => {
                 return if subject == DISMISSED_SUBJECT {
                     Some(Document::Dismissals(self.dismissals(party)))
+                } else if subject == crate::DEVICES_SUBJECT {
+                    Some(Document::Devices(self.devices_view(party)))
                 } else if subject == crate::AWAY_SUBJECT {
                     Some(Document::Aways(self.aways_view(party)))
                 } else {
@@ -150,6 +158,9 @@ impl Domain {
             ApplicationScope::Project(project) => project,
             ApplicationScope::Deployment => return None,
         };
+        if subject == follows_subject(project) {
+            return Some(Document::Follows(self.follows_view(project, limits)?));
+        }
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
@@ -160,6 +171,9 @@ impl Domain {
         }
         if subject == crate::status_subject(project) {
             return Some(Document::Status(self.status_view(project, party, now, limits)?));
+        }
+        if subject == crate::drafts_subject(project) {
+            return Some(Document::Drafts(self.drafts_view(project)));
         }
         if subject == changes_subject(project) {
             return Some(Document::Changes(self.changes_view(project, now, limits)?));
@@ -275,6 +289,9 @@ impl Domain {
         })
     }
     fn landing_train(&self, row: &policy::Landing) -> Option<LandingTrain> {
+        if row.round.branch.is_empty() {
+            return None;
+        }
         let member = row.members.first()?;
         let repository =
             skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
@@ -463,6 +480,21 @@ impl Document {
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Findings(view) => size = size.saturating_add(findings_bytes(view)),
+            Self::Drafts(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for draft in &view.rows {
+                    size = size
+                        .saturating_add(draft.owner.len())
+                        .saturating_add(draft.name.len())
+                        .saturating_add(draft.row.path.len())
+                        .saturating_add(draft.row.branch.len())
+                        .saturating_add(draft.row.title.len());
+                }
+            }
+            Self::Follows(view) => {
+                size = size.saturating_add(follows::owned_bytes(view));
+            }
             Self::Changes(view) => {
                 size = size
                     .saturating_add(view.landing.len())
@@ -483,9 +515,17 @@ impl Document {
                 }
                 for change in &view.landed {
                     size = size.saturating_add(change.title.len());
+                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
                 }
                 for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
+                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
+                }
+            }
+            Self::Devices(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for row in &view.rows {
+                    size = size.saturating_add(row.label.len()).saturating_add(row.endpoint.len());
                 }
             }
             Self::Aways(view) => {
@@ -571,6 +611,19 @@ fn train_bytes(train: Option<&LandingTrain>) -> usize {
         Some(train) => train.owner.len().saturating_add(train.name.len()).saturating_add(train.branch.len()),
         None => 0,
     }
+}
+fn findings_bytes(view: &crate::Findings) -> usize {
+    let mut size = size_of_val(view.rows.as_ref()).saturating_add(size_of_val(view.areas.as_ref()));
+    for row in &view.rows {
+        size = size.saturating_add(row.title.len());
+        for field in [&row.area, &row.why].into_iter().flatten() {
+            size = size.saturating_add(field.len());
+        }
+    }
+    for area in &view.areas {
+        size = size.saturating_add(area.name.len()).saturating_add(area.words.len());
+    }
+    size
 }
 fn phase_bytes(phase: &policy::Phase) -> usize {
     match phase {

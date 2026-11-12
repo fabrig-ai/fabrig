@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -470,4 +470,30 @@ fn me_names_no_public_identifier_until_the_names_are_held() {
         assert_eq!(*project.public(), None);
         assert!(pieces.is_empty());
     }
+}
+
+#[test]
+fn the_task_document_carries_its_talk_session_and_offered_acts() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core::acts;
+    use jig_domain_tasks as t;
+    use skein_lib::{Reader, Wall, Writer};
+    let limits = fixtures::wire_limits();
+    let mut source = fixtures::task_with_hold();
+    source.talk = Some(t::Talk { party: 41, opened: Wall::from_nanos(43), last: Wall::from_nanos(47) });
+    source.session = Some(t::Session { first: 53, last: Wall::from_nanos(59), reasons: t::Reasons::WORDS });
+    source.acts = List::with_capacity(2);
+    for act in [acts::Act::Talk, acts::Act::Leave] {
+        source.acts.push(acts::Offered { act, admission: acts::Admission::Allowed, effect: None }).unwrap();
+    }
+    let record = translate::task::document(&source, &[], &limits).unwrap();
+    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    let record = w::Task::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
+    let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
+    assert_eq!(decoded.talk, Some(c::Talk { party: 41, opened: Wall::from_nanos(43), last: Wall::from_nanos(47) }));
+    assert_eq!(decoded.session, Some(c::Session { first: 53, last: Wall::from_nanos(59) }));
+    assert_eq!(decoded.acts.len(), 2);
+    assert_eq!(decoded.acts.get(0).unwrap().act, c::ActKind::Talk);
+    assert_eq!(decoded.acts.get(1).unwrap().act, c::ActKind::Leave);
 }

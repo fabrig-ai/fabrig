@@ -83,8 +83,8 @@ pub(crate) fn open(
         labels: Set::with_capacity(limits.labels),
         comments: Map::with_capacity(limits.comments),
         dependencies: Set::with_capacity(limits.dependencies),
-        created: domain::clock(env),
-        updated: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
+        updated: domain::clock(env).max(domain.floor),
         pull: Some(pull),
     };
     let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
@@ -140,7 +140,7 @@ pub(crate) fn request(
     let observed = numbers(&set);
     let item = repository.item_mut(number)?;
     item.pull.as_mut().expect("a pull request").requested = set;
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation =
         Observation::Requested { repository: copy_of(&repository.name), number, reviewers: observed, by: user };
     domain::changed(domain, env, id, observation, Hook::item(Change::Pull, number, user));
@@ -187,7 +187,7 @@ pub(crate) fn review(
             verdict: verdict.unwrap_or(Verdict::Comment),
             commit: pull.commit,
             body,
-            at: domain::clock(env),
+            at: domain::clock(env).max(domain.floor),
             official: writer,
         },
         pending: verdict.is_none(),
@@ -246,7 +246,7 @@ pub(crate) fn submit(
             kept.pending = false;
             kept.review.verdict = verdict;
             kept.review.official = writer;
-            kept.review.at = domain::clock(env);
+            kept.review.at = domain::clock(env).max(domain.floor);
         }
     }
     shown(domain, env, id, number, review);
@@ -268,7 +268,7 @@ fn shown(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, number: u64
     }
     let shown = shown.expect("the review shown is kept");
     pull.requested.remove(&shown.author);
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let hook = Hook::body(Change::Review, number, shown.author, &shown.body);
     let observation = Observation::Reviewed {
         repository: copy_of(&repository.name),
@@ -383,7 +383,7 @@ pub(crate) fn mark_merged(
         commit,
         by: user,
     };
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     domain::changed(domain, env, id, observation, Hook::item(Change::Pull, number, user));
 }
 
@@ -398,6 +398,19 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
         return Err(Error::Missing(What::Pull));
     };
     let base_commit = repository.branches.get(&*pull.base).copied();
+    let onto = if item.state == State::Closed {
+        match pull.merged {
+            Some(merged) => domain.object(merged).expect("a stored merge").parent,
+            None => base_commit,
+        }
+    } else {
+        base_commit
+    };
+    let merge_base = match onto {
+        Some(onto) => git::merge_base(domain, pull.commit, onto),
+        None => None,
+    };
+    let size = crate::next::size(domain, merge_base, pull.commit);
     let mergeable = domain.clock >= pull.checked
         && match base_commit {
             Some(onto) if item.state == State::Open && !git::is_ancestor(domain, pull.commit, onto) => {
@@ -444,6 +457,7 @@ pub(crate) fn pull(domain: &Domain, limits: &Limits, repository: &Repository, nu
         reviewers,
         reviews: reviews.into_boxed(),
         statuses,
+        size,
     })
 }
 

@@ -28,30 +28,80 @@ runs as contained processes and whose output it parses.
   So a checkout made from an empty directory (a workstream's first on the
   worker, an evicted one, a saved start, a damaged one) transfers only
   what no earlier fetch on the worker brought, and never a branch the
-  assignment does not name, but for the store's making. A prepare makes
+  assignment does not name, but for the store's making and the file
+  contents it checks out. A store is blob-less: its making and every fetch
+  into it bring the history's commits and trees whole and no file
+  contents (git's `--filter=blob:none`), and a check out or a merge fetches
+  the contents it needs from the forge into its checkout, which keeps them
+  (`../../protocol/git.md`, 4.5, 4.6 and 4.11). A prepare makes
   each store its repositories need that the cache has not made yet, before
   its workspace, as a bare clone of the forge's default branch alone, the
   one way git takes the remote's object format, SHA-1 or SHA-256 (a fetch
   refuses a remote of another format, and a checkout borrowing a store
-  takes the store's); two prepares making one store at once leave one. The cache keeps at most
+  takes the store's). One prepare makes a store: another that needs it
+  meanwhile waits, with no operation of its own, and goes on with it once
+  it is made, and a making that fails or is cancelled passes to the one
+  prepare that has waited longest, not to every one. Stores outlive a
+  restart: a start keeps them, and the making of a store already there
+  clones nothing (`../../protocol/git.md`, 4.11), so the first prepares
+  after a restart fetch only what each store lacks, while the workspaces
+  still start empty. A store's token is its remote's, the first eight
+  bytes of the SHA-256 digest of the remote's bytes read big-endian, so a
+  restart finds each remote's store under the name it had, whatever order
+  prepares name remotes in. The cache keeps at most
   `checkout.workspaces` times `checkout.repositories` stores
   (`../../protocol/configuration/limits.md`), the most its checkouts can
-  borrow at once; a remote that finds them all taken gets the slot of
-  one no workspace borrows, made again under a new token. A store is never
+  borrow at once; a remote that finds them all taken takes the slot of
+  one no workspace borrows, whose store is set aside. A store is never
   made again for a fault: git writes each object whole, under its name, so
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
   made again. A checkout's own `.git`, which its run may write, is still
-  never another workstream's, and no fetch runs in it.
+  never another workstream's, and no fetch of history runs in it: only a
+  check out's or a merge's fetch of file contents.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
 - **One operation at a time.** A run holds its checkout from the moment
   its prepare is admitted, so a cancel aborts a prepare rather than
-  waiting it out. A checkout runs one operation at a time (a prepare, a
+  waiting it out; one queued for a permit (below) or waiting for another's
+  store has nothing in flight, and ends aborted at once. A checkout runs one operation at a time (a prepare, a
   push or a save), each a sequence of git operations with deadlines as
   data, one for the forge and one for the disk; the checkout arms no
-  timers.
+  timers. A check out and a merge take the forge's deadline
+  (`checkout.remote_timeout_ms`) and name their repository's identity, since
+  each may fetch the file contents it lacks: such a lazy fetch runs within
+  its operation, under that deadline and with that identity's credential.
+- **Preparations a few at a time.** At most `checkout.preparations`
+  prepares are active at once on a worker, 1 in both profiles
+  (`../../protocol/configuration/limits.md`), a run's and a job's alike,
+  since a job prepares through the checkout as a run does (`jobs.md`).
+  Each active prepare holds a permit; there are `checkout.preparations`
+  of them, and a limit of 0 refuses the worker's start, naming it.
+  - **Queued in order of arrival.** A prepare that passes the entrance
+    holds its workspace and borrows its stores as before, so a refusal
+    (every workspace held, the workstream's held by another run) comes at
+    once, never after a wait. With every permit taken it is queued, with
+    no operation in flight, and told as queued (`README.md`, section 6).
+    Each permit that comes back goes to the prepare queued longest.
+  - **Its deadlines count from its admission.** Admitted, a prepare takes
+    its permit and asks its first operation, as one that found a permit
+    free does at once; each operation's deadline counts from when it is
+    asked, so no time a prepare spent queued counts against any of them.
+  - **The permit comes back when the prepare has settled:** once it ends
+    ready, failed or aborted. A prepare waiting for another's store keeps
+    its permit while it waits. A cancelled prepare ends only once its
+    operation in flight has ended, whatever its end, so no git it started
+    still runs when the next prepare is admitted. A queued prepare asked
+    to abort or to release ends aborted at once and leaves the queue,
+    taking no permit.
+  - **Only preparing waits.** A push or a save takes no permit, so a
+    run's delivery never waits behind another run's preparation. Run
+    slots are as they were (`README.md`, section 5): an admitted run keeps
+    its slot while its preparation is queued.
+  - **So a forge meets a few clones at once,** one per worker by default,
+    after a worker's restart or a burst of due work alike
+    (`../../draft/redeploys.md`, 6.4).
 - **Prepare** fetches what the assignment names and checks out exactly its
   starting point. It fetches each branch of a repository at most once: a
   pin or a baseline naming a branch this prepare has fetched, or a commit
@@ -110,6 +160,12 @@ runs as contained processes and whose output it parses.
   naming the head, permanent for this assignment: nothing of the
   merges is kept, and nothing is pushed. The change it was for then
   waits for its dependencies to land (`../forge/change/questions.md`, 1).
+  This is the one conflict a prepare refuses, and only an early producer's
+  start meets it; its detail says why, as
+  `merge: Conflicted: head <head> does not merge into <branch>`, `<head>`
+  the head's full id in lowercase hexadecimal, 40 digits for a SHA-1 id and
+  64 for a SHA-256 one, as a merge's title spells it
+  (`../../protocol/channel.md`, 4), and `<branch>` the start's branch.
 - **A merge in progress** fetches the branch and the base commit, checks
   out the branch, and merges the base into it as git does, leaving the
   files in conflict with their markers and the merge's state in the
@@ -121,7 +177,11 @@ runs as contained processes and whose output it parses.
   push, and the run is told which. More files in conflict than the
   checkout's `conflicts` still make a merge in progress: each stays
   marked, and the start names the first `conflicts` of them, in git's
-  order (`../../protocol/git.md`, 4.6). A producer's start, the one naming its
+  order (`../../protocol/git.md`, 4.6). A conflict this start meets is the
+  run's to settle, never a failure of the prepare: a resolution's start,
+  whether it merges the base into the change's branch or, with nothing of
+  the change pushed, into the base branch, is always prepared so, its
+  files named in its start. A producer's start, the one naming its
   landing branch (`../forge/change/questions.md`, 1), first asks whether its branch already
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no
@@ -276,19 +336,42 @@ ID (2026-11-04).
   needs a decision for a branch that did not exist then.
 - **Code graph:** indexing a checkout for codebase-memory-mcp as part of
   preparing it, and keeping that index with the cache.
+- **Which queued preparation goes first.** Queued prepares are admitted in
+  order of arrival, a job's and a run's alike, a resumed run's no sooner
+  than a new one's (`checkouts.md`). Default: arrival; an order by kind, a
+  landing's jobs first, if a deployment shows them held behind runs'
+  preparations.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
 - **A store's upkeep.** Each fetch leaves what it received in the store as
   git wrote it, a pack or loose objects, and nothing repacks or prunes
-  them, so a store grows for the worker's life and goes at its next start.
-  Default: none; a repack that keeps every object a checkout may borrow,
+  them, so a store grows across the worker's starts, since stores outlive a
+  restart; and a store whose remote no prepare names since the start stays
+  on disk, since the cache sets aside only the stores it knows. Default:
+  none, and an operator who wants the space removes `stores` with the
+  worker stopped; a repack that keeps every object a checkout may borrow,
   reachable or not, if a deployment shows a store's size or lookups.
 - **A store damaged past its references.** A corrupt pack would break
-  every prepare of its repository until the worker's next start: nothing
-  seen suggests one, and making a store again on any broken operation would
+  every prepare of its repository until its store is removed by hand,
+  with the worker stopped, since stores outlive a restart: nothing seen
+  suggests one, and making a store again on any broken operation would
   cost a whole fetch each time. Default: a store is never made again for a
   fault (`checkouts.md`).
+- **Two remotes of one token.** A store's token is 64 bits of its remote's
+  digest (`checkouts.md`), so two remotes could share one; among the few
+  remotes a worker serves that is not expected, and nothing checks it.
+  Sharing would mix their objects in one store, which every fetch still
+  names by its own remote. Default: unchecked.
+- **File contents fetched once per checkout.** A check out's or a merge's
+  lazy fetch writes into its checkout's own `.git`, not the store, so two
+  checkouts of one repository each fetch the contents they check out, and a
+  checkout made again from an empty directory fetches them again. Measured
+  on one deployment's forge, a blob-less store's clone took 2.3 s and 50 MB
+  where a full one took 17.4 s and 198 MB (2026-11-12). Default: so; a
+  store that keeps the contents its checkouts fetched, if a deployment
+  shows the repeated fetches. A store made full before stores were
+  blob-less stays whole, its later fetches blob-less.
 - **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:

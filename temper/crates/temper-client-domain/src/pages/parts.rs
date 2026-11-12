@@ -10,6 +10,7 @@ pub struct HomeFacts {
     pub open: u32,
     pub showing: u32,
     pub to_begin: bool,
+    pub follows: u32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(clippy::struct_excessive_bools, reason = "each page part follows its independent rule")]
@@ -19,6 +20,7 @@ pub struct HomeParts {
     pub decided: bool,
     pub projects: bool,
     pub ask: bool,
+    pub follows: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NeedsFacts {
@@ -40,13 +42,13 @@ pub struct NeedsParts {
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for HomeFacts {
     fn default() -> Self {
-        Self { across: false, projects: 0, brief: false, open: 0, showing: 0, to_begin: false }
+        Self { across: false, projects: 0, brief: false, open: 0, showing: 0, to_begin: false, follows: 0 }
     }
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for HomeParts {
     fn default() -> Self {
-        Self { brief: false, needs: false, decided: false, projects: false, ask: false }
+        Self { brief: false, needs: false, decided: false, projects: false, ask: false, follows: false }
     }
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
@@ -69,6 +71,7 @@ pub const fn home(facts: &HomeFacts) -> HomeParts {
         decided: facts.showing > 0 && !facts.to_begin,
         projects: facts.across && facts.projects >= 2,
         ask: !facts.to_begin,
+        follows: facts.across && facts.follows > 0,
     }
 }
 #[must_use]
@@ -85,7 +88,7 @@ pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
     let (known, open) = match root.pages().inbox() {
         Some(inbox) => (
             inbox.known(),
-            u32::try_from(root.pages().needs().needs(inbox, root.forge().approvals()).len()).expect("inbox cards fit"),
+            u32::try_from(root.pages().needs().all(inbox, root.forge().approvals()).len()).expect("inbox cards fit"),
         ),
         None => (false, 0),
     };

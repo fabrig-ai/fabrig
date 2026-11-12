@@ -1,6 +1,6 @@
 //! Forge application refusals at the family's embedded people-store version.
 use jig_domain_people as p;
-use jig_protocol_store::people_v14 as w;
+use jig_protocol_store::people_v15 as w;
 use skein_lib::Wall;
 pub(super) fn encode_failure_class(value: p::FailureClass, _l: &w::Limits) -> w::FailureClass {
     match value {
@@ -370,6 +370,8 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         // Only settings admission emits Full; a forge application carries no settings value.
         | p::Refusal::Full { .. }
         | p::Refusal::Judged { .. }
+        // Only an owner's RemoveProject emits LiveTasks; forge requests never carry that ask.
+        | p::Refusal::LiveTasks { .. }
         // Only finishing an account sign-in emits SignInRedirect.
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });
@@ -507,6 +509,7 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
         w::Refusal::Full(_) => unreachable!("forge applications cannot store a full settings refusal"),
         w::Refusal::Judged(_) => unreachable!("forge applications cannot store a judged settings refusal"),
         w::Refusal::SignInRedirect(_) => unreachable!("forge applications cannot finish an account sign-in"),
+        w::Refusal::LiveTasks(_) => unreachable!("forge applications cannot remove projects as an owner"),
         w::Refusal::NameTaken => p::Refusal::NameTaken,
         w::Refusal::Account(value) => p::Refusal::Account {
             account: value.account(),

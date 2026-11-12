@@ -43,6 +43,9 @@ pub fn join(mut landing: Landing, member: Member, after: &[u64]) -> Option<Landi
 /// Retain the cancelled member's identity until its round has closed (domain/landing.md, 4.3).
 #[must_use]
 pub fn leave(mut landing: Landing, change: u64) -> Landing {
+    if landing.round.branch.is_empty() {
+        return crate::single::leave(landing, change);
+    }
     for member in &mut landing.members {
         if member.change == change && member.landed.is_none() {
             member.left = Some(crate::Leave::Cancelled);
@@ -61,6 +64,9 @@ fn leaving(mut landing: Landing, member: u16, why: crate::Leave) -> Stepped {
 /// effect together; effect facts always describe the current preparation/try.
 #[must_use]
 pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
+    if landing.round.branch.is_empty() {
+        return crate::single::step(landing, facts, project, limits, now);
+    }
     admitted(landing, facts, limits);
     let mut next = landing.clone();
     if let Some(ending) = next.round.ending {

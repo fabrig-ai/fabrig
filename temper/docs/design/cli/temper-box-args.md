@@ -11,7 +11,7 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`, `--echo none|steps`
-- **Notes:** In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
+- **Notes:** Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ### `temper-box init`
 
@@ -66,6 +66,24 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Forms:** ``
 - Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
 - **Notes:** Reads no configuration and no store.
+
+### `temper-box upgrade --check`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES] DIRECTORY`
+- Rehearses an upgrade over a copy; switches nothing.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.
+
+### `temper-box upgrade --back`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`
+- Makes the previous generation active again, before the patched one's first commit.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
 
 ### `--config CONFIG`
 
@@ -189,28 +207,21 @@ Refused, changing nothing, when the configuration directory already holds temper
 - Run an owned forge's program, sent SIGNAL when its parent PID ends.
 - **Arguments:** `PID`: The process whose end ends the program.; `PROGRAM`: The program to run, with its ARGS.
 
-### `temper-box internal tui`
-
-- **Set:** internal
-- **Forms:** `--box ADDRESS`
-- Run the TUI in front of the box that started it, signed in by the link the box hands it.
-- **Arguments:** `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
-
 ### `temper-box fake llm`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+- **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 - Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--strict`
 
 ### `temper-box fake forge`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 - Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`
 
 ### `temper-box fake forge check`
 
@@ -270,16 +281,28 @@ Refused, changing nothing, when the configuration directory already holds temper
 - The web client's bundle directory; a relative path is taken from the working directory.
 - **Notes:** Requires --fake-backends; absent, use the configured bundle.
 
+### `--scripts FILE`
+
+- **Set:** internal
+- A JSON script file; repeat to join in order, relative to the working directory.
+- **Notes:** Requires --fake-backends; replaces generated model scripts for this start.
+
 ### `--fake-backends`
 
 - **Set:** internal
 - Run against temper's fake LLM provider, forge and OAuth issuer.
 - **Notes:** An isolated deployment under DATA/box/fake-backends, sharing the cache.
 
-### `--no-tui`
+### `--strict`
 
 - **Set:** internal
-- Run the box with no TUI in front, as on a pipe.
+- Fail a model turn no script answers.
+- **Notes:** Requires --fake-backends.
+
+### `--front`
+
+- **Set:** internal
+- Run as temper box's child, on its parent's pipes.
 
 ### `--box`
 
@@ -306,3 +329,9 @@ Refused, changing nothing, when the configuration directory already holds temper
 
 - **Set:** internal
 - Create the LLM's JSON lines query stream.
+
+### `--state STATE`
+
+- **Set:** internal
+- Keep the forge's state across orderly stops.
+- **Notes:** A present file must be this user's private single-link regular file. A refused image leaves it unchanged.

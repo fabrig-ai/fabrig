@@ -2,6 +2,16 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::FINDING_LIST_AT), "help_finding_list"),
+    (Some(jig::rows::FINDING_SHOW_AT), "help_finding_show"),
+    (Some(jig::rows::FINDING_FILE_AT), "help_finding_file"),
+    (Some(jig::rows::FINDING_HAND_AT), "help_finding_hand"),
+    (Some(jig::rows::FINDING_ROUTE_AT), "help_finding_route"),
+    (Some(jig::rows::FINDING_BACKLOG_AT), "help_finding_backlog"),
+    (Some(jig::rows::FINDING_DROP_AT), "help_finding_drop"),
+    (Some(jig::rows::NEED_ASK_AT), "help_need_ask"),
+    (Some(jig::rows::PARTY_MAKE_AT), "help_party_make"),
+    (Some(jig::rows::SIGN_IN_AT), "help_sign_in"),
     (Some(65), "help_repository_make"),
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
@@ -9,6 +19,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
+    (Some(jig::rows::ROLE_TALK_AT), "help_role_talk"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -59,6 +70,47 @@ fn the_help_prints_as_its_golden_files() {
             .expect("write help golden");
         }
         assert_eq!(fixtures::help(*tool), fixtures::golden(name), "{name}");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the help test compares rendered UTF-8 with the page's quoted lines")]
+fn review_recipe_quotes_the_waiting_changes_output() {
+    use temper_client_protocol_wire::v1 as w;
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let checking = page.text.split("## Checking it took\n").nth(1).expect("checking section");
+    let mut parts = super::change::approval_parts();
+    parts.step = w::Step::First;
+    parts.ci = w::Ci::Passed;
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    approval.number = 1;
+    approval.role = 1;
+    approval.freshness = w::RuleFreshness::Exact;
+    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    let output =
+        crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
+    assert_eq!(output.status, 0);
+    let output = core::str::from_utf8(&output.stdout).expect("text output");
+    let mut quoted = List::with_capacity(2);
+    for block in checking.split("```\n").skip(1).step_by(2) {
+        for line in block.lines() {
+            if line.starts_with("approval:") || line.starts_with("next:") {
+                quoted.push(line).expect("two quoted output lines");
+            }
+        }
+    }
+    assert_eq!(quoted.len(), 2, "quote both the approval and next lines");
+    for line in quoted.as_slice() {
+        let expected = line
+            .replace("PROJECT", "1")
+            .replace("ROLE", "1")
+            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+        let mut found = false;
+        for rendered in output.lines() {
+            found |= rendered == expected;
+        }
+        assert!(found, "quoted line differs from ctl: {expected}\n{output}");
     }
 }
 
@@ -220,88 +272,18 @@ fn readable_models() -> jig_client::contract::Me {
     me
 }
 
-// client/ctl/README.md 5.2--5.6, with the plan's typed proposals and close reason.
-const USAGES: &[&[u8]] = &[
-    b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"inbox [--project PROJECT] [--kind questions|proposals|escalations|person-tasks|results|replies] [--root TASK] [--after CURSOR] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"task list --project PROJECT [--label chat|goal] [--tracked] [--mine] [--ended] [--order activity|priority] [--after CURSOR] [--parent TASK] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"task show TASK [--tree] [--activity COUNT] [--run] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat show TASK [--before CURSOR]\n",
-    b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
-    b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
-    b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
-    b"task message TASK TEXT --key KEY\n",
-    b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
-    b"task answer TASK QUESTION TEXT [--key KEY]\ntask answer TASK --rev REV CHOICE TEXT [--key KEY]\ntask answer TASK --rev REV TEXT [--key KEY]\ntask answer TASK --rev REV --approve STATE [TEXT] [--key KEY]\ntask answer TASK --rev REV --cannot REASON [--key KEY]\n",
-    b"proposal decide PROPOSAL accept|reject|pass-up [REASON] [--running stays|moves] [--key KEY]\n",
-    b"task release TASK --hold REV [--again] [--key KEY]\n",
-    b"task stop TASK [--key KEY]\n",
-    b"task cancel TASK [--grace DURATION] REASON [--key KEY]\n",
-    b"task tree TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY --landing BRANCH [--role owned|fork|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]... --key KEY\n",
-    b"sign-in FILE\n",
-    b"sign-out\n",
-    b"pending\n",
-    b"help [GROUP [VERB]]\n",
-    b"account list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"model list [--project PROJECT]\n",
-    b"account connect PROVIDER --key KEY\n",
-    b"account disconnect ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"account add-key PROVIDER FILE [--account ACCOUNT] [--deployment] --key KEY\n",
-    b"account replace-key ACCOUNT FILE [--key KEY]\n",
-    b"account forget ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"account rank ACCOUNT POSITION [--source sign_in|key|program] [--key KEY]\n",
-    b"account retry ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n",
-    b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
-    b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
-    b"playground start [--key KEY]\n",
-    b"forge connect FORGE github-app APP FILE [--read-only] --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE [--read-only] --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\nforge connect forgejo FILE --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
-    b"forge replace FORGE FILE --key KEY\n",
-    b"forge install FORGE [--key KEY]\n",
-    b"forge repositories FORGE [--installation INSTALLATION] [--page PAGE]\n",
-    b"account export ACCOUNT FILE\n",
-    b"account import FILE --key KEY\n",
-    b"settings show\n",
-    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\n",
-    b"revision show REVISION\n",
-    b"revision list [--before REVISION]\n",
-    b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
-    b"settings propose FILE [REASON] --against REVISION --key KEY\n",
-    b"proposal show PROPOSAL\n",
-    b"change show TASK [--project PROJECT] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"forge accept FORGE INSTALLATION [--key KEY]\n",
-    b"revision advance REVISION --key KEY\n",
-    b"task decide TASK --hold REV release|leave|pass-up [REASON] [--key KEY]\n",
-    b"project show PROJECT\n",
-    b"project fund PROJECT AMOUNT [--role ROLE] --key KEY\n",
-    b"hold lift HOLD --rev REV [--with-tasks] [--key KEY]\n",
-    b"landing show TASK [--project PROJECT]\n",
-    b"landing list --project PROJECT [--ended]\n",
-    b"forge remove FORGE [--key KEY]\n",
-    b"playground end [--key KEY]\n",
-    b"task text TASK [--field specification|instructions|result] [--from OFFSET]\n",
-    b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
-    b"revision restore REVISION [REASON] --key KEY\n",
-    b"project amend PROJECT --visibility public|private --key KEY\n",
-    b"repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
-    b"repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
-    b"task take TASK [--key KEY]\n",
-    b"task hand-back TASK [--key KEY]\n",
-    b"task notes TASK --project PROJECT [--after CURSOR]\n",
-    b"project make NAME --key KEY\n",
-    b"project remove PROJECT --key KEY\n",
-    b"role start --project PROJECT --budget AMOUNT TEXT [--charter CHARTER] --key KEY\n",
-    b"role list --project PROJECT [--after CURSOR]\n",
-    b"role show TASK\n",
+// Each row pins a usage rule, rather than repeating the tools table's order.
+const USAGES: &[(u8, &[u8])] = &[
+    (jig::rows::ME_AT, b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n"),
+    (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
+    (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
+    (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
-    assert_eq!(table::TOOLS.len(), USAGES.len());
-    for (tool, expected) in table::TOOLS.iter().zip(USAGES) {
+    for (at, expected) in USAGES {
+        let tool = table::TOOLS[usize::from(*at)];
         assert_eq!(&*fixtures::usage(tool), *expected, "{tool:?}");
     }
 }
@@ -312,8 +294,16 @@ fn each_derivation_names_every_tool() {
     for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
-            *call.values.get_mut(0).expect("FILE") =
-                Some(jig::call::Values::One(jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into())));
+            let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
+            *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
+                jig::call::Values::Many(Box::new([value]))
+            } else {
+                jig::call::Values::One(value)
+            });
+        }
+        if call.tool == jig::rows::FINDING_FILE_AT {
+            *call.values.get_mut(5).expect("body") =
+                Some(jig::call::Values::One(jig::call::Value::Text(b"Body".as_slice().into())));
         }
         forms.push((call.tool, call.form)).expect("all table forms");
         let json = jig::json::write_call(table::TOOLS, &call).expect("call JSON");
@@ -514,12 +504,17 @@ fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }
 #[test]
+fn the_draft_reference_is_what_the_table_renders() {
+    reference_matches(b"draft", b"ctl-draft");
+}
+#[test]
 fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }
 #[test]
 fn the_playground_reference_is_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
+    reference_matches(b"push", b"ctl-push");
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
@@ -542,6 +537,7 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
         std::fs::write(path, &rendered).expect("write group reference");
         return;
     }
+    let page = temper_docs::find(page_name).expect("reference page");
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
 }
 
@@ -596,6 +592,21 @@ fn task_answer_help_says_a_person_task_may_ask_for_less() {
     assert!(text.contains("a person task may ask for less"));
     let help = fixtures::help(Some(jig::rows::ANSWER_AT));
     assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the answer form's words"
+)]
+fn task_answer_help_distinguishes_choices_from_words() {
+    let sentence = b"CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.";
+    let page = temper_docs::find(b"ctl-task").expect("task reference");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(skein_lib::bytes::find(text.as_bytes(), sentence).is_some());
+    let help = fixtures::help(Some(jig::rows::ANSWER_AT));
+    assert!(skein_lib::bytes::find(&help, sentence).is_some());
 }
 
 #[test]

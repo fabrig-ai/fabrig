@@ -54,7 +54,7 @@ pub(crate) fn text(
         }
         out.put(b"\n");
         if call.tool != crate::jig::rows::SETTING_AT
-            || crate::jig::call::number(call, if call.form == 2 { 3 } else { 2 }).is_none()
+            || crate::jig::call::number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }).is_none()
         {
             settings_form::render::stock_text(&a::form_read_value(value), out);
         }
@@ -98,6 +98,7 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         }
         out.put(b": ");
         match line.follows {
+            c::SettingFollows::Overlay => out.put(b"overlay"),
             c::SettingFollows::Default => {
                 out.put(b"default");
                 if let Some(last) = line.last

@@ -5,15 +5,29 @@ use temper_shell::{commands::Row, directories, environment, table::HELP};
 pub const ENGINE: Table = Table {
     binary: "temper-engine",
     line: "the deployment's engine, with the owned forge's commands.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
-    commands: &[SERVE, VERSIONS, HELP, FETCH, PREPARE, RUN, SIGN_IN, SOURCE, REMOVE, FORGE_CHILD],
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
+    commands: &[
+        SERVE,
+        VERSIONS,
+        UPGRADE_CHECK,
+        UPGRADE_BACK,
+        HELP,
+        FETCH,
+        PREPARE,
+        RUN,
+        SIGN_IN,
+        SOURCE,
+        REMOVE,
+        FORGE_CHILD,
+    ],
     settings: &[&directories::SETTINGS],
     variables: &[
         &temper_service_shell::WAIT_CHECK,
         &temper_service_shell::CUT_AT_LISTEN,
         &super::forge_sign_in::NO_REGISTRATION,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_client_bundle::INTERNAL_BUNDLE,
     ],
     more: "temper-engine COMMAND --help prints one command; temper-engine help pages lists the pages.",
@@ -45,6 +59,29 @@ pub const VERSIONS: Command = Command {
     switches: &[],
     variables: &[],
     notes: "Reads no configuration and no store.",
+};
+
+pub const UPGRADE_CHECK: Command = Command {
+    reach: Reach::Words(&["upgrade", "--check"]),
+    set: Set::Public,
+    forms: &["[DIRECTORIES] DIRECTORY"],
+    line: "Rehearses an upgrade over a copy; switches nothing.",
+    arguments: &[
+        DIRECTORIES,
+        Argument { shown: "DIRECTORY", line: "A stopped deployment's data directory or a copy of one; never written." },
+    ],
+    settings: &[&directories::SETTINGS],
+    switches: &[],
+    variables: &[],
+    notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.",
+};
+pub const UPGRADE_BACK: Command = Command {
+    reach: Reach::Words(&["upgrade", "--back"]),
+    forms: &["[DIRECTORIES]"],
+    line: "Makes the previous generation active again, before the patched one's first commit.",
+    arguments: &[DIRECTORIES],
+    notes: "Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.",
+    ..UPGRADE_CHECK
 };
 
 pub const FETCH: Command =

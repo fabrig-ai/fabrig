@@ -1,6 +1,13 @@
 //! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use temper_engine_domain_forge_closer as c;
+mod relay;
+#[derive(Hash, Debug)]
+pub(crate) struct Pending {
+    relay: c::relay::Relay,
+    asked: bool,
+    more: bool,
+}
 
 #[expect(clippy::too_many_lines, reason = "the procedure gathers its goal and submits one exhaustive step decision")]
 pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
@@ -36,20 +43,21 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         making: None,
         close_changes: Box::new([]),
         landing_changes: Box::new([]),
+        relay: c::relay::Relay::new(),
         done: false,
     });
     row.done = false;
     // Its creation answer owns the pending change. A wake before that answer
     // must not delegate the same close or landing step again.
     if row.making.is_some() {
-        submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+        submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
         return;
     }
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => Some(contains),
         Some(Err(_)) => {
-            submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
             return;
         }
         None => None,
@@ -71,13 +79,19 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         }
         c::Decision::Make(kind) => {
             let branch = branch.expect("only a held goal branch makes a step");
-            let Some(delegate) = delegate(domain, env, &row, &repository, &branch, &goal_words, kind) else {
-                super::holds::hold(
-                    domain,
-                    task,
-                    b"the goal closer cannot delegate its next change within its authority",
-                );
-                return;
+            let delegate = match delegate(domain, env, &row, &repository, &branch, &goal_words, kind) {
+                Ok(delegate) => delegate,
+                Err(short) => {
+                    row.closer = stepped.closer;
+                    row.closer.retry = Some(kind);
+                    let decision = if short.is_spend() && goal_run_live(domain, goal) {
+                        ProcedureStep::new(StepEnd::Wait)
+                    } else {
+                        super::holds::decision(domain, env, task, short_words(short))
+                    };
+                    submit(domain, env, row, decision);
+                    return;
+                }
             };
             row.closer = stepped.closer;
             row.making = Some(kind);
@@ -92,7 +106,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             row.closer = stepped.closer;
             ProcedureStep::new(StepEnd::HoldFrom {
                 why: tasks::Hold::Procedure,
-                source: Box::new(super::holds::source(domain, None, hold_words(domain, hold))),
+                source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold))),
             })
         }
         c::Decision::Wait => {
@@ -115,8 +129,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words: c::words(&report, bound) }))
         }
     };
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
-    submit(domain, task, decision);
+    submit(domain, env, row, decision);
 }
 
 fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_holds: Option<bool>) -> c::Facts {
@@ -146,14 +159,26 @@ fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_ho
         landed: landed.into_boxed(),
         base_holds,
         child: running,
+        close_ended: ended_count(domain, &row.close_changes),
+        land_ended: ended_count(domain, &row.landing_changes),
+        bound: attempt_bound(domain, row.task),
         landing_child,
         released: row.closer.hold.is_some()
             && domain.core.tasks.task(row.task).expect("live closer").due_reason == tasks::Why::Released,
     }
 }
 
-fn submit(domain: &mut Domain, task: u64, decision: ProcedureStep) {
+fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut decision: ProcedureStep) {
+    let task = row.task;
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let previous = row.relay.clone();
+    let (asked, more) = relay::apply(domain, env, &mut row, &mut decision);
+    let relay = core::mem::replace(&mut row.relay, previous);
+    // Step progress keeps its creation marker; only the relay waits for admission.
+    if domain.forge.closer(task) != Some(&row) {
+        domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    }
+    domain.closer_steps.insert((task, step), Pending { relay, asked, more }).expect("one pending step per closer");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
@@ -224,10 +249,54 @@ fn child(domain: &Domain, task: u64) -> c::Child {
     match domain.forge.change(task) {
         Some(row) => match ending(row) {
             Some(forge::Ending::Landed | forge::Ending::NoChange) => c::Child::Done,
-            Some(forge::Ending::Cancelled | forge::Ending::Failed { .. }) => c::Child::Ended,
+            Some(forge::Ending::Cancelled | forge::Ending::Failed { .. }) => {
+                c::Child::Ended { branch: branch_reason(row.change.ended_held).is_some() }
+            }
             None => c::Child::Pending,
         },
         None => c::Child::Pending,
+    }
+}
+
+fn attempt_bound(domain: &Domain, task: u64) -> u8 {
+    let project = domain.core.tasks.task(task).expect("live closer").project;
+    match domain.config.landings.get(&project) {
+        Some(landing) => landing.landing_attempts,
+        None => crate::LANDING_ATTEMPTS,
+    }
+}
+
+fn ended_count(domain: &Domain, changes: &[u64]) -> u32 {
+    let mut count = 0_u32;
+    for task in changes {
+        if let Some(row) = domain.forge.change(*task) {
+            match ending(row) {
+                Some(forge::Ending::Cancelled | forge::Ending::Failed { .. }) => count = count.saturating_add(1),
+                Some(forge::Ending::Landed | forge::Ending::NoChange) | None => {}
+            }
+        }
+    }
+    count
+}
+
+fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8]> {
+    use super::forge_change::Hold;
+    match held {
+        Some(Hold::Repairs) => Some(b"repairs"),
+        Some(Hold::Resolutions) => Some(b"conflict resolutions"),
+        Some(Hold::Rejected) => Some(b"a rejection"),
+        Some(Hold::PullClosed) => Some(b"its pull request closed"),
+        Some(Hold::BranchMissing) => Some(b"its branch missing"),
+        Some(
+            Hold::Stalled
+            | Hold::Updates
+            | Hold::BranchMoved
+            | Hold::Retargeted
+            | Hold::Failed
+            | Hold::Authority(_)
+            | Hold::Questions,
+        )
+        | None => None,
     }
 }
 
@@ -279,6 +348,119 @@ fn landing_words(words: &[u8]) -> Box<[u8]> {
     result.into_boxed()
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Short {
+    Spend { left: u64, minimum: u64 },
+    Tasks { left: u32 },
+    Depth,
+    Terms,
+}
+
+impl Short {
+    fn is_spend(self) -> bool {
+        match self {
+            Self::Spend { .. } => true,
+            Self::Tasks { .. } | Self::Depth | Self::Terms => false,
+        }
+    }
+}
+
+fn goal_run_live(domain: &Domain, goal: u64) -> bool {
+    match domain.core.tasks.task(goal).expect("live goal").phase {
+        tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. }) => true,
+        tasks::Phase::Active(
+            tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. },
+        )
+        | tasks::Phase::Waiting
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Held { .. }
+        | tasks::Phase::Ended(_) => false,
+    }
+}
+
+fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Short {
+    use tasks::Refusal;
+    match why {
+        Refusal::Funding => Short::Spend { left, minimum },
+        Refusal::Tree => Short::Tasks { left: room },
+        Refusal::Depth => Short::Depth,
+        Refusal::NotStanding
+        | Refusal::TalkOpen { .. }
+        | Refusal::NoTalk
+        | Refusal::Placed { .. }
+        | Refusal::HoldOwner { .. }
+        | Refusal::HoldRevision { .. }
+        | Refusal::Account { .. }
+        | Refusal::Grace
+        | Refusal::Goals
+        | Refusal::Unproposable
+        | Refusal::PersonRevision { .. }
+        | Refusal::ResourceUnavailable
+        | Refusal::NotReady
+        | Refusal::Unknown
+        | Refusal::Busy
+        | Refusal::Duplicate
+        | Refusal::Empty
+        | Refusal::Batch
+        | Refusal::Live
+        | Refusal::Project
+        | Refusal::Delegates
+        | Refusal::Reference
+        | Refusal::Subscription
+        | Refusal::Dependencies
+        | Refusal::Circle { .. }
+        | Refusal::DependencyEnded { .. }
+        | Refusal::Kept
+        | Refusal::KeptQuestion { .. }
+        | Refusal::PersonAnswers { .. }
+        | Refusal::Executor
+        | Refusal::Spec
+        | Refusal::Contract
+        | Refusal::AuthorityShape
+        | Refusal::Inputs
+        | Refusal::State
+        | Refusal::Attempt
+        | Refusal::LiveDelegates
+        | Refusal::Restore
+        | Refusal::Read
+        | Refusal::Turn
+        | Refusal::HoldKind
+        | Refusal::HoldTaken
+        | Refusal::Holds
+        | Refusal::Llm { .. } => Short::Terms,
+    }
+}
+
+fn short_words(short: Short) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"the goal closer cannot delegate its next change within its authority: ");
+    match short {
+        Short::Spend { left, minimum } => {
+            append(&mut words, b"spend: ");
+            append(&mut words, &super::decimal(left));
+            append(&mut words, b" left, its change's half must pass ");
+            append(&mut words, &super::decimal(minimum));
+        }
+        Short::Tasks { left } => {
+            append(&mut words, b"tasks: ");
+            append(&mut words, &super::decimal(u64::from(left)));
+            append(&mut words, b" left, its change needs 2");
+        }
+        Short::Depth => append(&mut words, b"depth"),
+        Short::Terms => append(&mut words, b"its change's terms"),
+    }
+    words.into_boxed()
+}
+
+#[cfg(test)]
+mod tests;
+
+fn change_tasks(given: u32, room: u32, bound: u8, ended: u32) -> u32 {
+    let attempts = u32::from(bound).saturating_sub(ended).max(1);
+    let share = room.checked_div(attempts.saturating_add(1)).expect("at least two shares").saturating_sub(1);
+    given.min(share).max(1)
+}
+
 fn delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -287,15 +469,24 @@ fn delegate(
     branch: &[u8],
     goal_words: &[u8],
     kind: c::Step,
-) -> Option<super::super::Delegate> {
-    let context = domain.core.tasks.delegation(row.task)?;
+) -> Result<super::super::Delegate, Short> {
+    let context = domain.core.tasks.delegation(row.task).ok_or(Short::Terms)?;
+    let goal = domain.core.tasks.delegation(row.goal).ok_or(Short::Terms)?;
+    let room = context.tasks_left.min(goal.tasks_left);
+    if room < 2 {
+        return Err(Short::Tasks { left: room });
+    }
+    if context.authority.delegation.depth < 2 {
+        return Err(Short::Depth);
+    }
     let available = context
         .numbers
         .budget
-        .checked_sub(context.numbers.spent)?
-        .checked_sub(context.numbers.spent_below)?
-        .checked_sub(context.numbers.reserved)?;
-    let spend = available.checked_div(2)?;
+        .saturating_sub(context.numbers.spent)
+        .saturating_sub(context.numbers.spent_below)
+        .saturating_sub(context.numbers.reserved);
+    let spend = available.checked_div(2).expect("nonzero divisor");
+    let minimum = domain.core.authority.rules().minimum_run_spend;
     let (words, base, own) = match kind {
         c::Step::Close => {
             let mut words = List::uncapped();
@@ -306,25 +497,41 @@ fn delegate(
         }
         c::Step::Land => (landing_words(goal_words), repository.settings.default_branch.clone(), Some(branch.into())),
     };
-    let change = crate::ChangeCall::words(words, None);
-    let mut delegate = super::chat_change(domain, env, &context, &change, repository, base, own, spend).ok()?;
+    let mut change = crate::ChangeCall::words(words, None);
+    change.questions = Some(crate::ChangeQuestions::Up);
+    let mut delegate = match super::chat_change(domain, env, &context, &change, repository, base, own, spend) {
+        Ok(delegate) => delegate,
+        Err(why) => return Err(short_refusal(why, available, minimum, room)),
+    };
+    let changes = match kind {
+        c::Step::Close => &row.close_changes,
+        c::Step::Land => &row.landing_changes,
+    };
+    delegate.authority.delegation.tasks = change_tasks(
+        delegate.authority.delegation.tasks,
+        room,
+        attempt_bound(domain, row.task),
+        ended_count(domain, changes),
+    );
     let mut kinds = List::uncapped();
     for kind in &delegate.authority.delegation.kinds {
-        kinds.push(*kind).ok()?;
+        kinds.push(*kind).expect("uncapped executor list");
     }
     if context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::CLOSE_KIND)) {
-        kinds.push(tasks::AuthorityExecutor::Job(forge::CLOSE_KIND)).ok()?;
+        kinds.push(tasks::AuthorityExecutor::Job(forge::CLOSE_KIND)).expect("uncapped executor list");
     }
     delegate.authority.delegation.kinds = kinds.into_boxed();
     if kind == c::Step::Close {
         let mut expanded = List::uncapped();
         for parameter in delegate.spec.parameters {
-            expanded.push(parameter).ok()?;
+            expanded.push(parameter).expect("uncapped parameter list");
         }
-        expanded.push(tasks::Parameter::Bytes { name: 17, value: close_request(domain, row, branch) }).ok()?;
+        expanded
+            .push(tasks::Parameter::Bytes { name: 17, value: close_request(domain, row, branch) })
+            .expect("uncapped parameter list");
         delegate.spec.parameters = expanded.into_boxed();
     }
-    Some(delegate)
+    Ok(delegate)
 }
 
 fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
@@ -456,7 +663,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
         selections: selections.into_boxed(),
     }
 }
-fn hold_words(domain: &Domain, hold: c::Hold) -> Box<[u8]> {
+fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<[u8]> {
     let c::Hold::ClosingStep { step, change } = hold;
     let mut words = List::uncapped();
     append(
@@ -482,13 +689,32 @@ fn hold_words(domain: &Domain, hold: c::Hold) -> Box<[u8]> {
         Some(forge::Ending::Landed) => append(&mut words, b"landed"),
         None => append(&mut words, b"without an ending account"),
     }
+    let branch = match domain.forge.change(change) {
+        Some(row) => branch_reason(row.change.ended_held),
+        None => None,
+    };
+    if let Some(reason) = branch {
+        append(&mut words, b", held for its branch: ");
+        append(&mut words, reason);
+    } else {
+        let changes = match step {
+            c::Step::Close => &closer.close_changes,
+            c::Step::Land => &closer.landing_changes,
+        };
+        append(&mut words, b"; attempts ended without landing: ");
+        append(&mut words, &super::decimal(u64::from(ended_count(domain, changes))));
+        append(&mut words, b", the project's bound ");
+        append(&mut words, &super::decimal(u64::from(attempt_bound(domain, closer.task))));
+    }
     words.into_boxed()
 }
 
-pub(crate) fn made(domain: &mut Domain, task: u64, child: Option<u64>) {
+pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
+    let pending = domain.closer_steps.remove(&(task, step));
     let Some(mut row) = domain.forge.closer(task).cloned() else { return };
-    let Some(kind) = row.making.take() else { return };
-    if let Some(child) = child {
+    if let Some(child) = child
+        && let Some(kind) = row.making.take()
+    {
         row.closer.running = Some(c::Running { step: kind, change: child });
         let prior = match kind {
             c::Step::Close => &row.close_changes,
@@ -506,15 +732,34 @@ pub(crate) fn made(domain: &mut Domain, task: u64, child: Option<u64>) {
                 row.closer.landing = Some(child);
             }
         }
+        domain.work.push(Work::Forge(forge::Event::Closer { row: row.clone() }));
     }
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    let Some(mut pending) = pending else { return };
+    if pending.asked {
+        let record = domain.core.tasks.task(task).expect("admitted closer step");
+        let mut number = None;
+        for credit in &record.questions {
+            if credit.asked == tasks::Party::Task(row.goal) {
+                number = Some(credit.number);
+                break;
+            }
+        }
+        c::relay::asked(&mut pending.relay, number.expect("admitted question has its credit"));
+    }
+    if pending.relay != row.relay {
+        domain.work.push(Work::Forge(forge::Event::CloserRelayed { task, relay: pending.relay }));
+    }
+    if pending.more {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+    }
 }
 
-pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::StepRefusal) -> bool {
+pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domain_core::StepRefusal) -> bool {
     let Some((connector, code, _)) = domain.core.tasks.procedure_due(task) else { return false };
     if connector != domain.config.forge_connector || code != super::GOAL_CLOSER_CODE {
         return false;
     }
+    domain.closer_steps.remove(&(task, step));
     match why {
         jig_domain_core::StepRefusal::Moved { .. } => false,
         jig_domain_core::StepRefusal::Denied { .. } | jig_domain_core::StepRefusal::Refused(_) => {
@@ -529,7 +774,14 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
             if let Some(record) = domain.core.tasks.task(task)
                 && !record.waiting_on.is_empty()
             {
-                submit(domain, task, ProcedureStep::new(StepEnd::Wait));
+                let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
+                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                    task,
+                    step,
+                    connector,
+                    code,
+                    decision: ProcedureStep::new(StepEnd::Wait),
+                }));
                 return true;
             }
             super::holds::hold(domain, task, b"the goal closer's next change was refused");
@@ -577,14 +829,4 @@ fn settled_selections(closer: &c::Closer) -> Box<[c::Selection]> {
         selections.push(c::Selection { pull: selection.pull, line }).expect("goal tree bounds selections");
     }
     selections.into_boxed()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::landing_words;
-    #[test]
-    fn a_closers_landing_uses_the_goal_title_and_draft() {
-        assert_eq!(landing_words(b"TITLE\n\nBuild PATH.\nDraft: PATH").as_ref(), b"TITLE\n\nDraft: PATH");
-        assert_eq!(landing_words(b"TITLE\n\nOther words").as_ref(), b"TITLE");
-    }
 }

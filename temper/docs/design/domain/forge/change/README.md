@@ -56,9 +56,8 @@ branch. Its parameters:
   the runner failed at one head (`reruns`, 2, step 3), and the stall of
   each wait;
 - **its questions:** how it takes its agents' questions (`questions.md`, 1): `none`,
-  the default, asking no one; `foreman`, each settled first by a foreman
-  of its own; `up`, each passed straight to its requester; and how many
-  it takes, a bound beside the others.
+  the default, asking no one; `up`, each passed straight to its
+  requester; and how many it takes, a bound beside the others.
 
 A run asks for one with `change`, giving the words, and the root fills
 in the rest from the project (`../../agent/tools.md`, 1). A run whose authority
@@ -84,8 +83,7 @@ start.
 
 Before building a change batch, the root reserves one task for each
 member and shares the remaining descendant capacity equally, bounded
-by each member's change policy: its task allowance, plus its question
-allowance for `foreman`. Room beyond a member's cap is redistributed;
+by each member's change policy: its task allowance. Room beyond a member's cap is redistributed;
 remainder slots go in call order. Each member needs at least one
 descendant for its producer. One change keeps its policy allowance
 within the requester's remaining authority. These allowances are
@@ -106,7 +104,7 @@ A change made with questions `none` asks no one. What to change is
 agreed before it is asked for, by a goal that asks first where its
 person wants to agree a plan (`../../agent/agents.md`, 2), and the procedure
 delegates its agents without the Message family. One made with
-`foreman` or `up` relays its own agents' questions instead (`questions.md`, 1); what
+`up` relays its own agents' questions instead (`questions.md`, 1); what
 follows describes `none`; an enabled route's fallback feedback follows 8.11.
 A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
@@ -157,10 +155,10 @@ the branch:
   the branch while the change lives (`../branches.md`, 3). That doesn't stop the change,
   which steps at the head it reads (3).
 
-The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
-absent means `none`. The root writes it only for `foreman` or `up`. Any
-other value refuses the change's start as a malformed parameter
-(2026-11-04).
+The question route is number parameter 14: 2 for `up`; absent means
+`none`. The root writes it only for `up`. Any other value, 1, the retired
+foreman's (`questions.md`, 1), among them, refuses the change's start as a
+malformed parameter (2026-11-04).
 
 The close request a goal's close step carries is bytes parameter 17, the
 request's exact text form (`../../../protocol/tooling.md`, 4.2), within the close
@@ -178,6 +176,15 @@ commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
 change; a value outside that text form refuses the start as a malformed
 parameter. Without it the change names no red landing to repair
 (2026-11-04).
+
+The source landings a follow change follows are bytes parameter 18,
+`N:COMMIT[,COMMIT]...`, made by a follow's task alone and checked by the
+root as it decides the delegate (`../follows.md`, section 4). The start
+keeps them with the change (`follows`); a value outside that form refuses
+the start as a malformed parameter. A change with parameter 18 takes
+question route `up` with no parameter 14, never starts early, under its
+follow's `owner` start produces only once its owner's word starts it, and
+carries its follow's check (`../follows.md`, sections 4 and 6).
 
 ## 2. Its way to landing
 
@@ -584,9 +591,14 @@ changes live at once, never every change made.
   only when no settled one can go, as `start_change` makes the registration,
   and asks the forge to drop it first (`forge::Event::DropChange { task
   }`, then `forge::Event::Change`). The forge drops it only if its
-  table is full and the change is still settled, or dropped last with
-  no settled one left to go, and no landing names it; otherwise it
-  drops nothing.
+  table is full, the change is still settled or dropped last, and no
+  landing names it; otherwise it drops nothing. The root alone checks
+  whether another settled change can go, since only it knows which
+  goals pin them. Drop and registration run synchronously, in
+  `start_change`'s own decision and before anything else of the change
+  is queued: only an accepted registration queues the change's names,
+  its branch hold and its step, and a refused one leaves its named
+  refusal (*Refused, named*) alone.
 - **What goes with it:** every account the forge keeps by its task: its
   panel's CI, its settling, its start conflicts, its wakes and its
   deadline, its pending steps and goal-file reads (a late answer to one

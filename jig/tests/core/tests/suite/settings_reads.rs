@@ -70,6 +70,7 @@ fn a_run_reads_its_own_held_charter_by_revision() {
         assert_eq!(
             run_read(&mut world, input.as_bytes()),
             core::SettingsAnswer::Setting(reads::SettingDocument {
+                overlay: None,
                 setting: settings::Setting::Charter(1),
                 revision,
                 value: Some(settings::Value::Charter(Box::new(charter))),

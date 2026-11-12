@@ -80,7 +80,8 @@ impl Switcher {
     }
     pub(super) fn went(&mut self, address: &Address) {
         match address {
-            Address::Remembered
+            Address::Told
+            | Address::Remembered
             | Address::Members
             | Address::Limits
             | Address::Accounts
@@ -221,7 +222,7 @@ impl Switcher {
     }
 }
 #[expect(clippy::manual_find, reason = "the programming model uses a bounded scan without closures")]
-fn owned(me: Option<&c::Me>, project: Option<u32>) -> Option<&c::MeProject> {
+pub(super) fn owned(me: Option<&c::Me>, project: Option<u32>) -> Option<&c::MeProject> {
     let project = project?;
     for row in &me?.projects {
         if row.project == project && row.role == c::HeldRole::Owner {

@@ -1,12 +1,15 @@
 //! Retained outcomes, field for field with the forge's application family.
 use super::{FITS, names};
-use crate::{Bounds, Undecodable, v11 as w};
+use crate::{Bounds, Undecodable, v16 as w};
 use skein_lib::{Reader, Wall, Writer};
 use temper_engine_domain_forge as d;
 mod refusal;
 
 pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -> w::Application {
     let outcome = match outcome {
+        d::ApplicationOutcome::Follow(refusal) => w::ApplicationOutcome::Follow(
+            w::FollowOutcome::new(&w::CEILINGS, w::FollowOutcomeParts { refusal: refusal.clone() }).expect(FITS),
+        ),
         d::ApplicationOutcome::MakeKept => w::ApplicationOutcome::MakeKept,
         d::ApplicationOutcome::MakeRefused(why) => w::ApplicationOutcome::MakeRefused(
             w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { reason: super::making::encode_refusal(*why) })
@@ -29,7 +32,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
         ),
         d::ApplicationOutcome::CoreRefused(v) => {
             let record =
-                refusal::encode_refusal(v, &jig_protocol_store::people_v14::CEILINGS).expect("refusal facts fit");
+                refusal::encode_refusal(v, &jig_protocol_store::people_v15::CEILINGS).expect("refusal facts fit");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("small refusal"));
             record.encode(&mut writer).expect("measured room");
             w::ApplicationOutcome::CoreRefused(
@@ -45,6 +48,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
 pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let w::ApplicationParts { token, until, outcome } = value.into_parts();
     let outcome = match outcome {
+        w::ApplicationOutcome::Follow(value) => d::ApplicationOutcome::Follow(value.into_parts().refusal),
         w::ApplicationOutcome::MakeKept => d::ApplicationOutcome::MakeKept,
         w::ApplicationOutcome::MakeRefused(why) => {
             d::ApplicationOutcome::MakeRefused(super::making::decode_refusal(why.into_parts().reason))
@@ -64,8 +68,8 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
         w::ApplicationOutcome::CoreRefused(v) => {
             let mut reader = Reader::new(v.refusal());
             let record =
-                jig_protocol_store::people_v14::Refusal::decode(&jig_protocol_store::people_v14::CEILINGS, &mut reader)
-                    .or(Err(Undecodable))?;
+                jig_protocol_store::people_v15::Refusal::decode(&jig_protocol_store::people_v15::CEILINGS, &mut reader)
+                    .or(Err(Undecodable::Malformed))?;
             d::ApplicationOutcome::CoreRefused(refusal::decode_refusal(record))
         }
         w::ApplicationOutcome::ForgeRefused(v) => {

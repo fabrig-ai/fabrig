@@ -98,9 +98,30 @@ fn open_tabs(world: &mut World<Temper, Joint>) -> (u64, ClientId, ClientId) {
     let long = fixtures::watch_room_client(world, fixtures::chat_page(chat));
     see_live(world, long);
     assert_eq!(world.root(long).person().pages().address(), &fixtures::chat_page(chat));
+    // The task window bounds the delegated batch. A second read of the live root
+    // from Home occupies the remaining place without growing that batch.
+    world.event(
+        home,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Watch {
+                handle: jig_client::Handle {
+                    asker: temper_client_domain::owner::Owner::Pages.asker(),
+                    number: 4_294_967_296,
+                },
+                subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Task { task: chat }),
+            },
+        }
+        .into(),
+    );
+    see_live(world, home);
+    let deadline = world.now().saturating_add(fixtures::WITHIN);
+    while world.now() < deadline && !chat_whole(world, long, chat) {
+        world.run(Until::Steps(2));
+    }
+    assert!(chat_whole(world, long, chat), "the chat's whole watch set is live");
     let held = world.front().open_watches();
     let room = usize::try_from(temper_engine_domain::VIEWS.watchers).expect("watch room fits usize");
-    assert!(held >= room, "the two tabs hold the old room: {held}");
+    assert!(held >= room, "the two tabs fill one stream's room: {held}");
     (chat, home, long)
 }
 

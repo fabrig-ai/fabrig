@@ -59,7 +59,7 @@ pub(crate) fn dispatch(
         user,
         state: RunState::Running,
         conclusion: None,
-        created: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
         inputs: inputs.clone(),
     };
     crate::reports::failed(domain, &workflow, &probe, &env.limits.limits)?;
@@ -83,7 +83,7 @@ pub(crate) fn dispatch(
         user,
         state: RunState::Running,
         conclusion: None,
-        created: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
         inputs,
     };
     let mut jobs = List::with_capacity(u32::try_from(workflow.jobs.len()).expect("bounded jobs"));
@@ -164,6 +164,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         Check::Failed
     } else {
         match &workflow.cue {
+            Some(Cue::Declared { path }) => ci::declared(domain, commit, file, path, None, &env.limits.limits).0,
             Some(Cue::PullFile { no_pull, .. }) => *no_pull,
             Some(Cue::Message { fail }) => {
                 if find(&domain.object(commit).expect("run commit").message, fail).is_some() {

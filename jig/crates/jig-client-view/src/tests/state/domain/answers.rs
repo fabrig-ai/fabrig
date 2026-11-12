@@ -116,6 +116,7 @@ fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_lo
             Refusal::Forgotten { .. }
             | Refusal::Judged { .. }
             | Refusal::Full(_)
+            | Refusal::LiveTasks { .. }
             | Refusal::Circle { .. }
             | Refusal::Dependency { .. }
             | Refusal::Kept { .. }

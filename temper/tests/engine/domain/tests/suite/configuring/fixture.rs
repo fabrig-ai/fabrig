@@ -8,22 +8,22 @@ use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking
 pub(super) const CHAT: u32 = 1;
 pub(super) const ASK_CHARTER: u32 = 11;
 pub(super) const ASK_TEMPLATE: u32 = 5;
-pub(super) const SETTINGS_CHARTER: u32 = 14;
+pub(super) const SETTINGS_CHARTER: u32 = 17;
 pub(super) const SETTINGS_TEMPLATE: u32 = 12;
 pub(super) const REMOVED: u32 = 8;
 pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has ten charters, fourteen grants and eighteen executor kinds. The
+// Stock has twelve charters, fourteen grants and twenty-one executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 13; // Kind 9's stock lines run up to charter 13.
+const CHARTERS: u32 = 17; // Stock lines run up to 16; the settings agent has its own charter.
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 19; // Eighteen stock kinds plus the story's extra charter.
+const EXECUTORS: u32 = 21; // Twenty stock kinds plus the story's extra charter.
 // Charter 11's resolved stock run policy needs 16,574 bytes.
-const RUN_BYTES: u32 = 20_480;
+const RUN_BYTES: u32 = 32_768;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
 // Account, three chats, a decision and up to three owner messages or edits.

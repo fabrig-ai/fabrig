@@ -2,6 +2,7 @@
 //! jig's protocol/store/README.md, 8).
 mod ranges;
 pub mod route;
+mod unreadable;
 use jig_protocol_store as protocol;
 use protocol::host::{Hosted, Lane, NotReady, check_read_page, max_whole};
 use route::Up;
@@ -9,6 +10,7 @@ use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use unreadable::UnreadableRow;
 /// The wires this engine speaks to its workers (jig's protocol/store/records.md,
 /// 3; temper's protocol/README.md, 7).
 pub const WIRES: [protocol::Wire; 4] = [
@@ -17,6 +19,15 @@ pub const WIRES: [protocol::Wire; 4] = [
     protocol::Wire { name: "smith-turn", version: record_version(smith_transcript::Turn::FORMAT_VERSION) },
     protocol::Wire { name: "temper-payload", version: temper_protocol_worker_wire::PAYLOAD_VERSION },
 ];
+/// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
+pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
+    sets: &[
+        protocol::SKEIN_PATCH_SET,
+        protocol::SMITH_PATCH_SET,
+        jig_protocol_accounts::JIG_PATCH_SET,
+        temper_protocol_store::PATCH_SET,
+    ],
+};
 // These conversions are checked while the static wire table is evaluated.
 const fn channel_version(version: u16) -> u32 {
     let bytes = version.to_le_bytes();
@@ -180,6 +191,7 @@ impl Store {
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
         let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
+        host.component.patch_sets(PATCH_SETS);
         Self {
             #[cfg(test)]
             forge_loads: skein_lib::List::with_capacity(128),
@@ -199,6 +211,10 @@ impl Store {
             pending_generation: false,
             installation,
         }
+    }
+    /// Replace the binary's sets before adopting its deployment directory.
+    pub(crate) fn patch_sets(&mut self, sets: protocol::PatchSets) {
+        self.host.component.patch_sets(sets);
     }
     /// Whether the component has reported that its deployment opened.
     #[must_use]
@@ -362,7 +378,7 @@ mod sizing_tests {
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
-        assert_eq!(profile.store.page.bytes, 3_421_331);
+        assert_eq!(profile.store.page.bytes, 4_582_931);
     }
 
     #[test]

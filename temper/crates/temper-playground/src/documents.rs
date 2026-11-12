@@ -24,7 +24,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 9;
+pub const DOCUMENT_LINES: u32 = 12;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.
@@ -147,7 +147,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     value["engine"]["connectors"] = serde_json::json!([1]);
     for (name, count) in [
         ("core.load_slots", 8),
-        ("core.run_bytes", 16_384),
+        ("core.run_bytes", 32_768),
         ("core.templates", 6),
         ("documents.rows", 2),
         ("documents.lines", DOCUMENT_LINES),
@@ -168,13 +168,13 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        // Two added 8-byte executor places make the largest stock chat payload 1,117 bytes.
-        ("people.amendment_bytes", 1194),
+        // The stock chat amendment holds every declared grant and executor.
+        ("people.amendment_bytes", 1210),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
-        // Ten slots hold the stock charters.
-        ("tasks.charters", 10),
+        // Stock charter words run through number 16.
+        ("tasks.charters", 16),
         ("notes.entries_per_scope", 2),
         ("notes.party_entries", 2),
         ("notes.recalled", 2),
@@ -205,13 +205,13 @@ pub fn chat_policy(value: &mut serde_json::Value) {
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("authority.grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("authority.executors", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("authority.executors", 21),
         ("authority.segments", 8),
         ("tasks.authority_grants", 15),
         ("tasks.authority_bytes", 75),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("tasks.executor_kinds", 21),
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {

@@ -11,6 +11,7 @@ extern crate alloc;
 mod boundary;
 mod domain;
 mod key;
+mod single;
 #[cfg(test)]
 mod tests;
 mod verdict;
@@ -21,5 +22,5 @@ pub use boundary::{
     Status, Stepped, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, step};
-pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, key};
+pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, follow_key, key};
 pub use verdict::{Conclusion, Fault, Job, Run, RunState, Verdict, verdict};

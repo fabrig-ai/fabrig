@@ -34,6 +34,7 @@ mod playground_tests;
 pub(crate) mod policy;
 pub(crate) mod printed;
 mod provider;
+pub(crate) mod push;
 pub mod translation;
 pub(crate) const PLAYGROUND_STARTS: u32 = 8;
 
@@ -62,6 +63,7 @@ pub struct Clients {
     replies: Map<Token, bundle::Reply>,
     github: Map<Token, github::Reply>,
     pub(crate) google: Option<google::Google>,
+    pub(crate) pushes: push::Runner,
     google_replies: Map<Token, google::Reply>,
     pub(crate) github_calls: Queue<(Token, skein_http::server::Call)>,
     pub(crate) query_bytes: u32,
@@ -80,6 +82,7 @@ pub struct Clients {
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
     pub(crate) links: Queue<Box<[u8]>>,
+    pub(crate) notes: Queue<crate::Note>,
     pub(crate) local_links: Queue<Box<[u8]>>,
     pub(crate) secrets: Queue<kit::SecretsRequest>,
     pub(crate) closed: bool,
@@ -281,6 +284,7 @@ impl Clients {
             waiting: Map::with_capacity(crate::limits::server(&config.limits).connections),
             replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             google: None,
+            pushes: push::Runner::new(),
             google_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             github: Map::with_capacity(crate::limits::server(&config.limits).connections),
             github_calls: Queue::with_capacity(crate::limits::server(&config.limits).connections),
@@ -300,6 +304,7 @@ impl Clients {
             out,
             io: Queue::uncapped(),
             links: Queue::uncapped(),
+            notes: Queue::uncapped(),
             local_links: Queue::uncapped(),
             secrets: Queue::uncapped(),
             closed: false,
@@ -310,7 +315,7 @@ impl Clients {
             bridge: kit::host::Bridge::new(Token::new(crate::tokens::CLIENTS).tag()),
             #[cfg(test)]
             secret_terminals: None,
-            deployment: crate::family::Deployment { welcome: false, owned: false, program_login: None },
+            deployment: crate::family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             program_environment: Box::new([]),
             playground: None,
             playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
@@ -339,7 +344,10 @@ impl Clients {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         skein_lib::earliest(
-            skein_lib::earliest(self.component.next_deadline(), self.server.next_deadline()),
+            skein_lib::earliest(
+                self.pushes.next_deadline(),
+                skein_lib::earliest(self.component.next_deadline(), self.server.next_deadline()),
+            ),
             match &self.google {
                 Some(google) => google.next_deadline(),
                 None => None,
@@ -357,7 +365,8 @@ impl Clients {
             && ((match &self.google {
                 Some(google) => google.work_pending(),
                 None => false,
-            }) || self.pending
+            }) || self.pushes.work_pending()
+                || self.pending
                 || self.stopping.is_none() && self.forge_sign_in.waiting()
                 || secrets_ready && !self.secrets.is_empty()
                 || self.endings.ready()
@@ -376,6 +385,7 @@ impl Clients {
     pub fn down(&mut self, event: kit::Event) {
         if let kit::Event::Stop | kit::Event::Close | kit::Event::Abort = &event {
             self.stopping = Some(());
+            self.pending = true;
             self.initial = None;
         }
         if let kit::Event::Stop = &event {
@@ -405,6 +415,12 @@ impl Clients {
     }
     pub fn up(&mut self, event: io::Event) -> bool {
         let owner = event_owner(&event);
+        if let Some(owner) = owner
+            && owner.raw() & push::PUSH != 0
+        {
+            self.pushes.up(event, self.env.now, self.env.wall, &mut self.io);
+            return true;
+        }
         if let Some(owner) = owner
             && owner.raw() & (1_u64 << 59_u32) != 0
         {
@@ -439,6 +455,20 @@ impl Clients {
         self.print_link();
         self.pending = true;
         !failed
+    }
+    fn server_answer(&mut self, call: Token, request: skein_http::server::Request) {
+        let request = match request {
+            skein_http::server::Request::Respond(mut response) => {
+                policy::add(&mut response);
+                skein_http::server::Request::Respond(response)
+            }
+            request @ (skein_http::server::Request::Discard
+            | skein_http::server::Request::Body(_)
+            | skein_http::server::Request::Next
+            | skein_http::server::Request::Reply(_)
+            | skein_http::server::Request::Close) => request,
+        };
+        self.server.answer(call, request, &mut self.server_out);
     }
     fn server_requests(&mut self) {
         for _ in 0..self.server_out.len() {
@@ -494,7 +524,8 @@ impl Clients {
                 }
             }
         }
-        self.closed = self.component_closed
+        self.closed = self.pushes.closed()
+            && self.component_closed
             && self.waiting.is_empty()
             && self.server.closed()
             && match &self.google {
@@ -550,6 +581,9 @@ impl Clients {
             match self.out.pop().expect("client requests") {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
+                }
+                kit::Request::StreamFailed { sign_in, why } => {
+                    self.notes.push(crate::Note::ClientStreamFailed { sign_in, why });
                 }
                 kit::Request::LinkSignedIn => {
                     if !self.linked {
@@ -667,6 +701,7 @@ impl Clients {
         if self.closed {
             return;
         }
+        self.pushes.advance(now, wall, self.stopping.is_some(), events, &mut self.io);
         self.server.fire(&mut self.server_out);
         let server_pending = self.server.advance(&mut self.server_out);
         self.server_requests();
@@ -692,7 +727,7 @@ impl Clients {
             self.pending = true;
             match request {
                 http::Request::Component(message) => self.down(kit::Event::Transport(message)),
-                http::Request::Http { call, request } => self.server.answer(call, request, &mut self.server_out),
+                http::Request::Http { call, request } => self.server_answer(call, request),
             }
         }
         if !self.component_closed {

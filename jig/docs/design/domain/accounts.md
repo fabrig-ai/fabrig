@@ -195,6 +195,18 @@ in a record of its own (3.7).
   or reorders the sources, since the order decides who pays
   (providers.md, 2.5 and 3.4). An Anthropic account lists Claude Code,
   then a key, by default.
+- **The source picks the endpoint.** A model whose endpoint names a
+  program takes its provider's program sources on that endpoint, and its
+  sign-ins, keys and *none* on its provider's `direct` endpoint where the
+  provider names one (`../protocol/configuration.md`, section 3),
+  passing them over where it names none. A model whose endpoint names no
+  program takes sign-ins, keys and *none* on that endpoint, and no
+  program source. So one model is reached either way, and the order
+  above decides which: an Anthropic account of Claude Code then a key
+  runs a Claude model on Claude Code on a host where the login is
+  usable, and on the key, directly, on a host where the login is
+  unusable there alone; a login held on every host, limited among them,
+  holds the account's runs, and nothing of the key is spent.
 - **A grant names its source.** A value's grant carries its value and
   how it is sent, a bearer or a key (`../protocol/llm.md`, section 6). A
   program's grant carries none: it names the source, by whose name the
@@ -442,7 +454,11 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
 - **How it is read:** the child asks with the account's source's grant, by its
   number and generation as a run's, and hears one answer. The core gives it to the
   fleet (`engine/settings.md`, 12), and a worker reads it (`hosts/README.md`, 5.1). It is no
-  run, and spends no budget and no slot.
+  run, and spends no budget and no slot. It goes to the provider's `direct`
+  endpoint where the provider names one, else to its `endpoint`
+  (`../protocol/configuration.md`, section 3): a key's read is the direct way's,
+  never through a program's endpoint, so that an Anthropic key reads Anthropic's
+  list directly.
 - **What the store keeps** on the account's record (`../protocol/store/README.md`, 4.4):
   - `names`: which of the catalogue's models its last good read gave, a bit per
     setting, as a task's choice holds a number (`engine/settings.md`, 11);
@@ -635,6 +651,16 @@ account a preferred number or an endpoint default.
   that person's accounts pay for (3.4). The claim's commit records the
   account and the source (engine/executors.md, 1, step 3), and the run is placed
   there.
+- **Account, source, host and endpoint, together.** The endpoint a run
+  takes is its chosen source's (3.4), never its model's stored one. The
+  run's check, the readiness the accounts document shows, the offer,
+  `Core::account_llm` and a claim's check again each take a model's
+  source by 3.4's rule and check a host for that source's endpoint, its
+  presence and its bounds, so that they agree. The claim's charter names
+  that endpoint for each of its models, the program's for a program
+  source and the provider's `direct` one for a sign-in, a key or *none*,
+  and smith runs the grant it is given there (smith's
+  `protocol/programs.md`, section 3). A stored model keeps its endpoint.
 - **The task keeps it,** from run to run, so a conversation stays on one
   account's cache and replay. Its creator names an account when it is
   created or amended (tasks/README.md, section 3) only to want one in
@@ -674,7 +700,12 @@ account a preferred number or an endpoint default.
   run's models (smith's `domain/run.md`, 5.3). A run on a program
   backend has smith's sub-agents, inspect only, each a program session
   of its own on main's account, and the program's own are withheld
-  (smith's `protocol/programs.md`, 5.10).
+  (smith's `protocol/programs.md`, 5.10). A charter's models of main's
+  provider share its grant, so each takes main's way, on the endpoint
+  main's source takes for it; a model of another provider takes a
+  sign-in, a key or *none* of its own, on its provider's `direct`
+  endpoint where its own endpoint names a program, and is left out where
+  that provider names no `direct`.
 - **Replay stays with its account.** A provider's opaque replay
   (reasoning, signatures and item ids) is kept only for the account that
   made it: a task whose account changes resumes its conversation carried

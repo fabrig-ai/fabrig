@@ -17,7 +17,9 @@ const BLOB_LISTENER: Token = Token::new(u64::MAX - 1);
 
 mod delivery;
 mod github_delivery;
+mod image;
 mod layer;
+pub use image::Refusal;
 mod observe;
 mod shared;
 
@@ -34,13 +36,6 @@ pub struct Forge {
 }
 
 /// Frozen outside records, retaining values rather than reply rights.
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "bounded observation slots retain inline domain replies; shared::bound counts each full slot"
-    )
-)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Observation {
     Connection {
@@ -57,7 +52,7 @@ pub enum Observation {
         user: u64,
         repository: Box<[u8]>,
         op: api::Op,
-        result: Result<api::Answer, api::Error>,
+        result: Box<Result<api::Answer, api::Error>>,
     },
     Delivery {
         post: Option<forgejo::delivery::Post>,
@@ -509,7 +504,7 @@ impl Peer {
         let mut forge = shared.borrow_mut();
         forge.now = now;
         self.take_endpoint(&mut forge);
-        let domain_env = Env { now, wall, limits: forge.config };
+        let domain_env = Env { now, wall, limits: forge.config.clone() };
         for index in 0..self.connections.len() {
             if self.face.requests.room() < 32 {
                 break;

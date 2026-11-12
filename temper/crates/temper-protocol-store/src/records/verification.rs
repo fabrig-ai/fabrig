@@ -96,7 +96,7 @@ pub(super) fn decode_failures(value: w::Failures) -> Result<Failures, Undecodabl
                 if let Some(previous) = decoded.as_slice().last()
                     && previous >= &test
                 {
-                    return Err(Undecodable);
+                    return Err(Undecodable::Malformed);
                 }
                 decoded.push(test).expect(FITS);
             }
@@ -119,17 +119,17 @@ pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodabl
     for tier in tiers.into_boxed() {
         let w::TierVerificationParts { tier, verdict, repaired } = tier.into_parts();
         if tier.is_empty() {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
         for byte in &tier {
             if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
         for previous in &decoded {
             let previous: &d::TierVerification = previous;
             if previous.tier == tier {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
         let verdict = match verdict {

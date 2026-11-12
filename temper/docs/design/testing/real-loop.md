@@ -162,7 +162,7 @@ in the lower world that owns it, never here.
   (`../draft/v0.1.0.md`, section 3): the passing walk replayed on the
   first run's cast.
   - **Its scripts are the walk's,** a fake LLM document made from the
-    passing run's transcripts by `tools/twin` (`fakes.md`, 1), never invented by
+    passing run's transcripts by `bin/temper-twin` (`fakes.md`, 1), never invented by
     hand: each agent of the walk says what the real model said, turn by
     turn. A structured adaptation preserves every other turn, is validated
     by the twin, and has its provenance recorded in the fixtures' README. Its forge is the fake's, seeded as the walk's box seeded
@@ -186,6 +186,14 @@ in the lower world that owns it, never here.
     story (`live-tier.md`), and its twin made again from that run's transcripts.
     Fixtures are re-recorded with `temper-twin`; its `--replace` covers
     assistant text as well as call arguments.
+  - **Its takes,** for QA's twin setups (`qa/setups.md`, 4): B0's and
+    B1's fixtures name the tasks, pull requests and heads of their
+    walk's box as takes (skein's `testing/fakes/llm.md`, 2.6), from a
+    `takes.json` beside each, applied by `temper-twin --takes`
+    (`fakes.md`, 1), and their `regenerate.sh` passes it. The story
+    replays the fixture with its takes: here each take finds the value
+    the walk recorded, so the story reaches the same end, and that
+    proves each take's pattern is in the conversation smith writes.
   - It runs where the story it replaces runs, in the fuzzy suite, past
     the 2 s guide by the landing path, as `suite::fuzzy::green_light` is.
 - **An account first,** with area 5's tools (../client/ctl/areas.md):

@@ -3,6 +3,12 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+mod baseline;
+
+#[path = "../patches/mod.rs"]
+pub mod patches;
+
+mod back;
 pub mod boundary;
 pub mod codec;
 mod commits;
@@ -17,7 +23,9 @@ mod loads;
 mod open;
 mod pages;
 mod patching;
+mod rehearsal;
 pub use patching::Counts;
+pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
 mod reads;
 pub mod restore;
@@ -97,6 +105,8 @@ pub struct Store {
     /// This start's first Wires commit, and its durability (protocol/store/records.md 3).
     mark: Mark,
     start_open_failure: Option<restore::OpenFailure>,
+    rehearsal: Option<rehearsal::State>,
+    back: Option<back::State>,
 }
 
 #[derive(Debug)]
@@ -150,6 +160,31 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 3], seed: u64) -> Seede
 }
 
 impl Store {
+    /// Public application rows for a written site's context, at the copy's current
+    /// levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    pub fn patch_page(
+        &mut self,
+        range: skein_kv::Range,
+        after: Option<&Cursor>,
+        rows: u32,
+    ) -> Result<PatchPage, OpenRefusal> {
+        let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
+        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
+        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+            return Err(OpenRefusal::Failed);
+        }
+        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let page = pages::reader::walk(self, &ranges, after, rows).map_err(|failure| {
+            self.open_failed(restore::OpenFailure::Data(failure));
+            OpenRefusal::Failed
+        })?;
+        let mut found = skein_lib::List::with_capacity(rows);
+        for row in page.rows {
+            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
+            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+        }
+        Ok(PatchPage { rows: found.into_boxed(), next: page.next })
+    }
     /// A component over open stores; `models` are the configuration's, in its order.
     #[must_use]
     pub fn over(
@@ -175,6 +210,8 @@ impl Store {
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,
+            rehearsal: None,
+            back: None,
         }
     }
 
@@ -254,6 +291,13 @@ impl Store {
     }
 }
 
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+#[derive(Debug)]
+pub struct PatchPage {
+    pub rows: Box<[skein_kv::Row]>,
+    pub next: Option<Cursor>,
+}
+
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
@@ -293,11 +337,11 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
-        .checked_add(people_v14::Row::decoded_bound(&codec.people)?)?
+        .checked_add(tasks_v10::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(people_v15::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
-        .checked_add(settings_v1::Revision::decoded_bound(&codec.settings)?)?
+        .checked_add(settings_v3::Revision::decoded_bound(&codec.settings)?)?
         .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
@@ -305,10 +349,30 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    let lengths = rehearsal::lengths(below);
+    down_inner(store, env, request, above, below);
+    accounted(store, lengths, above, below);
+}
+fn accounted(store: &mut Store, lengths: [u32; 3], above: &mut Queue<Event>, below: &mut Below) {
+    rehearsal::issued(store, below, lengths);
+    let lengths = rehearsal::lengths(below);
+    rehearsal::advance_close(store, above, below);
+    rehearsal::issued(store, below, lengths);
+}
+fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    if let Request::Close { owner } = request {
+        rehearsal::close(store, owner, above);
+        return;
+    }
     if store.phase == Phase::Stopped {
         return;
     }
     match request {
+        Request::Rehearse { owner, directory, scratch, installation } => {
+            rehearsal::begin(store, owner, directory, scratch, installation, above, below);
+        }
+        Request::Back { owner, root } => back::begin(store, owner, root, above, below),
+        Request::Close { .. } => unreachable!("close routed before stopped guard"),
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation } => {
             directory::open(store, owner, root, installation, above, below);
@@ -335,6 +399,23 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
 
 /// File terminals routed through their independent drivers.
 pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    let lengths = rehearsal::lengths(below);
+    rehearsal::arriving(store, &io);
+    if rehearsal::closing(store) {
+        rehearsal::closing_up(store, io, above, below);
+    } else if rehearsal::preparing(store) {
+        let arrived = match io {
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        };
+        rehearsal::up(store, arrived, above, below);
+    } else if store.back.is_some() {
+        back::up(store, env, io, above, below);
+    } else {
+        up_inner(store, env, io, above, below);
+    }
+    accounted(store, lengths, above, below);
+}
+fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     directory::up(store, env, io, above, below);
     if store.phase != Phase::Stopped {
         transcripts::read::fire(store, above, below);
@@ -345,7 +426,12 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
 
 /// Bounded background store work and the orphan sweep.
 pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
-    if store.phase != Phase::Stopped {
+    let lengths = rehearsal::lengths(below);
+    fire_inner(store, env, above, below);
+    accounted(store, lengths, above, below);
+}
+fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
         directory::fire(store, env, above, below);
         secrets::sweep(store, env, above, below);
         transcripts::read::fire(store, above, below);
@@ -367,26 +453,27 @@ pub mod accounts_v2;
 pub mod notes_v1;
 #[rustfmt::skip]
 #[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v14.rs"]
-pub mod people_v14;
+#[path = "generated/people_v15.rs"]
+pub mod people_v15;
 #[rustfmt::skip]
-#[path = "generated/tasks_v9.rs"]
-pub mod tasks_v9;
+#[path = "generated/tasks_v10.rs"]
+pub mod tasks_v10;
 #[rustfmt::skip]
 #[path = "generated/core_v6.rs"]
 pub mod core_v6;
 pub mod keys;
 pub use boundary::{
-    Arrived, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io, Load, Older,
-    OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
+    KeptWire, Load, Older, OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets,
+    TranscriptRead, Undecoded, Write,
 };
 
 #[cfg(test)]
 mod tests;
 
 #[rustfmt::skip]
-#[path = "generated/settings_v1.rs"]
-pub mod settings_v1;
+#[path = "generated/settings_v3.rs"]
+pub mod settings_v3;
 #[rustfmt::skip]
 #[path = "generated/component_v3.rs"]
 pub mod component_v3;

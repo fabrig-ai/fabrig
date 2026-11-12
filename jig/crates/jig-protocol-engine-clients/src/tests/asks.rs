@@ -3,7 +3,7 @@ use crate::{
     Request, ToApplication,
     translate::{Untranslatable, asks::ask},
 };
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_people as p;
 #[test]
 fn a_message_record_becomes_the_cores_say() {
@@ -88,7 +88,7 @@ fn an_ask_that_does_not_translate_reaches_no_core() {
         out.put(&[0]).expect("tail");
         out.finish()
     }] {
-        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, bytes)));
+        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, bytes)));
         exchange.authenticate();
         assert!(exchange.out.is_empty());
         assert_eq!(exchange.response(owner), (400, b"".as_slice()));
@@ -117,7 +117,7 @@ fn an_application_record_is_routed_with_its_digest() {
 #[test]
 fn a_third_exchange_past_the_client_s_bound_is_busy() {
     let mut exchange = Exchange::new();
-    let body = f::keyed(w::Owner::Jig, 19, f::encode_ask(&f::start(&f::wire())));
+    let body = f::keyed(w::Owner::Jig, 20, f::encode_ask(&f::start(&f::wire())));
     for _ in 0..2_u32 {
         exchange.send(crate::Message::Request(body.clone()));
         exchange.authenticate();
@@ -311,7 +311,7 @@ fn remove_project_decodes_to_the_people_ask() {
             );
             assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::RemoveProject { project, grace }));
             let mut exchange = Exchange::new();
-            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&value))));
+            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&value))));
             exchange.authenticate();
             let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
             let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
@@ -335,7 +335,7 @@ fn set_visibility_reaches_the_people_child_as_sent() {
             );
             assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::SetVisibility { project, public }));
             let mut exchange = Exchange::new();
-            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&value))));
+            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&value))));
             exchange.authenticate();
             let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
             let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
@@ -385,4 +385,24 @@ fn a_deletion_naming_tasks_is_refused() {
         .unwrap(),
     );
     assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::DeleteNoteScope }));
+}
+
+#[test]
+fn talk_and_leave_from_the_link_decode_to_the_people_acts() {
+    use jig_client_domain::contract as c;
+    use skein_lib::{Reader, Writer};
+    let limits = f::wire();
+    for (source, expected) in [
+        (
+            c::Ask::Talk { project: 3, task: 8, words: c::Text::new(b"hello".as_slice().into(), 32).unwrap() },
+            p::Ask::Talk { project: 3, task: 8, words: b"hello".as_slice().into() },
+        ),
+        (c::Ask::Leave { project: 3, task: 8 }, p::Ask::Leave { project: 3, task: 8 }),
+    ] {
+        let record = jig_client_protocol_link::translate::asks::ask(&source, &limits).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let record = w::Ask::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(ask(record.clone(), &f::models(), &limits), Ok(expected));
+    }
 }

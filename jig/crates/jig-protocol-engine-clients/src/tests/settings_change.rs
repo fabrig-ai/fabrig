@@ -1,7 +1,7 @@
 //! Settings cross the clients' component as one value and one keyed digest.
 use super::fixtures::{self as f, Exchange};
 use crate::{Request, translate};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as p;
 use skein_lib::List;
@@ -34,7 +34,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert_eq!(translate::asks::ask(wire, &exchange.component.settings.models, &f::wire()), Ok(expected));
     let keyed = w::Keyed::new(
         &exchange.env.limits.wire,
-        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: encoded, value: None },
+        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 20, request: encoded, value: None },
     )
     .expect("settings envelope");
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
@@ -101,7 +101,7 @@ fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
                 .expect("settings fixture"),
         );
         let mut exchange = Exchange::new();
-        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&wire))));
+        let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&wire))));
         exchange.authenticate();
         assert!(exchange.out.is_empty());
         assert_eq!(exchange.response(owner).0, 400);
@@ -238,7 +238,7 @@ fn send_template(ask: &w::Ask) -> (Exchange, skein_lib::Token) {
     settings.models[0].efforts =
         Box::new([Box::from(b"high".as_slice()), Box::from(b"medium".as_slice()), Box::from(b"low".as_slice())]);
     let mut exchange = Exchange::configured(f::env(), settings);
-    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(ask))));
+    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(ask))));
     exchange.authenticate();
     (exchange, owner)
 }
@@ -380,7 +380,7 @@ fn unknown_models_in_settings_proposals_are_named_before_decoding_the_set() {
 
 fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
     let keyed =
-        w::Keyed::new(limits, w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request, value: None })
+        w::Keyed::new(limits, w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 20, request, value: None })
             .expect("whole proposal envelope");
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("measured envelope");

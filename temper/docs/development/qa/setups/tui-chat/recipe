@@ -1,0 +1,12 @@
+recipe 1
+after "project-landing"
+web reload "/projects/1"
+tui see "Ask temper"
+tui key char "/"
+tui see "Start a new chat"
+tui key escape
+tui key paste "What can you tell me about Hello?"
+tui key enter
+tui see "Hello from the local fake model."
+web reload "/"
+tui see "/chats 1"

@@ -15,6 +15,7 @@ pub struct CloserRow {
     pub close_changes: Box<[u64]>,
     pub landing_changes: Box<[u64]>,
     pub done: bool,
+    pub relay: temper_engine_domain_forge_closer::relay::Relay,
 }
 
 #[derive(Hash, Debug)]

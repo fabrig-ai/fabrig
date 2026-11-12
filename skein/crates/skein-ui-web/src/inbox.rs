@@ -1,4 +1,5 @@
 //! Reports are taken in order, without re-entering a turn (ui/web/README.md, 4.3).
+//! Reports left after a turn call it again while it keeps taking them.
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -11,13 +12,19 @@ pub type Turn<R> = Box<dyn FnMut(&Inbox<R>)>;
 pub struct Inbox<R> {
     reports: RefCell<VecDeque<R>>,
     running: Cell<bool>,
+    took_report: Cell<bool>,
     turn: RefCell<Option<Turn<R>>>,
 }
 
 impl<R> Inbox<R> {
     #[must_use]
     pub fn new() -> Rc<Self> {
-        Rc::new(Self { reports: RefCell::new(VecDeque::new()), running: Cell::new(false), turn: RefCell::new(None) })
+        Rc::new(Self {
+            reports: RefCell::new(VecDeque::new()),
+            running: Cell::new(false),
+            took_report: Cell::new(false),
+            turn: RefCell::new(None),
+        })
     }
 
     /// Give the inbox its turn once, and take any reports already queued.
@@ -37,7 +44,11 @@ impl<R> Inbox<R> {
 
     /// Take the oldest report, including reports raised during this turn.
     pub fn next(&self) -> Option<R> {
-        self.reports.borrow_mut().pop_front()
+        let report = self.reports.borrow_mut().pop_front();
+        if report.is_some() {
+            self.took_report.set(true);
+        }
+        report
     }
 
     fn run(&self) {
@@ -45,8 +56,16 @@ impl<R> Inbox<R> {
             return;
         }
         self.running.set(true);
-        if let Some(turn) = self.turn.borrow_mut().as_mut() {
-            turn(self);
+        while !self.reports.borrow().is_empty() {
+            self.took_report.set(false);
+            if let Some(turn) = self.turn.borrow_mut().as_mut() {
+                turn(self);
+            } else {
+                break;
+            }
+            if !self.took_report.get() {
+                break;
+            }
         }
         self.running.set(false);
     }

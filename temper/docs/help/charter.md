@@ -14,7 +14,7 @@ whose `on` meets why it runs. A charter holds:
 - its instructions, which the run's agent reads before its task's brief;
 - its `parts`: instructions for some reasons a run runs, each with its
   `on`: `first`, the task's first activation, or the kinds of message
-  that woke it; a charter whose runs resume takes no parts;
+  that woke it;
 - its `documents`: files from an adopted repository, read as brief sections
   of their own;
 - its models: `model`, the default, then `alternatives`, in order;
@@ -34,8 +34,8 @@ whose `on` meets why it runs. A charter holds:
   tools.
 
 The stock holds eight charters: 1 for chats, 2 for coding, 4 for reviews,
-5 for coordinators, 6 for foremen, 9 for the status agent, 10 for a model's
-trial and 11 for Ask temper. Ask temper explains temper and turns how a person describes
+5 for the goal's agent, 9 for the status agent, 10 for a model's trial,
+11 for Ask temper and 12 for design sessions. Ask temper explains temper and turns how a person describes
 their work into a proposal of settings (`temper help chat`).
 The status agent writes the few lines at the top
 of a project's Home from the facts in its task, with no tools.
@@ -44,14 +44,19 @@ with no tools, paid by the person. It is never offered as an executor;
 the stock's rules offer seven charter executors, procedures 2, 3 and 4,
 merge job 3 and roles 0, 1 and 2.
 
-The forge's procedures run a change's agent work under three charters,
+Charters 5 and 2 are built from the stock's set of charter files in
+`temper/docs/charters/stock/`: `common`, `goal`, `designer`, `coordinator`
+and `implementer`. Charter 5 joins `common` and `goal`, with `designer`
+and `coordinator`'s sections as parts; charter 2 joins `common` and `implementer`,
+with no parts. The goal's agent designs a goal's draft, cuts it into
+changes, and answers what they ask.
+
+The forge's procedures run a change's agent work under two charters,
 which the change keeps from its making to its end: its producing and
 repairs under the forge's change charter, kind 3 number 1, whose stock
 value is charter 2; its reviews under kind 3 number 2, whose stock value
 is charter 4, which reads the
-change and gives its verdict, and edits, pushes and runs nothing;
-its foremen run under `charter 6`, reading the change and design to settle
-its producer's question, and edit, push and run nothing.
+change and gives its verdict, and edits, pushes and runs nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.
@@ -106,6 +111,40 @@ older transcript pages. To find a turn, read `task activity TASK` for its
 `A.T`, then `task turn TASK A.T`; follow its `--part PART --from OFFSET`
 continuation for a cut part. `task text` reads the task's specification or
 instructions, which do not establish the document content supplied to a run.
+
+### Over a default
+
+An overlay keeps optional field replacements and added text over a charter's
+binary default. Unlike a whole `set`, it takes later defaults: omitted fields
+follow them. Named fields replace their whole, including an empty list.
+Instructions append with a blank line; parts append in order, never merge.
+Number and wake policy cannot be replaced. Only a charter with a default takes
+an overlay; applying another replaces the stored overlay, not adds to it.
+
+In a settings file, use `{"setting":{"kind":"charter","number":2},
+"overlay":{"shell":true,"instructions":"Our rules"}}`. Literal
+`instructions` and `parts` are optional, empty when absent. Or replace both
+with `"charters":["."]`: directories relative to that settings file, in order.
+Standard input (`-`) requires absolute directories. Each directory's Markdown
+files are read, not its subdirectories; other extensions are ignored.
+The optional five names and assembly are the stock's above. `designer` is on
+`first`; each coordinator section begins `## part, on:` and comma-separated
+reasons, its heading excluded. Texts retain every byte but opening and closing
+line feeds. Unknown Markdown names, text before the first coordinator section,
+and empty, repeated or unknown reasons are refused by file and line, even in
+files the selected charter does not take. Sets are only for charters 5 and 2.
+Markdown counts toward the settings file's input bound.
+
+`settings apply FILE... --against REVISION` stacks files in order: overlays
+of one charter join their text and later named fields win; every other setting
+may occur in only one file. A whole set, removal or reset beside an overlay of
+that charter is refused, naming both files and items. `settings propose` takes
+one file. No refusal sends a change.
+
+`settings show charter N` prints the current charter and marks what the overlay
+replaces and adds; inventory origin is `overlay`. With `--json`, `value` is the
+charter and `overlay` the literal overlay, with no directories. Wrap that member
+as a settings-file item to apply it back over later defaults anywhere.
 
 ## How it changes
 

@@ -118,6 +118,18 @@ The forge charter whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 
+## settings dependency N
+
+A dependency of this project, whole, at the newest revision; no stock default.
+
+Next: settings · revisions · help settings-fields
+
+## settings follow N
+
+A follow of this project, whole, at the newest revision; no stock default.
+
+Next: settings · revisions · help settings-fields
+
 ## settings template-goal N
 
 Template work: whether its coordinator designs first and makes a close-out; with none stored, stock planning and no close-out, marked so.
@@ -169,6 +181,18 @@ Next: settings · revisions · help settings-fields
 ## settings charter-words N
 
 A charter's words; stock where none is stored, marked so, or that it has none.
+
+Next: settings · revisions · help settings-fields
+
+## settings project-areas
+
+This project's areas, or that it has none.
+
+Next: settings · revisions · help settings-fields
+
+## settings project-triager
+
+This project's triager, or that it has none.
 
 Next: settings · revisions · help settings-fields
 

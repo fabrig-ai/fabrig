@@ -20,20 +20,25 @@ const WORKER_EXCEPTION: &str = "temper-service's worker feature composes the eng
 
 const ROWS: &[Row] = &[
     Row {
-        package: "temper-client",
+        package: "temper",
         rules: &[
             (
                 "temper",
                 Rule::Only(&[
-                    "temper-client",
+                    "temper",
+                    "temper-client-shell",
                     "temper-client-domain",
                     "temper-client-protocol-wire",
                     "temper-client-shell-cli",
                     "temper-client-shell-terminal",
                     "temper-client-shell-tui",
+                    "temper-client-redaction",
                     "temper-client-tools",
+                    "temper-charter-set",
                     "temper-client-tui",
                     "temper-client-view",
+                    "temper-fetch",
+                    "temper-fetch-shell",
                     "temper-shell",
                     "temper-docs",
                     "temper-version",

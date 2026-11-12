@@ -27,6 +27,7 @@ pub(super) const CONFIG: Config = Config {
     tool_rounds: 1,
     cache_lifetime: Duration::from_secs(300),
     cache_entries: 8,
+    strict: false,
     unscoped_reads: 0,
 };
 
@@ -263,6 +264,7 @@ fn a_failing_lines_bytes_count_against_the_script_cap() {
 fn a_failing_line_after_pieces_ends_the_walk_with_its_failure() {
     let failure = crate::api::Failure {
         error: crate::api::Error::Refused,
+        message: Box::new([]),
         report: crate::api::Report::none(),
         parts: Box::new([Part::Text { text: copy_of(b"before") }]),
     };

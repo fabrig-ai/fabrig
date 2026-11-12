@@ -37,12 +37,12 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   Forgejo and runner fetched. Fake: no account; local Forgejo real;
   GitHub, model, sign-in, remote Forgejo on loopback fakes. Build:
   `cargo build -p temper-box -p smith-fake-claude` puts `fake-claude`
-  beside `temper-box`; then `scripts/bundle.sh --loopback BUNDLE`.
+  beside `temper-box`; then `scripts/bundle.sh BUNDLE`.
 - **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
   (0700), no links, for this box. `DIR`: private.
 - **A model account:** real: private login export, API key, browser
   sign-in, or Claude Code; sign in at step 5 or in `CONFIG`.
-- `BUNDLE`: fake backends' loopback bundle directory.
+- `BUNDLE`: fake backends' bundle directory.
 - `REQUEST`: change request file.
 - `CHANGE`: the change task's number (step 6).
 - `FORGE`: Forgejo's number (step 4).
@@ -108,11 +108,11 @@ Fake backends:
 temper-box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-`temper box` in a terminal runs the TUI in front, signed in and showing
-the link (temper help tui); the block's other lines, fake backends'
-`box:` lines and errors go to `DATA/box/logs/box.log`, and quitting the
-TUI stops the box. This walk reads the link, so runs `temper-box`
-without a TUI.
+`temper box` in a terminal runs the TUI in front, downloading `temper-box`
+once per build if needed, signed in and showing the link (temper help tui).
+Quitting stops the box. The block's other lines, fake backends' `box:`
+lines and errors go to `DATA/box/logs/box.log`. This walk uses `temper-box`
+alone to read its link.
 
 Keep running; step logs sit beside `DATA/box/logs/box.log`.
 

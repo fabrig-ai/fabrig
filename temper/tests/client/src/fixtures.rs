@@ -100,15 +100,15 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
+/// Delegates fill one stream's room beside the two pages' fifteen other watches, including findings.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = temper_engine_domain::WATCHES_PER_STREAM - 15;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 20; // Holds four projects' decided watches.
-    limits.client.domain.handles = 22; // Holds four projects' decided watches.
+    limits.client.domain.watches = 31; // The shipped watch room, including findings.
+    limits.client.domain.handles = 33; // The shipped watch room, including findings.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -207,9 +207,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 19, // Holds four projects' decided watches.
+                handles: 25, // Four findings subjects and one live-goals menu.
                 // Closing page watches overlap the session watches.
-                watches: 18, // Holds four projects' decided watches.
+                watches: 24, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -277,12 +277,12 @@ pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_asking_printed_link(seed, domain_limits()))
 }
-/// A committed engine question with the printed link the shipped TUI signs in by.
+/// A committed question in the second of two projects, with the shipped TUI's printed link.
 #[must_use]
 pub fn tui_question_world(seed: u64, words: &[u8]) -> (World<Temper, Joint>, u64) {
-    let mut world = tui_world(seed);
-    let chat = question(world.front(), words);
-    world.front().offer_printed_link(domain_limits());
+    let mut world = world_with(seed, across_people(domain_limits()));
+    let chat = project_question(world.front(), 2, words);
+    world.front().offer_printed_link(temper_client_shell_tui::limits::tui().native.client);
     (world, chat)
 }
 #[must_use]
@@ -1453,6 +1453,15 @@ pub fn give_with_file(
     words: &[&[u8]],
     bytes: &[u8],
 ) -> u32 {
+    give_with_loaded_file(world, agent, words, &temper_client_tools::jig::call::Value::Text(bytes.into()))
+}
+/// Supply an input-step settings file, including its already-read directories.
+pub fn give_with_loaded_file(
+    world: &mut World<Temper, Joint>,
+    agent: jig_client_kit::harness::ClientId,
+    words: &[&[u8]],
+    input: &temper_client_tools::jig::call::Value,
+) -> u32 {
     use jig_client_kit::harness::Until;
     use temper_client_tools::jig::call::{Value, Values};
     let start = world.now();
@@ -1468,9 +1477,20 @@ pub fn give_with_file(
     let crate::app::Event::Call { mut call, json, .. } = call(words) else { unreachable!() };
     let mut files = 0;
     for slot in &mut call.values {
-        if matches!(slot, Some(Values::One(Value::File(_)))) {
-            *slot = Some(Values::One(Value::Text(bytes.into())));
-            files += 1;
+        match slot {
+            Some(Values::One(value @ Value::File(_))) => {
+                *value = input.clone();
+                files += 1;
+            }
+            Some(Values::Many(values)) => {
+                for value in values {
+                    if let Value::File(_) = value {
+                        *value = input.clone();
+                        files += 1;
+                    }
+                }
+            }
+            _ => {}
         }
     }
     assert_eq!(files, 1, "one FILE slot");

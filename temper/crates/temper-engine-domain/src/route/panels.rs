@@ -5,6 +5,7 @@ use jig_domain_people::ApplicationScope;
 use jig_domain_views as views;
 
 #[expect(clippy::too_many_arguments, reason = "the core document ask carries the watcher and its party")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive document handoff includes core-derived findings")]
 pub(crate) fn document(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -49,7 +50,15 @@ pub(crate) fn document(
     } else {
         None
     };
-    let mut panel = if connector == domain.config.forge_connector {
+    let mut panel = if let ApplicationScope::Project(project) = scope
+        && connector == domain.config.forge_connector
+        && domain.core.people.role(party, project).is_some()
+        && let Some((state, mine)) = temper_engine_domain_forge::findings::findings_filter(subject.raw(), project)
+    {
+        Some(temper_engine_domain_forge::Document::Findings(super::findings::document(
+            domain, project, party, state, mine,
+        )))
+    } else if connector == domain.config.forge_connector {
         domain.forge.document(subject.raw(), scope, party, env.wall, &env.limits.forge)
     } else {
         None
@@ -89,9 +98,13 @@ pub(crate) fn document(
                                 }
                                 document @ (temper_engine_domain_forge::Document::Landing(_)
                                 | temper_engine_domain_forge::Document::Landings(_)
+                                | temper_engine_domain_forge::Document::Devices(_)
+                                | temper_engine_domain_forge::Document::Follows(_)
                                 | temper_engine_domain_forge::Document::Aways(_)
                                 | temper_engine_domain_forge::Document::Decisions(_)
+                                | temper_engine_domain_forge::Document::Findings(_)
                                 | temper_engine_domain_forge::Document::Status(_)
+                                | temper_engine_domain_forge::Document::Drafts(_)
                                 | temper_engine_domain_forge::Document::Changes(_)
                                 | temper_engine_domain_forge::Document::Dismissals(_)) => {
                                     Delivery::ForgeDocument { watcher, document: Box::new(document) }

@@ -170,6 +170,8 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Message { reply_to, .. }
         | tasks::Event::PersonQuestion { reply_to, .. }
         | tasks::Event::PersonQuestionAnswer { reply_to, .. }
+        | tasks::Event::Talk { reply_to, .. }
+        | tasks::Event::Leave { reply_to, .. }
         | tasks::Event::AuthorizedMessage { reply_to, .. }
         | tasks::Event::InspectEscalations { reply_to, .. }
         | tasks::Event::RecheckEscalations { reply_to, .. }
@@ -208,6 +210,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::PeriodNext { .. }
         | tasks::Event::ChargeEffect { .. }
+        | tasks::Event::NowWritten { .. }
         | tasks::Event::Refusals { .. }
         | tasks::Event::ReadAfresh { .. }
         | tasks::Event::EffectSettled { .. }
@@ -223,6 +226,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::PersonStallNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::Restore { .. }

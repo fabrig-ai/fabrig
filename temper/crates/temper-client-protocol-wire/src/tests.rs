@@ -1,4 +1,6 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
+mod drafts;
+mod findings;
 mod fixtures;
 mod source;
 use crate::v1;
@@ -1102,6 +1104,39 @@ fn ways_panel_round_trips() {
         assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
     }
+    let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_full.bin"), &limits).unwrap();
+    let mut parts = panel.into_parts();
+    let mut way = parts.ways.get(0).unwrap().clone().into_parts();
+    let item = way.items.get(0).unwrap().clone();
+    way.items = List::with_capacity(10);
+    for _ in 0_u32..10 {
+        way.items.push(item.clone()).unwrap();
+    }
+    way.roles = List::with_capacity(4);
+    for running in [false, true, false, true] {
+        way.roles
+            .push(
+                v1::WayRole::new(
+                    &limits,
+                    v1::WayRoleParts { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    *parts.ways.get_mut(0).unwrap() = v1::StockWay::new(&limits, way).expect("ten items and four roles fit");
+    let panel = v1::WaysPanel::new(&limits, parts).unwrap();
+    let bytes = crate::ways_panel(&panel);
+    assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel.clone()));
+    let mut receiving = limits;
+    receiving.stock_way_items = 9;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.stock_way_roles = 3;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.way_role_words = 479;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
     for bytes in [
         include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
         include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
@@ -1109,6 +1144,50 @@ fn ways_panel_round_trips() {
         let record = crate::decode_ways_panel(bytes, &v1::CEILINGS).expect("ways_panel golden");
         assert_eq!(crate::ways_panel(&record).as_ref(), bytes);
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire golden supplies the panel without rules")]
+fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
+    let limits = fixtures::limits();
+    let base = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
+        .expect("smallest panel");
+    // At every bound together, then one past each bound independently.
+    for (rows, paths, review, sign_off, lands, note, refused) in [
+        (9, 256, 64, 64, 64, 160, None),
+        (10, 256, 64, 64, 64, 160, Some(v1::Path::PathRulesRows)),
+        (9, 257, 64, 64, 64, 160, Some(v1::Path::PathRulePaths)),
+        (9, 256, 65, 64, 64, 160, Some(v1::Path::PathRuleReview)),
+        (9, 256, 64, 65, 64, 160, Some(v1::Path::PathRuleSignOff)),
+        (9, 256, 64, 64, 65, 160, Some(v1::Path::PathRuleLands)),
+        (9, 256, 64, 64, 64, 161, Some(v1::Path::PathRulesNote)),
+    ] {
+        let row = v1::PathRuleParts {
+            paths: fixtures::field_bytes(paths),
+            review: fixtures::field_bytes(review),
+            sign_off: fixtures::field_bytes(sign_off),
+            lands: fixtures::field_bytes(lands),
+        };
+        let note = fixtures::field_bytes(note);
+        let bytes = fixtures::ways_with_unchecked_rules(&base, rows, &row, &note);
+        let made = match fixtures::path_rules(&limits, rows, row, note) {
+            Ok(rules) => v1::WaysPanel::new(&limits, v1::WaysPanelParts { rules, ..base.clone().into_parts() }),
+            Err(problem) => Err(problem),
+        };
+        match refused {
+            None => {
+                let panel = made.expect("all rules at their bounds");
+                assert_eq!(crate::ways_panel(&panel), bytes);
+                assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
+            }
+            Some(path) => {
+                let problem = v1::Problem { path, reason: skein_codec::Reason::Bound };
+                assert_eq!(made, Err(problem));
+                assert_eq!(v1::WaysPanel::decode(&limits, &mut Reader::new(&bytes)), Err(problem));
+                assert_eq!(crate::decode_ways_panel(&bytes, &limits), None);
+            }
+        }
     }
 }
 
@@ -1297,9 +1376,11 @@ fn deployment_read_and_answer_round_trip() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     for (welcome, owned) in [(false, false), (false, true), (true, false), (true, true)] {
-        let answer =
-            v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned, program_login: None })
-                .unwrap();
+        let answer = v1::DeploymentAnswer::new(
+            &limits,
+            v1::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
+        )
+        .unwrap();
         let bytes = crate::deployment_answer(&answer);
         assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
         assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);
@@ -1982,11 +2063,19 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
 fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     let limits = v1::CEILINGS;
     let mut rows = List::with_capacity(4);
-    for (yours, goal) in [
-        (v1::ApprovalYours::Counts, Some(u64::MAX)),
-        (v1::ApprovalYours::NoAccount, None),
-        (v1::ApprovalYours::TooFew, None),
-        (v1::ApprovalYours::OtherRole, None),
+    let size =
+        v1::ApprovalSize::new(&limits, v1::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false })
+            .expect("approval size");
+    let saturated = v1::ApprovalSize::new(
+        &limits,
+        v1::ApprovalSizeParts { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: true },
+    )
+    .expect("approval size at its bounds");
+    for (yours, goal, size) in [
+        (v1::ApprovalYours::Counts, Some(u64::MAX), None),
+        (v1::ApprovalYours::NoAccount, None, Some(size)),
+        (v1::ApprovalYours::TooFew, None, Some(saturated)),
+        (v1::ApprovalYours::OtherRole, None, None),
     ] {
         rows.push(
             v1::ApprovalRow::new(
@@ -2008,9 +2097,17 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
                     role: 2,
                     required: 3,
                     counted: 1,
-                    behind: u32::MAX,
+                    sets: List::from_boxed(Box::new([v1::ApprovalSet::new(
+                        &limits,
+                        v1::ApprovalSetParts { number: 1, name: Box::new([b's'; 40]) },
+                    )
+                    .expect("set at its name bound")])),
                     whole: true,
                     yours,
+                    signed: approval_people(1),
+                    can_sign: approval_people(9),
+                    can_sign_more: 3,
+                    size,
                 },
             )
             .expect("approval row at its byte bounds"),
@@ -2023,7 +2120,154 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     assert_eq!(crate::decode_approvals(&fixtures::trailing(&bytes), &limits), None, "trailing byte refused");
     let fewer_rows = v1::Limits { approvals_rows: 3, ..limits };
     assert_eq!(crate::decode_approvals(&bytes, &fewer_rows), None, "rows past the limit refused");
+    for reduced in [
+        v1::Limits { approval_person_name: 63, ..limits },
+        v1::Limits { approval_row_signed: 7, ..limits },
+        v1::Limits { approval_row_can_sign: 7, ..limits },
+    ] {
+        assert_eq!(crate::decode_approvals(&bytes, &reduced), None, "people respect receiving bounds");
+    }
     let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Approvals }).expect("watch");
     let bytes = crate::watching(&watch);
     assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+}
+
+fn approval_people(first: u64) -> List<v1::ApprovalPerson> {
+    let mut people = List::with_capacity(8);
+    for person in first..first.saturating_add(8) {
+        people
+            .push(
+                v1::ApprovalPerson::new(&v1::CEILINGS, v1::ApprovalPersonParts { person, name: Box::new([b'p'; 64]) })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    people
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one appended family checks requests, outcomes, watch and both documents together"
+)]
+fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
+    macro_rules! cycle {
+        ($value:expr, $ty:ty, $tag:expr) => {{
+            let value = $value;
+            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+            value.encode(&mut writer).unwrap();
+            let bytes = writer.finish();
+            if let Some(tag) = $tag {
+                assert_eq!(bytes.get(2), Some(&tag));
+            }
+            assert_eq!(<$ty>::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap(), value);
+            let mut tail = skein_lib::Writer::new(bytes.len() + 1);
+            tail.put(&bytes).unwrap();
+            tail.put(&[0]).unwrap();
+            <$ty>::decode(&v1::CEILINGS, &mut Reader::new(&tail.finish())).unwrap_err();
+        }};
+    }
+    let request = v1::Request::AddDevice(
+        v1::AddDevice::new(
+            &v1::CEILINGS,
+            v1::AddDeviceParts {
+                endpoint: b"http://push.test:4000/sub".as_slice().into(),
+                p256dh: [4; 65],
+                auth: [7; 16],
+                label: b"temper ctl".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    cycle!(v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request }).unwrap(), v1::Requesting, Some(19));
+    cycle!(
+        v1::Requesting::new(
+            &v1::CEILINGS,
+            v1::RequestingParts {
+                request: v1::Request::RemoveDevice(
+                    v1::RemoveDevice::new(&v1::CEILINGS, v1::RemoveDeviceParts { number: u32::MAX }).unwrap()
+                )
+            }
+        )
+        .unwrap(),
+        v1::Requesting,
+        Some(20)
+    );
+    cycle!(
+        v1::Requesting::new(
+            &v1::CEILINGS,
+            v1::RequestingParts {
+                request: v1::Request::TryAccount(
+                    v1::TryAccount::new(&v1::CEILINGS, v1::TryAccountParts { account: 1, again: false }).unwrap()
+                )
+            }
+        )
+        .unwrap(),
+        v1::Requesting,
+        Some(16)
+    );
+    for (outcome, tag) in [
+        (
+            v1::Outcome::DeviceAdded(v1::DeviceAdded::new(&v1::CEILINGS, v1::DeviceAddedParts { number: 1 }).unwrap()),
+            30,
+        ),
+        (v1::Outcome::DeviceRemoved, 31),
+    ] {
+        cycle!(v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome }).unwrap(), v1::Answer, Some(tag));
+    }
+    for reason in [
+        v1::DeviceRefusal::Person,
+        v1::DeviceRefusal::Off,
+        v1::DeviceRefusal::Service,
+        v1::DeviceRefusal::Malformed,
+        v1::DeviceRefusal::TooMany,
+        v1::DeviceRefusal::Unknown,
+    ] {
+        cycle!(
+            v1::Answer::new(
+                &v1::CEILINGS,
+                v1::AnswerParts {
+                    outcome: v1::Outcome::DeviceRefused(
+                        v1::DeviceRefused::new(&v1::CEILINGS, v1::DeviceRefusedParts { reason }).unwrap()
+                    )
+                }
+            )
+            .unwrap(),
+            v1::Answer,
+            Some(32)
+        );
+    }
+    cycle!(
+        v1::Watching::new(&v1::CEILINGS, v1::WatchingParts { watch: v1::Watch::Devices }).unwrap(),
+        v1::Watching,
+        Some(14)
+    );
+    let mut rows = List::with_capacity(8);
+    for number in 1..=8 {
+        rows.push(
+            v1::DeviceRow::new(
+                &v1::CEILINGS,
+                v1::DeviceRowParts {
+                    number,
+                    label: b"phone".as_slice().into(),
+                    at: u64::MAX,
+                    endpoint: b"https://push.test/sub".as_slice().into(),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    cycle!(v1::Devices::new(&v1::CEILINGS, v1::DevicesParts { rows }).unwrap(), v1::Devices, None::<u8>);
+    for push in [None, Some([4; 65])] {
+        cycle!(
+            v1::DeploymentAnswer::new(
+                &v1::CEILINGS,
+                v1::DeploymentAnswerParts { welcome: true, owned: false, program_login: None, push }
+            )
+            .unwrap(),
+            v1::DeploymentAnswer,
+            None::<u8>
+        );
+    }
 }

@@ -1,5 +1,5 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
@@ -73,6 +73,13 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
                     p::Malformed::Cycle => w::Malformed::Cycle,
                     p::Malformed::ProposedAsAllowed => w::Malformed::ProposedAsAllowed,
                 },
+            },
+        )?),
+        p::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks::new(
+            limits,
+            w::RefusalLiveTasksParts {
+                tasks: names(&tasks, limits.refusal_live_tasks_tasks, w::Path::RefusalLiveTasksTasks)?,
+                more,
             },
         )?),
         p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle::new(

@@ -483,6 +483,7 @@ impl BodyDecoder {
                 | Request::UserOf { .. }
                 | Request::Org { .. }
                 | Request::CreateOrg { .. }
+                | Request::ChangeFiles { .. }
                 | Request::CreateFile { .. }
                 | Request::Migrate { .. }
                 | Request::DeleteRepository { .. }
@@ -767,6 +768,7 @@ impl BodyDecoder {
             | Request::CreateRepoHook { .. }
             | Request::EditRepoHook { .. }
             | Request::DeleteRepoHook { .. }
+            | Request::ChangeFiles { .. }
             | Request::CreateFile { .. }
             | Request::DeleteBranch { .. } => unreachable!("body text selection"),
         }
@@ -829,6 +831,7 @@ impl BodyDecoder {
             | Request::UserOf { .. }
             | Request::Org { .. }
             | Request::CreateOrg { .. }
+            | Request::ChangeFiles { .. }
             | Request::CreateFile { .. }
             | Request::Migrate { .. }
             | Request::DeleteRepository { .. }

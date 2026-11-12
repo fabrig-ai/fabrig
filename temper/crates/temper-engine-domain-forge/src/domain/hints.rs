@@ -150,6 +150,7 @@ fn dependencies(d: &Domain, task: u64, hint: &Hint) -> bool {
             continue;
         }
         let (repository, named) = match &subscriber.topic {
+            Topic::Findings { .. } => continue,
             Topic::Pull { repository, number } | Topic::Participation { repository, number } => {
                 let named = match &hint.change {
                     Change::Item(item) => number == item,

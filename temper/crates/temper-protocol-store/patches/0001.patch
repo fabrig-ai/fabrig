@@ -1,0 +1,52 @@
+patch 1
+owner temper 1 after jig 1
+
+family temper-store 11 to 12
+add Adopted.contexts list 65536 u32 []
+add GateKind.follow
+rename Route.foreman retired
+add Stands.retired
+drop Stands.foreman
+written Stands
+add SignOff
+add ChangeFollows
+add FollowAt
+add FollowReasonAct
+add FollowMergeAct
+add FollowAct
+add FollowOutcome
+add ApplicationOutcome.follow
+add LandingRule.sets list 6 u8 []
+add Dependency
+add FollowRepository
+add FollowSource
+add FollowTarget
+add FollowPerson
+add FollowOwner
+add FollowStart
+add FollowFormat
+add FollowCheck
+add Follow
+add SettingValue.follow
+add SettingValue.dependency
+add LoggedChange.signed list 8 SignOff []
+add LandedDraft
+add FollowCommit
+add FollowReason
+add FollowState
+add FollowFiles
+add FollowEntry
+add FollowSkip
+add FollowFailing
+add FollowVerdict
+add FollowParity
+add FollowQuestion
+add FollowRow
+add FollowCheckProgress
+add ChangeRow.signed list 8 SignOff []
+add ChangeRow.follows option ChangeFollows none
+add ChangeRow.follow_check option FollowCheckProgress none
+drop ChangeRow.foreman_charter
+add Value.landed_draft
+add Value.follow
+drop Foreman

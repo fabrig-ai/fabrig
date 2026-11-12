@@ -28,6 +28,7 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
+        ("sheet_delete_project", fixtures::chat::deleting_project()),
         ("models", fixtures::page(&temper_client_domain::Address::Models { project: 1 }, false)),
         ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
@@ -183,7 +184,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             {
                 let answer = w::DeploymentAnswer::new(
                     &w::CEILINGS,
-                    w::DeploymentAnswerParts { welcome: false, owned: false, program_login: None },
+                    w::DeploymentAnswerParts { push: None, welcome: false, owned: false, program_login: None },
                 )
                 .expect("deployment answer");
                 Some(jig_client::Up::ReadDone {
@@ -205,6 +206,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             | Request::SignOut
             | Request::Dropped { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

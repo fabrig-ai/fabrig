@@ -90,6 +90,17 @@ pub(crate) fn reply_refs(limits: &Limits, row: &tasks::TaskRecord, party: u64) -
 }
 
 impl Core {
+    pub(crate) fn open_question_words(&self, question: tasks::OpenQuestion) -> Option<&[u8]> {
+        let line = self.question_activity.get(&(question.asker, question.line))?;
+        if let tasks::Line::Words { message, kind: tasks::MessageKind::Question, words, .. } = &line.line
+            && *message == question.number
+        {
+            Some(words)
+        } else {
+            None
+        }
+    }
+
     /// Retain only activity named by an unanswered question's durable position.
     pub(crate) fn remember_question(&mut self, line: &tasks::ActivityLine) -> bool {
         let Some(owner) = self.tasks.task(line.task) else { return false };
@@ -120,10 +131,8 @@ impl Core {
                 continue;
             }
             let mut keep = false;
-            if let Some(owner) = self.tasks.task(task)
-                && questions_live(&owner.phase)
-            {
-                if matches_person(owner.requester) {
+            if let Some(owner) = self.tasks.task(task) {
+                if questions_live(&owner.phase) && matches_person(owner.requester) {
                     for position in &owner.question_lines {
                         keep |= position.line == key.1 && position.answer.is_none();
                     }

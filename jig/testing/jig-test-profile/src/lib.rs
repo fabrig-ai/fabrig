@@ -162,7 +162,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 19, maximum: 19 },
+                versions: core::documents::Versions { minimum: 20, maximum: 20 },
             },
             connectors: 2,
             resume_bytes: 256,
@@ -365,6 +365,7 @@ pub fn config(seed: u64) -> root::Config {
             connectors: Box::new([1, 2]),
             settings: core::Settings {
                 endpoints: Box::new([core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 3,

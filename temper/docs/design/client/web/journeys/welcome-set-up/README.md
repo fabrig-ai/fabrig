@@ -18,5 +18,4 @@ this machine", an empty repository chosen.
   pressed. Its "Run on this machine" leads to `07.html`.
 - `07.html`: the Model step, the set up running on, its forge's line
   and each step in the Forge region, beside the plans from 1280 px,
-  under the choices otherwise. It leads to `08.html`.
-- `08.html`: the Model step as it was when the recording ended.
+  under the choices otherwise, as it was when the recording ended.

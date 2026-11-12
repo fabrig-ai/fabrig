@@ -249,13 +249,19 @@ temper (`../domain/agent/agents.md`, 1 and `../domain/agent/ask-temper.md`) prop
 configuration from the person's documents alone, accepts it, and checks
 what was accepted twice, by code and by a judge. What it is checked
 against is the golden: `../draft/reference-code-production.md`,
-section 14, cut into obligations, with the values of the reference's
-profile, `docs/examples/reference/` (`../protocol/configuration/reference.md`
-).
+section 14, cut into obligations, with the values of the golden's own
+profile, `golden/profile.json` in the tool's crate: the reference's
+settings file as it stood with whole charters 5, 7, 2 and 8, before
+the reference became overlays of its fields over the stock's charters 5
+and 2 (`../protocol/configuration/reference.md`). Ask temper proposes
+whole charters, as the person's documents describe them, an overlay of
+its own being later (`../draft/stock-charters.md`, 11), so the golden
+keeps the whole charters it checks a proposal against; the reference's
+landing rules, template 4, limits and room are the same in both.
 
 - **Held by the acceptance, never by the binary.** The golden, the check
-  and the judge's brief are one tool crate, `tools/stage-one`
-  (`temper-stage-one`, `README.md`, section 5), which may read temper's crates and
+  and the judge's brief are one tool crate, `crates/temper-stage-one-tool`
+  (`bin/temper-stage-one`, `README.md`, section 5), which may read temper's crates and
   which no crate of the binary reads. Neither the stock nor the
   documentation compiled into the binary carries any of it, so the agent
   works from the person's description alone.
@@ -304,7 +310,6 @@ check binds each role to a number:
 | `coordinator` | charter 5 | the charter `goal-template` executes |
 | `designer` | charter 7 | assignment |
 | `coding` | charter 2 | the charter forge charter 1 names |
-| `foreman` | charter 6 | its number, 6, the charter the forge's foremen run under |
 | `triage` | charter 8 | assignment |
 | `goal-template` | template 4 | the template whose `resources` hold *its own goal branch* |
 | `small-goal-template` | the stock's goal template | the stock's number |
@@ -326,8 +331,7 @@ obligations missing.
 | the goal template for drafts | setting: `executor.charter`, `{"role": "coordinator"}`; `llm`, whole (`fakes.md`'s choice); `tracked` (`at-least` 1); `contract.report` (`set`); `resources` (`contains`: *its own goal branch*) |
 | a small goal's template | setting: the stock's goal template, `unchanged` |
 | the coding agent's charter | setting: its instructions (`judged`); `shell` and `modify` true; the stock's run, which the table retains, `turns` (`at-least` 800) and `time` (`at-least` 28,800 s) |
-| the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
-| the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
+| the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); no number 3, the foreman retired (`../draft/stock-charters.md`, 3) |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at `fakes.md`'s choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
 | the project's policy and rules | setting: the rules' ceiling's and the project's own policy's role 0's tool families, its own ceiling holding them by jig's check, (`bits`: 1,983, the stock's with the families the coordinator's row names, 13.9), their note scopes (`bits`: 3, the goal's and the project's), and for role 0 no effect family (`lacks`: 64); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1 free, a kind no obligation asks for: it reaches no project already made (jig's `domain/people/acts.md`, 2), and the walk's project is |
 | the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
@@ -337,7 +341,7 @@ obligations missing.
 | the project's checks | box: `.temper/pre-pr` in the repository |
 | g's tier | box: the document's tier `goal`, following goal branches, `span_ms` 1,200,000 |
 | main's tiers | box: the document's tier `slow`, following main |
-| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the reference's explicit override of 4 |
+| questions | setting: the coordinator's instructions (`judged`: `up` for each change, a coding change's and a designer's alike, the foreman retired); box: four per change, the document's `forge.change_policy.questions`, the reference's explicit override of 4 |
 | the merge job | box: the document's `merge_job`, `.temper/merge` in the repository |
 | the profile's limits | box: the limits 5.2 names |
 
@@ -376,7 +380,7 @@ the forge's API as an observer, the limits against the box's document):
 
 - **the models:** Opus 5.5 on Claude Code for the coordinator and
   designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
-  account's key, for producers, foremen and the triage; a real model
+  account's key, for producers and the triage; a real model
   for Ask temper, charter 11's;
 - **the document's members the profile sets** over `temper-box init`'s:
   `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two

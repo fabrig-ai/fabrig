@@ -86,8 +86,19 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -125,7 +136,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -137,6 +149,7 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -201,6 +214,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),
@@ -210,6 +224,7 @@ fn change_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -247,15 +262,17 @@ fn change_row() -> ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -318,7 +335,7 @@ fn setup() -> Domain {
 }
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
-    d.repositories.insert(REPO, adopted()).expect("repository");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
     for task in [CHANGE, SECOND, QUEUED] {
         let mut row = change_row();
         row.task = task;
@@ -892,7 +909,12 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     let mut changes = List::with_capacity(u32::try_from(tasks.len()).expect("fixture changes"));
     for task in tasks {
         changes
-            .push(LoggedChange { task: *task, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) })
+            .push(LoggedChange {
+                signed: Box::new([]),
+                task: *task,
+                pull: Some(LOGGED_PULL),
+                title: Box::from(MARKERS[1]),
+            })
             .expect("logged change");
     }
     LoggedLanding { commit, branch: Box::from(MARKERS[0]), at: Wall::from_nanos(at), changes: changes.into_boxed() }
@@ -1016,7 +1038,7 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     let log = d.landing_logs.get(&REPO).unwrap();
     assert_eq!(
         log.landings[0].changes[1],
-        LoggedChange { task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
+        LoggedChange { signed: Box::new([]), task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
     );
     // Handed tasks still bound the public projection, even without a change row.
     assert!(landings(&d, &public[..1]).landings().is_empty());
@@ -1036,7 +1058,7 @@ fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
         let mut foreign = adopted();
         foreign.project = 6;
         foreign.provider = other;
-        d.repositories.insert(other, foreign).expect("other project");
+        d.repositories.insert(other, Box::new(foreign)).expect("other project");
         let row = d.changes.get_mut(&SECOND).expect("second");
         row.repository = repository;
         row.change.way = way;

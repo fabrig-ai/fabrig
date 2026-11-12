@@ -57,6 +57,10 @@ does for the client:
   (`forge/records.md`). temper gives it no `Mint` in standalone: the printed link and
   services' credentials are jig's own ways of signing in (jig's
   `protocol/client/sign-in.md`).
+- **A stream refused by jig's component** emits a journal line through
+  the service's operator notes and the shell's stderr. It names the
+  client's sign-in number and the queue bound or translation path and
+  reason, with no document content (jig's `protocol/client/README.md`, 5).
 - **The forge's request, decoded before the root** (jig's
   `protocol/client/README.md`, section 8). An application request of the
   family `FORGE` at `CLIENT_VERSION` is decoded by
@@ -94,6 +98,7 @@ does for the client:
   | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 5; `../protocol/setup/owned.md`, 9) | kept; make refused, `MakeRefusal`; then the watched row |
   | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge/attention.md`, 4) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge/attention.md`, 5) | overturned; overturn refused, already or unknown |
+  | `SetDraft { project, repository, path, change }` | none; its scope the project | for `ready`, the repository's landing branch read, then the path at its head, the request held in memory while they are out; then the project's `LandedDraft` row made or moved in the request's decision, and the subject `drafts` marked; a row that comes out the same writing nothing (`../domain/forge/drafts.md`, 2) | drafted, with the row; draft refused, no repository, path, missing, not a file, unreachable, unknown or full |
   | `Dismiss { what }` | none | the party's `Dismissed` row saved in the request's decision, and the subject `dismissed` marked, a row held already writing nothing (`../domain/forge/attention.md`, 1) | dismissed; forge refused, too large |
   | `Looked { project }` | none; its scope the project | the party's `Looked` row moved in the request's decision, the subject `status` marked, and, at a new sitting, the status agent's run asked (`../domain/forge/attention.md`, 2 and 3) | looked; forge refused, too large |
   | `StartPlayground` | the scripted model's key, which the routing reads from its file at each start and carries as a pasted value | the playground's start (`../protocol/setup/playground.md`): the `Playground` row written starting when none, its fake forge's record made and the box asked for its group, then the scripted model's account added and its repository adopted into its project, each unless done; refused "not offered" while a real forge is kept | running, once all are done; start failed, naming why |

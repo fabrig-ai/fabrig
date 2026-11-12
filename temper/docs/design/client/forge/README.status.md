@@ -3,7 +3,7 @@
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
-band, with rule, count behind, partial-read notice, Open and Later. A
+band, with rule, the path sets it signs off, partial-read notice, Open and Later. A
 counting viewer gets a safe files-page review link, using the sign-in
 wrapper on Forgejo where offered; too few eligible people, no account
 or another role gives the reason and no primary. The view tables cover
@@ -33,6 +33,10 @@ through their changes, filtered by jig's handed tasks. A landing's zero
 stale-proof count draws nothing; a positive count remains (`../web/public.md`,
 3). Older public history remains deferred in `README.md`, section 8.
 
+- **Not yet:** 4.1: a row names no path set, so the card says no
+  "Signs off changes to NAME." and leads no "Sign off on Forgejo ↗";
+  it still says how many changes wait behind it, and the row carries
+  `behind`.
 - **Departs:** `deployment.md`, A managed Forgejo: a stop empties the admin’s
   token whatever connect it ends: with no admin connect sent, any
   stopped managed Forgejo's row empties it, and while the sent
@@ -71,3 +75,6 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
   5.2: a drift hold's card, what changed, by whom and when.
   6: a goal's issue, landings as news, findings on a project's page. 
   the remaining forge reads remain `served.status.md` (Not yet, the whole document).  the stopped admin-panel connect remains `deployment.status.md` (Not yet, the whole document).
+
+- **Not yet:** 4.1: *Its size* on Needs you's and Home's cards, and on a phone [in flight: change 535].
+- **Not yet:** 4.1: the joined world's approval card showing the fake forge's size [in flight: change 536].

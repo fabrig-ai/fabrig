@@ -1,5 +1,5 @@
 //! Coverage and gate order (temper/docs/design/domain/forge/change/gates.md, 1 and 3 and temper/docs/design/domain/forge/change/branch-path.md).
-use super::Inputs;
+use super::{Inputs, scopes::Coverage};
 use alloc::boxed::Box;
 use skein_lib::List;
 use temper_engine_domain_forge::{GateLast, settings::Held};
@@ -9,6 +9,7 @@ pub(super) struct Gate {
     pub number: u32,
     pub check: bool,
     pub blocking: bool,
+    pub coverage: Coverage,
 }
 
 // The forge's branch_resource_name and covers use the same segment comparison.
@@ -77,13 +78,21 @@ pub(super) fn gates(inputs: &Inputs, held: &[Held]) -> List<Gate> {
             for prior in gates.iter_mut() {
                 if prior.number == gate.number {
                     prior.blocking |= held.rule.enforce && gate.blocking;
+                    prior.coverage.add(inputs, &held.rule);
                     present = true;
                     break;
                 }
             }
             if !present {
+                let mut coverage = Coverage::new();
+                coverage.add(inputs, &held.rule);
                 gates
-                    .push(Gate { number: gate.number, check: false, blocking: held.rule.enforce && gate.blocking })
+                    .push(Gate {
+                        number: gate.number,
+                        check: false,
+                        blocking: held.rule.enforce && gate.blocking,
+                        coverage,
+                    })
                     .expect("held gates");
             }
         }
@@ -96,13 +105,16 @@ pub(super) fn gates(inputs: &Inputs, held: &[Held]) -> List<Gate> {
             for gate in gates.iter_mut() {
                 if gate.number == number {
                     gate.check = true;
+                    gate.coverage.all = true;
                     gate.blocking = true;
                     present = true;
                     break;
                 }
             }
             if !present {
-                gates.push(Gate { number, check: true, blocking: true }).expect("repository check gates");
+                let mut coverage = Coverage::new();
+                coverage.all = true;
+                gates.push(Gate { number, check: true, blocking: true, coverage }).expect("repository check gates");
             }
         }
     }

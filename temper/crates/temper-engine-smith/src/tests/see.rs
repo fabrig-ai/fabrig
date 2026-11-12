@@ -34,6 +34,8 @@ fn tokens_round_trip_and_malformed_tokens_stay_unknown() {
         ("a+b@c%d", 1, "a%2Bb%40c%25d@1"),
         ("settings charter-words 4", 12, "settings+charter-words+4@12"),
         ("settings project-words", 12, "settings+project-words@12"),
+        ("settings project-areas", 12, "settings+project-areas@12"),
+        ("settings project-triager", 12, "settings+project-triager@12"),
     ] {
         assert_eq!(crate::see::token(line.as_bytes(), from).as_ref(), token.as_bytes());
         let input = format!(r#"{{"address":"more {token}"}}"#);
@@ -238,6 +240,7 @@ fn errors_and_pages_use_the_address_form() {
         (Setting::Application { kind: 11, scope: 0, number: 4 }, "settings template N · ways · help settings-fields"),
     ] {
         let answer = jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: None,
@@ -409,6 +412,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
         (None, false, "One", "Two", "Yours · now\n", "You may not change this project's settings; an owner may."),
     ] {
         let document = WaysDocument {
+            rules: temper_engine_domain::ways::PathRules::empty(),
             project: 1,
             ways: [("One", "A way to work."), ("Two", "Another way to work."), ("No headline", "")]
                 .map(|(name, headline)| WayEntry {
@@ -418,6 +422,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
                     path: branch_path(),
                     items: Box::new([]),
                     delegation: false,
+                    roles: Box::default(),
                 })
                 .into(),
             current,
@@ -453,4 +458,46 @@ fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
             assert!(!row.next.is_empty(), "{}: no next addresses", row.form);
         }
     }
+}
+
+#[test]
+fn ways_text_prints_path_rules_and_empty_cells_as_none() {
+    use temper_engine_domain::ways::{PathRule, PathRules, WaysDocument};
+    let document = WaysDocument {
+        project: 1,
+        ways: Box::new([]),
+        current: None,
+        own: branch_path(),
+        words: None,
+        may_change: true,
+        rules: PathRules {
+            rows: Box::new([
+                PathRule {
+                    paths: b"protocol/**".as_slice().into(),
+                    review: b"an agent".as_slice().into(),
+                    sign_off: b"you".as_slice().into(),
+                    lands: b"once you sign off".as_slice().into(),
+                },
+                PathRule {
+                    paths: b"everything else".as_slice().into(),
+                    review: Box::new([]),
+                    sign_off: Box::new([]),
+                    lands: b"on its own".as_slice().into(),
+                },
+            ]),
+            note: b"A sign-off is for one head.".as_slice().into(),
+        },
+    };
+    let (text, cut) = rendered("ways", 0, SeeAnswer::Ways(Box::new(document)), 20_000);
+    assert!(!cut);
+    assert_eq!(
+        text,
+        concat!(
+            "Yours · now\nask (a person) → make (an agent) → repair (an agent, when needed; tests, review) → merge (code; into goal) → main (a branch)\n",
+            "\nRules by path\nprotocol/**: review an agent; sign-off you; lands once you sign off\n",
+            "everything else: review none; sign-off none; lands on its own\nA sign-off is for one head.\n",
+            "\nYou may change this project's settings.\n",
+            "see: settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings\n",
+        )
+    );
 }

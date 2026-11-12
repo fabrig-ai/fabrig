@@ -35,7 +35,7 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
 
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
+- `overrides`: object, known limit names; optional; init writes {"authority.executors":21,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":21,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
 
 ## engine.deployment
 
@@ -69,15 +69,15 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 
 Shape: `llm`. Paths: `engine.llm`. The endpoints and providers, with document models when defaults are not passed.
 
-- `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
+- `endpoints`: list of endpoint; required; init writes list (4 entries). Declares the endpoints serving the configured models.
 - `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
 
 Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its transport.
 
-- `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint for configured models to refer to.
-- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the endpoint's number, unique among endpoints.
+- `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "anthropic-api" | "demo". Names the endpoint for configured models to refer to.
+- `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 4 | 3. Gives the endpoint's number, unique among endpoints.
 - `dialect`: integer, 2 or 3; required; init writes 3 | 2. Chooses the endpoint's model protocol dialect.
 - `provider`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint's provider for the model protocol.
 - `program`: text, 32 bytes; optional; init writes "claude_code". Names a program offered by every provider whose models use this endpoint.
@@ -112,6 +112,7 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, its add
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
 - `endpoint`: text, 4096 bytes; a configured endpoint name; required; init writes "openai" | "anthropic" | "demo". Names the endpoint its added models take.
+- `direct`: text, 4096 bytes; program-free endpoint of the same dialect; requires program endpoint and sign-in or key; optional; init writes "anthropic-api". Names the direct endpoint its sign-ins, keys and list reads take.
 - `keep`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires endpoint; optional; init writes ["gpt-*"] | ["claude-*"]. Keeps list names matching any whole-name pattern; absent disables reading the list.
 - `drop`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires keep; optional; init writes ["*audio*","*image*","*realtime*","*search*","*transcribe*","*tts*","*-20??-??-??"] | ["*-20??????"]. Excludes list names matching any whole-name pattern, even when kept.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.

@@ -2,6 +2,18 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+
+
+- **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
+  browser kit can't do it offline: `skein-browser`'s requests and
+  `fake-person-browser`'s steps can't grant a notification permission,
+  and Chromium's `subscribe` reaches its own push service, a real one.
+  It needs a kit change first: a permission grant and a local push
+  facility in skein's browser kit, by skein's design. The shell's push
+  calls and the service worker are checked by compiling and by the
+  service's route tests only (2026-11-11, goal N3b, which stops at six
+  changes).
+
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
   proposal's acts among them, and the path's stops on Ask temper's page

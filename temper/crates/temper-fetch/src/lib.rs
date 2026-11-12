@@ -4,6 +4,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use skein_lib::Writer;
+pub mod box_binary;
 pub mod claude_code;
 pub mod fetch;
 

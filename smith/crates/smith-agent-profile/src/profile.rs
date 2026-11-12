@@ -56,7 +56,7 @@ pub use smith_protocol_llm::OversizedReasoning;
 pub use quantities::{Configuration, Declared, Endpoint, Fraction, Limits, Name, Policy, Profile, standard};
 
 /// The number of configured destinations the standard profile admits.
-pub const ENDPOINTS: u32 = 3;
+pub const ENDPOINTS: u32 = 4;
 
 /// The count of distinct credential accounts the standard profile admits.
 pub const ACCOUNTS: u32 = 4;

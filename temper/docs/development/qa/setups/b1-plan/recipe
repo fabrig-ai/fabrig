@@ -1,0 +1,11 @@
+recipe 1
+after "widget"
+forge commit forgejo playground/widget "CI: each pull request adds changes/<its number>.md" ".forgejo/workflows/ci.yml" "CONTRIBUTING.md" ".fake-forge/ci"
+forge checks forgejo playground/widget
+ctl chat start --project widget --key qa-b1-plan "Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead."
+ctl inbox --until waiting
+ctl task show 1 --until phase:idle
+ctl chat show 1
+ctl inbox --kind questions
+web reload "/"
+web see "I inspected src/main.rs: the widget is currently a hard-coded table of (name, count) pairs printed in aligned columns. Plan: add CSV output for that table, including a header row and properly escaped fields, while preserving the existing display behavior (likely with a command-line option to select CSV). Shall I go ahead?"

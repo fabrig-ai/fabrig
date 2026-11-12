@@ -17,9 +17,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   Results reach their parent; its run hears them under its waking rules.
   A change task is a delegate run by the forge, returning a landed
   change (temper help box) or why none applies; it starts with half its
-  parent's remaining spend. Questions go to `none`, a `foreman`
-  (answers, finishes or escalates), or `up` to its requester.
-  It relays producer, repair and resolution questions, holds answers until
+  parent's remaining spend. Questions go `up` to its requester (for a
+  goal, the goal's agent, then you), or nowhere (`none`). With `up`, it
+  relays producer, repair and resolution questions, holds answers until
   dependencies land, and holds past its question bound.
   To answer an escalation, get its answer number with `read_task` on the
   change, then `message` with `form=answer`. Words and amendment reasons
@@ -129,9 +129,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
-  `read_task`: specs; `field=result` reads retained reports and Left lists,
-  including changes and reviews, through a proven same-project requester
-  chain. Verdicts print `Verdict: CODE`; offsets count reason bytes.
+  `read_task`: specs and retained results of any task below through a proven same-project requester chain, and tasks its requester waits on; `field=result` reads reports and Left lists, including changes and reviews; for a live task at offset 0 it answers its spec, saying the result comes when it ends.
+  Verdicts print `Verdict: CODE`; offsets count reason bytes.
   `from=next` continues; restart revised specs. Durable question numbers and
   answerers survive delivery: use `message` to the printed target with
   `form=answer` and that `question` number.

@@ -7,7 +7,7 @@ fn live_producer(world: World) -> (World, u64, engine::Assignment, u64, u64) {
     live_producer_with_route(world, false)
 }
 
-fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, engine::Assignment, u64, u64) {
+fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64, engine::Assignment, u64, u64) {
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
     let ask = adoption_chat(&world);
@@ -16,7 +16,7 @@ fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, eng
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
     delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
     delegate.authority = live_task(&world, chat.task).authority.clone();
-    delegate.authority.budget.spend = 40;
+    delegate.authority.budget.spend = if questions_up { 20 } else { 40 };
     delegate.authority.delegation.tasks = 6;
     delegate.authority.delegation.depth = 1;
     let mut parameters = vec![
@@ -29,9 +29,9 @@ fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, eng
         tasks::Parameter::Bytes { name: 3, value: BRANCH.into() },
         tasks::Parameter::Bytes { name: 10, value: b"Small fix".as_slice().into() },
     ];
-    if foreman {
-        // This route leaves half the producer's funding for concurrent delegates.
-        parameters.push(tasks::Parameter::Number { name: 14, value: 1 });
+    if questions_up {
+        // The producer can ask its requester while waiting for a conflict.
+        parameters.push(tasks::Parameter::Number { name: 14, value: 2 });
     }
     delegate.spec.parameters = parameters.into_boxed_slice();
     let event = world.protocol.call(
@@ -42,8 +42,13 @@ fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, eng
         engine::Call { completion: 1, position: 1, tool: engine::Tool::Delegate { batch: Box::new([delegate]) } },
     );
     world.send(event);
-    let producer = super::super::reviews::next_assignment(&mut world, 1);
+    let mut producer = super::super::reviews::next_assignment(&mut world, 1);
     let tasks::Party::Task(task) = live_task(&world, producer.task).requester else { panic!("change's producer") };
+    if questions_up {
+        fund_concurrent_gate(&mut world, &chat, task);
+        producer =
+            world.assigned.iter().rev().find(|run| run.task == producer.task).expect("producer's current run").clone();
+    }
     world.external(2, raw::Op::Git(raw::Git::Create { branch: BRANCH.into(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer", 2)
         .expect("producer pushes H1");
@@ -92,6 +97,42 @@ fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, eng
         },
     })));
     (world, task, producer, head, base)
+}
+
+fn fund_concurrent_gate(world: &mut World, chat: &engine::Assignment, task: u64) {
+    // The producer took the change's spend; fund the concurrent gate after that reservation.
+    let mut authority = live_task(world, task).authority.clone();
+    authority.budget.spend = 40;
+    let revision = live_task(world, task).revisions.spec;
+    let event = world.protocol.call(
+        CHANNEL,
+        chat.task,
+        chat.attempt,
+        95,
+        engine::Call {
+            completion: 95,
+            position: 1,
+            tool: engine::Tool::Amend {
+                keep_parameters: false,
+                target: task,
+                revision,
+                amendment: temper_engine_domain_world::fixtures::task_amendment(
+                    None,
+                    Some(authority),
+                    b"fund the concurrent gate after the producer starts",
+                ),
+            },
+        },
+    );
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(world, task).revisions.spec > revision && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert!(live_task(world, task).revisions.spec > revision, "{:?}", world.answers);
+    world.until(Until::Ready);
 }
 
 fn wait_for_conflict(world: &mut World, task: u64, base: u64, assignments: usize) {
@@ -342,16 +383,24 @@ fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
         StoryLimits::default(),
     );
     let (mut world, task, producer, head, base) = live_producer_with_route(configured, true);
-    let gate = super::super::reviews::next_assignment(&mut world, 2);
-    assert!(
-        matches!(change_row(&world, task).delegate, Some((child, change::Delegate::Gate { .. })) if child == gate.task)
-    );
+    let mut gate = None;
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some((child, change::Delegate::Gate { .. })) = change_row(&world, task).delegate
+            && let Some(run) = world.assigned.iter().find(|run| run.task == child)
+        {
+            gate = Some(run.clone());
+            break;
+        }
+    }
+    let gate = gate.unwrap_or_else(|| panic!("gate assigned: {:?}", change_row(&world, task)));
+    let assignments = world.assigned.len();
     super::super::reviews::finish_review(
         &mut world,
         &gate,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
-    wait_for_conflict(&mut world, task, base, 3);
+    wait_for_conflict(&mut world, task, base, assignments);
     assert_eq!(change_row(&world, task).delegate, None, "the producer is no longer the current delegate");
     world.sign_in();
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -366,7 +415,7 @@ fn a_producer_displaced_by_a_gate_still_keeps_the_conflict_waiting() {
             grace: None,
         },
     }));
-    let resolution = super::super::reviews::next_assignment(&mut world, 3);
+    let resolution = super::super::reviews::next_assignment(&mut world, assignments);
     assert!(
         matches!(change_row(&world, task).delegate, Some((child, change::Delegate::Resolve { .. })) if child == resolution.task)
     );

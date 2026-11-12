@@ -157,6 +157,9 @@ pub(crate) fn tag_people_part(
                 super::deployment_acts::route(core, env, &mut routed.work, &mut routed.out, request, *act);
                 continue;
             }
+            people::Request::NeedArrived { party, project, task, needs } => {
+                Request::Held(Box::new(Held::NeedArrived { party, project, task, needs }))
+            }
             people::Request::Acted { to, outcome } => {
                 if outcome == people::Outcome::Again(people::Again::Busy) {
                     core.touch_deployment();
@@ -181,6 +184,7 @@ pub(crate) fn tag_people_part(
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
                     | people::Key::Deletion(_)
+                    | people::Key::Deleted(_)
                     | people::Key::Public(_)
                     | people::Key::Policy(_) => {}
                 }
@@ -216,6 +220,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Created { .. }
                     | people::Outcome::Proposed { .. }
                     | people::Outcome::Withdrawn { .. }
+                    | people::Outcome::Left { .. }
                     | people::Outcome::Stopped { .. }
                     | people::Outcome::Cancelled { .. }
                     | people::Outcome::Lifted { .. }
@@ -305,7 +310,11 @@ pub(crate) fn tag_people_part(
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)
-                        } else if role == Some(people::Role::Owner) {
+                        } else if role != Some(people::Role::Owner) {
+                            Err(people::Refusal::Role { held: role })
+                        } else if let Some(why) = crate::admission::deletion::live_roots(core, project) {
+                            Err(why)
+                        } else {
                             crate::admission::deletion::begin(
                                 core,
                                 env,
@@ -315,8 +324,6 @@ pub(crate) fn tag_people_part(
                                 project,
                                 grace,
                             )
-                        } else {
-                            Err(people::Refusal::Role { held: role })
                         };
                         if let Err(why) = result {
                             routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -607,6 +614,10 @@ pub(crate) fn tag_people_part(
                             }
                         },
                     },
+                    people::Ask::Talk { task, words, .. } => {
+                        super::controls::talk_request(core, env, &mut routed, party, task, words);
+                    }
+                    people::Ask::Leave { task, .. } => super::controls::leave_request(core, &mut routed, party, task),
                     people::Ask::Say { task, words, .. } => {
                         say_request(core, env, &mut routed, party, task, words);
                     }

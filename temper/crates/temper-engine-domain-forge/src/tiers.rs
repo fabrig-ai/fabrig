@@ -1,7 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{
-    Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, Topic, What,
-};
+use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -9,7 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 mod goals;
-mod parts;
+pub(crate) mod parts;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -94,13 +92,18 @@ fn path_parts(bytes: &[u8]) -> Box<[Box<[u8]>]> {
     }
     parts.into_boxed()
 }
-fn name(repository: Repository, branch: &[u8]) -> Name {
+pub(crate) fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
     let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
-    let mut names =
-        List::with_capacity(capacity.checked_add(d.subscriptions.capacity()).expect("subscription watches"));
+    let mut names = List::with_capacity(
+        capacity
+            .checked_add(d.subscriptions.capacity())
+            .expect("subscription watches")
+            .checked_add(d.follow_rows.capacity())
+            .expect("follow watches"),
+    );
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
@@ -124,9 +127,14 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
                     names.push(name).expect("one watch per subscription");
                 }
             }
-            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. }
+            | Topic::Ci { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
+    crate::follows::watches(d, &mut names);
     names
 }
 pub(crate) fn add_watches(
@@ -501,6 +509,7 @@ pub(crate) fn observed(
     after: Commit,
     out: &mut Queue<Request>,
 ) {
+    crate::follows::observed(d, repository, branch, after, out);
     goals::observed(d, repository, branch, before, after, out);
     let mut names = List::with_capacity(env.limits.tiers.tiers);
     for tier in configured_all(d, repository) {
@@ -648,87 +657,18 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
         part_inputs(commit, key, tests),
     );
     if let Some(flight) = &row.flight {
-        follow.entry = flight.entry;
-        follow.start = flight.start;
-        follow.since = flight.since;
-        follow.waiting = flight.waiting;
-        if let Some(id) = flight.run {
-            follow.run = Some(api::Run {
-                id,
-                number: 0,
-                workflow: follow.workflow.clone(),
-                commit,
-                event: api::Event::Dispatch,
-                actor: d.writers.get(&row.repository.forge).copied().unwrap_or(0),
-                state: api::RunState::Running,
-                conclusion: None,
-                url: Box::new([]),
-                created: flight.start.unwrap_or(Time::ZERO),
-                jobs: Box::new([]),
-            });
-        }
-        follow.writes = Box::new([]);
-        let mut writes = List::with_capacity(u32::try_from(flight.pending.len()).expect("pending jobs"));
-        for attempt in &flight.pending {
-            writes.push(Write::Rerun { attempt: *attempt }).expect("pending jobs");
-        }
-        follow.writes = writes.into_boxed();
-        // An empty, unsent flight is a fresh dispatch; a sent one is followed.
-        if flight.start.is_none() && !flight.waiting && flight.pending.is_empty() && flight.fault.is_none() {
-            follow.writes = Box::new([Write::Dispatch {
-                workflow: follow.workflow.clone(),
-                branch: follow.branch.clone(),
-                inputs: follow.inputs.clone(),
-            }]);
-        }
-        if let Some(report) = &flight.report {
-            let run = follow.run.as_mut().expect("failed workflow identity");
-            run.number = report.number;
-            run.url.clone_from(&report.url);
-            run.state = api::RunState::Completed;
-            run.conclusion = Some(api::Conclusion::Failure);
-            follow.outcome = Some(landing::Verdict::Failed);
-        }
-        if let Some(fault) = flight.fault {
-            follow.outcome = Some(landing::Verdict::Fault(fault));
-        }
+        follow.restore(flight, d.writers.get(&row.repository.forge).copied().unwrap_or(0));
     }
     follow
 }
 fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
-    let mut pending = List::with_capacity(u32::try_from(follow.writes.len()).expect("pending writes"));
-    for write in &follow.writes {
-        if let Write::Rerun { attempt } = write {
-            pending.push(*attempt).expect("pending jobs");
-        }
-    }
-    row.flight = Some(TierFlight {
-        entry: follow.entry,
-        start: follow.start,
-        since: follow.since,
-        waiting: follow.waiting,
-        next: match &row.flight {
-            Some(flight) => flight.next,
-            None => None,
-        },
-        run: match &follow.run {
-            Some(run) => Some(run.id),
-            None => None,
-        },
-        pending: pending.into_boxed(),
-        report: match follow.outcome {
-            Some(landing::Verdict::Failed) => {
-                let run = follow.run.as_ref().expect("failed workflow");
-                Some(crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() })
-            }
-            Some(landing::Verdict::Fault(_) | landing::Verdict::Passed | landing::Verdict::Running) | None => None,
-        },
-        fault: match follow.outcome {
-            Some(landing::Verdict::Fault(fault)) => Some(fault),
-            Some(landing::Verdict::Failed | landing::Verdict::Passed | landing::Verdict::Running) | None => None,
-        },
-    });
+    let next = match &row.flight {
+        Some(flight) => flight.next,
+        None => None,
+    };
+    row.flight = Some(follow.progress(next));
 }
+
 fn fault_words(run: &p::Run, workflow: &[u8], fault: landing::Fault) -> Box<[u8]> {
     let words: &[u8] = match fault {
         landing::Fault::SetUp => b"set-up",
@@ -926,7 +866,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         out,
     );
 }
-fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
     let result = row.result.as_ref().expect("terminal receipt");
     let run = row.record.run.as_ref().expect("live range");
     let next = if row.received {
@@ -963,7 +903,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
                 wait(row.task.expect("tier task"), out);
                 return;
             };
-            red::landed(d, row, &newly_red, &logs, out);
+            red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
@@ -1127,7 +1067,7 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                finish(d, env, &mut row, out);
+                finish(d, env, &mut row, heard.message_bytes, out);
             }
         }
     } else {

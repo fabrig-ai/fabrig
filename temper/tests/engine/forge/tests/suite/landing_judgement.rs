@@ -106,6 +106,7 @@ fn exact_reviews_and_checks_wait_at_the_round_pull_beside_tests_and_survive_rest
         assert_ne!(Some(target.pull), world.change(CHANGE).pull);
         let workspace = world
             .workspace_item(top::items::Seed {
+                project: landings::PROJECT,
                 modify: false,
                 task: 71,
                 parent: Some(CHANGE),

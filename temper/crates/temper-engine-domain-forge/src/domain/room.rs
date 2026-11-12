@@ -85,15 +85,8 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     if d.changes.len() != env.limits.changes {
         return;
     }
-    if !d.droppable(task) {
-        if !d.droppable_last(task) {
-            return;
-        }
-        for (number, _) in &d.changes {
-            if d.droppable(*number) {
-                return;
-            }
-        }
+    if !d.droppable(task) && !d.droppable_last(task) {
+        return;
     }
     let row = d.changes.remove(&task).expect("droppable row exists");
     emit(out, Request::Erase { key: Key::Change(task) });
@@ -104,7 +97,7 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     d.change_due.remove(&task);
     d.goal_files.remove(&task);
     d.review_facts.remove(&task);
-    d.review_since.remove(&task);
+    d.review_heads.remove(&task);
     d.review_requests.remove(&task);
     connection_wait::take(d, task);
     let mut steps = List::with_capacity(d.steps.len());

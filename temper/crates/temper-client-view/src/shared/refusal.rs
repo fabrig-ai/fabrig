@@ -108,12 +108,14 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
         | c::Refusal::ProgramNameReserved
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
+        | c::Refusal::LiveTasks { .. }
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
         | c::Refusal::Provider => None,
     };
     let head = words.say_word(jig_client::words::Word::refusal(value), hole.as_slice());
+    let head = live_tasks_words(head, value);
     let after = if let c::Refusal::Role { held: None } = value {
         Some(words.say_card(P::NoHeldRole, &[]))
     } else if answer && let c::Refusal::Moved { .. } = value {
@@ -123,6 +125,23 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
     };
     Feedback { head, refused: true, after }
 }
+/// Append the live roots as task names without changing jig's refusal phrase.
+pub(crate) fn live_tasks_words(mut head: Box<[u8]>, value: &c::Refusal) -> Box<[u8]> {
+    if let c::Refusal::LiveTasks { tasks, more } = value {
+        let mut first = true;
+        for task in tasks {
+            let number = skein_lib::Decimal::of(*task);
+            head = crate::accounts::words::join(&[&head, if first { b" T" } else { b", T" }, number.as_bytes()]);
+            first = false;
+        }
+        if *more != 0 {
+            let number = skein_lib::Decimal::of(u64::from(*more));
+            head = crate::accounts::words::join(&[&head, b", and ", number.as_bytes(), b" more"]);
+        }
+    }
+    head
+}
+
 /// A failed send in jig's words (temper/docs/design/client/pages/README.md).
 pub(crate) fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -> Option<Feedback> {
     let head = match outcome {
@@ -170,6 +189,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
             | Address::Inbox { .. }
             | Address::Chats { .. }
             // page-view: draw Remembered.
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits

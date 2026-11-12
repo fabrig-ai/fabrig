@@ -269,12 +269,13 @@ fn card_view(
         Item::Change(task) => change(b, root, words, bindings, task),
         Item::Chat(task) => chat(b, root, words, bindings, times, task, false),
         Item::Draft(task) => chat(b, root, words, bindings, times, task, true),
+        Item::Landed(index) => landed_draft(b, root, words, bindings, times, project, index),
     }
     if !card.changes.is_empty() {
         b.open(Role::List);
         b.style(look::WORK_ROWS);
-        for task in &card.changes {
-            change_row(b, root, words, bindings, times, *task);
+        for row in &card.changes {
+            change_row(b, root, words, bindings, times, row);
         }
         b.close();
     }
@@ -423,6 +424,92 @@ fn chat(
         linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
     }
 }
+fn landed_draft(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    project: u32,
+    index: u32,
+) {
+    let Some(page) = root.pages().drafts() else { return };
+    let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
+    let Some(row) = panel.drafts().get(index) else { return };
+    let file = temper_client_domain::pages::goal::file_of(row.path());
+    let dir = row.path().strip_suffix(file).expect("file is the last segment");
+    let dir = if dir.is_empty() { crate::accounts::words::join(&[row.name(), b"/"]) } else { dir.into() };
+    b.open(Role::Paragraph);
+    b.style(look::WORK_FROM);
+    text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
+    separated(b, words, file);
+    separated(b, words, &words.say(Word::WorkLandedIn, &[Hole::Name(dir)]));
+    separated(
+        b,
+        words,
+        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at())))]),
+    );
+    b.close();
+    if !row.title().is_empty() {
+        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+    }
+    let Some(me) = root.pages().me(root.client()) else { return };
+    let ways = super::goals::ways(me, project, words);
+    if ways.is_empty() {
+        return;
+    }
+    let configured = root.forge().ways(project);
+    let mut recommended = None;
+    for way in &ways {
+        if let Some(configured) = configured
+            && configured.way == way.number
+        {
+            recommended = Some(way);
+        }
+    }
+    let draft = work::LandedDraft::row(row);
+    b.open(Role::Slot);
+    b.style(look::WORK_CHOICES);
+    match recommended {
+        Some(way) => {
+            let label = words.say(Word::WorkStartWay, &[Hole::Name(way.name.clone())]);
+            let project = super::project_name(Some(me), project)
+                .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
+            let small = words.say(Word::WorkProjectWay, &[Hole::Name(project)]);
+            match words.shell {
+                Shell::Browser => draft_choice(b, bindings, &label, Some(&small), draft.clone(), true, true),
+                Shell::Terminal => {
+                    draft_choice(b, bindings, &label, None, draft.clone(), true, true);
+                    text(b, Role::Text, look::WORK_WAY, &small);
+                }
+            }
+            draft_choice(b, bindings, &words.say(Word::WorkAnotherWay, &[]), None, draft, false, false);
+        }
+        None => draft_choice(b, bindings, &words.say(Word::WorkStartGoal, &[]), None, draft, false, true),
+    }
+    b.close();
+}
+fn draft_choice(
+    b: &mut Builder,
+    bindings: &mut Bindings,
+    label: &[u8],
+    small: Option<&[u8]>,
+    draft: work::LandedDraft,
+    start: bool,
+    recommended: bool,
+) {
+    b.open(Role::Button);
+    b.style(look::WORK_CHOICE);
+    if recommended {
+        b.style(look::WORK_RECOMMENDED);
+    }
+    b.name(label);
+    b.bind(bindings.insert(Act::OpenLanded { draft, start }));
+    if let Some(small) = small {
+        text(b, Role::Text, look::WORK_WAY, small);
+    }
+    b.close();
+}
 fn chat_line(root: &Domain, task: u64) -> Option<&c::TaskLine> {
     let chats = root.pages().chats()?;
     for line in &chats.live(root.client())?.rows {
@@ -468,19 +555,27 @@ fn queue_word(index: usize, words: &Words) -> Box<[u8]> {
         )
     }
 }
-fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, task: u64) {
+fn change_row(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    row: &work::Row,
+) {
+    let task = row.task;
     let Some(panel) = panel(root) else { return };
     for queue in panel.queues() {
         if let Some(flight) = queue.in_flight()
             && flight.member() == task
         {
             let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
-            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status);
+            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status, None);
             return;
         }
         for (index, row) in queue.changes().iter().enumerate() {
             if row.task() == task {
-                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_label(queue, index, words));
+                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_label(queue, index, words), None);
                 return;
             }
         }
@@ -489,7 +584,7 @@ fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bind
         if change.task() == task {
             let when = words
                 .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at())))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when);
+            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref());
             return;
         }
     }
@@ -514,7 +609,7 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
                 (goal, title)
             }
             Item::Change(task) => (task, change.title()),
-            Item::Chat(_) | Item::Draft(_) => unreachable!("landed rows are goals or changes"),
+            Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => unreachable!("landed rows are goals or changes"),
         };
         let commit = crate::public::short(&row.commit);
         let status = match origin {
@@ -531,12 +626,13 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
             )
             | None => commit.as_slice().into(),
         };
-        work_row(b, words, bindings, task, &when, title, &status);
+        work_row(b, words, bindings, task, &when, title, &status, row.signed.as_deref());
         return;
     }
 }
 
-fn work_row(
+#[expect(clippy::too_many_arguments, reason = "a work row carries its title, status and optional signers")]
+pub(crate) fn work_row(
     b: &mut Builder,
     words: &Words,
     bindings: &mut Bindings,
@@ -544,11 +640,22 @@ fn work_row(
     mark: &[u8],
     title: &[u8],
     status: &[u8],
+    signed: Option<&[u8]>,
 ) {
     b.open(Role::Item);
     b.style(look::WORK_ROW);
     text(b, Role::Paragraph, look::WORK_MONO, mark);
+    b.open(Role::Paragraph);
     link(b, words, bindings, title, Address::Task { task });
+    b.close();
+    if let Some(signed) = signed {
+        text(
+            b,
+            Role::Text,
+            look::WORK_BYLINE,
+            &crate::accounts::words::join(&[&words.say(Word::ToolSeparator, &[]), signed]),
+        );
+    }
     b.close();
     text(b, Role::Paragraph, look::WORK_BYLINE, status);
     b.close();

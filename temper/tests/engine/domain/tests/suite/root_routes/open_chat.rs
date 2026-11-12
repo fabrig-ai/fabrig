@@ -1,7 +1,7 @@
 //! temper's Open chat wiring; jig owns the lifecycle's exhaustive proofs.
 use super::*;
 use jig_client::{contract as c, shapes};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_core::{documents as d, reads};
 use jig_protocol_engine_clients as clients;
 use temper_engine_domain_world::{fixtures, walking};

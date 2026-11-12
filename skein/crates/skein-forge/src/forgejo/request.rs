@@ -14,6 +14,13 @@ pub struct Repo {
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
 }
+/// One contents change, with a blob sha only when updating an existing path.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FileChange {
+    pub path: Box<[u8]>,
+    pub content: Box<[u8]>,
+    pub sha: Option<Box<[u8]>>,
+}
 /// The name and email recorded in a file commit.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Author {
@@ -135,6 +142,13 @@ pub enum Request {
     /// Deletes a repository without a document (skein/docs/design/forge/setup/forgejo.md, 1.3).
     DeleteRepository {
         at: Repo,
+    },
+    /// Changes files in one commit, authenticated as its author (temper's client/drive.md, 3.5).
+    ChangeFiles {
+        at: Repo,
+        branch: Box<[u8]>,
+        message: Box<[u8]>,
+        files: Box<[FileChange]>,
     },
     /// Commits a missing file, using the author as committer too.
     CreateFile {

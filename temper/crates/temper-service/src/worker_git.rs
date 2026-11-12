@@ -1,5 +1,5 @@
 //! Git's records at the worker layer, with identity values below the root.
-use crate::{limits, settings};
+use crate::{settings, worker_settings::Limits};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
 use skein_io::kernel;
@@ -18,7 +18,7 @@ pub(crate) struct Git {
 impl Git {
     pub fn new(
         worker: &settings::Worker,
-        own: &limits::Limits,
+        own: &Limits,
         path: &[u8],
         root: kernel::Fd,
         seed: u64,
@@ -27,8 +27,8 @@ impl Git {
         home.put(path).expect("home path");
         home.put(b"/home").expect("home suffix");
         let component = match component::Component::new(
-            &own.git_component.into(),
-            &own.checkout.into(),
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout),
             component::Settings {
                 git: worker.git.clone(),
                 home: home.finish(),
@@ -78,6 +78,8 @@ fn unfit(unfit: component::Unfit) -> Problems {
 pub(crate) fn identity(op: &git::Op) -> Option<u32> {
     match op {
         git::Op::Store { identity, .. }
+        | git::Op::CheckOut { identity, .. }
+        | git::Op::Merge { identity, .. }
         | git::Op::Fetch { identity, .. }
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
@@ -85,12 +87,10 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }
-        | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
         | git::Op::Brings { .. }
-        | git::Op::IsAncestor { .. }
-        | git::Op::Merge { .. } => None,
+        | git::Op::IsAncestor { .. } => None,
     }
 }
 /// Select only this operation's credential below the root (protocol/channel.md, 6).
@@ -107,7 +107,9 @@ pub(crate) fn pick(
     };
     let (repository_name, account) = match op {
         git::Op::Store { remote, account, .. } => (remote.as_ref(), account),
-        git::Op::Fetch { at, account, .. }
+        git::Op::CheckOut { at, account, .. }
+        | git::Op::Merge { at, account, .. }
+        | git::Op::Fetch { at, account, .. }
         | git::Op::Create { at, account, .. }
         | git::Op::Push { at, account, .. } => (at.repository.as_ref(), account),
         git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at.repository.as_ref(), &snapshot.account),
@@ -122,12 +124,10 @@ pub(crate) fn pick(
         git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }
-        | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
         | git::Op::Brings { .. }
-        | git::Op::IsAncestor { .. }
-        | git::Op::Merge { .. } => {
+        | git::Op::IsAncestor { .. } => {
             return Ok(None);
         }
     };

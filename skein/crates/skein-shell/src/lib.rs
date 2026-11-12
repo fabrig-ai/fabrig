@@ -83,6 +83,8 @@ pub use listeners::{
     ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener,
 };
 #[cfg(unix)]
+pub use posix::descriptor_writes;
+#[cfg(unix)]
 pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals};
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};
@@ -102,4 +104,4 @@ pub use terminal::{
     terminal_modes,
 };
 
-pub use table::{Argument, Command, HOME, Reach, Reached, Set, Switch, Table, TestTable, Variable, Way};
+pub use table::{Argument, Command, Front, HOME, Reach, Reached, Set, Switch, Table, TestTable, Variable, Way};

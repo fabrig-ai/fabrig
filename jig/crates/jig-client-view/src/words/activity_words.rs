@@ -44,6 +44,12 @@ pub enum ActivityPhrase {
     AgentTries,
     LostTries,
     InvalidTries,
+    NowWritten,
+    TalkOpened,
+    TalkEnded,
+    TalkLapsed,
+    SessionTalk,
+    SessionLeft,
     RunEnded,
     Spent,
     Parked,
@@ -123,7 +129,7 @@ pub enum ActivityPhrase {
     NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 112] = [
+pub const ALL: [ActivityPhrase; 118] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -159,6 +165,12 @@ pub const ALL: [ActivityPhrase; 112] = [
     ActivityPhrase::AgentTries,
     ActivityPhrase::LostTries,
     ActivityPhrase::InvalidTries,
+    ActivityPhrase::NowWritten,
+    ActivityPhrase::TalkOpened,
+    ActivityPhrase::TalkEnded,
+    ActivityPhrase::TalkLapsed,
+    ActivityPhrase::SessionTalk,
+    ActivityPhrase::SessionLeft,
     ActivityPhrase::RunEnded,
     ActivityPhrase::Spent,
     ActivityPhrase::Parked,
@@ -280,6 +292,12 @@ impl ActivityPhrase {
             Self::AgentTries => 7232,
             Self::LostTries => 7233,
             Self::InvalidTries => 7234,
+            Self::NowWritten => 7318,
+            Self::TalkOpened => 7313,
+            Self::TalkEnded => 7314,
+            Self::TalkLapsed => 7315,
+            Self::SessionTalk => 7316,
+            Self::SessionLeft => 7317,
             Self::RunEnded => 7235,
             Self::Spent => 7236,
             Self::Parked => 7237,
@@ -383,6 +401,12 @@ impl ActivityPhrase {
             | Self::Retry
             | Self::Narrowed
             | Self::Changed
+            | Self::NowWritten
+            | Self::TalkOpened
+            | Self::TalkEnded
+            | Self::TalkLapsed
+            | Self::SessionTalk
+            | Self::SessionLeft
             | Self::RunEnded
             | Self::Parked
             | Self::Finished
@@ -518,6 +542,12 @@ impl ActivityPhrase {
             Self::AgentTries => b"Agent failures: ",
             Self::LostTries => b"Lost failures: ",
             Self::InvalidTries => b"Invalid failures: ",
+            Self::NowWritten => b"Wrote its Now:",
+            Self::TalkOpened => b"Talk opened by",
+            Self::TalkEnded => b"Talk ended",
+            Self::TalkLapsed => b"Talk lapsed",
+            Self::SessionTalk => b"by a talk",
+            Self::SessionLeft => b"as its person left",
             Self::RunEnded => b"Run ended",
             Self::Spent => b"Spent: ",
             Self::Parked => b"End: parked",

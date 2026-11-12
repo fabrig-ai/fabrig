@@ -201,7 +201,7 @@ impl Forge {
                 match event {
                     fake::Event::Domain(event) => {
                         let mut replies = Queue::uncapped();
-                        let env = Env { now: self.env.now, wall: Wall::EPOCH, limits: self.config };
+                        let env = Env { now: self.env.now, wall: Wall::EPOCH, limits: self.config.clone() };
                         git::step(&mut self.git, &env, event, &mut replies);
                         git::fire(&mut self.git, &env, &mut replies);
                         while let Some(reply) = replies.pop() {
@@ -717,6 +717,7 @@ fn adopt_first(forge: &mut Forge, service: &mut crate::Service) {
 fn approval_value(people: u32) -> domain::settings::Value {
     use domain::settings::{LandingRule, RuleApproval, RuleGate, Value};
     Value::Rule(LandingRule {
+        sets: Box::new([]),
         pattern: domain::GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: domain::GateLast::Open(Box::new([])),

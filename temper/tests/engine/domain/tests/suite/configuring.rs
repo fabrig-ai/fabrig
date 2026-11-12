@@ -415,12 +415,14 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     }
     config.core.settings.endpoints = Box::new([
         jig_domain_core::EndpointFacts {
+            direct: Box::new([]),
             providers: Box::new([]),
             number: 1,
             dialect: models[0].dialect,
             program: None,
         },
         jig_domain_core::EndpointFacts {
+            direct: Box::new([]),
             providers: Box::new([]),
             number: 2,
             dialect: models[0].dialect,
@@ -1159,6 +1161,7 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
     changed["up_to_date"] = json!(false);
     changed["gates"] = json!([]);
     let value = temper_engine_domain_forge::settings::Value::Rule(temper_engine_domain_forge::settings::LandingRule {
+        sets: Box::new([]),
         pattern: temper_engine_domain_forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: temper_engine_domain_forge::GateLast::Open(Box::default()),
@@ -1633,6 +1636,10 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
 }
 
 fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
+    adopt_repository_as(world, project, name, key, temper_engine_domain_forge::Role::Owned);
+}
+
+fn adopt_repository_as(world: &mut World, project: u32, name: &[u8], key: u8, role: temper_engine_domain_forge::Role) {
     use temper_engine_domain_forge as forge;
     world.driver.send(Event::Party(PartyInput::Application {
         scope: people::ApplicationScope::Project(project),
@@ -1652,7 +1659,7 @@ fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
             ci: true,
             landing: b"main".as_slice().into(),
             prefix: b"temper/".as_slice().into(),
-            role: forge::Role::Owned,
+            role,
         })),
     }));
     world.driver.settle();
@@ -1753,11 +1760,11 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
             let number = item["setting"]["number"].as_u64().expect("charter number");
             let mut value = settings_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
             value["number"] = json!(number);
-            let mut instructions = vec![item["set"]["instructions"].as_str().expect("shared instructions")];
-            if let Some(parts) = item["set"].get("parts") {
-                for part in parts.as_array().expect("reference parts") {
-                    instructions.push(part["instructions"].as_str().expect("part instructions"));
-                }
+            let stock = crate::stock::defaults(10_660);
+            let charter = crate::reference_settings::charter(&stock, u32::try_from(number).expect("charter number"));
+            let mut instructions = vec![std::str::from_utf8(&charter.policy.instructions).expect("stock instructions")];
+            for part in &charter.parts {
+                instructions.push(std::str::from_utf8(&part.instructions).expect("stock part"));
             }
             value["instructions"] = json!(instructions.join("\n\n"));
             // The fixture has no parts; transport preserves every part's words together.
@@ -1856,7 +1863,7 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 13; // The stock, reference settings and the world's settings charter.
+    bounds.tasks.charters = 16; // The stock, reference settings and the world's settings charter.
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;
@@ -2090,7 +2097,7 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         bounds.loads.bytes = 131_072;
         bounds.loads.reply_bytes = 131_072;
         bounds.loads.transcript_bytes = 131_072;
-        bounds.tasks.charters = 11;
+        bounds.tasks.charters = 17;
         bounds.authority.segments = 8;
         bounds.call_records = 64;
         bounds.forge.named_calls = 64;
@@ -2431,4 +2438,229 @@ fn assert_review_settings(world: &mut World, run: &engine::Assignment, proposal:
         panic!("settings review")
     };
     assert_eq!(items.iter().map(|item| item.setting).collect::<Vec<_>>(), expected);
+}
+
+#[test]
+fn project_area_owners_are_judged_from_the_core() {
+    use temper_engine_domain_forge::settings::{Area, AreaOwner, ProjectAreas, ProjectTriager, Value};
+    use temper_engine_domain_world::kinds;
+    for case in 0_u8..9 {
+        let mut owner_limits = limits();
+        owner_limits.tasks.charters = 14; // The owner is valid at this bound without a charter value.
+        let mut world = World::with_limits(member_config(), &owner_limits);
+        world.member();
+        let people::Reply::SignedIn { person: member, .. } = *world.reply(11) else { panic!("signed in") };
+        let run = world.chat(ASK_TEMPLATE, world.owner, 2);
+        let roles = owner_limits.authority.roles;
+        let charters = owner_limits.tasks.charters;
+        let (owner, accepted, label) = match case {
+            0 => (AreaOwner::Task(u64::MAX), false, format!("task {}", u64::MAX)),
+            1 => (AreaOwner::Party(u64::MAX), false, format!("party {}", u64::MAX)),
+            2 => (AreaOwner::Role(roles), false, format!("role {roles}")),
+            3 => (AreaOwner::Charter(0), false, "charter 0".into()),
+            4 => (AreaOwner::Charter(charters + 1), false, format!("charter {}", charters + 1)),
+            5 => (AreaOwner::Task(run.task), true, format!("task {}", run.task)),
+            6 => (AreaOwner::Party(member), true, format!("party {member}")),
+            7 => (AreaOwner::Role(0), true, "role 0".into()),
+            8 => (AreaOwner::Charter(14), true, "charter 14".into()),
+            _ => unreachable!("nine owner cases"),
+        };
+        let mut key = 20_u8;
+        for (kind, value, subject) in [
+            (
+                14,
+                Value::ProjectAreas(ProjectAreas {
+                    areas: Box::new([Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"vsr's C tests".as_slice().into(),
+                        owner,
+                    }]),
+                }),
+                "area tests",
+            ),
+            (15, Value::ProjectTriager(ProjectTriager { owner }), "triager"),
+        ] {
+            let before = world.head().number;
+            let rows = world.settings_rows();
+            let item = kinds::item(kind, PROJECT, 1, &value);
+            key += 1;
+            world.driver.send(kinds::change(world.owner, before, key, Box::new([item])));
+            world.driver.settle();
+            if accepted {
+                assert_eq!(world.head().number, before + 1, "{subject}: {label}");
+            } else {
+                let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) =
+                    world.reply(key)
+                else {
+                    panic!("owner refused: {:?}", world.reply(key))
+                };
+                let why = String::from_utf8_lossy(why);
+                assert!(why.contains(subject) && why.contains(&label), "{why}");
+                assert_eq!(world.settings_rows(), rows, "refusal writes nothing");
+            }
+        }
+    }
+    for (kind, subject) in [(14, "areas"), (15, "triager")] {
+        let mut world = World::stock();
+        let mut key = 30_u8;
+        let before = world.head().number;
+        key += 1;
+        let items = Box::new([s::Item {
+            setting: s::Setting::Application { kind, scope: PROJECT, number: 1 },
+            edit: s::Edit::Set(s::Value::Application(Box::new([255]))),
+        }]);
+        world.driver.send(Event::Party(PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.owner,
+            key: [key; 16],
+            digest: [key; 32],
+            kinds: Box::new([]),
+            change: Box::new(s::Change { against: before, items, running: s::Running::Stays }),
+        }));
+        world.driver.settle();
+        let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key)
+        else {
+            panic!("malformed value refused: {:?}", world.reply(key))
+        };
+        assert!(String::from_utf8_lossy(why).contains(subject));
+        for edit in [s::Edit::Removed, s::Edit::Reset] {
+            key += 1;
+            world.change(
+                world.head().number,
+                key,
+                Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit }]),
+            );
+        }
+    }
+}
+
+#[test]
+fn an_owners_follow_proposal_is_accepted_kept_and_read_after_restart() {
+    use serde_json::json;
+    use temper_engine_domain_forge as forge;
+    let mut world = World::stock();
+    world.driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
+        (b"org", b"source", 12),
+        (b"org", b"target", 13),
+    ]));
+    adopt_repository_as(&mut world, PROJECT, b"source", 28, forge::Role::Context);
+    adopt_repository(&mut world, PROJECT, b"target", 29);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let follow = json!({"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":{"person":OWNER_PERSON},"check":{"workflow":".forgejo/workflows/vsr-tests.yml","artifact":"results","format":"junit"}});
+    let items = json!([{"setting":{"kind":"follow","project":PROJECT,"number":1},"set":follow}]);
+    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+    assert_eq!(world.head().number, 1, "a proposal changes no setting");
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { review: Some(settings), .. } = review.action else {
+        panic!("follow review")
+    };
+    assert_eq!(settings.items.len(), 1);
+    assert_eq!(settings.items.get(0).unwrap().setting, s::Setting::Application { kind: 12, scope: PROJECT, number: 1 });
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let mut expected = follow;
+    expected["source"]["branch"] = json!("main");
+    expected["source"]["paths"] = json!([]);
+    expected["target"]["branch"] = json!("main");
+    expected["start"] = json!("owner");
+    let (text, _) = see_whole(&mut world.driver, &run, 2, "settings follow 1");
+    assert!(text.contains("vsr-tests.yml"), "accepted follow kept and readable: {text}");
+    let read: serde_json::Value = serde_json::from_str(text.lines().nth(1).expect("follow JSON")).unwrap();
+    assert_eq!(read, expected);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    restart_stock_world(&mut world, &next);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = see_whole(&mut world.driver, &next, 10, "settings follow 1");
+    let read: serde_json::Value = serde_json::from_str(text.lines().nth(1).expect("restored follow JSON")).unwrap();
+    assert_eq!(read, expected);
+}
+
+#[test]
+fn an_owners_dependency_proposal_is_accepted_kept_and_read_after_restart_and_target_removal() {
+    use serde_json::json;
+    let mut world = repository_projects();
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let dependency = json!({"project":2});
+    let items = json!([{"setting":{"kind":"dependency","project":PROJECT,"number":1},"set":dependency}]);
+    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+    assert_eq!(world.head().number, 1);
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { review: Some(settings), .. } = review.action else {
+        panic!("dependency review")
+    };
+    assert_eq!(settings.items.len(), 1);
+    assert_eq!(settings.items.get(0).unwrap().setting, s::Setting::Application { kind: 13, scope: PROJECT, number: 1 });
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = see_whole(&mut world.driver, &run, 2, "settings dependency 1");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("dependency JSON")).unwrap(),
+        dependency
+    );
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    restart_stock_world(&mut world, &next);
+    let (text, _) = see_whole(&mut world.driver, &next, 10, "settings dependency 1");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("restored dependency JSON")).unwrap(),
+        dependency
+    );
+    world.ask(world.owner, 22, people::Ask::RemoveProject { project: 2, grace: None });
+    assert_eq!(world.reply(22), &people::Reply::Outcome(people::Outcome::ProjectRemoved { project: 2 }));
+    // Deletion may still be draining; the dependency is retained throughout it and a restart.
+    let (text, error) = host_tool(&mut world.driver, &next, 11, b"see", br#"{"address":"settings dependency 1"}"#);
+    assert!(!error);
+    let text = std::str::from_utf8(&text).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("removed target dependency JSON"))
+            .unwrap(),
+        dependency
+    );
+    restart_stock_world(&mut world, &next);
+    let (text, error) = host_tool(&mut world.driver, &next, 12, b"see", br#"{"address":"settings dependency 1"}"#);
+    assert!(!error);
+    let text = std::str::from_utf8(&text).unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("removed target after restart JSON"))
+            .unwrap(),
+        dependency
+    );
+}
+
+#[test]
+fn a_dependency_on_itself_or_a_missing_project_refuses_the_whole_proposal() {
+    use serde_json::json;
+    for (number, project, expected) in [
+        (1, PROJECT, "dependency 1: project 1 cannot depend on itself"),
+        (1, 99, "dependency 1: project 99 is not a project of this deployment"),
+        (1, 0, "dependency 1: a value of another kind"),
+        (5, 2, "dependency 5: a number this kind does not have"),
+    ] {
+        let mut world = repository_projects();
+        let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+        let items = json!([
+            {"setting":{"kind":"dependency","project":PROJECT,"number":2},"set":{"project":2}},
+            {"setting":{"kind":"dependency","project":PROJECT,"number":number},"set":{"project":project}}
+        ]);
+        let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+        world.ask(
+            world.owner,
+            21,
+            people::Ask::DecideProposal {
+                project: people::DEPLOYMENT,
+                proposer: people::Proposer::Task(run.task),
+                proposal,
+                decision: people::ProposalDecision::Accept,
+                running: Some(people::Running::Stays),
+            },
+        );
+        let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(21)
+        else {
+            panic!("refused dependency {expected}: {:?}", world.reply(21))
+        };
+        assert_eq!(why.as_ref(), expected.as_bytes());
+        assert_eq!(world.head().number, 1);
+        assert!(world.driver.store.rows.values().all(|record| !matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Setting(row) if row.key.kind == 13 && row.key.slot == temper_engine_domain_forge::settings::SettingSlot::Change))), "no part of a refused proposal becomes current");
+    }
 }

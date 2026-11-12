@@ -5,7 +5,11 @@ use temper_engine_domain_forge::{
     GateLast, GatePattern, JudgeFreshness,
     settings::{LandingRule, RuleApproval},
 };
-use temper_engine_domain_ways::{Laid, StockWay};
+use temper_engine_domain_ways::{Laid, StockWay, WayRole};
+
+// protocol/configuration/stock.md: the triager brought by Draft first.
+pub(super) const TRIAGER_BUDGET: u64 = 25_000;
+pub(super) const TRIAGER_WORDS: &[u8] = b"Routes what comes in to its area's owner, and triages what fits no area.";
 use temper_protocol_reaches::{Classes, Way};
 
 /// The project's three stock ways, from more of the person to more of their agents.
@@ -22,6 +26,8 @@ pub fn ways() -> Box<[StockWay]> {
             ways: None,
             classes: Some(Classes::stock(Way::YouApprove)),
             delegation: false,
+            triager: None,
+            roles: Box::default(),
         },
         StockWay {
             name: bytes::copy_of(b"Agents review"),
@@ -31,6 +37,8 @@ pub fn ways() -> Box<[StockWay]> {
             ways: None,
             classes: Some(Classes::stock(Way::AgentsReview)),
             delegation: false,
+            triager: None,
+            roles: Box::default(),
         },
         StockWay {
             name: bytes::copy_of(b"Draft first"),
@@ -45,12 +53,15 @@ pub fn ways() -> Box<[StockWay]> {
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
             classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
+            triager: Some(temper_engine_domain_forge::settings::AreaOwner::Charter(14)),
+            roles: Box::new([WayRole { charter: 14, words: bytes::copy_of(TRIAGER_WORDS), budget: TRIAGER_BUDGET }]),
         },
     ])
 }
 
 fn branch(last: GateLast, checked: bool) -> LandingRule {
     LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern { segments: Box::new([bytes::copy_of(b"branch")]), last },
         enforce: true,
         ci: checked,

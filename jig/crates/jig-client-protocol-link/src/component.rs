@@ -4,7 +4,7 @@
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
-use jig_client_protocol_wire::{self as wire, v19 as w};
+use jig_client_protocol_wire::{self as wire, v20 as w};
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -145,6 +145,9 @@ impl Link {
                 }
             }
         }
+        // Settle after the whole event: sign-out and stream loss discard held work first.
+        // This also covers cancellation and store failure releasing logical attempts.
+        self.resume_watches(out);
     }
     pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         if let Some(stream) = &self.stream
@@ -482,7 +485,9 @@ impl Link {
             version: subject.version(),
             subject: Some(subject),
             live: false,
+            admitted: false,
             closing: false,
+            held: None,
         };
         self.watches.0.insert(watch, opening).expect("checked watch capacity");
         match &self.stream {
@@ -505,8 +510,9 @@ impl Link {
     fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };
         let Some(stream) = stream.name else { return };
-        if self.attempts.len() == self.attempts.capacity() {
-            self.watches.end(watch, jig_client_domain::contract::WatchEnd::Busy, out);
+        if !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
+            let opening = self.watches.0.get_mut(&watch).expect("pending opening");
+            opening.held = Some(Token::new(opening.name));
             return;
         }
         let Some(exchange) = self.token() else {
@@ -515,6 +521,7 @@ impl Link {
         };
         let opening = self.watches.0.get_mut(&watch).expect("pending opening");
         let Some(subject) = opening.subject.take() else { return };
+        opening.held = None;
         let record = w::Open::new(self.limits.wire(), w::OpenParts { stream, watch: opening.name, subject })
             .expect("checked owned subject");
         let attempt = Attempt {
@@ -538,17 +545,18 @@ impl Link {
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::Closed, out);
             return;
         }
-        let name = opening.name;
-        let Some(stream) = &self.stream else { return };
-        let stream = stream.name.expect("sent opening has hello");
-        self.cancel_open(watch, name);
-        if self.attempts.len() == self.attempts.capacity() {
-            self.watches.end(watch, jig_client_domain::contract::WatchEnd::Dropped, out);
-            return;
-        }
-        let Some(exchange) = self.token() else { return self.drop_stream(out) };
+        let Some(order) = self.token() else { return self.drop_stream(out) };
         let opening = self.watches.0.get_mut(&watch).expect("closing watch");
         opening.closing = true;
+        opening.held = Some(order);
+    }
+    fn send_close(&mut self, watch: Token, out: &mut Queue<Request>) {
+        let Some(stream) = &self.stream else { return };
+        let stream = stream.name.expect("sent opening has hello");
+        let Some(exchange) = self.token() else { return self.drop_stream(out) };
+        let opening = self.watches.0.get_mut(&watch).expect("held closing");
+        let name = opening.name;
+        opening.held = None;
         let attempt = Attempt {
             held: None,
             token: watch,
@@ -558,6 +566,33 @@ impl Link {
         };
         self.attempts.insert(exchange, attempt).expect("checked closing exchange capacity");
         self.unwatch(exchange, stream, name, out);
+    }
+    fn resume_watches(&mut self, out: &mut Queue<Request>) {
+        for _ in 0..self.watches.0.len() {
+            if !self.has_exchange_room() || self.in_flight() >= self.limits.exchanges() {
+                return;
+            }
+            let mut first: Option<(Token, Token)> = None;
+            for (watch, opening) in &self.watches.0 {
+                if let Some(order) = opening.held {
+                    if opening.closing && !opening.admitted {
+                        continue;
+                    }
+                    if let Some((_, previous)) = first
+                        && previous < order
+                    {
+                        continue;
+                    }
+                    first = Some((*watch, order));
+                }
+            }
+            let Some((watch, _)) = first else { return };
+            if self.watches.0.get(&watch).expect("held watch").closing {
+                self.send_close(watch, out);
+            } else {
+                self.send_open(watch, out);
+            }
+        }
     }
     fn cancel_open(&mut self, watch: Token, name: u64) {
         let mut tokens = skein_lib::List::with_capacity(self.limits.exchanges());
@@ -605,18 +640,16 @@ impl Link {
         if self.watches.named(name) != Some(attempt.token) {
             return;
         }
-        if let ExchangeKind::WatchOpen { .. } = attempt.kind
-            && self.watches.0.get(&attempt.token).expect("named opening").live
-        {
-            return;
-        }
         match attempt.kind {
             ExchangeKind::WatchOpen { .. } => match w::OpenAnswer::decode(self.limits.wire(), &mut Reader::new(body)) {
                 Ok(w::OpenAnswer::NotServed(value)) => {
                     translate::envelope::not_served(&value, out);
                     self.watches.end(attempt.token, jig_client_domain::contract::WatchEnd::NotServed, out);
                 }
-                Ok(w::OpenAnswer::Admitted) => self.watches.opened(attempt.token, out),
+                Ok(w::OpenAnswer::Admitted) => {
+                    self.watches.0.get_mut(&attempt.token).expect("named opening").admitted = true;
+                    self.watches.opened(attempt.token, out);
+                }
                 Ok(w::OpenAnswer::Refused(why)) => {
                     let end = translate::watches::refused(why.why());
                     self.watches.end(attempt.token, end, out);
@@ -653,17 +686,9 @@ impl Link {
     }
     pub(super) fn failure(&mut self, attempt: Attempt, out: &mut Queue<Request>) {
         match attempt.kind {
-            ExchangeKind::WatchOpen { name } => {
-                if let Some(opening) = self.watches.0.get(&attempt.token)
-                    && opening.name == name
-                    && !opening.live
-                {
-                    self.watches.end(attempt.token, jig_client_domain::contract::WatchEnd::Dropped, out);
-                }
-            }
-            ExchangeKind::WatchClose { name } => {
+            ExchangeKind::WatchOpen { name } | ExchangeKind::WatchClose { name } => {
                 if self.watches.named(name) == Some(attempt.token) {
-                    self.watches.end(attempt.token, jig_client_domain::contract::WatchEnd::Dropped, out);
+                    self.drop_stream(out);
                 }
             }
             ExchangeKind::SignOut { generation } if generation != self.generation => {}
@@ -736,7 +761,8 @@ impl Link {
                     }
                 }
                 for watch in &pending {
-                    self.send_open(*watch, out);
+                    let opening = self.watches.0.get_mut(watch).expect("pending opening");
+                    opening.held = Some(Token::new(opening.name));
                 }
             }
             w::StreamEvent::Delivery(value) => {

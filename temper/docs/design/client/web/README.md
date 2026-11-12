@@ -90,15 +90,16 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
 
 ### 2.1 The shell
 
-- **`temper-client-shell-web`** is a `cdylib` for
-  `wasm32-unknown-unknown`, and a library on every target for its host
+- **`temper-client-shell-web`** is a library, for
+  `wasm32-unknown-unknown` and on every target for its host
   and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
   `ui/README.md`, section 2), copied from jig's reference browser shell,
   `jig-client-test-shell-web` (jig's `protocol/browser/README.md`, 3.1), with
   temper's client root, view and records in place of jig's test
   application's, and none of jig's look (`jig-client-shell-web`'s
   `look`, `jig.css`). Its modules:
-  - `lib`: the start (skein's restart part; jig's sign-in part taking
+  - `lib`: the start (the page's internal settings, below; skein's
+    restart part; jig's sign-in part taking
     the link from the address before anything is sent; the small store;
     the page with temper's look; the DOM) and the turn of skein's
     `ui/web/README.md`, 4.2; and, as jig's reference shell has it, the test
@@ -122,8 +123,9 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     the shell's turn and the journeys' replay call alike
     (`journeys.md`, section 2);
   - `journey`: a recording's records and file, its recorder and its
-    replay (`journeys.md`, sections 3 and 4); the recorder's keys and
-    save are in `lib`, under the `record` feature alone;
+    replay (`journeys.md`, sections 3 and 4), on every target; the
+    recorder's keys and save are in `lib`, installed only when the page's
+    `internal-record` is on;
   - `records`: the small store's records, `jig-client`'s and a sign-in's
     address (`../README.md`, section 4); from the
     adoption form, a pending adoption is among them, a kept
@@ -131,13 +133,35 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`../forge/records.md`);
   - `limits`: the client's limits in a browser, derived as the
     terminal's are (`../README.md`, section 2), and their sum.
-- **The feature `playground`** builds the shell for the playground in
-  the browser (`../../playground.md`, 6): skein's worker platform where the
-  shipped shell holds the browser's (skein's `ui/web/README.md`, 15), a type the
-  feature chooses, the rest of the loop unchanged; the starter, which
-  starts the world's worker and takes the printed link from what the
-  world prints; the frame; and the failure page with the session's log.
-  The shipped bundle holds none of it.
+- **A page is an entry crate on the shell:** the library holds no wasm
+  start, since a module has one and a page's crate links the library.
+  `temper-client-web-page`, a `cdylib`, is the shipped page: its start
+  calls the shell's, and the bundle is built from it (2.6).
+  `temper-playground-page` is the playground's (`../../playground.md`,
+  3 and 6): skein's worker platform where the shipped page holds the
+  browser's (skein's `ui/web/README.md`, 15), driving the shell's loop
+  through its public seam (the shell, its platform's type and its
+  report), the starter, the frame and the failure page with the
+  session's log. The shipped bundle holds none of the playground's.
+- **The page's internal settings** (`../../draft/cli.md`, section 6) are
+  query parameters of the address the page loads at, read once at its
+  start, before anything else reads the address, and taken out of it
+  then, with the history's replace the sign-in part uses, so that no
+  route, recording or link sees them. Each is on when its value is `1`,
+  and off when absent or anything else:
+  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1);
+  - `internal-small-window`: the client's limits name a conversation's
+    window of 32,768 bytes, with `long_text` and `turn_text` 32,768
+    (`testing.md`, 3, The tier's window), where they name none and
+    131,072;
+  - `internal-loopback-navigation`: skein's platform follows a
+    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
+
+  They're honoured only on a loopback origin, the page's host
+  `127.0.0.1` or `[::1]`, as the browser tier and the journeys tool
+  serve it, and ignored elsewhere. A reload is a load without them. The
+  shell's limits are given at its host's start, which the replay gives
+  the ordinary ones.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
   platform's work (jig's `protocol/browser/README.md`, 3.1).
@@ -193,14 +217,20 @@ replay says the same clocks (`../view.md`, 6).
   5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
      3.3, step 5; jig's `protocol/browser/README.md`, section 12), disallowing
      every path;
-  6. any other `GET`, the printed link's route among them: the page,
+  6. `/sw.js` and `/manifest.webmanifest`, temper's two root files,
+     fixed in its binary, `no-cache` (2.7): the service worker,
+     `Content-Type: text/javascript`, and the web app's manifest,
+     `application/manifest+json`;
+  7. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's policy,** on every answer temper gives: jig's reference
   policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
   'self'; font-src 'self'; connect-src 'self'; base-uri 'none';
-  form-action 'none'; frame-ancestors 'none'`, with `nosniff`,
+  form-action 'none'; frame-ancestors 'none'`, and temper's two
+  sources beside it, `worker-src 'self'; manifest-src 'self'`, for its
+  root files (2.7), with `nosniff`,
   `Cross-Origin-Opener-Policy: same-origin`,
   `Cross-Origin-Resource-Policy: same-origin` and `Referrer-Policy:
   no-referrer`. skein-http's own refusals, `400`, `413` and `431`, given
@@ -262,7 +292,7 @@ replay says the same clocks (`../view.md`, 6).
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
-  | `Team { project }` | `/projects/<project>/team` |
+  | `Team { project, role }` | `/projects/<project>/team`, and `?role=N` for `Some(N)` |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
@@ -512,7 +542,8 @@ without it.
   `scripts/bundle.sh`'s steps with the cargo running it (`CARGO`), from
   the workspace's root, into the nested build's directory (below):
   1. `build --locked --target wasm32-unknown-unknown -p
-     temper-client-shell-web`, with the module's profile (below);
+     temper-client-web-page`, the shipped page's entry (2.1), with the
+     module's profile (below);
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
      always optimized, as skein's `ui/web/bundle.md`, 1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
@@ -602,19 +633,20 @@ without it.
   change. `temper-service` adopts a bundle, wherever the binary got it.
   A directory configured is read as before, and the binary's is unused.
 - **The fake-backend bundle is provisioned separately.** Build it with
-  scripts/bundle.sh --loopback DIR, then start temper-box --fake-backends
+  scripts/bundle.sh DIR, then start temper-box --fake-backends
   --bundle DIR even with an empty configuration (../../protocol/configuration/directories.md,
   1). An explicit --bundle overrides source application.clients.bundle;
   otherwise that configured directory is used.
-  The ordinary embedded bundle remains loopback-free and is not used for
-  that box. Missing provision is a startup refusal explaining the bundle
+  The embedded bundle is not used for that box. Missing provision is a startup refusal explaining the bundle
   command and --bundle. Startup never builds or downloads the bundle.
   The second-embed prototype added 8,974,112 bytes in the measured dev build,
   exceeding its 5 MB limit; the provisioned path keeps that cost outside
   ordinary builds. TEMPER_INTERNAL_BUNDLE=none runs no nested browser build.
 - **`scripts/bundle.sh` stays,** for a bundle built apart: the browser
-  tier's, which turns on `loopback-navigation` (`testing.md`, 3), and a
-  developer's. The ordinary binary bundle never enables it. `scripts/install.sh PREFIX`
+  tier's and the journeys tool's, whose pages load with their internal
+  settings (2.1; `testing.md`, 3), and a developer's. It builds the
+  shipped page as the binary's build does, with no switch of its own
+  but `--release` and `--playground`. `scripts/install.sh PREFIX`
   installs the binary alone, built with `--release --locked`, and
   prints its path.
 - **Tested in both builds.** Every suite passes with and without the
@@ -630,6 +662,50 @@ without it.
   itself is a person's build, which fails loudly when its steps do; a
   change to it checks it with `TEMPER_INTERNAL_BUNDLE=embed cargo nextest
   run -p temper-box`, which the gate does not run.
+
+### 2.7 Being pushed
+
+What the browser does for Telling you (`../pages/told.md`;
+`../../domain/forge/attention.md`, section 7). Push is the browser's,
+through its push service (Web Push); the page and the module stay as
+they are, and two small root files carry the rest.
+
+- **The service worker,** `/sw.js` (2.2, step 6): a fixed script of
+  temper's, hand-written, its scope the origin's root. It does two
+  things and nothing else, with no fetch handler and no cache, so the
+  page loads as it does without it:
+  - *a push* shows a notification: its payload's JSON (`../../domain/forge/attention.md`,
+    7.2), its `title` the notification's title and its `body` its body,
+    its tag `project-N` so that a newer count replaces an older one, its
+    data the project; a payload it can't read shows "temper" and
+    "Something needs you.", since a browser shows one for every push;
+  - *a press on a notification* closes it and opens Needs you filtered
+    by its project, `Inbox { project }`'s path (`../view.md`, 3): an open
+    window of the origin, focused and sent there, or a new one.
+- **The manifest,** `/manifest.webmanifest`: `name` and `short_name`
+  "temper", `start_url` `/`, `display` `standalone`, and the paper's
+  colour of the day look as `background_color` and `theme_color`
+  (`look.md`), so that a phone may add temper to its Home Screen, which
+  iOS asks before it pushes to a web app. The page links it, `<link
+  rel="manifest">`, in its head: from skein's bundler's page if it takes
+  one, otherwise added by the shell at its start.
+- **The shell's part,** in `temper-client-shell-web`, through web-sys's
+  service worker, push and notification bindings: it reports this
+  browser's state to the domain at start and after each act (whether a
+  service worker and a push manager exist, the permission, the current
+  subscription's endpoint); and on "Turn on" it asks the permission,
+  registers `/sw.js`, subscribes with `userVisibleOnly` and the
+  deployment's key, and gives the domain the subscription's endpoint and
+  keys, which the domain sends as `AddDevice`; on "Turn off", once
+  `RemoveDevice` is answered, it drops the subscription. A browser asks
+  permission only within a person's gesture: the shell asks it inside
+  the press's own event, before anything waits.
+- **Tested** below the browser where it can be: the page and its acts
+  in the domain's and the view's tests, this browser's states given as
+  the shell would report them; the two root files' routes and headers
+  in `temper-service`'s; the shell's push calls and the service worker
+  in a browser-tier story, written and compiled, and run after landing
+  (`testing.md`).
 
 ## 3. Open questions
 

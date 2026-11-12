@@ -84,7 +84,7 @@ desktop browsers are well supported (the user, 10-26).
 | Crate | Where | What |
 |---|---|---|
 | `temper-playground` | `crates/` | the world's composition and its stories' documents; on wasm32, the worker's start |
-| `temper-client-shell-web` | `crates/` | gains the feature `playground`: skein's worker platform for the page, the starter, the frame and the failure page |
+| `temper-playground-page` | `crates/` | the page's entry, a `cdylib` for wasm32 with a bundle of its own: skein's worker platform for the shipped shell's loop, the starter, the frame, the failure page and the page's files (`index.html`, `playground.css`, `headers`) (section 6; `../client/web/README.md`, 2.1) |
 | `temper-fake-git-hosted` | `crates/` | moved from `testing/`, its fixtures staying with the tests: the fake git program the world hosts ships in it; what the composition takes from `tests/fake-checkout` moves to it too |
 | `temper-playground-world` | `tests/playground` | the stories walked natively, through the client's host (section 9) |
 
@@ -200,11 +200,12 @@ delegate's phases; the frame's speed changes how long the person waits
 
 ## 6. The page
 
-- **Built from the shipped shell,** `temper-client-shell-web` with its
-  feature `playground`, which holds skein's worker platform where the
-  shipped shell holds the browser's (skein's `ui/web/README.md`, 15): the
-  shell's platform is a type the feature chooses, and nothing else of
-  its loop changes.
+- **Built on the shipped shell,** `temper-playground-page`, a crate of
+  its own on `temper-client-shell-web`'s library, holds skein's worker
+  platform where the shipped page holds the browser's (skein's
+  `ui/web/README.md`, 15): the page gives the shell's loop its platform
+  through the shell's public seam, and nothing else of the loop changes.
+  `scripts/bundle.sh --playground` builds its bundle from it.
 - **The starter:** it shows the frame and the loading line, starts the
   worker with the story, the seed it draws and the browser's time, waits
   for the printed link among the lines the world prints, puts the

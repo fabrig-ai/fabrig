@@ -121,7 +121,7 @@ fn live_states_never_give_room_even_with_an_ending() {
         change::State::Resolving { requested: false, base },
         change::State::Repairing { requested: false, why: change::Repair::Ci },
         change::State::Landing { head },
-        change::State::Held { was: Box::new(change::State::Ended), why: change::Hold::Failed },
+        change::State::Held { was: Box::new(change::State::Producing { requested: false }), why: change::Hold::Failed },
     ] {
         let (mut d, env) = full();
         d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state = state.clone();
@@ -133,7 +133,7 @@ fn live_states_never_give_room_even_with_an_ending() {
 }
 
 #[test]
-fn dropped_last_rows_wait_until_no_settled_row_can_go() {
+fn a_root_selected_verifying_row_gives_room_beside_goal_pinned_settled_rows() {
     for state in [
         change::State::Uncleared { merge: fixtures::HEAD },
         change::State::Landed { merge: fixtures::HEAD, since: env().wall },
@@ -145,17 +145,22 @@ fn dropped_last_rows_wait_until_no_settled_row_can_go() {
         let mut other = settled();
         other.task = 52;
         other.change.task = 52;
+        other.goal = Some(70);
         d.changes.insert(52, other).unwrap();
         assert!(d.droppable_last(fixtures::CHANGE));
         assert!(d.droppable(52));
-        assert!(dropped(&mut d, &env).is_empty(), "a settled row goes first");
-        assert!(d.change(fixtures::CHANGE).is_some());
-        assert!(d.change(52).is_some());
-        d.changes.get_mut(&52).unwrap().ending = None;
         let out = dropped(&mut d, &env);
         assert!(out.contains(&Request::Erase { key: Key::Change(fixtures::CHANGE) }));
         assert!(d.change(fixtures::CHANGE).is_none());
-        assert!(d.change(52).is_some(), "a task without its ending stays");
+        assert_eq!(d.change(52).unwrap().goal, Some(70), "the live goal's settled row stays");
+        let (opening, _) = fixtures::opening();
+        d.repositories = opening.repositories;
+        let mut row = fixtures::opening_row();
+        row.task = 99;
+        row.change.task = 99;
+        super::super::step(&mut d, &env, Event::Change { row }, &mut Queue::uncapped());
+        assert!(d.change(99).is_some(), "the new change registers");
+        assert_eq!(d.changes.len(), env.limits.changes);
     }
 }
 

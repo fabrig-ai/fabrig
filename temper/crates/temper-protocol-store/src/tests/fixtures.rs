@@ -64,8 +64,19 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -141,7 +152,8 @@ fn name(random: &mut Rng) -> top::Name {
 }
 fn topic(random: &mut Rng) -> top::Topic {
     let repository = repository(random);
-    match random.below(4) {
+    match random.below(5) {
+        4 => top::Topic::Findings { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         0 => top::Topic::Landings { repository, branch: random_bytes(random) },
         1 => top::Topic::Ci { repository, head: commit(random) },
         2 => top::Topic::Pull { repository, number: random.next_u64() },
@@ -164,7 +176,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(35) {
+    match random.below(37) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -212,6 +224,14 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
+        35 => top::Key::Finding {
+            project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
+        36 => top::Key::Follow {
+            project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            follow: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -258,6 +278,7 @@ pub fn named_branch() -> top::Name {
 }
 pub fn adopted(protection: top::Protection) -> top::Stored {
     top::Stored::Repository(top::Repository {
+        contexts: Box::new([]),
         workflows: Box::new([Box::from(b"ci.yml".as_slice()), Box::from(b"lint.yml".as_slice())]),
         project: 3,
         home: true,
@@ -638,7 +659,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v11::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v16::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -696,13 +717,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v16::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
-    use crate::v11 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v16::Row {
+    use crate::v16 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -783,6 +804,7 @@ pub fn pull() -> skein_forge::api::Pull {
         ci: Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     }
 }
 
@@ -834,6 +856,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        signed: Box::new([]),
         task: 1,
         repository: REPO,
         branch: Box::new([2]),
@@ -843,6 +866,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         priority: -6,
         ci: None,
         change: Change {
+            ended_held: None,
             early: temper_engine_domain_forge_change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -886,15 +910,17 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: Some([28; 32]),
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 /// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge/change/repairs.md).
@@ -1138,4 +1164,23 @@ pub fn tier_goals() -> Box<[top::TierGoal]> {
             .unwrap();
     }
     goals.into_boxed()
+}
+
+pub fn finding() -> top::Finding {
+    top::Finding {
+        project: u32::MAX,
+        number: u32::MAX,
+        kind: top::FindingKind::Feedback,
+        severity: top::Severity::High,
+        area: Some(Box::new([b'a'; 32])),
+        state: top::FindingState::Dropped,
+        title: Box::new([b't'; 200]),
+        body: Box::new([b'b'; 4096]),
+        filer: top::Filer::Task(u64::MAX),
+        at: skein_lib::Wall::from_nanos(u64::MAX),
+        why: Some(Box::new([b'w'; 200])),
+        hander: Some(top::Filer::Party(u64::MAX)),
+        goal: Some(u64::MAX),
+        reason: Some(Box::new([b'r'; 400])),
+    }
 }

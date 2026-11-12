@@ -11,7 +11,7 @@ next start. To end it, use the line client with the same directory
 and engine.
 
 `temper box` in a terminal runs this TUI in front (temper help box),
-signed in with nothing pasted. Its welcome shows the box's link for a
+downloading `temper-box` once for this build if needed, signed in with nothing pasted. Its welcome shows the box's link for a
 browser on this machine. In front, Ctrl+C or `/quit` stops the box too,
 asking first while work runs. `temper-box` runs the box without it.
 

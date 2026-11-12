@@ -2,7 +2,7 @@
 /// Template numbers used by the literal wire fixtures.
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{Duration, List, Writer};
 mod owner;
 pub use owner::*;
@@ -112,6 +112,8 @@ pub fn task_record() -> w::Task {
     w::Task::new(
         &lim,
         w::TaskParts {
+            talk: None,
+            session: None,
             dependency_facts: List::with_capacity(0),
             kept_account: None,
             run_wait: None,

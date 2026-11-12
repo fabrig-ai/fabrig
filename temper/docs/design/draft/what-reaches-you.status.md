@@ -1,6 +1,6 @@
 # what-reaches-you: status
 
-2026-11-09. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+2026-11-12. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
 
 Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
@@ -11,19 +11,27 @@ table is 5.13's *What reaches you*, the three columns `surfaces.md`,
 section 7, draws, milestone P3b, in place of Settings' section and its
 checks. `what-reaches-you.md`, section 8 is carried by
 `../client/pages/README.md`, **Only you**, and 5.5, *Each state*,
-milestone N3a, but for lag 8. Where the code lags them is their status
+milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
+`../protocol/configuration/engine.md`'s `sets`,
+`../protocol/configuration/settings.md`, 2 and 3,
+`../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
+`../domain/forge/change/questions.md`, 2, `../domain/landing.md`, 8,
+`../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
+milestone N2, and who can still sign a waiting sign-off by
+`../domain/forge/change/questions.md`, 2, *Who can still sign*, and
+`../client/forge/README.md`, 4.1, *Its context*, milestone N5, and by
+`../domain/forge/change/branch-path.md`'s *A rule by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
+2's *Rules by path*, milestone P3c, and the sign-offs a merge counted, kept with its landing
+for Work, Team and the brief, by `../domain/forge/change/gates.md`, 2,
+*Sign-offs kept at landing*, milestone N6. Where the code lags them is their status
 files'.
 
 - **Design lags:**
   - 4: `../domain/forge/attention.md`, 6 judges the
     paths a call names alone, not those its asker's change touches at its
-    head: the forge reads a change's paths with rules by path, `what-reaches-you.md`, section 7,
-    N2 of `whole-story.execution.md`.
-  - 7: a landing rule names no path set (`../protocol/configuration/engine.md` and `../protocol/configuration/settings.md`, section 3
-    ); `../domain/forge/change/gates.md`, 2 reads no paths a change
-    touches from its merge base, and 8.12's line names none; 8.12 and
-    `what-reaches-you.md`, section 9 leave a change waiting on a person's approval first in its
-    branch's queue, holding every landing behind it.
+    head, which the forge reads for rules by path alone
+    (`../domain/forge/change/gates.md`, 2, *What a change touches*):
+    N1's repair's.
   - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line
@@ -35,13 +43,24 @@ files'.
     must be replaced, and a person task asking an act stays among the
     cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
-  - 9: `../client/pages/settings.md`, 2's *Telling you* is disabled; no design
-    holds a service worker, a push or a digest (`../client/web/README.md`),
-    nor mail settings (`../protocol/configuration/README.md`); no design serves
-    the web client over HTTPS at a deployment's name for a phone, keeps a
-    VAPID key pair among the deployment's secrets
-    (`../protocol/credentials.md`), or has `temper ctl me push add`.
+  - 9: carried by `../domain/forge/attention.md`, section 7,
+    `../client/pages/told.md`, `../client/web/README.md`, 2.7,
+    `../protocol/configuration/engine.md`'s `push` and
+    `../client/ctl/tools.md`'s `push` tools, milestone N3b of
+    `whole-story.execution.md`, but for these. Mail where push can't
+    reach and the digest are designed (`../domain/forge/attention.md`,
+    7.4) and not built: N3b's nice part, left when push took the six
+    changes the milestone was given. A sign-off's wait
+    (`../domain/forge/change/questions.md`, 2) pushes nothing, being no
+    jig need; its push is not built. No design runs a fake push
+    service as a box's process for the walk (`../testing/fakes.md`,
+    section 6, has it in the worlds alone).
   - 10: `../../development/acceptance.md` holds no story of it.
+- **Design departs:** 9, decided by N3b's designer, goal 492, on
+  2026-11-11: a device is registered by `temper ctl push add FILE`, not
+  `temper ctl me push add`, because `me` is a read and the tools' parser
+  takes one group and one verb (`../client/ctl/tools.md`, 1); its
+  `push list` and `push remove` sit beside it.
 - **Design departs:** 6, decided by the client's designer for
   `ui-reaches` on 2026-11-08 (the request leaves such calls to
   temper/ui): Needs you's unfiltered page reads the rows of at most four

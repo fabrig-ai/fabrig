@@ -444,3 +444,33 @@ fn the_same_snapshot_always_gives_the_same_decision() {
         assert_eq!(decide(&landing, &facts()), decide(&landing, &facts()));
     }
 }
+
+#[test]
+fn a_single_landing_keeps_its_candidate_and_merges_without_a_round_pull() {
+    let mut landing = turn();
+    landing.round = crate::Round::new(Box::new([]));
+    let f = facts();
+    let next = decide(&landing, &f);
+    assert_eq!(next.decision, Decision::Merge { member: 0, candidate: HEAD });
+    assert!(next.landing.round.branch.is_empty());
+    let mut readback = f;
+    readback.members[0].merged = Some(HEAD);
+    let next = decide(&next.landing, &readback);
+    assert_eq!(next.decision, Decision::Finish);
+    assert_eq!(next.landing.members[0].landed, Some(HEAD));
+}
+
+#[test]
+fn a_single_landing_prepares_its_member_without_opening_a_round() {
+    let mut landing = preparing();
+    landing.round = crate::Round::new(Box::new([]));
+    let mut f = facts();
+    f.members[0].contains_main = Status::Failed;
+    let next = decide(&landing, &f);
+    assert_eq!(next.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
+    assert!(next.landing.round.branch.is_empty());
+    f.members[0].contains_main = Status::Passed;
+    let next = decide(&next.landing, &f);
+    assert_eq!(next.landing.phase, Phase::Proving);
+    assert!(next.landing.round.pull.is_none());
+}

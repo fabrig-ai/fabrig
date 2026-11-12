@@ -1,4 +1,12 @@
-use crate::{Command, TABLE, TREE, configure_with, fake};
+use crate::{Command, TABLE, configure_with, fake};
+
+const TREE: [&skein_shell::Table; 5] = [
+    &TABLE,
+    &temper_engine_shell::ENGINE,
+    &temper_worker_shell::WORKER,
+    &temper_agent_shell::AGENT,
+    &temper_client_shell::CLIENT,
+];
 use skein_shell::{Reach, Set};
 
 fn bytes(words: &[&str]) -> Vec<Box<[u8]>> {
@@ -11,6 +19,10 @@ fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
+        Command::Upgrade { request, .. } => match request {
+            temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
+            temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
+        },
         Command::Usage(row) => match row.reach {
             Reach::Words(words) => words.to_vec(),
             Reach::RunAs(name) => vec![name],
@@ -22,7 +34,6 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
-        Command::TuiFront { .. } => vec!["internal", "tui"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Overview | Command::Help { .. } => vec!["help"],
@@ -49,11 +60,13 @@ fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
         (&["versions"], &["versions"]),
+        (&["upgrade", "--check"], &["upgrade", "--check", "/backup"]),
+        (&["upgrade", "--back"], &["upgrade", "--back"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),
-        (&[], &["--echo", "steps", "--no-tui"]),
-        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps", "--no-tui"]),
+        (&[], &["--echo", "steps"]),
+        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -71,7 +84,6 @@ fn every_row_parses_from_an_example() {
         (&["internal", "agent-list"], &["--list", "internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
-        (&["internal", "tui"], &["internal", "tui", "--box", "http://127.0.0.1:8367"]),
         (&["fake", "llm"], &["fake", "llm"]),
         (&["fake", "llm"], &["fake", "llm", "--document", "llm.json"]),
         (&["fake", "forge"], &["fake", "forge", "1"]),
@@ -96,16 +108,42 @@ fn every_row_parses_from_an_example() {
         assert_eq!(passed.as_ref(), arguments, "all delegated arguments are preserved");
     }
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
-    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    assert!(matches!(configured(&["--front"]).expect("front"), Command::Box { front: true, .. }));
+    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { front: false, .. }));
     for words in [
-        vec!["--no-tui", "--no-tui"],
+        vec!["--no-tui"],
+        vec!["--front", "--front"],
+        vec!["--front", "--echo", "steps"],
         vec!["--bundle", "/bundle"],
         vec!["internal", "tui"],
         vec!["internal", "tui", "--box"],
     ] {
         assert!(configured(&words).is_err(), "refused {words:?}");
     }
+}
+
+#[test]
+fn front_parses_in_both_box_forms_and_refuses_echo_steps_and_the_removed_tui() {
+    for words in [
+        vec!["--front"],
+        vec!["--front", "--echo", "none"],
+        vec!["--fake-backends", "--front"],
+        vec!["--fake-backends", "--bundle", "/bundle", "--front"],
+    ] {
+        assert!(matches!(
+            configured(&words).expect("front form"),
+            Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. }
+        ));
+    }
+    for words in [
+        vec!["--front", "--echo", "steps"],
+        vec!["--fake-backends", "--front", "--echo", "steps"],
+        vec!["--no-tui"],
+        vec!["internal", "tui", "--box", "http://127.0.0.1:8367"],
+    ] {
+        assert!(configured(&words).is_err(), "refuse {words:?}");
+    }
+    assert!(matches!(configured(&[]).expect("bare"), Command::Box { front: false, .. }));
 }
 
 #[test]
@@ -133,7 +171,7 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help", "versions"]);
+    assert_eq!(names, ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]);
     assert!(text.contains("temper-box [--config DIR]"));
 }
 
@@ -194,6 +232,7 @@ fn rows_are_within_bounds() {
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = temper_shell::table::commands_reference(&[
+        &temper_client_shell::CLIENT,
         &temper_engine_shell::ENGINE,
         &temper_worker_shell::WORKER,
         &temper_agent_shell::AGENT,
@@ -201,7 +240,7 @@ fn the_page_commands_is_what_the_table_renders() {
     ]);
     let write = temper_test_env::rewrite();
     if write {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        let path = skein_scratch::paths::tree().join("docs/help/reference/commands.md");
         std::fs::write(path, &rendered).expect("write commands reference");
         return;
     }
@@ -249,11 +288,33 @@ fn the_page_see_is_what_the_addresses_render() {
 #[test]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");
+    let directory = skein_scratch::paths::tree().join("docs/help/reference");
+    if temper_test_env::rewrite() {
+        for group in GROUPS {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within renderer's text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("reference within renderer's text bound");
+            let name = format!("ctl-{}", core::str::from_utf8(group.name).expect("group name"));
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+        return;
+    }
     let expected = GROUPS
         .iter()
         .map(|group| format!("ctl-{}", core::str::from_utf8(group.name).expect("group name")))
         .collect::<Vec<_>>();
+    if temper_test_env::rewrite() {
+        for (group, name) in GROUPS.iter().zip(&expected) {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("measured reference");
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+    }
     let mut files = std::fs::read_dir(&directory)
         .expect("reference directory")
         .map(|entry| entry.expect("reference file").path())
@@ -284,9 +345,7 @@ fn every_ctl_group_page_is_what_the_table_renders() {
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
         let path = directory.join(name).with_extension("md");
-        if temper_test_env::rewrite() {
-            std::fs::write(path, &rendered).expect("write group reference");
-        } else {
+        if !temper_test_env::rewrite() {
             assert_eq!(
                 std::fs::read_to_string(path).expect("group page"),
                 rendered,
@@ -317,6 +376,7 @@ fn arguments_and_environment_documents_are_the_tables() {
         ("temper-worker-env.md", temper_worker_shell::WORKER.environment_document(&TREE)),
         ("temper-agent-args.md", temper_agent_shell::AGENT.arguments_document()),
         ("temper-agent-env.md", temper_agent_shell::AGENT.environment_document(&TREE)),
+        ("temper-env.md", temper_client_shell::CLIENT.environment_document(&TREE)),
         ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
     ];
     let write = temper_test_env::rewrite();

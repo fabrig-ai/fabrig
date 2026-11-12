@@ -495,6 +495,36 @@ a domain the caller lends, with no io.
   branches, pulls and commits are the world's: they are what its stories
   read.
 
+### 1.7 Its state, kept
+
+Beside the domain's image (`forge.md`, 2.7), for an owner that keeps the
+fake across restarts (`forge.md`, 5): `Service::image(&self) -> Box<[u8]>`
+and `Service::restore(&mut self, bytes: &[u8]) -> Result<(),
+image::Refusal>`, in the layer's own format, on a service built from the
+same configuration.
+
+- **What it keeps:** the App as it stands, its key's revocation and its
+  permissions, events and webhook secret; the accounts, the signed-in
+  person and the person's tokens; the repositories' metadata and
+  protection's display facts; the installations, their reach,
+  suspension and times, each minted token with its grant, its expiry on
+  the wall clock and its mint number, and the counters; the browser
+  pages' store, its manifests, codes with their expiry and use, the
+  setup URL and the key's rotation; the delivery log, its entries,
+  signatures, visibility times and ids; the job logs' signing key and
+  origins; and each of the layer's `Rng` streams' state, so that ids
+  and tokens minted after a restart are those it would have minted.
+- **What it drops:** what lasts a connection or a launch: posts queued
+  and not yet delivered, which are lost as a delivery that cannot be
+  written is (`forge.md`, 5); the git-call records; the rate headers'
+  snapshots and the JWT verification cache, which fill again; the job
+  logs' request records.
+- **Times on the wall clock** stay as they were: a token or a code
+  whose expiry passed while the fake was stopped is expired after it,
+  as github.com's would be.
+- **A refusal,** an image that does not decode or holds past the
+  layer's limits, names what, and the service is left as it was built.
+
 ## 2. GitHub's conformance
 
 `tests/forge/github` is a tool beside `forge.md`, section 7's. It runs the same

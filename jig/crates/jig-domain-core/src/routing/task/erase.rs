@@ -211,7 +211,10 @@ fn erase_reply(record: &tasks::TaskRecord, value: &crate::Record, out: &mut Queu
         | tasks::Line::RunBegan { .. }
         | tasks::Line::RunEnded { .. }
         | tasks::Line::Decided { .. }
+        | tasks::Line::NowWritten { .. }
         | tasks::Line::Stood { .. }
+        | tasks::Line::TalkOpened { .. }
+        | tasks::Line::TalkEnded { .. }
         | tasks::Line::SessionEnded { .. }
         | tasks::Line::Kept { .. }
         | tasks::Line::Milestone { .. } => None,
@@ -301,6 +304,7 @@ fn forget_party(core: &mut Core, env: &Env<Limits>, record: &tasks::TaskRecord, 
             | people::Request::Reply { .. }
             | people::Request::Save { .. }
             | people::Request::RolesRefused { .. }
+            | people::Request::NeedArrived { .. }
             | people::Request::RestoreRefused { .. } => {
                 unreachable!("forget only removes read positions")
             }

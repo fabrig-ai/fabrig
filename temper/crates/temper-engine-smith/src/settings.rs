@@ -59,20 +59,33 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"forge-charter",
             b"charter-words",
             b"template-goal",
+            b"follow",
+            b"dependency",
         ] {
             if kind.as_ref() == name {
                 numbered = Some(name);
             }
         }
         let mut by_project = None;
-        for name in
-            [b"project-policy".as_slice(), b"project-ways", b"project-questions", b"project-classes", b"project-words"]
-        {
+        for name in [
+            b"project-policy".as_slice(),
+            b"project-ways",
+            b"project-questions",
+            b"project-classes",
+            b"project-words",
+            b"project-areas",
+            b"project-triager",
+        ] {
             if kind.as_ref() == name {
                 by_project = Some(name);
             }
         }
-        if project.is_some() && kind.as_ref() != b"landing-rule" && by_project.is_none() {
+        if project.is_some()
+            && kind.as_ref() != b"landing-rule"
+            && kind.as_ref() != b"follow"
+            && kind.as_ref() != b"dependency"
+            && by_project.is_none()
+        {
             return Err(Problem::Range(b"project"));
         }
         if kind.as_ref() == b"rules" || by_project.is_some() {
@@ -86,6 +99,10 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         if let Some(project) = project {
             positive(project, b"project")?;
+        } else if kind.as_ref() == b"dependency" {
+            return Err(Problem::Needs { kind: b"dependency", member: b"project" });
+        } else if kind.as_ref() == b"follow" {
+            return Err(Problem::Needs { kind: b"follow", member: b"project" });
         } else if let Some(kind) = by_project {
             return Err(Problem::Needs { kind, member: b"project" });
         }
@@ -197,7 +214,7 @@ fn proposal_items(
     let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
-            if why.field == jig_client_protocol_wire::v19::Path::TemplateLlm {
+            if why.field == jig_client_protocol_wire::v20::Path::TemplateLlm {
                 return Err(Problem::Range(b"items.template.llm"));
             }
             return Err(Problem::Range(b"items"));
@@ -552,6 +569,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         | Refusal::Full { .. }
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
+        | Refusal::LiveTasks { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
         | Refusal::Kept { .. }

@@ -170,6 +170,8 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
         (CHARTER_WORDS, LINE, c::Setting::Application { kind: 9, scope: 0, number: 4 }),
         (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
+        (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
+        (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
@@ -177,6 +179,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -184,6 +187,56 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             proposed: None,
         }));
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
+    }
+}
+fn landing_sets(member: &[u8]) -> Box<[u8]> {
+    joined(&[LANDING.strip_suffix(b"}").expect("rule object"), member, b"}"])
+}
+#[test]
+fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
+    use temper_client_protocol_wire::v1 as w;
+    for (member, expected, printed) in [
+        (b"".as_slice(), b"".as_slice(), b"".as_slice()),
+        (br#","sets":[]"#, b"", b""),
+        (br#","sets":[1,3]"#, &[1, 3], br#","sets":[1,3]"#),
+        (br#","sets":[6,5,4,3,2,1]"#, &[6, 5, 4, 3, 2, 1], br#","sets":[6,5,4,3,2,1]"#),
+    ] {
+        let items =
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard()).expect("sets file");
+        let item = items.get(0).expect("one rule");
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
+        let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
+        assert_eq!(rule.sets().as_slice(), expected);
+        let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        }));
+        assert_eq!(
+            shown(&document),
+            joined(&[br#"{"setting":"#, PROJECT_RULE, br#","revision":1,"value":"#, &landing_sets(printed), b"}"])
+        );
+    }
+}
+#[test]
+fn landing_sets_refuse_wrong_types_numbers_and_counts_by_path() {
+    for (member, expected) in [
+        (br#","sets":false"#.as_slice(), b"settings file item 1: landing-rule.sets: expected array".as_slice()),
+        (br#","sets":[true]"#, b"settings file item 1: landing-rule.sets: expected unsigned integer"),
+        (br#","sets":[-1]"#, b"settings file item 1: landing-rule.sets: expected unsigned integer"),
+        (br#","sets":[256]"#, b"settings file item 1: landing-rule.sets: u8 bound"),
+        (br#","sets":[1,2,3,4,5,6,1]"#, b"settings file item 1: landing-rule.sets: bound 6"),
+    ] {
+        assert_eq!(
+            file::decode(&kind_file(PROJECT_RULE, &landing_sets(member)), &Limits::standard())
+                .expect_err("bad sets")
+                .as_ref(),
+            expected
+        );
     }
 }
 #[test]
@@ -278,14 +331,14 @@ fn landing_rule_members_past_the_given_limits_name_their_paths() {
     let mut kind_last = base;
     kind_last.kinds.landing_exact_value = 3;
     for (limits, expected) in [
-        (gates, b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
-        (approvals, b"settings file item 1: landing-rule.approvals: bound 0"),
-        (segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
-        (kind_segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (kind_segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (kind_last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (Box::new(gates), b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
+        (Box::new(approvals), b"settings file item 1: landing-rule.approvals: bound 0"),
+        (Box::new(segments), b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (Box::new(segment_bytes), b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (Box::new(last), b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (Box::new(kind_segments), b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (Box::new(kind_segment_bytes), b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (Box::new(kind_last), b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
     ] {
         assert_eq!(
             file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), &limits).expect_err("bound refusal").as_ref(),
@@ -686,13 +739,14 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
         let why = file::decode(&kind_file(PROJECT_WAYS, value), &Limits::standard()).expect_err("malformed ways");
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
     }
-    for route in [b"\"none\"".as_slice(), b"\"foreman\"", b"\"up\""] {
+    for route in [b"\"none\"".as_slice(), b"\"up\""] {
         file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, route), &Limits::standard())
             .expect("valid route");
     }
-    for value in [b"\"other\"".as_slice(), b"true", b"{}"] {
-        file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, value), &Limits::standard())
+    for value in [b"\"foreman\"".as_slice(), b"\"other\"", b"true", b"{}"] {
+        let why = file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, value), &Limits::standard())
             .expect_err("malformed route");
+        assert!(skein_lib::bytes::find(&why, b"project-questions").is_some());
     }
 }
 
@@ -710,6 +764,7 @@ fn the_settings_form_round_trips_a_model() {
     assert_eq!(model.model.input_price, 3);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: item.setting,
         revision: 2,
         value: Some(set.value.clone()),
@@ -811,4 +866,81 @@ fn a_templates_closer_reads_and_writes() {
     let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
     encode_policy_file(setting, &value, &mut out);
     assert_eq!(out.finish(), bytes);
+}
+
+#[test]
+fn follows_use_the_binding_json_form_and_default_optional_members() {
+    use temper_client_protocol_wire::v1 as w;
+    let selector = br#"{"kind":"follow","project":2,"number":1}"#;
+    let explicit = br#"{"source":{"forge":1,"repository":12,"branch":"main","paths":["src","include"]},"target":{"forge":1,"repository":13,"branch":""},"owner":{"person":4},"start":"owner","producer":"6;3.1;","check":{"workflow":".forgejo/workflows/vsr-tests.yml","artifact":"results","format":"junit"}}"#;
+    let defaults = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":{"person":4},"check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
+    for (json, optional) in [(explicit.as_slice(), false), (defaults.as_slice(), true)] {
+        let items = file::decode(&kind_file(selector, json), &Limits::standard()).unwrap();
+        let item = items.get(0).unwrap();
+        assert_eq!(item.setting, c::Setting::Application { kind: 12, scope: 2, number: 1 });
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
+        let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+        assert_eq!(record.source().repository().forge(), 1);
+        assert_eq!(record.source().repository().repository(), 12);
+        assert_eq!(record.target().repository().repository(), 13);
+        assert_eq!(record.start(), &w::FollowStart::Owner);
+        assert_eq!(record.source().paths().is_empty(), optional);
+        assert_eq!(record.source().branch().is_empty(), optional);
+        assert_eq!(record.producer().is_none(), optional);
+        assert!(record.target().branch().is_empty());
+        let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        }));
+        let text = shown(&document);
+        if !optional {
+            assert_eq!(text, joined(&[br#"{"setting":"#, selector, br#","revision":1,"value":"#, json, b"}"]));
+        }
+        let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 8192 });
+        crate::render::encode_setting(item.setting, &mut out);
+        out.measured().unwrap();
+    }
+    for selector in [br#"{"kind":"follow","number":1}"#.as_slice(), br#"{"kind":"follow","project":2}"#] {
+        file::decode(&kind_file(selector, explicit), &Limits::standard()).unwrap_err();
+    }
+}
+
+#[test]
+fn settings_files_refuse_the_retired_questions_route_by_name() {
+    let why =
+        file::decode(&kind_file(br#"{"kind":"project-questions","project":2}"#, br#""foreman""#), &Limits::standard())
+            .expect_err("retired route");
+    assert_eq!(why.as_ref(), b"settings file item 1: project-questions: none or up required");
+}
+
+#[test]
+fn dependencies_round_trip_and_require_a_numeric_project() {
+    let selector = br#"{"kind":"dependency","project":3,"number":1}"#;
+    let json = br#"{"project":7}"#;
+    let items = file::decode(&kind_file(selector, json), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 13, scope: 3, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, selector, br#","revision":1,"value":"#, json, b"}"]));
+    for (json, reason) in
+        [(b"{}".as_slice(), b"missing member".as_slice()), (br#"{"project":"7"}"#, b"expected unsigned integer")]
+    {
+        assert_eq!(
+            file::decode(&kind_file(selector, json), &Limits::standard()).unwrap_err(),
+            joined(&[b"settings file item 1: dependency.project: ", reason])
+        );
+    }
 }

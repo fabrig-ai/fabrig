@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/agent/tools.md).
 
 use alloc::boxed::Box;
-use jig_domain_core::{RunPolicy, ToolFamilies};
+use jig_domain_core::{Charter, ToolFamilies};
 use skein_lib::{Decimal, Writer};
 
 /// A run's least brief room (temper/docs/design/domain/agent/tools.md).
@@ -40,15 +40,23 @@ pub struct Short {
 }
 
 impl HostPart {
-    /// Fixed parts, declarations and policy text, with each enabled family.
+    /// Fixed parts, declarations and the instructions with every charter part joined,
+    /// with each enabled family.
     #[must_use]
-    pub fn non_brief(&self, policy: &RunPolicy) -> u64 {
+    pub fn non_brief(&self, charter: &Charter) -> u64 {
+        let policy = &charter.policy;
         let asking = crate::asking(policy.tools);
         let mut bytes = self.fixed.saturating_add(if asking { self.asking } else { self.declared });
-        if !policy.instructions.is_empty() {
-            bytes = bytes.saturating_add(skein_lib::len_u64(policy.instructions.len()));
-            // Smith ends literal instructions with a blank line.
-            bytes = bytes.saturating_add(if policy.instructions.ends_with(b"\n") { 1 } else { 2 });
+        let mut instructions = skein_lib::len_u64(policy.instructions.len());
+        let mut newline = policy.instructions.ends_with(b"\n");
+        for part in &charter.parts {
+            instructions = instructions.saturating_add(2).saturating_add(skein_lib::len_u64(part.instructions.len()));
+            newline = part.instructions.is_empty() || part.instructions.ends_with(b"\n");
+        }
+        if instructions != 0 {
+            bytes = bytes.saturating_add(instructions);
+            // Smith ends the joined literal instructions with a blank line.
+            bytes = bytes.saturating_add(if newline { 1 } else { 2 });
         }
         for (enabled, cost) in [
             (
@@ -84,14 +92,14 @@ impl HostPart {
 
     /// The host bound less the non-brief part, zero at or past the bound.
     #[must_use]
-    pub fn room(&self, policy: &RunPolicy) -> u64 {
-        self.bound.saturating_sub(self.non_brief(policy))
+    pub fn room(&self, charter: &Charter) -> u64 {
+        self.bound.saturating_sub(self.non_brief(charter))
     }
 
     /// Refuse a charter whose brief has less than its least room.
-    pub fn check(&self, charter: u32, policy: &RunPolicy) -> Result<(), Short> {
-        let room = self.room(policy);
-        if room < BRIEF_ROOM { Err(Short { charter, room, bound: self.bound }) } else { Ok(()) }
+    pub fn check(&self, charter: &Charter) -> Result<(), Short> {
+        let room = self.room(charter);
+        if room < BRIEF_ROOM { Err(Short { charter: charter.number, room, bound: self.bound }) } else { Ok(()) }
     }
 }
 
@@ -154,7 +162,19 @@ pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
     let row = u32::try_from(size_of::<crate::ApprovalRow>())
         .expect("approval row size fits u32")
         .saturating_add(limits.forge.name_bytes.saturating_mul(2))
-        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"));
+        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"))
+        .saturating_add(
+            u32::try_from(size_of::<crate::ApprovalSet>())
+                .expect("approval set size fits u32")
+                .saturating_add(40)
+                .saturating_mul(6),
+        )
+        .saturating_add(
+            u32::try_from(size_of::<crate::ApprovalPerson>())
+                .expect("approval person size fits u32")
+                .saturating_add(64)
+                .saturating_mul(16),
+        );
     limits
         .journal
         .result_bytes

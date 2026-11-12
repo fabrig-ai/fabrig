@@ -391,7 +391,7 @@ pub(crate) fn moved(
         let item = repository.items.get_mut(&number).expect("a pull request that follows the branch");
         let pull = item.pull.as_mut().expect("a pull request");
         pull.commit = to;
-        repository.touch(number, domain::clock(env));
+        repository.touch(number, domain::clock(env).max(domain.floor));
     }
     let affected = repository.on_branch(branch);
     for &number in &affected {
@@ -402,7 +402,7 @@ pub(crate) fn moved(
         };
         let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
         let item = repository.items.get_mut(&number).expect("an open pull on the branch");
-        item.pull.as_mut().expect("a pull request").checked = domain::clock(env).saturating_add(span);
+        item.pull.as_mut().expect("a pull request").checked = domain::clock(env).max(domain.floor).saturating_add(span);
     }
     domain::changed(domain, env, id, observation, Hook::push(branch, Some(to), by));
     for &number in &following {

@@ -52,7 +52,7 @@ one list of the browser bundles, read by any runner that builds them.
 The wasm target is `wasm32-unknown-unknown`. Each tool invocation uses the
 module's underscored package name, `/bundle/` prefix, and the options of
 its tree's table in the list. Temper matches
-`temper/scripts/bundle.sh --loopback`, without embedding the bundle in the
+`temper/scripts/bundle.sh`, without embedding the bundle in the
 native binary. Existing bundle outputs are rebuilt on every invocation.
 
 ### 2.1 Native binary lists
@@ -74,7 +74,7 @@ Variable names are unique within a pair. For example, an entry with
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
+lists `smith-fake-claude`'s `fake-claude` and `temper`'s `temper`:
 temper's fake-backend tests execute that adapter and the deployment's client
 story executes that client as the `temper` binary's siblings. It also lists
 `temper-engine`, `temper-worker` and `temper-agent`, which the cluster's story
@@ -135,7 +135,7 @@ native binary must not embed a person's browser bundle. Chromium, fonts and
 live sign-ins remain the caller's environment prerequisites; this tool
 installs nothing and performs no sign-in.
 
-Two settings come from that environment. Unset, each does nothing, and no
+Three settings come from that environment. Unset, each does nothing, and no
 default names a tool:
 
 - **`TIERS_WRAPPER`, the wrapper:** a command prefix, split on spaces and put
@@ -149,6 +149,49 @@ default names a tool:
 - **`TIERS_DISK_BYTES`:** the minimum free bytes on `/` before each of those
   commands, wrapper or no wrapper. Unset or empty, nothing waits. A value
   that is not a non-negative integer is a failed disk check (section 4).
+- **`TIERS_HOLD`, the hold:** a command prefix, split on spaces as
+  `TIERS_WRAPPER` is, that keeps a run's build directory from being reclaimed
+  while the run uses it, for an environment whose cargo lends a build
+  directory only while a cargo command runs. A run that builds and then runs
+  what it built after cargo has exited needs the directory between the two,
+  so the hold spans the whole run, not a command. What the hold does to keep
+  the directory is the environment's; these tools name none. Only an
+  outermost entry point that runs built executables itself takes it:
+  `tools/tiers/one-process` by hand (11.9) and `.temper/pre-pr`
+  (`tools/pre-pr/design.md`, 4); `run` and `cpu-run` take none (section 8).
+  Such an entry point:
+  1. starts the hold once, before its first cargo command, `cargo metadata`
+     included, as the prefix alone, from the checkout root, in the entry
+     point's process group and session (never one of the hold's own, so that
+     a stop of the entry point's tree stops it too), with its stdin a pipe the entry point
+     keeps open, its stdout a pipe, its stderr the entry point's;
+  2. waits for the hold's first line on stdout, whatever it says: the hold
+     is taken. Until then no cargo runs. A hold that cannot start, exits or
+     closes its stdout before that line, or gives none within 60 seconds is
+     a warning, `<entry point>: hold: <why>; going on unheld`, the entry
+     point `one-process` or `pre-pr`, and never a failure: the hold's
+     process, if alive, is killed, and the run goes on with none;
+  3. runs with `TIERS_HOLD` removed from every child's environment, so that
+     an entry point under it (one-process under pre-pr) takes no hold of its
+     own: one hold for the run;
+  4. at its end, whatever it ends in (a verdict, a failure, an
+     interruption), closes the hold's stdin, waits for the hold to exit,
+     up to 10 seconds, then kills it with `SIGKILL`.
+
+  The hold keeps the directory until its stdin ends, which the kernel also
+  gives it when the entry point dies, by `SIGKILL` too: so it is released at
+  the run's end or by its process's death. Unset or empty, nothing is
+  started and the run is as before.
+
+  So a hold program, the prefix started alone with no arguments added and
+  without `TIERS_HOLD` in its environment: keeps the directory first, then
+  writes one line, newline-ended and flushed, to its stdout within 60
+  seconds; writes nothing more there, since no one reads it after that
+  line; keeps the directory until it reads end of file on its stdin; then
+  gives it back and exits within 10 seconds. Its keeping must also end if
+  it is killed by `SIGKILL` at that point, and a signal sent to the entry
+  point's process group reaches it too. It holds no build of its own: no
+  cargo command waits on it.
 
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,
@@ -655,6 +698,12 @@ and 360 raised by half by the user's word of 11-08, for now, as
 `budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
 beyond that (7.3): what measures a tree's share of a gate suite and records
 a run over it is left for later.
+
+`run` and `cpu-run` take no hold (section 3): nextest runs their tests under
+the cargo command that built them, but a prerequisite's built tool that the
+runner runs itself (section 1) and `cpu-run`'s supervisor run after cargo has
+exited, unheld. Whether they take the hold too is left for later, until an
+environment that lends build directories runs a slow tier through them.
 
 `complete_scope` (7.2) can leave CPU out, and temper's browser tier shows a
 difference of that size with no cause found. On 2026-11-06 the collector read
@@ -1188,6 +1237,13 @@ directory, printed first; `PATH`'s limits (`budgets`) apply, none by default.
 It exits as `execute_one_process` returns, 2 for an invalid invocation or
 run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
 
+With `TIERS_HOLD` set, it takes the hold as section 3 gives it: started
+before anything else it runs, its target directory's `cargo metadata`
+included, and ended after the summary is printed, whatever the run ended in.
+Under `.temper/pre-pr`, which takes the hold itself and removes the setting,
+it takes none. `run` (11.1) and `execute_one_process` (10.2), called as a
+library, take none: the hold is the outermost entry point's.
+
 ### 11.10 Offline proof
 
 `python3 -I -B tools/tiers/test_one_process.py`, run directly as 7.4's suite
@@ -1201,6 +1257,11 @@ it, a hang past the global timeout with processes still waiting, a test that
 handles `SIGTERM` and reports a result, one that ignores it until the forced
 kill, a starved pass, a failure that passes alone and one that fails alone, a
 split binary, test groups and priorities, the environment, the refusals, the
-caller's filters and configuration, and the run directory's files.
+caller's filters and configuration, and the run directory's files. A fake
+hold among them records when it starts and when its stdin ends, beside the
+fake `cargo`'s calls: one hold, started before the first cargo command and
+ended after the last test's process; none with the setting unset or empty;
+and a hold that exits before its line leaves the warning and a run that
+goes on.
 `test_cpu.py` covers `summary`'s reading of a one-process directory, a forced
 kill's included, and the exit statuses.

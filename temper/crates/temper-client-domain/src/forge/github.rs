@@ -300,8 +300,18 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::Dismissed
                 | w::Outcome::RemoveRefused(_)
                 | w::Outcome::Reset
+                | w::Outcome::DeviceAdded(_)
+                | w::Outcome::DeviceRemoved
+                | w::Outcome::DeviceRefused(_)
                 | w::Outcome::Away
                 | w::Outcome::Tried
+                | w::Outcome::Filed(_)
+                | w::Outcome::Handed
+                | w::Outcome::Triaged
+                | w::Outcome::FindingRefused(_)
+                | w::Outcome::Drafted(_)
+                | w::Outcome::DraftRefused(_)
+                | w::Outcome::Follow(_)
                 | w::Outcome::NotTheirs
                 | w::Outcome::Overturned
                 | w::Outcome::OverturnRefused(_)

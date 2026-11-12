@@ -158,19 +158,34 @@ new to say. Its charter is the stock's 9
   With neither, its run waits, as *In flight* has it.
 - **Its run:** the procedure's first step delegates to charter 9 with the
   task's words, unlisted, no person asked (`asks` false), its authority
-  narrowed to no tools, grants, notes or delegation (as a foreman's is,
-  `change/questions.md`, 1), and no workspace: a run of this charter selects no repository. A
+  narrowed to no tools, grants, notes or delegation, and no workspace: a run of this charter selects no repository. A
   project whose policy's delegation doesn't name charter 9 has its
   delegate refused, which is a refused run. It is kept as a tier run's task
   is: jig forgets a result only for a person's request.
-- **Its words,** made by the forge, and the root adding the goals, which
-  are core's: the span since the last brief, the landed count, the titles
-  of the changes the landing log holds since the last brief (at most 20),
-  the project's live goals each with its delegates done and total, and the
-  failing tests each tier of the project's repositories holds. They say
-  only what the engine keeps.
-- **Heard** at the procedure's next step, from its inbox, as a foreman's
-  result is (`change/questions.md`, 1): the report's first paragraph is `sentence`, the rest
+- **Its words,** made by the forge, and the root adding the goals and
+  the standing roles, which are core's: the span since the last brief,
+  the landed count, the titles of the changes the landing log holds since
+  the last brief (at most 20), the project's live goals each with its
+  delegates done and total, the failing tests each tier of the project's
+  repositories holds, and each live standing role's Now. They say only
+  what the engine keeps.
+- **The roles' Nows** (`../agent/standing.md`, section 8): after the
+  goals, a line "Standing roles:", then for each of the project's live
+  standing roles, label 3, by number, at most 8, a line "Role N:" and its
+  Now's body, read as `role show` reads it, the note described `now` in
+  its scope, cut to 1,024 bytes at a character's edge, or "no Now yet".
+  The words are fitted to the spec's bound as before, the roles' part
+  cut first from its end. A Now the root cannot read is left out, and the
+  run goes on: a brief never waits on a role.
+- **Who signed** (`change/gates.md`, 2, *Sign-offs kept at landing*): a
+  title whose change kept sign-offs ends with them, by party, as "- Refund
+  amounts round half to even. (signed by person 4 and person 7)"; and,
+  after the goals, the root names each party the words name, once, by the
+  name the project's people give it, else its login, under "People who
+  signed:", as "- person 4: Sam". `Request::StatusRun` carries those
+  parties, `signers`, beside its words, the forge knowing no names. A
+  party the project no longer lists is "- person 9: no longer a member".
+- **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
   `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
   the subject `status` marked. A failed, cancelled, refused or empty run
@@ -401,7 +416,175 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
   strictly, the narrowed table still asks, and the need it raises next
   names that one.
 
-## 7. Open questions
+## 7. Being told
+
+What reaches a person while they aren't looking: a push to each device
+they turned it on for, as each need that holds work reaches them
+(`../../draft/what-reaches-you.md`, section 9). It is the person's own,
+as Away is (4): their devices are rows the connector keeps (7.1), the
+root pushes as jig's core tells it a need arrived (7.2), and the
+deployment turns push on in its configuration (7.3). Mail and the
+digest are designed (7.4) and not built.
+
+### 7.1 A person's devices
+
+- **Its row,** `Device { party, number }`, the party's own, held in
+  memory and restored whole at the restart step, at most `DEVICES`, 8,
+  a party and 8 times `bindings` in all; a row past either is refused at
+  restart, as each family's is. It holds:
+  - `endpoint`, the push service's URL for that browser's subscription,
+    1 to 1,024 bytes that skein's `Endpoint::parse` takes (skein's
+    `net/push.md`, section 2);
+  - `p256dh`, 65 bytes, and `auth`, 16 bytes, the subscription's keys;
+  - `label`, 1 to 60 bytes of UTF-8, what the person knows it by,
+    "Safari on iPhone";
+  - `at`, the wall it was added or last replaced at.
+
+  `number` is one above the party's highest, 1 with none. An endpoint
+  and its keys let whoever holds them push to that browser, so no log
+  prints them and no one but the party reads them.
+- **`AddDevice { endpoint, p256dh, auth, label }`**
+  (`../../client/forge/records.md`), of the party's own scope, is
+  admitted for a person; a service, which no need reaches, is refused
+  `person`. In the decision, at its wall, the first that holds:
+  - push off on this deployment (7.3): refused, `off`;
+  - an endpoint that doesn't parse, or whose origin isn't one of the
+    deployment's push services (7.3): refused, `service`;
+  - a `p256dh` whose first byte isn't 4, or a label empty, past its
+    bound or not UTF-8: refused, `malformed`;
+  - the party holds a row of that endpoint: its keys and label
+    replaced and `at` the wall, its number kept, as a browser
+    subscribing again does; with the same keys and label, answered with
+    nothing written;
+  - another party holds a row of that endpoint: that row erased in the
+    same decision, then the new row as below, so that a browser one
+    person signed out of and another signed in to pushes for the second
+    alone;
+  - the party at `DEVICES`, or the family at its bound: refused, `too
+    many`;
+  - otherwise the row saved under its new number.
+
+  The subject `devices` marked, answered `added { number }`, the answer
+  held behind the commit and kept as `SetAway`'s is (4).
+- **`RemoveDevice { number }`,** of the party's own scope: no such row
+  of the party's, refused `unknown`; otherwise the row erased, the
+  subject marked, answered `removed`.
+- **Its document:** the subject `devices`, one number, `DEVICES_SUBJECT`,
+  `1 << 59`, outside the task numbers, of the party's own scope. The
+  connector answers the watcher's party's rows in number order, each `{
+  number, label, at, endpoint }`, never the keys: the browser finds its
+  own row by its subscription's endpoint, and a page shows the
+  endpoint's origin alone.
+- **Erased by nothing else:** a device is no project's, and jig erases
+  no party (`../../protocol/store.md`, section 7). A member removed from
+  every project keeps theirs, and no need reaches them, so nothing is
+  pushed.
+
+### 7.2 A push
+
+- **What starts one:** jig's core tells the root each need's arrival,
+  `NeedArrived { party, project, task, needs }`, in the decision that
+  made it (jig's `domain/people/README.md`, section 8). Every need holds
+  work: a question waits for its answer, a proposal or an escalation for
+  its decision, a person task for its result. What Away decides is no
+  need, since `decided` answers before a question is asked (5), so while
+  a person is away only "always waits" and "even when away" items, and
+  questions that skip `decided`, reach them and push
+  (`../../draft/what-reaches-you.md`, section 9). A Decided row pushes
+  nothing.
+- **The root, in that decision,** asks the forge connector for the
+  arrival's pushes: one `Push` for each device the party holds, none
+  with push off or no device. The connector writes nothing for it. The
+  root holds each push as a delivery behind the decision's commit, as
+  it holds every delivery, and the service sends it once the commit is
+  durable (7.3).
+- **`Push { party, device, endpoint, p256dh, auth, topic, payload }`:**
+  - `topic`, `p` and the project's number in decimal, `p7`: a phone
+    that was offline is given the latest count of each project, not a
+    pile of them;
+  - `payload`, JSON, `{"title":"temper","body":LINE,"project":N}`:
+    `LINE` is "1 thing needs you in NAME" or "COUNT things need you in
+    NAME", `COUNT` the arrival's `needs` and `NAME` the project's name as
+    the core holds it; `N` the project's number, which the browser opens
+    Needs you at (`../../client/web/README.md`, 2.7). Never the
+    question's words, its task's title or who asked: the push service
+    carries the payload sealed, but a phone shows it on a locked screen.
+    A name that would take the payload past skein's `PAYLOAD_BYTES` is
+    cut on a UTF-8 boundary and ends "…".
+- **Sent once,** with a `TTL` of 86,400 seconds, a day, and `Urgency`
+  `high`: the service seals and posts it (skein's `net/push.md`) and
+  tells the root `Pushed { party, device, endpoint, answer }`. `Gone`
+  erases the device, in a decision of its own, where the party still
+  holds it with that endpoint, marking `devices`; every other answer
+  changes nothing. No push is sent again: a lost one costs a count that
+  the next push, or the page, gives.
+- **Bounded:** at most `PUSHES_IN_FLIGHT`, 16, being sent at once, each
+  within 10 seconds from its connection to its answer; a push past them
+  is dropped, never queued, since a burst of needs is a burst of the
+  same few counts.
+- **A sign-off's wait** (`change/questions.md`, 2) is a read of the
+  forge's, not a jig need, and pushes nothing: rules by path reshape it
+  (`../../draft/what-reaches-you.md`, section 7).
+
+### 7.3 The deployment's push
+
+- **Off unless configured:** `application.push` absent or `null`
+  (`../../protocol/configuration/engine.md`) is off: no device can be
+  added, nothing is pushed, and the deployment's read says so
+  (`../../client/forge/records.md`), so the page says this deployment
+  doesn't push (`../../client/pages/told.md`).
+- **On, with three members:** `key`, a data path to the VAPID key,
+  PKCS#8 PEM of a P-256 key (skein's `net/push.md`, section 3), private,
+  0o600, read at start, a key skein's `Vapid::from_pkcs8_pem` refuses
+  refusing the start, naming the file; `subject`, the `mailto:` or
+  `https:` URI the push services may reach the operator at; and
+  `services`, the origins pushes may go to, by default Google's,
+  Mozilla's and Apple's: `https://fcm.googleapis.com`,
+  `https://updates.push.services.mozilla.com` and
+  `https://web.push.apple.com`. A browser whose push service is another
+  (Microsoft Edge's, under `notify.windows.com`) is refused until the
+  deployment names its origin.
+- **The service sends each push:** it matches the endpoint's origin
+  against `services` (a push whose origin has left them is dropped),
+  seals it with the key and subject (skein's `seal`), connects to the
+  origin's host as it connects to a forge, over TLS for `https` with the
+  trust roots it gives forges, posts it, reads the status, closes, and
+  tells the root skein's `answer` of it.
+- **What else a phone needs,** which no configuration gives: the web
+  client served over HTTPS at the deployment's name
+  (`application.clients.public`; `../../protocol/sign-in.md`, section 2),
+  since a browser subscribes only on a secure origin, and a box on
+  loopback is one for its own machine alone; and on iOS, the web app
+  added to the Home Screen first (`../../client/pages/told.md`).
+- **The key is kept for good:** browsers subscribe with its public half,
+  which the deployment's read gives clients, so a new key leaves every
+  device subscribed to the old one: each push to it is refused, and the
+  person turns it on again on their page.
+- **A box** pushes only if its configuration is given push, as any
+  deployment's; a story with no browser registers a device with `temper
+  ctl push add` (`../../client/ctl/tools.md`, 3) whose endpoint is a fake
+  push service's (skein's `testing/fakes/push.md`).
+
+### 7.4 Mail and the digest
+
+Designed, not built: the milestone's nice part, left when push took
+the changes it was given.
+
+- **Mail where push can't reach:** a need that pushes nothing, because
+  the person has no device, is sent by mail, the same line as a push's
+  body, to the address the person set, if the deployment has mail on.
+- **The digest:** decided rows, landings and the status agent's brief
+  for each of the person's projects, by mail once a day at the person's
+  hour, or never; while away, Away's decisions wait for it.
+- **The person's own:** a row `Told { party }`, set by the party's
+  record as `SetAway` is: `mail`, an address of 3 to 254 bytes, or none;
+  `digest`, the next wall it is sent at, which the client works out as
+  it works out `until` (4), or none for never.
+- **The deployment's mail:** `application.mail` absent or `null` is
+  off; on, `host`, `port` (465 for TLS from the start, 587 for
+  STARTTLS), `from`, an address, `user`, and `password`, a data path,
+  private, 0o600, read at start.
+## 8. Open questions
 
 - **"The brief on Home" in Settings** (`attention.md`, 3): the status agent always runs
   for now; the switch is another plan's. Default: it runs.

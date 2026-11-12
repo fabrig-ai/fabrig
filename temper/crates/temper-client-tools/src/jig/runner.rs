@@ -15,10 +15,15 @@ pub(crate) mod reads;
 mod recovery;
 mod role;
 pub(crate) mod specification;
+pub(crate) mod talk;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
     Remove,
+    /// Match the one-time credential to this durable service answer before writing.
+    Service {
+        party: u64,
+    },
 }
 #[derive(Debug)]
 pub struct Printed {
@@ -201,6 +206,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::HAND_BACK_AT
         | rows::GOAL_START_AT
         | rows::ROLE_START_AT
+        | rows::NEED_ASK_AT
+        | rows::ROLE_TALK_AT
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT
@@ -210,9 +217,10 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::MOVE_TO_NEWEST_AT
         | rows::RESTORE_AT
         | rows::PROJECT_MAKE_AT
+        | rows::PARTY_MAKE_AT
         | rows::PROJECT_FUND_AT
         | rows::PROJECT_AMEND_AT
-        | rows::PROJECT_REMOVE_AT => {
+        | rows::PROJECT_DELETE_AT => {
             acts::start(runner, client, env, called, out);
         }
         rows::TREE_AT => reads::start(runner, client, env, called, out),

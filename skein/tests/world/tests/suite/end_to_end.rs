@@ -1004,6 +1004,87 @@ fn supervised_run_with_grace(
     world.run(&Clock::new(), WORLD_PATIENCE)
 }
 
+// The walk's retained pidfds and adoption are Linux's (examples.md, 6).
+#[cfg(target_os = "linux")]
+#[test]
+fn an_unwinding_supervised_run_ends_every_known_descendant() {
+    use std::cell::Cell;
+
+    struct PanicAtReady<'a> {
+        pids: &'a Cell<Option<Vec<u32>>>,
+        grandchild: bool,
+    }
+
+    impl Referee<Process> for PanicAtReady<'_> {
+        fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
+        fn observe(&mut self, _now: Time, procs: &[Process]) {
+            let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+            if ready_descendant(child.stderr()).is_none() {
+                return;
+            }
+            let mut pids = vec![descendant(child.stderr())];
+            if self.grandchild {
+                let Some(pid) = std::str::from_utf8(child.stderr())
+                    .expect("fixture text")
+                    .lines()
+                    .find_map(|line| line.strip_prefix("grandchild:")?.parse::<u32>().ok())
+                else {
+                    return;
+                };
+                pids.push(pid);
+            }
+            if pids.iter().all(|pid| child.tree_status().live_pids.contains(pid)) {
+                assert_eq!(child.exit_status(), None, "the shared ring still owns the leader's wait");
+                self.pids.set(Some(pids));
+                panic!("the referee panics at ready");
+            }
+        }
+        fn passed(&self) -> bool {
+            false
+        }
+    }
+
+    for containment in [Containment::Walk, Containment::Best] {
+        for mode in ["supervise-term", "supervise-grandchild"] {
+            let pids = Cell::new(None);
+            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let binary = Binary::start_contained(
+                    fixture(mode),
+                    Mode::Pipes,
+                    4096,
+                    skein_world::end_to_end::Expectation::Supervise,
+                    containment,
+                )
+                .expect("a supervised fixture starts");
+                let mut world =
+                    real::World::new(PanicAtReady { pids: &pids, grandchild: mode == "supervise-grandchild" });
+                world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
+                let _outcome = world.run(&Clock::new(), WORLD_PATIENCE);
+            }))
+            .expect_err("the referee unwinds through the retained binary");
+            assert_eq!(failure.downcast_ref::<&str>(), Some(&"the referee panics at ready"));
+            let observed: Vec<_> = pids
+                .take()
+                .expect("the referee recorded its descendants before panicking")
+                .into_iter()
+                .map(|pid| (pid, skein_shell::keeper::process_live(pid)))
+                .collect();
+            for &(pid, live) in &observed {
+                // A failing regression must not leave its spinning fixture behind.
+                if live == Ok(true) {
+                    let fd = skein_shell::keeper::open_pidfd(pid).expect("the survivor's identity");
+                    let _killed =
+                        skein_shell::keeper::signal_kept_child(fd, Signal::Kill, skein_io::kernel::Target::Child);
+                    skein_shell::keeper::close_keeper_fd(fd);
+                }
+            }
+            for (pid, live) in observed {
+                assert_eq!(live, Ok(false), "{containment:?} {mode}: descendant {pid} outlived unwinding");
+            }
+        }
+    }
+}
+
 #[test]
 fn a_supervised_natural_tree_settles_without_cleanup() {
     use skein_world::end_to_end::Cleanup;

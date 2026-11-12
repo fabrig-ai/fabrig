@@ -30,7 +30,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 65,536. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
 - `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
-- `root.journal.run_bytes`: bytes, 24,576. Bounds a run charter's owned bytes in a held assignment.
+- `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
 - `root.loads.bytes`: bytes, 65,536. Bounds a kept page prefix, counting record slots and their owned bytes.
@@ -79,9 +79,20 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.findings_per_project`: count, 256. Bounds retained findings per project.
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
+- `forge.dependencies`: count, 4. Dependencies per project.
+- `forge.follows`: count, 2. Follows per project.
+- `forge.follow_paths`: count, 8. Path prefixes per follow.
+- `forge.follow_queue`: count, 16. Queued landings per follow.
+- `forge.follow_merge`: count, 8. Landings per follow change.
+- `forge.follow_commits`: count, 8. Commits retained per follow entry.
+- `forge.follow_files`: count, 32. Files retained per follow entry.
+- `forge.follow_message_bytes`: bytes, 512. Message bytes retained per follow commit.
+- `forge.follow_skips`: count, 8. Skips retained per follow.
+- `forge.follow_reason_bytes`: bytes, 256. Bytes per follow skip reason.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.
 - `forge.brief_sections`: count, 40. Bounds forge brief sections gathered at once.
 - `forge.brief_bytes`: bytes, 4,608. Bounds bytes retained for one gathered forge brief section.
@@ -134,6 +145,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## checkout
 
 - `checkout.workspaces`: count, 3. Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.
+- `checkout.preparations`: count, 1. Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
 - `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.

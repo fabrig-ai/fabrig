@@ -69,8 +69,8 @@ fn page(
                 times.next = [times.next, Some(expires)].into_iter().flatten().min();
             }
             ask::answered_lines(b, root, &answered, w, bindings);
-            let needs = session.needs(inbox, root.forge().approvals());
-            super::home_cards::cards(b, root, &needs, true, w, bindings, times);
+            let needs = session.all(inbox, root.forge().approvals());
+            super::home_cards::all(b, root, &needs, true, w, bindings, times);
         }
         b.close();
     }
@@ -79,6 +79,9 @@ fn page(
     }
     if parts.projects {
         projects(b, facts, w, bindings);
+    }
+    if parts.follows {
+        follows(b, &facts.follows, w);
     }
     if parts.ask
         && !facts.projects.is_empty()
@@ -89,6 +92,69 @@ fn page(
     if let Some(root) = root {
         crate::confirm::main(b, root, w, bindings, rows);
     }
+    b.close();
+}
+/// The boxes and their names are fixed by client/pages/home.md, 1, *What follows what*.
+fn follows(b: &mut Builder, relations: &[all_home::Relation], w: &Words) {
+    section(b, w, Word::AllHomeFollows);
+    if w.shell == Shell::Browser {
+        b.style(look::HOME_WIDE);
+    }
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    ask::text(b, Role::Heading { level: 2 }, &w.say(Word::AllHomeFollows, &[]), look::HOME_HEAD);
+    ask::text(b, Role::Text, &w.say(Word::AllHomeAcrossProjects, &[]), look::HOW_REACH_NOTE);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::HOW_FOLLOWS);
+    for relation in relations {
+        let (name, chip, line, stopped, who) = match relation {
+            all_home::Relation::Follow { name, source, line, stopped, .. } => (
+                name,
+                w.say(Word::AllHomeFollowChip, &[Hole::Name(source.clone())]),
+                line.clone(),
+                stopped.as_ref(),
+                super::how::Who::Code,
+            ),
+            all_home::Relation::Dependency { name, dependency, .. } => (
+                name,
+                w.say(Word::AllHomeDependencyChip, &[Hole::Name(dependency.clone())]),
+                w.say(Word::AllHomeDependencyLine, &[]),
+                None,
+                super::how::Who::None,
+            ),
+        };
+        b.open(Role::Group);
+        b.style(look::HOW_FOLLOW);
+        b.name(&skein_lib::bytes::concat(&[name, b" ", &chip]));
+        if w.shell == Shell::Terminal {
+            b.open(Role::Paragraph);
+            super::how::chip(b, &chip, who);
+            b.text(Run::Plain, b" ");
+            b.text(Run::Strong, name);
+            b.text(Run::Plain, b" ");
+            b.text(Run::Plain, &line);
+            if let Some(stopped) = stopped {
+                b.text(Run::Plain, b" ");
+                b.text(Run::Plain, &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]));
+            }
+            b.close();
+        } else {
+            super::how::chip(b, &chip, who);
+            crate::cards::text(b, Role::Heading { level: 3 }, name);
+            ask::text(b, Role::Paragraph, &line, look::HOW_REACH_NOTE);
+            if let Some(stopped) = stopped {
+                ask::text(
+                    b,
+                    Role::Paragraph,
+                    &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]),
+                    look::HOW_REACH_NOTE,
+                );
+            }
+        }
+        b.close();
+    }
+    b.close();
     b.close();
 }
 fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times: &mut Times) {
@@ -106,7 +172,8 @@ fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times
     }
     let landed = landed(w, &intro.landed, times);
     let needs = home::needs_sentence(w, intro.needs, b"");
-    let headline = headline_words(&landed, &needs);
+    let (headline, tick) = crate::shared::all_home_headline(w, facts, times.now);
+    times.next = [times.next, tick].into_iter().flatten().min();
     let brief = if brief { intro.brief.as_ref() } else { None };
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
@@ -185,6 +252,12 @@ fn lede(b: &mut Builder, brief: &all_home::Brief, role: Role) {
     b.close();
 }
 
+pub(crate) fn headline(w: &Words, facts: &all_home::Facts, times: &mut Times) -> Box<[u8]> {
+    let intro = all_home::intro(facts);
+    let landed = landed(w, &intro.landed, times);
+    let needs = home::needs_sentence(w, intro.needs, b"");
+    headline_words(&landed, &needs)
+}
 fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
     if landed.is_empty() {
         needs.into()

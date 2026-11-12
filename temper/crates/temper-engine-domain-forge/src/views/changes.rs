@@ -45,6 +45,7 @@ pub struct ChangesQueued {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {
+    pub signed: Box<[crate::SignOff]>,
     pub task: u64,
     pub title: Box<[u8]>,
     pub at: Wall,
@@ -147,7 +148,10 @@ impl Domain {
             return None;
         }
         for (_, row) in &self.landing.rows {
-            if super::is_ended(&row.landing.phase) || row.landing.branch != change.base {
+            if row.landing.round.branch.is_empty()
+                || super::is_ended(&row.landing.phase)
+                || row.landing.branch != change.base
+            {
                 continue;
             }
             for member in &row.landing.members {
@@ -194,6 +198,7 @@ impl Domain {
                         .insert(
                             (key, change.task),
                             ChangesLanded {
+                                signed: change.signed.clone(),
                                 task: change.task,
                                 title: change.title.clone(),
                                 at: logged.at,
@@ -242,14 +247,19 @@ impl Domain {
     }
 
     pub(crate) fn changes_order(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> Option<List<u64>> {
+        let (candidates, repair) = crate::domain::queue_ready(self, row, limits);
         let mut active = Map::with_capacity(limits.changes);
         for (_, other) in &self.changes {
-            if other.repository == row.repository && other.base == row.base && owns(other) {
+            if other.repository == row.repository
+                && other.base == row.base
+                && owns(other)
+                && (crate::panel::ready(other).is_none() || repair.is_none())
+                && (!crate::domain::in_queue(&other.change.state) || !self.approval_short(other))
+            {
                 active.insert((ready_since(other), other.task), other.task).ok()?;
             }
         }
         let mut ordered = List::with_capacity(limits.changes);
-        let (candidates, repair) = crate::domain::queue_ready(self, row, limits);
         if let Some(repair) = repair {
             ordered.push(repair).ok()?;
         }

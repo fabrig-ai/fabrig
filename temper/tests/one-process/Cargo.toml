@@ -9,10 +9,13 @@ publish.workspace = true
 
 [dependencies]
 smith-agent-service.workspace = true
+temper-service-shell.workspace = true
+temper-shell.workspace = true
+smith-protocol-channel.workspace = true
 smith-fake-claude.workspace = true
 jig-domain-accounts.workspace = true
 temper-engine-domain-forge-change.workspace = true
-aho-corasick = { version = "1.1.5", default-features = false, features = ["std"] }
+aho-corasick.workspace = true
 skein-fake-forge-http.workspace = true
 temper-fake.workspace = true
 temper-fixtures.workspace = true
@@ -48,6 +51,7 @@ jig-client-protocol-link.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
+jig-protocol-accounts.workspace = true
 jig-conformance.workspace = true
 jig-test-service = { path = "../../../jig/testing/jig-test-service" }
 smith-channel.workspace = true
@@ -56,7 +60,10 @@ smith-protocol-llm.workspace = true
 smith-domain.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
+skein-oauth-accounts.workspace = true
 skein-http.workspace = true
+skein-push.workspace = true
+skein-fake-push.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-world.workspace = true
@@ -67,6 +74,7 @@ skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-heap.workspace = true
 jig-test-store-files.workspace = true
 
