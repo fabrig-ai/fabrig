@@ -171,6 +171,32 @@ struct Judge {
     client_started: bool,
 }
 impl Judge {
+    fn start_client(&mut self, others: &mut [Proc]) {
+        for proc in others.iter_mut() {
+            if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
+                for args in [
+                    vec![b"me".as_slice(), b"--json"],
+                    vec![b"task".as_slice(), b"turn", b"1", b"1.1", b"--json"],
+                    vec![b"task".as_slice(), b"turn", b"1", b"4.1", b"--json"],
+                    vec![
+                        b"chat".as_slice(),
+                        b"start",
+                        b"Golden after upgrade",
+                        b"--project",
+                        b"1",
+                        b"--key",
+                        b"golden-after-upgrade",
+                        b"--json",
+                    ],
+                ] {
+                    caller.commands.push_back(crate::ctl::Command::new(&args));
+                }
+                caller.closed = true;
+            }
+        }
+        self.client_started = true;
+    }
+
     fn stop_peers(&mut self, others: &mut [Proc]) {
         let ended = others.iter().all(|proc| !matches!(proc, Proc::Agent(agent) if !agent.is_empty()));
         for proc in others {
@@ -217,29 +243,7 @@ impl skein_world::Referee<Proc> for Judge {
                 .iter()
                 .any(|row| matches!(row, referee::AgentRecord::Start { task: 7, attempt, .. } if *attempt > 6))
         {
-            for proc in others.iter_mut() {
-                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                    for args in [
-                        vec![b"me".as_slice(), b"--json"],
-                        vec![b"task".as_slice(), b"turn", b"1", b"1.1", b"--json"],
-                        vec![b"task".as_slice(), b"turn", b"1", b"4.1", b"--json"],
-                        vec![
-                            b"chat".as_slice(),
-                            b"start",
-                            b"Golden after upgrade",
-                            b"--project",
-                            b"1",
-                            b"--key",
-                            b"golden-after-upgrade",
-                            b"--json",
-                        ],
-                    ] {
-                        caller.commands.push_back(crate::ctl::Command::new(&args));
-                    }
-                    caller.closed = true;
-                }
-            }
-            self.client_started = true;
+            self.start_client(others);
         }
         if self.upgrade {
             for proc in others.iter() {
