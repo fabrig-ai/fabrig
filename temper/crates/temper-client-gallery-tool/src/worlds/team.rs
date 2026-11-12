@@ -1,4 +1,5 @@
 //! Team's hand-made deliveries (temper/docs/design/client/web/gallery.md, 2).
+mod follows;
 mod sessions;
 use super::{Address, Domain, List, c, doc, started};
 use crate::driver::{answer, deliver, down, step};
@@ -138,6 +139,28 @@ pub(super) fn world(name: &str) -> Domain {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
                                     bytes: wire::changes_panel(&changes(reader, alone)),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            Down::Open { watch, subject: Watchable::Family { record, .. } }
+                if role
+                    && wire::decode_watching(&record.bytes, &w::CEILINGS)
+                        .is_some_and(|watching| matches!(watching.watch(), w::Watch::Follows(_))) =>
+            {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::follows_panel(&follows::panel(reader)),
                                 },
                             },
                         },

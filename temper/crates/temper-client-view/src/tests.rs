@@ -38,6 +38,7 @@ mod remembered;
 mod settings;
 mod start_goal;
 mod team;
+mod team_follows;
 mod team_sessions;
 mod toast;
 mod told;

@@ -85,7 +85,7 @@ pub(crate) fn draw(
                 b.open(Role::Slot);
                 b.style(look::TEAM_PEOPLE);
                 for person in &facts.people {
-                    person_box(b, w, person, parts.signed(person.party));
+                    person_box(b, w, person, &parts);
                 }
                 b.close();
             }
@@ -116,7 +116,7 @@ fn lede(w: &Words, facts: &team::Facts) -> Box<[u8]> {
     w.say(if you { Word::TeamOfYou } else { Word::TeamPeopleCount }, &[Hole::Name(count)])
 }
 
-fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<&[u8]>) {
+fn person_box(b: &mut Builder, w: &Words, person: &team::Person, parts: &team::Parts) {
     b.open(Role::Slot);
     b.style(look::TEAM_PERSON);
     let name = if person.you { w.say(Word::TeamYou, &[]) } else { person.name.clone() };
@@ -136,9 +136,10 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<
         let whom = if person.you { w.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
         paragraph(b, &line(w, &waits, whom), look::TEAM_LINE);
     }
-    if let Some(signed) = signed {
+    if let Some(signed) = parts.signed(person.party) {
         paragraph(b, signed, look::TEAM_LINE);
     }
+    owner_follows(b, w, parts, team::follows::Owner::Person(person.party));
     b.close();
 }
 
@@ -209,10 +210,22 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
         }
         b.text(Run::Plain, &role.name);
         b.close();
-        if let Some(now) = &role.now
-            && !now.is_empty()
-        {
-            paragraph(b, now, look::TEAM_LINE);
+        let owner = team::follows::Owner::Task(role.task);
+        let mut has_follows = false;
+        for follow in &parts.follows {
+            has_follows |= follow.owner == owner;
+        }
+        let now = match role.now.as_deref() {
+            Some(now) if !now.is_empty() => Some(now),
+            Some(_) | None => None,
+        };
+        if now.is_some() || has_follows {
+            b.open(Role::Slot);
+            if let Some(now) = now {
+                paragraph(b, now, look::TEAM_LINE);
+            }
+            owner_follows(b, w, &parts, owner);
+            b.close();
         }
         text(b, Role::Text, &w.say(Word::TeamSpend, &[Hole::Number(role.spent), Hole::Number(role.budget)]));
         b.close();
@@ -300,27 +313,30 @@ fn card(
         b.close();
     }
     b.close();
-    if (parts.now || parts.rules || parts.right)
-        && let Some(facts) = facts
-    {
+    if parts.now || parts.rules || parts.right || !parts.card_follows.is_empty() {
         b.open(Role::Slot);
         b.style(look::TEAM_COLUMNS);
-        if parts.now || parts.rules {
+        if parts.now || parts.rules || !parts.card_follows.is_empty() {
             b.open(Role::Slot);
             b.style(look::TEAM_LEFT);
             if parts.now
+                && let Some(facts) = facts
                 && let Some(now) = &facts.now
             {
                 draw_now(b, w, now, times);
             }
+            card_follows(b, w, &parts.card_follows);
             if parts.rules
+                && let Some(facts) = facts
                 && let Some(rules) = &facts.rules
             {
                 wakes::rules(b, w, project, rules, bindings);
             }
             b.close();
         }
-        if parts.right {
+        if parts.right
+            && let Some(facts) = facts
+        {
             b.open(Role::Slot);
             b.style(look::TEAM_RIGHT);
             if parts.wakes {
@@ -332,6 +348,49 @@ fn card(
             b.close();
         }
         b.close();
+    }
+    b.close();
+}
+fn follow_line(b: &mut Builder, w: &Words, follow: &team::follows::Follow) {
+    paragraph(
+        b,
+        &w.say(Word::TeamFollow, &[Hole::Name(follow.source.clone()), Hole::Name(follow.status.clone())]),
+        look::TEAM_ROLE,
+    );
+}
+fn owner_follows(b: &mut Builder, w: &Words, parts: &team::Parts, owner: team::follows::Owner) {
+    for follow in &parts.follows {
+        if follow.owner == owner {
+            follow_line(b, w, follow);
+        }
+    }
+}
+fn card_follows(b: &mut Builder, w: &Words, follows: &skein_lib::List<team::follows::Follow>) {
+    if follows.is_empty() {
+        return;
+    }
+    b.open(Role::Region);
+    paragraph(b, &w.say(Word::TeamFollows, &[]), look::TEAM_KICKER);
+    for follow in follows {
+        follow_line(b, w, follow);
+        for entry in &follow.entries {
+            let name = w.say(
+                Word::TeamFollowEntry,
+                &[Hole::Name(entry.after.as_slice().into()), Hole::Name(entry.state.clone())],
+            );
+            b.open(Role::Paragraph);
+            b.style(look::TEAM_ROLE);
+            b.name(&name);
+            b.text(Run::Code, &entry.after);
+            b.text(
+                Run::Plain,
+                &w.say(Word::TeamFollowEntry, &[Hole::Name(Box::default()), Hole::Name(entry.state.clone())]),
+            );
+            b.close();
+        }
+        if follow.more > 0 {
+            paragraph(b, &w.say(Word::TeamFollowsMore, &[Hole::Number(u64::from(follow.more))]), look::TEAM_ROLE);
+        }
     }
     b.close();
 }
