@@ -397,3 +397,30 @@ fn shared_rows_are_the_deployment_binaries_constants() {
         assert!(TABLE.commands.contains(&command), "shared row: {:?}", command.reach);
     }
 }
+
+#[test]
+fn every_box_form_carries_record_and_refuses_it_repeated() {
+    for form in [&[][..], &["--fake-backends"][..], &["--front"][..], &["--fake-backends", "--front"][..]] {
+        for record in [false, true] {
+            let mut words = form.to_vec();
+            if record {
+                words.push("--record");
+            }
+            let command = configured(&words).expect("box recording switch");
+            let found = match command {
+                Command::Box { record, .. } | Command::BoxFakeBackends { record, .. } => record,
+                _ => panic!("box form"),
+            };
+            assert_eq!(found, record, "{words:?}");
+        }
+        let mut words = form.to_vec();
+        words.extend(["--record", "--record"]);
+        assert!(configured(&words).is_err(), "repeated switch: {words:?}");
+    }
+    for reach in [&[][..], &["serve"][..], &["internal", "serve"][..]] {
+        let row = TABLE.commands.iter().find(|row| row.reach == Reach::Words(reach)).expect("command row");
+        let switch = row.switches.iter().find(|switch| switch.name == "record").expect("record switch");
+        assert_eq!(switch.set, Set::Public);
+        assert_eq!(switch.line, "Have every page served record a journey in its browser, saved by Alt+Shift+S.");
+    }
+}
