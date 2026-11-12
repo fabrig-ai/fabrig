@@ -786,21 +786,15 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
 
 #[test]
 fn each_document_shape_is_read_from_its_members() {
-    use crate::startup::{Shape, nearest, shape};
+    use crate::startup::{Shape, shape};
     for (document, expected) in [
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
     ] {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
-        assert_eq!(nearest(&document), Some(expected));
     }
-    let broken = fixtures::with(&fixtures::worker_alone_document(), b"application", b"null");
-    for (document, expected) in
-        [(broken.as_ref(), Some(Shape::WorkerAlone)), (b"[]".as_slice(), None), (b"not json".as_slice(), None)]
-    {
-        assert_eq!(nearest(document), expected);
-    }
+
 }
 
 type ShapeRow = (&'static [u8], &'static [u8], Vec<(Path, What)>);

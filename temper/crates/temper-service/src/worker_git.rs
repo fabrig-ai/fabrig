@@ -27,8 +27,8 @@ impl Git {
         home.put(path).expect("home path");
         home.put(b"/home").expect("home suffix");
         let component = match component::Component::new(
-            &own.git_component.into(),
-            &own.checkout.into(),
+            &crate::worker_settings::git_component(own.git_component),
+            &crate::worker_settings::checkout(own.checkout),
             component::Settings {
                 git: worker.git.clone(),
                 home: home.finish(),

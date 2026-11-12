@@ -18,7 +18,7 @@ pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32
 
 /// Operations reserved by the process for the configured git component.
 pub(crate) fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
-    operations(&(*git).into())
+    operations(&git_component(*git))
 }
 
 /// Every queue and component bound established before constructing a worker.
@@ -79,7 +79,7 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &limits::Limit
     root::Limits {
         tooling: tooling(worker.jig.slots),
         host,
-        checkout: own.checkout.into(),
+        checkout: checkout(own.checkout),
         agent: smith_host_domain::Limits { agents: worker.jig.slots, ..agent.host_limits },
         reply_bytes: agent.limits.bodies.host_reply_text,
         bounds: agent.bounds.clone(),
@@ -202,32 +202,30 @@ fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
     }
 }
 
-impl From<limits::Checkout> for temper_worker_domain_checkout::Limits {
-    fn from(limits: limits::Checkout) -> Self {
-        Self {
-            workspaces: limits.workspaces,
-            repositories: limits.repositories,
-            name_bytes: limits.name_bytes,
-            message_bytes: limits.message_bytes,
-            conflicts: limits.conflicts,
-            path_bytes: limits.path_bytes,
-            remote_timeout: limits.remote_timeout,
-            local_timeout: limits.local_timeout,
-            facts: limits.facts,
-        }
+/// Translate the shared checkout envelope to the worker's domain (protocol/services.md, 5).
+pub(crate) fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkout::Limits {
+    temper_worker_domain_checkout::Limits {
+        workspaces: limits.workspaces,
+        repositories: limits.repositories,
+        name_bytes: limits.name_bytes,
+        message_bytes: limits.message_bytes,
+        conflicts: limits.conflicts,
+        path_bytes: limits.path_bytes,
+        remote_timeout: limits.remote_timeout,
+        local_timeout: limits.local_timeout,
+        facts: limits.facts,
     }
 }
 
-impl From<limits::GitComponent> for temper_worker_protocol_git::Limits {
-    fn from(limits: limits::GitComponent) -> Self {
-        Self {
-            operations: limits.operations,
-            stdout_bytes: limits.stdout_bytes,
-            stderr_bytes: limits.stderr_bytes,
-            read_bytes: limits.read_bytes,
-            sweep_entries: limits.sweep_entries,
-            sweep_bytes: limits.sweep_bytes,
-        }
+/// Translate the shared git envelope to the worker's protocol (protocol/services.md, 5).
+pub(crate) fn git_component(limits: limits::GitComponent) -> temper_worker_protocol_git::Limits {
+    temper_worker_protocol_git::Limits {
+        operations: limits.operations,
+        stdout_bytes: limits.stdout_bytes,
+        stderr_bytes: limits.stderr_bytes,
+        read_bytes: limits.read_bytes,
+        sweep_entries: limits.sweep_entries,
+        sweep_bytes: limits.sweep_bytes,
     }
 }
 

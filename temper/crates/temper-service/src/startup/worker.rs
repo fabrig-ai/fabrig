@@ -63,17 +63,17 @@ pub(super) fn build(
 /// reports stdout with the other carriers once both links' rooms are known.
 pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mut Problems) {
     use temper_worker_protocol_git::{Unfit, check};
-    let mut checked = (*git).into();
+    let mut checked = crate::worker_settings::git_component(*git);
     // Repair just the reported rule in the local copy, then ask for the next.
     for _ in 0_u8..7 {
-        match check(&checked, &limits.checkout.into()) {
+        match check(&checked, &crate::worker_settings::checkout(limits.checkout)) {
             Ok(()) => break,
             Err(Unfit::Operations) => {
                 against(problems, b"git_component.operations", b"checkout.workspaces");
                 checked.operations = limits.checkout.workspaces;
             }
             Err(Unfit::StdoutBytes) => {
-                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(&limits.checkout.into()) else {
+                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(limits.checkout)) else {
                     break;
                 };
                 checked.stdout_bytes = bytes;
