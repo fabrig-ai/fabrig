@@ -64,7 +64,7 @@ struct Harness {
     above: Queue<native::Event>,
     below: Queue<native::LowerRequest>,
     peer: Peer,
-    server_config: Arc<rustls::server::ServerConfig>,
+    server_config: Arc<rustls_std::server::ServerConfig>,
     wire: VecDeque<u8>,
     outgoing: Vec<u8>,
     request: Vec<u8>,
@@ -242,7 +242,7 @@ impl Harness {
             } else {
                 let peer = self.peer.extracted_mut();
                 assert_eq!(peer.alerts, [[1, 100]], "one authenticated refusal before full plaintext");
-                assert_eq!(peer.records.first(), Some(&rustls::ContentType::Alert), "owed prefix first");
+                assert_eq!(peer.records.first(), Some(&rustls_std::ContentType::Alert), "owed prefix first");
                 peer.write(&self.response);
             }
             let start = self.wire.len();

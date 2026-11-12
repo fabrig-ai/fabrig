@@ -264,7 +264,7 @@ impl Observe for ServiceObserver {
         let mut capture = Capture::default();
         capture.root(root);
         let store = STORE.with(|store| store.borrow().as_ref().expect("world store").clone());
-        let sets = PATCH_SETS.with(std::cell::Cell::get).unwrap_or(temper_service::store::PATCH_SETS);
+        let sets = PATCH_SETS.with(std::cell::Cell::get).unwrap_or(temper_engine_service::store::PATCH_SETS);
         store.borrow_mut().levels = Some(jig_protocol_store::levels(&sets));
         Self {
             hooks: None,
@@ -312,7 +312,7 @@ impl Observe for ServiceObserver {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Patched { of, patch, counts } = &note {
+            if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = &note {
                 self.patched.push((*of, *patch, *counts));
             }
             if stories::playground() {

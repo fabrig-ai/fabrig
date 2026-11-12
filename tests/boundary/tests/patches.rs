@@ -34,7 +34,10 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
-    let args = if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {
+    // During a landing merge, the incoming target already owns its kept patches.
+    let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
+        vec!["rev-parse", "MERGE_HEAD"]
+    } else if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {
         vec!["merge-base", "HEAD", "origin/main"]
     } else {
         vec!["rev-parse", "HEAD"]

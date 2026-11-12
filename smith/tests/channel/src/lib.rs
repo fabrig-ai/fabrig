@@ -550,7 +550,7 @@ impl World {
                     smith_channel::Start::encoded_bound(&host_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                ..smith_host_protocol::fixture::small()
+                ..smith_host_protocol_fixtures::small()
             },
             mode,
         );
@@ -567,7 +567,7 @@ impl World {
                 calls: 8,
                 turns: 8,
                 grants: 8,
-                ..agent::fixture::small()
+                ..smith_protocol_channel_fixtures::small()
             },
             mode,
         );
@@ -578,7 +578,7 @@ impl World {
     #[must_use]
     pub fn with_agent_limits(limits: agent::Limits, mode: StreamMode) -> World {
         let mut host_limits = {
-            let mut fixture_limits = smith_host_protocol::fixture::small();
+            let mut fixture_limits = smith_host_protocol_fixtures::small();
             fixture_limits.bodies = limits.bodies;
             fixture_limits.charter = limits.charter;
             fixture_limits.transcript = limits.transcript;
@@ -1267,7 +1267,7 @@ pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transc
 pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     use smith_domain_session::{llm, record};
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
-    smith_domain::session::fixture::turn(
+    smith_domain_session_fixtures::turn(
         b"model".as_slice().into(),
         record::Kind::First(Box::new(record::Opener {
             system: None,

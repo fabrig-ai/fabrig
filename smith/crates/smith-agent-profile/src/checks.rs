@@ -79,9 +79,9 @@ mod native_io {
         }
         let mut limits = base;
         limits.events = Some(smith_protocol_events::EventLimits {
-            sinks: smith_protocol_events::sinks::fixture::limits(u32::MAX),
+            sinks: smith_protocol_events_fixtures::sinks::limits(u32::MAX),
             capture: smith_protocol_events::sinks::Capture::None,
-            ..smith_protocol_events::fixture::event_limits()
+            ..smith_protocol_events_fixtures::event_limits()
         });
         assert!(!io_valid(&limits));
         limits.events.as_mut().unwrap().sinks.destinations = base.io.sockets - base.llm.connection.connections;

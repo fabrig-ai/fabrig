@@ -1,0 +1,31 @@
+[package]
+license.workspace = true
+name = "smith-bench-fixtures"
+description = "Shared test fixtures for smith-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+smith-bench = { path = "../../benchmarks" }
+smith-events.workspace = true
+smith-events-fixtures.workspace = true
+skein-lib.workspace = true
+serde_json = "1.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+missing_debug_implementations = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

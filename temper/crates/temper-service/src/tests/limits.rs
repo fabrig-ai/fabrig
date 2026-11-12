@@ -113,7 +113,8 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let directories = jig_protocol_config::Directories::working();
         let starting = crate::startup::named(&document, &directories).unwrap_err();
         let reading =
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
@@ -132,7 +133,8 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     );
     let directories = jig_protocol_config::Directories::working();
     let starting = crate::startup::named(&document, &directories).unwrap_err();
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .unwrap_err();
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
@@ -370,7 +372,7 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
     let service = fixtures::started();
-    let wire = service.engine.as_ref().unwrap().clients.env.limits.wire.keyed_value_some;
+    let wire = service.engine.as_ref().unwrap().client_wire().keyed_value_some;
     assert_eq!(u64::from(wire), moved);
 
     // The effective ceiling remains capped by jig even for a larger moved file.
@@ -713,15 +715,6 @@ fn effective_core_limits_preserve_the_configured_call_answer_budget() {
 }
 
 #[test]
-fn the_worker_takes_its_agents_host_reply_bound() {
-    let input = fixtures::owned_worker_alone_document();
-    let part = crate::startup::worker_part(&input, &jig_protocol_config::Directories::working()).unwrap();
-    let agent = fixtures::owned_worker_agent();
-    assert_eq!(agent.limits.bodies.host_reply_text, 4_098);
-    assert_eq!(crate::worker_settings::root_limits(&part.worker, &agent, &part.limits).reply_bytes, 4_098);
-}
-
-#[test]
 fn secrets_schema_fits_the_small_page_ceiling() {
     use temper_protocol_records::v1;
     // The row's u16 version, variant and u32 length precede the largest DER envelope.
@@ -963,4 +956,22 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
     }
     assert_eq!(small.forge.follows, 2);
     assert_eq!(standard.forge.follows, 8);
+}
+
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let bound = limits::close_bound();
+    let merge = limits::merge_bound();
+    jig.core.tasks.spec_bytes = bound.spec;
+    jig.core.tasks.result_bytes = bound.result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    jig.core.tasks.spec_bytes = bound.spec - 1;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
+    jig.core.tasks.spec_bytes = bound.spec;
+    jig.core.tasks.result_bytes = bound.result - 1;
+    assert!(limits::jobs(&jig).is_empty());
+    jig.core.tasks.result_bytes = bound.result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
 }

@@ -261,13 +261,13 @@ fn two_workers_each_run_a_chat_to_its_end() {
     for (at, called) in cluster.calls().iter().enumerate() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}", String::from_utf8_lossy(&called.stderr));
     }
-    assert_eq!(cluster.served(), Some(&End::Drained));
+    assert_eq!(cluster.served(), Some(&End::Engine(temper_service::EngineEnd::Drained)));
     let mut tasks = [FIRST_CHAT, SECOND_CHAT].map(|call| cluster.number(call));
     let mut placed = Vec::new();
     for name in WORKERS {
         let worker = cluster.worker(name);
         assert_eq!(worker.linked(), LINKS_PER_WORKER, "{name} linked once");
-        assert_eq!(worker.end(), Some(&End::Drained), "{name} drained");
+        assert_eq!(worker.end(), Some(&End::Worker(temper_service::worker_alone::End::Drained)), "{name} drained");
         assert_eq!(worker.ran().len(), RUNS_PER_WORKER, "{name} ran one chat");
         placed.extend_from_slice(worker.ran());
     }

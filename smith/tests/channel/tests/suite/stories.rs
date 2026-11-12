@@ -1314,7 +1314,7 @@ fn parked_turn() -> smith_domain_session::record::Turn {
             reasoning_tokens: None,
         },
         spent: 3,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
                 system: None,
@@ -1397,7 +1397,7 @@ fn concrete_turn() -> smith_domain_session::record::Turn {
             reasoning_tokens: Some(2),
         },
         spent: 11,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
                 system: None,

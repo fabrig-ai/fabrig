@@ -46,7 +46,7 @@ fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     }
     let roots = super::trust(None).expect("machine trust roots");
     let default = super::github_runtime("temper", None, &roots, reject_names).expect("held default");
-    assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
+    assert_eq!(default.address, temper_engine_service::forge::HELD_ADDRESS);
     assert_eq!(default.log_origins.len(), 1);
     let machine = temper_forge_setup::machine::GitHubMachine {
         git: None,
@@ -178,19 +178,22 @@ fn before_root_records_only_when_requested_and_refuses_a_headless_bundle() {
     std::fs::create_dir(scratch.path().join("0123456789abcdef")).expect("digest directory");
     let page = scratch.path().join("index.html");
     std::fs::write(&page, b"<html><head></head><body></body></html>").expect("page");
-    let mut named = crate::setup::check(
-        include_bytes!("../../../../docs/examples/owned.json"),
-        &jig_protocol_config::Directories::working(),
-    )
-    .expect("checked fixture")
-    .named;
-    named.files = Box::new([]);
-    named.asked_files = Box::new([]);
-    named.sign_in = None;
-    named.bundle = Some(scratch.path().as_os_str().as_bytes().into());
+    let mut required: Box<[jig_protocol_config::File]> = Box::new([]);
+    let mut asked: Box<[jig_protocol_config::File]> = Box::new([]);
+    let configured = scratch.path().as_os_str().as_bytes();
+    let limits = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).clients;
     let mut tags = Vec::new();
     for record in [false, true] {
-        let inputs = super::before_root(&mut named, skein_shell::effective_user(), record).expect("page prepared");
+        let inputs = super::before_root(
+            &mut required,
+            &mut asked,
+            None,
+            Some(configured),
+            limits,
+            skein_shell::effective_user(),
+            record,
+        )
+        .expect("page prepared");
         let bundle = inputs.bundle.expect("configured bundle");
         let text = core::str::from_utf8(&bundle.page).expect("page UTF-8");
         assert_eq!(text.contains("<meta name=\"temper-record\" content=\"on\">"), record);
@@ -198,7 +201,15 @@ fn before_root_records_only_when_requested_and_refuses_a_headless_bundle() {
     }
     assert_ne!(tags[0], tags[1]);
     std::fs::write(&page, b"<html><body></body></html>").expect("headless page");
-    let why = match super::before_root(&mut named, skein_shell::effective_user(), true) {
+    let why = match super::before_root(
+        &mut required,
+        &mut asked,
+        None,
+        Some(configured),
+        limits,
+        skein_shell::effective_user(),
+        true,
+    ) {
         Ok(_) => panic!("missing head must be refused"),
         Err(why) => why,
     };

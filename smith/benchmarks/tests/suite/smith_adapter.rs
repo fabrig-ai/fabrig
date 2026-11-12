@@ -479,7 +479,7 @@ fn every_smith_pin_is_a_product_settings_layer() {
 #[test]
 fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 524_288;
         fixture_limits.content = 4096;
         fixture_limits.items = 512;

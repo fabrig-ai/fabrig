@@ -25,7 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    inline::fixture::small(smith_agent_world::LIMITS)
+    smith_inline_agent_fixtures::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.
@@ -197,7 +197,7 @@ impl World {
                     search_line_bytes: 65_536,
                     env_bytes: 65_536,
                     group_stop: Duration::from_millis(1),
-                    ..smith_protocol_machine::fixture::SMALL
+                    ..smith_protocol_machine_fixtures::SMALL
                 },
             ),
             machine_trace: Vec::new(),

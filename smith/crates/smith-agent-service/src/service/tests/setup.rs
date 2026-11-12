@@ -25,7 +25,7 @@ pub(super) fn assert_cancel(events: &mut Queue<domain::Event>, run: Token) {
     }
 }
 
-pub(crate) use smith_agent_profile::fixture::configuration;
+pub(crate) use smith_agent_profile_fixtures::configuration;
 
 pub(crate) fn charter(settings: &smith_agent_world::Settings) -> run::Charter {
     let mut charter = smith_agent_world::scripted_charter(settings);
@@ -108,7 +108,7 @@ pub(crate) fn account_service() -> Service {
 
 pub(crate) fn account_request(agent: &mut Service, request: domain::Request) -> smith_events::Record {
     domain_request(&mut agent.stages, Some(&mut agent.frame), request);
-    let records = smith_protocol_events::sinks::fixture::drain_ready(
+    let records = smith_protocol_events_fixtures::sinks::drain_ready(
         agent.stages.events.as_mut().unwrap().sinks(),
         Token::new(400),
     );

@@ -4,7 +4,7 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
-use temper_service::{self as service, settings::Agent};
+use temper_worker_service::{self as service, settings::Agent};
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
@@ -44,8 +44,8 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
     let programs = configuration
         .program
         .into_iter()
-        .map(|program| service::settings::Program {
-            adapter: service::settings::Adapter::ClaudeCode,
+        .map(|program| temper_service_core::settings::Program {
+            adapter: temper_service_core::settings::Adapter::ClaudeCode,
             path: program.path.as_os_str().as_bytes().into(),
             directory: program.directory.as_os_str().as_bytes().into(),
         })

@@ -43,7 +43,7 @@ pub fn golden_ranges(directory: &Path) {
     for (map, rows) in [(KeptMap::Store, &maps.store), (KeptMap::Secrets, &maps.secrets)] {
         for (key, value) in rows {
             let mut families = Vec::new();
-            for set in temper_service::store::PATCH_SETS.sets {
+            for set in temper_engine_service::store::PATCH_SETS.sets {
                 let relative = if set.owner == Owner::Application {
                     key.strip_prefix(match map {
                         KeptMap::Store => &[keys::APPLICATION][..],
@@ -119,7 +119,7 @@ pub fn fresh_windows() {
     let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let settings = fixtures::calm(fixtures::SEED);
-    let (first, mut disk, store) = world::with_patch_sets(temper_service::store::PATCH_SETS, || {
+    let (first, mut disk, store) = world::with_patch_sets(temper_engine_service::store::PATCH_SETS, || {
         world::run_phase(
             settings,
             scenario,
@@ -129,22 +129,22 @@ pub fn fresh_windows() {
             run.clone(),
         )
     });
-    assert!(first.drained && first.end == Some(temper_service::End::Drained));
+    assert!(first.drained && first.end == Some(temper_service::End::Engine(temper_engine_service::End::Drained)));
     assert!(first.patched.is_empty(), "first start patches nothing");
     let before = maps::Maps::read(&mut disk);
-    assert_levels(&before, &temper_service::store::PATCH_SETS);
+    assert_levels(&before, &temper_engine_service::store::PATCH_SETS);
     let proof = chat_window(&before);
     let window = proof.window.expect("chat has a live window");
     assert!(!window.closed, "signal preserves the live chat window");
 
-    let (equal, mut disk, store) = world::with_patch_sets(temper_service::store::PATCH_SETS, || {
+    let (equal, mut disk, store) = world::with_patch_sets(temper_engine_service::store::PATCH_SETS, || {
         world::run_phase(settings, scenario, world::Phase::SignIn, disk, store, run.clone())
     });
     assert!(equal.drained);
     assert!(equal.patched.is_empty(), "equal baseline levels patch nothing");
     let equal_maps = maps::Maps::read(&mut disk);
     assert_eq!(equal_maps.active, before.active, "equal open does not switch");
-    assert_levels(&equal_maps, &temper_service::store::PATCH_SETS);
+    assert_levels(&equal_maps, &temper_engine_service::store::PATCH_SETS);
     assert!(!chat_window(&equal_maps).window.expect("window retained").closed);
 
     let (patched, mut disk, store) = world::with_patch_sets(FIXTURE_SETS, || {

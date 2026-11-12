@@ -38,7 +38,7 @@ fn machine_limits() -> Limits {
         search_bytes: 128,
         env_bytes: 256,
         group_stop: Duration::from_millis(1),
-        ..smith_protocol_machine::fixture::SMALL
+        ..smith_protocol_machine_fixtures::SMALL
     }
 }
 

@@ -1,3 +1,4 @@
+//! Step-test fixtures (smith/docs/design/testing.md, section 7).
 //! Tiny event codec entrances for deterministic tests (skein/docs/foundation/testing-strategy.md, section 1).
 use crate::Limits;
 

@@ -18,8 +18,8 @@ extern crate alloc;
 
 mod credentials;
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;
 mod host_io;
 mod live;
 mod service;

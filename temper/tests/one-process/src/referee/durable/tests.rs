@@ -5,7 +5,7 @@ use skein_fake_machine::{How, Item, Machine};
 
 fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
-    format.levels = jig_protocol_store::levels(&temper_service::store::PATCH_SETS);
+    format.levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
     if old {
         format.tasks = 9;
         format.settings = 1;

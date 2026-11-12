@@ -104,7 +104,7 @@ default-filter = """
   package(/^temper(-|$)/)
   & (((kind(test) | package(=temper-engine-domain)) & test(/^fuzzy::/))
      | (package(=temper-engine-domain-forge) & kind(lib) & test(/^fuzzy::/))
-     | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+     | (package(=temper-engine-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
   package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))

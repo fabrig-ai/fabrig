@@ -95,7 +95,11 @@ fn run_with(
     let ran = crate::checked(crate::Ran { outcome, scratch: scratch.next().expect("engine scratch") });
     let cluster = Cluster { ran, _scratch: scratch.collect(), _git: git };
     for name in workers {
-        assert_eq!(cluster.worker(name).end(), Some(&crate::End::Drained), "{name} drained");
+        assert_eq!(
+            cluster.worker(name).end(),
+            Some(&crate::End::Worker(temper_service::worker_alone::End::Drained)),
+            "{name} drained"
+        );
     }
     cluster
 }

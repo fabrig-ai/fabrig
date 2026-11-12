@@ -16,7 +16,7 @@ fn an_exec_chat_crosses_from_direct_to_a_program_and_back() {
             "[programs]\nclaude_code='{}'\n\
              [accounts.claude]\nprovider='anthropic'\nsource='program'\n\
              [endpoints.anthropic]\naccount='claude'\nprogram='claude_code'\n",
-            skein_scratch::paths::binary("fake-claude").display()
+            support::fake_claude().display()
         )
         .as_bytes(),
     );
@@ -178,7 +178,7 @@ fn agent(trace: &std::path::Path) -> Vec<Record> {
 fn read(bytes: &[u8]) -> Vec<Record> {
     const STREAM_BYTES: u32 = 1_048_576;
     let limits = {
-        let mut limits = smith_events::fixture::SMALL;
+        let mut limits = smith_events_fixtures::SMALL;
         limits.string = STREAM_BYTES;
         limits.content = STREAM_BYTES;
         limits.items = STREAM_BYTES;

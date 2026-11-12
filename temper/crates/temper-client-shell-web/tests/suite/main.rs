@@ -39,7 +39,7 @@ fn no_source_of_the_bundle_or_the_servers_pages_names_the_old_mark() {
         }
     }
     for page in ["src/clients/google/pages.rs", "src/setup/routes.rs", "src/clients/no-bundle.html"] {
-        files.push(root.join("../temper-service").join(page));
+        files.push(root.join("../temper-engine-service").join(page));
     }
     files.sort();
     for path in files {

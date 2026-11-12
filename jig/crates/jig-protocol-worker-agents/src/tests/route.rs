@@ -67,7 +67,7 @@ fn a_change_at_its_body_bound_encodes_within_the_hubs_outcome() {
         let accepted = agent::Declared::new(Declared::Change(change), outcome_bytes).unwrap();
         let encoded = route::encode_result(
             agent::RunResult::Accepted { outcome: accepted },
-            &smith_host_protocol::fixture::small(),
+            &smith_host_protocol_fixtures::small(),
         )
         .unwrap();
         assert!(encoded.len() <= usize::try_from(outcome_bytes).unwrap(), "encoded bytes: {}", encoded.len());

@@ -277,7 +277,6 @@ impl Exchange {
     }
 }
 
-#[cfg(any(test, feature = "seam"))]
 impl Exchange {
     pub(crate) fn test_github_handoff(&self) -> bool {
         match &self.request {

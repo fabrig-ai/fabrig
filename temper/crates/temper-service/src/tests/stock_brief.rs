@@ -462,7 +462,7 @@ fn measure_worker() {
         Some(&engine.limits),
         core::slice::from_ref(&worker.jig),
         &own,
-        Some(&agent),
+        Some(&agent.declaration()),
         &mut problems,
     );
     assert!(problems.is_empty(), "{:?}", crate::startup::lines(&problems));

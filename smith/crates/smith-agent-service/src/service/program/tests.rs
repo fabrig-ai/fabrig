@@ -98,7 +98,7 @@ fn child_request(service: &Service, owner: Token, account: u32) -> llm::FromDoma
             whole: skein_lib::Time::from_nanos(30_000_000_000),
         },
         bounds: service.stages.limits.llm.receiving,
-        outcome: smith_protocol_llm::fixture::contract(),
+        outcome: smith_protocol_llm_fixtures::contract(),
         deliver: None,
         observation: None,
         deltas: llm::Deltas { text: false, input: false },

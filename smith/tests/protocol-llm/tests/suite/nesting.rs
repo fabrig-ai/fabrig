@@ -30,7 +30,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
     turns.extend(std::mem::take(&mut main.turns).into_vec());
     main.turns = turns.into_boxed_slice();
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
+        smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     // The byte peer decodes the same complete native documents the client renders.

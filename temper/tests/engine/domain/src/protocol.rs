@@ -321,7 +321,7 @@ impl Protocol {
                     ))))),
                 },
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.catalogue)])
+                    Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },

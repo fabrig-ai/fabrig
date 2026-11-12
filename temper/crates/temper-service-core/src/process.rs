@@ -18,6 +18,12 @@ pub struct Process {
     signals_closing: bool,
 }
 impl Process {
+    /// Kernel credit for io's staged successors plus the owner's additional operations.
+    #[must_use]
+    pub fn operations_for(io: &io::Limits, additional: u32) -> Option<u32> {
+        io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(additional)
+    }
+
     /// The shell queues retain their own bound; staged operations share kernel credit.
     #[must_use]
     pub fn new(limits: io::Limits, operations: u32, queue: u32) -> Self {

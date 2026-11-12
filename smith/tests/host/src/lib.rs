@@ -99,7 +99,7 @@ pub struct World {
 /// Small valid capacities; every sealed delivery fits the reply cap.
 #[must_use]
 pub fn limits() -> Limits {
-    host::fixture::small()
+    smith_host_domain_fixtures::small()
 }
 
 /// Opaque source cells, optional workspace and credential names only.
@@ -459,7 +459,7 @@ pub fn turn_value(bytes: u64) -> host::TurnValue {
     } else {
         Box::<[llm::Message]>::default()
     };
-    host::TurnValue::new(smith_domain::session::fixture::turn(Box::new([]), kind, messages), bytes)
+    host::TurnValue::new(smith_domain_session_fixtures::turn(Box::new([]), kind, messages), bytes)
         .expect("bounded turn fixture")
 }
 

@@ -517,7 +517,7 @@ fn a_forge_peer_answers_on_its_adopted_listener() {
 
 #[test]
 fn a_tls_peer_serves_forgejo_over_the_fixed_test_chain() {
-    use rustls::{
+    use rustls_std::{
         ClientConfig, ClientConnection, RootCertStore,
         pki_types::{CertificateDer, ServerName},
     };
@@ -544,7 +544,7 @@ fn a_tls_peer_serves_forgejo_over_the_fixed_test_chain() {
     let bound = world.peer.address().unwrap();
     let mut roots = RootCertStore::empty();
     roots.add(CertificateDer::from(skein_fake_peers::transport::ROOT)).unwrap();
-    let config = ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+    let config = ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_root_certificates(roots)

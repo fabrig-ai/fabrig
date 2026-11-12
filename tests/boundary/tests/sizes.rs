@@ -25,7 +25,7 @@ const EXCEPTIONS: &[Exception] = &[
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
     },
     Exception { what: "jig-domain-core", until: "G6" },
-    Exception { what: "temper-service", until: "G4, or the worker's crates (temper/docs/design/draft/cli.md, 6)" },
+    Exception { what: "temper-engine-service", until: "G4" },
     Exception {
         what: "temper-client-domain",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",

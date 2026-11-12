@@ -2,8 +2,8 @@
 //! It seals `HelloRequest`, which rustls's server never sends, and authenticates
 //! the client's alert and application records with its receive key.
 
-use rustls::crypto::cipher::{InboundOpaqueMessage, MessageDecrypter};
-use rustls::{ConnectionTrafficSecrets, ContentType, ProtocolVersion, SupportedCipherSuite};
+use rustls_std::crypto::cipher::{InboundOpaqueMessage, MessageDecrypter};
+use rustls_std::{ConnectionTrafficSecrets, ContentType, ProtocolVersion, SupportedCipherSuite};
 use skein_tls::client;
 
 use crate::{pki, server::Server};

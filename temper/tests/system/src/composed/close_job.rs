@@ -54,7 +54,7 @@ pub struct CloseJobReport {
 }
 
 pub(super) fn worker_kinds(declared: &[JobBound], limits: &mut worker::Limits) -> Box<[tooling::Kind]> {
-    let kinds: Box<[_]> = temper_service::limits::job_kinds()
+    let kinds: Box<[_]> = temper_worker_service::worker_settings::job_kinds()
         .into_vec()
         .into_iter()
         .filter(|kind| declared.contains(&kind.bound))
@@ -69,10 +69,10 @@ fn config(seed: u64) -> engine::Config {
     let mut config = super::agreement::config(seed);
     let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
-    config.core.jobs = temper_service::limits::jobs(&jig);
+    config.core.jobs = temper_engine_service::limits::jobs(&jig);
     assert_eq!(
         config.core.jobs.as_ref(),
-        [temper_service::limits::merge_bound(), temper_service::limits::close_bound()]
+        [temper_service_core::limits::merge_bound(), temper_engine_service::limits::close_bound()]
     );
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
@@ -270,9 +270,11 @@ impl World {
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
         assert_eq!(job.deadline, Duration::from_secs(600));
         story.job = Some(job.run.raw());
-        let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
-        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
-            .expect("worker payload limits");
+        let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+        let limits = temper_worker_service::worker_settings::payload_limits(
+            &temper_worker_service::worker_settings::Limits::shared(own),
+        )
+        .expect("worker payload limits");
         self.worker_events.push_back(link::job(job, workspace, &limits));
     }
 

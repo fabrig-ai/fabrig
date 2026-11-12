@@ -19,7 +19,7 @@ fn history(input: u64) -> smith_domain::Transcript {
         turns: Box::new([record::Turn {
             dialect: 1,
             usage: llm::Usage { input_tokens: Some(input), ..llm::Usage::ZERO },
-            ..smith_domain::session::fixture::turn(
+            ..smith_domain_session_fixtures::turn(
                 b"fake-1".as_slice().into(),
                 record::Kind::First(Box::new(record::Opener {
                     system: None,

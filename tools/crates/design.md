@@ -98,7 +98,7 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 |---|---|---|
 | `temper-client-view` | about 110,000 | its split, not yet planned (`temper/docs/design/draft/crate-graph.md`, 5.1) |
 | `jig-domain-core` | about 100,000 | G6 |
-| `temper-service` | about 84,000 | G4, or sooner if the worker's crates of `temper/docs/design/draft/cli.md`, 6 take it under |
+| `temper-engine-service` | about 66,000 | G4 |
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
 | `temper-engine-domain-forge` | about 74,000 | G5 |
 | `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
@@ -108,6 +108,9 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 | `jig-protocol-store`'s `tasks` | about 39,000 | G2 |
 | `jig-client-protocol-wire`'s own family | about 130,000 | a crate of its own for its `public` family (section 5) |
 | `temper-client-protocol-wire`'s own family | about 38,000 | a crate of its own for its `public` family (section 5) |
+
+The engine service remains over the library bound until G4. The worker service and
+the composition have no size exception (`temper/docs/design/protocol/services.md`, 2).
 
 The two client wires each hold a small second family, the public wire (`public_v1.rs`), beside
 their own. That makes their own family a shared crate's family. The draft read

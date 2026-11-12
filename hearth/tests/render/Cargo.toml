@@ -19,7 +19,7 @@ hearth-lib.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]
-minijinja = { workspace = true, features = ["json"] }
+minijinja = { workspace = true }
 skein-heap.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
