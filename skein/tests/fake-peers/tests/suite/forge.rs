@@ -12,6 +12,24 @@ mod github;
 use fixtures::{ONE_REPLY, SEED, World, address, config, limits, protocol_limits, request};
 
 #[test]
+fn peer_image_is_busy_while_a_domain_call_awaits_its_reply() {
+    use skein_fake_forge_domain::{self as domain, api};
+    use skein_lib::{Env, ReplyTo, Token};
+    let mut world = World::new();
+    {
+        let mut shared = world.forge.borrow_mut();
+        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: shared.config };
+        let forge::Forge { domain, pending, .. } = &mut *shared;
+        domain::step(domain, &env, domain::Event::Call {
+            reply_to: ReplyTo::new(Token::new(99)), user: fixtures::USER,
+            repository: fixtures::boxed(fixtures::REPOSITORY), op: api::Op::Read(api::Read::Labels),
+        }, pending);
+    }
+    assert_eq!(world.peer.image(), Err(forge::Refusal::Busy));
+    world.settle();
+    assert!(world.peer.image().is_ok());
+}
+#[test]
 fn forge_peer_refuses_unusable_configuration_before_effects() {
     for case in fixtures::refusals() {
         assert_eq!(

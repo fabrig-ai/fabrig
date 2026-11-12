@@ -528,7 +528,7 @@ fn refused_deployment_start(root: &Path) {
         assert_eq!(
             String::from_utf8(output.stderr).expect("refusal"),
             if own_document {
-                "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n".into()
+                "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\n".into()
             } else {
                 format!("temper fake forge: {location}{reason}\n")
             },
@@ -613,6 +613,75 @@ fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, (u32,
         }
     }
     found
+}
+#[test]
+fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
+    let scratch = support::Scratch::new("forge-state");
+    let doc = scratch.path().join("forge.json");
+    let state = scratch.path().join("forge.state");
+    document(&doc, &forge_document(scratch.path()));
+    let start = || {
+        let mut cmd = command("forge", &doc);
+        cmd.arg("--state").arg(&state);
+        Running::command(cmd, None)
+    };
+    let run = start();
+    assert!(!state.exists(), "startup writes no state");
+    let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
+    let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
+    let grant = request(&run, run.address, "PUT", "/api/v1/repos/fake/widget/collaborators/temper-admin", &auth, br#"{"permission":"admin"}"#);
+    assert!(grant.starts_with(b"HTTP/1.1 204"));
+    let response = request(&run, run.address, "POST", "/api/v1/repos/fake/widget/issues", &auth,
+        br#"{"title":"Kept across stop","body":"Kept body"}"#);
+    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
+    assert!(!state.exists(), "API writes do not checkpoint");
+    run.stop();
+    assert_eq!(fs::metadata(&state).expect("state written at stop").permissions().mode() & 0o777, 0o600);
+    let before = fs::read(&state).expect("image");
+    let run = start();
+    let response = request(&run, run.address, "GET", "/api/v1/repos/fake/widget/issues/1", &auth, b"");
+    assert_eq!(body(&response)["title"], "Kept across stop");
+    run.end(); // SIGKILL: the prior orderly image is left untouched.
+    assert_eq!(fs::read(&state).expect("kept image"), before);
+    fs::remove_file(&state).expect("remove prior image");
+    let run = start();
+    run.end();
+    assert!(!state.exists(), "SIGKILL writes no image");
+}
+#[test]
+fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
+    use std::os::unix::fs::symlink;
+    let scratch = support::Scratch::new("forge-state-refused");
+    let doc = scratch.path().join("forge.json");
+    let state = scratch.path().join("forge.state");
+    document(&doc, &forge_document(scratch.path()));
+    for kind in ["bytes", "public", "linked", "symlink", "directory"] {
+        let original = b"not an image";
+        fs::write(&state, original).expect("bad image");
+        fs::set_permissions(&state, fs::Permissions::from_mode(0o600)).expect("private state");
+        let extra = scratch.path().join("extra");
+        match kind {
+            "public" => fs::set_permissions(&state, fs::Permissions::from_mode(0o644)).expect("public state"),
+            "linked" => fs::hard_link(&state, &extra).expect("second link"),
+            "symlink" => { fs::rename(&state, &extra).expect("target"); symlink(&extra, &state).expect("link"); }
+            "directory" => { fs::remove_file(&state).expect("remove file"); fs::create_dir(&state).expect("directory"); }
+            "bytes" => {},
+            _ => unreachable!(),
+        }
+        let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        let stderr = String::from_utf8(output.stderr).expect("stderr");
+        assert_eq!(stderr.lines().count(), 1, "{stderr}");
+        assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
+        if kind == "directory" {
+            fs::remove_dir(&state).expect("unchanged directory");
+        } else {
+            assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
+            fs::remove_file(&state).expect("remove fixture");
+        }
+        if extra.exists() { fs::remove_file(extra).expect("remove extra"); }
+    }
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "both forge forms serve the same requests and retain their files")]

@@ -987,10 +987,10 @@ fn effective_commands_reopen_the_retained_directories() {
     let (steps, _) = crate::box_command::configuration_steps(
         &prepared.directories,
         &prepared.bytes,
-        backends::steps(&prepared.directories.config, &prepared.peers, None, false),
+        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false),
     )
     .expect("steps");
-    let prefix = backends::steps(&prepared.directories.config, &prepared.peers, None, false);
+    let prefix = backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false);
     assert_eq!(&steps.always[..prefix.len()], prefix.as_ref());
     for step in steps.always[prefix.len()..]
         .iter()

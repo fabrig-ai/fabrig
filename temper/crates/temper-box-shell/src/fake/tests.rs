@@ -203,7 +203,7 @@ fn arguments() {
         assert_eq!(
             arguments,
             Arguments {
-                scripts: None,
+                state: None,                scripts: None,
                 strict: false,
                 kind,
                 source: Source::Document(document.into()),
@@ -284,7 +284,7 @@ fn argument_refusals() {
         ),
         (
             vec!["fake", "forge", "--document", "doc", "extra"],
-            "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n",
+            "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\n",
         ),
     ] {
         assert_eq!(configured(&words, &[]).expect_err("refused fixture"), expected);
@@ -438,7 +438,7 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-        scripts: None,
+                state: None,        scripts: None,
         strict: false,
         kind: Kind::Forge,
         source: Source::Document(document),
@@ -556,7 +556,7 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         .expect("valid fixture");
         let path = directory.join("observations");
         let arguments = Arguments {
-            scripts: None,
+                state: None,            scripts: None,
             strict: false,
             kind: Kind::Forge,
             source: Source::Document(document.clone()),
@@ -649,7 +649,7 @@ fn llm_records_full_counts_connections_without_queries() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-        scripts: None,
+                state: None,        scripts: None,
         strict: false,
         kind: Kind::Llm,
         source: Source::Document(document),
@@ -741,7 +741,7 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                    scripts: None,
+                state: None,                    scripts: None,
                     strict: false,
                     kind: Kind::Forge,
                     source: Source::Setup { directories, forge },
@@ -755,7 +755,7 @@ fn deployment_arguments() {
     for number in ["-1", "+1", "65536", "forge", ""] {
         assert_eq!(
             configured(&["fake", "forge", number], &[("HOME", "/home/test")]),
-            Err("temper-box fake forge: FORGE: expected a forge number, a decimal u16\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n".into())
+            Err("temper-box fake forge: FORGE: expected a forge number, a decimal u16\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\n".into())
         );
     }
     for (words, environment, directories) in [
@@ -779,7 +779,7 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                    scripts: None,
+                state: None,                    scripts: None,
                     strict: false,
                     kind: Kind::Llm,
                     source: Source::Demo { directories },

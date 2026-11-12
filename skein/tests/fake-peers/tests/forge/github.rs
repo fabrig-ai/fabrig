@@ -452,6 +452,56 @@ fn request_reuse(method: Method, target: &[u8], body: &[u8], auth: Option<&Secre
 }
 
 #[test]
+fn peer_images_keep_each_dialects_service_and_domain_after_shutdown() {
+    for github in [false, true] {
+        let mut world = World::new(f::SEED);
+        let token = world.token();
+        assert!(matches!(world.plan(&token, api::Op::Write(api::Write::CreateIssue {
+            title: f::boxed(b"Kept issue"), body: f::boxed(b"Kept body"), key: f::boxed(b"kept-key"),
+        })), Ok(api::Answer::Created(1))));
+        world.forgejo.setup_mut().private(2).expect("private repository");
+        world.settle();
+        let image = if github { world.github.image() } else { world.forgejo.image() }.expect("settled image");
+        world.forge = f::shared();
+        let peer_limits = skein_fake_peers::Limits {
+            io: skein_io::Limits { sockets: 6, ..f::limits().io },
+            observations: RECORDS, observation_bytes: RECORD_BYTES, ..f::limits()
+        };
+        world.github = Peer::github(f::address(), f::address(), peer_limits, config(), limits(), world.forge.clone(), f::SEED).expect("fresh GitHub");
+        world.forgejo = Peer::new(f::address(), peer_limits, f::config(), f::protocol_limits(), world.forge.clone(), f::SEED).expect("fresh Forgejo");
+        let peer = if github { &mut world.github } else { &mut world.forgejo };
+        let seeded = peer.image().expect("fresh image");
+        let domain_length = usize::try_from(u64::from_be_bytes(image[..8].try_into().expect("length prefix"))).expect("domain length");
+        let mut bad_service = image.to_vec();
+        bad_service[domain_length + 16] = 255;
+        for bad in [b"arbitrary bytes".as_slice(), image[..image.len() - 1].as_ref(), bad_service.as_slice()] {
+            assert!(peer.restore(bad).is_err(), "malformed part refused");
+            assert_eq!(peer.image().expect("unchanged"), seeded, "a refused service must not install the decoded domain");
+        }
+        if github {
+            world.github.restore(&image).expect("GitHub restored");
+        } else {
+            world.forgejo.restore(&image).expect("Forgejo restored");
+            assert!(world.forgejo.setup_mut().is_private(2), "the service's changed privacy is kept");
+        }
+        while world.github.address().is_none() || world.github.blob_address().is_none() || world.forgejo.address().is_none() {
+            world.pass();
+        }
+        if github {
+            let read = world.plan(&token, api::Op::Read(api::Read::Item { number: 1, after: 0, since: Time::ZERO })).expect("retained token still reads");
+            let api::Answer::Item { item, .. } = read else { panic!("retained issue") };
+            assert_eq!(item.title.as_ref(), b"Kept issue");
+        } else {
+            let fd = world.open(false);
+            world.send(fd, &f::request(b"/api/v1/repos/org/repo/issues/1"));
+            let response = world.receive(fd);
+            assert_eq!(response.status, 200);
+            assert!(bytes::find(&response.body, b"Kept issue").is_some());
+        }
+        world.settle();
+    }
+}
+#[test]
 fn github_peer_head_is_a_bodyless_404_and_allows_reuse() {
     let mut world = World::new(f::SEED);
     let fd = world.open(true);
