@@ -959,6 +959,10 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
         c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
+        c::Activity::NowWritten { line, .. } => {
+            words.text(b, Word::NowWritten, &[]);
+            text_node(b, line.bytes());
+        }
         c::Activity::TalkOpened { party } => words.text(b, Word::TalkOpened, &[Hole::Number(*party)]),
         c::Activity::TalkEnded { lapsed, .. } => {
             words.text(b, if *lapsed { Word::TalkLapsed } else { Word::TalkEnded }, &[]);

@@ -220,6 +220,10 @@ fn owner(root: &Domain, chat: &Chat, line: &c::Activity, words: &Words) -> Optio
             }
             Some(Entry::Agent { words: words.view().say(Word::DecisionMade, &[]), growing: false })
         }
+        c::Activity::NowWritten { line, .. } => Some(Entry::Agent {
+            words: skein_lib::bytes::concat(&[&words.view().say(Word::NowWritten, &[]), line.bytes()]),
+            growing: false,
+        }),
         c::Activity::Stood { .. }
         | c::Activity::TalkOpened { .. }
         | c::Activity::TalkEnded { .. }
@@ -267,6 +271,7 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
                 c::Activity::Heard(_)
                 | c::Activity::Notified { .. }
                 | c::Activity::Decided { .. }
+                | c::Activity::NowWritten { .. }
                 | c::Activity::Stood { .. }
                 | c::Activity::TalkOpened { .. }
                 | c::Activity::TalkEnded { .. }

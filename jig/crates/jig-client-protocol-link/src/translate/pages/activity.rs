@@ -193,6 +193,9 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
                 None => None,
             },
         },
+        w::Activity::NowWritten(row) => {
+            c::Activity::NowWritten { attempt: row.attempt(), line: long_text(row.line(), limits)? }
+        }
         w::Activity::Stood(row) => {
             c::Activity::Stood { attempt: row.attempt(), words: long_text(row.words(), limits)? }
         }

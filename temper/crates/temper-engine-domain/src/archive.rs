@@ -459,6 +459,7 @@ pub(crate) fn goal_loaded(domain: &mut Domain, waiter: Token, rows: Box<[Record]
         | tasks::Line::Turn { .. }
         | tasks::Line::Decided { .. }
         | tasks::Line::Milestone { .. }
+        | tasks::Line::NowWritten { .. }
         | tasks::Line::Stood { .. }
         | tasks::Line::TalkOpened { .. }
         | tasks::Line::TalkEnded { .. }

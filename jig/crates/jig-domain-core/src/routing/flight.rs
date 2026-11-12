@@ -210,6 +210,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::PeriodNext { .. }
         | tasks::Event::ChargeEffect { .. }
+        | tasks::Event::NowWritten { .. }
         | tasks::Event::Refusals { .. }
         | tasks::Event::ReadAfresh { .. }
         | tasks::Event::EffectSettled { .. }

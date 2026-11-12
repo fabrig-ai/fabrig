@@ -81,7 +81,13 @@ pub(crate) fn tag_notes(
             notes::Request::ProjectDropped { owner } => {
                 crate::admission::deletion::notes_dropped(core, env, owner, &mut out);
             }
-            notes::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Notes(record)))),
+            notes::Request::Save { record } => {
+                match &record {
+                    notes::Record::Entry(entry) => crate::routing::run::now::written(core, work, entry),
+                    notes::Record::Line(_) => {}
+                }
+                out.push(Request::Write(Write::Save(Record::Notes(record))));
+            }
             notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
