@@ -11,7 +11,10 @@ use alloc::boxed::Box;
 use skein_lib::{Secret, Writer};
 
 /// The application's channel payload version (protocol/channel.md, section 3).
-pub const PAYLOAD_VERSION: u32 = 4;
+pub const PAYLOAD_VERSION: u32 = {
+    let [high, low] = wire::VERSION.to_be_bytes();
+    u32::from_be_bytes([0, 0, high, low])
+};
 
 /// Domain bounds shared by both sides of the channel (protocol/channel.md,
 /// section 8).
@@ -155,3 +158,45 @@ fn author(text: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+pub mod wire {
+    /// The family named by the current schema's header.
+    pub const FAMILY: &str = "temper-worker-wire";
+
+    /// The version named by the current schema's header.
+    pub const VERSION: u16 = 5;
+
+    const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");
+
+    /// The current schema's family fingerprint.
+    #[must_use]
+    pub fn layout() -> [u8; 32] {
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{FAMILY, TEXT, VERSION, layout};
+
+        #[test]
+        fn identity_tracks_schema() {
+            let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
+            assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
+            assert_eq!(VERSION, schema.version());
+            assert_eq!(layout(), schema.fingerprints().family().digest());
+
+            let changed = TEXT.replacen("tag: u64", "tag: u32", 1);
+            assert_ne!(changed, TEXT, "the mutation changes a field's type");
+            let changed = skein_codec::schema::parse(changed.as_bytes()).expect("changed schema");
+            assert_ne!(layout(), changed.fingerprints().family().digest());
+        }
+    }
+}
+
+#[path = "../patches/mod.rs"]
+pub mod patches;

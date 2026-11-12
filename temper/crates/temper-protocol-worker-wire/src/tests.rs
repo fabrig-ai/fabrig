@@ -4,6 +4,34 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;
 
+/// Another family's version is distinct from a malformed Items body (protocol/wires.md, 5).
+#[test]
+fn items_refuse_another_version_before_reading_the_body() {
+    use skein_codec::Reason;
+    use skein_lib::Reader;
+
+    let limits = fixtures::limits();
+    let value = v1::Items::new(&limits, fixtures::items(1)).expect("items within bounds");
+    let bytes = crate::items(&value);
+    assert_eq!(skein_codec::version_of(&bytes), Ok(crate::wire::VERSION));
+    assert_eq!(v1::Items::decode(&limits, &mut Reader::new(&bytes)), Ok(value));
+
+    let other = crate::wire::VERSION.checked_sub(1).expect("a preceding version").to_be_bytes();
+    let mut changed = bytes.into_vec();
+    changed.get_mut(..2).expect("version prefix").copy_from_slice(&other);
+    for bytes in [changed.as_slice(), other.as_slice()] {
+        assert_eq!(
+            v1::Items::decode(&limits, &mut Reader::new(bytes)).expect_err("another version"),
+            v1::Problem { path: v1::Path::ItemsVersion, reason: Reason::Version }
+        );
+    }
+    assert_eq!(
+        v1::Items::decode(&limits, &mut Reader::new(&crate::wire::VERSION.to_be_bytes()))
+            .expect_err("missing repository count"),
+        v1::Problem { path: v1::Path::ItemsRepositories, reason: Reason::Short }
+    );
+}
+
 #[test]
 fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(

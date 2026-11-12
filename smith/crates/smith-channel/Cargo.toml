@@ -17,3 +17,7 @@ skein-channel.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+skein-codegen.workspace = true
+skein-scratch.workspace = true

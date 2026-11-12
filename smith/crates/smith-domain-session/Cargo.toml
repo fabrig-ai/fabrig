@@ -13,6 +13,7 @@ fixture = ["smith-domain-tools/fixture"]
 [dependencies]
 skein-lib.workspace = true
 smith-domain-tools.workspace = true
+smith-transcript.workspace = true
 
 [lints]
 workspace = true
