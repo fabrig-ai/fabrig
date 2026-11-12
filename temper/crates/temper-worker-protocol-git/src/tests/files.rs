@@ -56,11 +56,9 @@ fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
             (directory(Fd::new(3), b"workspaces"), None),
             (directory(Fd::new(3), b"stores"), exists),
             (directory(Fd::new(3), b"making"), None),
-            (directory(Fd::new(3), b"making"), None),
             (directory(Fd::new(3), b"home"), None),
             (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
             (open(b"stores", OpenHow::DirectoryNoFollow), None),
-            (open(b"making", OpenHow::DirectoryNoFollow), None),
             (open(b"making", OpenHow::DirectoryNoFollow), None),
         ] {
             assert_eq!(component.file_operation(), operation);
