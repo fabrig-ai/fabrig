@@ -759,13 +759,13 @@ fn the_watch_rooms_follow_the_streams() {
     let settings = fixtures::engine();
     let mut jig = settings.jig.limits;
     for streams in [2, 8] {
-        let room = streams * temper_engine_domain::WATCHES_PER_STREAM;
+        let capacity = streams * temper_engine_domain::WATCHES_PER_STREAM;
         jig.clients.streams = streams;
         let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
         assert_eq!(root.streams, streams);
         let views = temper_engine_domain::core_limits(&root).views;
-        assert_eq!(views.watchers, room);
-        assert_eq!(views.watchers_per_party, room);
+        assert_eq!(views.watchers, capacity);
+        assert_eq!(views.watchers_per_party, capacity);
     }
 }
 
