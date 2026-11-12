@@ -46,7 +46,7 @@ fn settings_size_verdict_fields_apart_from_result_byte_bounds() {
 
 #[test]
 fn the_settings_verdict_piece_ceiling_is_one_mebibyte() {
-    assert_eq!(crate::settings_v1::CEILINGS.verdict_fields, 1_048_576);
+    assert_eq!(crate::settings_v2::CEILINGS.verdict_fields, 1_048_576);
 }
 
 fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {

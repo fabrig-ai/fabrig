@@ -28,7 +28,7 @@ fn a_pending_person_proposal_reads_back() {
     }
 }
 fn a_recurring_template_reads_back_one_level_deep() {
-    use crate::{codec::tasks::phase, tasks_v9::Creation};
+    use crate::{codec::tasks::phase, tasks_v10::Creation};
     let mut source = fixtures::task_creation(59);
     source.recurring = Some(Box::new(fixtures::task_template()));
     let encoded = phase::new(&source, &tasks_limits(), None).expect("one level is supported");
@@ -41,7 +41,7 @@ fn a_template_member_holding_a_template_is_refused() {
     source.batch.get_mut(0).expect("first member").recurring = Some(Box::new(fixtures::task_template()));
     assert_eq!(
         crate::codec::tasks::phase::template(&source, &tasks_limits(), None),
-        Err(bound_problem(crate::tasks_v9::Path::CreationRecurring))
+        Err(bound_problem(crate::tasks_v10::Path::CreationRecurring))
     );
 }
 fn a_milestone_reads_back_with_its_complete_phase() {
@@ -72,8 +72,8 @@ fn a_decided_person_proposal_reads_back() {
     }
 }
 
-fn saved_phase(source: &jig_domain_tasks::Phase) -> Result<jig_domain_tasks::Phase, crate::tasks_v9::Problem> {
-    use crate::{codec::tasks::phase, tasks_v9::Phase};
+fn saved_phase(source: &jig_domain_tasks::Phase) -> Result<jig_domain_tasks::Phase, crate::tasks_v10::Problem> {
+    use crate::{codec::tasks::phase, tasks_v10::Phase};
     let encoded = phase::phase(source, &tasks_limits())?;
     let encoded = saved_wire(encoded, Phase::measure, Phase::encode, Phase::decode);
     phase::read_phase(encoded, &tasks_limits())
@@ -125,8 +125,8 @@ fn a_held_phase_without_a_source_reads_back() {
 }
 fn saved_result(
     source: &jig_domain_tasks::TaskResult,
-) -> Result<jig_domain_tasks::TaskResult, crate::tasks_v9::Problem> {
-    use crate::{codec::tasks::phase, tasks_v9::TaskResult};
+) -> Result<jig_domain_tasks::TaskResult, crate::tasks_v10::Problem> {
+    use crate::{codec::tasks::phase, tasks_v10::TaskResult};
     let encoded = phase::result(source, &tasks_limits())?;
     let encoded = saved_wire(encoded, TaskResult::measure, TaskResult::encode, TaskResult::decode);
     phase::read_result(encoded, &tasks_limits())
@@ -170,7 +170,7 @@ fn change_title_survives_persistence_at_its_independent_byte_bound() {
     };
     let title = jig_domain_tasks::ChangeTitle::new(skein_lib::bytes::zeroed(bound + 1));
     let over = jig_domain_tasks::TaskResult::Change { connector, kind, resource, title, words };
-    assert_eq!(saved_result(&over), Err(bound_problem(crate::tasks_v9::Path::TaskResultTag)));
+    assert_eq!(saved_result(&over), Err(bound_problem(crate::tasks_v10::Path::TaskResultTag)));
 }
 
 fn result_with_state(bytes: usize) -> jig_domain_tasks::TaskResult {
@@ -184,7 +184,7 @@ fn a_result_at_its_shared_byte_bound_reads_back() {
 fn a_result_past_its_shared_byte_bound_is_refused() {
     assert_eq!(
         crate::codec::tasks::phase::result(&result_with_state(32), &tasks_limits()),
-        Err(bound_problem(crate::tasks_v9::Path::TaskResultTag))
+        Err(bound_problem(crate::tasks_v10::Path::TaskResultTag))
     );
 }
 #[test]
@@ -193,11 +193,11 @@ fn a_decoded_result_past_its_shared_byte_bound_is_refused() {
     let mut wider = tasks_limits();
     wider.result_field_value = 33;
     let encoded = phase::result(&result_with_state(32), &wider).expect("within wider aggregate bound");
-    assert_eq!(phase::read_result(encoded, &tasks_limits()), Err(bound_problem(crate::tasks_v9::Path::TaskResultTag)));
+    assert_eq!(phase::read_result(encoded, &tasks_limits()), Err(bound_problem(crate::tasks_v10::Path::TaskResultTag)));
 }
 
-fn saved_proposal(source: &jig_domain_tasks::Proposal) -> Result<jig_domain_tasks::Proposal, crate::tasks_v9::Problem> {
-    use crate::{codec::tasks::proposals, tasks_v9::Proposal};
+fn saved_proposal(source: &jig_domain_tasks::Proposal) -> Result<jig_domain_tasks::Proposal, crate::tasks_v10::Problem> {
+    use crate::{codec::tasks::proposals, tasks_v10::Proposal};
     let encoded = proposals::proposal(source, &tasks_limits(), None)?;
     let encoded = saved_wire(encoded, Proposal::measure, Proposal::encode, Proposal::decode);
     proposals::read_proposal(encoded, &tasks_limits())
@@ -251,7 +251,7 @@ fn each_proposal_decision_reads_back() {
     }
 }
 fn an_amendment_without_replacements_reads_back() {
-    use crate::{codec::tasks::proposals, tasks_v9::Amendment};
+    use crate::{codec::tasks::proposals, tasks_v10::Amendment};
     let source = jig_domain_tasks::Amendment {
         tracked: None,
         addressed: None,
@@ -276,7 +276,7 @@ fn a_history_without_optional_details_reads_back() {
     assert_eq!(saved_tasks(&row), Ok(row));
 }
 fn a_finish_grace_reads_back() {
-    use crate::{codec::tasks::phase, tasks_v9::Grace};
+    use crate::{codec::tasks::phase, tasks_v10::Grace};
     let source = jig_domain_tasks::Grace {
         by: jig_domain_tasks::Party::Person(31),
         until: skein_lib::Wall::from_nanos(u64::MAX),
@@ -288,14 +288,14 @@ fn a_finish_grace_reads_back() {
     assert_eq!(phase::read_grace(encoded), Ok(source));
 }
 fn a_revision_set_reads_back() {
-    use crate::{codec::tasks::phase, tasks_v9::Revisions};
+    use crate::{codec::tasks::phase, tasks_v10::Revisions};
     let source = jig_domain_tasks::Revisions { hold: 3, spec: 5, person: 7 };
     let encoded = phase::revisions(&source, &tasks_limits()).expect("fixed-width fields fit");
     let encoded = saved_wire(encoded, Revisions::measure, Revisions::encode, Revisions::decode);
     assert_eq!(phase::read_revisions(encoded), Ok(source));
 }
 fn each_retry_notice_reads_back() {
-    use crate::{codec::tasks::phase, tasks_v9::RetryNotice};
+    use crate::{codec::tasks::phase, tasks_v10::RetryNotice};
     for source in [
         jig_domain_tasks::RetryNotice::Failed {
             class: jig_domain_tasks::Class::Lost,
@@ -369,7 +369,7 @@ fn task_phases_and_proposals_read_back_as_written() {
 
 #[test]
 fn tracking_amendments_read_back() {
-    use crate::{codec::tasks::proposals, tasks_v9::Amendment};
+    use crate::{codec::tasks::proposals, tasks_v10::Amendment};
     use jig_domain_tasks::Tracking;
     for tracked in [None, Some(Tracking::Untracked), Some(Tracking::Tracked { priority: 7 })] {
         let mut source = fixtures::task_amendment();
@@ -443,7 +443,7 @@ fn a_connectors_effect_or_procedure_account_survives_the_store() {
 
 #[test]
 fn preparation_hold_and_retry_reasons_survive_the_store() {
-    use crate::{codec::tasks::phase, tasks_v9};
+    use crate::{codec::tasks::phase, tasks_v10};
     use jig_domain_tasks::{Active, Class, Hold, HoldSource, Phase, RetryNotice, Was};
     let words: Box<[u8]> = b"brief: required section cannot fit".as_slice().into();
     let held = Phase::Held {
@@ -459,9 +459,9 @@ fn preparation_hold_and_retry_reasons_survive_the_store() {
         let encoded = phase::retry_notice(&notice, &tasks_limits()).expect("bounded reason");
         let encoded = saved_wire(
             encoded,
-            tasks_v9::RetryNotice::measure,
-            tasks_v9::RetryNotice::encode,
-            tasks_v9::RetryNotice::decode,
+            tasks_v10::RetryNotice::measure,
+            tasks_v10::RetryNotice::encode,
+            tasks_v10::RetryNotice::decode,
         );
         assert_eq!(phase::read_retry_notice(encoded), Ok(notice));
     }

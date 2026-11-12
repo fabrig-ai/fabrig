@@ -674,8 +674,8 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
             codec::settings::limits(&fewer_documents).unwrap(),
             codec::settings::limits(&fewer_segments).unwrap(),
             shorter_segments,
-            crate::settings_v1::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
-            crate::settings_v1::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
         ] {
             assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
             assert_eq!(

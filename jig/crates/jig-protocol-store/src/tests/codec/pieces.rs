@@ -1,7 +1,7 @@
 //! Byte-summed pieces preserve the domain's admissions (skein/docs/design/data/codec/README.md, 3).
 use super::fixtures;
 use crate::codec::{people, tasks};
-use crate::{people_v14, tasks_v9};
+use crate::{people_v14, tasks_v10};
 use jig_domain_people as person;
 use jig_domain_tasks as task;
 use skein_lib::{List, Reader, Writer};
@@ -72,7 +72,7 @@ fn a_whole_amendment_admits_its_full_sum_and_refuses_one_byte_past_it() {
     assert_eq!(people::policy::decode_amendment(forged, &limits), Err(people_problem()), "decoded past_sum");
 }
 
-fn task_limits() -> tasks_v9::Limits {
+fn task_limits() -> tasks_v10::Limits {
     let mut domain = fixtures::TASKS_LIMITS;
     domain.result_bytes = 512;
     tasks::limits(&domain).expect("test-sized byte sum")
@@ -86,18 +86,18 @@ fn fields(count: usize) -> Box<[task::ResultField]> {
 }
 fn saved_fields(
     fields: &[task::ResultField],
-    limits: &tasks_v9::Limits,
-) -> Result<Box<[task::ResultField]>, tasks_v9::Problem> {
+    limits: &tasks_v10::Limits,
+) -> Result<Box<[task::ResultField]>, tasks_v10::Problem> {
     let value = task::TaskResult::Verdict { code: 7, fields: fields.into(), words: Box::new([]) };
     let encoded = tasks::phase::result(&value, limits)?;
     let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
     encoded.encode(&mut out).expect("measured verdict");
     let bytes = out.finish();
-    let decoded = tasks_v9::TaskResult::decode(limits, &mut Reader::new(&bytes))?;
+    let decoded = tasks_v10::TaskResult::decode(limits, &mut Reader::new(&bytes))?;
     match tasks::phase::read_result(decoded, limits)? {
         task::TaskResult::Verdict { fields, .. } => Ok(fields),
         task::TaskResult::Job { .. } => {
-            Err(tasks_v9::Problem { path: tasks_v9::Path::TaskResultTag, reason: skein_codec::Reason::Malformed })
+            Err(tasks_v10::Problem { path: tasks_v10::Path::TaskResultTag, reason: skein_codec::Reason::Malformed })
         }
         task::TaskResult::Approved { .. }
         | task::TaskResult::Report { .. }
@@ -118,7 +118,7 @@ fn verdict_fields_round_trip_at_the_domain_sum_and_refuse_one_past_it() {
         } else {
             assert_eq!(
                 saved,
-                Err(tasks_v9::Problem { path: tasks_v9::Path::TaskResultTag, reason: skein_codec::Reason::Bound }),
+                Err(tasks_v10::Problem { path: tasks_v10::Path::TaskResultTag, reason: skein_codec::Reason::Bound }),
                 "{label}"
             );
         }
@@ -130,7 +130,7 @@ fn the_encoded_piece_bound_holds_a_verdict_at_the_domain_sum_exactly() {
     let limits = task_limits();
     let value = task::TaskResult::Verdict { code: 7, fields: fields(512), words: Box::new([]) };
     let encoded = tasks::phase::result(&value, &limits).expect("domain sum fits");
-    let tasks_v9::TaskResult::Verdict(encoded) = encoded else { unreachable!("verdict fixture") };
+    let tasks_v10::TaskResult::Verdict(encoded) = encoded else { unreachable!("verdict fixture") };
     assert_eq!(encoded.fields().len(), 6656);
     assert_eq!(limits.verdict_result_fields, 6656);
     assert_eq!(limits.verdict_fields, 6656);
@@ -147,8 +147,8 @@ fn verdict_fields_are_framed_for_at_most_verdict_fields_items() {
     domain.result_bytes = 4096;
     let limits = tasks::limits(&domain).expect("within ceilings");
     // Each fixed field has eight bytes, and each piece adds four bytes.
-    assert_eq!(tasks_v9::FieldRule::encoded_bound(&tasks::EMPTY), Some(8));
-    assert_eq!(tasks_v9::ResultField::encoded_bound(&tasks::EMPTY), Some(8));
+    assert_eq!(tasks_v10::FieldRule::encoded_bound(&tasks::EMPTY), Some(8));
+    assert_eq!(tasks_v10::ResultField::encoded_bound(&tasks::EMPTY), Some(8));
     assert_eq!(limits.verdict_fields, 512 * (8 + 4) + 4096);
     assert_eq!(limits.verdict_result_fields, 512 * (8 + 4) + 4096);
     assert_eq!(limits.verdict_message_fields, 512 * (8 + 4) + 4096);
@@ -156,17 +156,17 @@ fn verdict_fields_are_framed_for_at_most_verdict_fields_items() {
 
 #[test]
 fn a_creation_without_payload_has_only_its_fixed_part() {
-    let member = tasks_v9::Member::encoded_bound(&tasks::EMPTY).expect("fixed member");
-    let creation = tasks_v9::Creation::encoded_bound(&tasks::EMPTY).expect("fixed creation");
+    let member = tasks_v10::Member::encoded_bound(&tasks::EMPTY).expect("fixed member");
+    let creation = tasks_v10::Creation::encoded_bound(&tasks::EMPTY).expect("fixed creation");
     assert!(creation < 1024, "New={} Member(EMPTY)={member} Creation(EMPTY)={creation}", size_of::<task::New>());
 }
 
 fn wire_round_trip<T>(
     value: T,
-    limits: &tasks_v9::Limits,
+    limits: &tasks_v10::Limits,
     measure: fn(&T) -> u32,
     encode: fn(&T, &mut Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&tasks_v9::Limits, &mut Reader<'_>) -> Result<T, tasks_v9::Problem>,
+    decode: fn(&tasks_v10::Limits, &mut Reader<'_>) -> Result<T, tasks_v10::Problem>,
 ) -> T {
     let mut out = Writer::new(skein_lib::length::usize_of(measure(&value)));
     encode(&value, &mut out).expect("measured item");
@@ -209,13 +209,13 @@ fn an_authority_is_one_piece_by_its_bytes() {
     let encoded = wire_round_trip(
         encoded,
         &limits,
-        tasks_v9::Authority::measure,
-        tasks_v9::Authority::encode,
-        tasks_v9::Authority::decode,
+        tasks_v10::Authority::measure,
+        tasks_v10::Authority::encode,
+        tasks_v10::Authority::decode,
     );
     assert_eq!(tasks::value::read_authority(encoded, &limits), Ok(value.clone()));
     value.grants[0].pattern.last = task::Last::Exact(Box::new([b'b'; 7]));
-    assert_eq!(tasks::value::authority(&value, &limits, None), Err(task_problem(tasks_v9::Path::AuthorityGrants)));
+    assert_eq!(tasks::value::authority(&value, &limits, None), Err(task_problem(tasks_v10::Path::AuthorityGrants)));
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn a_name_is_one_piece_by_the_hold_bytes() {
     assert_eq!(tasks::decode(&encoded, &limits, &[]), Ok(row));
     value.path[0] = Box::new([b'a'; 2]);
     writer.resource = value;
-    assert_eq!(tasks::encode(&task::Stored::Writer(writer), &limits, &[]), Err(task_problem(tasks_v9::Path::NamePath)));
+    assert_eq!(tasks::encode(&task::Stored::Writer(writer), &limits, &[]), Err(task_problem(tasks_v10::Path::NamePath)));
 }
 
 #[test]
@@ -242,14 +242,14 @@ fn a_spec_parameters_piece_holds_the_spec_bytes() {
     value.parameters[1] = task::Parameter::Bytes { name: 2, value: Box::new([b'b'; 16]) };
     let encoded = tasks::value::spec(&value, &limits).expect("spec byte sum fits");
     let encoded =
-        wire_round_trip(encoded, &limits, tasks_v9::Spec::measure, tasks_v9::Spec::encode, tasks_v9::Spec::decode);
+        wire_round_trip(encoded, &limits, tasks_v10::Spec::measure, tasks_v10::Spec::encode, tasks_v10::Spec::decode);
     assert_eq!(tasks::value::read_spec(encoded, &limits), Ok(value.clone()));
     value.words = Box::new([b'a'; 17]);
-    assert_eq!(tasks::value::spec(&value, &limits), Err(task_problem(tasks_v9::Path::SpecWords)));
+    assert_eq!(tasks::value::spec(&value, &limits), Err(task_problem(tasks_v10::Path::SpecWords)));
 }
 
-fn task_problem(path: tasks_v9::Path) -> tasks_v9::Problem {
-    tasks_v9::Problem { path, reason: skein_codec::Reason::Bound }
+fn task_problem(path: tasks_v10::Path) -> tasks_v10::Problem {
+    tasks_v10::Problem { path, reason: skein_codec::Reason::Bound }
 }
 
 fn batch_limits() -> task::Limits {
@@ -309,9 +309,9 @@ fn assert_batch_round_trips(label: &str, batch: &[task::New], domain: &task::Lim
     let encoded = wire_round_trip(
         encoded,
         &limits,
-        tasks_v9::Proposal::measure,
-        tasks_v9::Proposal::encode,
-        tasks_v9::Proposal::decode,
+        tasks_v10::Proposal::measure,
+        tasks_v10::Proposal::encode,
+        tasks_v10::Proposal::decode,
     );
     assert_eq!(tasks::proposals::read_proposal(encoded, &limits), Ok(proposal), "{label}: proposal");
     let end = task::End::FinishedWithFollowups {
@@ -326,9 +326,9 @@ fn assert_batch_round_trips(label: &str, batch: &[task::New], domain: &task::Lim
         let encoded = wire_round_trip(
             encoded,
             &limits,
-            tasks_v9::RecurringTemplate::measure,
-            tasks_v9::RecurringTemplate::encode,
-            tasks_v9::RecurringTemplate::decode,
+            tasks_v10::RecurringTemplate::measure,
+            tasks_v10::RecurringTemplate::encode,
+            tasks_v10::RecurringTemplate::decode,
         );
         assert_eq!(tasks::phase::read_template(encoded, &limits), Ok(template), "{label}: template");
     }
@@ -410,7 +410,7 @@ fn a_creations_piece_past_its_bound_is_refused() {
     out.put(&(bound + 1).to_be_bytes()).expect("length room");
     out.put(&skein_lib::bytes::zeroed(usize::try_from(bound).unwrap() + 1)).expect("piece room");
     assert_eq!(
-        tasks_v9::ProposedBatch::decode(&limits, &mut Reader::new(&out.finish())),
-        Err(task_problem(tasks_v9::Path::ProposedBatchMembers)),
+        tasks_v10::ProposedBatch::decode(&limits, &mut Reader::new(&out.finish())),
+        Err(task_problem(tasks_v10::Path::ProposedBatchMembers)),
     );
 }
