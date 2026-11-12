@@ -8,20 +8,28 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
         w::Request::FileFinding(value) => {
             let value = value.into_parts();
             Some(root::Application::FileFinding(forge::FileFinding {
-                project: value.project, kind: kind_from(value.kind), severity: severity_from(value.severity),
-                area: value.area, title: value.title, body: value.body,
+                project: value.project,
+                kind: kind_from(value.kind),
+                severity: severity_from(value.severity),
+                area: value.area,
+                title: value.title,
+                body: value.body,
             }))
         }
         w::Request::HandFinding(value) => {
             let value = value.into_parts();
             Some(root::Application::HandFinding(forge::HandFinding {
-                project: value.project, number: value.number, area: value.area, why: value.why,
+                project: value.project,
+                number: value.number,
+                area: value.area,
+                why: value.why,
             }))
         }
         w::Request::TriageFinding(value) => {
             let value = value.into_parts();
             Some(root::Application::TriageFinding(forge::TriageFinding {
-                project: value.project, number: value.number,
+                project: value.project,
+                number: value.number,
                 act: match value.act {
                     w::Triage::Route(value) => forge::Triage::Route(value.task()),
                     w::Triage::Backlog => forge::Triage::Backlog,
@@ -29,16 +37,31 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
                 },
             }))
         }
-        w::Request::Adopt(_) | w::Request::SetUp(_) | w::Request::Connect(_) | w::Request::Install(_)
-        | w::Request::Reachable(_) | w::Request::Accept(_) | w::Request::RemoveForge(_) | w::Request::StartPlayground
-        | w::Request::EndPlayground | w::Request::Replace(_) | w::Request::Dismiss(_) | w::Request::MakeRepository(_)
-        | w::Request::DismissMaking(_) | w::Request::Looked(_) | w::Request::SetAway(_) | w::Request::Overturn(_)
+        w::Request::Adopt(_)
+        | w::Request::SetUp(_)
+        | w::Request::Connect(_)
+        | w::Request::Install(_)
+        | w::Request::Reachable(_)
+        | w::Request::Accept(_)
+        | w::Request::RemoveForge(_)
+        | w::Request::StartPlayground
+        | w::Request::EndPlayground
+        | w::Request::Replace(_)
+        | w::Request::Dismiss(_)
+        | w::Request::MakeRepository(_)
+        | w::Request::DismissMaking(_)
+        | w::Request::Looked(_)
+        | w::Request::SetAway(_)
+        | w::Request::Overturn(_)
         | w::Request::TryAccount(_) => None,
     }
 }
 
 pub(super) fn state(value: Option<&w::FindingState>) -> Option<forge::FindingState> {
-    match value { Some(value) => Some(state_from(value.clone())), None => None }
+    match value {
+        Some(value) => Some(state_from(value.clone())),
+        None => None,
+    }
 }
 
 fn kind_from(value: w::FindingKind) -> forge::FindingKind {
@@ -98,7 +121,9 @@ fn state_to(value: forge::FindingState) -> w::FindingState {
 fn holder(value: forge::Holder, limits: &w::Limits) -> Option<w::Holder> {
     Some(match value {
         forge::Holder::Task(number) => w::Holder::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
-        forge::Holder::Party(number) => w::Holder::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?),
+        forge::Holder::Party(number) => {
+            w::Holder::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?)
+        }
         forge::Holder::Role(number) => w::Holder::Role(w::HolderRole::new(limits, w::HolderRoleParts { number }).ok()?),
     })
 }
@@ -109,7 +134,9 @@ fn owner(value: forge::settings::AreaOwner, limits: &w::Limits) -> Option<w::Are
         AreaOwner::Task(number) => w::AreaOwner::Task(w::AreaTask::new(limits, w::AreaTaskParts { number }).ok()?),
         AreaOwner::Party(number) => w::AreaOwner::Party(w::AreaParty::new(limits, w::AreaPartyParts { number }).ok()?),
         AreaOwner::Role(number) => w::AreaOwner::Role(w::AreaRole::new(limits, w::AreaRoleParts { number }).ok()?),
-        AreaOwner::Charter(number) => w::AreaOwner::Charter(w::AreaCharter::new(limits, w::AreaCharterParts { number }).ok()?),
+        AreaOwner::Charter(number) => {
+            w::AreaOwner::Charter(w::AreaCharter::new(limits, w::AreaCharterParts { number }).ok()?)
+        }
     })
 }
 
@@ -117,51 +144,108 @@ fn refused(value: forge::FindingRefusal, limits: &w::Limits) -> Option<w::Outcom
     let reason = match value {
         forge::FindingRefusal::NoArea(names) => {
             let mut areas = List::with_capacity(limits.finding_areas_areas);
-            for name in names { areas.push(name).ok()?; }
+            for name in names {
+                areas.push(name).ok()?;
+            }
             w::FindingRefusal::NoArea(w::FindingAreas::new(limits, w::FindingAreasParts { areas }).ok()?)
         }
-        forge::FindingRefusal::Full(count) => w::FindingRefusal::Full(w::FindingsFull::new(limits, w::FindingsFullParts { count }).ok()?),
-        forge::FindingRefusal::NotYours(value) => w::FindingRefusal::NotYours(w::FindingNotYours::new(limits, w::FindingNotYoursParts { holder: holder(value, limits)? }).ok()?),
+        forge::FindingRefusal::Full(count) => {
+            w::FindingRefusal::Full(w::FindingsFull::new(limits, w::FindingsFullParts { count }).ok()?)
+        }
+        forge::FindingRefusal::NotYours(value) => w::FindingRefusal::NotYours(
+            w::FindingNotYours::new(limits, w::FindingNotYoursParts { holder: holder(value, limits)? }).ok()?,
+        ),
         forge::FindingRefusal::NoFinding => w::FindingRefusal::NoFinding,
         forge::FindingRefusal::NoGoal => w::FindingRefusal::NoGoal,
         forge::FindingRefusal::Ended => w::FindingRefusal::Ended,
-        forge::FindingRefusal::Words(field) => w::FindingRefusal::Words(w::FindingWords::new(limits, w::FindingWordsParts { field }).ok()?),
+        forge::FindingRefusal::Words(field) => {
+            w::FindingRefusal::Words(w::FindingWords::new(limits, w::FindingWordsParts { field }).ok()?)
+        }
     };
     Some(w::Outcome::FindingRefused(w::FindingRefused::new(limits, w::FindingRefusedParts { reason }).ok()?))
 }
 
 pub(super) fn file_answer(value: forge::FileFindingAnswer, limits: &w::Limits) -> Option<w::Outcome> {
     match value {
-        forge::FileFindingAnswer::Filed { number } => Some(w::Outcome::Filed(w::Filed::new(limits, w::FiledParts { number }).ok()?)),
+        forge::FileFindingAnswer::Filed { number } => {
+            Some(w::Outcome::Filed(w::Filed::new(limits, w::FiledParts { number }).ok()?))
+        }
         forge::FileFindingAnswer::Refused(value) => refused(value, limits),
     }
 }
 pub(super) fn hand_answer(value: forge::HandFindingAnswer, limits: &w::Limits) -> Option<w::Outcome> {
-    match value { forge::HandFindingAnswer::Handed => Some(w::Outcome::Handed), forge::HandFindingAnswer::Refused(value) => refused(value, limits) }
+    match value {
+        forge::HandFindingAnswer::Handed => Some(w::Outcome::Handed),
+        forge::HandFindingAnswer::Refused(value) => refused(value, limits),
+    }
 }
 pub(super) fn triage_answer(value: forge::TriageFindingAnswer, limits: &w::Limits) -> Option<w::Outcome> {
-    match value { forge::TriageFindingAnswer::Triaged => Some(w::Outcome::Triaged), forge::TriageFindingAnswer::Refused(value) => refused(value, limits) }
+    match value {
+        forge::TriageFindingAnswer::Triaged => Some(w::Outcome::Triaged),
+        forge::TriageFindingAnswer::Refused(value) => refused(value, limits),
+    }
 }
 
 fn row(value: forge::FindingRow, limits: &w::Limits) -> Option<w::FindingRow> {
-    w::FindingRow::new(limits, w::FindingRowParts {
-        number: value.number, kind: kind_to(value.kind), severity: severity_to(value.severity), area: value.area,
-        state: state_to(value.state), title: value.title, holder: holder(value.holder, limits)?, at: value.at.as_nanos(), why: value.why,
-    }).ok()
+    w::FindingRow::new(
+        limits,
+        w::FindingRowParts {
+            number: value.number,
+            kind: kind_to(value.kind),
+            severity: severity_to(value.severity),
+            area: value.area,
+            state: state_to(value.state),
+            title: value.title,
+            holder: holder(value.holder, limits)?,
+            at: value.at.as_nanos(),
+            why: value.why,
+        },
+    )
+    .ok()
 }
 
 pub(super) fn document(value: forge::Findings, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(limits.findings_rows);
-    for value in value.rows { rows.push(row(value, limits)?).ok()?; }
+    for value in value.rows {
+        rows.push(row(value, limits)?).ok()?;
+    }
     let mut areas = List::with_capacity(limits.findings_areas);
     for value in value.areas {
-        let holder = match value.holder { Some(value) => Some(holder(value, limits)?), None => None };
-        areas.push(w::AreaRow::new(limits, w::AreaRowParts {
-            name: value.name, words: value.words, owner: owner(value.owner, limits)?, holder,
-        }).ok()?).ok()?;
+        let holder = match value.holder {
+            Some(value) => Some(holder(value, limits)?),
+            None => None,
+        };
+        areas
+            .push(
+                w::AreaRow::new(
+                    limits,
+                    w::AreaRowParts {
+                        name: value.name,
+                        words: value.words,
+                        owner: owner(value.owner, limits)?,
+                        holder,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
     }
-    let triager = match value.triager { Some(value) => Some(owner(value, limits)?), None => None };
-    let record = w::Findings::new(limits, w::FindingsParts { project: value.project, rows, areas, triager, holder: holder(value.holder, limits)?, cut: value.cut }).ok()?;
+    let triager = match value.triager {
+        Some(value) => Some(owner(value, limits)?),
+        None => None,
+    };
+    let record = w::Findings::new(
+        limits,
+        w::FindingsParts {
+            project: value.project,
+            rows,
+            areas,
+            triager,
+            holder: holder(value.holder, limits)?,
+            cut: value.cut,
+        },
+    )
+    .ok()?;
     Some(wire::findings(&record))
 }
 
@@ -170,12 +254,26 @@ pub(super) fn read_answer(value: Option<forge::FindingAnswer>, limits: &w::Limit
         None => w::FindingResult::NoFinding,
         Some(value) => {
             let filer = match value.filer {
-                forge::Filer::Task(number) => w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
-                forge::Filer::Party(number) => w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?),
+                forge::Filer::Task(number) => {
+                    w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?)
+                }
+                forge::Filer::Party(number) => {
+                    w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?)
+                }
             };
-            w::FindingResult::Finding(w::FindingDetail::new(limits, w::FindingDetailParts {
-                row: row(value.row, limits)?, body: value.body, filer, goal: value.goal, reason: value.reason,
-            }).ok()?)
+            w::FindingResult::Finding(
+                w::FindingDetail::new(
+                    limits,
+                    w::FindingDetailParts {
+                        row: row(value.row, limits)?,
+                        body: value.body,
+                        filer,
+                        goal: value.goal,
+                        reason: value.reason,
+                    },
+                )
+                .ok()?,
+            )
         }
     };
     let record = w::FindingAnswer::new(limits, w::FindingAnswerParts { result }).ok()?;

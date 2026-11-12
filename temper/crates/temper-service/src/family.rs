@@ -7,8 +7,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
-mod refusals;
 mod findings;
+mod refusals;
 mod ways;
 pub use ways::ways_panel;
 
@@ -367,7 +367,12 @@ pub fn to_root(
                 }
                 value @ (w::Request::FileFinding(_) | w::Request::HandFinding(_) | w::Request::TriageFinding(_)) => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope, reply_to, sign_in, key, digest, carried,
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
                         request: findings::request(value).expect("findings request"),
                     }));
                 }
@@ -420,7 +425,9 @@ pub fn to_root(
                     w::Read::Finding(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
                             forge_settings_query(w::Read::Finding(read))
-                        } else { None }
+                        } else {
+                            None
+                        }
                     }
                     w::Read::View(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
@@ -508,7 +515,11 @@ pub fn to_root(
                     w::Watch::Findings(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
                         connector: wire::FORGE,
-                        subject: Token::new(forge::findings_subject(subject.project(), findings::state(subject.state().as_ref()), subject.mine())),
+                        subject: Token::new(forge::findings_subject(
+                            subject.project(),
+                            findings::state(subject.state().as_ref()),
+                            subject.mine(),
+                        )),
                     },
                     w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
@@ -880,11 +891,9 @@ pub fn answer(
                 w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
             }
         },
-        Some(
-            root::ApplicationAnswer::Adopt(
-                forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
-            ),
-        ) => return None,
+        Some(root::ApplicationAnswer::Adopt(
+            forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
+        )) => return None,
         Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value, limits)?,
         Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value, limits)?,
         Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value, limits)?,

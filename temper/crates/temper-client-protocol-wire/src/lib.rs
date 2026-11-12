@@ -355,12 +355,10 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         v1::Request::Reachable(value) if value.page() == 0 => return None,
         v1::Request::FileFinding(value) if value.title().is_empty() => return None,
         v1::Request::HandFinding(value) if value.why().is_empty() => return None,
-        v1::Request::TriageFinding(value) => {
-            match value.act() {
-                v1::Triage::Drop(reason) if reason.reason().is_empty() => return None,
-                v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog => {}
-            }
-        }
+        v1::Request::TriageFinding(value) => match value.act() {
+            v1::Triage::Drop(reason) if reason.reason().is_empty() => return None,
+            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog => {}
+        },
         v1::Request::FileFinding(_)
         | v1::Request::HandFinding(_)
         | v1::Request::Reachable(_)
@@ -662,4 +660,3 @@ pub fn decode_finding_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Fi
     let record = v1::FindingAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
-

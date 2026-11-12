@@ -88,6 +88,9 @@ impl Harness {
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
+            | w::Request::FileFinding(_)
+            | w::Request::HandFinding(_)
+            | w::Request::TriageFinding(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::EndPlayground
