@@ -49,6 +49,7 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
         Line::Key { key: Key::Paste(value()), event: Some(value()) },
         Line::Address(value()),
         Line::BoxLine(value()),
+        Line::BoxStage(value()),
         Line::Signed(value()),
         Line::Browse(value()),
         Line::Mark(Some(value())),

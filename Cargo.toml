@@ -278,7 +278,7 @@ members = [
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
-    "temper/bin/temper-client",
+    "temper/bin/temper",
     "temper/crates/temper-client-shell",
     "temper/bin/temper-agent",
     "temper/crates/temper-agent-shell",

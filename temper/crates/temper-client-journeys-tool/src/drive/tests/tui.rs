@@ -32,7 +32,7 @@ fn first_tui_line_starts_confined_and_approves_before_acting() {
     m.plan.environment.extend([("SSH_TTY".into(), "outside".into()), ("COLORFGBG".into(), "0;15".into())]);
     let actions = line(&mut m, r#"tui see "Ask temper""#);
     let [Action::StartTui { program, rows: 24, columns: 80 }] = actions.as_slice() else { panic!("{actions:?}") };
-    assert_eq!(program.program, Path::new("/build/bin/temper-client"));
+    assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["http://127.0.0.1:9"]);
     assert_eq!(program.directory, Path::new("/scratch"));
     let lookup = |key: &str| program.environment.iter().find(|(name, _)| name == key).map(|(_, v)| v.as_os_str());

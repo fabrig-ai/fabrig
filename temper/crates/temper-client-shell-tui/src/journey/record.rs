@@ -103,6 +103,7 @@ impl Recorder {
     pub fn report(&mut self, host: &mut Host, report: Report) -> Duties {
         let line = match &report {
             Report::Front(line) => Line::BoxLine(line.print()),
+            Report::Stage(stage) => Line::BoxStage(stage.print()),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -236,6 +237,12 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     if let Some(address) = &duties.open {
         lines.push(Line::Browse(address.clone()));
     }
+    if let Some(stop) = duties.stop {
+        lines.push(match stop {
+            crate::host::Stop::First => Line::StopBox,
+            crate::host::Stop::Second => Line::StopBoxAgain,
+        });
+    }
     if duties.close {
         lines.push(Line::Quit);
     }
@@ -254,7 +261,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         Line::Signed(_) => Some(3),
         Line::Read => Some(4),
         Line::Browse(_) => Some(5),
-        Line::Quit => Some(6),
+        Line::StopBox | Line::StopBoxAgain => Some(6),
+        Line::Quit => Some(7),
         Line::Journey { .. }
         | Line::Seed(_)
         | Line::Clocks { .. }
@@ -264,6 +272,7 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Address(_)
         | Line::Front
         | Line::BoxLine(_)
+        | Line::BoxStage(_)
         | Line::Local
         | Line::Stored { .. }
         | Line::Credential(_)

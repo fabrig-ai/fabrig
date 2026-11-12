@@ -460,6 +460,11 @@ impl Calls {
         calls.link = format!("{link}\n").into_bytes();
         calls
     }
+    /// Descriptors this scripted host owns at startup.
+    #[must_use]
+    pub fn descriptors(&self) -> Vec<Fd> {
+        self.root.into_iter().collect()
+    }
     /// Keep the root available between a live referee's read batches.
     pub fn hold(&mut self) {
         self.admission = Admission::Open;
