@@ -81,8 +81,15 @@ pub fn engine() -> settings::Engine {
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
-        limits: limits::profile(limits::Profile::Small),
+        limits: small_limits(),
     }
+}
+
+// The small worlds admit the stock's larger goal charter while keeping Small's store page.
+fn small_limits() -> limits::Limits {
+    let mut own = limits::profile(limits::Profile::Small);
+    own.root.journal.run_bytes = 32_768;
+    own
 }
 
 pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
