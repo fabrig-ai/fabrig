@@ -6,9 +6,6 @@
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
-- **Not yet:** *How work runs' look*: *What follows a landing*'s boxes,
-  chips and `temper-how-who-code`, and *Budgets' head*
-  [in flight: change 1058].
 
 `README.md`, section 2.3's `Team` row, `look.md`'s *Team's look* and `gallery.md`, 2's `team`,
 `team-alone` and `night-team` have no known implementation gap, by plan
