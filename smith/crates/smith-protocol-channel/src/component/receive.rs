@@ -217,6 +217,14 @@ impl Component {
         Ok(())
     }
 
+    pub(super) fn lost_call(&mut self, to_service: &mut Queue<Heard>) {
+        if !self.ended() || to_service.room() == 0 { return; }
+        let send = match self.calls.iter().next() {
+            Some((_, CallRoute::Host {send,..} | CallRoute::Delivery {send,..})) => *send,
+            None => return,
+        };
+        self.unsent(send,to_service);
+    }
     fn unsent(&mut self, token: Token, to_service: &mut Queue<Heard>) {
         let mut found = None;
         for (key, route) in &self.calls {
@@ -296,4 +304,31 @@ fn acknowledge(
     turns.acknowledge(acknowledge.number()).or(Err(Broken))?;
     to_service.push(Heard::Acknowledged { turn: acknowledge.number() });
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn a_lost_channel_settles_already_sent_calls_one_at_a_time() {
+        let mut limits=crate::fixture::small();
+        limits.calls=2;
+        let mut channel=Component::new(&limits,skein_channel::StreamMode::Two,crate::Endpoints::new(skein_lib::List::with_capacity(0))).expect("channel");
+        let relay=run::RelayName {owner:Token::new(5),attempt:1};
+        channel.calls.insert(CallKey {activation:1,completion:1,position:0},CallRoute::Host {relay,send:Token::new(10)}).expect("call room");
+        channel.calls.insert(CallKey {activation:1,completion:1,position:1},CallRoute::Delivery {owner:Token::new(6),send:Token::new(11)}).expect("call room");
+        let mut events=Queue::with_capacity(1);
+        let mut below=Queue::uncapped();
+        channel.from_below(skein_channel::LowerEvent::Read(skein_lib::stream::Up::End),&mut events,&mut below);
+        assert!(matches!(events.pop(),Some(Heard::Ended {..})));
+        assert!(channel.has_work(),"written calls still owe terminals after the channel ended");
+        channel.fire(&mut events,&mut below);
+        assert!(matches!(events.pop(),Some(Heard::Event {event}) if *event == smith_domain::Event::HostReturned {relay,reply:run::HostReply::Unanswered(run::Unanswered::Lost)}));
+        assert!(channel.has_work());
+        channel.fire(&mut events,&mut below);
+        assert!(matches!(events.pop(),Some(Heard::DeliveryUnsent {owner}) if owner == Token::new(6)));
+        assert!(!channel.has_work());
+        channel.fire(&mut events,&mut below);
+        assert!(events.is_empty(),"one terminal per call, never a duplicate");
+    }
 }

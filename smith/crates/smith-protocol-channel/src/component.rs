@@ -141,6 +141,10 @@ impl Component {
         self.ending.reported()
     }
 
+    /// An ended channel still owes the terminals of calls it sent.
+    #[must_use]
+    pub fn has_work(&self) -> bool { self.ended() && !self.calls.is_empty() }
+
     /// Consume one stream event and progress the opening.
     pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
         self.machine.up(event, &mut self.events, below);
@@ -152,6 +156,7 @@ impl Component {
     pub fn fire(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
         self.machine.poll(&mut self.events, below);
         self.drain(to_service, below);
+        self.lost_call(to_service);
     }
 
     /// Send the domain's admission notice once the Start has entered it.
