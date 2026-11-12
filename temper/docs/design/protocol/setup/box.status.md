@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [box.md](box.md).
 
-- **Not yet:** 5: the fake backends' bundle is built with `scripts/bundle.sh --loopback`, its loopback navigation skein-ui-web's feature.
+- **Not yet:** 5: the fake backends' bundle is built with `scripts/bundle.sh --loopback`, its loopback navigation skein-ui-web's feature. [in flight: change 1122]
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever

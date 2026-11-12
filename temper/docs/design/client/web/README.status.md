@@ -2,7 +2,7 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.1: the shell reads no internal setting from its address: its recorder, its small window and skein's loopback navigation are the features `record`, `small-window` and `loopback-navigation`; 2.6: `scripts/bundle.sh` takes `--loopback`, `--small-window` and `--record`.
+- **Not yet:** 2.1: the shell reads no internal setting from its address: its recorder, its small window and skein's loopback navigation are the features `record`, `small-window` and `loopback-navigation`; 2.6: `scripts/bundle.sh` takes `--loopback`, `--small-window` and `--record`. [in flight: change 1122]
 
 - **Not yet:** 2.1 and 2.6: the shell is the `cdylib` whose wasm start the bundle runs, and its feature `playground` chooses the playground's entry instead; there is no `temper-client-web-page` or `temper-playground-page`.
 

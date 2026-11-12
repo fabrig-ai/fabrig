@@ -2,7 +2,7 @@
 
 2026-11-11. Where skein's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 8: plaintext loopback is a target only in a build with skein-ui-web's feature `loopback-navigation`; the platform has no setting for it.
+- **Not yet:** 8: plaintext loopback is a target only in a build with skein-ui-web's feature `loopback-navigation`; the platform has no setting for it. [in flight: change 1122]
 
 `elements.md` and `README.md`, section 5 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
