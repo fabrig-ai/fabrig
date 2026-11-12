@@ -89,7 +89,8 @@ fn oversized_authorization_is_refused_in_place_without_an_exchange() {
 
 #[test]
 fn an_oversized_initial_address_sends_nothing_even_for_transport_sign_in() {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     let mut path = b"/oauth/authorize?".to_vec();
     path.resize(
         b"/oauth/authorize?".len()

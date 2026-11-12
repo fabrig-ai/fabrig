@@ -109,9 +109,10 @@ every setting is, its decision that project's owners'. Its value, a
   member, else `project Q`: "dependency 1: fabrig depends on vsr-rs".
   With `--json`, the panel's object carries `dependencies`, a list of
   `{"number": N, "project": Q}` (`../../client/ctl/tools.md`, 2).
-- **On Home,** What follows what draws each dependency between the
-  person's projects beside the follows, from this document
-  (`../../draft/surfaces.md`, section 3).
+- **On Home,** What follows what draws each dependency of the person's
+  first four projects beside their follows, from this document, "depends
+  on vsr-rs" over the dependent's name (`../../client/pages/home.md`, 1,
+  *Home on All projects*; `../../draft/surfaces.md`, section 3).
 
 ## 5. The world
 

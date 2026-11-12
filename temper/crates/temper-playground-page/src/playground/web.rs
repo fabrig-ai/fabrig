@@ -1,7 +1,6 @@
 //! The page's life, frame and fail-stop hook (temper/docs/design/playground.md, 6;
 //! skein/docs/design/playground.md, 7).
 use super::{Control, STORIES, control, memory_words, printed_link, slice_words, speed_words, time_words};
-use crate::{Report, Shell, ShellPlatform, host};
 use jig_client_shell_web::sign_in;
 use skein_lib::{Time, Wall};
 use skein_ui_web::{
@@ -14,9 +13,9 @@ use skein_ui_web::{
         worker::{FailStop, Heard, Worker, worker_address},
     },
     store::Store,
-    title,
 };
 use std::{cell::RefCell, rc::Rc};
+use temper_client_shell_web::{Report, Shell, ShellPlatform, host, limits};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 
 // Four MiB bounds the page's kept log; past this the kit writes a replayable cut.
@@ -27,22 +26,52 @@ thread_local! {
     static FAIL_STOP: RefCell<Option<FailStop<Report>>> = const { RefCell::new(None) };
 }
 
-impl ShellPlatform for Worker<Report> {
+/// The page owns the worker adapter; the shell knows only its platform seam.
+struct World(Worker<Report>);
+
+impl platform::Platform for World {
+    fn read_all(&self) -> Vec<skein_ui_web::store::Record> {
+        self.0.read_all()
+    }
+    fn write(&mut self, key: &[u8], value: &[u8]) -> bool {
+        self.0.write(key, value)
+    }
+    fn remove(&mut self, key: &[u8]) {
+        self.0.remove(key);
+    }
+    fn send(&mut self, exchange: &skein_ui_web::fetch::Exchange) {
+        self.0.send(exchange);
+    }
+    fn navigate(&mut self, to: &[u8]) {
+        self.0.navigate(to);
+    }
+    fn stream(&mut self, duty: skein_ui_web::transport::StreamDuty) {
+        self.0.stream(duty);
+    }
+    fn abandon(&mut self, exchange: u32) {
+        self.0.abandon(exchange);
+    }
+    fn read_on(&mut self) {
+        self.0.read_on();
+    }
+}
+
+impl ShellPlatform for World {
     type Timer = ();
     fn clocks(&self) -> (Time, Wall) {
-        self.clocks()
+        self.0.clocks()
     }
     fn fired((): &mut ()) {}
     fn end(&self, (): &mut ()) {
-        self.end();
+        self.0.end();
     }
     fn timer(&self, (): &mut (), deadline: Option<Time>, _now: Time) {
-        self.timer(deadline);
+        self.0.timer(deadline);
     }
 }
 
 /// Starts the frame first; the client waits for the world's printed sign-in link.
-#[cfg_attr(feature = "playground", wasm_bindgen::prelude::wasm_bindgen(start))]
+#[wasm_bindgen::prelude::wasm_bindgen(start)]
 pub fn start() {
     std::panic::set_hook(Box::new(|info| {
         let log = FAIL_STOP.with(|slot| {
@@ -82,7 +111,7 @@ pub fn start() {
 
 struct Life {
     worker: Option<Worker<Report>>,
-    shell: Option<Shell<Worker<Report>>>,
+    shell: Option<Shell<World>>,
     // The history listeners and inbox live for the page; each client DOM and worker ends on reset.
     history: Rc<history::web::History>,
     inbox: std::rc::Weak<Inbox<Report>>,
@@ -98,12 +127,12 @@ impl Life {
     }
 
     fn worker(&self) -> Option<&Worker<Report>> {
-        self.shell.as_ref().map(|shell| &shell.platform).or(self.worker.as_ref())
+        self.shell.as_ref().map(|shell| &shell.platform().0).or(self.worker.as_ref())
     }
 
     fn end(&mut self) {
         if let Some(shell) = &mut self.shell {
-            ShellPlatform::end(&shell.platform, &mut shell.timer);
+            shell.end();
         }
         if let Some(worker) = &self.worker {
             worker.end();
@@ -166,27 +195,18 @@ impl Life {
         let platform = self.worker.take().expect("the waiting world's worker");
         let (now, wall) = platform.clocks();
         let store = Store::new(b"temper.", None);
-        let mut host =
-            host::Host::new(self.facts.seed, now, wall, self.facts.offset, temper_client_view::sign_in::Ways::NONE);
+        let mut host = host::Host::new(
+            limits::client(),
+            self.facts.seed,
+            now,
+            wall,
+            self.facts.offset,
+            temper_client_view::sign_in::Ways::NONE,
+        );
         host.start(path.as_bytes(), store.read_all(&platform), secret);
         let page: Rc<RefCell<Page<'static>>> = Rc::new(RefCell::new(host::page(&host.bounds.tree, self.facts.primary)));
         let dom = Dom::new(element(super::APP), &page, inbox, Report::Act, &[]);
-        self.shell = Some(Shell {
-            host,
-            #[cfg(feature = "record")]
-            recorder: None,
-            page,
-            dom,
-            platform,
-            store,
-            kept: Store::kept(b"temper.", None),
-            screen: skein_ui_web::screen::web::Screen::new(Rc::clone(inbox), Report::Screen),
-            clipboard: skein_ui_web::clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
-            history: Rc::clone(&self.history),
-            timer: (),
-            title: title::web::Title::default(),
-            heading_focus: crate::focus::HeadingFocus::new(),
-        });
+        self.shell = Some(Shell::new(host, page, dom, World(platform), store, Rc::clone(&self.history), (), inbox));
         hidden(super::LOADING, true);
         hidden(super::APP, false);
         inbox.raise(Report::Start);
@@ -243,7 +263,6 @@ impl Life {
                         new_page = shown;
                     }
                 }
-                #[cfg(feature = "record")]
                 report @ (Report::Mark | Report::Save) => {
                     if !self.failed
                         && let Some(shell) = &mut self.shell

@@ -315,8 +315,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **Home's and Needs you's later parts** (`home.md`, 1, *Home on All projects* and
   *A page's parts*; `needs-you.md`, 1; `../../draft/surfaces.md`, sections 3, 4,
   12 and 15): a project's Now on its row, rolled from its owners', its
-  tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
-  (F1); who decided, on a Decided for you row, and the intro's What
+  tiers, a follow's parity and "owned" (R1 to R3, F1); who decided, on a
+  Decided for you row, and the intro's What
   reaches you; on an Only you item, what waits for it ("Two agents on vsr
   wait for this login.", `../../draft/what-reaches-you.md`, section 8), once
   jig's `accounts` document names the tasks waiting on each of a person's

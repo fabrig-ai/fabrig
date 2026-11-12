@@ -1740,6 +1740,12 @@ pub enum Word {
     AllHomePhoneByline,
     AllHomeDecided,
     AllHomeReaches,
+    AllHomeFollows,
+    AllHomeAcrossProjects,
+    AllHomeFollowChip,
+    AllHomeDependencyChip,
+    AllHomeDependencyLine,
+
     AllHomeProjects,
     AllHomeAllNeeds,
     HomeCardTell,
@@ -1838,7 +1844,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2391;
+const PHRASES: u32 = 2396;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1865,10 +1871,10 @@ const PHRASES: u32 = 2391;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4337;
+const SEGMENTS: u32 = 4346;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57614;
-const ALL: [Word; 1706] = [
+const ENGLISH_BYTES: u32 = 57694;
+const ALL: [Word; 1711] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3551,6 +3557,11 @@ const ALL: [Word; 1706] = [
     Word::AllHomePhoneByline,
     Word::AllHomeDecided,
     Word::AllHomeReaches,
+    Word::AllHomeFollows,
+    Word::AllHomeAcrossProjects,
+    Word::AllHomeFollowChip,
+    Word::AllHomeDependencyChip,
+    Word::AllHomeDependencyLine,
     Word::AllHomeProjects,
     Word::AllHomeAllNeeds,
     Word::HomeCardTell,
@@ -4813,12 +4824,12 @@ impl Word {
             Self::ModelDefault => 3952,
             Self::Model => 3951,
             Self::WaitRefused => 1029,
-            Self::NowWritten => 5715,
-            Self::TalkOpened => 5716,
-            Self::TalkEnded => 5717,
-            Self::TalkLapsed => 5718,
-            Self::SessionTalk => 5719,
-            Self::SessionLeft => 5720,
+            Self::NowWritten => 5720,
+            Self::TalkOpened => 5721,
+            Self::TalkEnded => 5722,
+            Self::TalkLapsed => 5723,
+            Self::SessionTalk => 5724,
+            Self::SessionLeft => 5725,
             Self::DependencyParked => 1030,
             Self::WaitInvalid => 1028,
             Self::WaitingAccountName => 1027,
@@ -5292,6 +5303,12 @@ impl Word {
             Self::AllHomePhoneByline => 4460,
             Self::AllHomeDecided => 4461,
             Self::AllHomeReaches => 4462,
+            Self::AllHomeFollows => 5715,
+            Self::AllHomeAcrossProjects => 5716,
+            Self::AllHomeFollowChip => 5717,
+            Self::AllHomeDependencyChip => 5718,
+            Self::AllHomeDependencyLine => 5719,
+
             Self::AllHomeProjects => 4463,
             Self::AllHomeAllNeeds => 4464,
             Self::HomeCardTell => 4465,
@@ -5370,6 +5387,9 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::AllHomeFollowChip {
+        return Ok(temper_client_protocol_wire::v1::CEILINGS.follow_view_source);
+    }
     if FOLLOW_WORDS.contains(&word) {
         let bounds = temper_client_protocol_wire::v1::CEILINGS;
         let paths = bounds
@@ -6300,6 +6320,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllHomePhoneByline => (&[b"The status agent, ", b""], &[Name]),
         Word::AllHomeDecided => (&[b"", b" \xe2\x80\xba"], &[Name]),
         Word::AllHomeReaches => (&[b"What reaches you"], &[]),
+        Word::AllHomeFollows => (&[b"What follows what"], &[]),
+        Word::AllHomeAcrossProjects => (&[b"across projects"], &[]),
+        Word::AllHomeFollowChip => (&[b"follows ", b""], &[Name]),
+        Word::AllHomeDependencyChip => (&[b"depends on ", b""], &[Name]),
+        Word::AllHomeDependencyLine => (&[b"Nothing follows its landings."], &[]),
         Word::AllHomeProjects => (&[b"Projects"], &[]),
         Word::AllHomeAllNeeds => (&[b"All needs"], &[]),
         Word::HomeCardTell => (&[b"Tell it something else"], &[]),

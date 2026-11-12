@@ -10,6 +10,7 @@ use skein_lib::{Map, Secret, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 use temper_protocol_records::{self as records, Item};
+use temper_protocol_records_forge as forge_records;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Kind {
@@ -445,7 +446,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     if kind == Kind::LocalReconcile {
         engine.setup.runs.get_mut(&token).expect("reconcile done").kind = Kind::LocalConnect;
         let Some(config) = configured(engine, forge) else { return };
-        let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
+        let origin = forge_records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::LocalOrigin(token));
         return;
     }
@@ -481,13 +482,13 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
             engine.notes.push(crate::Note::ForgeLacking { number: forge, names: super::diagnostics::names(lacking) });
         }
         let Some(config) = configured(engine, forge) else { return };
-        let origin = records::origin(connection::settings::Kind::GitHub, &config.api).encode();
+        let origin = forge_records::origin(connection::settings::Kind::GitHub, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::PasteOrigin(token));
         return;
     }
     if kind == Kind::Convert {
         let Some(config) = configured(engine, forge) else { return };
-        let origin = records::origin(connection::settings::Kind::GitHub, &config.api).encode();
+        let origin = forge_records::origin(connection::settings::Kind::GitHub, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::Origin(token));
         return;
     }
@@ -763,7 +764,7 @@ fn keep_tokens(engine: &mut crate::engine::Engine, run: Token, after: Option<Ite
         }
     }
     let Some(config) = configured(engine, forge) else { return };
-    let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
+    let origin = forge_records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
     keep(engine, forge, Item::Origin, &origin, Purpose::Tokens { run, item: Item::Origin, login });
 }
 pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
@@ -772,10 +773,10 @@ pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
         crate::settings::Kind::Forgejo => connection::settings::Kind::Forgejo,
         crate::settings::Kind::GitHub => connection::settings::Kind::GitHub,
     };
-    let expected = records::origin(kind, &config.api);
+    let expected = forge_records::origin(kind, &config.api);
     let access = match engine.forge_records.rows.forge(forge) {
-        Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, engine.forge.webhooks),
-        None => Err(records::NotConnected::NoRecords),
+        Some(rows) => forge_records::access(kind, &expected, rows, &engine.forge_records.bounds, engine.forge.webhooks),
+        None => Err(forge_records::NotConnected::NoRecords),
     };
     let start = match access {
         Ok(start) => {
@@ -1196,21 +1197,21 @@ fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
         Err(_) => false,
     };
     if !valid {
-        records_failed(engine, forge, records::NotConnected::Unreadable);
+        records_failed(engine, forge, forge_records::NotConnected::Unreadable);
         return;
     }
     let Some(config) = configured(engine, forge) else { return };
-    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
+    let expected = forge_records::origin(connection::settings::Kind::Forgejo, &config.api);
     if rows.has(Item::Origin) {
         let origin = match rows.get(Item::Origin) {
-            Ok(bytes) => records::Origin::decode(bytes).ok(),
+            Ok(bytes) => forge_records::Origin::decode(bytes).ok(),
             Err(_) => None,
         };
         let why = match origin {
             Some(found) if found != expected => {
-                Some(records::NotConnected::OtherForge { kind: found.kind, api: found.api })
+                Some(forge_records::NotConnected::OtherForge { kind: found.kind, api: found.api })
             }
-            None => Some(records::NotConnected::Unreadable),
+            None => Some(forge_records::NotConnected::Unreadable),
             Some(_) => None,
         };
         if let Some(why) = why {
@@ -1246,7 +1247,7 @@ fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
     super::run_plan(engine, run, host::Plan::Reconcile { forge, adopted });
 }
 #[expect(clippy::disallowed_macros, reason = "record refusal contains only public origin information")]
-fn records_failed(engine: &mut crate::engine::Engine, forge: u16, why: records::NotConnected) {
+fn records_failed(engine: &mut crate::engine::Engine, forge: u16, why: forge_records::NotConnected) {
     if engine.setup.lifecycle.local(forge).expect("local failure").trigger != Trigger::Start {
         state(
             engine,
@@ -1390,10 +1391,10 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
 /// (temper/docs/design/protocol/setup/reconcile.md, 4).
 fn hand_secret(engine: &mut crate::engine::Engine, forge: u16) {
     let Some(config) = configured(engine, forge) else { return };
-    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
+    let expected = forge_records::origin(connection::settings::Kind::Forgejo, &config.api);
     let rows = engine.forge_records.rows.forge(forge).expect("connected forge records");
     let local = engine.setup.lifecycle.local(forge).expect("local connection");
-    let start = records::access(
+    let start = forge_records::access(
         connection::settings::Kind::Forgejo,
         &expected,
         rows,
@@ -1412,10 +1413,10 @@ pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
         return;
     }
     let Some(config) = configured(engine, forge) else { return };
-    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
+    let expected = forge_records::origin(connection::settings::Kind::Forgejo, &config.api);
     let rows = engine.forge_records.rows.forge(forge).expect("reconciled records");
     let local = engine.setup.lifecycle.local_mut(forge).expect("local connection");
-    let start = records::access(
+    let start = forge_records::access(
         connection::settings::Kind::Forgejo,
         &expected,
         rows,
@@ -1793,7 +1794,7 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
     let (forge, kind) = (run.forge, run.kind);
     if kind == Kind::AdminReconcile {
         let Some(config) = configured(engine, forge) else { return };
-        let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
+        let origin = forge_records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
         keep(engine, forge, Item::Origin, &origin, Purpose::AdminOrigin(token));
         return;
     }

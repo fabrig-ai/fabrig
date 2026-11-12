@@ -236,7 +236,7 @@ mod tests {
         fs::write(scratch.path().join("out/index.html"), b"page").expect("page");
         fs::write(scratch.path().join("out/digest/boot.js"), b"script").expect("script");
         let headers =
-            include_str!("../../temper-client-shell-web/playground/headers").replace("{bundle}", "/bundle/digest");
+            include_str!("../../temper-playground-page/playground/headers").replace("{bundle}", "/bundle/digest");
         fs::write(scratch.path().join("out/headers"), headers).expect("headers");
         scratch
     }

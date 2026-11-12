@@ -1,7 +1,9 @@
 use skein_forge_connection::settings::Kind;
 use skein_forge_setup::item::Bounds;
 use skein_lib::{Rng, Secret};
-use temper_protocol_records::{self as records, Item, NotConnected, Origin, Rows};
+use temper_protocol_records::{self as records, Item};
+use temper_protocol_records_forge as forge_records;
+use temper_protocol_records_forge::{NotConnected, Origin, Rows};
 fn bounds() -> Bounds {
     Bounds { token_bytes: 64, name_bytes: 64, key_bytes: 1196, installations: 8 }
 }
@@ -45,7 +47,7 @@ fn record_numbers_and_origin_addresses_keep_their_meaning() {
             let (name, port) = address.rsplit_once(':').expect("host port");
             jig_protocol_config::Address::Host { name: name.as_bytes().into(), port: port.parse().expect("port") }
         };
-        let origin = records::origin(kind, &configured);
+        let origin = forge_records::origin(kind, &configured);
         assert_eq!(Origin::decode(&origin.encode()), Ok(origin));
     }
     for item in [
@@ -84,7 +86,7 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
             if made && kind == Kind::GitHub {
                 put(&mut rows, Item::AppMade, &7_u64.to_le_bytes());
             }
-            let start = records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), hooks)
+            let start = forge_records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), hooks)
                 .expect("complete");
             assert_eq!(start.access.user, 9);
             assert_eq!(start.access.webhook_secret.is_some(), hooks && kind == Kind::Forgejo);
@@ -103,8 +105,14 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
     let mut incomplete = Rows::new();
     put(&mut incomplete, Item::Origin, &expected(Kind::GitHub).encode());
     assert_eq!(
-        records::access(Kind::GitHub, &expected(Kind::GitHub), incomplete.forge(1).expect("rows"), &bounds(), false)
-            .err(),
+        forge_records::access(
+            Kind::GitHub,
+            &expected(Kind::GitHub),
+            incomplete.forge(1).expect("rows"),
+            &bounds(),
+            false
+        )
+        .err(),
         Some(NotConnected::Incomplete)
     );
     for (item, bytes) in [
@@ -118,8 +126,14 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
         let mut rows = complete(Kind::GitHub);
         put(&mut rows, item, &bytes);
         assert_eq!(
-            records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false)
-                .err(),
+            forge_records::access(
+                Kind::GitHub,
+                &expected(Kind::GitHub),
+                rows.forge(1).expect("rows"),
+                &bounds(),
+                false
+            )
+            .err(),
             Some(NotConnected::Unreadable)
         );
     }
@@ -127,8 +141,14 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
         let mut rows = complete(Kind::GitHub);
         rows.push((1 << 48) | (1 << 16) | code, Secret::new(Box::from([2, 1])), 4096);
         assert_eq!(
-            records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false)
-                .err(),
+            forge_records::access(
+                Kind::GitHub,
+                &expected(Kind::GitHub),
+                rows.forge(1).expect("rows"),
+                &bounds(),
+                false
+            )
+            .err(),
             Some(NotConnected::Unreadable)
         );
     }
@@ -137,7 +157,7 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
         let other = if kind == Kind::Forgejo { Kind::GitHub } else { Kind::Forgejo };
         put(&mut rows, Item::Origin, &expected(other).encode());
         assert_eq!(
-            records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), false).err(),
+            forge_records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), false).err(),
             Some(NotConnected::OtherForge { kind: other, api: expected(other).api })
         );
     }
@@ -153,13 +173,14 @@ fn foreign_credentials_and_values_past_the_bound_are_refused() {
         let mut rows = complete(kind);
         put(&mut rows, item, bytes);
         assert_eq!(
-            records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), false).err(),
+            forge_records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), false).err(),
             Some(NotConnected::OtherForge { kind: other, api: expected(kind).api })
         );
     }
     let mut rows = complete(Kind::GitHub);
-    let start = records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false)
-        .expect("complete without Accepted");
+    let start =
+        forge_records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false)
+            .expect("complete without Accepted");
     assert!(start.accepted.is_empty());
     rows.push(
         records::number(1, Item::AppKey),
@@ -167,7 +188,8 @@ fn foreign_credentials_and_values_past_the_bound_are_refused() {
         1,
     );
     assert_eq!(
-        records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false).err(),
+        forge_records::access(Kind::GitHub, &expected(Kind::GitHub), rows.forge(1).expect("rows"), &bounds(), false)
+            .err(),
         Some(NotConnected::Unreadable)
     );
 }

@@ -158,6 +158,52 @@ fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
     assert!(shown.contains("owner: person 1\nstart: owner\nproducer: default\n"), "{shown}");
     assert!(shown.ends_with("skips: none\nparity: no check yet\n"), "{shown}");
     assert_eq!(call(&mut world, agent, &[b"follow", b"list", b"--project", b"2"]), "no follows\n");
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[
+            b"settings",
+            b"propose",
+            b"dependency.json",
+            b"Depend on Source",
+            b"--against",
+            b"2",
+            b"--key",
+            b"dependency",
+        ],
+        br#"{"items":[{"setting":{"kind":"dependency","project":1,"number":1},"set":{"project":2}}]}"#,
+    );
+    let proposed = fixtures::answered(&mut world, agent, number);
+    assert_eq!(proposed.status, 0, "{proposed:?}");
+    let proposed = String::from_utf8(proposed.stdout.into_vec()).expect("dependency proposal");
+    let proposal =
+        proposed.strip_prefix("proposed: ").expect("proposal number").split_once(", ").expect("proposal key").0;
+    call(
+        &mut world,
+        agent,
+        &[
+            b"proposal",
+            b"decide",
+            proposal.as_bytes(),
+            b"accept",
+            b"--running",
+            b"stays",
+            b"--key",
+            b"accept-dependency",
+        ],
+    );
+    world.event(target, Temper::went(Address::AllHome));
+    world.run(Until::Time(world.now().saturating_add(Duration::from_secs(2))));
+    let tree = world.tree(target);
+    let nodes = tree.nodes();
+    assert!(nodes.iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"What follows what")));
+    for suffix in [b" follows acme/shop".as_slice(), b" depends on Source"] {
+        assert!(nodes.iter().any(|node| node.role == Role::Group && node.name.as_deref().is_some_and(|name| name.ends_with(suffix))), "missing relation {suffix:?}");
+    }
+    let words: Vec<_> = nodes.iter().flat_map(|node| &node.text).flat_map(|run| run.text.iter()).copied().collect();
+    let words = String::from_utf8(words).expect("Home words");
+    assert!(words.contains("1 behind · no check yet"), "{words}");
+    assert!(words.contains("Nothing follows its landings."), "{words}");
 }
 
 fn assert_follow_page(world: &Clients, client: ClientId, status: &str) {

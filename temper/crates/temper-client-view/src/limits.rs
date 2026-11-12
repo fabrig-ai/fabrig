@@ -24,6 +24,22 @@ impl Limits {
         let follows_boxes = temper_client_protocol_wire::v1::CEILINGS.follows_panel_follows.checked_add(1)?;
         let follows_nodes = follows_boxes.checked_mul(24)?.checked_add(receiving.rows.checked_mul(7)?)?;
         let follows_text = follows_boxes.checked_mul(8)?.checked_mul(follows_phrase)?;
+        // Home draws every follow and dependency of its first four answered panels
+        // (client/pages/home.md, 1). Its boxes compose no paths or tier lists.
+        let wire = temper_client_protocol_wire::v1::CEILINGS;
+        let home_boxes = wire
+            .follows_panel_follows
+            .checked_add(wire.follows_panel_dependencies)?
+            .checked_mul(temper_client_domain::pages::all_home::FOLLOWED)?;
+        let home_nodes = home_boxes.checked_mul(24)?.checked_add(8)?;
+        // Source names occur in the group name and twice in its chip; stopped
+        // words twice. Each panel is admitted within document_bytes. Project
+        // names come from me: at most six copies per box, plus its fixed words.
+        let home_text = u32::try_from(receiving.document_bytes)
+            .ok()?
+            .checked_mul(temper_client_domain::pages::all_home::FOLLOWED)?
+            .checked_mul(3)?
+            .checked_add(home_boxes.checked_mul(receiving.text.checked_mul(6)?.checked_add(256)?)?)?;
         // Three class lines per proposal item and card; Settings holds its summary as name and text.
         let classes_text = receiving
             .rows
@@ -216,13 +232,14 @@ impl Limits {
         let settings_text = follows_text
             .checked_add(classes_text)?
             .checked_add(receiving.rows.checked_mul(7)?.checked_add(4096)?.checked_mul(text)?)?;
-        let text_bytes = text_bytes.max(settings_text);
+        let text_bytes = text_bytes.max(settings_text).checked_add(home_text)?;
         let nodes = choices
             .checked_add(structural)?
             .checked_add(request_nodes)?
             .checked_add(window_nodes)?
             .checked_add(live_nodes)?
-            .checked_add(document)?;
+            .checked_add(document)?
+            .checked_add(home_nodes)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,

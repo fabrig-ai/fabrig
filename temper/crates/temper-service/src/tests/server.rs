@@ -256,7 +256,7 @@ fn the_playground_policy_adds_only_its_worker_source() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the checked-in headers template must equal the policy's bytes")]
 fn the_playgrounds_headers_file_is_the_policys() {
-    let template = include_bytes!("../../../temper-client-shell-web/playground/headers");
+    let template = include_bytes!("../../../temper-playground-page/playground/headers");
     assert!(template.is_ascii());
     assert_eq!(template.as_slice(), &*crate::clients::policy::headers(b"{bundle}"));
     assert_eq!(
