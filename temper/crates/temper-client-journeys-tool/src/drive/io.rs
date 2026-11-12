@@ -358,7 +358,7 @@ impl Session {
             match action {
                 Action::ReadBoxLog { path } => self.event(Event::BoxLog(forge::read_log(&path))),
                 Action::ReadForgeFiles { directory, paths } => {
-                    self.event(Event::ForgeFiles(forge::read_files(&directory, &paths)))
+                    self.event(Event::ForgeFiles(forge::read_files(&directory, &paths)));
                 }
                 Action::ForgeRequest { api, token_file, method, path, body, until } => {
                     if self.pump.now() >= until {
