@@ -49,7 +49,6 @@
   An agent's task's Close is drawn at each width by its gallery state, the walk of the
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
-- **Not yet:** 2: the client's binary's package, `temper-client` at `temper/bin/temper-client`, and its crate `temper-client-shell`: today one package, `temper/crates/temper-client`, holds both [in flight: change 587].
 
 T1's repair, goal 761, carries the launchpad's brief, Where you left off
 and Needs you across the person's projects, a walked need's reason,
