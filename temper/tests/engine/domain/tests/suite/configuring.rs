@@ -1758,11 +1758,11 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
             let number = item["setting"]["number"].as_u64().expect("charter number");
             let mut value = settings_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
             value["number"] = json!(number);
-            let mut instructions = vec![item["set"]["instructions"].as_str().expect("shared instructions")];
-            if let Some(parts) = item["set"].get("parts") {
-                for part in parts.as_array().expect("reference parts") {
-                    instructions.push(part["instructions"].as_str().expect("part instructions"));
-                }
+            let stock = crate::stock::defaults(10_660);
+            let charter = crate::reference_settings::charter(&stock, u32::try_from(number).expect("charter number"));
+            let mut instructions = vec![std::str::from_utf8(&charter.policy.instructions).expect("stock instructions")];
+            for part in &charter.parts {
+                instructions.push(std::str::from_utf8(&part.instructions).expect("stock part"));
             }
             value["instructions"] = json!(instructions.join("\n\n"));
             // The fixture has no parts; transport preserves every part's words together.
@@ -1861,7 +1861,7 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 13; // The stock, reference settings and the world's settings charter.
+    bounds.tasks.charters = 13; // The stock and the world's settings charter.
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;

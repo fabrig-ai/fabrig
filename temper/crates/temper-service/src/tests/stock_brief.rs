@@ -271,17 +271,9 @@ fn reference_spec_receiving_rows() {
     let configuration = fixtures::stock_configuration(63_740, 48_000).expect("reference agent");
     let limits = configuration.service.limits.domain.run;
     let mut assignment = assignment(2, false, 0);
-    let settings: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/settings.json")).unwrap();
-    let coder = settings["items"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|item| item["setting"]["kind"] == "charter" && item["setting"]["number"] == 2_u32)
-        .unwrap();
-    assignment.run.policy.instructions = coder["set"]["instructions"].as_str().unwrap().as_bytes().into();
-    assignment.run.policy.shell = true;
-    assignment.run.policy.model.output = 48_000;
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    assignment.run.policy = crate::tests::reference_settings::charter(&defaults, 2).policy;
     assignment.sections = Box::new([temper_engine_domain::BriefSection {
         kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Task),
         body: temper_engine_domain::BriefBody::Text(Box::default()),
