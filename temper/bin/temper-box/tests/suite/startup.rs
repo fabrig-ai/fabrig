@@ -2407,7 +2407,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     .unwrap();
     let file = directory.join("claude-code/2.1.311/claude");
     fs::create_dir_all(file.parent().unwrap()).unwrap();
-    fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s' \"$DISABLE_AUTOUPDATER\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display())).unwrap();
+    fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s' \"$DISABLE_AUTOUPDATER\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf '%s' \"$ANTHROPIC_CONFIG_DIR\" > '{}/anthropic-source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display(), directory.display())).unwrap();
     fs::OpenOptions::new().write(true).open(&file).unwrap().set_len(build.bytes).unwrap();
     fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
     let login = std::process::Command::new(&temper)
@@ -2424,6 +2424,10 @@ fn a_fetched_program_runs_through_its_launcher() {
     assert_eq!(
         fs::read(directory.join("source")).unwrap(),
         directory.join("programs/some-name").as_os_str().as_bytes()
+    );
+    assert_eq!(
+        fs::read(directory.join("anthropic-source")).unwrap(),
+        directory.join("programs/some-name/anthropic").as_os_str().as_bytes()
     );
     assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
     let launcher = directory.join("claude-code/claude");
