@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 39] = [
+    let pages: [(Address, &[u8]); 42] = [
         (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
         (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
         (Address::Members, b"/deployment/members"),
@@ -15,9 +15,12 @@ fn each_page_round_trips_through_its_path() {
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7 }, b"/tasks/7"),
-        (Address::Team { project: 0 }, b"/projects/0/team"),
-        (Address::Team { project: 3 }, b"/projects/3/team"),
-        (Address::Team { project: u32::MAX }, b"/projects/4294967295/team"),
+        (Address::Team { project: 7, role: None }, b"/projects/7/team"),
+        (Address::Team { project: 7, role: Some(52) }, b"/projects/7/team?role=52"),
+        (Address::Team { project: 7, role: Some(u64::MAX) }, b"/projects/7/team?role=18446744073709551615"),
+        (Address::Team { project: 0, role: None }, b"/projects/0/team"),
+        (Address::Team { project: 3, role: None }, b"/projects/3/team"),
+        (Address::Team { project: u32::MAX, role: None }, b"/projects/4294967295/team"),
         (Address::Changes { project: 0 }, b"/projects/0/changes"),
         (Address::Changes { project: 3 }, b"/projects/3/changes"),
         (Address::Changes { project: u32::MAX }, b"/projects/4294967295/changes"),
@@ -129,7 +132,7 @@ fn one_trailing_slash_is_ignored() {
         (b"/home/", Place::Address(Address::AllHome)),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
-        (b"/projects/3/team/", Place::Address(Address::Team { project: 3 })),
+        (b"/projects/3/team/", Place::Address(Address::Team { project: 3, role: None })),
         (b"/projects/3/ask/", Place::Address(Address::Ask { project: 3 })),
         (b"/projects/3/ask//", Place::Missing),
     ] {

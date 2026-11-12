@@ -29,7 +29,8 @@
   you's columns in `how` and `how-approve` and its two states,
   `how-reaches` and `night-how-reaches`, which `ui-p3b-reaches` printed in
   place of `settings-away` and `settings-away-you-approve`, with none on
-  record.
+  record, and Team's role's card's two, `team-role` and
+  `night-team-role`, which goal 713 added, with none on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and
