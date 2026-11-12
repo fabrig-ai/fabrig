@@ -151,6 +151,17 @@ const SHOW: Command = Command {
     variables: &[&HOME],
     notes: "",
 };
+const TUNE: Command = Command {
+    reach: Reach::Words(&["tune"]),
+    set: Set::Internal,
+    forms: &[""],
+    line: "Print figures and suggestions for tuning bounds and places, without recording anything.",
+    arguments: &[],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "Session times and tokens, waits for builds, and waits for places in the last 7 days. See testing/qa/ledger.md, 6.",
+};
 const LINES: Command = Command {
     reach: Reach::Words(&["lines"]),
     set: Set::Internal,
@@ -254,11 +265,11 @@ const RECIPE: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-qa",
     line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[
         RUN, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES,
-        REPORT,
+        REPORT, TUNE,
     ],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
@@ -270,10 +281,10 @@ pub const TABLE: Table = Table {
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-qa's arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
-    match TABLE.front(&arguments) {
+    match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS
@@ -558,6 +569,11 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     }
     if command == &SHOW {
         return home.read(|ledger| Ok(ledger.show()));
+    }
+    if command == &TUNE {
+        use crate::faces::ClockFace;
+        let now = crate::faces::RealClock::default().now().wall;
+        return home.read(|ledger| Ok(ledger.tune(&home.configuration, now)));
     }
     if command == &LINES {
         return home.read(|ledger| Ok(ledger.lines_text()));

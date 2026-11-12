@@ -259,8 +259,12 @@ fn person_answers(question: u64) -> Rendered {
     text(&[b"Refused: your person answers question ", Decimal::of(question).as_bytes(), b" in their inbox"], true)
 }
 
+#[expect(clippy::too_many_lines, reason = "one total task refusal rendering")]
 fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
     let why: &[u8] = match problem.why {
+        jig_domain_tasks::Refusal::NotStanding => b"the task does not stand",
+        jig_domain_tasks::Refusal::TalkOpen { .. } => b"another party has an open talk",
+        jig_domain_tasks::Refusal::NoTalk => b"no talk of yours to leave",
         jig_domain_tasks::Refusal::Placed { .. } => b"held by a placed hold",
         jig_domain_tasks::Refusal::HoldOwner { .. } => b"only the placed hold's owner may release it",
         jig_domain_tasks::Refusal::HoldRevision { .. } => b"placed hold revision changed",

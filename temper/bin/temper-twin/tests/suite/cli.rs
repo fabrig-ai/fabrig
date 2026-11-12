@@ -64,3 +64,52 @@ fn the_cli_reports_tasks_and_replacement_counts() {
     assert_eq!(result.stdout, b"task 5: 1 turns\ntask 5: 0 opaque blocks dropped\nChecked: 1\n");
     assert!(temper_fake::llm::Document::decode(&std::fs::read(out).expect("twin document")).is_ok());
 }
+
+#[test]
+fn from_writes_a_twin_with_replacements_takes_and_a_use_report() {
+    let scratch = Scratch::new("twin-cli-from");
+    let source = base(&scratch);
+    let takes = scratch.path().join("takes.json");
+    std::fs::write(&takes, br#"[{"name":"WORD","value":"new","before":"<","after":">"}]"#).expect("takes file");
+    let out = scratch.path().join("out.json");
+    let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
+        .arg("--from")
+        .arg(source)
+        .arg("--out")
+        .arg(&out)
+        .args(["--replace", "off=new"])
+        .arg("--takes")
+        .arg(&takes)
+        .output()
+        .expect("run temper-twin");
+    assert_eq!(result.status.code(), Some(0), "{}", String::from_utf8_lossy(&result.stderr));
+    assert_eq!(result.stdout, b"off: 1\ntake WORD: 1 uses\n");
+    let bytes = std::fs::read(out).expect("output written");
+    temper_fake::llm::Document::decode(&bytes).expect("fake document");
+    let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
+    assert_eq!(document["otherwise"][0]["lines"][1]["text"], "{{WORD}} script");
+}
+
+#[test]
+fn from_refuses_transcript_options_before_opening_output() {
+    let scratch = Scratch::new("twin-cli-from-conflict");
+    let source = base(&scratch);
+    let out = scratch.path().join("out.json");
+    for (option, value) in [("--data", "directory"), ("--base", "base.json"), ("--cue", "1=brief")] {
+        let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
+            .arg("--from")
+            .arg(&source)
+            .arg("--out")
+            .arg(&out)
+            .args([option, value])
+            .output()
+            .expect("run temper-twin");
+        assert_eq!(result.status.code(), Some(2));
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("--from cannot be combined"),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(!out.exists());
+    }
+}

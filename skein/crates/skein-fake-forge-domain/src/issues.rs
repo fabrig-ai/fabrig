@@ -51,8 +51,8 @@ pub(crate) fn create(
         labels,
         comments: Map::with_capacity(limits.comments),
         dependencies: Set::with_capacity(limits.dependencies),
-        created: domain::clock(env),
-        updated: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
+        updated: domain::clock(env).max(domain.floor),
         pull: None,
     };
     let number = repository.number(item);
@@ -89,12 +89,15 @@ pub(crate) fn comment(
     let comment = domain.comments.checked_add(1).expect("comment ids do not run out");
     let observed = copy_of(&body);
     let item = repository.item_mut(number)?;
-    if item.comments.insert(comment, Comment { author: user, body, created: domain::clock(env), edited: None }).is_err()
+    if item
+        .comments
+        .insert(comment, Comment { author: user, body, created: domain::clock(env).max(domain.floor), edited: None })
+        .is_err()
     {
         return Err(Error::Full);
     }
     repository.comments.insert(comment, number).expect("the index has room for every comment");
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     domain.comments = comment;
     let hook = Hook::body(Change::Comment, number, user, &observed);
     let observation =
@@ -141,7 +144,7 @@ pub(crate) fn revise(
         body: copy_of(&item.body),
         by: user,
     };
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     domain::changed(domain, env, id, observation, Hook::item(change, number, user));
     Ok(Answer::Done)
 }
@@ -173,7 +176,7 @@ pub(crate) fn depend(
     let item = repository.item_mut(number)?;
     item.dependencies = set;
     let change = change(item.kind());
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation =
         Observation::Depends { repository: copy_of(&repository.name), number, dependencies: observed, by: user };
     domain::changed(domain, env, id, observation, Hook::item(change, number, user));
@@ -205,9 +208,9 @@ pub(crate) fn edit(
     }
     let observed = copy_of(&body);
     kept.body = body;
-    kept.edited = Some(domain::clock(env));
+    kept.edited = Some(domain::clock(env).max(domain.floor));
     if env.limits.edit_updates {
-        repository.touch(number, domain::clock(env));
+        repository.touch(number, domain::clock(env).max(domain.floor));
     }
     let hook = Hook::body(Change::Comment, number, user, &observed);
     let observation =
@@ -238,7 +241,7 @@ pub(crate) fn remove(
     item.comments.remove(&comment);
     repository.comments.remove(&comment);
     if env.limits.edit_updates {
-        repository.touch(number, domain::clock(env));
+        repository.touch(number, domain::clock(env).max(domain.floor));
     }
     let observation = Observation::Removed { repository: copy_of(&repository.name), number, id: comment, by: user };
     domain::changed(domain, env, id, observation, hook);
@@ -264,7 +267,7 @@ pub(crate) fn label(
     let item = repository.item_mut(number)?;
     item.labels = labels;
     let change = change(item.kind());
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation =
         Observation::Labelled { repository: copy_of(&repository.name), number, labels: observed, by: user };
     domain::changed(domain, env, id, observation, Hook::item(change, number, user));
@@ -338,7 +341,7 @@ fn relabelled(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, user: 
     let item = repository.items.get(&number).expect("an item relabelled");
     let observed = names(&item.labels);
     let change = change(item.kind());
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation =
         Observation::Labelled { repository: copy_of(&repository.name), number, labels: observed, by: user };
     domain::changed(domain, env, id, observation, Hook::item(change, number, user));
@@ -391,7 +394,7 @@ pub(crate) fn shut(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, n
     assert!(item.state == State::Open, "only an open item is closed");
     item.state = State::Closed;
     let change = change(item.kind());
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation = Observation::Closed { repository: copy_of(&repository.name), number, by };
     domain::changed(domain, env, id, observation, Hook::item(change, number, by));
 }
@@ -435,7 +438,7 @@ pub(crate) fn reopen(
         pull.commit = head;
     }
     let change = change(item.kind());
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation = Observation::Reopened { repository: copy_of(&repository.name), number, by: user };
     domain::changed(domain, env, id, observation, Hook::item(change, number, user));
     if let Some(head) = head {

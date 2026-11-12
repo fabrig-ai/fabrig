@@ -14,7 +14,7 @@ whose `on` meets why it runs. A charter holds:
 - its instructions, which the run's agent reads before its task's brief;
 - its `parts`: instructions for some reasons a run runs, each with its
   `on`: `first`, the task's first activation, or the kinds of message
-  that woke it; a charter whose runs resume takes no parts;
+  that woke it;
 - its `documents`: files from an adopted repository, read as brief sections
   of their own;
 - its models: `model`, the default, then `alternatives`, in order;

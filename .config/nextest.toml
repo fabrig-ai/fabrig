@@ -53,7 +53,8 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & not test(/^tests::sign_in::fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain)) & test(/^fuzzy::/))
+  & not (package(=temper-engine-domain-forge) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
   & not (binary(=live_github_managed) & test(=managed_ready_client))
@@ -101,7 +102,9 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+  & (((kind(test) | package(=temper-engine-domain)) & test(/^fuzzy::/))
+     | (package(=temper-engine-domain-forge) & kind(lib) & test(/^fuzzy::/))
+     | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
   package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))

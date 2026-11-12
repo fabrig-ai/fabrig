@@ -1765,8 +1765,8 @@ fn document_run_with_limit(bound: u32) -> (World, u64, u64) {
     let (mut world, signed, task) = settings_run_with_limits(true, None, limits);
     // The fake wire accepts Small's bounds independently of the core's admission bounds.
     let (config, mut wire) = run_configuration();
-    wire.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
-    wire.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
+    wire.core.authority.segments = jig_protocol_store::settings_v3::CEILINGS.document_name;
+    wire.core.authority.segment_bytes = jig_protocol_store::settings_v3::CEILINGS.segment_bytes;
     world.settings_input_limits(wire.core, &config.core.settings.models);
     (world, signed, task)
 }

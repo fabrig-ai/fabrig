@@ -19,10 +19,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (`reference.md`) |
 | charter 12, the drafter's | the instructions in the `stock` module's `drafter.txt`, every byte as written (`../../draft/surfaces.md`, 11.2): a design session with its person, the draft written as the chat's document (`../../domain/agent/agents.md`, 3), one question at a time as numbered choices, its open points under `## Open questions`, a session taken up again from its draft and first open point, and nothing started or built; charter 1's models, hosts, waiting, resume, run, reserve, spend and call timeout; agents, so that its model's sub-agents survey where it has them, but no inspect, modify or shell, so that its runs are given no repository (`../../domain/agent/charter.md`, 2) and read the project's code through the forge's reads alone; its `tools` every family but delegate, settings and asking, 1,022, so that its runs are declared no `goal`, `change` or `delegate` (`../../domain/agent/tools.md`; 8.5). Numbered past Ask temper's |
 | template 6, a design session | a chat named `design session`, flagged conversation, kept and labelled as jig's chat is, its contract, budget and grace template 1's, run by charter 12, so that a session is listed among the project's chats and, opened again, resumes from its draft (`../../domain/agent/agents.md`, 4; `../../client/pages/README.md`). Numbered past Ask temper's template 5 |
-| charter 13, a standing role's | the `stock` module's instructions for a standing role, kept as charter 5's are, its `## shared` section the instructions and each `## part, on: …` section one part, as charter 5's (jig's `domain/tasks/messages.md`, 6): a standing role owns the work its spec's words name for its project's life, writes its Now, the note described `now` in its own scope, before every park, starts goals and changes for its work, answers its own work's questions, calls `decided` before asking its person, proposes changes to its own rules as a proposal of settings and never accepts one, and parks rather than finishes; a part on `first` alone, to read its spec, subscribe to what concerns its work and set its timers, and a part on every other kind that chooses parts, its work's (`../../domain/agent/standing.md`, section 2); models: the stock's order; hosts `workers`; its runs resuming, in sessions (jig's `domain/tasks/standing.md`, section 5), and waiting 0, parking as soon as it waits; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; no workspace, so no inspect, modify, shell or agents: it reads with the forge's reads; no documents; its wake policy below |
+| charter 13, a standing role's | the `stock` module's instructions for a standing role, kept as charter 5's are, its `## shared` section the instructions and each `## part, on: …` section one part, as charter 5's (jig's `domain/tasks/messages.md`, 6): a standing role owns the work its spec's words name for its project's life, writes its Now, the note described `now` in its own scope, before every park, starts goals and changes for its work, answers its own work's questions, calls `decided` before asking its person, proposes changes to its own rules as a proposal of settings and never accepts one, and parks rather than finishes; in a talk it answers its person in its ordinary text, asks to make an instruction for every case a rule and proposes it as a change of its charter's instructions, and keeps one for the work at hand in its Now (`../../domain/agent/standing.md`, section 7); it opens its Now with one line of what its session has done and where it stands, sets a timer for Mondays at 06:00 UTC each week, and at it writes its weekly report, the note described `report` in its own scope, whole (`../../domain/agent/standing.md`, section 8); a part on `first` alone, to read its spec, subscribe to what concerns its work and set its timers, and a part on every other kind that chooses parts, its work's (`../../domain/agent/standing.md`, section 2); models: the stock's order; hosts `workers`; its runs resuming, in sessions (jig's `domain/tasks/standing.md`, section 5), and waiting 0, parking as soon as it waits; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; no workspace, so no inspect, modify, shell or agents: it reads with the forge's reads; no documents; its wake policy below |
 | template 7, a standing role | named `standing role`, run by the charter its creator names, charter 13 from `role start` unless another is named (`../../client/ctl/tools.md`, 3); `ended_by` `standing` (jig's `protocol/configuration.md`, 3.2), not a conversation, listed, kept, untracked; labelled 3; its report template 1's; the creator's budget, a period's amount, and no deadline; no LLM choice, so that its runs take its charter's models |
-| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../../domain/agent/agents.md`, 3), a goal's `change` names its plan's members (`../../domain/agent/tools.md`, 1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine/settings.md`, 6; `../../domain/agent/agents.md`, 1 and `../../domain/agent/ask-temper.md`); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine/briefs.md`, section 2; `../../domain/agent/agents.md`, 3); a goal has its own scope for its report, while an advisor and a change have none (`../../domain/agent/tools.md`, 2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
-| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 9, 11 and 12, the change procedure, the goal's closer (procedure 6), role 0, the merge job (job 3) and the close job (job 4), so that a goal for a draft runs and closes on any project (`../../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and `settings.md`, 3's two requirements |
+| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 4,007, delegation, messages, control, subscriptions, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Subscribe, Read, Settings, Note, Recall and Ask), so that a standing role sets its timers and subscribes (`../../domain/agent/standing.md`, sections 2 and 8), a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../../domain/agent/agents.md`, 3), a goal's `change` names its plan's members (`../../domain/agent/tools.md`, 1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine/settings.md`, 6; `../../domain/agent/agents.md`, 1 and `../../domain/agent/ask-temper.md`); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine/briefs.md`, section 2; `../../domain/agent/agents.md`, 3); a goal has its own scope for its report, while an advisor and a change have none (`../../domain/agent/tools.md`, 2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
+| the rules | today's: tools 4,007, delegation, messages, control, subscriptions, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 9, 11 and 12, the change procedure, the goal's closer (procedure 6), role 0, the merge job (job 3) and the close job (job 4), so that a goal for a draft runs and closes on any project (`../../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and `settings.md`, 3's two requirements |
 | kind 1 | no rule: the rules a deployment's owners add, which every project's merges meet beside its own (`settings.md`, 3) |
 | kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: `settings.md`, 2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../../draft/stock-ways.md`, 3.1) |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; no number 3, the foreman being retired (`settings.md`, 2) |
@@ -166,8 +166,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   prices), since a person may pick any of them and a charter's order
   falls to any of them: sized by the first alone, K would admit no run on
   Astra 6 where Opus 5.5 comes first. At `temper-box init`'s models that is
-  Fable 5.1's and Astra 6's, 10,896, so K is 43,584 and a chat's 24K
-  1,046,016. A run is admitted only with two of them free (its reserve,
+  Fable 5.1's, its window at its cache write's price, 13,517 (Astra 6's is
+  10,896), so K is 54,068 and a chat's 24K 1,297,632. A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
   room for its working turns; and at least four units for each of a
   charter's run turns (256 for the chat's 64), so that where C is small
@@ -200,23 +200,43 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   where `demo` is. Each has a window of 1,048,576 and an
   output of 8,192, whatever a provider allows; takes the efforts `low`,
   `medium`, `high`, `xhigh` and `max`, low to high, so that a picker has
-  one scale, where Terra and Luna also take OpenAI's `none`; and is
-  priced for cached input as for input, so that a budget stops early
-  rather than late, its provider's page giving no figure on the stock's
-  terms; and each but the scripted model declares a prompt cache's life
+  one scale, where Terra and Luna also take OpenAI's `none`; is
+  priced for cached input as for input, with no cache write of its own,
+  so that a budget stops early rather than late, where its provider's
+  page gives no figure on the stock's terms, which is OpenAI's; and each
+  but the scripted model declares a prompt cache's life
   of five minutes, `cache_life_ms` 300,000, its provider's default, so
   that a standing role's sessions resume within it, the scripted model
   declaring none (jig's `domain/tasks/standing.md`, 5.3):
 
-  | `name` | `shown` | Provider | `effort` | Input, output |
-  |---|---|---|---|---|
-  | `claude-opus-5-5` | Opus 5.5 | Anthropic | `high` | 4,000, 20,000 |
-  | `claude-sonnet-5-5` | Sonnet 5.5 | Anthropic | `high` | 2,000, 10,000 |
-  | `claude-fable-5-1` | Fable 5.1 | Anthropic | `high` | 10,000, 50,000 |
-  | `gpt-6.1-sol` | GPT-6.1 Sol | OpenAI | `high` | 2,000, 10,000 |
-  | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 |
-  | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 |
-  | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 |
+  | `name` | `shown` | Provider | `effort` | Input, output | Cached, cache write |
+  |---|---|---|---|---|---|
+  | `claude-opus-5-5` | Opus 5.5 | Anthropic | `high` | 4,000, 20,000 | 200, 5,000 |
+  | `claude-sonnet-5-5` | Sonnet 5.5 | Anthropic | `high` | 2,000, 10,000 | 200, 2,500 |
+  | `claude-fable-5-1` | Fable 5.1 | Anthropic | `high` | 10,000, 50,000 | 250, 12,500 |
+  | `gpt-6.1-sol` | GPT-6.1 Sol | OpenAI | `high` | 2,000, 10,000 | as input, none |
+  | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 | as input, none |
+  | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 | as input, none |
+  | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 | as input, none |
+- **Claude's cache prices are Anthropic's,** read on 2026-11-11: a cache
+  read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5 and $0.25 for
+  Fable 5.1, and a cache write 1.25 times the input price, for the
+  five-minute cache smith's marks ask for (skein's `llm/README.md`, 4.7),
+  since Anthropic's page gives them and a key pays them. They are the same
+  whichever way a run reaches Claude, Claude Code's program or a key:
+  a subscription's runs bill nobody, but their spend is counted at the
+  same prices, so that a project's budget means the same either way
+  (`../../draft/claude-api.md`, section 5). jig prices a completion's
+  worst case at the dearest of its input kinds' prices, so Claude's cache
+  write raises C (Budgets in runs of the costliest model, above).
+- **Claude's output stays 8,192.** On the direct route it bounds thinking
+  and the answer together, since `max_tokens` is the declared output
+  (skein's `llm/README.md`, 4.7), as OpenAI's reasoning models' output
+  already does. Up to Anthropic's 128,000 would raise every Claude run's
+  worst-case completion, and so C and every budget below, and the
+  agent's largest turn (`settings.md`, 7), for a cut no run has shown; the
+  walk on a real key after `claude-api.md`'s step 1 shows whether a
+  delegated change at the stock's efforts is cut (section 1).
 - **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
@@ -343,3 +363,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 - **Ask temper's real-model walk** (`stock.md`): the small chat's walk follows
   landing; the request bound covers
   temper's parts, not Claude Code's own MCP-attached overhead.
+
+- **Claude's output on a key** ("Claude's output stays 8,192"): whether
+  Claude's models declare more, up to Anthropic's 128,000, against the
+  budgets and the largest turn a larger output raises. Default: 8,192,
+  until the walk on a real key shows a delegated change cut.

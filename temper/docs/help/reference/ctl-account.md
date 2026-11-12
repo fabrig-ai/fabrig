@@ -17,6 +17,9 @@ Prints: `current: true`, then each account, its sources, their state and readine
 Key: none.
 The deployment's own accounts show beside your party's when your
 party owns the deployment.
+Each readiness row names its payer: a project payer's row is for work
+the project pays for itself, while your party's pool work uses its
+party payer's row.
 ```
 
 ## account connect

@@ -182,9 +182,6 @@ pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     )?;
     let resume = d.boolean(field(&fields, b"resume")?)?;
     let parts = charter_parts(d, optional(&fields, b"parts"))?;
-    if resume && !parts.is_empty() {
-        return Err(error(b"charter.parts", b"a charter that resumes takes no parts"));
-    }
     Ok(c::Charter {
         parts,
         rest: match optional(&fields, b"rest") {

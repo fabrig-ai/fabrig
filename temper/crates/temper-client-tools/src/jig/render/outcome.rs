@@ -31,11 +31,24 @@ pub(crate) struct Operation {
     pub settings_scopes: Option<skein_lib::Set<u32>>,
 }
 /// What a person task's contract asks of an answer past it (client/ctl/areas.md).
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Asked {
-    pub bound: u32,
+#[derive(Debug)]
+pub(crate) enum Asked {
     /// The choice the reason is for; absent for a report's words.
-    pub choice: Option<u32>,
+    Bound {
+        bound: u32,
+        choice: Option<u32>,
+    },
+    Words {
+        bound: u32,
+        revision: u64,
+    },
+    Approval {
+        revision: u64,
+    },
+    Choices {
+        choice: u32,
+        codes: skein_lib::List<u32>,
+    },
 }
 /// One in-flight source context; its name is bounded by the client's document text limit.
 #[derive(Clone, Debug)]
@@ -70,6 +83,8 @@ impl Operation {
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
                     (creation_word(tasks), None)
                 }
+                c::Ask::Talk { task, .. } => (b"talk", Some(*task)),
+                c::Ask::Leave { task, .. } => (b"leave", Some(*task)),
                 c::Ask::Message { task, .. } => (b"message", Some(*task)),
                 c::Ask::Compound { operations, .. } => {
                     let mut task = None;
@@ -383,6 +398,11 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
+        out.put(b"left: task ");
+        out.number(*task);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));
@@ -617,8 +637,7 @@ fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) 
     }
     ended_json(operation, refusal, out);
     if let Some(asked) = asked(operation, refusal) {
-        out.key(b"bound");
-        out.unsigned(u64::from(asked.bound));
+        asked_json(operation, asked, out);
     }
     if let c::Refusal::Moved { .. } = refusal
         && let Some(task) = operation.task
@@ -637,11 +656,105 @@ fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) 
         out.string(operation.retry.as_deref().unwrap_or(operation.tool_name()));
     }
 }
-fn asked(operation: &Operation, refusal: &c::Refusal) -> Option<Asked> {
+fn asked<'a>(operation: &'a Operation, refusal: &c::Refusal) -> Option<&'a Asked> {
     if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } } = refusal {
-        operation.asked
+        operation.asked.as_ref()
     } else {
         None
+    }
+}
+fn asked_json(operation: &Operation, asked: &Asked, out: &mut Encoder) {
+    match asked {
+        Asked::Bound { bound, .. } | Asked::Words { bound, .. } => {
+            out.key(b"bound");
+            out.unsigned(u64::from(*bound));
+        }
+        Asked::Approval { .. } | Asked::Choices { .. } => {}
+    }
+    match asked {
+        Asked::Words { .. } => {
+            out.key(b"takes");
+            out.string(b"words");
+        }
+        Asked::Approval { .. } => {
+            out.key(b"takes");
+            out.string(b"approval");
+        }
+        Asked::Choices { codes, .. } => {
+            out.key(b"choices");
+            out.array_start();
+            for code in codes {
+                out.unsigned(u64::from(*code));
+            }
+            out.array_end();
+        }
+        Asked::Bound { .. } => {}
+    }
+    if let Some(task) = operation.task {
+        let mut measure = Text::measure();
+        if answer_instead(task, asked, &mut measure) {
+            let mut write = Text::writing_exact(measure);
+            answer_instead(task, asked, &mut write);
+            out.key(b"answer_instead");
+            out.string(&write.finish());
+        }
+    }
+}
+fn answer_instead(task: u64, asked: &Asked, out: &mut Text) -> bool {
+    let (revision, form) = match asked {
+        Asked::Words { revision, .. } => (*revision, b" TEXT".as_slice()),
+        Asked::Approval { revision } => (*revision, b" --approve STATE [TEXT]".as_slice()),
+        Asked::Bound { .. } | Asked::Choices { .. } => return false,
+    };
+    out.put(b"task answer ");
+    out.number(task);
+    out.put(b" --rev ");
+    out.number(revision);
+    out.put(form);
+    true
+}
+fn asked_text(task: u64, asked: &Asked, out: &mut Text) {
+    out.put(b": task ");
+    out.number(task);
+    match asked {
+        Asked::Bound { bound, choice } => {
+            match choice {
+                Some(choice) => {
+                    out.put(b"'s reason for choice ");
+                    out.number(u64::from(*choice));
+                    out.put(b" is at most ");
+                }
+                None => out.put(b"'s words are at most "),
+            }
+            out.number(u64::from(*bound));
+            out.put(b" bytes");
+        }
+        Asked::Words { bound, .. } => {
+            out.put(b" takes words, at most ");
+            out.number(u64::from(*bound));
+            out.put(b" bytes, not a choice");
+        }
+        Asked::Approval { .. } => out.put(b" takes an approval, not a choice"),
+        Asked::Choices { choice, codes } => {
+            out.put(b" has no choice ");
+            out.number(u64::from(*choice));
+            out.put(b"; its choices are ");
+            let mut first = true;
+            for code in codes {
+                if !first {
+                    out.put(b", ");
+                }
+                first = false;
+                out.number(u64::from(*code));
+            }
+        }
+    }
+    match asked {
+        Asked::Words { .. } | Asked::Approval { .. } => {
+            out.put(b"\nanswer instead: ");
+            answer_instead(task, asked, out);
+        }
+        Asked::Bound { .. } | Asked::Choices { .. } => {}
     }
 }
 fn read_again(task: u64, out: &mut Text) {
@@ -673,6 +786,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
         rows::ROLE_START_AT => &rows::ROLE_START,
+        rows::ROLE_TALK_AT => &rows::ROLE_TALK,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
@@ -842,7 +956,6 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 mod ceiling;
 
-#[expect(clippy::too_many_lines, reason = "specialized refusal cases share the generic refusal suffix")]
 fn refused_text(
     operation: &Operation,
     refusal: &c::Refusal,
@@ -851,6 +964,9 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if super::roles::refusal(operation.word, refusal, me, out) {
+        return;
+    }
     if operation.proposal_decision && *refusal == c::Refusal::Unknown {
         out.put(operation.tool_name());
         out.put(b": this proposal isn't waiting; it may have been decided or replaced");
@@ -920,18 +1036,7 @@ fn refused_text(
     if let Some(asked) = asked(operation, refusal)
         && let Some(task) = operation.task
     {
-        out.put(b": task ");
-        out.number(task);
-        match asked.choice {
-            Some(choice) => {
-                out.put(b"'s reason for choice ");
-                out.number(u64::from(choice));
-                out.put(b" is at most ");
-            }
-            None => out.put(b"'s words are at most "),
-        }
-        out.number(u64::from(asked.bound));
-        out.put(b" bytes");
+        asked_text(task, asked, out);
     }
     if let c::Refusal::Moved { what: c::Moved::PlacedHold { revision }, .. } = refusal
         && operation.word == b"lift"
@@ -1101,6 +1206,8 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
             | c::Ask::Withdraw { .. }
+            | c::Ask::Talk { .. }
+            | c::Ask::Leave { .. }
             | c::Ask::Message { .. }
             | c::Ask::Compound { .. }
             | c::Ask::Answer { .. }

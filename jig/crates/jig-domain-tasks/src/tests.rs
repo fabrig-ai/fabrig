@@ -456,5 +456,6 @@ mod classifiers {
     }
 }
 
+mod closer_funds;
 mod offering;
 mod reasons;

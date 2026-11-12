@@ -190,7 +190,8 @@ fn fake_forgejo_hook_edit_and_delete_leave_the_others() {
     assert_eq!(hook.url, changed.url);
     assert!(!hook.active);
     assert!(hook.events.is_empty());
-    assert!(hook.secret == changed.secret);
+    assert!(hook.secret == spec().secret);
+    assert!(hook.secret != changed.secret);
     assert_eq!(h.service.setup().repository_hooks(REPOSITORY).nth(1).unwrap().url, spec().url);
     for at in [repo(), other(), Repo { owner: boxed(b"alice"), ..repo() }] {
         let id = if at == repo() { 99 } else { 1 };

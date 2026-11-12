@@ -2937,6 +2937,7 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 fn changes_document_encodes_and_decodes() {
     let value = forge::ChangesView {
         landed_default: Box::new([forge::ChangesLanded {
+            signed: Box::new([]),
             task: 49,
             title: Box::from(b"Default landing".as_slice()),
             at: skein_lib::Wall::from_nanos(900),
@@ -2968,6 +2969,7 @@ fn changes_document_encodes_and_decodes() {
             ]),
         }]),
         landed: Box::new([forge::ChangesLanded {
+            signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
             task: 50,
@@ -3613,6 +3615,9 @@ fn the_worst_small_changes_document_fits_its_decision() {
     for task in 0..limits.forge.changes_landed {
         landed
             .push(forge::ChangesLanded {
+                signed: Box::new(
+                    [forge::SignOff { person: 1, head: [2; 32], at: skein_lib::Wall::EPOCH }; forge::SIGN_OFFS],
+                ),
                 commit: [0xab; 32],
                 default_branch: true,
                 task: u64::from(task),
@@ -4291,6 +4296,9 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
+            signed: Box::new([root::ApprovalPerson { person: 2, name: b"Sam".as_slice().into() }]),
+            can_sign: Box::new([root::ApprovalPerson { person: 1, name: b"Ann".as_slice().into() }]),
+            can_sign_more: 3,
             size: match forge {
                 1 => Some(root::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
                 2 => Some(root::ApprovalSize { files: u32::MAX, additions: 142, deletions: 18, cut: true }),
@@ -4324,6 +4332,11 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
+        assert_eq!(actual.signed().as_slice()[0].person(), 2);
+        assert_eq!(actual.signed().as_slice()[0].name(), b"Sam");
+        assert_eq!(actual.can_sign().as_slice()[0].person(), 1);
+        assert_eq!(actual.can_sign().as_slice()[0].name(), b"Ann");
+        assert_eq!(actual.can_sign_more(), 3);
         let size = match actual.size() {
             Some(size) => Some(root::ApprovalSize {
                 files: size.files(),
@@ -4351,6 +4364,42 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
         let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
+    }
+}
+
+#[test]
+fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
+    let signed = forge::SignOff { person: 42, head: [3; 32], at: skein_lib::Wall::from_nanos(123_456_789) };
+    let row = forge::ChangesLanded {
+        signed: Box::new([signed]),
+        task: 51,
+        title: b"Signed change".as_slice().into(),
+        at: skein_lib::Wall::from_nanos(234_567_890),
+        commit: [4; 32],
+        default_branch: true,
+    };
+    let document = forge::Document::Changes(forge::ChangesView {
+        project: 7,
+        landing: b"main".as_slice().into(),
+        queues: Box::new([]),
+        more: 0,
+        landed: Box::new([row.clone()]),
+        landed_more: 0,
+        landed_default: Box::new([row]),
+        landed_default_more: 0,
+    });
+    let bytes = family::document(document, &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes };
+    let got = temper_client_domain::forge::changes::panel(
+        &record,
+        temper_client_domain::forge::Limits { field_bytes: 256, checks: 8 },
+    )
+    .unwrap();
+    for rows in [got.landed(), got.landed_default()] {
+        let row = rows.get(0).unwrap();
+        assert_eq!(row.signed().len(), 1);
+        let sign = row.signed().get(0).unwrap();
+        assert_eq!((sign.party(), *sign.head(), sign.at()), (signed.person, signed.head, signed.at.as_nanos()));
     }
 }
 

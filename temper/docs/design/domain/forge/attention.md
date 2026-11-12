@@ -162,12 +162,29 @@ new to say. Its charter is the stock's 9
   project whose policy's delegation doesn't name charter 9 has its
   delegate refused, which is a refused run. It is kept as a tier run's task
   is: jig forgets a result only for a person's request.
-- **Its words,** made by the forge, and the root adding the goals, which
-  are core's: the span since the last brief, the landed count, the titles
-  of the changes the landing log holds since the last brief (at most 20),
-  the project's live goals each with its delegates done and total, and the
-  failing tests each tier of the project's repositories holds. They say
-  only what the engine keeps.
+- **Its words,** made by the forge, and the root adding the goals and
+  the standing roles, which are core's: the span since the last brief,
+  the landed count, the titles of the changes the landing log holds since
+  the last brief (at most 20), the project's live goals each with its
+  delegates done and total, the failing tests each tier of the project's
+  repositories holds, and each live standing role's Now. They say only
+  what the engine keeps.
+- **The roles' Nows** (`../agent/standing.md`, section 8): after the
+  goals, a line "Standing roles:", then for each of the project's live
+  standing roles, label 3, by number, at most 8, a line "Role N:" and its
+  Now's body, read as `role show` reads it, the note described `now` in
+  its scope, cut to 1,024 bytes at a character's edge, or "no Now yet".
+  The words are fitted to the spec's bound as before, the roles' part
+  cut first from its end. A Now the root cannot read is left out, and the
+  run goes on: a brief never waits on a role.
+- **Who signed** (`change/gates.md`, 2, *Sign-offs kept at landing*): a
+  title whose change kept sign-offs ends with them, by party, as "- Refund
+  amounts round half to even. (signed by person 4 and person 7)"; and,
+  after the goals, the root names each party the words name, once, by the
+  name the project's people give it, else its login, under "People who
+  signed:", as "- person 4: Sam". `Request::StatusRun` carries those
+  parties, `signers`, beside its words, the forge knowing no names. A
+  party the project no longer lists is "- person 9: no longer a member".
 - **Heard** at the procedure's next step, from its inbox: the report's first paragraph is `sentence`, the rest
   `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
   `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and

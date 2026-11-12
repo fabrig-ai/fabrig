@@ -10,7 +10,7 @@ pub mod proposals;
 pub mod record;
 pub mod state;
 pub mod value;
-use crate::tasks_v9 as wire;
+use crate::tasks_v10 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
@@ -78,6 +78,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     activity_words_words: 0,
     kept_line_pending: 0,
     stood_line_words: 0,
+    now_written_line_line: 0,
     rejected_escalation_reason: 0,
     recurring_state_last_batch: 0,
     saved_resource_path: 0,
@@ -96,7 +97,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     task_interests_subscriptions: 0,
     task_interests_inbox: 0,
     task_interests_saved: 0,
-    task_record_started_from: 0,
+    before_talk_started_from: 0,
     placed_hold_reason: 0,
     placed_hold_exempt: 0,
     model_name_value: 0,
@@ -241,12 +242,13 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_history_refused: domain.inbox_messages,
         task_run_replies: domain.inbox_messages,
         task_definition_dependencies: domain.dependencies,
-        task_record_started_from: domain.dependencies,
+        before_talk_started_from: domain.dependencies,
         task_definition_waiting_on: domain.dependencies,
         task_definition_added: domain.dependencies,
         circle_tasks: domain.circle,
         kept_line_pending: domain.dependencies,
         stood_line_words: jig_domain_tasks::STOOD_WORDS,
+        now_written_line_line: jig_domain_tasks::NOW_LINE,
         task_interests_holdings: domain.holdings,
         task_interests_delegates: domain.delegates,
         task_interests_result_followups: domain.batch,
@@ -308,8 +310,8 @@ pub fn encode(
         domain::Stored::EndedByProject(row) => wire::Value::EndedByProject(index::ended_by_project(row, limits)?),
         domain::Stored::Delegate(row) => wire::Value::Delegate(index::edge(row, limits)?),
         domain::Stored::Activity(row) => wire::Value::Activity(activity::activity_line(row, limits)?),
-        domain::Stored::Live(row) => wire::Value::Live(record::task_record(row, limits, Some(&moved))?),
-        domain::Stored::Ended(row) => wire::Value::Ended(record::task_record(row, limits, Some(&moved))?),
+        domain::Stored::Live(row) => wire::Value::LiveTalk(record::task_record(row, limits, Some(&moved))?),
+        domain::Stored::Ended(row) => wire::Value::EndedTalk(record::task_record(row, limits, Some(&moved))?),
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value, models })?;
@@ -326,6 +328,8 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {
+        wire::Value::LiveTalk(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
+        wire::Value::EndedTalk(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
         wire::Value::Update(row) => domain::Stored::Update(index::read_update(row)?),
         wire::Value::Result(row) => domain::Stored::Result(index::read_result_row(row)?),
@@ -334,8 +338,8 @@ pub fn decode(
         wire::Value::EndedByProject(row) => domain::Stored::EndedByProject(index::read_ended_by_project(row)),
         wire::Value::Delegate(row) => domain::Stored::Delegate(index::read_edge(row)?),
         wire::Value::Activity(row) => domain::Stored::Activity(activity::read_activity_line(row, limits)?),
-        wire::Value::Live(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
-        wire::Value::Ended(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
+        wire::Value::Live(row) => domain::Stored::Live(Box::new(record::read_before_talk(row, limits)?)),
+        wire::Value::Ended(row) => domain::Stored::Ended(Box::new(record::read_before_talk(row, limits)?)),
         wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row)?),
         wire::Value::Ledger(value) => domain::Stored::Ledger(value::read_funding(value)),
         wire::Value::History(value) => domain::Stored::History(proposals::read_history(*value, limits)?),

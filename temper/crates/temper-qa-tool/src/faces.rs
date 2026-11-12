@@ -445,6 +445,9 @@ impl DriveFace for RealDrive {
         if let Some(from) = request.from {
             command.args(["--from", from]);
         }
+        if let Some(ports) = &place.ports {
+            command.args(["--ports", ports]);
+        }
         let status = command
             .arg("--bin")
             .arg(&place.bin)

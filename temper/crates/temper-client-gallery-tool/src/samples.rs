@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 413;
+pub const N: usize = 416;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -140,9 +140,16 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
-        Sample { name: "team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
-        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1 }, then: Shown },
-        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "team-role", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
+        Sample {
+            name: "night-team-role",
+            world: Bare,
+            address: Address::Team { project: 1, role: Some(52) },
+            then: Shown,
+        },
+        Sample { name: "team", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
+        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
+        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
         Sample {
             name: "rail-new-change",
             world: Reference,
@@ -916,6 +923,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
+        Sample {
+            name: "needs-sign-off-part",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
         Sample { name: "needs-approval", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "needs-approval-path",
@@ -1365,6 +1378,7 @@ fn special_mockup(name: &str) -> Option<String> {
     }
     match name {
         "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
+        "team-role" | "night-team-role" => return Some("../whole-story/team.html".to_owned()),
         "all-home"
         | "all-home-nothing-new"
         | "all-home-away"
@@ -1713,6 +1727,21 @@ fn start_domain(sample: &Sample) -> Domain {
     }
     root
 }
+/// Kept sign-offs in the Team and Work samples, as the whole story draws them.
+pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
+    use temper_client_protocol_wire::v1 as w;
+    let mut signed = skein_lib::List::with_capacity(8);
+    for party in parties {
+        signed
+            .push(
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [0xab; 32], at })
+                    .expect("sample signer"),
+            )
+            .expect("at most eight sample signers");
+    }
+    signed
+}
+
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
@@ -1722,6 +1751,7 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let base = match sample.name {
         "night-team" => Some("team"),
+        "night-team-role" => Some("team-role"),
         "night-needs" => Some("needs-list"),
         "night-needs-only-you" => Some("needs-only-you"),
         "night-home" => Some("home-begin-ask-left"),
@@ -1898,7 +1928,7 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }
-    if sample.name == "team" || sample.name == "team-alone" {
+    if sample.name == "team" || sample.name == "team-alone" || sample.name == "team-role" {
         return crate::worlds::team_world(sample.name);
     }
     if sample.name.starts_with("ask-") {

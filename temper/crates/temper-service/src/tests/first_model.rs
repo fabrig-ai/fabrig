@@ -591,6 +591,7 @@ fn claude_alone_runs_the_goals_coding_task() {
 #[test]
 fn chatgpt_alone_runs_the_stock_chat() {
     let mut world = stock_box(OneAccount::ChatGpt);
+    world.worker();
     world.assert_offer(&[
         (OPENAI, b"high"),
         (ASTRA, b"high"),
@@ -601,7 +602,6 @@ fn chatgpt_alone_runs_the_stock_chat() {
     let task = world.create(1, None);
     let document = world.document(task);
     assert_eq!(world.main(&document), OPENAI, "Task before claim");
-    world.worker();
     world.assert_claim(task, OPENAI);
 }
 

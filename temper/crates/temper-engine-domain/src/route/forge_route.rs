@@ -27,7 +27,7 @@ mod change_llm;
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{made as closer_made, refused as closer_refused, start_closer_step};
-mod status_route;
+pub(crate) mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
@@ -2154,6 +2154,7 @@ fn landing_reviewers(
                 role: escalation::role_number(role),
                 head: review.commit,
                 verdict: review.verdict,
+                at: skein_lib::Wall::from_nanos(review.at.as_nanos()),
             })
             .ok()?;
     }
@@ -2491,10 +2492,10 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
 }
 
 // Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
-fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
+fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<forge::Request>) {
     let tasks = domain.forge.change_tasks();
     if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
-        return true;
+        return;
     }
     let mut oldest = None;
     let mut oldest_last = None;
@@ -2520,10 +2521,8 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
         });
     }
     if let Some(task) = oldest.or(oldest_last) {
-        domain.work.push(Work::Forge(forge::Event::DropChange { task }));
-        return true;
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::DropChange { task }, out);
     }
-    false
 }
 
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
@@ -2653,9 +2652,11 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         return false;
     };
     if domain.forge.change(task).is_none() {
-        let room = drop_settled_change(domain, env);
-        domain.work.push(Work::Forge(forge::Event::Change {
+        let mut out = Queue::uncapped();
+        drop_settled_change(domain, env, &mut out);
+        let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                signed: Box::new([]),
                 task,
                 repository: provider,
                 branch: branch.clone(),
@@ -2675,6 +2676,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority,
                 ci: None,
                 change: forge_change::Change {
+                    ended_held: None,
                     early: forge_change::Early::None,
                     way: forge_change::Way::Queue,
                     landing: None,
@@ -2727,8 +2729,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 merge_result: None,
                 follow_check: None,
             },
-        }));
-        if !room {
+        };
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), registration, &mut out);
+        domain.work.push(Work::ForgeSettings(out));
+        if domain.forge.change(task).is_none() {
             return true;
         }
         let branch_name =
@@ -4571,6 +4575,37 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
+fn cancel_change_resolution(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+    let child = match domain.forge.change(task) {
+        Some(row) => match row.delegate {
+            Some((child, forge_change::Delegate::Resolve { .. })) if domain.core.tasks.task(child).is_some() => {
+                Some(child)
+            }
+            Some((
+                _,
+                forge_change::Delegate::Produce
+                | forge_change::Delegate::Close
+                | forge_change::Delegate::Repair(_)
+                | forge_change::Delegate::Resolve { .. }
+                | forge_change::Delegate::Gate { .. }
+                | forge_change::Delegate::Merge { .. },
+            ))
+            | None => None,
+        },
+        None => None,
+    };
+    let cancels: Box<[jig_domain_core::StepCancel]> = match child {
+        Some(child) => {
+            let mut reason = List::with_capacity(96);
+            append(&mut reason, b"the change's head moved to ");
+            append(&mut reason, &commit_text(&head));
+            Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
+        }
+        None => Box::new([]),
+    };
+    ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
+}
+
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
@@ -4805,19 +4840,42 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
     }
 }
 
-fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
+fn change_hold_event(task: u64, end: &StepEnd) -> tasks::Event {
+    match end {
+        StepEnd::Hold(why) => tasks::Event::Hold { task, why: *why },
+        StepEnd::HoldFrom { why, source } => tasks::Event::HoldFrom { task, why: *why, source: source.clone() },
+        StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
+    }
+}
+
+// Every hold reaches its task, including a later wake or restore (change/repairs.md).
+fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
+    let task_row = domain.core.tasks.task(task)?;
+    if task_row.due_reason == tasks::Why::Released {
+        return None;
+    }
+    match task_row.phase {
+        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return None,
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => {}
+    }
+    let row = domain.forge.change(task)?;
+    let forge_change::State::Held { why, .. } = row.change.state else { return None };
+    Some(why)
+}
+
+fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice: forge_change::Decision) {
+    if choice == forge_change::Decision::None
+        && let Some(why) = change_rehold(domain, task)
+    {
+        choice = forge_change::Decision::Hold(why);
+    }
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                match hold_change_decision(domain, env, task, why).end {
-                    StepEnd::Hold(why) => domain.work.push(Work::Tasks(tasks::Event::Hold { task, why })),
-                    StepEnd::HoldFrom { why, source } => {
-                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom { task, why, source }));
-                    }
-                    StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
-                }
+                let end = hold_change_decision(domain, env, task, why).end;
+                domain.work.push(Work::Tasks(change_hold_event(task, &end)));
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
@@ -4846,6 +4904,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
+        forge_change::Decision::CancelResolution { head } => cancel_change_resolution(domain, task, head),
         forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
@@ -4869,8 +4928,15 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             return;
         }
     };
+    let hold =
+        if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
     let decision = append_change_replies(domain, env, task, decision);
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
+    // The Words copy goes first if admitted. A refused or stale step cannot lose
+    // the hold; jig ignores an identical hold already admitted by that step.
+    if let Some(hold) = hold {
+        domain.work.push(Work::Tasks(hold));
+    }
     // A merge's wake can be coalesced while this change's preceding read is
     // still due. Retry its landed progress after the cached read can expire.
     if again {
@@ -5383,7 +5449,9 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
-            forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
+            forge::Request::StatusRun { project, words, signers } => {
+                status_route::start_status_run(domain, env, project, words, &signers);
+            }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
             forge::Request::CancelFollow { project, task } => {
                 domain.work.push(Work::Tasks(tasks::Event::Cancel {
@@ -5547,6 +5615,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::CancelRepair { .. }
+                | forge_change::Decision::CancelResolution { .. }
                 | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
@@ -5877,11 +5946,21 @@ pub(crate) fn effect_ask(
                     assert!(kept.number == entry && kept.task == task, "admitted projection entry");
                     domain.work.push(Work::Forge(forge::Event::KeepProjection { row: *row, entry: kept }));
                 }
-                Some(
-                    EffectFlight::Procedure { entry: kept, .. }
-                    | EffectFlight::Landing { entry: kept, .. }
-                    | EffectFlight::Tier { entry: kept, .. },
-                ) => {
+                Some(EffectFlight::Procedure { entry: kept, task, evidence, description, .. }) => {
+                    assert!(kept == entry, "core releases the described procedure entry");
+                    if description.effect.kind == 4 {
+                        keep_sign_offs(domain, env, task, task, description.effect.state, &evidence);
+                    }
+                }
+                Some(EffectFlight::Landing { entry: kept, task, evidence, description, .. }) => {
+                    assert!(kept == entry, "core releases the described procedure entry");
+                    if description.effect.kind == 4
+                        && let Some(evidence) = evidence
+                    {
+                        keep_sign_offs(domain, env, task, evidence.change, description.effect.state, &evidence.facts);
+                    }
+                }
+                Some(EffectFlight::Tier { entry: kept, .. }) => {
                     assert!(kept == entry, "core releases the described procedure entry");
                 }
                 None => {}
@@ -6079,6 +6158,21 @@ fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidenc
             .work
             .push(Work::Core(jig_domain_core::Event::Marked { connector: domain.config.forge_connector, subjects }));
     }
+}
+
+/// Save alongside the admitted entry, before its commit can hand the merge to the forge.
+fn keep_sign_offs(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    change: u64,
+    head: [u8; 32],
+    evidence: &forge::ChangeEvidence,
+) {
+    let row = domain.forge.change(change).expect("admitted change");
+    let reviewers = landing_reviewers(domain, env, row, evidence).expect("admitted reviewers");
+    let signed = domain.forge.landing_sign_offs(task, head, evidence, &reviewers.reviewers);
+    domain.work.push(Work::Forge(forge::Event::Signed { task: change, signed }));
 }
 
 fn judge_effect(

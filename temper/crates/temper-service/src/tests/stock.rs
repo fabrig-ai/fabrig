@@ -96,6 +96,7 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
                 families.delegate.0
                     | families.message.0
                     | families.control.0
+                    | families.subscribe.0
                     | families.note.0
                     | families.recall.0
                     | families.read.0
@@ -120,7 +121,7 @@ fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
         .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
     {
         assert_eq!(authority.notes, Scopes::GOAL);
-        assert_eq!(authority.tools, Tools(3975));
+        assert_eq!(authority.tools, Tools(4007));
         assert!(authority.note_resources.is_empty());
     }
     let observer = &policy.roles.iter().find(|role| role.number == 3).expect("observer").authority;
@@ -136,10 +137,8 @@ fn configure_reference_authority_allows_coordinator_tools() {
     let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = stock.policies.get(&1).unwrap().policy.clone();
     let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
-    for family in [8, 32] {
-        assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Refuse);
-    }
-    for family in [128, 256] {
+    assert_eq!(reference_call(&before, &policy.roles[0].authority, 8, Call::Tool), Answer::Refuse);
+    for family in [32, 128, 256] {
         assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Allow);
     }
     let required = reference_requirements();
@@ -418,12 +417,12 @@ fn the_drafter_is_charter_12_and_template_6() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
-    assert_eq!(charter.policy.instructions.len(), 2_874);
+    assert_eq!(charter.policy.instructions.len(), 2_895);
     assert_eq!(
         skein_lib::sha256::digest(&charter.policy.instructions),
         [
-            0x1f, 0x44, 0x77, 0x43, 0xf6, 0x7f, 0x32, 0x1b, 0xac, 0x95, 0x16, 0xe4, 0x72, 0x17, 0x3e, 0x9f, 0x88, 0xe0,
-            0x5b, 0x40, 0x67, 0xc4, 0xe1, 0xc7, 0xbe, 0xc3, 0xd1, 0x45, 0x7c, 0x5e, 0xd9, 0x00,
+            0x47, 0xb4, 0x79, 0x1e, 0xed, 0x5f, 0x33, 0x61, 0x5f, 0xdd, 0x30, 0x31, 0xc1, 0x7b, 0x2e, 0x27, 0xd8, 0xbc,
+            0xf9, 0x12, 0x74, 0xee, 0x34, 0xce, 0xc3, 0x80, 0xb0, 0x7a, 0xe9, 0x24, 0x4f, 0xfd,
         ]
     );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
@@ -501,6 +500,28 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!(template.contract, defaults.templates[0].contract);
     assert!(template.llm.is_none());
     assert!(defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(13)));
+}
+
+#[test]
+fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 13).expect("standing role charter");
+    let shared = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert!(shared.contains("Add it to my rules?"));
+    assert!(shared.contains("with `propose_settings`, your reason naming the talk"));
+    assert!(shared.contains("an owner of the deployment accepts it, and name the proposal"));
+    assert!(shared.contains("An instruction for the work at hand goes in your Now"));
+    assert!(shared.contains("A decision becomes a record"));
+    assert!(shared.contains("Open your Now with one line saying what this session has done so far"));
+    assert!(shared.contains("session's line on Team"));
+    assert!(shared.contains("write the note described `report` in your own task scope, whole, replacing last week's"));
+    assert!(shared.contains("what you spent, from your brief's period line"));
+    let first = core::str::from_utf8(&charter.parts[0].instructions).unwrap();
+    assert!(first.contains("Set a timer for Mondays at 06:00 UTC, repeating every week, for your weekly report"));
+    assert!(first.contains("say in your Now that it is set"));
+    let work = core::str::from_utf8(&charter.parts[1].instructions).unwrap();
+    assert!(work.contains("If your Now doesn't say that your weekly report's timer is set, set it"));
 }
 
 #[test]
@@ -1141,6 +1162,13 @@ fn init_inbox_holds_three_message_credits_within_the_store_codec() {
 fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
     let engine = engine(&generated());
     let init = engine.llm.models.clone();
+    let fable = &init[2].model;
+    let c = (u64::from(fable.window) * 12_500 + u64::from(fable.output) * 50_000).div_ceil(1_000_000);
+    assert_eq!(c, 13_517, "Fable's window at its cache-write rate plus output, rounded once");
+    assert_eq!(jig_domain_core::most_costly(fable), Some(c));
+    let astra = init[4].clone();
+    let astra_c = jig_domain_core::most_costly(&astra.model).unwrap();
+    assert_eq!(astra_c, 10_896, "without Claude the costliest completion is unchanged");
     let mut cheap = init[0].clone();
     cheap.model.window = 1501;
     cheap.model.output = 503;
@@ -1150,9 +1178,10 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
     cheap.model.output_price = 4;
     cheap.model.price_unit = 1000;
     for (row, models, c, k) in [
-        ("init", init.clone(), 10_896, 43_584),
+        ("init", init.clone(), c, 4 * c),
         ("cheap with costliest prices and rounding", Box::new([cheap.clone()]), 7, 256),
-        ("cheap before Fable", Box::new([cheap, init[2].clone()]), 10_896, 43_584),
+        ("cheap before Fable", Box::new([cheap, init[2].clone()]), c, 4 * c),
+        ("OpenAI only", Box::new([astra]), astra_c, 4 * astra_c),
     ] {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
@@ -1806,12 +1835,14 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
 fn the_stock_pool_funds_eighty_chats_at_once() {
     let engine = engine(&generated());
     let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.minimum_run_spend, 2 * 10_896);
-    assert_eq!(stock.rules.maximum_run_spend, 43_584);
+    let c = jig_domain_core::most_costly(&engine.llm.models[2].model).unwrap();
+    let k = 4 * c;
+    assert_eq!(stock.rules.minimum_run_spend, 2 * c);
+    assert_eq!(stock.rules.maximum_run_spend, k);
     let policy = &stock.policies.get(&1).expect("policy 1").policy;
     assert_eq!(stock.templates[0].budget, jig_domain_people::TemplateBudget::AsAllowed { cap: None });
     let chat_spend = policy.roles[0].authority.budget.spend;
-    assert_eq!(chat_spend, 24 * 43_584);
+    assert_eq!(chat_spend, 24 * k);
     let pool = policy.roles[0].period_spend;
     assert!(pool >= 80 * chat_spend);
     assert!(pool < 81 * chat_spend);
@@ -1910,7 +1941,7 @@ fn assert_document_rule(words: &str) {
         "open questions under ## Open questions",
         "Then change it by lines",
         "revision you read from your brief, recall or your last write's answer",
-        "To append, first is the note's lines + 1 and remove 0",
+        "To append, remove is 0 and first the note's lines + 1, or any line past it",
         "Never rewrite it whole past a few KB",
         "build a long document in parts",
         "A refused note says the revision or the line count to use",
@@ -2056,15 +2087,15 @@ fn stock_numbers_each_model_for_good() {
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
     assert_eq!(models.len(), 8);
-    for (entry, (number, provider, name)) in models.iter().zip([
-        (1, 2, "claude-opus-5-5"),
-        (2, 2, "claude-sonnet-5-5"),
-        (3, 2, "claude-fable-5-1"),
-        (4, 1, "gpt-6.1-sol"),
-        (5, 1, "gpt-6-astra"),
-        (6, 1, "gpt-6.1-terra"),
-        (7, 1, "gpt-6-luna"),
-        (8, 3, "demo"),
+    for (entry, (number, provider, name, cached, cache_write)) in models.iter().zip([
+        (1, 2, "claude-opus-5-5", 200, Some(5_000)),
+        (2, 2, "claude-sonnet-5-5", 200, Some(2_500)),
+        (3, 2, "claude-fable-5-1", 250, Some(12_500)),
+        (4, 1, "gpt-6.1-sol", 2_000, None),
+        (5, 1, "gpt-6-astra", 10_000, None),
+        (6, 1, "gpt-6.1-terra", 1_000, None),
+        (7, 1, "gpt-6-luna", 100, None),
+        (8, 3, "demo", 1, None),
     ]) {
         assert_eq!(
             (entry.number, entry.model.provider, entry.model.name.as_ref()),
@@ -2076,7 +2107,8 @@ fn stock_numbers_each_model_for_good() {
         assert!(!entry.estimated);
         assert_eq!(entry.model.window, 1_048_576);
         assert_eq!(entry.model.output, 8192);
-        assert_eq!(entry.model.cache_write_price, None);
+        assert_eq!(entry.model.cached_price, cached, "{name}");
+        assert_eq!(entry.model.cache_write_price, cache_write, "{name}");
         assert!(entry.description.is_none());
     }
     assert_eq!(models[7].model.name.as_ref(), b"demo");

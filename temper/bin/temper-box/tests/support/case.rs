@@ -94,6 +94,9 @@ fn encode(scripts: &[Script], rules: &[Box<[Rule]>]) -> Value {
                         .lines
                         .iter()
                         .map(|line| match line {
+                            Line::Take { name, before, after } => json!({
+                                "take": text(name), "before": text(before), "after": text(after)
+                            }),
                             Line::Text { text: words } => json!({"text": text(words)}),
                             Line::Call { name, arguments } => json!({
                                 "call": text(name),

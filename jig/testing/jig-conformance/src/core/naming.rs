@@ -231,6 +231,8 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::SetPool { project, .. }
         | people::Ask::DecideEscalation { project, .. }
         | people::Ask::DecideProposal { project, .. }
+        | people::Ask::Talk { project, .. }
+        | people::Ask::Leave { project, .. }
         | people::Ask::Say { project, .. }
         | people::Ask::AnswerQuestion { project, .. }
         | people::Ask::Amend { project, .. }

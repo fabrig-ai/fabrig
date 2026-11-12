@@ -47,7 +47,7 @@ fn rows(reply: &crate::service::Response) -> List<log::Row> {
     }
     result
 }
-fn values() -> List<Delivery> {
+pub(super) fn values() -> List<Delivery> {
     let mut values = List::with_capacity(16);
     for value in [
         Delivery::Other,

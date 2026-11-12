@@ -1,5 +1,6 @@
 //! Recorded green-light frames, edited through their owning codecs.
 mod round_trip;
+mod takes;
 
 use jig_protocol_store::{self as store, codec, transcripts::frame};
 use serde_json::{Value, json};
@@ -46,16 +47,21 @@ fn fixture(tasks: &[u64]) -> (Scratch, Input) {
         let position = TASKS.iter().position(|n| n == task).expect("fixture task");
         takes.push(Take { task: *task, cue: CUES[position].as_bytes().into() });
     }
-    let input =
-        Input { data: scratch.path().into(), base: base(), takes: takes.into_boxed_slice(), replaces: Box::new([]) };
+    let input = Input {
+        data: scratch.path().into(),
+        base: base(),
+        takes: takes.into_boxed_slice(),
+        replaces: Box::new([]),
+        values: Box::new([]),
+    };
     (scratch, input)
 }
 fn limits() -> codec::View {
     codec::View {
-        settings: store::settings_v1::CEILINGS,
+        settings: store::settings_v3::CEILINGS,
         core: store::core_v6::CEILINGS,
-        tasks: store::tasks_v9::CEILINGS,
-        people: store::people_v14::CEILINGS,
+        tasks: store::tasks_v10::CEILINGS,
+        people: store::people_v15::CEILINGS,
         notes: store::notes_v1::CEILINGS,
     }
 }

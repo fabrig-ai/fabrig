@@ -1,6 +1,6 @@
 //! Durable task values translated exhaustively (protocol/store/records.md, 1).
 use super::{proposals, state, value};
-use crate::tasks_v9 as wire;
+use crate::tasks_v10 as wire;
 use jig_domain_tasks as domain;
 use skein_lib::Wall;
 
@@ -340,6 +340,8 @@ fn session_end(value: domain::SessionEnd) -> wire::SessionEnd {
         domain::SessionEnd::Unoffered => wire::SessionEnd::Unoffered,
         domain::SessionEnd::Fresh => wire::SessionEnd::Fresh,
         domain::SessionEnd::Closed => wire::SessionEnd::Closed,
+        domain::SessionEnd::Talk => wire::SessionEnd::Talk,
+        domain::SessionEnd::Left => wire::SessionEnd::Left,
         domain::SessionEnd::Rules => wire::SessionEnd::Rules,
     }
 }
@@ -351,6 +353,8 @@ fn read_session_end(value: wire::SessionEnd) -> domain::SessionEnd {
         wire::SessionEnd::Unoffered => domain::SessionEnd::Unoffered,
         wire::SessionEnd::Fresh => domain::SessionEnd::Fresh,
         wire::SessionEnd::Closed => domain::SessionEnd::Closed,
+        wire::SessionEnd::Talk => domain::SessionEnd::Talk,
+        wire::SessionEnd::Left => domain::SessionEnd::Left,
         wire::SessionEnd::Rules => domain::SessionEnd::Rules,
     }
 }
@@ -400,9 +404,20 @@ pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, 
                 },
             },
         )?),
+        domain::Line::NowWritten { attempt, line } => wire::Line::NowWritten(wire::NowWrittenLine::new(
+            limits,
+            wire::NowWrittenLineParts { attempt: *attempt, line: line.clone() },
+        )?),
         domain::Line::Stood { attempt, words } => wire::Line::Stood(wire::StoodLine::new(
             limits,
             wire::StoodLineParts { attempt: *attempt, words: words.clone() },
+        )?),
+        domain::Line::TalkOpened { party } => {
+            wire::Line::TalkOpened(wire::TalkOpenedLine::new(limits, wire::TalkOpenedLineParts { party: *party })?)
+        }
+        domain::Line::TalkEnded { party, lapsed } => wire::Line::TalkEnded(wire::TalkEndedLine::new(
+            limits,
+            wire::TalkEndedLineParts { party: *party, lapsed: *lapsed },
         )?),
         domain::Line::SessionEnded { attempt, end } => wire::Line::SessionEnded(wire::SessionEndedLine::new(
             limits,
@@ -463,10 +478,16 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
                 },
             }
         }
+        wire::Line::NowWritten(source) => {
+            let wire::NowWrittenLineParts { attempt, line } = source.into_parts();
+            domain::Line::NowWritten { attempt, line }
+        }
         wire::Line::Stood(source) => {
             let wire::StoodLineParts { attempt, words } = source.into_parts();
             domain::Line::Stood { attempt, words }
         }
+        wire::Line::TalkOpened(source) => domain::Line::TalkOpened { party: source.party() },
+        wire::Line::TalkEnded(source) => domain::Line::TalkEnded { party: source.party(), lapsed: source.lapsed() },
         wire::Line::SessionEnded(source) => {
             let wire::SessionEndedLineParts { attempt, end } = source.into_parts();
             domain::Line::SessionEnded { attempt, end: read_session_end(end) }

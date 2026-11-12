@@ -98,6 +98,7 @@ enum Frame {
     Enter { at: Node, new: Expected, ignore_site: bool },
     Record { at: Node, decl: DeclIx, next: u32, end: u32 },
     List { items: Items, item: TypeIx, path: Path },
+    Pieces { at: Node, rest: Span, item: DeclIx, new: Expected, length: u32, piece: Option<u32> },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -255,7 +256,7 @@ impl Patcher {
         reason = "data/codec/patches.md, 6 names this stopped machine entry point next"
     )]
     pub fn next(&mut self) -> Result<Step, Halt> {
-        let result = self.build.advance(&self.old);
+        let result = self.build.advance(&mut self.old);
         if result.is_err() {
             self.build.state = State::Idle;
         }

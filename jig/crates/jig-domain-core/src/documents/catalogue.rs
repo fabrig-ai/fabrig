@@ -222,51 +222,41 @@ impl Core {
         let mut result = List::with_capacity(self.accounts.accounts());
         let Some(provider) = self.provider(model) else { return result };
         let payer = crate::runs::coverage::payer(payer);
-        let candidates = self.accounts.candidates(payer, provider, model.program.as_deref(), None, None, coverage);
+        let candidates =
+            self.accounts.candidates(payer, provider, self.settings.model_ways(model), None, None, coverage);
         let hosts = self.fleet.host_views();
         let mut facts = List::with_capacity(self.host_fact_capacity());
         for account in &candidates {
             if !self.account_allows(*account, model) {
                 continue;
             }
-            if model.program.is_none() {
-                match self.accounts.select(payer, provider, None, Some(*account), None, coverage, &[], self.run_now) {
-                    accounts::Selection::Chosen { .. } => {
-                        result.push(*account).expect("candidate accounts bounded");
-                    }
-                    accounts::Selection::Wait { .. } | accounts::Selection::NoAccount => {}
-                }
-                continue;
-            }
             for host in &hosts {
                 if !host.connected
                     || host.draining
                     || host.slots == 0
-                    || host.kind != fleet::HostKind::Worker
-                    || self.fleet.awaiting_logins(host.channel)
+                    || (host.kind == fleet::HostKind::Worker && self.fleet.awaiting_logins(host.channel))
                 {
                     continue;
                 }
                 let placement = fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
-                if !self.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
-                    continue;
-                }
                 self.host_facts(placement, self.host_rule(placement), &mut facts);
                 match self.accounts.select(
                     payer,
                     provider,
-                    model.program.as_deref(),
+                    self.settings.model_ways(model),
                     Some(*account),
                     None,
                     coverage,
                     facts.as_slice(),
                     self.run_now,
                 ) {
-                    accounts::Selection::Chosen { .. } => {
+                    accounts::Selection::Chosen { source, .. } if self.source_supported(placement, model, source) => {
                         result.push(*account).expect("candidate accounts bounded");
                         break;
                     }
-                    accounts::Selection::Wait { .. } | accounts::Selection::NoAccount => {}
+                    accounts::Selection::Chosen { .. }
+                    | accounts::Selection::Wait { .. }
+                    | accounts::Selection::NoAccount => {}
                 }
             }
         }
@@ -288,7 +278,7 @@ impl Core {
         let candidates = self.accounts.candidates(
             crate::runs::coverage::payer(payer),
             provider,
-            model.program.as_deref(),
+            self.settings.model_ways(model),
             None,
             None,
             coverage,
@@ -310,9 +300,6 @@ impl Core {
                 continue;
             }
             let placement = fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
-            if !self.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
-                continue;
-            }
             self.host_facts(placement, self.host_rule(placement), &mut facts);
             for account in &candidates {
                 if !self.account_allows(*account, model) {
@@ -321,14 +308,18 @@ impl Core {
                 match self.accounts.select(
                     crate::runs::coverage::payer(payer),
                     provider,
-                    model.program.as_deref(),
+                    self.settings.model_ways(model),
                     Some(*account),
                     None,
                     coverage,
                     facts.as_slice(),
                     self.run_now,
                 ) {
-                    accounts::Selection::Chosen { .. } => return (Readiness::Usable, false),
+                    accounts::Selection::Chosen { source, .. } => {
+                        if self.source_supported(placement, model, source) {
+                            return (Readiness::Usable, false);
+                        }
+                    }
                     accounts::Selection::Wait { why: accounts::WaitWhy::Host, .. } => unknown = true,
                     accounts::Selection::Wait { why: accounts::WaitWhy::Refreshing, .. } => refreshing = true,
                     accounts::Selection::Wait {

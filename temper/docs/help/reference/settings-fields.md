@@ -52,9 +52,9 @@ Instructions/models/tools/hosts/budget. Runs use their task's creation-revision 
 - `tools`: integer. Host families need charter/task leave. Asking (2048): only see/document, plus propose_settings with settings (1024). Other charters: 1024 grants settings tools. Default 1023: all but settings/asking.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
 - `spend`: integer. >= (`reserve_turns` + 1) costliest default-model completions, else `budget` refusal. Runs get remaining task funds, capped by `rules.maximum_run_spend`.
-- `wake`: `wake`, or null. For tasks made under this charter whose batch names none. Null/absent: jig's default: rules `"immediate"`, `results` `"last_or_failure"`, questions/answers/timers wake.
-- `documents`: list of at most 8, each `document`. Separate document sections per run brief; <= `tasks.charter_documents`, else `shape` refusal.
-- `parts`: list of at most 8, each `charter-part`. Optional, absent: []. In order, chosen by run reasons; <= tasks.charter_parts. None for resuming charters.
+- `wake`: `wake`, or null. Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
+- `documents`: list of at most 8, each `document`. Documents each run reads as separate brief sections; at most `tasks.charter_documents`, else `shape` refusal.
+- `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. None for resuming charters.
 
 ## overlay
 

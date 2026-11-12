@@ -138,6 +138,10 @@ pub struct World {
     /// Refuse the named section reads while a CI repair is preparing.
     pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
+    /// Refuse pull file sides at the client answer bound.
+    pub files_too_large: bool,
+    /// Delay comparisons independently of the other brief reads.
+    pub comparison_delay: Option<Duration>,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
     /// Delay the review diff independently of the change's fresh checks.
@@ -667,6 +671,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                landing_attempts: engine::LANDING_ATTEMPTS,
                                 check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
@@ -759,6 +764,7 @@ impl World {
                 config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: model.endpoint,
                     dialect: model.dialect,
@@ -1116,6 +1122,8 @@ impl World {
             comparisons_too_large: false,
             fail_brief_reads: None,
             slow_brief_reads: false,
+            files_too_large: false,
+            comparison_delay: None,
             slow_branch: None,
             review_files_delay: None,
             gate,
@@ -1142,6 +1150,16 @@ impl World {
     pub fn with_forge_pages(mut self, pages: &[u8]) -> Self {
         assert_eq!(self.env.now, Time::ZERO);
         self.restart_config.forges[0].web = Some(pages.into());
+        self
+    }
+
+    /// Set the transient retry cadence before startup.
+    #[must_use]
+    pub fn with_transient_retry(mut self, retry: tasks::Retry) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.tasks.retries.transient = retry;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid transient retry configuration");
         self
     }
 
@@ -1357,6 +1375,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: bound,
                         by: engine::Way::Queue,
                         merge_job: None,
@@ -1387,6 +1406,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: None,
                         close_job: None,
                         merge_job: Some(command.into()),
@@ -1434,6 +1454,7 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            landing_attempts: engine::LANDING_ATTEMPTS,
             check_timeout: None,
             by: engine::Way::Queue,
             merge_job: None,
@@ -1457,6 +1478,22 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid close job configuration");
+        self
+    }
+
+    /// Set a goal closer's attempt bound before startup.
+    #[must_use]
+    pub fn with_landing_attempts(mut self, bound: u8) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "attempt configuration precedes startup");
+        self.restart_config.landings.get_mut(&1).expect("project landing configured").landing_attempts = bound;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&self.env.limits),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid attempt configuration");
         self
     }
 
@@ -1827,6 +1864,25 @@ impl World {
                         ))));
                         continue;
                     }
+                    if self.files_too_large
+                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { .. }))
+                    {
+                        let limit = self.env.limits.forge.client.answer_bytes;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                                    skein_forge::api::Bound::AnswerBytes,
+                                    u64::from(limit),
+                                    u64::from(limit).saturating_add(1),
+                                ))),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.comparisons_too_large
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
                     {
@@ -1884,6 +1940,12 @@ impl World {
                     if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Run { .. })) {
                         self.run_repositories.insert(call, name.into());
                     }
+                    let comparison_delay =
+                        if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {
+                            self.comparison_delay
+                        } else {
+                            None
+                        };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits;
@@ -1891,7 +1953,7 @@ impl World {
                         limits.latency_min = Duration::from_secs(20);
                         limits.latency_max = Duration::from_secs(20);
                     }
-                    if let Some(delay) = review_delay {
+                    if let Some(delay) = review_delay.or(comparison_delay) {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }

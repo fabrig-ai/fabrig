@@ -689,6 +689,8 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
         | c::Ask::Create { .. }
         | c::Ask::Propose { .. }
         | c::Ask::Withdraw { .. }
+        | c::Ask::Talk { .. }
+        | c::Ask::Leave { .. }
         | c::Ask::Message { .. }
         | c::Ask::Compound { .. }
         | c::Ask::Answer { .. }

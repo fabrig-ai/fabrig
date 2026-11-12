@@ -68,7 +68,7 @@ Draft, 2026-11-11. How temper's own two deployments take a new build without sta
 
 1. The rehearsal (section 5) and the drill (section 6) pass on the build to deploy.
 2. A backup, taken with the engine stopped.
-3. The settled stop, the new build swapped in for the engine and every worker together, and the start, which patches as the rehearsal did.
+3. The settled stop, the new build swapped in for the engine, and the start, which patches as the rehearsal did. The workers stay or follow as `redeploys.md`, section 7 says; until it is built, they are swapped together with the engine.
 4. The referee's checks that need no workload of their own: ids, sign-ins, accounts, projects, the start's patch lines, goals going on.
 5. **Going back:** before the new generation's first commit, `temper upgrade --back` and the previous build; after it, the backup restored with the previous build, as staging rehearsed (`upgrades.md`, 3.2).
 

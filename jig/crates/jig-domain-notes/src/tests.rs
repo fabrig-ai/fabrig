@@ -572,6 +572,7 @@ fn a_range_inserts_when_it_removes_nothing() {
 #[test]
 fn an_append_after_a_final_newline_keeps_the_texts_ending() {
     assert_eq!(&*spliced(b"a\nb\n", 3, 0, b"c"), b"a\nb\nc");
+    assert_eq!(&*spliced(b"a\n", 7, 0, b"b"), b"a\nb");
 }
 #[test]
 fn an_append_to_a_body_with_no_final_newline_joins_no_lines() {
@@ -591,16 +592,17 @@ fn a_blank_line_counts_as_a_line() {
 }
 #[test]
 fn an_empty_body_takes_an_append_and_nothing_else() {
-    assert_eq!(&*spliced(b"", 1, 0, b"x"), b"x");
-    for range in
-        [crate::LineRange { first: 2, remove: 0, join: false }, crate::LineRange { first: 1, remove: 1, join: false }]
-    {
+    for first in [1, 3] {
+        assert_eq!(&*spliced(b"", first, 0, b"x"), b"x");
+    }
+    for (first, remove) in [(0, 0), (0, 1), (1, 1), (3, 1)] {
+        let range = crate::LineRange { first, remove, join: false };
         assert_eq!(crate::splice(b"", range, b"x", 64), Err(Refusal::PastEnd { lines: 0 }));
     }
 }
 #[test]
-fn first_zero_and_ranges_past_the_end_say_the_lines() {
-    for (first, remove) in [(0, 0), (3, 0), (2, 1), (1, 2)] {
+fn first_zero_and_removals_past_the_end_say_the_lines() {
+    for (first, remove) in [(0, 0), (0, 1), (2, 1), (1, 2)] {
         assert_eq!(
             crate::splice(b"a\n", crate::LineRange { first, remove, join: false }, b"x", 64),
             Err(Refusal::PastEnd { lines: 1 })
@@ -609,7 +611,8 @@ fn first_zero_and_ranges_past_the_end_say_the_lines() {
 }
 #[test]
 fn a_range_on_u32_max_does_not_overflow() {
-    for (first, remove) in [(u32::MAX, 0), (1, u32::MAX), (u32::MAX, u32::MAX)] {
+    assert_eq!(&*spliced(b"a", u32::MAX, 0, b"x"), b"a\nx");
+    for (first, remove) in [(0, u32::MAX), (1, u32::MAX), (u32::MAX, u32::MAX)] {
         assert_eq!(
             crate::splice(b"a", crate::LineRange { first, remove, join: false }, b"x", 64),
             Err(Refusal::PastEnd { lines: 1 })
@@ -768,6 +771,29 @@ fn a_range_answers_as_line_change_does() {
     assert_eq!(change.first, 3, "common lines precede the differing span");
 }
 #[test]
+fn an_overshooting_append_saves_and_answers_the_changed_line() {
+    for (body, expected, expected_change) in [
+        (b"".as_slice(), b"x".as_slice(), crate::LineChange { lines: 1, added: 1, removed: 0, first: 1 }),
+        (b"old".as_slice(), b"old\nx".as_slice(), crate::LineChange { lines: 2, added: 1, removed: 0, first: 2 }),
+    ] {
+        let mut h = Harness::new();
+        let mut old = entry(7, 20, b"old");
+        old.body = body.into();
+        let got = range_write(&mut h, Some(old), range_new(b"x"), 1, 5, 0);
+        let [
+            Request::Save { record: Record::Entry(saved) },
+            Request::Save { record: Record::Line(_) },
+            Request::Written { revision: 2, change, .. },
+        ] = &*got
+        else {
+            panic!("append saves and answer: {got:?}")
+        };
+        assert_eq!(&*saved.body, expected);
+        assert_eq!(*change, expected_change);
+        assert_eq!(*change, crate::line_change(Some(body), expected));
+    }
+}
+#[test]
 fn a_stale_range_says_the_revision() {
     let mut old = entry(7, 20, b"old");
     old.revision = 7;
@@ -787,11 +813,19 @@ fn a_range_on_no_entry_is_missing() {
 #[test]
 fn a_refused_range_saves_nothing() {
     let mut h = Harness::new();
-    for (first, remove, body, why) in [
-        (3, 0, b"x".as_slice(), Refusal::PastEnd { lines: 1 }),
-        (2, 0, b"012345678901234567890123456789", Refusal::PastBound { bytes: 35, bound: 32 }),
+    for (old_body, first, remove, body, why) in [
+        (b"a\n".as_slice(), 0, 0, b"x".as_slice(), Refusal::PastEnd { lines: 1 }),
+        (b"a\n", 0, 1, b"x", Refusal::PastEnd { lines: 1 }),
+        (b"a\n", 2, 1, b"x", Refusal::PastEnd { lines: 1 }),
+        (b"a\n", 1, 2, b"x", Refusal::PastEnd { lines: 1 }),
+        (b"a", 1, u32::MAX, b"x", Refusal::PastEnd { lines: 1 }),
+        (b"a", u32::MAX, u32::MAX, b"x", Refusal::PastEnd { lines: 1 }),
+        (b"body", 5, 0, b"012345678901234567890123456789", Refusal::PastBound { bytes: 35, bound: 32 }),
+        (b"0123456789012345678901234567890\n", 5, 0, b"x", Refusal::PastBound { bytes: 33, bound: 32 }),
     ] {
-        let got = range_write(&mut h, Some(entry(7, 20, b"old")), range_new(body), 1, first, remove);
+        let mut old = entry(7, 20, b"old");
+        old.body = old_body.into();
+        let got = range_write(&mut h, Some(old), range_new(body), 1, first, remove);
         assert_eq!(&*got, &[Request::Refused { owner: Token::new(51), why }]);
         assert!(!h.domain.busy());
     }
@@ -824,10 +858,17 @@ fn a_range_writes_the_description_it_names() {
 fn a_range_at_the_last_revision_is_exhausted() {
     let mut old = entry(7, 20, b"old");
     old.revision = u32::MAX;
-    let got = range_write(&mut Harness::new(), Some(old.clone()), range_new(b"x"), u32::MAX, 1, 1);
-    assert_eq!(&*got, &[Request::Refused { owner: Token::new(51), why: Refusal::RevisionExhausted }]);
-    let got = range_write(&mut Harness::new(), Some(old), range_new(b"x"), u32::MAX, 3, 0);
-    assert_eq!(&*got, &[Request::Refused { owner: Token::new(51), why: Refusal::PastEnd { lines: 1 } }]);
+    for (first, remove, why) in [
+        (1, 1, Refusal::RevisionExhausted),
+        (2, 0, Refusal::RevisionExhausted),
+        (u32::MAX, 0, Refusal::RevisionExhausted),
+        (0, 0, Refusal::PastEnd { lines: 1 }),
+        (0, 1, Refusal::PastEnd { lines: 1 }),
+        (2, 1, Refusal::PastEnd { lines: 1 }),
+    ] {
+        let got = range_write(&mut Harness::new(), Some(old.clone()), range_new(b"x"), u32::MAX, first, remove);
+        assert_eq!(&*got, &[Request::Refused { owner: Token::new(51), why }]);
+    }
 }
 #[test]
 fn a_body_past_its_bound_says_so_in_either_form() {
@@ -873,7 +914,12 @@ fn join_keeps_range_and_body_bounds() {
     assert_eq!(&*crate::splice(b"a\n", append, b"bc", 3).expect("joined bound"), b"abc");
     assert_eq!(crate::splice(b"a\n", append, b"bcd", 3), Err(Refusal::PastBound { bytes: 4, bound: 3 }));
     let past = crate::LineRange { first: 3, remove: 0, join: true };
-    assert_eq!(crate::splice(b"a\n", past, b"b", 3), Err(Refusal::PastEnd { lines: 1 }));
+    assert_eq!(&*crate::splice(b"a\n", past, b"b", 3).expect("joined overshooting append"), b"ab");
+    assert_eq!(crate::splice(b"a\n", past, b"bcd", 3), Err(Refusal::PastBound { bytes: 4, bound: 3 }));
+    for (first, remove) in [(0, 0), (0, 1), (2, 1), (1, 2)] {
+        let range = crate::LineRange { first, remove, join: true };
+        assert_eq!(crate::splice(b"a\n", range, b"b", 3), Err(Refusal::PastEnd { lines: 1 }));
+    }
 }
 
 #[test]

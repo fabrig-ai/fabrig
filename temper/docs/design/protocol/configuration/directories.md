@@ -99,8 +99,10 @@ login is imported.
   after validating it; other effective edits and data remain. Without that
   override, the retained bundle is authoritative. The box prints these
   effective directories. Compatible v1 peer documents are revalidated and
-  retained; the seeded output files follow ../setup/playground.md. Peer in-memory
-  state lasts one launch, independently of retained configuration and data.
+  retained; the seeded output files follow ../setup/playground.md. The fake
+  forges' state is kept in D' across launches (../setup/box.md, 5); the
+  other peers' in-memory state lasts one launch, independently of
+  retained configuration and data.
   A later required document or adapter schema that cannot safely reuse an
   older sandbox is refused by name with explicit reset instructions;
   startup never migrates or deletes E or silently omits a required peer.
@@ -188,7 +190,11 @@ finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
 not doubled, so that one model, `fake-claude`, the fake model serves through
 an Anthropic-dialect endpoint in both effective documents, ahead of the
-scripted model as init's stands. An init-shaped document without them is
+scripted model as init's stands. The fake box offers Claude through its fake
+program alone: the rewrite drops the provider's `keys` and `direct` and the
+`anthropic-api` endpoint from both documents, so that nothing of it reaches
+Anthropic. An init-shaped document without the provider, its model or the
+`anthropic` endpoint is
 refused by name. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override

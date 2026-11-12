@@ -6,7 +6,8 @@ a person requests, never told that nothing is awaited, its finish parked
 and only a cancel ending it, its budget carved again each period, its
 runs in sessions that resume while its model's prompt cache is warm and
 start fresh across them, its Now, the note described `now` in its own
-scope, whole in every brief (`domain/tasks/standing.status.md`). A task's `ended_by` may name a closer, a procedure
+scope, whole in every brief, each write a `NowWritten` line in its activity; a person talks with
+it by `Talk` and `Leave`, its session warm while they are there (`domain/tasks/standing.status.md`). A task's `ended_by` may name a closer, a procedure
 jig makes as the task's own delegate where it would have numbered the
 `NothingAwaited` notice, whose success ends the task with no run, whose
 failure escalates to it, and which waits for work the task makes while

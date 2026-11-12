@@ -877,6 +877,12 @@ fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
 #[test]
 fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name() {
     let mut world = world();
+    let mut hello = temper_engine_domain_world::protocol::hello(skein_lib::Token::new(7), Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
+    {
+        hello.bounds.message_bytes = world.front().engine.env.limits.tasks.message_bytes;
+    }
+    world.front().engine.send(hello);
     let agent = fixtures::agent(&mut world);
     let (setting, mut value) = show_value(&mut world, agent, &KINDS[1]);
     let c::SettingValue::Template(template) = &mut value else { panic!("template") };

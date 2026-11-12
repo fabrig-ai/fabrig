@@ -959,7 +959,32 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
         c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
-        c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+        c::Activity::NowWritten { line, .. } => {
+            words.text(b, Word::NowWritten, &[]);
+            text_node(b, line.bytes());
+        }
+        c::Activity::TalkOpened { party } => words.text(b, Word::TalkOpened, &[Hole::Number(*party)]),
+        c::Activity::TalkEnded { lapsed, .. } => {
+            words.text(b, if *lapsed { Word::TalkLapsed } else { Word::TalkEnded }, &[]);
+        }
+        c::Activity::SessionEnded { attempt, end: c::SessionEnd::Talk } => {
+            words.text(b, Word::SessionTalk, &[Hole::Number(*attempt)]);
+        }
+        c::Activity::SessionEnded { attempt, end: c::SessionEnd::Left } => {
+            words.text(b, Word::SessionLeft, &[Hole::Number(*attempt)]);
+        }
+        c::Activity::Stood { .. }
+        | c::Activity::SessionEnded {
+            end:
+                c::SessionEnd::Quiet
+                | c::SessionEnd::Bound
+                | c::SessionEnd::Unoffered
+                | c::SessionEnd::Fresh
+                | c::SessionEnd::Closed
+                | c::SessionEnd::Rules,
+            ..
+        }
+        | c::Activity::Kept { .. } => {
             words.text(b, Word::DependencyParked, &[]);
         }
         c::Activity::Milestone { position } => words.text(b, Word::Milestone, &[Hole::Number(*position)]),

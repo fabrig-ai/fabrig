@@ -4,14 +4,31 @@
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
-each document keeps its deferred work and open questions. Landed
+each document keeps its deferred work and open questions. Team shows from a
+project's second person or its first standing role. P4b, goal 713, draws
+the project's standing roles, a row each, and a role's card: its head
+with Pause and Resume, its Now, its rules, what wakes it and its
+sessions this week, with two gallery states; a forge topic's words, a
+charter's kept words and a session's line wait for reads. Areas, owners,
+the triager as Who routes and a card's "Talk to it" are P4c's, and a
+line's sign-offs wait on sign-offs by path and kept sign-offs
+(`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+
+Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
 each draft landed in its repositories that its writer says is ready, by
 `temper ctl draft ready`, read at the landing branch's head and kept with
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5). QA's hands are landed-qa's milestone Q2,
+`draft/surfaces.status.md`, 5). A person talks with a standing role through
+`role talk`, with instructions for every case becoming rules by settings
+proposals. A role reports through its Now, a line per session and a weekly
+`report` note, with its Now in Home's brief's words; areas and routing remain
+a later milestone, and Team's and the terminal's talk and report surfaces
+remain the pages' (`draft/standing-roles.status.md`).
+
+QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a
 person's steps and looks a line at a time; recipes and their walk; the
 fake model's given scripts and strict switch; a store this build cannot
@@ -20,16 +37,21 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestones Q1 and Q3: `temper-qa`
+Landed QA's milestones Q1, Q3 and Q4: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
 can need them, all in one ledger; a pass, by goal 1210, takes the newest
-reached build with every web case it holds, restores each case's setup
+reached build with every case it holds, restores each case's setup
 at a place from its copy or its recipe, drives the box a line at a time,
 records outcomes and findings as it goes, files its open findings as one
 request and one goal, and resumes on a build holding that goal's
-landing, two goals at most; its first passes follow landing, and the
-TUI's cases wait for Q4 (`testing/qa/README.md`; `testing/qa/passes.md`;
+landing, two goals at most. By goal 1334 it takes the TUI's cases too.
+Its places have their own ports, and `temper-qa tune` gives the figures
+bounds and places are tuned from. The box's fake forges keep their state
+across a restart. Fake-model scripts take values from the conversation,
+so B0's twin replays as setups on a box's own Forgejo; B1's waits on how
+its gate's commit is made. Its passes follow landing
+(`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
@@ -70,6 +92,13 @@ of the project's path's tiers after landing; Budgets' rows for its live
 standing roles under its open period; and Roles the charters its standing
 roles and follows run (`domain/forge/change/branch-path.md`). Their render
 check and walk follow landing (`client/pages/settings.md`, 3).
+
+Each binary's
+package, the client's included, links `temper-version` and hands its
+build identity to its crate; no library links it, a row of the boundary
+test's direction rule holds it, and a new commit relinks the binaries
+and rebuilds no library or world below them (`release.status.md`;
+`draft/version-rebuilds.status.md`).
 
 The stock from files is the stock charters' milestone S1, by goal 1144
 (`draft/stock-charters.execution.md`): the stock's charters 5, the goal's
@@ -186,6 +215,7 @@ Design documents:
 - [`domain/worker/jobs.md`](domain/worker/jobs.status.md)
 - [`playground.md`](playground.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
+- [`protocol/baseline.md`](protocol/baseline.status.md)
 - [`protocol/binaries.md`](protocol/binaries.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/cluster.md`](protocol/cluster.status.md)
@@ -229,6 +259,7 @@ Design documents:
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)
 - [`testing/qa/places.md`](testing/qa/places.status.md)
+- [`testing/qa/setups.md`](testing/qa/setups.status.md)
 - [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)
@@ -240,6 +271,7 @@ Drafts:
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
@@ -282,6 +314,7 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
 

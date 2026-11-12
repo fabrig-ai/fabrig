@@ -1,0 +1,7 @@
+patch 1
+owner jig 2
+
+family jig-store-settings 2 to 3
+add Overlay
+add Value.overlay
+add OverlaidCharterVersion

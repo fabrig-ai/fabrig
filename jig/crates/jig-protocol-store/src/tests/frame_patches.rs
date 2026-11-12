@@ -204,6 +204,12 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             | Event::SecretsLoaded { .. }
             | Event::SecretsNotReady { .. }
             | Event::Corrupt { .. }
+            | Event::Decoded { .. }
+            | Event::Undecodable { .. }
+            | Event::Rehearsing { .. }
+            | Event::Back { .. }
+            | Event::BackRefused { .. }
+            | Event::Closed { .. }
             | Event::Patched { .. }) => result.push(other),
         }
     }

@@ -106,6 +106,7 @@ mod question_target;
 mod repair_cancel;
 mod repair_cause;
 mod repair_green;
+mod resolution_head;
 mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
@@ -1349,6 +1350,94 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
         })
         .collect();
     assert_eq!(reviews, [review], "wakes cannot make a second review task");
+    world.close();
+}
+
+#[test]
+fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
+    let world = World::configured_brief(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        Some(temper_engine_domain_world::forge_routes::box_limits().brief),
+    );
+    let (mut world, _chat, producer, branch) = change_world_in(world, Change::default());
+    assert!(matches!(
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
+        raw::Answer::Branch(raw::Created::Created)
+    ));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"branch change", 1)
+        .expect("producer pushed branch");
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"base change", 1)
+        .expect("another change moved the base");
+    world.files_too_large = true;
+    world.comparison_delay = Some(Duration::from_secs(40));
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
+                connector: 0,
+                kind: 2,
+                resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: Box::from(&b"pushed"[..]),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..500 {
+        world.tick();
+        if world.assigned.len() >= 3 {
+            break;
+        }
+    }
+    assert!(
+        world.assigned.len() >= 3,
+        "conflict did not assign a resolver: tasks={:?}; forge={:?}",
+        world
+            .store
+            .rows
+            .values()
+            .filter(|row| matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_)))))
+            .collect::<Vec<_>>(),
+        world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()
+    );
+    let resolver = world.assigned[2].clone();
+    assert!(matches!(resolver.workspace.repositories[0].start,
+        engine::ForgeStart::Merge { branch: ref source, base: expected }
+            if source.as_ref() == branch.as_ref() && expected == translate::commit(base)));
+    let limit = world.env.limits.forge.client.answer_bytes;
+    let omitted = format!(
+        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]",
+        u64::from(limit) + 1
+    );
+    let pull = resolver
+        .sections
+        .iter()
+        .find(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull))
+        .expect("resolver's pull section");
+    let engine::BriefBody::Text(words) = &pull.body else { panic!("pull text: {pull:?}") };
+    let words = std::str::from_utf8(words).expect("pull text is UTF-8");
+    assert!(words.contains(&omitted), "{words}");
+    assert!(words.contains("[comparison omitted: not read by the section's cutoff]"), "{words}");
+    let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = world
+        .store
+        .rows
+        .get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(resolver.task))))
+        .expect("resolver task")
+    else {
+        panic!("live resolver")
+    };
+    assert_eq!(row.tries.transient, 0);
+    assert_eq!(row.tries.permanent, 0);
     world.close();
 }
 

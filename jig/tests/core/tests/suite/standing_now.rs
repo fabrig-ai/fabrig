@@ -298,3 +298,128 @@ fn a_standing_brief_omits_a_normal_tail_but_keeps_the_attempt_it_retries() {
         world.close();
     }
 }
+
+fn now_lines(writes: &[root::Write]) -> Vec<(u64, u64, Box<[u8]>)> {
+    writes
+        .iter()
+        .filter_map(|write| match write {
+            root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row)))) => {
+                match &row.line {
+                    tasks::Line::NowWritten { attempt, line } => Some((row.task, *attempt, line.clone())),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn saved_with_now(world: &World, name: u64, revision: u32, line: &[u8]) {
+    let decisions: Vec<_> = world
+        .commits
+        .iter()
+        .filter(|writes| {
+            writes.iter().any(|write| {
+                matches!(write,
+                    root::Write::Save(root::Record::Core(core::Record::Notes(notes::Record::Entry(entry))))
+                        if entry.name == name && entry.revision == revision
+                )
+            })
+        })
+        .collect();
+    assert_eq!(decisions.len(), 1, "one note saving decision");
+    let key = world.call_key(1);
+    assert_eq!(
+        now_lines(decisions[0]),
+        [(key.task, key.attempt, line.into())],
+        "the note and its NowWritten share a decision"
+    );
+}
+
+#[test]
+fn each_now_write_saves_its_first_line_in_the_same_decision() {
+    let (mut world, _, task) = start(people::EndedBy::Standing, false, vec![]);
+    let scope = notes::Scope::Goal { project: 1, goal: task };
+    let answer = call(&mut world, 1, note(scope.clone(), 0, b"Watching\r\nMore detail", None));
+    let core::CallPart::NoteWritten { name, revision: 1, .. } = answer else { panic!("written: {answer:?}") };
+    saved_with_now(&world, name, 1, b"Watching");
+
+    let first = "界".repeat(200); // 600 bytes: a 512-byte cut must stop at 510.
+    let body = format!("{first}\nMore detail");
+    let answer = call(&mut world, 2, note(scope.clone(), name, body.as_bytes(), Some(1)));
+    assert!(matches!(answer, core::CallPart::NoteWritten { revision: 2, .. }));
+    let cut = "界".repeat(170);
+    saved_with_now(&world, name, 2, cut.as_bytes());
+
+    let core::NamedAction::Note { entry, .. } = note(scope, name, b"New detail", Some(2)) else { unreachable!() };
+    let answer = call(
+        &mut world,
+        3,
+        core::NamedAction::NoteLines {
+            entry,
+            recalled: 2,
+            range: notes::LineRange { first: 2, remove: 1, join: false },
+        },
+    );
+    assert!(matches!(answer, core::CallPart::NoteWritten { revision: 3, .. }));
+    saved_with_now(&world, name, 3, cut.as_bytes());
+    assert_eq!(world.commits.iter().map(|writes| now_lines(writes).len()).sum::<usize>(), 3);
+    world.end(tasks::End::Parked, 0);
+    world.close();
+}
+
+#[test]
+fn other_notes_and_refused_now_writes_leave_no_now_line() {
+    for case in ["description", "scope", "nonstanding", "refused"] {
+        let ending = if case == "nonstanding" { people::EndedBy::Requester } else { people::EndedBy::Standing };
+        let (mut world, _, task) = start(ending, false, vec![kept(20, b"now", b"Kept")]);
+        let scope = if case == "scope" {
+            notes::Scope::Project { project: 1 }
+        } else {
+            notes::Scope::Goal { project: 1, goal: task }
+        };
+        let mut action = if case == "refused" {
+            note(scope, 20, b"Not saved", Some(2))
+        } else {
+            note(scope, 0, b"Not a standing task's Now", None)
+        };
+        if case == "description" {
+            let core::NamedAction::Note { entry, .. } = &mut action else { unreachable!() };
+            entry.description = b"now later".as_slice().into();
+        }
+        let answer = call(&mut world, 1, action);
+        if case == "refused" {
+            assert!(matches!(answer, core::CallPart::NoteRefused(notes::Refusal::Moved { .. })), "{case}: {answer:?}");
+        } else {
+            assert!(matches!(answer, core::CallPart::NoteWritten { .. }), "{case}: {answer:?}");
+        }
+        assert!(world.commits.iter().all(|writes| now_lines(writes).is_empty()), "{case}");
+        world.end(tasks::End::Parked, 0);
+        world.close();
+    }
+}
+
+#[test]
+fn the_now_period_line_uses_the_tasks_funded_allotment() {
+    let (mut world, _, task) = start(people::EndedBy::Standing, false, vec![]);
+    assert!(
+        section(&world, Section::Now).expect("Now").starts_with(b"None written yet.\nThis period: spent 0 of 40.\n")
+    );
+    let answer = call(&mut world, 1, note(notes::Scope::Goal { project: 1, goal: task }, 0, b"Watching", None));
+    assert!(matches!(answer, core::CallPart::NoteWritten { .. }));
+    world.turn(1, 3, None, b"Spent this period");
+    world.end(tasks::End::Parked, 3);
+    let read = wake(&mut world, 71);
+    let text = std::str::from_utf8(section(&world, Section::Now).expect("Now")).expect("Now text");
+    assert_eq!(text.lines().nth(1), Some("This period: spent 3 of 40."));
+    assert_eq!(fixtures::live_row(&world, task).numbers.spent, 3);
+    world.turn(1, 0, Some(read), b"Read the period");
+    world.end(tasks::End::Parked, 0);
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 2, budget: 100, next: None }));
+    let read = wake(&mut world, 72);
+    let text = std::str::from_utf8(section(&world, Section::Now).expect("Now")).expect("Now text");
+    assert_eq!(text.lines().nth(1), Some("This period: spent 0 of 40."));
+    world.turn(1, 0, Some(read), b"Read the renewed period");
+    world.end(tasks::End::Parked, 0);
+    world.close();
+}

@@ -914,8 +914,13 @@ fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
 fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
     let config = config(1);
     let mut settings = config.settings;
-    settings.endpoints =
-        Box::new([crate::EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]);
+    settings.endpoints = Box::new([crate::EndpointFacts {
+        direct: Box::new([]),
+        providers: Box::new([1]),
+        number: 1,
+        dialect: 3,
+        program: None,
+    }]);
     let value = CatalogueModel {
         first_read: None,
         number: 9,

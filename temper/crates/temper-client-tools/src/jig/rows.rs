@@ -285,6 +285,7 @@ pub const ANSWER: Tool = Tool {
 with task take before answering; task hand-back returns it to the role.
 Use the printed revision: a changed contract refuses a stale answer.
 Choice codes belong to the contract; TEXT explains the choice.
+CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.
 TEXT's bound is the most any call takes; a person task may ask for less:
 task show prints what it asks, and a refusal past it names the bound.
 ",
@@ -411,7 +412,7 @@ pub const ACCOUNTS: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 5,
-    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\n",
+    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\nEach readiness row names its payer: a project payer's row is for work\nthe project pays for itself, while your party's pool work uses its\nparty payer's row.\n",
 };
 pub const MODELS: Tool = Tool {
     name: b"model list",
@@ -945,6 +946,7 @@ pub const TASK_NOTES: Tool = Tool {
 pub const ROLE_START_AT: u8 = 72;
 pub const ROLE_LIST_AT: u8 = 73;
 pub const ROLE_SHOW_AT: u8 = 74;
+pub const ROLE_TALK_AT: u8 = 75;
 /// Standing roles (client/ctl/tools.md, 2 and 3).
 pub const ROLE_START: Tool = Tool {
     name: b"role start",
@@ -976,13 +978,37 @@ pub const ROLE_LIST: Tool = Tool {
 };
 pub const ROLE_SHOW: Tool = Tool {
     name: b"role show",
-    line: b"Read a standing role's task document and its Now whole",
-    prints: b"The task document, then its whole Now with note number, revision and time, or `no Now yet`",
+    line: b"Read a standing role's task document and its Now or weekly report whole",
+    prints: b"The task document, its open talk, then its whole Now or report with note number, revision and time, or `no Now yet` / `no report yet`", 
     result: b"role",
-    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number")]],
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+        switch(b"report", b"Read its weekly report instead of its Now"),
+    ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"The Now is the lowest-numbered note described now in the role's\nown task scope. A supplied cut body is marked, never silently lost.\n",
+    notes: b"The Now or report is the lowest-numbered note described now or\nreport in the role's own task scope. A supplied cut body is marked.\n",
+};
+
+pub const ROLE_TALK: Tool = Tool {
+    name: b"role talk",
+    line: b"Talk with a standing role, or leave your talk",
+    prints: b"The role's reply, or `left: task N`; refusals exit 2; a timeout, hold or end before its reply exits 3 with what came",
+    result: b"role_reply",
+    forms: &[
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"Words for the role"),
+            flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long to wait; 300 seconds when absent, at most 3600"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            super::table::Argument { occurs: Required, ..switch(b"leave", b"End your talk and its session") },
+        ],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Your first words open a talk; later words continue it. Waits as\ntask show TASK --until replied, then reads the role's turns after\nthese words. Refusals: not a standing role; talking with PARTY;\nno talk to leave. TEXT and --leave cannot be used together.\n",
 };
 
 pub const GOAL_START_AT: u8 = 62;

@@ -72,7 +72,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, &peers, None, false);
+        let given = steps(config, b"/effective/data/", &peers, None, false);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -106,10 +106,13 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
         ] {
             assert_eq!(step.name(), name);
             assert_eq!(step.kind(), temper_forge_setup::Kind::Long);
-            assert_eq!(
-                step.arguments(),
-                [b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"].map(Box::<[u8]>::from)
-            );
+            let mut expected = vec![b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"];
+            if name == b"fake github" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/github-forge.state"]);
+            } else if name == b"fake forgejo" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/forgejo-forge.state"]);
+            }
+            assert_eq!(step.arguments(), expected.into_iter().map(Box::<[u8]>::from).collect::<Vec<_>>());
             assert_eq!(step.listeners(), &[listen]);
             assert_eq!(step.ready(), None);
         }
@@ -177,7 +180,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         effective["workers"][0]["agent"]["arguments"],
         json!(["internal", "agent", "/effective/config/agent.json"])
     );
-    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][2]);
+    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][3]);
     assert_eq!(docs, write(&temper, &agent, &paths, &peers).expect("deterministic rewrite"));
 }
 
@@ -669,7 +672,9 @@ fn written_anthropic_entries_are_replaced_once() {
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
+    assert_program_provider(llm, &temper);
     for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
+        assert!(!endpoints.as_array().unwrap().iter().any(|e| e["name"] == "anthropic-api"));
         let selected: Vec<_> = endpoints.as_array().unwrap().iter().filter(|e| e["number"] == 2).collect();
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0]["name"], "fake-claude");

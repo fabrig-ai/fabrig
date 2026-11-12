@@ -63,6 +63,8 @@ struct StockModel {
     effort: Option<&'static [u8]>,
     efforts: &'static [&'static [u8]],
     input: u64,
+    cached: u64,
+    cache_write: Option<u64>,
     output: u64,
     unit: u32,
 }
@@ -75,6 +77,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 4_000,
+        cached: 200,
+        cache_write: Some(5_000),
         output: 20_000,
         unit: 1_000_000,
     },
@@ -86,6 +90,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 2_000,
+        cached: 200,
+        cache_write: Some(2_500),
         output: 10_000,
         unit: 1_000_000,
     },
@@ -97,6 +103,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 10_000,
+        cached: 250,
+        cache_write: Some(12_500),
         output: 50_000,
         unit: 1_000_000,
     },
@@ -108,6 +116,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 2_000,
+        cached: 2_000,
+        cache_write: None,
         output: 10_000,
         unit: 1_000_000,
     },
@@ -119,6 +129,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"high"),
         efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 10_000,
+        cached: 10_000,
+        cache_write: None,
         output: 50_000,
         unit: 1_000_000,
     },
@@ -130,6 +142,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"medium"),
         efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 1_000,
+        cached: 1_000,
+        cache_write: None,
         output: 5_000,
         unit: 1_000_000,
     },
@@ -141,6 +155,8 @@ const MODELS: &[StockModel] = &[
         effort: Some(b"medium"),
         efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
         input: 100,
+        cached: 100,
+        cache_write: None,
         output: 500,
         unit: 1_000_000,
     },
@@ -152,6 +168,8 @@ const MODELS: &[StockModel] = &[
         effort: None,
         efforts: &[],
         input: 1,
+        cached: 1,
+        cache_write: None,
         output: 1,
         unit: 1_000,
     },
@@ -186,8 +204,8 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                             window: 1_048_576,
                             output: 8192,
                             input_price: row.input,
-                            cached_price: row.input,
-                            cache_write_price: None,
+                            cached_price: row.cached,
+                            cache_write_price: row.cache_write,
                             output_price: row.output,
                             price_unit: row.unit,
                             effort: match row.effort {
@@ -226,7 +244,8 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 /// Read (the forge's reads), Settings (Ask temper proposes)
 /// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration/stock.md.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
+const CHAT_TOOLS: authority::Tools =
+    authority::Tools(1 | 2 | 4 | ToolFamilies::JIG.subscribe.0 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 // A chat's families without delegate (temper/docs/design/protocol/configuration/stock.md).

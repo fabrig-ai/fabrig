@@ -112,6 +112,8 @@ pub fn task_record() -> w::Task {
     w::Task::new(
         &lim,
         w::TaskParts {
+            talk: None,
+            session: None,
             dependency_facts: List::with_capacity(0),
             kept_account: None,
             run_wait: None,

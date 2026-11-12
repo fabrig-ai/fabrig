@@ -247,6 +247,8 @@ pub struct Change {
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
     pub state: State,
+    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
+    pub ended_held: Option<Hold>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
@@ -480,6 +482,8 @@ pub enum Decision {
     CancelProducer,
     /// Cancel the live CI repair: CI passed at this head and no run is in progress (8.4).
     CancelRepair { head: Commit },
+    /// Cancel an idle resolution whose pinned change head moved (repairs.md, A resolution's moved head).
+    CancelResolution { head: Commit },
     /// A CI repair ended at this green head. The top records it and steps on (8.4).
     RepairEnded { head: Commit },
     /// The change's CI hold ended; the root releases its task as the deployment's (8.4).

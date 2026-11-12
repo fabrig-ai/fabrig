@@ -48,12 +48,22 @@ pub struct Row {
     pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: Yours,
+    pub signed: Box<[ApprovalPerson]>,
+    pub can_sign: Box<[ApprovalPerson]>,
+    pub can_sign_more: u32,
     pub size: Option<Size>,
 }
 /// A path set touched by this approval's change (temper/docs/design/client/forge/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ApprovalSet {
     pub number: u8,
+    pub name: Box<[u8]>,
+}
+
+/// A counted signer or someone who can still sign (temper/docs/design/client/forge/records.md).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ApprovalPerson {
+    pub person: u64,
     pub name: Box<[u8]>,
 }
 
@@ -222,6 +232,9 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
             counted: value.counted,
             sets: sets.into_boxed(),
             whole: value.whole,
+            signed: people(value.signed),
+            can_sign: people(value.can_sign),
+            can_sign_more: value.can_sign_more,
             size: match value.size {
                 Some(size) => {
                     let size = size.into_parts();
@@ -244,4 +257,13 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
         .expect("wire bounds approval rows");
     }
     Some(Event::Rows { rows: rows.into_boxed(), more: document.more })
+}
+
+fn people(values: List<w::ApprovalPerson>) -> Box<[ApprovalPerson]> {
+    let mut people = List::with_capacity(values.len());
+    for value in values.into_boxed() {
+        let value = value.into_parts();
+        people.push(ApprovalPerson { person: value.person, name: value.name }).expect("wire bounds approval people");
+    }
+    people.into_boxed()
 }

@@ -379,9 +379,11 @@ impl Document {
                 }
                 for change in &view.landed {
                     size = size.saturating_add(change.title.len());
+                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
                 }
                 for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
+                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
                 }
             }
             Self::Aways(view) => {

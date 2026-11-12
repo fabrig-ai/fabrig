@@ -77,6 +77,7 @@ pub struct Domain {
     pub(crate) start_stop: Option<StartStop>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
+    pub(crate) rehearsal: Option<bool>,
     pub(crate) startup_fill: Option<u64>,
     pub(crate) sweep_rows: Queue<crate::Record>,
     pub(crate) sweep_page: bool,
@@ -111,6 +112,8 @@ pub struct Domain {
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
+    pub(crate) status_reading: Map<Token, forge_route::status_route::Reading>,
+    pub(crate) next_status_owner: u32,
     pub(crate) forge_left: Map<(u64, u64), Box<[forge::Pushed]>>,
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
@@ -327,6 +330,17 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
+    /// Restore as at a start, ending before the switch (domain/root.md, 8.1).
+    pub fn rehearse(&mut self) {
+        assert!(self.start_wall.is_none(), "rehearsal set before restart");
+        self.rehearsal = Some(false);
+    }
+    /// The rehearsal reached the switch without asking for it.
+    #[must_use]
+    pub fn rehearsed(&self) -> bool {
+        self.rehearsal == Some(true)
+    }
+
     /// Allocate the root and fixed child room from shell-supplied configuration and validated
     /// cross-child limits. Checks bounded authority/bootstrap configuration; issues no request.
     /// Startup pages/account setup begin only on `Event::Restart`.
@@ -499,6 +513,7 @@ impl Domain {
         );
         assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
+            rehearsal: None,
             host_part: config.host_part,
             revision: 0,
             held_bytes: 0,
@@ -564,6 +579,8 @@ impl Domain {
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
             forge_unsubscribing: Map::with_capacity(limits.fleet.calls),
             forge_reading: Map::with_capacity(limits.fleet.calls),
+            status_reading: Map::uncapped(),
+            next_status_owner: 0,
             forge_left: Map::with_capacity(limits.tasks.tasks),
             forge_effecting: Map::with_capacity(limits.fleet.calls),
             forge_effects: Map::with_capacity(
@@ -721,6 +738,7 @@ impl Domain {
             && self.forge_subscribing.is_empty()
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
+            && self.status_reading.is_empty()
             && self.forge.briefs_idle()
             && self.call_renders.is_empty()
             && self.forge_effecting.is_empty()

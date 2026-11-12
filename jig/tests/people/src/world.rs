@@ -621,6 +621,8 @@ impl World {
                         | Ask::MarkSeen { .. }
                         | Ask::Release { .. }
                         | Ask::Amend { .. }
+                        | Ask::Talk { .. }
+                        | Ask::Leave { .. }
                         | Ask::Say { .. } => RouteKind::Control,
                         Ask::AccountSignIn { .. } | Ask::AccountSignOut { .. } | Ask::AccountChange { .. } => {
                             RouteKind::Account
@@ -893,7 +895,13 @@ impl World {
                                     &mut self.out,
                                 );
                             }
-                            Ask::Say { task, words, .. } => {
+                            Ask::Leave { task, .. } => people::step(
+                                &mut self.domain,
+                                &self.env,
+                                Event::Decided { request, outcome: Outcome::Left { task } },
+                                &mut self.out,
+                            ),
+                            Ask::Talk { task, words, .. } | Ask::Say { task, words, .. } => {
                                 let message = self.name();
                                 sayings.push((task, message, words));
                                 people::step(
@@ -1039,6 +1047,8 @@ impl World {
                                         | Ask::Release { .. }
                                         | Ask::Move { .. }
                                         | Ask::DecideProposal { .. }
+                                        | Ask::Talk { .. }
+                                        | Ask::Leave { .. }
                                         | Ask::Say { .. }
                                         | Ask::AnswerQuestion { .. }
                                         | Ask::Amend { .. }

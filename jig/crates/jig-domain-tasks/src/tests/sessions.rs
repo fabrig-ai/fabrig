@@ -6,6 +6,7 @@ const SESSION: Session = Session { first: 7, reasons: Reasons::FIRST, last: Wall
 
 fn wake() -> SessionWake {
     SessionWake {
+        talk: crate::TalkState::None,
         at: Wall::from_nanos(
             SESSION.last.as_nanos().checked_add(Duration::from_secs(1).as_nanos()).expect("small wake time"),
         ),
@@ -89,4 +90,36 @@ fn unoffered_ends_only_for_a_waking_kind_the_session_does_not_offer() {
 fn fresh_ends_only_when_the_run_cannot_resume() {
     assert_eq!(session_end(SESSION, wake()), None);
     assert_eq!(session_end(SESSION, SessionWake { resumable: false, ..wake() }), Some(SessionEnd::Fresh));
+}
+
+#[test]
+fn a_talk_suppresses_quiet_but_left_precedes_every_wake_end() {
+    use crate::TalkState;
+    let at = Wall::from_nanos(SESSION.last.as_nanos() + Duration::from_secs(600).as_nanos());
+    assert_eq!(session_end(SESSION, SessionWake { at, ..wake() }), Some(SessionEnd::Quiet));
+    assert_eq!(session_end(SESSION, SessionWake { at, talk: TalkState::Open, ..wake() }), None);
+    assert_eq!(
+        session_end(SESSION, SessionWake { at, talk: TalkState::Open, bytes: 2_001, ..wake() }),
+        Some(SessionEnd::Bound)
+    );
+    assert_eq!(
+        session_end(SESSION, SessionWake { at, talk: TalkState::Lapsed, bytes: 2_001, resumable: false, ..wake() }),
+        Some(SessionEnd::Left)
+    );
+}
+
+#[test]
+fn a_talk_lapses_only_past_thirty_minutes_from_the_later_last() {
+    use crate::{TALK_LAPSE, Talk, TalkState, talk_state};
+    assert_eq!(TALK_LAPSE, Duration::from_secs(1_800));
+    let talk = Talk { party: 1, opened: Wall::EPOCH, last: Wall::EPOCH };
+    let boundary = Wall::from_nanos(SESSION.last.as_nanos() + TALK_LAPSE.as_nanos());
+    assert_eq!(talk_state(Some(talk), Some(SESSION), boundary), TalkState::Open);
+    let at = Wall::from_nanos(SESSION.last.as_nanos() + Duration::from_secs(31 * 60).as_nanos());
+    let state = talk_state(Some(talk), Some(SESSION), at);
+    assert_eq!(state, TalkState::Lapsed);
+    assert_eq!(session_end(SESSION, SessionWake { at, talk: state, ..wake() }), Some(SessionEnd::Left));
+    let talk = Talk { last: boundary, ..talk };
+    assert_eq!(talk_state(Some(talk), Some(SESSION), at), TalkState::Open);
+    assert_eq!(talk_state(None, Some(SESSION), at), TalkState::None);
 }

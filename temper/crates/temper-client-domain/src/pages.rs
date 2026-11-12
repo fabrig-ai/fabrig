@@ -57,6 +57,7 @@ pub mod only_you;
 pub mod parts;
 pub mod rail;
 pub mod report;
+mod signing;
 pub mod start_goal;
 pub mod stop_asking;
 pub mod switcher;
@@ -981,6 +982,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.chat.as_mut().expect("open chat").act(env, client, Act::Resume, &mut pages.serial, out);
         }
         Event::Act { act: act @ (Act::Pause | Act::Resume) } => {
+            if let Address::Team { .. } = pages.address {
+                pages.team.send(
+                    client,
+                    if act == Act::Pause { task::Sending::Stop } else { task::Sending::Resume },
+                    &mut pages.serial,
+                    out,
+                );
+                return;
+            }
             if act == Act::Resume
                 && let Some(inbox) = &pages.inbox
             {
@@ -1102,7 +1112,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
                 }
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
-                Address::Team { .. } => out.push(Request::Show { address: Address::Team { project } }),
+                Address::Team { .. } => out.push(Request::Show { address: Address::Team { project, role: None } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } | Address::Role { .. } | Address::Rule { .. } => {
                     out.push(Request::Show { address: Address::Settings { project } });
@@ -1140,7 +1150,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => {
             me_changed(pages, client, out);
-            pages.team.told(client, &Told::Changed { handle });
+            pages.team.told(env, client, &Told::Changed { handle }, out);
         }
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
@@ -1218,7 +1228,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Some(me) => me.party.number,
             None => 0,
         };
-        pages.team.configure(&pages.address, you, &env.limits, &mut pages.next, out);
+        pages.team.configure(&pages.address, you, env, client, &mut pages.next, out);
     } else {
         pages.team.leave(out);
     }
@@ -1472,6 +1482,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     }
 }
 pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
+    pages.team.fire(env.now, out);
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
@@ -1507,7 +1518,7 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         None => None,
     };
     activity::earliest(
-        remembered,
+        activity::earliest(remembered, pages.team.next_deadline()),
         activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline())),
     )
 }
@@ -1995,7 +2006,11 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
 
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    if pages.team.told(client, &told) {
+    if let Some(toasted) = pages.team.toasted(&told) {
+        pages.needs.say(toasted, env.now);
+        return true;
+    }
+    if pages.team.told(env, client, &told, out) {
         return true;
     }
     if pages.roles.told(&told, env.limits.forge) {
@@ -2434,7 +2449,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Work { project, .. }
         | Address::Goals { project, .. }
         | Address::Changes { project }
-        | Address::Team { project }
+        | Address::Team { project, .. }
         | Address::Settings { project }
         | Address::Models { project }
         | Address::Builders { project }

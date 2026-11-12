@@ -92,9 +92,9 @@ fn the_real_set_names_its_owner_family_root_and_mark() {
 }
 
 #[test]
-fn the_real_set_is_empty_before_the_baseline() {
+fn the_real_set_keeps_the_baseline_without_a_patch() {
     assert!(smith_transcript::patches::PATCHES.is_empty());
-    assert!(smith_transcript::patches::kept::smith_transcript::TEXTS.is_empty());
+    assert_eq!(smith_transcript::patches::kept::smith_transcript::TEXTS, &[TRANSCRIPT]);
 }
 
 #[test]

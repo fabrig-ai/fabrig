@@ -260,9 +260,9 @@ pub static FIELDS: [Field; 251] = [
         null: false,
         line: b">= (`reserve_turns` + 1) costliest default-model completions, else `budget` refusal. Runs get remaining task funds, capped by `rules.maximum_run_spend`.",
     },
-    Field { shape: Shape::Charter, name: b"wake", value: Value::Shape(Shape::Wake), list: None, null: true, line: b"For tasks made under this charter whose batch names none. Null/absent: jig's default: rules `\"immediate\"`, `results` `\"last_or_failure\"`, questions/answers/timers wake." },
-    Field { shape: Shape::Charter, name: b"documents", value: Value::Shape(Shape::Document), list: Some(Bound::Limit(Limit::CharterDocuments)), null: false, line: b"Separate document sections per run brief; <= `tasks.charter_documents`, else `shape` refusal." },
-    Field { shape: Shape::Charter, name: b"parts", value: Value::Shape(Shape::CharterPart), list: Some(Bound::Limit(Limit::CharterParts)), null: false, line: b"Optional, absent: []. In order, chosen by run reasons; <= tasks.charter_parts. None for resuming charters." },
+    Field { shape: Shape::Charter, name: b"wake", value: Value::Shape(Shape::Wake), list: None, null: true, line: b"Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `\"immediate\"`, `results` `\"last_or_failure\"`, questions, answers and timers waking." },
+    Field { shape: Shape::Charter, name: b"documents", value: Value::Shape(Shape::Document), list: Some(Bound::Limit(Limit::CharterDocuments)), null: false, line: b"Documents each run reads as separate brief sections; at most `tasks.charter_documents`, else `shape` refusal." },
+    Field { shape: Shape::Charter, name: b"parts", value: Value::Shape(Shape::CharterPart), list: Some(Bound::Limit(Limit::CharterParts)), null: false, line: b"Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. None for resuming charters." },
     Field {
         shape: Shape::Overlay,
         name: b"instructions",

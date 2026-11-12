@@ -1,6 +1,7 @@
 //! Forge-owned brief sections, gathered from current provider facts
-//! (jig's domain/connectors.md, section 9).
-use crate::brief_words::{self, bounds, busy, moved, room, unnamed};
+//! (jig's domain/connectors.md, section 9). Pull sections stop at their cutoff
+//! (temper/docs/design/domain/forge/change/repairs.md, A resolution).
+use crate::brief_words::{self, bounds, busy, moved, moved_transient, room, unnamed};
 use crate::{BriefCommit, BriefItem, BriefRead, BriefSource, Domain, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -52,6 +53,8 @@ pub(crate) struct BriefFetch {
     read: skein_forge::api::Read,
     refused: Option<u64>,
     deadline: Option<skein_lib::Time>,
+    cutoff: Option<skein_lib::Time>,
+    file_count: Option<u64>,
     mode: PullMode,
     base: Option<skein_forge::api::Commit>,
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
@@ -226,6 +229,8 @@ pub(super) fn brief_pull(
         read: skein_forge::api::Read::Item { number: item.number, after: 0, since: skein_lib::Time::ZERO },
         refused: None,
         deadline: None,
+        cutoff: None,
+        file_count: None,
         mode,
         base: None,
         comparison: None,
@@ -259,6 +264,7 @@ pub(crate) fn brief_answer(
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     rows: u32,
+    now: skein_lib::Time,
     out: &mut Queue<Request>,
 ) -> bool {
     if domain.document_fetches.contains_key(&owner) {
@@ -267,6 +273,10 @@ pub(crate) fn brief_answer(
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
     if completed_item(domain, fetch.item) {
         drop_section(domain, fetch.owner);
+        return true;
+    }
+    if past_cutoff(&fetch, now) {
+        finish_at_cutoff(domain, fetch, out);
         return true;
     }
     if result == Err(skein_forge::api::Error::Busy) {
@@ -317,12 +327,20 @@ pub(crate) fn brief_answer(
                         out,
                     );
                     wake_change(domain, fetch.item);
-                    crate::held::ready(domain, fetch.owner, BriefRead::Failed(moved()), out);
+                    let unread = match fetch.mode {
+                        PullMode::Conflict(_) => moved_transient(),
+                        PullMode::Review | PullMode::Semantic(_) | PullMode::Other => moved(),
+                    };
+                    crate::held::ready(domain, fetch.owner, BriefRead::Failed(unread), out);
                     return true;
                 }
                 own_head(&mut fetch, pull.commit);
             }
             fetch.base = pull.base_commit;
+            fetch.file_count = match pull.size {
+                Some(size) => Some(size.files),
+                None => None,
+            };
             fetch.stage = BriefStage::Files;
             Some(skein_forge::api::Read::PullFiles {
                 number: fetch.item.number,
@@ -407,28 +425,19 @@ pub(crate) fn brief_answer(
                         skip: fetch.file_skip,
                         sides: true,
                     };
-                    fetch.read = read.clone();
-                    let repository = fetch.repository;
-                    domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
-                    out.push(Request::BriefClient {
-                        event: skein_forge_client::Event::Read { owner, repository, read },
-                    });
-                    return true;
+                    Some(read)
+                } else {
+                    append(&mut fetch.words, b"[more files omitted]\n");
+                    comparison(&mut fetch)
                 }
-                append(&mut fetch.words, b"[more files omitted]\n");
+            } else {
+                comparison(&mut fetch)
             }
-            comparison(&mut fetch)
         }
         Err(skein_forge::api::Error::TooLarge(excess)) if fetch.stage == BriefStage::Files => {
             refused(fetch.owner, fetch.stage, reason, None, error, out);
-            append(&mut fetch.words, b"[files omitted from page ");
-            append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
-            append(&mut fetch.words, b": past ");
-            append(&mut fetch.words, &crate::bound_words(excess));
-            append(&mut fetch.words, b"; read_pull_files from page ");
             let next_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
-            append(&mut fetch.words, &decimal(u64::from(next_page)));
-            append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+            files_omitted(&mut fetch, b"past ", &crate::bound_words(excess), next_page);
             comparison(&mut fetch)
         }
         Ok(skein_forge::api::Answer::Compare { before, after, files, ahead, changed, .. })
@@ -553,11 +562,22 @@ pub(crate) fn brief_answer(
         }
     };
     if let Some(read) = next {
+        if past_cutoff(&fetch, now) {
+            finish_at_cutoff(domain, fetch, out);
+            return true;
+        }
         fetch.read = read.clone();
         let repository = fetch.repository;
         domain.brief_fetches.insert(owner, fetch).expect("same brief read room");
         out.push(Request::BriefClient { event: skein_forge_client::Event::Read { owner, repository, read } });
-    } else if let Some(ci) = fetch.ci {
+    } else {
+        finish(domain, fetch, out);
+    }
+    true
+}
+
+fn finish(domain: &mut Domain, mut fetch: BriefFetch, out: &mut Queue<Request>) {
+    if let Some(ci) = fetch.ci {
         crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
     } else {
         if let Some(request) = &fetch.request
@@ -568,7 +588,64 @@ pub(crate) fn brief_answer(
         let read = brief_part(&fetch.words, fetch.parts, fetch.bytes);
         crate::held::ready(domain, fetch.owner, read, out);
     }
-    true
+}
+
+const CUTOFF: &str = "not read by the section's cutoff";
+
+fn files_omitted(fetch: &mut BriefFetch, prefix: &[u8], reason: &[u8], next_page: u32) {
+    append(&mut fetch.words, b"[files omitted from page ");
+    append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
+    append(&mut fetch.words, b": ");
+    append(&mut fetch.words, prefix);
+    append(&mut fetch.words, reason);
+    append(&mut fetch.words, b"; ");
+    if let Some(files) = fetch.file_count {
+        append(&mut fetch.words, b"the pull changes ");
+        append(&mut fetch.words, &decimal(files));
+        append(&mut fetch.words, b" files; ");
+    }
+    append(&mut fetch.words, b"read_pull_files from page ");
+    append(&mut fetch.words, &decimal(u64::from(next_page)));
+    append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+}
+
+fn cutoff(fetch: &BriefFetch) -> Option<skein_lib::Time> {
+    match fetch.stage {
+        BriefStage::Files | BriefStage::Compare => fetch.cutoff,
+        BriefStage::Item
+        | BriefStage::Pull
+        | BriefStage::Reviews
+        | BriefStage::Remarks
+        | BriefStage::Checks
+        | BriefStage::Run
+        | BriefStage::Job => None,
+    }
+}
+
+fn past_cutoff(fetch: &BriefFetch, now: skein_lib::Time) -> bool {
+    match cutoff(fetch) {
+        Some(cutoff) => cutoff <= now,
+        None => false,
+    }
+}
+
+fn finish_at_cutoff(domain: &mut Domain, mut fetch: BriefFetch, out: &mut Queue<Request>) {
+    refused(fetch.owner, fetch.stage, CUTOFF, None, None, out);
+    match fetch.stage {
+        BriefStage::Files => {
+            let page = fetch.file_page;
+            files_omitted(&mut fetch, b"", CUTOFF.as_bytes(), page);
+        }
+        BriefStage::Compare => append(&mut fetch.words, b"[comparison omitted: not read by the section's cutoff]\n"),
+        BriefStage::Item
+        | BriefStage::Pull
+        | BriefStage::Reviews
+        | BriefStage::Remarks
+        | BriefStage::Checks
+        | BriefStage::Run
+        | BriefStage::Job => unreachable!("only files and comparison have a cutoff"),
+    }
+    finish(domain, fetch, out);
 }
 
 /// The writer slot, not the change's current delegate, identifies this brief's
@@ -920,6 +997,8 @@ pub(super) fn brief_reviews(
         read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
         refused: None,
         deadline: None,
+        cutoff: None,
+        file_count: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -991,6 +1070,8 @@ pub(super) fn brief_ci(
         read: skein_forge::api::Read::Checks { commit: head.0 },
         refused: None,
         deadline: None,
+        cutoff: None,
+        file_count: None,
         mode: PullMode::Other,
         base: None,
         comparison: None,
@@ -1085,11 +1166,22 @@ fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
     None
 }
 
-pub(crate) fn set_context(domain: &mut Domain, section: Token, task: u64, deadline: skein_lib::Time) {
+pub(crate) fn set_context(
+    domain: &mut Domain,
+    section: Token,
+    task: u64,
+    deadline: skein_lib::Time,
+    now: skein_lib::Time,
+) {
     crate::brief_document::set_deadline(domain, section, deadline);
     if let Some(owner) = section_owner(domain, section) {
         let fetch = domain.brief_fetches.get_mut(&owner).expect("section fetch");
         fetch.deadline = Some(deadline);
+        let span = u128::from(deadline.saturating_since(now).as_nanos());
+        let nanos = span.saturating_mul(3).checked_div(4).expect("positive divisor");
+        fetch.cutoff = Some(now.saturating_add(skein_lib::Duration::from_nanos(
+            u64::try_from(nanos).expect("three quarters of a span fits"),
+        )));
         fetch.task = Some(task);
     }
 }
@@ -1097,9 +1189,7 @@ pub(crate) fn set_context(domain: &mut Domain, section: Token, task: u64, deadli
 pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
     let mut next = crate::brief_document::next_deadline(domain);
     for (_, fetch) in &domain.brief_fetches {
-        if let Some(deadline) = fetch.deadline
-            && fetch.refused.is_some()
-        {
+        if let Some(deadline) = fetch_deadline(fetch) {
             next = Some(match next {
                 Some(previous) => previous.min(deadline),
                 None => deadline,
@@ -1109,11 +1199,14 @@ pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
     next
 }
 
+fn fetch_deadline(fetch: &BriefFetch) -> Option<skein_lib::Time> {
+    skein_lib::earliest(cutoff(fetch), if fetch.refused.is_some() { fetch.deadline } else { None })
+}
+
 fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
     for (owner, fetch) in &domain.brief_fetches {
-        if let Some(deadline) = fetch.deadline
+        if let Some(deadline) = fetch_deadline(fetch)
             && deadline <= now
-            && fetch.refused.is_some()
         {
             return Some(*owner);
         }
@@ -1121,12 +1214,16 @@ fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
     None
 }
 
-/// Finish Busy-retained reads at the parent's deadline; in-flight reads stay late.
+/// Size pull files and comparisons at their cutoff; other Busy reads wait to the deadline.
 pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
     crate::brief_document::expire(domain, now, out);
     for _ in 0..domain.brief_fetches.capacity() {
         let Some(owner) = expired_owner(domain, now) else { break };
         let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
+        if past_cutoff(&fetch, now) {
+            finish_at_cutoff(domain, fetch, out);
+            continue;
+        }
         refused(fetch.owner, fetch.stage, "the forge client is busy", None, Some(skein_forge::api::Error::Busy), out);
         if fetch.stage == BriefStage::Job || fetch.stage == BriefStage::Run {
             // Each remaining pinned job has the same unavailable-log marker.

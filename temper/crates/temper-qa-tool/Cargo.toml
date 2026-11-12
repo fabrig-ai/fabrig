@@ -17,7 +17,6 @@ path = "tests/suite/main.rs"
 
 [dependencies]
 skein-shell.workspace = true
-temper-version.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 

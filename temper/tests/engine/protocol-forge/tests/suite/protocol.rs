@@ -10,6 +10,7 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        signed: Box::new([]),
         task: 51,
         repository: REPO,
         branch: Box::from(&b"temper/51"[..]),
@@ -19,6 +20,7 @@ fn change_row() -> top::ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -916,6 +918,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::CancelRepair { .. }
+                        | change::Decision::CancelResolution { .. }
                         | change::Decision::EndHold
                         | change::Decision::RepairEnded { .. }
                         | change::Decision::Effect(_)

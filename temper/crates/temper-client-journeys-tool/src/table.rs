@@ -142,11 +142,20 @@ const SESSION: Settings = Settings {
             twin: None,
             notes: "Repeats.",
         },
+        Setting {
+            name: "ports",
+            value: "LIST",
+            about: "Nine distinct nonzero ports, joined by commas, for a new sandbox.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Given only to the box as TEMPER_INTERNAL_FAKE_BOX_PORTS; a retained sandbox keeps its own ports.",
+        },
     ],
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
-    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict]"],
+    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST]"],
     line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
     settings: &[&SESSION],
     switches: &[Switch {
@@ -156,7 +165,7 @@ pub(crate) const DRIVE: Command = Command {
         notes: "",
     }],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui or ctl line with shown lines prefixed | and ok or failed. end or stdin's end stops the box. TUI lines parse and are kept but are not driven yet. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]... makes one commit; forge checks FORGE REPOSITORY waits on its checks. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
@@ -180,6 +189,7 @@ const RECIPE_SESSION: Settings = Settings {
         SESSION.table[0],
         SESSION.table[1],
         SESSION.table[2],
+        SESSION.table[4],
         Setting {
             name: "from",
             value: "ANCESTOR",
@@ -210,7 +220,7 @@ pub(crate) const RECIPE_LIST: Command = Command {
 };
 pub(crate) const RECIPE_WALK: Command = Command {
     reach: Reach::Words(&["recipe", "walk"]),
-    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]"],
+    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
     line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
     arguments: RECIPE_HASH.arguments,
     settings: &[&RECIPES, &RECIPE_SESSION],
@@ -224,8 +234,8 @@ pub(crate) const RECIPE_WALK: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[REPRINT, ADD, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],

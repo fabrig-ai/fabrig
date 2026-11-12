@@ -166,6 +166,17 @@ with the part that makes it true of `main`.
   `configure` (changing how work runs), `upgrade`.
 - **Recipes:** "review before landing", "a tester that cannot land", "a
   weekly budget". Each comes with the part that makes it true.
+  - `review-before-landing`: a person's review on the forge added to a
+    project's landing rule, as one approval of a project role; the
+    stock rule's agent review stays. The forge merges nothing the rule
+    covers until the approval is met.
+  - `tester-that-cannot-land`: a charter whose tools lack the delegate
+    family and a template of that charter with a report contract and no
+    goal branch: its runs are offered no `change`, `goal`, `delegate`
+    or `deliver`, and what they find reaches the repository through
+    another task's change. Its shell runs on the worker's host, which
+    temper does not confine.
+  - `weekly-budget`: a project's period spend, renewed each week.
 - **Reference pages:** `ctl-GROUP` for each group, `commands` for the
   binary's, `host-tools`, `settings-fields`, `configuration` (its
   members, and which need a restart) and `limits` (the bounds).

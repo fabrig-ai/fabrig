@@ -40,6 +40,7 @@ mod program_login;
 pub use temper_engine_shell::setup;
 mod serve;
 mod served;
+mod worker_half;
 pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
@@ -52,6 +53,10 @@ pub enum Command {
     Overview,
     Version,
     Versions,
+    Upgrade {
+        directories: Directories,
+        request: temper_engine_shell::upgrade::Request,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -219,6 +224,10 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
+        ["upgrade", mode @ ("--check" | "--back")] => {
+            return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
+                .map(|(directories, request)| Command::Upgrade { directories, request });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -279,8 +288,18 @@ fn configure_row(
     }
 }
 
-pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], run_as: &[u8]) -> Result<u8, String> {
+pub fn run(
+    command: Command,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    run_as: &[u8],
+    version: &'static str,
+    commit: &'static str,
+) -> Result<u8, String> {
     let exit = match command {
+        Command::Upgrade { directories, request } => {
+            return temper_engine_shell::upgrade::run("temper-box", &directories, &request, Some(&worker_half::Half));
+        }
         Command::Overview => {
             print!("{}", TABLE.help());
             return Ok(0);
@@ -290,7 +309,7 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             return Ok(0);
         }
         Command::Version => {
-            print!("{}", TABLE.version_line());
+            print!("{}", skein_shell::Table { version, commit, ..TABLE }.version_line());
             return Ok(0);
         }
         Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments, environment)),
