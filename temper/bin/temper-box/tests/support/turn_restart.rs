@@ -56,8 +56,8 @@ pub fn configure(root: &Path, repository: u64) {
     }]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
-    let mut settings: Value = serde_json::from_slice(&fs::read(&path).expect("native landing settings"))
-        .expect("settings JSON");
+    let mut settings: Value =
+        serde_json::from_slice(&fs::read(&path).expect("native landing settings")).expect("settings JSON");
     settings["items"][0]["set"]["gates"] = json!([{"number":1,"blocking":true,"freshness":"clean"}]);
     write_private(&path, &serde_json::to_vec(&settings).expect("settings JSON"));
 }
@@ -66,14 +66,21 @@ pub fn configure(root: &Path, repository: u64) {
 fn held_review_scripts(forge: &Throwaway) -> Box<[skein_fake_llm_domain::api::Script]> {
     use skein_fake_llm_domain::api::{Line, Piece};
     let mut scripts = landing_scripts(ANSWER, forge);
-    let review = scripts.iter_mut().find(|script| script.cue.as_ref() == b"Review this change at the named head")
+    let review = scripts
+        .iter_mut()
+        .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("review script");
     let mut verdict = review.turns[0].clone();
     let mut lines = verdict.lines.into_vec();
-    lines.insert(0, Line::Pieces { pieces: Box::new([Piece {
-        text: b"Checked the change at the original head.".as_slice().into(),
-        hold: Some(b"turn-restart-review".as_slice().into()),
-    }]) });
+    lines.insert(
+        0,
+        Line::Pieces {
+            pieces: Box::new([Piece {
+                text: b"Checked the change at the original head.".as_slice().into(),
+                hold: Some(b"turn-restart-review".as_slice().into()),
+            }]),
+        },
+    );
     verdict.lines = lines.into_boxed_slice();
     review.turns = Box::new([verdict]);
     scripts
@@ -178,8 +185,13 @@ impl Judge<'_> {
             let moved = main["commit"]["id"].as_str().expect("moved main");
             assert_ne!(before, moved, "notes moved main");
             let compare = forge.repository_observation("acme", "widget", &format!("compare/{original}...{moved}"));
-            assert!(!compare["commits"].as_array().expect("comparison commits").is_empty(), "original lacks moved main");
-            eprintln!("turn restart: main moved from {before} to {moved} while the review held readiness at {original}");
+            assert!(
+                !compare["commits"].as_array().expect("comparison commits").is_empty(),
+                "original lacks moved main"
+            );
+            eprintln!(
+                "turn restart: main moved from {before} to {moved} while the review held readiness at {original}"
+            );
             self.advanced = Some((original, moved.to_owned()));
         }
         let Some(run) = self.waiting_gate(forge) else { return false };
@@ -260,13 +272,21 @@ impl Judge<'_> {
         let branch = forge.repository_observation("acme", "widget", "branches/temper/2/c3");
         let head = branch["commit"]["id"].as_str().expect("branch head");
         let commit = forge.repository_observation("acme", "widget", &format!("git/commits/{head}"));
-        eprintln!("stalled branch commit: {}", json!({"sha":head,"parents":commit["parents"],"committer":commit["committer"]}));
-        let witness = self.advanced.as_ref().map(|(original, moved)| (original, moved))
+        eprintln!(
+            "stalled branch commit: {}",
+            json!({"sha":head,"parents":commit["parents"],"committer":commit["committer"]})
+        );
+        let witness = self
+            .advanced
+            .as_ref()
+            .map(|(original, moved)| (original, moved))
             .or_else(|| self.previous.map(|proof| (&proof.original, &proof.moved)));
         if let Some((original, moved)) = witness {
             for base in [moved, original] {
-                eprintln!("stalled comparison {base}...{head}: {}",
-                    forge.repository_observation("acme", "widget", &format!("compare/{base}...{head}")));
+                eprintln!(
+                    "stalled comparison {base}...{head}: {}",
+                    forge.repository_observation("acme", "widget", &format!("compare/{base}...{head}"))
+                );
             }
         }
         let Process::Binary(binary) = &procs[0] else { panic!("serve") };

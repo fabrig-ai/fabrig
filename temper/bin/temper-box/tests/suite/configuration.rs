@@ -41,18 +41,21 @@ fn the_browsers_client_bounds_are_the_terminals() {
 #[test]
 fn the_native_forge_fixture_fits_its_store() {
     let scratch = support::Scratch::startup("native-forge-store");
-    support::configuration(scratch.path(), &support::Forge::Throwaway {
-        forgejo: std::path::Path::new("/fixture/forgejo"),
-        api: "127.0.0.1:3000".parse().expect("fixture forge"),
-        git: "http://127.0.0.1:3000/".into(),
-    });
+    support::configuration(
+        scratch.path(),
+        &support::Forge::Throwaway {
+            forgejo: std::path::Path::new("/fixture/forgejo"),
+            api: "127.0.0.1:3000".parse().expect("fixture forge"),
+            git: "http://127.0.0.1:3000/".into(),
+        },
+    );
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
     let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("fixture agent");
-    let store = temper_service::startup::store_limits(
-        &document,
-        &jig_protocol_config::Directories::working(),
-        Some(&agent),
-    ).unwrap_or_else(|why| panic!("fixture store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
+    let store =
+        temper_service::startup::store_limits(&document, &jig_protocol_config::Directories::working(), Some(&agent))
+            .unwrap_or_else(|why| {
+                panic!("fixture store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
+            });
     eprintln!("native forge map value: {} bytes", store.store.store.value);
     scratch.remove();
 }
