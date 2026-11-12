@@ -4,7 +4,6 @@
 
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).
 - **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5).
-- **Not yet:** 5: a job's transient preparation uses the transient class, not the infrastructure one [in flight: change 1717].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
   1: the brief's missing sections remain `briefs.status.md`, 1. 2: what a
