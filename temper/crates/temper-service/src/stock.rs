@@ -605,7 +605,9 @@ fn coordinator(models: &[CatalogueModel]) -> Charter {
     let mut parts = List::with_capacity(u32::try_from(assembled.parts.len()).expect("stock part count"));
     for part in assembled.parts {
         let mut on = Reasons::EMPTY;
-        for reason in part.reasons { on = on.union(reason); }
+        for reason in part.reasons {
+            on = on.union(reason);
+        }
         parts.push(CharterPart { on, instructions: part.text }).expect("assembled parts counted");
     }
     value.parts = parts.into_boxed();

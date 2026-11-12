@@ -8,13 +8,22 @@ use core::fmt;
 use skein_lib::{List, Writer};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum File { Common, Goal, Designer, Coordinator, Implementer }
+pub enum File {
+    Common,
+    Goal,
+    Designer,
+    Coordinator,
+    Implementer,
+}
 impl File {
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Common => "common.md", Self::Goal => "goal.md", Self::Designer => "designer.md",
-            Self::Coordinator => "coordinator.md", Self::Implementer => "implementer.md",
+            Self::Common => "common.md",
+            Self::Goal => "goal.md",
+            Self::Designer => "designer.md",
+            Self::Coordinator => "coordinator.md",
+            Self::Implementer => "implementer.md",
         }
     }
 }
@@ -24,21 +33,33 @@ impl File {
 #[expect(clippy::case_sensitive_file_extension_comparisons, reason = "the set recognizes names ending .md exactly")]
 pub fn file(name: &str) -> Result<Option<File>, Refusal> {
     let value = match name {
-        "common.md" => File::Common, "goal.md" => File::Goal, "designer.md" => File::Designer,
-        "coordinator.md" => File::Coordinator, "implementer.md" => File::Implementer,
+        "common.md" => File::Common,
+        "goal.md" => File::Goal,
+        "designer.md" => File::Designer,
+        "coordinator.md" => File::Coordinator,
+        "implementer.md" => File::Implementer,
         _ => return if name.ends_with(".md") { Err(Refusal::UnknownFile { name: name.into() }) } else { Ok(None) },
     };
     Ok(Some(value))
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Set<'a> {
-    pub common: Option<&'a str>, pub goal: Option<&'a str>, pub designer: Option<&'a str>,
-    pub coordinator: Option<&'a str>, pub implementer: Option<&'a str>,
+    pub common: Option<&'a str>,
+    pub goal: Option<&'a str>,
+    pub designer: Option<&'a str>,
+    pub coordinator: Option<&'a str>,
+    pub implementer: Option<&'a str>,
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct GoalAgent<R> { pub instructions: Box<[u8]>, pub parts: Box<[Part<R>]> }
+pub struct GoalAgent<R> {
+    pub instructions: Box<[u8]>,
+    pub parts: Box<[Part<R>]>,
+}
 #[derive(Debug, PartialEq, Eq)]
-pub struct Part<R> { pub reasons: Box<[R]>, pub text: Box<[u8]> }
+pub struct Part<R> {
+    pub reasons: Box<[R]>,
+    pub text: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refusal {
     UnknownFile { name: Box<str> },
@@ -63,7 +84,11 @@ impl fmt::Display for Refusal {
 /// Assemble the goal agent's instructions and ordered parts.
 /// # Errors
 /// Refuses text before a coordinator section, or empty, repeated or unknown reasons.
-#[expect(clippy::impl_trait_in_params, clippy::disallowed_types, reason = "the assembly boundary maps names to the caller's reason type")]
+#[expect(
+    clippy::impl_trait_in_params,
+    clippy::disallowed_types,
+    reason = "the assembly boundary maps names to the caller's reason type"
+)]
 pub fn goal_agent<R>(set: &Set<'_>, reason: impl Fn(&str) -> Option<R>) -> Result<GoalAgent<R>, Refusal> {
     let mut parts = List::uncapped();
     let designer = trimmed(set.designer);
@@ -71,7 +96,10 @@ pub fn goal_agent<R>(set: &Set<'_>, reason: impl Fn(&str) -> Option<R>) -> Resul
         let Some(first) = reason("first") else {
             return Err(Refusal::UnknownReason { file: File::Designer, line: 1, name: "first".into() });
         };
-        assert!(parts.push(Part { reasons: Box::new([first]), text: designer.as_bytes().into() }).is_ok(), "part count fits u32");
+        assert!(
+            parts.push(Part { reasons: Box::new([first]), text: designer.as_bytes().into() }).is_ok(),
+            "part count fits u32"
+        );
     }
     let coordinator = set.coordinator.unwrap_or("");
     let mut start = 0_usize;
@@ -87,7 +115,10 @@ pub fn goal_agent<R>(set: &Set<'_>, reason: impl Fn(&str) -> Option<R>) -> Resul
             current = Some(reasons(names, number, &reason)?);
             start = offset.checked_add(line.len()).expect("section within text");
         } else if current.is_none() && line != "\n" {
-            return Err(Refusal::BeforeSection { file: File::Coordinator, line: index.checked_add(1).expect("line within text") });
+            return Err(Refusal::BeforeSection {
+                file: File::Coordinator,
+                line: index.checked_add(1).expect("line within text"),
+            });
         }
         offset = offset.checked_add(line.len()).expect("line within text");
     }
@@ -103,11 +134,17 @@ fn reasons<R>(names: &str, line: usize, reason: &impl Fn(&str) -> Option<R>) -> 
     for name in names.split(',') {
         let name = name.trim_matches(' ');
         let file = File::Coordinator;
-        if name.is_empty() { return Err(Refusal::EmptyReason { file, line }); }
-        for earlier in &seen {
-            if *earlier == name { return Err(Refusal::RepeatedReason { file, line, name: name.into() }); }
+        if name.is_empty() {
+            return Err(Refusal::EmptyReason { file, line });
         }
-        let Some(value) = reason(name) else { return Err(Refusal::UnknownReason { file, line, name: name.into() }); };
+        for earlier in &seen {
+            if *earlier == name {
+                return Err(Refusal::RepeatedReason { file, line, name: name.into() });
+            }
+        }
+        let Some(value) = reason(name) else {
+            return Err(Refusal::UnknownReason { file, line, name: name.into() });
+        };
         seen.push(name).expect("reason count fits u32");
         assert!(values.push(value).is_ok(), "reason count fits u32");
     }
@@ -119,10 +156,15 @@ fn part<R>(reasons: Box<[R]>, text: &str, start: usize, end: usize) -> Part<R> {
 }
 /// Assemble the implementer's instructions; absent and blank files contribute nothing.
 #[must_use]
-pub fn implementer(set: &Set<'_>) -> Box<[u8]> { joined(set.common, set.implementer) }
-fn trimmed(text: Option<&str>) -> &str { text.unwrap_or("").trim_matches('\n') }
+pub fn implementer(set: &Set<'_>) -> Box<[u8]> {
+    joined(set.common, set.implementer)
+}
+fn trimmed(text: Option<&str>) -> &str {
+    text.unwrap_or("").trim_matches('\n')
+}
 fn joined(first: Option<&str>, second: Option<&str>) -> Box<[u8]> {
-    let first = trimmed(first); let second = trimmed(second);
+    let first = trimmed(first);
+    let second = trimmed(second);
     let separator = if first.is_empty() || second.is_empty() { b"".as_slice() } else { b"\n\n" };
     let length = first.len().checked_add(separator.len()).expect("first and separator length");
     let length = length.checked_add(second.len()).expect("joined text length");

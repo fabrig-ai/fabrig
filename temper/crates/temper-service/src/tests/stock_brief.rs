@@ -223,7 +223,12 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             Some(workspace(number != 4 && number != 6 && !open))
         };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
-        if number == 2 || number == 5 { eprintln!("stock host-part: charter {number}, non-brief={}, room={remaining}", limits.host_part - u64::from(remaining)); }
+        if number == 2 || number == 5 {
+            eprintln!(
+                "stock host-part: charter {number}, non-brief={}, room={remaining}",
+                limits.host_part - u64::from(remaining)
+            );
+        }
         let rendered = run::brief_bytes(&charter.brief).unwrap();
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");

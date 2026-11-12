@@ -529,7 +529,10 @@ fn the_stock_passes_jigs_one_check() {
         let core = config::core(&engine, [1; 16], 7);
         let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         assert_eq!(defaults.charters[0].policy.instructions.as_ref(), include_bytes!("../stock/chat.txt"));
-        assert_eq!(defaults.charters[1].policy.instructions.as_ref(), temper_charter_set::implementer(&crate::stock::charter_set()).as_ref());
+        assert_eq!(
+            defaults.charters[1].policy.instructions.as_ref(),
+            temper_charter_set::implementer(&crate::stock::charter_set()).as_ref()
+        );
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
@@ -751,9 +754,9 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
 // temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
-    ] {
+    for (words, prefixes) in
+        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
+    {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
@@ -761,7 +764,15 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
-    for words in ["Before you ask anything, call `decided`", "the question, its options, the one you'd take, why, its kind, the paths", "see settings project-classes", "On Decided, carry on with it and ask no one; on Ask, ask as the answer says.", "If you're told a decision was overturned, ask it with `message`"] { assert!(goal.contains(words), "{words}"); }
+    for words in [
+        "Before you ask anything, call `decided`",
+        "the question, its options, the one you'd take, why, its kind, the paths",
+        "see settings project-classes",
+        "On Decided, carry on with it and ask no one; on Ask, ask as the answer says.",
+        "If you're told a decision was overturned, ask it with `message`",
+    ] {
+        assert!(goal.contains(words), "{words}");
+    }
 
     assert!(
         include_str!("../stock/chat.txt")
@@ -771,9 +782,9 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
 
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
-    for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
-    ] {
+    for (words, prefixes) in
+        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
+    {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
@@ -783,7 +794,12 @@ fn asks_always_is_told_every_answer_is_ask() {
             );
         }
     }
-    assert!(crate::stock::charter_set().goal.unwrap().contains("If your words hold the line `Asks: always`, every answer is Ask."));
+    assert!(
+        crate::stock::charter_set()
+            .goal
+            .unwrap()
+            .contains("If your words hold the line `Asks: always`, every answer is Ask.")
+    );
 }
 
 #[test]
@@ -1415,7 +1431,6 @@ fn the_coders_words_wait_after_asking() {
     assert!(words.contains("Then call `wait`, not `finish`: the answer reaches this run."));
 }
 
-
 #[test]
 fn the_coders_words_build_additions_in_the_code_there_is() {
     let words = crate::stock::charter_set().implementer.unwrap();
@@ -1425,7 +1440,9 @@ fn the_coders_words_build_additions_in_the_code_there_is() {
 #[test]
 fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     let words = crate::stock::charter_set().implementer.unwrap();
-    assert!(words.contains("keep the requested change and unrelated base content, appended lines and blank lines included"));
+    assert!(
+        words.contains("keep the requested change and unrelated base content, appended lines and blank lines included")
+    );
     assert!(words.contains("restore losses a review names; never remove content to pass checks."));
     assert!(words.contains("Until then it has no pull request:"));
 }
