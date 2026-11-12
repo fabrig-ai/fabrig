@@ -428,7 +428,7 @@ pub(crate) fn named_action(
                 env,
                 to,
                 key,
-                crate::reads::run_task::Read { task, field, from, room },
+                crate::reads::run_task::Read { task, field, from, room, joined: false },
             );
         }
         NamedAction::PersonRead(read) => return crate::reads::person::run(core, env, to, key, read),
