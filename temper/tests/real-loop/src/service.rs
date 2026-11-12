@@ -557,7 +557,10 @@ impl Host for ServiceHost {
         }
         self.forward_submissions();
     }
-    #[expect(clippy::too_many_lines, reason = "the host turn keeps both halves' terminal matches beside restart and completion routing")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the host turn keeps both halves' terminal matches beside restart and completion routing"
+    )]
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         if self.state == LifeState::Restarting {
