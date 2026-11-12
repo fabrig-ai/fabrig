@@ -1,5 +1,6 @@
 //! GitHub contents operations through the component and the in-process fake.
 use skein_forge::api::{Answer, Error, File, Op, Read};
+use skein_forge_connection::seam::Access;
 use skein_forge_machine_world::github::{Files as Fake, object};
 use skein_forge_machine_world::hand::{self as f, CallHeap};
 use skein_lib::Duration;
