@@ -62,9 +62,7 @@ impl Core {
         let mut questions = List::with_capacity(super::question_capacity(limits).expect("validated question bound"));
         for task in self.tasks.view_tasks() {
             let row = self.tasks.task(task.number).expect("live view owner");
-            if !super::questions_live(&row.phase) {
-                continue;
-            }
+            // Credits last until their questions end, including while the asker closes.
             for credit in &row.questions {
                 if questions.push((row.number, credit.line)).is_err() {
                     self.start_room(
@@ -75,6 +73,9 @@ impl Core {
                     );
                     return Census { questions: questions.into_boxed(), results: Box::new([]) };
                 }
+            }
+            if !super::questions_live(&row.phase) {
+                continue;
             }
             if let jig_domain_tasks::Party::Person(_) = row.requester {
                 for line in &row.question_lines {

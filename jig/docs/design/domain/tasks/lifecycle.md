@@ -99,6 +99,33 @@ wakes; exhausting the run tries ends the task failed. A task ended by its reques
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
 
+**A question left open wakes it again.** After the ordinary
+unread-message wake rules, an agent task whose run parks idle while a
+question asked of it is still open (`messages.md`, 2) is due again at
+once, `question` among its reasons (`messages.md`, 6), when all of
+these hold:
+
+- its wake policy lets a question wake it (`messages.md`, 3);
+- its runs start from a brief, never resuming (../engine/executors.md,
+  2), since a resumed run's window already holds the question and a wake
+  would bring it nothing new;
+- it is no conversation, does not stand (`standing.md`), and is not
+  ended by its requester (9): each waits on its person or its session;
+- it awaits nothing that would bring the answer: it is not kept (8), and
+  has no pending proposal, no live person delegate, and no
+  executor-taken timer or task watch naming a live task.
+
+Its next run's brief shows each open question (../engine/briefs.md,
+1.2). No notice is numbered: the open question is the reason. Each such
+park consumes a run try, retained across these wakes as Nothing left to
+await's are. Past its run tries the task is held, as a task past its
+tries is (6), for `Failures` of the run's class, its hold's words
+`Task A's question N is still open: LINE`, A, N and LINE the oldest open
+question's asker, number and first line, cut at a character's edge to
+the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that whoever
+the hold reaches sees what waits. A task held so is not failed: its
+delegates go on, and a release counts its tries again from it.
+
 ## 3. Procedure tasks
 
 An active procedure task is stepped by the part of the engine that owns

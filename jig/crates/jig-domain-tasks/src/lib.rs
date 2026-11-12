@@ -172,6 +172,7 @@ pub use proposals::{
     ProposalDecision, ProposalHolder, ProposalKind, ProposalOutcome, ProposalState, SETTINGS_ITEMS, Setting,
     SettingEdit, SettingHead, SettingsDecision, SettingsOutcome,
 };
+pub use questions::{OpenQuestion, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,

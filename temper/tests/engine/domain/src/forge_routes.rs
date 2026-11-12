@@ -1316,6 +1316,9 @@ impl World {
         self.env.limits.forge.tasks = tasks;
         self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
         self.env.limits.brief.budgets.task = 512;
+        // Task, Waiting, transcript tail and Home fit beside one another.
+        self.env.limits.brief.sections = 4;
+        self.env.limits.brief.brief_bytes = 1024;
         self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
         let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
         policy.ceiling.delegation.tasks = tasks;

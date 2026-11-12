@@ -7,7 +7,80 @@ use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 /// Maximum bytes of the answer carried by its requester's notice, including a cut marker.
 pub(crate) const ANSWER_NOTICE_BYTES: usize = 256;
 
+/// An unanswered received question whose asker still reserves an answer from this task.
+/// Words stay on the asker's activity line (domain/tasks/lifecycle.md, 8).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct OpenQuestion {
+    pub asker: u64,
+    pub number: u64,
+    pub line: u64,
+}
+
+/// The bounded reason for an exhausted question wake (domain/tasks/lifecycle.md, 2).
+#[must_use]
+pub fn open_question_reason(question: OpenQuestion, words: &[u8]) -> Box<[u8]> {
+    let asker = Decimal::of(question.asker);
+    let number = Decimal::of(question.number);
+    let mut line = words;
+    for (at, byte) in words.iter().enumerate() {
+        if *byte == b'\n' {
+            line = words.get(..at).expect("first line in words");
+            break;
+        }
+    }
+    let parts = [b"Task ".as_slice(), asker.as_bytes(), b"'s question ", number.as_bytes(), b" is still open: ", line];
+    let bound = skein_lib::usize_of(crate::REASON_BYTES);
+    let mut length = 0_usize;
+    for part in parts {
+        let prefix = skein_lib::bytes::utf8_prefix(part, bound.checked_sub(length).expect("bounded reason"));
+        length = length.checked_add(prefix.len()).expect("bounded reason");
+        if prefix.len() < part.len() {
+            break;
+        }
+    }
+    let mut writer = Writer::new(length);
+    for part in parts {
+        let prefix = skein_lib::bytes::utf8_prefix(part, writer.room());
+        writer.put(prefix).expect("bounded question reason");
+        if prefix.len() < part.len() {
+            break;
+        }
+    }
+    writer.finish()
+}
+
 impl Domain {
+    /// Open questions asked of this task, oldest first (domain/tasks/messages.md, 2).
+    #[must_use]
+    pub fn open_questions(&self, number: u64) -> List<OpenQuestion> {
+        let Some(row) = record(self, number) else { return List::with_capacity(0) };
+        let capacity = u32::try_from(row.question_lines.len()).expect("bounded received questions");
+        let mut ordered = Map::with_capacity(capacity);
+        for position in &row.question_lines {
+            if position.answer.is_some() {
+                continue;
+            }
+            for (asker, _) in &self.names {
+                let source = record(self, *asker).expect("live credit owner");
+                for credit in &source.questions {
+                    if credit.number == position.message && credit.answerer == Party::Task(number) {
+                        ordered
+                            .insert(
+                                credit.number,
+                                OpenQuestion { asker: *asker, number: credit.number, line: credit.line },
+                            )
+                            .expect("one credit per globally numbered question");
+                    }
+                }
+            }
+        }
+        let mut questions = List::with_capacity(capacity);
+        for (_, question) in &ordered {
+            questions.push(*question).expect("received question subset");
+        }
+        questions
+    }
+
     /// The credit owner of one question offered in this person's inbox.
     /// The recipient's current requester authorizes its answer, including when
     /// startup enables direct answers for a credit retaining its task answerer.
