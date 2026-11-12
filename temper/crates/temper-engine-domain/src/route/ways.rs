@@ -225,6 +225,12 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         let items = ways::items(way, project, project_ways(domain, project));
         let path = ways::derive(&inputs(domain, project, party, &items, None, None));
         paths.push(path.clone()).expect("stock ways");
+        let mut roles = List::uncapped();
+        for role in &way.roles {
+            roles
+                .push(ways::WayRoleEntry { role: role.clone(), running: role_running(domain, project, role.charter) })
+                .expect("stock way roles");
+        }
         entries
             .push(ways::WayEntry {
                 name: way.name.clone(),
@@ -232,6 +238,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
                 line: way.line.clone(),
                 path,
                 items,
+                roles: roles.into_boxed(),
                 delegation: way.delegation && lacks_delegation(domain, project),
             })
             .expect("stock ways");
@@ -245,6 +252,20 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         words: domain.forge.project_words(project).cloned(),
         may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
+}
+
+fn role_running(domain: &Domain, project: u32, charter: u32) -> bool {
+    for view in domain.core.tasks.view_tasks() {
+        if view.project == project
+            && let Some(task) = domain.core.tasks.task(view.number)
+            && task.label == 3
+            && task.ended_at.is_none()
+            && task.executor == (jig_domain_tasks::Executor::Agent { charter })
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn lacks_delegation(domain: &Domain, project: u32) -> bool {
@@ -286,6 +307,11 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
         Record::People(
             jig_domain_people::Stored::Roles { project, .. } | jig_domain_people::Stored::Policy { project, .. },
         ) => mark(domain, *project),
+        Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task))
+            if task.label == 3 =>
+        {
+            mark(domain, task.project);
+        }
         Record::Core(_) | Record::People(_) | Record::Tasks(_) | Record::Notes(_) | Record::Accounts(_) => {}
     }
 }

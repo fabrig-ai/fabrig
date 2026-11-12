@@ -206,6 +206,7 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
                     )
                     .unwrap()])),
                     delegation: false,
+                    roles: List::with_capacity(0),
                 },
             )
             .unwrap()

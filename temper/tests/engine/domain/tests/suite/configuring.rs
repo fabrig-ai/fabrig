@@ -1856,7 +1856,7 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 13; // The stock, reference settings and the world's settings charter.
+    bounds.tasks.charters = 16; // The stock, reference settings and the world's settings charter.
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;
@@ -2090,7 +2090,7 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         bounds.loads.bytes = 131_072;
         bounds.loads.reply_bytes = 131_072;
         bounds.loads.transcript_bytes = 131_072;
-        bounds.tasks.charters = 11;
+        bounds.tasks.charters = 17;
         bounds.authority.segments = 8;
         bounds.call_records = 64;
         bounds.forge.named_calls = 64;
