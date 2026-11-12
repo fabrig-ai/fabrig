@@ -135,11 +135,8 @@ impl Shape {
         let mut agent: serde_json::Value =
             serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
                 .expect("agent JSON");
-        // Bound the real agent's shutdown, not only the worker's promise about it.
-        agent["profile"]["policy"]["close"] = 10.into();
-        agent["profile"]["policy"]["write_deadline"] = 10.into();
-        agent["profile"]["policy"]["cancel_grace"] = 100.into();
-        agent["profile"]["policy"]["exit_grace"] = 100.into();
+        // Preserve the story's supervision policy; its stop bound is derived below.
+        // Cancellation must leave the held peer time to release its response.
         let [delivery_ms, save_ms] = [5_u64, 5];
         let graces = jig_protocol_config::Graces {
             grace: *grace,
@@ -292,4 +289,28 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
         .flat_map(|(option, path)| [option.as_bytes().into(), path.as_os_str().as_bytes().into()])
         .collect();
     temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cluster_preparation_preserves_the_agents_supervision_policy() {
+        let scratch = crate::Scratch::new("cluster-policy");
+        let data = scratch.path().join("data");
+        let address = ([127, 0, 0, 1], 0).into();
+        fixtures::write(&data, address, address).expect("fixture documents");
+        let path = data.join("agent.json");
+        let mut expected: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
+        expected["profile"]["policy"]["unacknowledged"] = 1.into();
+
+        Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }
+            .write(scratch.path(), false);
+
+        let prepared: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("prepared agent")).expect("prepared JSON");
+        assert_eq!(prepared, expected);
+    }
 }
