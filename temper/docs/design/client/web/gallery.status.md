@@ -4,8 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `all-home` holds no What follows what
-  [in flight: change 1267].
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery-tool --lib`, serial, measured
