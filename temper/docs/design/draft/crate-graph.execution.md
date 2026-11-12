@@ -12,7 +12,7 @@
 | G4, `temper-service` split by `crate-graph.md`, 5.2's rules, its preparatory changes first | 5 | temper/migration | its worker's crates from the round in flight (`cli.md`, 6; goal 1409); G7's tool | its row; landings' chains | not started |
 | G5, `temper-engine-domain-forge` split | 5 | temper/migration | G7's tool | its row; the longest chain from scratch | not started |
 | G6, `jig-domain-core` split | 5 | temper/migration | G7's tool | its row; the longest chain from scratch | not started |
-| G7, the sizes' check and the figure's tool | 7.3, 8 | temper/migration | the user's figures (`crate-graph.md`, 11), or the proposals until they come | the first figure, today's numbers for every later one | landed, on the proposals (`tools/crates/design.md`, 5); its first figure, the baseline, waits for whoever runs the builders (`tools/crates/design.md`, 4.7) |
+| G7, the sizes' check and the figure's tool | 7.3, 8 | temper/migration | the user's figures (`crate-graph.md`, 11), or the proposals until they come | the first figure, today's numbers for every later one | landed, on the proposals, which the user kept on 2026-11-12 (`tools/crates/design.md`, 1); its first figure, the baseline, waits for whoever runs the builders (`tools/crates/design.md`, 4.7) |
 | G8, shared test code in testing crates: `temper-box`'s `tests/support` first, with its public interface, its own paths, its `cfg(test)` helpers made plain or kept with the binaries, and the binary's path passed in; then `smith`'s, `skein-browser-world`'s, `jig-test`'s and `temper-real-loop-world`'s; the check | 6.3, 7.4 | temper/migration, telling temper/tiers | G7's baseline | `temper-box`'s test units' times and its chain, against 6.3's estimate | not started |
 
 ## 2. Order

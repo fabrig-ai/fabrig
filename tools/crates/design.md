@@ -25,8 +25,8 @@ its check of the draft's section 7 (features, codec crates, shared test code) to
 - **Whoever runs the builders runs the figure,** once a day and after each milestone of the draft.
   No plan runs it. Its first run, before any other milestone lands, is the baseline every later
   figure is read against (section 4.7).
-- **The figures are the user's:** 60,000 and 20,000 lines, and the figure's targets, are the draft's
-  proposals until the user sets them (section 5).
+- **The figures are the user's:** 60,000 and 20,000 lines, and the figure's targets, 90 s and 50 s,
+  are the draft's proposals, which the user kept on 2026-11-12. A change to them is the user's.
 
 ## 2. What a crate's size is
 
@@ -243,9 +243,6 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
 
 ## 5. Open questions and Later
 
-- **Open, the user's:** the two bounds, 60,000 and 20,000 lines (section 3.1), and the figure's targets,
-  proposed as a longest chain from scratch under 90 s and a landing's mean chain under 50 s
-  (`temper/docs/design/draft/crate-graph.md`, 11). The check is built on the proposals.
 - **Later: the draft's other checks** join section 3 with their milestones: features (G1), codec
   crates (G2) and shared test code (G8). The last reads test targets' module trees by section 2.1's
   rules.
