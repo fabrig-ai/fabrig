@@ -432,6 +432,7 @@ pub(crate) struct Person {
     root: Option<Fd>,
     actor: skein_fake_person::Person<temper_client_domain::Address>,
     provision: Option<skein_fake_person::Person<temper_client_domain::Address>>,
+    provision_after: u32,
     wake: Option<Time>,
     pub(crate) signed_in: u32,
     pub(crate) finished: bool,
@@ -461,6 +462,12 @@ impl Person {
         person.wire = referee::client::Wire::capturing();
         crate::m15::observer::root(crate::m15::observer::Role::Client, root, b"client");
         person
+    }
+    /// Add an account through the ordinary form, waiting for opening reads first.
+    pub(crate) fn with_account_after(mut self, after: u32) -> Self {
+        self.provision_after = after;
+        self.provision = Some(skein_fake_person::Person::new(fixtures::account_steps()));
+        self
     }
     pub(crate) fn saved(&mut self) {
         self.client = Some(
@@ -553,6 +560,7 @@ impl Person {
             client: None,
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
+            provision_after: 0,
             provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
                 .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
@@ -716,6 +724,10 @@ impl Person {
     }
 }
 impl Host for Person {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the account barrier stays in the native person's single ordered act loop"
+    )]
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.prepare_client(now, wall);
         let Some(client) = &mut self.client else { return };
@@ -759,6 +771,7 @@ impl Host for Person {
         self.wake = None;
         let preparing = client.started()
             && !self.finished
+            && self.actor.at() >= self.provision_after
             && prepare_account(client, &mut self.project_selected, &mut self.provision, &mut self.wake, now);
         if client.started() && self.project_selected && !self.finished && !preparing {
             let before = self.actor.at();
