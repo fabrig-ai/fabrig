@@ -12,12 +12,14 @@ smith-inline-agent-fixtures.workspace = true
 smith-domain-session-fixtures.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
-smith-host-domain = { workspace = true, features = ["fixture"] }
+smith-host-domain.workspace = true
+smith-host-domain-fixtures.workspace = true
 smith-domain.workspace = true
 smith-inline-agent.workspace = true
 smith-agent-world.workspace = true
 smith-machine-world.workspace = true
-smith-protocol-machine = { workspace = true, features = ["fixture"] }
+smith-protocol-machine.workspace = true
+smith-protocol-machine-fixtures.workspace = true
 skein-fake-machine.workspace = true
 skein-fake-llm-domain.workspace = true
 
