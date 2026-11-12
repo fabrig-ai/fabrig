@@ -2,6 +2,7 @@
 mod box_listener;
 pub mod fixtures;
 pub mod golden;
+pub mod upgrade;
 
 mod oracle;
 pub mod referee;

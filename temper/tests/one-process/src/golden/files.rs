@@ -83,7 +83,7 @@ pub(super) fn transcripts(directory: &Path, store: &mut crate::referee::Store) {
     }
 }
 
-pub(super) fn load(directory: &Path) -> Machine {
+pub(crate) fn load(directory: &Path) -> Machine {
     // Reset the playground's per-run agent-root bindings as well as the disk.
     let _ = temper_playground::machine::fresh();
     let mut disk = Machine::for_user(1000);

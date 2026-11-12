@@ -9,6 +9,7 @@ mod public;
 mod ready_copies;
 mod replay;
 mod story_a;
+mod upgrade;
 
 mod fuzzy {
     mod one_process;

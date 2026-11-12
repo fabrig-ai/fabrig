@@ -20,8 +20,10 @@ const FORGE_FIRST_STEP_HELD: i64 = 30_002 + 30_002 / 4;
 const FORGE_FIRST_STEP_PEAK: i64 = 30_002 + 30_002 / 4;
 const VISITOR_FIRST_STEP_HELD: i64 = 1_054 + 1_054 / 4;
 const VISITOR_FIRST_STEP_PEAK: i64 = 1_068 + 1_068 / 4;
-const SERVICE_START_HELD: i64 = 239_146 + 239_146 / 4;
-const SERVICE_START_PEAK: i64 = 285_982 + 285_982 / 4;
+// Frames' machines are priced from the baseline on (jig protocol/store/transcripts.md, 6).
+const SERVICE_START_HELD: i64 = 324_555 + 324_555 / 4;
+// Frames' machines are priced from the baseline on (jig protocol/store/transcripts.md, 6).
+const SERVICE_START_PEAK: i64 = 383_607 + 383_607 / 4;
 const LLM_START_HELD: i64 = 28_185 + 28_185 / 4;
 const LLM_START_PEAK: i64 = 28_185 + 28_185 / 4;
 const FORGE_START_HELD: i64 = 30_743 + 30_743 / 4;

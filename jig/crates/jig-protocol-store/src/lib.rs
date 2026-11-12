@@ -25,6 +25,7 @@ mod pages;
 mod patching;
 mod rehearsal;
 pub use patching::Counts;
+pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
 mod reads;
 pub mod restore;
