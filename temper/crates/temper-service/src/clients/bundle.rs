@@ -109,8 +109,12 @@ pub(crate) fn route(bundle: Option<&Bundle>, head: &http::Call) -> Answer {
         let Some(file) = bundle.file(path) else { return Answer::NotFound };
         return if file.gzip.is_some() && head.accepts_gzip() { Answer::Gzip } else { Answer::File };
     }
-    if path == b"/sw.js" { return Answer::Worker; }
-    if path == b"/manifest.webmanifest" { return Answer::Manifest; }
+    if path == b"/sw.js" {
+        return Answer::Worker;
+    }
+    if path == b"/manifest.webmanifest" {
+        return Answer::Manifest;
+    }
     if path == b"/robots.txt" && bundle.file(path).is_none() {
         return Answer::NotFound;
     }
@@ -152,7 +156,11 @@ impl Clients {
                 200
             }
             Answer::Worker | Answer::Manifest => {
-                let (kind, body) = if answer == Answer::Worker { (b"text/javascript".as_slice(), SERVICE_WORKER) } else { (b"application/manifest+json".as_slice(), MANIFEST) };
+                let (kind, body) = if answer == Answer::Worker {
+                    (b"text/javascript".as_slice(), SERVICE_WORKER)
+                } else {
+                    (b"application/manifest+json".as_slice(), MANIFEST)
+                };
                 field(&mut headers, b"Content-Type", kind);
                 length = body.len();
                 200
@@ -173,7 +181,9 @@ impl Clients {
                 field(&mut headers, b"Cache-Control", policy::PAGE_CACHE);
                 field(&mut headers, b"ETag", &self.bundle.as_ref().expect("revalidated bundle").etag);
             }
-            Answer::Worker | Answer::Manifest | Answer::NoBundle => field(&mut headers, b"Cache-Control", policy::PAGE_CACHE),
+            Answer::Worker | Answer::Manifest | Answer::NoBundle => {
+                field(&mut headers, b"Cache-Control", policy::PAGE_CACHE)
+            }
             Answer::NotFound | Answer::NotAllowed | Answer::Busy => {}
         }
         let response = http::Response {

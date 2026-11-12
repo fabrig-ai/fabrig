@@ -104,7 +104,11 @@ fn push_root_files_are_fixed_revalidated_and_allowed_by_the_page_policy() {
         assert_eq!(fixtures::bundle::body(&peer), body);
         let policy = fixtures::header(&headers, b"content-security-policy").unwrap();
         for source in [b"worker-src 'self'".as_slice(), b"manifest-src 'self'"] {
-            assert!(policy.windows(source.len()).any(|part| part == source));
+            let mut found = false;
+            for part in policy.windows(source.len()) {
+                found |= part == source;
+            }
+            assert!(found);
         }
         let head = fixtures::bundle::head(Method::Post, path, &[]);
         assert_eq!(route(Some(&fixtures::bundle::bundle()), &head), Answer::NotAllowed);

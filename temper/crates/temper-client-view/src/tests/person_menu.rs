@@ -81,7 +81,10 @@ fn the_accounts_tabs_sign_out_is_marked_for_the_sheet() {
         let row = styled(view.tree(), look::SETTINGS_SIGN_OUT);
         let link = named(row, Role::Link, b"What temper remembers about you").id;
         let told = named(row, Role::Link, b"Telling you").id;
-        assert_eq!(crate::act(&mut view, told, Act::Press), Some(d::Action::Pages(pages::Act::Go { address: Address::Told })));
+        assert_eq!(
+            crate::act(&mut view, told, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Told }))
+        );
         let row = styled(view.tree(), look::SETTINGS_SIGN_OUT);
         let sign_out = named(row, Role::Button, b"Sign out").id;
         assert!(row.iter().position(|n| n.id == link).unwrap() < row.iter().position(|n| n.id == sign_out).unwrap());

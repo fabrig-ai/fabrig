@@ -310,7 +310,8 @@ pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded project requests") {
             Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Push(_) | Request::Screen { .. }
+            Request::Push(_)
+            | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::Show { .. }
             | Request::Replace { .. }

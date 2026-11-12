@@ -17,14 +17,14 @@ use skein_ui_web::{
 use std::{cell::RefCell, rc::Rc};
 #[cfg(target_arch = "wasm32")]
 mod focus;
-#[cfg(target_arch = "wasm32")]
-mod push;
 pub mod host;
 #[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
 pub mod journey;
 pub mod limits;
 pub mod playground;
 pub mod public;
+#[cfg(target_arch = "wasm32")]
+mod push;
 pub mod records;
 #[cfg(target_arch = "wasm32")]
 enum Report {
@@ -297,7 +297,9 @@ impl<P: ShellPlatform> Shell<P> {
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
         // Push permission is asked inside the press event, before any asynchronous work.
-        for duty in duties.push { push::carry(Rc::clone(&self.push_inbox), duty); }
+        for duty in &duties.push {
+            push::carry(Rc::clone(&self.push_inbox), *duty);
+        }
         // Keep the person's gesture: tabs precede transport in this turn
         // (skein/docs/design/ui/web/README.md, section 9).
         for tab in &duties.tab {

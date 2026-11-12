@@ -151,7 +151,8 @@ impl Clients {
         let bound = kit::provider_limits(&self.env.limits).request_bytes;
         self.server_answer(
             call,
-            http::Request::Body(Down::Demand { read: Read::Arrived { max: bound.saturating_add(1) }, room: 0 }));
+            http::Request::Body(Down::Demand { read: Read::Arrived { max: bound.saturating_add(1) }, room: 0 }),
+        );
     }
     pub(super) fn provider_answer(&mut self, exchange: Token, answer: kit::ProviderAnswer) {
         let mut call = None;
@@ -204,7 +205,8 @@ impl Clients {
                     http::Body::Length(u64::try_from(length).expect("bounded document"))
                 },
                 close: false,
-            }));
+            }),
+        );
         if length > 0 {
             self.provider_demand(call, length);
         }
@@ -215,7 +217,8 @@ impl Clients {
             http::Request::Reply(Down::Demand {
                 read: Read::Nothing,
                 room: self.send.min(u32::try_from(length).expect("bounded document")),
-            }));
+            }),
+        );
     }
     pub(super) fn provider_event(&mut self, call: Token, event: http::Event) {
         match event {

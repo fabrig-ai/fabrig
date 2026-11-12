@@ -1080,7 +1080,7 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
                 | d::Request::Tab { .. }
                 | d::Request::Copy { .. }
                 | d::Request::Push(_)
-            | d::Request::Fact { .. } => None,
+                | d::Request::Fact { .. } => None,
             })
             .expect("adoption request");
         let answer = w::Answer::new(

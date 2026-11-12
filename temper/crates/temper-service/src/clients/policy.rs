@@ -51,10 +51,19 @@ pub fn headers(directory: &[u8]) -> Box<[u8]> {
 /// Supply temper's sources before the reference server fills the remaining fields.
 pub(super) fn add(response: &mut skein_http::server::Response) {
     for header in &response.headers {
-        if header.name.eq_ignore_ascii_case(b"Content-Security-Policy") { return; }
+        if header.name.eq_ignore_ascii_case(b"Content-Security-Policy") {
+            return;
+        }
     }
     let mut headers = skein_lib::List::uncapped();
-    for header in core::mem::replace(&mut response.headers, Box::new([])) { headers.push(header).expect("uncapped headers"); }
-    headers.push(skein_http::Header { name: skein_lib::bytes::copy_of(b"Content-Security-Policy"), value: skein_lib::bytes::copy_of(PAGE_POLICY) }).expect("policy header");
+    for header in core::mem::replace(&mut response.headers, Box::new([])) {
+        headers.push(header).expect("uncapped headers");
+    }
+    headers
+        .push(skein_http::Header {
+            name: skein_lib::bytes::copy_of(b"Content-Security-Policy"),
+            value: skein_lib::bytes::copy_of(PAGE_POLICY),
+        })
+        .expect("policy header");
     response.headers = headers.into_boxed();
 }

@@ -39,7 +39,7 @@ fn deployment_watch(out: &Queue<Request>) -> Option<Token> {
         | Request::SignOut
         | Request::Dropped { .. }
         | Request::Push(_)
-            | Request::Screen { .. }
+        | Request::Screen { .. }
         | Request::KeepLook { .. }
         | Request::KeepSignIn { .. }
         | Request::Tab { .. }

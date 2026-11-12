@@ -97,7 +97,8 @@ impl Clients {
                     http::Body::Length(skein_lib::len_u64(body.len()))
                 },
                 close: false,
-            }));
+            }),
+        );
         if body.is_empty() {
             return;
         }
@@ -106,7 +107,8 @@ impl Clients {
             http::Request::Reply(Down::Demand {
                 read: Read::Nothing,
                 room: self.send.min(u32::try_from(body.len()).expect("bounded page")),
-            }));
+            }),
+        );
     }
     pub(super) fn github_event(&mut self, call: Token, event: http::Event) {
         match event {
@@ -126,7 +128,8 @@ impl Clients {
                         http::Request::Reply(Down::Demand {
                             read: Read::Nothing,
                             room: self.send.min(u32::try_from(left).expect("page bound")),
-                        }));
+                        }),
+                    );
                 }
             }
             http::Event::Done(_)

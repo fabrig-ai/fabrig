@@ -1458,9 +1458,7 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::AddDevice(_)
-                        | root::Application::RemoveDevice { .. }
-                        | root::Application::Try { .. }
+                        root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }

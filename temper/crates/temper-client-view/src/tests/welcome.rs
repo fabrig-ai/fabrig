@@ -2354,7 +2354,7 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                             | d::Request::Tab { .. }
                             | d::Request::Copy { .. }
                             | d::Request::Push(_)
-            | d::Request::Fact { .. } => None,
+                            | d::Request::Fact { .. } => None,
                         })
                         .expect("chained check sent");
                     super::connect_model::answer(&mut root, attempt, c::DocumentOutcome::AccountChanged);

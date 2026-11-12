@@ -17,8 +17,8 @@ pub mod changes;
 pub mod chat;
 pub mod members;
 pub mod remembered;
-pub mod told;
 pub mod roles;
+pub mod told;
 /// Whether the project's settings offer writing drafts (client/pages/settings.md, 2).
 #[must_use]
 pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
@@ -114,6 +114,7 @@ pub struct Pages {
     members: Option<members::Members>,
     remembered: Option<remembered::Remembered>,
     told: told::Told,
+    told_open: bool,
     pub(crate) push: Option<[u8; 65]>,
     roles: roles::Roles,
     team: team::Team,
@@ -392,6 +393,7 @@ impl Pages {
             members: None,
             remembered: None,
             told: told::Told::new(),
+            told_open: false,
             push: None,
             roles: roles::Roles::default(),
             team: team::Team::default(),
@@ -435,7 +437,7 @@ impl Pages {
     }
     #[must_use]
     pub fn told(&self) -> Option<&told::Told> {
-        if self.address == Address::Told { Some(&self.told) } else { None }
+        if self.told_open { Some(&self.told) } else { None }
     }
     #[must_use]
     pub fn remembered(&self) -> Option<&remembered::Remembered> {
@@ -723,7 +725,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::StopAsking(_) } => unreachable!("Stop asking acts resolve at the root"),
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Told(act) } => {
-            if pages.address == Address::Told {
+            if pages.told_open {
                 pages.told.act(act, pages.push, &mut pages.serial, env.limits.forge, out);
             }
         }
@@ -774,6 +776,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
             pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);
@@ -1162,7 +1165,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
-    pages.told.configure(pages.address == Address::Told, pages.party, &mut pages.next, env.limits.forge, out);
+    pages.told.configure(pages.told_open, pages.party, &mut pages.next, env.limits.forge, out);
     if let Some(page) = &mut pages.remembered {
         page.configure(accounts::current_me(client), &mut pages.next, out);
     }
@@ -1322,7 +1325,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     {
         return true;
     }
-    if pages.told.told(client, &told, env.limits.forge, out) { return true; }
+    if pages.told.told(client, &told, env.limits.forge, out) {
+        return true;
+    }
     if pages.has_goals.told(&told) {
         return true;
     }
@@ -1390,7 +1395,8 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.builders.leave(out);
     pages.members = None;
     pages.remembered = None;
-            pages.told.close(out);
+    pages.told_open = false;
+    pages.told.close(out);
     pages.roles.leave(out);
     pages.team.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
@@ -1583,9 +1589,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
     } else {
         pages.remembered = None;
-            pages.told.close(out);
     }
-    if address != Address::Told { pages.told.close(out); }
+    pages.told_open = address == Address::Told;
+    if !pages.told_open {
+        pages.told.close(out);
+    }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
     if let Some(chats) = &pages.chats
@@ -2448,6 +2456,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
             pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);
@@ -2529,6 +2538,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
             pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);

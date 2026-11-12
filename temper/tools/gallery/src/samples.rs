@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 404;
+pub const N: usize = 414;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -187,6 +187,16 @@ pub fn samples() -> [Sample; N] {
             address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
             then: Shown,
         },
+        Sample { name: "told-not-set-up", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-off", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-on", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-cannot", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-refused", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-not-set-up", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-off", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-on", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-cannot", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-refused", world: Reference, address: Address::Told, then: Shown },
         Sample { name: "remembered-none", world: Reference, address: Address::Remembered, then: Shown },
         Sample { name: "remembered-three", world: Reference, address: Address::Remembered, then: Shown },
         Sample { name: "remembered-full", world: Reference, address: Address::Remembered, then: Shown },
@@ -1504,7 +1514,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::AllHome | Address::Inbox { .. } => ("inbox", None),
-        Address::Remembered | Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
+        Address::Told | Address::Remembered | Address::Members | Address::Limits | Address::Accounts => {
+            ("accounts", None)
+        }
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
@@ -1538,6 +1550,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -1706,6 +1719,11 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-chat-split" => Some("chat-draft-split"),
         "night-work" => Some("work"),
         "night-limits" => Some("limits"),
+        "night-told-not-set-up" => Some("told-not-set-up"),
+        "night-told-off" => Some("told-off"),
+        "night-told-on" => Some("told-on"),
+        "night-told-cannot" => Some("told-cannot"),
+        "night-told-refused" => Some("told-refused"),
         "night-remembered-none" => Some("remembered-none"),
         "night-remembered-three" => Some("remembered-three"),
         "night-remembered-full" => Some("remembered-full"),
@@ -1741,6 +1759,9 @@ pub fn domain(sample: &Sample) -> Domain {
             | "limits-not-owner"
     ) {
         return crate::worlds::rail_work_world(sample.name, sample.address.clone());
+    }
+    if sample.name.starts_with("told-") {
+        return crate::worlds::told_world(sample.name);
     }
     if sample.name.starts_with("remembered-") {
         return crate::worlds::remembered_world(sample.name);

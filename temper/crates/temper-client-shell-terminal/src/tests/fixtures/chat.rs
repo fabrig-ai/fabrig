@@ -275,6 +275,7 @@ fn first_run_words(
             | Request::SignOut
             | Request::Dropped { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

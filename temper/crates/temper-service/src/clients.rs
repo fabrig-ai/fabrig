@@ -442,8 +442,15 @@ impl Clients {
     }
     fn server_answer(&mut self, call: Token, request: skein_http::server::Request) {
         let request = match request {
-            skein_http::server::Request::Respond(mut response) => { policy::add(&mut response); skein_http::server::Request::Respond(response) }
-            request @ (skein_http::server::Request::Discard | skein_http::server::Request::Body(_) | skein_http::server::Request::Next | skein_http::server::Request::Reply(_) | skein_http::server::Request::Close) => request,
+            skein_http::server::Request::Respond(mut response) => {
+                policy::add(&mut response);
+                skein_http::server::Request::Respond(response)
+            }
+            request @ (skein_http::server::Request::Discard
+            | skein_http::server::Request::Body(_)
+            | skein_http::server::Request::Next
+            | skein_http::server::Request::Reply(_)
+            | skein_http::server::Request::Close) => request,
         };
         self.server.answer(call, request, &mut self.server_out);
     }

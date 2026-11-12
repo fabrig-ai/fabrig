@@ -5,12 +5,21 @@ use jig_client::{Family, Watchable, contract as c};
 use skein_lib::{List, Wall};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Row {
     pub number: u32,
     pub label: Box<[u8]>,
     pub at: Wall,
     pub endpoint: Box<[u8]>,
+}
+impl core::fmt::Debug for Row {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Row")
+            .field("number", &self.number)
+            .field("label", &self.label)
+            .field("at", &self.at)
+            .finish_non_exhaustive()
+    }
 }
 #[must_use]
 pub fn watch(limits: Limits) -> Option<Watchable> {
@@ -41,10 +50,23 @@ pub fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
 pub fn host(endpoint: &[u8]) -> &[u8] {
     let rest = match endpoint.strip_prefix(b"https://") {
         Some(rest) => rest,
-        None => match endpoint.strip_prefix(b"http://") { Some(rest) => rest, None => return b"" },
+        None => match endpoint.strip_prefix(b"http://") {
+            Some(rest) => rest,
+            None => return b"",
+        },
     };
+    if rest.starts_with(b"[") {
+        for (index, byte) in rest.iter().enumerate() {
+            if *byte == b']' {
+                return rest.get(..index.checked_add(1).expect("host suffix fits")).expect("IPv6 host");
+            }
+        }
+        return b"";
+    }
     for (index, byte) in rest.iter().enumerate() {
-        if *byte == b'/' || *byte == b':' { return rest.get(..index).expect("host prefix"); }
+        if *byte == b'/' || *byte == b':' || *byte == b'?' || *byte == b'#' {
+            return rest.get(..index).expect("host prefix");
+        }
     }
     rest
 }

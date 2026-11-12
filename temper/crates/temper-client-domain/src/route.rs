@@ -92,7 +92,10 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
 pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     playground_facts(root);
-    root.pages.push = match root.forge.deployment() { Some(answer) => answer.push, None => None };
+    root.pages.push = match root.forge.deployment() {
+        Some(answer) => answer.push,
+        None => None,
+    };
     let task_document = match &event {
         crate::pages::Event::Told {
             told: jig_client::Told::Changed { handle } | jig_client::Told::Page { handle, .. },

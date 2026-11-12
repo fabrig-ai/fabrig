@@ -1269,7 +1269,7 @@ impl Chat {
             | Act::Away(_)
             | Act::Terminal(_)
             | Act::Told(_)
-        | Act::Remembered(_)
+            | Act::Remembered(_)
             | Act::Models(_)
             | Act::StopAsking(_)
             | Act::Needs(_)
