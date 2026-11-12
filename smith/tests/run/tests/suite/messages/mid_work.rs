@@ -214,8 +214,10 @@ fn drain_keeps_the_completion_and_tools_whole_without_reading_a_later_message() 
         assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
         assert_eq!(fences(&world), [None]);
         assert_eq!(terminals(&world), [(Token::new(7), "unread")]);
-        let turn = &world.turns()[0];
-        assert!(format!("{turn:?}").contains("Finished"), "the shell result is in the told turn");
+        assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
+            matches!(block, smith_domain::llm::Block::ToolResult {
+                result: smith_domain::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } }, ..
+            })), "the shell result is in the told turn");
     }
 }
 
@@ -239,7 +241,10 @@ fn drain_waits_for_the_sub_agents_whole_conversation() {
     assert!(world.completions().iter().all(|completion| matches!(completion.terminal,
         Some((_, smith_agent_world::CompletionTerminal::Completed(_))))));
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
-    assert!(format!("{:?}", world.turns()[0]).contains("child done"));
+    assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
+        matches!(block, smith_domain::llm::Block::ToolResult {
+            result: smith_domain::llm::Returned::Text { text, error: false, .. }, ..
+        } if text.windows(b"child done".len()).any(|bytes| bytes == b"child done"))));
 }
 
 #[test]
@@ -264,4 +269,28 @@ fn cancel_after_drain_cuts_the_completion() {
         Some((_, smith_agent_world::CompletionTerminal::Cancelled))));
     assert!(world.turns().is_empty());
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 0, .. }));
+}
+
+
+#[test]
+fn drain_while_awaiting_waiting_or_listening_starts_no_completion() {
+    for phase in ["awaiting", "waiting", "listening"] {
+        let settings = settings();
+        let mut charter = scripted_charter(&settings);
+        let cue = charter.brief.sections[0].text.clone();
+        let turn = if phase == "listening" {
+            charter.mode = run::Mode::Open;
+            smith_agent_world::fixture::says(Box::new([Line::Text { text: b"reply".as_slice().into() }]), 1)
+        } else {
+            call(b"wait", b"{}")
+        };
+        if phase == "awaiting" { charter.brief.sections = Box::default(); }
+        let mut world = World::with_workspace_scripts_charter(settings, None, None,
+            skein_fake_checkout::Checkout::new(), Box::new([Script { cue, turns: Box::new([turn]) }]), charter);
+        world.drain_at(Time::from_nanos(150_000_000));
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), usize::from(phase != "awaiting"));
+        assert!(world.answered_at() < Time::from_nanos(200_000_000));
+        assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
+    }
 }

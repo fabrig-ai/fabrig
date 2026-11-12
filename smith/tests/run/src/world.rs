@@ -1177,7 +1177,8 @@ impl World {
                 opened.ended_at = Some(self.now);
                 opened.spent.turns = opened.spent.turns.max(spend.turns);
             }
-            run::Event::Priced { .. }
+            run::Event::Drain { .. }
+            | run::Event::Priced { .. }
             | run::Event::HostReturned { .. }
             | run::Event::Start { .. }
             | run::Event::Message { .. }

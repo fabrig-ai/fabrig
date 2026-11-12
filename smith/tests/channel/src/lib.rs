@@ -1115,6 +1115,14 @@ impl World {
         }
     }
 
+    /// Ask the agent to finish its current turn, once before cancellation.
+    pub fn host_drains(&mut self) {
+        if let Half::Host(host) = &mut self.host.half {
+            host.send_drain(skein_lib::Token::new(38), &mut self.host.host_events, &mut self.host.below)
+                .expect("one drain before cancel");
+        }
+    }
+
     /// Ask the admitted agent to cancel once.
     pub fn host_cancels(&mut self) {
         if let Half::Host(host) = &mut self.host.half {
@@ -1382,4 +1390,36 @@ mod read_tests {
         assert!(!world.observations().contains(&Observation::AgentCancel));
         assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
     }
+
+    #[test]
+    fn drain_crosses_both_halves_before_or_after_admission_then_cancel_follows() {
+        for admitted in [false, true] {
+            let mut world = if admitted { World::admitted() } else { World::started() };
+            world.host_drains();
+            world.settle();
+            assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
+            if let Half::Host(host) = &mut world.host.half {
+                assert!(host.send_drain(Token::new(39), &mut world.host.host_events, &mut world.host.below).is_err());
+            }
+            world.host_cancels();
+            world.settle();
+            assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
+            let record = smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            inject_agent(&mut world, smith_channel::Body::Drain(record));
+            assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
+            assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
+        }
+    }
+
+    #[test]
+    fn a_second_wire_drain_is_a_rule_fault() {
+        let mut world = World::started();
+        for _ in 0..2 {
+            let record = smith_channel::Drain::new(&smith_channel::CEILINGS, smith_channel::DrainParts {}).expect("empty");
+            inject_agent(&mut world, smith_channel::Body::Drain(record));
+        }
+        assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentDrain).count(), 1);
+        assert!(world.observations().iter().any(|event| matches!(event, Observation::AgentEnded(_))));
+    }
+
 }
