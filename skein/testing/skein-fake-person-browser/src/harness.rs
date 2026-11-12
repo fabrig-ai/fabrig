@@ -117,6 +117,7 @@ pub trait Play {
     }
 }
 mod commands;
+pub mod session;
 mod request;
 mod script;
 pub use script::{Script, Step, TabSeen};
