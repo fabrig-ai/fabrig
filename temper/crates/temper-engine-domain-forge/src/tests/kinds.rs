@@ -742,8 +742,10 @@ fn words() -> crate::settings::ProjectWords {
     crate::settings::ProjectWords { headline: Box::from(b"headline".as_slice()), lede: Box::from(b"lede".as_slice()) }
 }
 
-fn project_values() -> [(u32, SizedValue); 4] {
+fn project_values() -> [(u32, SizedValue); 6] {
     [
+        (12, SizedValue { value: Value::ProjectAreas(crate::settings::ProjectAreas { areas: Box::new([]) }), size: 4 }),
+        (13, SizedValue { value: Value::ProjectTriager(crate::settings::ProjectTriager { owner: crate::settings::AreaOwner::Charter(14) }), size: 5 }),
         (10, SizedValue { value: Value::ProjectWords(words()), size: 20 }),
         (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
         (

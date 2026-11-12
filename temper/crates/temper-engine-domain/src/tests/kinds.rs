@@ -150,7 +150,7 @@ fn a_refusal_carries_the_forges_words() {
     );
     assert_eq!(
         answer(&mut domain).as_ref(),
-        &[connector::Judged::Refuse { why: settings::Refusal::Charter.words().into() }]
+        &[connector::Judged::Refuse { why: settings::Refusal::Charter.words() }]
     );
 }
 
@@ -173,7 +173,7 @@ fn a_set_without_its_typed_value_is_refused_as_another_kind() {
     );
     assert_eq!(
         answer(&mut domain).as_ref(),
-        &[connector::Judged::Refuse { why: settings::Refusal::Value.words().into() }]
+        &[connector::Judged::Refuse { why: settings::Refusal::Value.words() }]
     );
 }
 
@@ -305,7 +305,7 @@ fn a_restore_ask_reaches_the_forge_and_its_answer_reaches_the_core() {
         judged.as_ref(),
         &[
             connector::Judged::Accept { size: CHARTER_BYTES, charters: Box::new([6]) },
-            connector::Judged::Refuse { why: settings::Refusal::Replaced.words().into() },
+            connector::Judged::Refuse { why: settings::Refusal::Replaced.words() },
             connector::Judged::Accept { size: RULE_BYTES, charters: Box::default() },
             connector::Judged::Accept { size: 0, charters: Box::default() },
             connector::Judged::Accept { size: CHARTER_BYTES, charters: Box::new([4]) },
@@ -377,7 +377,7 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
     assert_eq!(
         judged.as_ref(),
         &[
-            connector::Judged::Refuse { why: settings::Refusal::Replaced.words().into() },
+            connector::Judged::Refuse { why: settings::Refusal::Replaced.words() },
             connector::Judged::Accept { size: RULE_BYTES, charters: Box::default() },
         ]
     );
@@ -1052,7 +1052,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
     );
     assert_eq!(
         restored_answer(&mut domain, RESTORE_OWNER).as_ref(),
-        &[connector::Judged::Refuse { why: settings::Refusal::Way.words().into() }]
+        &[connector::Judged::Refuse { why: settings::Refusal::Way.words() }]
     );
     assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
     crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
@@ -1062,7 +1062,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7, 8, 10] {
+    for kind in [2, 6, 7, 8, 10, 12, 13] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1087,6 +1087,8 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     }),
                     size: 33,
                 },
+                12 => settings::SizedValue { value: settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([]) }), size: 4 },
+                13 => settings::SizedValue { value: settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Role(0) }), size: 5 },
                 _ => unreachable!("table kind"),
             };
             domain.forge.keep_settings(
