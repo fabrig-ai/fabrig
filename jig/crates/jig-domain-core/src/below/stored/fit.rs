@@ -4,7 +4,8 @@ use jig_domain_notes as notes;
 
 impl CallPart {
     #[expect(clippy::wildcard_enum_match_arm, reason = "only these call parts contain variable-size collections")]
-    pub(super) fn excess(&self, limits: &Limits, authority: &jig_domain_authority::Limits) -> Option<(u64, u64)> {
+    #[must_use]
+    pub fn excess(&self, limits: &Limits, authority: &jig_domain_authority::Limits) -> Option<(u64, u64)> {
         match self {
             Self::Delegated(rows) => excess(rows.len(), limits.tasks.batch),
             Self::EffectDenied { findings, .. }

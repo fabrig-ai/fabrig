@@ -254,7 +254,7 @@ try. A window's later pages keep its first page's slot there
   keeps one name and a call without `first` stays as it is.
 - **Design departs:** 10, from the request `ui-chat-draft` of 2026-11-05, decided by
   its plan's cut: `core::Held::NotesWritten` keeps its owner, name and revision
-  (`jig-domain-core/src/vocabulary.rs`), where the request gives it `lines`, `added`,
+  (`jig-domain-core-vocabulary/src/vocabulary.rs`), where the request gives it `lines`, `added`,
   `removed` and `first` too, because nothing makes it: a write's answer goes by the
   call's own part, which has them.
 - **Design departs:** `settings.md`, 6, from the request `ui-walk-large`: the proposal-projects departure remains `settings.status.md`, 6.
@@ -290,3 +290,6 @@ try. A window's later pages keep its first page's slot there
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
 
 - **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).
+
+- **Not yet:** 3: the core's vocabulary is still part of `jig-domain-core`; `jig-domain-core-vocabulary` doesn't exist yet [in flight: change 2032]
+- **Not yet:** 3, *Each crate names the one it needs*: the libraries that need only the vocabulary still depend on `jig-domain-core` [in flight: change 2033]
