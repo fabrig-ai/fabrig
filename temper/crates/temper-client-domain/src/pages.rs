@@ -89,6 +89,7 @@ pub struct Pages {
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     stop_asking: Option<stop_asking::Open>,
+    hand_area: Option<team::hand::Open>,
     keep_asking: skein_lib::List<stop_asking::Keeping>,
     decided: decided::Store,
     away: Option<away::Pending>,
@@ -224,6 +225,7 @@ pub enum Act {
     Needs(needs::Act),
     Finding(findings::Act),
     StopAsking(stop_asking::Act),
+    HandArea(team::hand::Act),
     Away(away::Act),
     Models(models::Act),
     Remembered(remembered::Act),
@@ -395,6 +397,7 @@ impl Pages {
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             stop_asking: None,
+            hand_area: None,
             keep_asking: skein_lib::List::uncapped(),
             away: None,
             away_all: None,
@@ -726,6 +729,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Push(report) => pages.told.report(report, &mut pages.serial, env.limits.forge, out),
         Event::Started => started(pages, out),
         Event::Went { address } => {
+            team::hand::leave(pages, out);
             went(pages, env, address, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
@@ -771,7 +775,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: Act::StopAsking(_) } => unreachable!("Stop asking acts resolve at the root"),
+        Event::Act { act: Act::StopAsking(_) | Act::HandArea(_) } => unreachable!("these sheet acts resolve at the root"),
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Told(act) } => {
             if pages.told_open {
@@ -795,6 +799,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Left => {
             pages.stop_asking = None;
+            team::hand::leave(pages, out);
             pages.rail_handles = RailHandles::None;
             pages.start = None;
             pages.switcher.close();
@@ -859,7 +864,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::AskWith { words } } => {
             if !words.is_empty() {
                 let project = match pages.address {
-                    Address::Home { project } => Some(project),
+                    Address::Home { project } | Address::Team { project, .. } => Some(project),
                     Address::AllHome => match pages.project {
                         Some(project) => Some(project),
                         None => match pages.me(client) {
@@ -871,7 +876,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                         },
                     },
                     Address::Inbox { .. }
-                    | Address::Team { .. }
                     | Address::Ask { .. }
                     | Address::NewChat { .. }
                     | Address::Chats { .. }
@@ -2425,6 +2429,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Told(_)
         | Act::Remembered(_)
         | Act::Models(_)
+        | Act::HandArea(_)
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
