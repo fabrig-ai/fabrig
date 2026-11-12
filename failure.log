@@ -1,9 +1,9 @@
    Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/tests/one-process)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.20s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.47s
 ────────────
- Nextest run ID e5c31706-b9c4-42a3-8f10-214e1e05d9d9 with nextest profile: default
+ Nextest run ID b2340675-7aa9-4e8e-b54a-e334de3592b3 with nextest profile: default
     Starting 1 test across 1 binary (45 tests skipped)
-        FAIL [   0.386s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+        FAIL [   0.911s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
   stdout ───
 
     running 1 test
@@ -14,189 +14,185 @@
     failures:
         public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 
-    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.37s
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.89s
 
   stderr ───
-    NOTES Queue { items: [WorkerOpeningEnded { worker: Some([119, 111, 114, 107, 101, 114, 45, 97]), why: Refused { reason: 2 } }], capacity: 3 }
-    NOTES Queue { items: [ForgeSetupStopped { number: 1, why: Busy }], capacity: 3 }
-    FLEET fleet: Domain { versions: 8, reads: Reads { held: List { items: [], capacity: 4 }, head: 0, tail: 0 }, program_sources: [], cleanup_programs: [], worker_names: Membership { names: [[119, 111, 114, 107, 101, 114, 45, 97]] }, channels: Slab { slots: [], free: [], retired: [], capacity: 2, len: 0 }, needs: Needs { charters: [CharterNeeds { version: Version { charter: 1, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 8, time: Duration(3600000000000), waiting: Duration(10000000000), change_reserve: Some(Duration(60000000000)) }, CharterNeeds { version: Version { charter: 2, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 800, time: Duration(28800000000000), waiting: Duration(10000000000), change_reserve: Some(Duration(60000000000)) }, CharterNeeds { version: Version { charter: 4, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 800, time: Duration(28800000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 5, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 800, time: Duration(28800000000000), waiting: Duration(0), change_reserve: Some(Duration(60000000000)) }, CharterNeeds { version: Version { charter: 6, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 800, time: Duration(28800000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 9, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 4, time: Duration(300000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 10, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 2, time: Duration(120000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 11, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 64, time: Duration(3600000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 12, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 64, time: Duration(3600000000000), waiting: Duration(10000000000), change_reserve: None }, CharterNeeds { version: Version { charter: 13, revision: 1 }, kinds: Workers, models: [ModelNeed { endpoint: 1, name: [102, 97, 107, 101], window: 1048576, output: 512 }], turns: 800, time: Duration(28800000000000), waiting: Duration(0), change_reserve: None }], spend: 40, message_bytes: 4096, start_messages: 8, unacknowledged: 8 }, needs_restored: true, held_hellos: Queue { items: [], capacity: 4294967295 }, engine_hello: Expected, standing_engine: None, standing_worker: None, tokens: Map { entries: {}, capacity: 2 }, attempts: Slab { slots: [], free: [], retired: [], capacity: 8, len: 0 }, names: Map { entries: {}, capacity: 8 }, runs: Map { entries: {}, capacity: 8 }, waiting: Map { entries: {}, capacity: 8 }, serial: 0, alarms: Deadlines { by_time: Set { keys: {}, capacity: 8 }, by_key: Map { entries: {}, capacity: 8 } }, calls: Slab { slots: [], free: [], retired: [], capacity: 1, len: 0 }, turns: Map { entries: {}, capacity: 16 }, turning: false, placing: false, claims: 0, loaded: true, facts: Lossy { queue: Queue { items: [], capacity: 32 }, lost: 0 }, lost_hosts: Map { entries: {}, capacity: 8 }, hello_refusals: Queue { items: [], capacity: 8 }, host_history_lost: 0, hello_history_lost: 0 }, accounts: Domain { accounts: Map { entries: {1: Account { list: None, provider: 1, holder: Deployment, subject: [], display: [], sources: Map { entries: {0: 0}, capacity: 3 }, place: 0, uses: None, plan: false }}, capacity: 4 }, said: Map { entries: {}, capacity: 4 }, sources: Map { entries: {0: Source { account: 1, kind: Key, name: [], restore_place: 0, state: Granted, grant: Some(Granted { generation: 1, expires: Time(3153600000000000000), form: Credential(Key) }), retry: None, backoff: Duration(2000000000), hold: None, unauthorized: None, usable: true, expiring: false, hold_attention: false }}, capacity: 12 }, issued: Map { entries: {}, capacity: 12 }, programs: Map { entries: {}, capacity: 12 }, next: 2, kept: 2, providers: Providers { providers: [Provider { number: 1, name: [102, 97, 107, 101, 45, 112, 114, 111, 118, 105, 100, 101, 114], signed_in_plan: false, manage_usage: None, offers: Offers { sign_in: false, key: true, programs: [] }, list: None }] }, list_reads: Map { entries: {}, capacity: 4 }, list_alarms: Deadlines { by_time: Set { keys: {}, capacity: 4 }, by_key: Map { entries: {}, capacity: 4 } }, next_read: 0, credentials: Map { entries: {1: Granted { generation: 1, expires: Time(18446744073709551615), form: Application }}, capacity: 3 }, credential_alarms: Deadlines { by_time: Set { keys: {(Time(18446744073709551615), 1)}, capacity: 3 }, by_key: Map { entries: {1: Time(18446744073709551615)}, capacity: 3 } }, alarms: Deadlines { by_time: Set { keys: {(Time(3153600000000000000), 0)}, capacity: 12 }, by_key: Map { entries: {0: Time(3153600000000000000)}, capacity: 12 } }, signing: Map { entries: {}, capacity: 2 }, signing_out: Map { entries: {}, capacity: 12 }, keeping: Map { entries: {}, capacity: 2 }, moves: Map { entries: {}, capacity: 2 }, move_alarms: Deadlines { by_time: Set { keys: {}, capacity: 2 }, by_key: Map { entries: {}, capacity: 2 } }, arriving: Map { entries: {}, capacity: 2 }, removing: Map { entries: {}, capacity: 4 }, facts: Queue { items: [Fact { account: 1, source: 0, kind: Key, state: Granted, generation: Some(1), usable: true, expiring: false, spent_until: None, attention: false }], capacity: 32 }, ended: Queue { items: [], capacity: 32 }, lost: 0, restore_link: None, restore_failure: None, now: Time(0), phase: Wanted }, brief: Domain { briefs: Map { entries: {}, capacity: 2 }, deadlines: Deadlines { by_time: Set { keys: {}, capacity: 2 }, by_key: Map { entries: {}, capacity: 2 } } }, notes
-    WORKER Some(Domain { host: Hub { job_kinds: [JobBound { kind: JobKind(1), spec: 16384, result: 4096, deadline: Duration(600000000000) }, JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration(600000000000) }, JobBound { kind: JobKind(4), spec: 16384, result: 512, deadline: Duration(600000000000) }], sources: Domain { rows: List { items: [], capacity: 12 }, busy: None, reading: None, sequence: 1, first: false, connected: false, closed: false }, hosted: Slab { slots: [], free: [], retired: [], capacity: 2, len: 0 }, names: Map { entries: {}, capacity: 2 }, calls: Slab { slots: [], free: [], retired: [], capacity: 2, len: 0 }, ready: Map { entries: {}, capacity: 2 }, facts: Facts { queue: Lossy { queue: Queue { items: [], capacity: 64 }, lost: 0 }, activity: Lossy { queue: Queue { items: [], capacity: 64 }, lost: 0 }, piece_limit: 32, pieces_lost: 0, pieces_fenced: 0 }, turns: Turns { pending: Map { entries: {}, capacity: 32 }, abandoned: 0 }, answers: Map { entries: {}, capacity: 2 }, shut: false, refusals_lost: 0 }, checkout: Domain { cache: Cache { workspaces: Slab { slots: [], free: [], retired: [], capacity: 3, len: 0 }, keys: Map { entries: {}, capacity: 3 }, idle: Map { entries: {}, capacity: 3 }, releases: 0, reuse: false, stores: Slab { slots: [], free: [], retired: [], capacity: 6, len: 0 } }, holds: Slab { slots: [], free: [], retired: [], capacity: 6, len: 0 }, facts: Facts { queue: Queue { items: [], capacity: 256 }, lost: 0 } }, agent: Domain { agents: Slab { slots: [], free: [], retired: [], capacity: 2, len: 0 }, alarms: Deadlines { by_time: Set { keys: {}, capacity: 6 }, by_key: Map { entries: {}, capacity: 6 } }, facts: Queue { items: [], capacity: 4294967295 } }, tooling: Domain { kinds: [Kind { bound: JobBound { kind: JobKind(1), spec: 16384, result: 4096, deadline: Duration(600000000000) }, verb: [112, 114, 101, 112, 97, 114, 101], delivers: true }, Kind { bound: JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration(600000000000) }, verb: [109, 101, 114, 103, 101], delivers: true }, Kind { bound: JobBound { kind: JobKind(4), spec: 16384, result: 512, deadline: Duration(600000000000) }, verb: [99, 108, 111, 115, 101], delivers: true }], jobs: Map { entries: {}, capacity: 2 } }, job_specs: Map { entries: {}, capacity: 3 }, job_evidence: Map { entries: {}, capacity: 3 }, jobs: Map { entries: {}, capacity: 2 }, agents: Map { entries: {}, capacity: 2 }, calls: Map { entries: {}, capacity: 2 }, pending: Queue { items: [], capacity: 4294967295 }, gone: Map { entries: {}, capacity: 2 }, workspaces: Slab { slots: [], free: [], retired: [], capacity: 2, len: 0 }, items: Map { entries: {}, capacity: 3 }, items_by_run: Map { entries: {}, capacity: 3 }, next_items: 1, preparing: Map { entries: {}, capacity: 2 }, host_out: Queue { items: [], capacity: 4294967295 }, checkout_out: Queue { items: [], capacity: 4294967295 }, agent_out: Queue { items: [], capacity: 4294967295 }, tooling_out: Queue { items: [], capacity: 4294967295 }, stopping: false, past: false, facts_out: 0, activity_dropped: 0, answers_abandoned: 0, facts: Queue { items: [], capacity: 1344 }, lost: 0 })
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (469039) panicked at skein/testing/skein-world/src/lib.rs:74:5:
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (640055) panicked at skein/testing/skein-world/src/lib.rs:74:5:
     seed 7: at 20000000000 ns, the referee failed the world:
-    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Due), None)]load phase 0, stage 0, calls []
+    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Idle), Delegation { kinds: [Charter(1), Procedure(2)], tasks: 5, depth: 2 }), (2, 1, Some(1), false, false, false, Active(Idle), Delegation { kinds: [Charter(1)], tasks: 2, depth: 1 }), (3, 1, None, false, false, false, Active(Due), Delegation { kinds: [Charter(1), Procedure(2)], tasks: 8, depth: 3 })] forge=["change 2 Ready { head: [151, 88, 53, 222, 28, 151, 86, 206, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ready_since: Wall(1767225600000000000) } landing=Some(3) delegate=None", "landing 3 Preparing round=Round { branch: [116, 101, 109, 112, 101, 114, 47, 51, 47, 108, 51], pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: [] }"]load phase 0, stage 0, calls []
     the last 80 lines of the trace:
-               0 ns  pid 13  Complete { op: Token(8), kind: Recv { fd: Fd(19), len: 4096 }, result: Ok(Count(1719)) }
-               0 ns  pid 13  Submit { op: Token(8589934599), kind: Recv { fd: Fd(19), len: 4096 } }
-               0 ns  pid 0  Complete { op: Token(539), kind: Send { fd: Fd(83), len: 1719, from: 0 }, result: Ok(Count(1719)) }
-               0 ns  pid 0  Submit { op: Token(540), kind: Send { fd: Fd(85), len: 46, from: 0 } }
-               0 ns  pid 13  Complete { op: Token(4294967303), kind: Recv { fd: Fd(27), len: 4096 }, result: Ok(Count(46)) }
-               0 ns  pid 13  Submit { op: Token(9), kind: Recv { fd: Fd(27), len: 4096 } }
-               0 ns  pid 13  Submit { op: Token(12884901894), kind: Shutdown { fd: Fd(27) } }
-               0 ns  pid 0  Complete { op: Token(540), kind: Send { fd: Fd(85), len: 46, from: 0 }, result: Ok(Count(46)) }
-               0 ns  pid 0  Complete { op: Token(535), kind: Recv { fd: Fd(85), len: 16384 }, result: Ok(Count(0)) }
-               0 ns  pid 0  Submit { op: Token(541), kind: Close { fd: Fd(85) } }
-               0 ns  pid 13  Complete { op: Token(12884901894), kind: Shutdown { fd: Fd(27) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9), kind: Recv { fd: Fd(27), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199333), kind: Open { root: Fd(15), path: ".", how: DirectoryNoFollow } }
-               0 ns  pid 13  Submit { op: Token(4294967304), kind: Close { fd: Fd(27) } }
-               0 ns  pid 0  Complete { op: Token(541), kind: Close { fd: Fd(85) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(4294967304), kind: Close { fd: Fd(27) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199333), kind: Open { root: Fd(15), path: ".", how: DirectoryNoFollow }, result: Ok(Fd(Fd(28))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199334), kind: Open { root: Fd(28), path: "store", how: ReadNoFollow } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199334), kind: Open { root: Fd(28), path: "store", how: ReadNoFollow }, result: Ok(Fd(Fd(29))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199335), kind: Stat { fd: Fd(29) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199335), kind: Stat { fd: Fd(29) }, result: Ok(Stat(Stat { kind: File, size: 669, mode: 384, owner: 1000, links: 1 })) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199336), kind: Close { fd: Fd(29) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199336), kind: Close { fd: Fd(29) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199337), kind: Open { root: Fd(28), path: "store.skein-0dd0"..(28 bytes), how: CreateNoFollow { mode: Some(384) } } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199337), kind: Open { root: Fd(28), path: "store.skein-0dd0"..(28 bytes), how: CreateNoFollow { mode: Some(384) } }, result: Ok(Fd(Fd(30))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199338), kind: Write { fd: Fd(30), len: 42, from: 0, at: 0 } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199338), kind: Write { fd: Fd(30), len: 42, from: 0, at: 0 }, result: Ok(Count(42)) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199339), kind: Sync { fd: Fd(30) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199339), kind: Sync { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199340), kind: Close { fd: Fd(30) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199340), kind: Close { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199341), kind: Rename { from_dir: Fd(28), from: "store.skein-0dd0"..(28 bytes), to_dir: Fd(28), to: "store", no_replace: false } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199341), kind: Rename { from_dir: Fd(28), from: "store.skein-0dd0"..(28 bytes), to_dir: Fd(28), to: "store", no_replace: false }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199342), kind: Sync { fd: Fd(28) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199342), kind: Sync { fd: Fd(28) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199343), kind: Close { fd: Fd(28) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199343), kind: Close { fd: Fd(28) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(2305843009213693953), kind: Close { fd: Fd(3) } }
-               0 ns  pid 13  Submit { op: Token(2305843017803628544), kind: Cancel { target: Token(2305843013508661248) } }
-               0 ns  pid 13  Complete { op: Token(2305843009213693953), kind: Close { fd: Fd(3) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843013508661248), kind: ReadSignal { fd: Fd(7) }, result: Err(Cancelled) }
-               0 ns  pid 13  Complete { op: Token(2305843017803628544), kind: Cancel { target: Token(2305843013508661248) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199344), kind: Close { fd: Fd(15) } }
-               0 ns  pid 13  Submit { op: Token(4294967305), kind: Cancel { target: Token(8589934599) } }
-               0 ns  pid 13  Submit { op: Token(2305843022098595840), kind: Close { fd: Fd(7) } }
-               0 ns  pid 13  Submit { op: Token(2305843026393563136), kind: PipeWrite { fd: Fd(4), len: 19, from: 0 } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130369), kind: PipeRead { fd: Fd(30), len: 4096 }, result: Ok(Count(19)) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130371), kind: PipeRead { fd: Fd(30), len: 4096 } }
-               0 ns  pid 13  Complete { op: Token(4294967305), kind: Cancel { target: Token(8589934599) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(8589934599), kind: Recv { fd: Fd(19), len: 4096 }, result: Err(Cancelled) }
-               0 ns  pid 13  Complete { op: Token(2305843022098595840), kind: Close { fd: Fd(7) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843026393563136), kind: PipeWrite { fd: Fd(4), len: 19, from: 0 }, result: Ok(Count(19)) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199344), kind: Close { fd: Fd(15) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199345), kind: Close { fd: Fd(13) } }
-               0 ns  pid 13  Submit { op: Token(12884901895), kind: Close { fd: Fd(19) } }
-               0 ns  pid 0  Complete { op: Token(521), kind: Recv { fd: Fd(83), len: 16384 }, result: Ok(Count(0)) }
-               0 ns  pid 0  Submit { op: Token(542), kind: Close { fd: Fd(83) } }
-               0 ns  pid 13  Complete { op: Token(12884901895), kind: Close { fd: Fd(19) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199345), kind: Close { fd: Fd(13) }, result: Ok(Nothing) }
-               0 ns  pid 0  Complete { op: Token(542), kind: Close { fd: Fd(83) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(5188146770730811410), kind: Close { fd: Fd(10) } }
-               0 ns  pid 13  Complete { op: Token(5188146770730811410), kind: Close { fd: Fd(10) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(5188146770730811411), kind: Close { fd: Fd(6) } }
-               0 ns  pid 13  Complete { op: Token(5188146770730811411), kind: Close { fd: Fd(6) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(2305843022098595841), kind: Close { fd: Fd(4) } }
-               0 ns  pid 13  Submit { op: Token(2305843026393563137), kind: Close { fd: Fd(5) } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130371), kind: PipeRead { fd: Fd(30), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130370), kind: PipeRead { fd: Fd(31), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130372), kind: Close { fd: Fd(30) } }
-               0 ns  pid 1  Submit { op: Token(18446181123756130373), kind: Close { fd: Fd(31) } }
-               0 ns  pid 13  Complete { op: Token(2305843022098595841), kind: Close { fd: Fd(4) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843026393563137), kind: Close { fd: Fd(5) }, result: Ok(Nothing) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130372), kind: Close { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130373), kind: Close { fd: Fd(31) }, result: Ok(Nothing) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130374), kind: Wait { pidfd: Fd(28), reap: false } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130374), kind: Wait { pidfd: Fd(28), reap: false }, result: Ok(Exit(Code(0))) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130375), kind: Wait { pidfd: Fd(28), reap: true } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130375), kind: Wait { pidfd: Fd(28), reap: true }, result: Ok(Exit(Code(0))) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130376), kind: Close { fd: Fd(28) } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130376), kind: Close { fd: Fd(28) }, result: Ok(Nothing) }
+     15000000000 ns  pid 0  Submit { op: Token(1075), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934677), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934678), kind: Send { fd: Fd(35), len: 208, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1075), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(208)) }
+     15000000000 ns  pid 0  Submit { op: Token(1076), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934678), kind: Send { fd: Fd(35), len: 208, from: 0 }, result: Ok(Count(208)) }
+     15000000000 ns  pid 0  Submit { op: Token(1077), kind: Send { fd: Fd(145), len: 199, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901971), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(199)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934679), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1077), kind: Send { fd: Fd(145), len: 199, from: 0 }, result: Ok(Count(199)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901972), kind: Send { fd: Fd(35), len: 107, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1076), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(107)) }
+     15000000000 ns  pid 0  Submit { op: Token(1078), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901972), kind: Send { fd: Fd(35), len: 107, from: 0 }, result: Ok(Count(107)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901973), kind: Send { fd: Fd(35), len: 2, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1078), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(2)) }
+     15000000000 ns  pid 0  Submit { op: Token(1079), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901973), kind: Send { fd: Fd(35), len: 2, from: 0 }, result: Ok(Count(2)) }
+     15000000000 ns  pid 0  Submit { op: Token(1080), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79456 } }
+     15000000000 ns  pid 0  Submit { op: Token(1081), kind: Send { fd: Fd(145), len: 158, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934679), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(158)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901974), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1081), kind: Send { fd: Fd(145), len: 158, from: 0 }, result: Ok(Count(158)) }
+     15000000000 ns  pid 0  Complete { op: Token(1080), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79456 }, result: Ok(Count(467)) }
+     15000000000 ns  pid 0  Submit { op: Token(1082), kind: Sync { fd: Fd(23) } }
+     15000000000 ns  pid 0  Complete { op: Token(1082), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934680), kind: Send { fd: Fd(35), len: 109, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1079), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 0  Submit { op: Token(1083), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934680), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934681), kind: Send { fd: Fd(35), len: 338, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1083), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(338)) }
+     15000000000 ns  pid 0  Submit { op: Token(1084), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934681), kind: Send { fd: Fd(35), len: 338, from: 0 }, result: Ok(Count(338)) }
+     15000000000 ns  pid 0  Submit { op: Token(1085), kind: Send { fd: Fd(145), len: 221, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901974), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(221)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934682), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1085), kind: Send { fd: Fd(145), len: 221, from: 0 }, result: Ok(Count(221)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901975), kind: Send { fd: Fd(35), len: 109, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1084), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 0  Submit { op: Token(1086), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901975), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901976), kind: Send { fd: Fd(35), len: 260, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1086), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(260)) }
+     15000000000 ns  pid 0  Submit { op: Token(1087), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901976), kind: Send { fd: Fd(35), len: 260, from: 0 }, result: Ok(Count(260)) }
+     15000000000 ns  pid 0  Submit { op: Token(1088), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79923 } }
+     15000000000 ns  pid 0  Complete { op: Token(1088), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79923 }, result: Ok(Count(467)) }
+     15000000000 ns  pid 0  Submit { op: Token(1089), kind: Sync { fd: Fd(23) } }
+     15000000000 ns  pid 0  Complete { op: Token(1089), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     16000000000 ns  pid 0  Submit { op: Token(1090), kind: Send { fd: Fd(145), len: 230, from: 0 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934682), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(230)) }
+     16000000000 ns  pid 5  Submit { op: Token(12884901977), kind: Recv { fd: Fd(35), len: 1024 } }
+     16000000000 ns  pid 0  Complete { op: Token(1090), kind: Send { fd: Fd(145), len: 230, from: 0 }, result: Ok(Count(230)) }
+     16000000000 ns  pid 5  Submit { op: Token(8589934683), kind: Send { fd: Fd(35), len: 107, from: 0 } }
+     16000000000 ns  pid 0  Complete { op: Token(1087), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(107)) }
+     16000000000 ns  pid 0  Submit { op: Token(1091), kind: Recv { fd: Fd(145), len: 16384 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934683), kind: Send { fd: Fd(35), len: 107, from: 0 }, result: Ok(Count(107)) }
+     16000000000 ns  pid 5  Submit { op: Token(8589934684), kind: Send { fd: Fd(35), len: 2, from: 0 } }
+     16000000000 ns  pid 0  Complete { op: Token(1091), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(2)) }
+     16000000000 ns  pid 0  Submit { op: Token(1092), kind: Recv { fd: Fd(145), len: 16384 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934684), kind: Send { fd: Fd(35), len: 2, from: 0 }, result: Ok(Count(2)) }
+     16000000000 ns  pid 0  Submit { op: Token(1093), kind: Write { fd: Fd(23), len: 192, from: 0, at: 80390 } }
+     16000000000 ns  pid 0  Complete { op: Token(1093), kind: Write { fd: Fd(23), len: 192, from: 0, at: 80390 }, result: Ok(Count(192)) }
+     16000000000 ns  pid 0  Submit { op: Token(1094), kind: Sync { fd: Fd(23) } }
+     16000000000 ns  pid 0  Complete { op: Token(1094), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Submit { op: Token(1095), kind: Shutdown { fd: Fd(145) } }
+     20000000000 ns  pid 5  Complete { op: Token(12884901977), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(0)) }
+     20000000000 ns  pid 5  Submit { op: Token(8589934685), kind: Shutdown { fd: Fd(35) } }
+     20000000000 ns  pid 0  Complete { op: Token(1095), kind: Shutdown { fd: Fd(145) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1092), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(0)) }
+     20000000000 ns  pid 0  Submit { op: Token(1096), kind: Close { fd: Fd(145) } }
+     20000000000 ns  pid 0  Submit { op: Token(1097), kind: Write { fd: Fd(23), len: 296, from: 0, at: 80582 } }
+     20000000000 ns  pid 5  Complete { op: Token(8589934685), kind: Shutdown { fd: Fd(35) }, result: Ok(Nothing) }
+     20000000000 ns  pid 5  Submit { op: Token(12884901978), kind: Close { fd: Fd(35) } }
+     20000000000 ns  pid 0  Complete { op: Token(1096), kind: Close { fd: Fd(145) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1097), kind: Write { fd: Fd(23), len: 296, from: 0, at: 80582 }, result: Ok(Count(296)) }
+     20000000000 ns  pid 0  Submit { op: Token(1098), kind: Sync { fd: Fd(23) } }
+     20000000000 ns  pid 5  Complete { op: Token(12884901978), kind: Close { fd: Fd(35) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1098), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
 
     note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (469039) panicked at temper/tests/one-process/src/public.rs:138:9:
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (640055) panicked at temper/tests/one-process/src/public.rs:142:9:
     public walk every_inaccessible_identifier_is_one_unknown_byte_for_byte, seed 7: seed 7: at 20000000000 ns, the referee failed the world:
-    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Due), None)]load phase 0, stage 0, calls []
+    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Idle), Delegation { kinds: [Charter(1), Procedure(2)], tasks: 5, depth: 2 }), (2, 1, Some(1), false, false, false, Active(Idle), Delegation { kinds: [Charter(1)], tasks: 2, depth: 1 }), (3, 1, None, false, false, false, Active(Due), Delegation { kinds: [Charter(1), Procedure(2)], tasks: 8, depth: 3 })] forge=["change 2 Ready { head: [151, 88, 53, 222, 28, 151, 86, 206, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ready_since: Wall(1767225600000000000) } landing=Some(3) delegate=None", "landing 3 Preparing round=Round { branch: [116, 101, 109, 112, 101, 114, 47, 51, 47, 108, 51], pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: [] }"]load phase 0, stage 0, calls []
     the last 80 lines of the trace:
-               0 ns  pid 13  Complete { op: Token(8), kind: Recv { fd: Fd(19), len: 4096 }, result: Ok(Count(1719)) }
-               0 ns  pid 13  Submit { op: Token(8589934599), kind: Recv { fd: Fd(19), len: 4096 } }
-               0 ns  pid 0  Complete { op: Token(539), kind: Send { fd: Fd(83), len: 1719, from: 0 }, result: Ok(Count(1719)) }
-               0 ns  pid 0  Submit { op: Token(540), kind: Send { fd: Fd(85), len: 46, from: 0 } }
-               0 ns  pid 13  Complete { op: Token(4294967303), kind: Recv { fd: Fd(27), len: 4096 }, result: Ok(Count(46)) }
-               0 ns  pid 13  Submit { op: Token(9), kind: Recv { fd: Fd(27), len: 4096 } }
-               0 ns  pid 13  Submit { op: Token(12884901894), kind: Shutdown { fd: Fd(27) } }
-               0 ns  pid 0  Complete { op: Token(540), kind: Send { fd: Fd(85), len: 46, from: 0 }, result: Ok(Count(46)) }
-               0 ns  pid 0  Complete { op: Token(535), kind: Recv { fd: Fd(85), len: 16384 }, result: Ok(Count(0)) }
-               0 ns  pid 0  Submit { op: Token(541), kind: Close { fd: Fd(85) } }
-               0 ns  pid 13  Complete { op: Token(12884901894), kind: Shutdown { fd: Fd(27) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9), kind: Recv { fd: Fd(27), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199333), kind: Open { root: Fd(15), path: ".", how: DirectoryNoFollow } }
-               0 ns  pid 13  Submit { op: Token(4294967304), kind: Close { fd: Fd(27) } }
-               0 ns  pid 0  Complete { op: Token(541), kind: Close { fd: Fd(85) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(4294967304), kind: Close { fd: Fd(27) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199333), kind: Open { root: Fd(15), path: ".", how: DirectoryNoFollow }, result: Ok(Fd(Fd(28))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199334), kind: Open { root: Fd(28), path: "store", how: ReadNoFollow } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199334), kind: Open { root: Fd(28), path: "store", how: ReadNoFollow }, result: Ok(Fd(Fd(29))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199335), kind: Stat { fd: Fd(29) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199335), kind: Stat { fd: Fd(29) }, result: Ok(Stat(Stat { kind: File, size: 669, mode: 384, owner: 1000, links: 1 })) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199336), kind: Close { fd: Fd(29) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199336), kind: Close { fd: Fd(29) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199337), kind: Open { root: Fd(28), path: "store.skein-0dd0"..(28 bytes), how: CreateNoFollow { mode: Some(384) } } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199337), kind: Open { root: Fd(28), path: "store.skein-0dd0"..(28 bytes), how: CreateNoFollow { mode: Some(384) } }, result: Ok(Fd(Fd(30))) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199338), kind: Write { fd: Fd(30), len: 42, from: 0, at: 0 } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199338), kind: Write { fd: Fd(30), len: 42, from: 0, at: 0 }, result: Ok(Count(42)) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199339), kind: Sync { fd: Fd(30) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199339), kind: Sync { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199340), kind: Close { fd: Fd(30) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199340), kind: Close { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199341), kind: Rename { from_dir: Fd(28), from: "store.skein-0dd0"..(28 bytes), to_dir: Fd(28), to: "store", no_replace: false } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199341), kind: Rename { from_dir: Fd(28), from: "store.skein-0dd0"..(28 bytes), to_dir: Fd(28), to: "store", no_replace: false }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199342), kind: Sync { fd: Fd(28) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199342), kind: Sync { fd: Fd(28) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199343), kind: Close { fd: Fd(28) } }
-               0 ns  pid 13  Complete { op: Token(9799832789158199343), kind: Close { fd: Fd(28) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(2305843009213693953), kind: Close { fd: Fd(3) } }
-               0 ns  pid 13  Submit { op: Token(2305843017803628544), kind: Cancel { target: Token(2305843013508661248) } }
-               0 ns  pid 13  Complete { op: Token(2305843009213693953), kind: Close { fd: Fd(3) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843013508661248), kind: ReadSignal { fd: Fd(7) }, result: Err(Cancelled) }
-               0 ns  pid 13  Complete { op: Token(2305843017803628544), kind: Cancel { target: Token(2305843013508661248) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199344), kind: Close { fd: Fd(15) } }
-               0 ns  pid 13  Submit { op: Token(4294967305), kind: Cancel { target: Token(8589934599) } }
-               0 ns  pid 13  Submit { op: Token(2305843022098595840), kind: Close { fd: Fd(7) } }
-               0 ns  pid 13  Submit { op: Token(2305843026393563136), kind: PipeWrite { fd: Fd(4), len: 19, from: 0 } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130369), kind: PipeRead { fd: Fd(30), len: 4096 }, result: Ok(Count(19)) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130371), kind: PipeRead { fd: Fd(30), len: 4096 } }
-               0 ns  pid 13  Complete { op: Token(4294967305), kind: Cancel { target: Token(8589934599) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(8589934599), kind: Recv { fd: Fd(19), len: 4096 }, result: Err(Cancelled) }
-               0 ns  pid 13  Complete { op: Token(2305843022098595840), kind: Close { fd: Fd(7) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843026393563136), kind: PipeWrite { fd: Fd(4), len: 19, from: 0 }, result: Ok(Count(19)) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199344), kind: Close { fd: Fd(15) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(9799832789158199345), kind: Close { fd: Fd(13) } }
-               0 ns  pid 13  Submit { op: Token(12884901895), kind: Close { fd: Fd(19) } }
-               0 ns  pid 0  Complete { op: Token(521), kind: Recv { fd: Fd(83), len: 16384 }, result: Ok(Count(0)) }
-               0 ns  pid 0  Submit { op: Token(542), kind: Close { fd: Fd(83) } }
-               0 ns  pid 13  Complete { op: Token(12884901895), kind: Close { fd: Fd(19) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(9799832789158199345), kind: Close { fd: Fd(13) }, result: Ok(Nothing) }
-               0 ns  pid 0  Complete { op: Token(542), kind: Close { fd: Fd(83) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(5188146770730811410), kind: Close { fd: Fd(10) } }
-               0 ns  pid 13  Complete { op: Token(5188146770730811410), kind: Close { fd: Fd(10) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(5188146770730811411), kind: Close { fd: Fd(6) } }
-               0 ns  pid 13  Complete { op: Token(5188146770730811411), kind: Close { fd: Fd(6) }, result: Ok(Nothing) }
-               0 ns  pid 13  Submit { op: Token(2305843022098595841), kind: Close { fd: Fd(4) } }
-               0 ns  pid 13  Submit { op: Token(2305843026393563137), kind: Close { fd: Fd(5) } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130371), kind: PipeRead { fd: Fd(30), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130370), kind: PipeRead { fd: Fd(31), len: 4096 }, result: Ok(Count(0)) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130372), kind: Close { fd: Fd(30) } }
-               0 ns  pid 1  Submit { op: Token(18446181123756130373), kind: Close { fd: Fd(31) } }
-               0 ns  pid 13  Complete { op: Token(2305843022098595841), kind: Close { fd: Fd(4) }, result: Ok(Nothing) }
-               0 ns  pid 13  Complete { op: Token(2305843026393563137), kind: Close { fd: Fd(5) }, result: Ok(Nothing) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130372), kind: Close { fd: Fd(30) }, result: Ok(Nothing) }
-               0 ns  pid 1  Complete { op: Token(18446181123756130373), kind: Close { fd: Fd(31) }, result: Ok(Nothing) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130374), kind: Wait { pidfd: Fd(28), reap: false } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130374), kind: Wait { pidfd: Fd(28), reap: false }, result: Ok(Exit(Code(0))) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130375), kind: Wait { pidfd: Fd(28), reap: true } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130375), kind: Wait { pidfd: Fd(28), reap: true }, result: Ok(Exit(Code(0))) }
-               0 ns  pid 1  Submit { op: Token(18446181123756130376), kind: Close { fd: Fd(28) } }
-               0 ns  pid 1  Complete { op: Token(18446181123756130376), kind: Close { fd: Fd(28) }, result: Ok(Nothing) }
+     15000000000 ns  pid 0  Submit { op: Token(1075), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934677), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934678), kind: Send { fd: Fd(35), len: 208, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1075), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(208)) }
+     15000000000 ns  pid 0  Submit { op: Token(1076), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934678), kind: Send { fd: Fd(35), len: 208, from: 0 }, result: Ok(Count(208)) }
+     15000000000 ns  pid 0  Submit { op: Token(1077), kind: Send { fd: Fd(145), len: 199, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901971), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(199)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934679), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1077), kind: Send { fd: Fd(145), len: 199, from: 0 }, result: Ok(Count(199)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901972), kind: Send { fd: Fd(35), len: 107, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1076), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(107)) }
+     15000000000 ns  pid 0  Submit { op: Token(1078), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901972), kind: Send { fd: Fd(35), len: 107, from: 0 }, result: Ok(Count(107)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901973), kind: Send { fd: Fd(35), len: 2, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1078), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(2)) }
+     15000000000 ns  pid 0  Submit { op: Token(1079), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901973), kind: Send { fd: Fd(35), len: 2, from: 0 }, result: Ok(Count(2)) }
+     15000000000 ns  pid 0  Submit { op: Token(1080), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79456 } }
+     15000000000 ns  pid 0  Submit { op: Token(1081), kind: Send { fd: Fd(145), len: 158, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934679), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(158)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901974), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1081), kind: Send { fd: Fd(145), len: 158, from: 0 }, result: Ok(Count(158)) }
+     15000000000 ns  pid 0  Complete { op: Token(1080), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79456 }, result: Ok(Count(467)) }
+     15000000000 ns  pid 0  Submit { op: Token(1082), kind: Sync { fd: Fd(23) } }
+     15000000000 ns  pid 0  Complete { op: Token(1082), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934680), kind: Send { fd: Fd(35), len: 109, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1079), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 0  Submit { op: Token(1083), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934680), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934681), kind: Send { fd: Fd(35), len: 338, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1083), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(338)) }
+     15000000000 ns  pid 0  Submit { op: Token(1084), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(8589934681), kind: Send { fd: Fd(35), len: 338, from: 0 }, result: Ok(Count(338)) }
+     15000000000 ns  pid 0  Submit { op: Token(1085), kind: Send { fd: Fd(145), len: 221, from: 0 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901974), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(221)) }
+     15000000000 ns  pid 5  Submit { op: Token(8589934682), kind: Recv { fd: Fd(35), len: 1024 } }
+     15000000000 ns  pid 0  Complete { op: Token(1085), kind: Send { fd: Fd(145), len: 221, from: 0 }, result: Ok(Count(221)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901975), kind: Send { fd: Fd(35), len: 109, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1084), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 0  Submit { op: Token(1086), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901975), kind: Send { fd: Fd(35), len: 109, from: 0 }, result: Ok(Count(109)) }
+     15000000000 ns  pid 5  Submit { op: Token(12884901976), kind: Send { fd: Fd(35), len: 260, from: 0 } }
+     15000000000 ns  pid 0  Complete { op: Token(1086), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(260)) }
+     15000000000 ns  pid 0  Submit { op: Token(1087), kind: Recv { fd: Fd(145), len: 16384 } }
+     15000000000 ns  pid 5  Complete { op: Token(12884901976), kind: Send { fd: Fd(35), len: 260, from: 0 }, result: Ok(Count(260)) }
+     15000000000 ns  pid 0  Submit { op: Token(1088), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79923 } }
+     15000000000 ns  pid 0  Complete { op: Token(1088), kind: Write { fd: Fd(23), len: 467, from: 0, at: 79923 }, result: Ok(Count(467)) }
+     15000000000 ns  pid 0  Submit { op: Token(1089), kind: Sync { fd: Fd(23) } }
+     15000000000 ns  pid 0  Complete { op: Token(1089), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     16000000000 ns  pid 0  Submit { op: Token(1090), kind: Send { fd: Fd(145), len: 230, from: 0 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934682), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(230)) }
+     16000000000 ns  pid 5  Submit { op: Token(12884901977), kind: Recv { fd: Fd(35), len: 1024 } }
+     16000000000 ns  pid 0  Complete { op: Token(1090), kind: Send { fd: Fd(145), len: 230, from: 0 }, result: Ok(Count(230)) }
+     16000000000 ns  pid 5  Submit { op: Token(8589934683), kind: Send { fd: Fd(35), len: 107, from: 0 } }
+     16000000000 ns  pid 0  Complete { op: Token(1087), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(107)) }
+     16000000000 ns  pid 0  Submit { op: Token(1091), kind: Recv { fd: Fd(145), len: 16384 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934683), kind: Send { fd: Fd(35), len: 107, from: 0 }, result: Ok(Count(107)) }
+     16000000000 ns  pid 5  Submit { op: Token(8589934684), kind: Send { fd: Fd(35), len: 2, from: 0 } }
+     16000000000 ns  pid 0  Complete { op: Token(1091), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(2)) }
+     16000000000 ns  pid 0  Submit { op: Token(1092), kind: Recv { fd: Fd(145), len: 16384 } }
+     16000000000 ns  pid 5  Complete { op: Token(8589934684), kind: Send { fd: Fd(35), len: 2, from: 0 }, result: Ok(Count(2)) }
+     16000000000 ns  pid 0  Submit { op: Token(1093), kind: Write { fd: Fd(23), len: 192, from: 0, at: 80390 } }
+     16000000000 ns  pid 0  Complete { op: Token(1093), kind: Write { fd: Fd(23), len: 192, from: 0, at: 80390 }, result: Ok(Count(192)) }
+     16000000000 ns  pid 0  Submit { op: Token(1094), kind: Sync { fd: Fd(23) } }
+     16000000000 ns  pid 0  Complete { op: Token(1094), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Submit { op: Token(1095), kind: Shutdown { fd: Fd(145) } }
+     20000000000 ns  pid 5  Complete { op: Token(12884901977), kind: Recv { fd: Fd(35), len: 1024 }, result: Ok(Count(0)) }
+     20000000000 ns  pid 5  Submit { op: Token(8589934685), kind: Shutdown { fd: Fd(35) } }
+     20000000000 ns  pid 0  Complete { op: Token(1095), kind: Shutdown { fd: Fd(145) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1092), kind: Recv { fd: Fd(145), len: 16384 }, result: Ok(Count(0)) }
+     20000000000 ns  pid 0  Submit { op: Token(1096), kind: Close { fd: Fd(145) } }
+     20000000000 ns  pid 0  Submit { op: Token(1097), kind: Write { fd: Fd(23), len: 296, from: 0, at: 80582 } }
+     20000000000 ns  pid 5  Complete { op: Token(8589934685), kind: Shutdown { fd: Fd(35) }, result: Ok(Nothing) }
+     20000000000 ns  pid 5  Submit { op: Token(12884901978), kind: Close { fd: Fd(35) } }
+     20000000000 ns  pid 0  Complete { op: Token(1096), kind: Close { fd: Fd(145) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1097), kind: Write { fd: Fd(23), len: 296, from: 0, at: 80582 }, result: Ok(Count(296)) }
+     20000000000 ns  pid 0  Submit { op: Token(1098), kind: Sync { fd: Fd(23) } }
+     20000000000 ns  pid 5  Complete { op: Token(12884901978), kind: Close { fd: Fd(35) }, result: Ok(Nothing) }
+     20000000000 ns  pid 0  Complete { op: Token(1098), kind: Sync { fd: Fd(23) }, result: Ok(Nothing) }
 
 
   Cancelling due to test failure
 ────────────
-     Summary [   0.390s] 1 test run: 0 passed, 1 failed, 45 skipped
-        FAIL [   0.386s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+     Summary [   0.917s] 1 test run: 0 passed, 1 failed, 45 skipped
+        FAIL [   0.911s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 error: test run failed

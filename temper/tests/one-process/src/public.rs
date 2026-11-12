@@ -32,6 +32,9 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         .is_some_and(|grants| !grants.is_empty())
     {
         for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
+            let job = serde_json::json!({"kind":"job","number":1});
+            let kinds = project["policy"]["ceiling"]["delegation"]["kinds"].as_array_mut().expect("kinds");
+            if !kinds.contains(&job) { kinds.push(job); }
             for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
                 let grants = project.pointer_mut(pointer).expect("world grants");
                 let prototype = grants[0].clone();
@@ -48,6 +51,8 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         }
         for (name, count) in [
             ("tasks.authority_grants", 8),
+            ("tasks.executor_kinds", 3),
+            ("authority.executors", 3),
             ("authority.grants", 8),
             ("notes.scopes", 12),
             ("people.amendment_bytes", 2048),
