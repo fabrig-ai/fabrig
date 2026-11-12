@@ -21,6 +21,7 @@ fn idle_listener() -> (TcpListener, Real, usize) {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_idle_unanswered_operation_fails_with_its_figures() {
     let (listener, mut real, process) = idle_listener();
     let token = Token::new(1);
