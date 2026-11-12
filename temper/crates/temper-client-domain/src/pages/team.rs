@@ -246,9 +246,14 @@ pub fn parts(facts: &Facts) -> Parts {
     };
     areas::parts(facts, &mut parts);
     parts.hand_area = parts.areas && facts.member;
-    if facts.member && let Some(task) = parts.card && let Some(areas) = &facts.areas {
+    if facts.member
+        && let Some(task) = parts.card
+        && let Some(areas) = &facts.areas
+    {
         for area in &areas.rows {
-            if let Some(w::Holder::Task(holder)) = &area.holder && holder.number() == task {
+            if let Some(w::Holder::Task(holder)) = &area.holder
+                && holder.number() == task
+            {
                 parts.give_areas = parts.give_areas.saturating_add(1);
             }
         }

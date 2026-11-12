@@ -155,8 +155,13 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
-    AreaHanded { title: Box<[u8]>, revision: u32 },
-    AreasGivenBack { revision: u32 },
+    AreaHanded {
+        title: Box<[u8]>,
+        revision: u32,
+    },
+    AreasGivenBack {
+        revision: u32,
+    },
     AreasProposed,
     /// A way's act answered: its name and revision (client/pages/settings.md, 2).
     Way {

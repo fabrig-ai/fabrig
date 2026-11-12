@@ -775,7 +775,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: Act::StopAsking(_) | Act::HandArea(_) } => unreachable!("these sheet acts resolve at the root"),
+        Event::Act { act: Act::StopAsking(_) | Act::HandArea(_) } => {
+            unreachable!("these sheet acts resolve at the root")
+        }
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Told(act) } => {
             if pages.told_open {
@@ -2689,6 +2691,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
             pages.stop_asking = None;
+            team::hand::leave(pages, out);
             pages.keep_asking.clear();
             pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();

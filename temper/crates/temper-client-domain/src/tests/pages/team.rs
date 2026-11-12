@@ -141,7 +141,9 @@ fn gather_lists_each_person_once_the_reader_first() {
         ("cut copied", Box::<[_]>::from([you]), None, Box::<[_]>::from([]), true, Box::<[_]>::from([reader])),
     ] {
         let mut is_member = false;
-        for person in &expected { is_member |= person.you; }
+        for person in &expected {
+            is_member |= person.you;
+        }
         assert_eq!(
             team::gather(&project(members, cut), YOU, yours, &others, None, Wall::EPOCH),
             Facts {

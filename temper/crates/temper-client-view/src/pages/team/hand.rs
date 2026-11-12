@@ -1,15 +1,30 @@
 //! The hand-off sheet and give-back confirmation (client/pages/team.md, 1).
-use crate::{cards::text, frame::Bindings, look, words::{Word, Words}};
+use crate::{
+    cards::text,
+    frame::Bindings,
+    look,
+    words::{Word, Words},
+};
 use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, Shortcut, State, phrases::Hole};
-use temper_client_domain::{Domain, pages::{Act as PageAct, team::hand::{Act, Open, Failure, NameProblem}}};
+use temper_client_domain::{
+    Domain,
+    pages::{
+        Act as PageAct,
+        team::hand::{Act, Failure, NameProblem, Open},
+    },
+};
 
 pub(crate) fn sheet(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut Bindings) {
     let title = if let Some(give) = &open.give {
         if give.names.len() == 1 {
             w.say(Word::GiveTitle, &[Hole::Name(give.names.get(0).expect("one area").clone())])
-        } else { w.say(Word::GiveManyTitle, &[Hole::Number(u64::from(give.names.len()))]) }
-    } else { w.say(Word::HandTitle, &[]) };
+        } else {
+            w.say(Word::GiveManyTitle, &[Hole::Number(u64::from(give.names.len()))])
+        }
+    } else {
+        w.say(Word::HandTitle, &[])
+    };
     b.open(Role::Dialog);
     b.style(look::SHEET);
     b.name(&title);
@@ -26,7 +41,11 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bind
                 break;
             }
         }
-        text(b, Role::Paragraph, &w.say(if give.names.len() == 1 { Word::GiveOwner } else { Word::GiveOwners }, &[Hole::Name(owner)]));
+        text(
+            b,
+            Role::Paragraph,
+            &w.say(if give.names.len() == 1 { Word::GiveOwner } else { Word::GiveOwners }, &[Hole::Name(owner)]),
+        );
     } else {
         areas(b, root, open, w, bindings);
         roles(b, open, w, bindings);
@@ -53,7 +72,14 @@ fn areas(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut 
         for area in &areas.rows {
             b.open(Role::Slot);
             b.style(look::SHEET_OPTION);
-            choice(b, &area.name, Act::Area(Some(area.name.clone())), open.area.as_ref() == Some(&area.name), open.busy(), bindings);
+            choice(
+                b,
+                &area.name,
+                Act::Area(Some(area.name.clone())),
+                open.area.as_ref() == Some(&area.name),
+                open.busy(),
+                bindings,
+            );
             b.open(Role::Text);
             b.text(Run::Strong, &area.name);
             b.text(Run::Plain, &area.words);
@@ -85,17 +111,29 @@ fn field(b: &mut Builder, root: &Domain, open: &Open, w: &Words, name: bool, bin
     b.style(look::GOAL_TEXT);
     b.name(&w.say(if name { Word::HandName } else { Word::HandCovers }, &[]));
     b.value(if name { &open.name } else { &open.words }, temper_client_domain::pages::shown(root.pages()));
-    b.bind(bindings.insert(PageAct::HandArea(if name { Act::Name(Box::default()) } else { Act::Words(Box::default()) })));
-    if open.busy() { b.state(State::Disabled); }
+    b.bind(bindings.insert(PageAct::HandArea(if name {
+        Act::Name(Box::default())
+    } else {
+        Act::Words(Box::default())
+    })));
+    if open.busy() {
+        b.state(State::Disabled);
+    }
     b.close();
     if open.judged {
         let error = if name {
             match open.name_problem() {
                 Some(NameProblem::Shape) => Some(w.say(Word::HandNameShape, &[])),
-                Some(NameProblem::Duplicate) => Some(w.say(Word::HandDuplicate, &[Hole::Name(open.project_name.clone()), Hole::Name(open.name.clone())])),
+                Some(NameProblem::Duplicate) => Some(
+                    w.say(Word::HandDuplicate, &[Hole::Name(open.project_name.clone()), Hole::Name(open.name.clone())]),
+                ),
                 None => None,
             }
-        } else if open.words_valid() { None } else { Some(w.say(Word::HandWordsShape, &[])) };
+        } else if open.words_valid() {
+            None
+        } else {
+            Some(w.say(Word::HandWordsShape, &[]))
+        };
         if let Some(error) = error {
             b.open(Role::Text);
             b.style(look::SHEET_ERROR);
@@ -120,19 +158,30 @@ fn choice(b: &mut Builder, title: &[u8], act: Act, selected: bool, busy: bool, b
     b.open(Role::Choice);
     b.name(title);
     b.bind(bindings.insert(PageAct::HandArea(act)));
-    if selected { b.state(State::Selected); }
-    if busy { b.state(State::Disabled); }
+    if selected {
+        b.state(State::Selected);
+    }
+    if busy {
+        b.state(State::Disabled);
+    }
     b.close();
 }
 fn foot(b: &mut Builder, open: &Open, w: &Words, bindings: &mut Bindings) {
-    let plural = match &open.give { Some(give) => give.names.len() > 1, None => false };
-    let keep = if open.give.is_some() {
-        if plural { Word::GiveKeepMany } else { Word::GiveKeep }
-    } else { Word::HandNotNow };
-    let send = if open.give.is_none() && open.role.is_none() { Word::HandAsk }
-        else if !open.apply { Word::StopAskingPropose }
-        else if open.give.is_some() { if plural { Word::GiveSendMany } else { Word::GiveSend } }
-        else { Word::HandOver };
+    let plural = match &open.give {
+        Some(give) => give.names.len() > 1,
+        None => false,
+    };
+    let keep =
+        if open.give.is_some() { if plural { Word::GiveKeepMany } else { Word::GiveKeep } } else { Word::HandNotNow };
+    let send = if open.give.is_none() && open.role.is_none() {
+        Word::HandAsk
+    } else if !open.apply {
+        Word::StopAskingPropose
+    } else if open.give.is_some() {
+        if plural { Word::GiveSendMany } else { Word::GiveSend }
+    } else {
+        Word::HandOver
+    };
     b.open(Role::Slot);
     b.style(look::SHEET_FOOT);
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 92, a: u64::from(open.project), b: 0 });
@@ -148,7 +197,9 @@ fn foot(b: &mut Builder, open: &Open, w: &Words, bindings: &mut Bindings) {
     b.style(look::GOAL_PRIMARY);
     b.name(&w.say(send, &[]));
     b.bind(bindings.insert(PageAct::HandArea(Act::Send)));
-    if open.busy() { b.state(State::Disabled); }
+    if open.busy() {
+        b.state(State::Disabled);
+    }
     b.close();
     b.close();
 }

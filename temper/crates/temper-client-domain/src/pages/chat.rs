@@ -1273,7 +1273,7 @@ impl Chat {
             | Act::Remembered(_)
             | Act::Models(_)
             | Act::HandArea(_)
-        | Act::StopAsking(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::Choice(_)

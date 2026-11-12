@@ -6,6 +6,7 @@
     reason = "ordinary tests build table rows and inspect semantic subtrees"
 )]
 mod areas;
+mod hand;
 use super::fixtures as f;
 use crate::{look, pages::team::draw};
 use jig_client::contract::HeldRole;
