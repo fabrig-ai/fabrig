@@ -428,6 +428,7 @@ impl GoalCase {
                         | w::Watch::Trials
                         | w::Watch::Approvals
                         | w::Watch::Ways(_)
+                        | w::Watch::Devices
                         | w::Watch::Drafts(_) => continue,
                     };
                     Up::FamilyDelivered {

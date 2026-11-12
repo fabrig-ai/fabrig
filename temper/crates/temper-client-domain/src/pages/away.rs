@@ -194,6 +194,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Work { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

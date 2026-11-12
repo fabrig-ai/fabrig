@@ -29,6 +29,7 @@ pub enum Address {
     Work { project: u32, filter: WorkFilter },
     Members,
     Remembered,
+    Told,
     Limits,
 }
 /// The welcome's query names its step (client/web/README.md, 2.3).
@@ -142,6 +143,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Forges => (b"forges".as_slice(), None, b"".as_slice()),
         Address::ConnectModel { way } => return print_way(b"/accounts/connect", *way, b"?"),
         Address::Accounts => (b"accounts".as_slice(), None, b"".as_slice()),
+        Address::Told => (b"told".as_slice(), None, b"".as_slice()),
         Address::Remembered => (b"remembered".as_slice(), None, b"".as_slice()),
         Address::Members => (b"deployment/members".as_slice(), None, b"".as_slice()),
         Address::Limits => (b"deployment/limits".as_slice(), None, b"".as_slice()),
@@ -280,6 +282,7 @@ pub fn parse(path: &[u8]) -> Place {
         (b"accounts", b"", b"") => Address::Accounts,
         (b"home", b"", b"") => Address::AllHome,
         (b"deployment", b"members", b"") => Address::Members,
+        (b"told", b"", b"") => Address::Told,
         (b"remembered", b"", b"") => Address::Remembered,
         (b"deployment", b"limits", b"") => Address::Limits,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },

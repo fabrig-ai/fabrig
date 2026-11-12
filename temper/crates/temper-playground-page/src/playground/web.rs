@@ -253,6 +253,7 @@ impl Life {
                 | Report::Fetch(_)
                 | Report::TabRefused
                 | Report::Copied(_)
+                | Report::Push(_)
                 | Report::Screen(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {

@@ -10,6 +10,7 @@ pub struct Answer {
     pub welcome: bool,
     pub owned: bool,
     pub program_login: Option<Box<[u8]>>,
+    pub push: Option<[u8; 65]>,
 }
 #[derive(Debug)]
 pub(super) struct State {
@@ -43,7 +44,7 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                 Some(answer) => answer,
                 None => match side.deployment.answer.as_ref() {
                     Some(_) => return true,
-                    None => Answer { welcome: false, owned: false, program_login: None },
+                    None => Answer { welcome: false, owned: false, program_login: None, push: None },
                 },
             };
             if side.deployment.answer.as_ref() != Some(&answer) {
@@ -64,7 +65,12 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
 }
 fn decode(record: &[u8], limits: Limits) -> Option<Answer> {
     let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?.into_parts();
-    Some(Answer { welcome: answer.welcome, owned: answer.owned, program_login: answer.program_login })
+    Some(Answer {
+        welcome: answer.welcome,
+        owned: answer.owned,
+        program_login: answer.program_login,
+        push: answer.push,
+    })
 }
 fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");

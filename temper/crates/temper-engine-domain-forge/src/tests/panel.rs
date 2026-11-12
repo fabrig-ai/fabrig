@@ -144,7 +144,7 @@ fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
     let mut d = Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &configured(),
         false,
@@ -277,7 +277,7 @@ fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
     Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &configured(),
         false,
@@ -294,7 +294,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     let mut d = Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &configured(),
         false,

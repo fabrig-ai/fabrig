@@ -64,7 +64,7 @@ pub fn body(peer: &super::http::Peer) -> &[u8] {
 }
 /// The page's policy as `answered` gives it, names lowercased (client/web/README.md, 2.2).
 pub const POLICY: [(&[u8], &[u8]); 5] = [
-    (b"content-security-policy", b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
+    (b"content-security-policy", b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'"),
     (b"x-content-type-options", b"nosniff"),
     (b"cross-origin-opener-policy", b"same-origin"),
     (b"cross-origin-resource-policy", b"same-origin"),

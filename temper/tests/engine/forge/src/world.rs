@@ -512,7 +512,11 @@ impl World {
         let top = top::Domain::new(
             &limits,
             seed,
-            skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
+            temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::from(&b"world"[..]),
+                writers: writer.into_iter().collect(),
+            },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[configured_forge()],
             false,
@@ -967,7 +971,8 @@ impl World {
         self.top = top::Domain::new(
             &self.env.limits,
             self.seed,
-            skein_forge_client::Config {
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },
@@ -1598,6 +1603,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },

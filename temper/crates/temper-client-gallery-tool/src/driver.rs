@@ -51,6 +51,7 @@ pub fn down(request: Request) -> Option<jig_client::Down> {
         | Request::SignOut
         | Request::Dropped { .. }
         | Request::Copy { .. }
+        | Request::Push(_)
         | Request::Fact { .. } => None,
     }
 }
