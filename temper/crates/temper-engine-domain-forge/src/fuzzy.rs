@@ -5,6 +5,54 @@ use skein_forge::api::Verdict;
 use skein_lib::{List, Rng, Wall};
 
 #[test]
+fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
+    use crate::{BranchHead, Name, Request, What, domain::heads};
+    use skein_lib::Queue;
+    for seed in 0..256 {
+        let mut rng = Rng::new(seed);
+        let mut env = tests::env();
+        env.limits.client.resources = u32::try_from(rng.between(1, 8)).unwrap();
+        env.limits.holds = env.limits.client.resources;
+        let mut d = tests::domain_with_limits(&env.limits);
+        for _ in 0..rng.between(32, 128) {
+            let number = rng.below(12);
+            let name = Name {
+                forge: 1,
+                repository: 2,
+                what: What::Branch(Box::new([skein_lib::Decimal::of(number).as_bytes().into()])),
+            };
+            let head = BranchHead {
+                name: name.clone(),
+                commit: [u8::try_from(rng.below(256)).unwrap(); 32],
+                owned: rng.chance(500),
+            };
+            let fits = d.heads.contains_key(&name) || d.heads.len() < d.heads.capacity();
+            let needed = u64::from(d.heads.len()).saturating_add(1);
+            let mut out = Queue::uncapped();
+            assert_eq!(heads::record(&mut d, &env, head.clone(), Some(7), &mut out), fits, "seed {seed}");
+            assert!(d.heads.len() <= env.limits.client.resources, "seed {seed}");
+            if fits {
+                assert_eq!(d.heads.get(&name), Some(&head), "seed {seed}");
+                assert!(out.is_empty(), "seed {seed}");
+            } else {
+                assert_eq!(out.len(), 1, "seed {seed}");
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::HeadRefused {
+                        task: Some(7),
+                        resource: name.clone(),
+                        configured: u64::from(env.limits.client.resources),
+                        needed,
+                    }),
+                    "seed {seed}"
+                );
+                assert!(!d.heads.contains_key(&name), "seed {seed}");
+            }
+        }
+    }
+}
+
+#[test]
 fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
     let repository = tests::adopted();
     let head = [1; 32];

@@ -238,6 +238,11 @@ pub enum Note {
         heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
+    /// A branch head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        words: Box<[u8]>,
+    },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed {
         task: u64,

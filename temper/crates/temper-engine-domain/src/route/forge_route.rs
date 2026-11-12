@@ -5256,6 +5256,20 @@ pub(crate) fn outputs(
                     holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
                 }
             }
+            forge::Request::HeadRefused { task, resource, configured, needed } => {
+                let words = holds::refused_words(
+                    domain,
+                    b"record branch head",
+                    Some(&resource),
+                    forge::RefusalCause::Limit { member: "forge.client.resources", configured, needed },
+                );
+                super::diagnostics::emit(domain, crate::Fact::HeadRefused { task, words: words.clone() });
+                if let Some(task) = task
+                    && admission_refused(domain, task)
+                {
+                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                }
+            }
             forge::Request::MakeFailed { task, resource, reason } => {
                 let words = holds::make_words(domain, &resource, &reason);
                 holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
