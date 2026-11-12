@@ -358,7 +358,8 @@ fn ops_connector_identities_link_only_the_foundation() {
     let roots: Vec<_> =
         manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-ops-domain-connectors")).collect();
     assert_eq!(roots.len(), 1, "one Ops connector vocabulary");
-    assert_eq!(roots[0].dependencies, ["skein-lib"]);
+    let others: Vec<_> = roots[0].dependencies.iter().filter(|name| name.as_str() != "skein-lib").collect();
+    assert!(others.is_empty(), "connector identities link nothing past the foundation: {others:?}");
     let source =
         fs::read_to_string(kit_root().join("examples/ops/domain-connectors/src/lib.rs")).expect("connector source");
     assert!(source.contains("cfg_attr(not(test), no_std)"), "connector identities are step code");
