@@ -168,7 +168,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     fs::remove_file(&program).expect("remove configured program");
     let why =
         super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
-    assert!(why.starts_with("temper-box serve: "), "{why}");
+    assert!(why.starts_with("temper serve: "), "{why}");
     assert!(why.contains(program.to_str().expect("program path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
