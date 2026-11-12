@@ -170,7 +170,7 @@ pub fn run_production_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 fn checked(ran: Ran) -> Ran {
-    assert_eq!(ran.served(), Some(&End::Drained), "service end {:?}", ran.served());
+    assert!(matches!(ran.served(), Some(End::Engine(temper_service::EngineEnd::Drained) | End::Worker(temper_service::worker_alone::End::Drained))), "service end {:?}", ran.served());
     assert_eq!(ran.killed().len(), ran.requested_kills(), "only requested kills: {:?}", ran.killed());
     for killed in ran.killed() {
         assert_eq!(killed.exit, Exit::Signal(9), "requested kill");

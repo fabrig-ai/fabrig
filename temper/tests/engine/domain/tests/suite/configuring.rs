@@ -638,7 +638,7 @@ fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
     assert_eq!(run.charter, ASK_CHARTER);
     assert_eq!(
         run.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../crates/temper-service/src/stock/ask.txt")
+        include_bytes!("../../../../../crates/temper-engine-service/src/stock/ask.txt")
     );
     let offered = temper_engine_smith::charter(&run);
     for name in [b"see".as_slice(), b"document", b"remember", b"propose_settings"] {

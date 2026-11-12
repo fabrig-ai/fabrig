@@ -79,7 +79,7 @@ fn a_refused_restore_ends_with_its_in_process_worker() {
     let outcome = refused_restore(fixtures::calm(fixtures::SEED));
     assert_eq!(
         outcome.end,
-        Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(temper_service::Stop::StartRefused {
+        Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(temper_service::EngineStop::StartRefused {
             phase: Some(jig_domain_core::start::Phase::LoadCore),
             failure: jig_domain_core::start::Failure::Settings {
                 failure: jig_domain_core::settings::Failure {
