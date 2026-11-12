@@ -334,3 +334,26 @@ fn an_empty_settings_range_keeps_the_supplied_defaults() {
     assert_eq!(core.current.rules(), &before);
     assert_eq!(core.start_failure(), None);
 }
+
+#[test]
+fn an_overlay_is_checked_whole_over_the_new_default_before_start() {
+    use crate::settings::{Overlay, Default};
+    let (mut core, env) = loaded();
+    let rows = settings_rows(&core);
+    let mut default = core.current.charter(1).unwrap().clone();
+    default.policy.instructions = Box::new([]);
+    let room = u64::from(env.limits.run_bytes) - crate::policy_owned_bytes(&default.policy).unwrap();
+    default.policy.instructions = skein_lib::bytes::zeroed(usize::try_from(room).unwrap());
+    core.current.defaults.insert(Setting::Charter(1), Default { value: Value::Charter(Box::new(default)), revision: 1 }).unwrap();
+    for row in rows.into_boxed() { assert_ne!(restore(&mut core, &env, row), Restored::Rejected); }
+    assert!(core.restore_setting(Record::Changed {
+        setting: Setting::Charter(1), changed: Changed { revision: 1, value: Some(Value::Overlay(Box::new(Overlay {
+            instructions: b"B".as_slice().into(), ..Overlay::empty()
+        }))) },
+    }, &env.limits));
+    assert!(!core.settings_restored(&env));
+    let Some(Failure::Settings { failure, changed }) = core.start_failure() else { panic!("named settings failure") };
+    assert_eq!(failure.setting, Setting::Charter(1));
+    assert_eq!(failure.fault, Fault::Shape);
+    assert!(changed);
+}
