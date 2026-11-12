@@ -331,6 +331,10 @@ fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "baseline recognition and equal/unleveled layout cases share one format fixture"
+)]
 fn baseline_and_unleveled_rows_compare_by_owner() {
     use crate::baseline::BASELINE;
     use crate::codec::component::{Format, Layouts};
@@ -343,7 +347,9 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
     let changed_version = Format { core: 5, ..baseline };
     let current = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
     let old_tasks: Result<(), OpenRefusal> = Err(OpenRefusal::Format {
-        family: Family::Tasks, found: u32::from(baseline.tasks), wanted: u32::from(current.tasks),
+        family: Family::Tasks,
+        found: u32::from(baseline.tasks),
+        wanted: u32::from(current.tasks),
     });
     // Recognition precedes the version check; fixture sets that omit a family
     // still require the binary's version for it.
@@ -358,7 +364,15 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
             old_tasks.clone(),
             None,
         ),
-        ("baseline behind", baseline, Some(BASELINE.layouts), BASELINE.layouts, SETS, old_tasks.clone(), Some(levels(0, 0))),
+        (
+            "baseline behind",
+            baseline,
+            Some(BASELINE.layouts),
+            BASELINE.layouts,
+            SETS,
+            old_tasks.clone(),
+            Some(levels(0, 0)),
+        ),
         ("no sets", baseline, Some(BASELINE.layouts), BASELINE.layouts, PatchSets::NONE, old_tasks.clone(), None),
         ("wrong layout", baseline, Some(changed_layout), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
         ("wrong version", changed_version, Some(BASELINE.layouts), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
@@ -390,7 +404,15 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
             Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) }),
             None,
         ),
-        ("binary moved beyond baseline layout", baseline, Some(BASELINE.layouts), changed_layout, FOUR, old_tasks, None),
+        (
+            "binary moved beyond baseline layout",
+            baseline,
+            Some(BASELINE.layouts),
+            changed_layout,
+            FOUR,
+            old_tasks,
+            None,
+        ),
         (
             "unleveled upstream still checked",
             Format { levels: levels(0, 0), ..current },

@@ -101,9 +101,15 @@ impl Store {
         {
             return Vec::new();
         }
-        if !self.record(path, number, &ops, true) { return Vec::new(); }
-        if self.deferred.is_some() { return self.active_file(limits, names, connector); }
-        if self.applied >= number { return Vec::new(); }
+        if !self.record(path, number, &ops, true) {
+            return Vec::new();
+        }
+        if self.deferred.is_some() {
+            return self.active_file(limits, names, connector);
+        }
+        if self.applied >= number {
+            return Vec::new();
+        }
         let commit = self.commit(number, ops, limits, names, connector);
         self.apply(&commit, limits);
         self.recovered.extend(1..=number);
@@ -132,7 +138,13 @@ impl Store {
             return Vec::new();
         }
         let number = generation.number;
-        let history = (self.observed_through > 0).then(|| generation.commits.range((self.observed_through + 1)..).map(|(number, ops)| (*number, ops.clone())).collect::<Vec<_>>());
+        let history = (self.observed_through > 0).then(|| {
+            generation
+                .commits
+                .range((self.observed_through + 1)..)
+                .map(|(number, ops)| (*number, ops.clone()))
+                .collect::<Vec<_>>()
+        });
         let ops = generation
             .rows
             .iter()
@@ -156,9 +168,18 @@ impl Store {
             // This build already observed the source's prefix. After the switch,
             // report only later current-generation commits, in their captured order;
             // historical rows before that prefix remain opaque, not transcoded.
-            let mut replay = Store { applied: self.observed_through, lengths: self.observed_lengths.clone(),
-                files: self.files.iter().filter(|(path, _)| path.starts_with(b"transcripts/")).map(|(path, bytes)| (path.clone(), bytes.clone())).collect(),
-                restoring: true, ..Store::default() };
+            let mut replay = Store {
+                applied: self.observed_through,
+                lengths: self.observed_lengths.clone(),
+                files: self
+                    .files
+                    .iter()
+                    .filter(|(path, _)| path.starts_with(b"transcripts/"))
+                    .map(|(path, bytes)| (path.clone(), bytes.clone()))
+                    .collect(),
+                restoring: true,
+                ..Store::default()
+            };
             for (number, ops) in history {
                 assert_eq!(number, replay.applied + 1, "current generation's captured commit order");
                 let commit = replay.commit(number, ops, limits, names, connector);

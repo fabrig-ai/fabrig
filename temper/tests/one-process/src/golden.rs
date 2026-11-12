@@ -100,14 +100,14 @@ fn new_chat(words: &[u8]) -> Vec<Step<Address>> {
         see(words),
     ]
 }
-fn person_steps() -> Box<[Step<Address>]> {
+pub(crate) fn person_steps() -> Box<[Step<Address>]> {
     let (mut steps, replies) = stories::playground::person();
     steps.truncate(usize::try_from(replies[0] + 1).expect("first reply step"));
     steps.insert(7, Step::Go { address: Address::NewChat { draft: false } });
     steps.extend(new_chat(b"Golden coding"));
     steps.into_boxed_slice()
 }
-fn llm_peer() -> skein_fake_peers::llm::Peer {
+pub(crate) fn llm_scripts() -> serde_json::Value {
     let mut scripts: serde_json::Value =
         serde_json::from_slice(temper_playground::stories::A.llm).expect("story A scripts");
     scripts["pace"]["reply_ms"] = 0.into();
@@ -128,7 +128,11 @@ fn llm_peer() -> skein_fake_peers::llm::Peer {
         ]
     }));
     scripts["control"] = serde_json::json!({"socket":"127.0.0.1:444"});
-    let bytes = serde_json::to_vec(&scripts).expect("golden scripts");
+    scripts
+}
+
+pub(crate) fn llm_peer() -> skein_fake_peers::llm::Peer {
+    let bytes = serde_json::to_vec(&llm_scripts()).expect("golden scripts");
     let document = temper_fake::llm::Document::decode(&bytes).expect("golden LLM document");
     temper_fake::llm::peer(temper_fake::llm::configuration(
         &document,
@@ -144,7 +148,7 @@ fn live(store: &Store) -> impl Iterator<Item = &TaskRecord> {
         _ => None,
     })
 }
-fn in_flight(store: &Store) -> Option<&TaskRecord> {
+pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
     live(store).find(|task| {
         task.spec.words.as_ref() == b"Golden coding in flight"
             && task.turn > 0
@@ -419,13 +423,8 @@ fn assert_history(store: &Store) {
     );
 }
 
-/// An ordinary world story; the caller supplies only its test's temporary directory.
-pub fn make(directory: &Path) {
-    PATCHED.with(|lines| lines.borrow_mut().clear());
-    stories::set(Story::PlaygroundA);
-    stories::setup_settings(world::Phase::Story);
-    let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    let mut document: serde_json::Value = serde_json::from_slice(&start.deployment).expect("deployment");
+pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
+    let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment");
     document["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 16.into();
     let mut provider = document["engine"]["llm"]["providers"][0].clone();
     provider["number"] = 2.into();
@@ -443,7 +442,17 @@ pub fn make(directory: &Path) {
     for name in ["tasks.tasks", "tasks.project_tasks"] {
         document["engine"]["limits"]["overrides"][name] = 8.into();
     }
-    start.deployment = serde_json::to_vec(&document).expect("golden configuration").into();
+    serde_json::to_vec(&document).expect("golden configuration").into()
+}
+
+/// An ordinary world story; the caller supplies only its test's temporary directory.
+pub fn make(directory: &Path) {
+    PATCHED.with(|lines| lines.borrow_mut().clear());
+    stories::set(Story::PlaygroundA);
+    stories::setup_settings(world::Phase::Story);
+    let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
+    start.deployment = configuration(&start.deployment);
+    let document = serde_json::from_slice(&start.deployment).expect("golden configuration JSON");
     let mut disk = machine::fresh();
     temper_playground::story::prepare(&mut disk, temper_playground::stories::A.deployment, start.seed);
     let store = Rc::new(RefCell::new(Store::new()));

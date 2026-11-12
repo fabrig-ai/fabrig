@@ -34,7 +34,10 @@ fn a_format_row_of_another_tasks_version_is_refused_naming_tasks() {
     let wanted = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
     let mut found = wanted;
     found.tasks = 5;
-    assert_eq!(format::check(&found, &wanted), Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: u32::from(wanted.tasks) }));
+    assert_eq!(
+        format::check(&found, &wanted),
+        Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: u32::from(wanted.tasks) })
+    );
 }
 #[test]
 fn a_format_row_of_another_deployment_is_refused() {

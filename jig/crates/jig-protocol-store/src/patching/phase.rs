@@ -31,21 +31,6 @@ pub(crate) enum Patching {
     Sealing { number: u64, before: super::plan::Levels, counts: List<Counted> },
     Checking(Box<Checking>),
 }
-pub(crate) fn work_pending(store: &Store) -> bool {
-    match directory::patching(store) {
-        Some(Patching::Walking(walking)) => walking.ready(),
-        Some(
-            Patching::Closing { .. }
-            | Patching::Dropping(_)
-            | Patching::Copying(_)
-            | Patching::Mapping { .. }
-            | Patching::Recovering { .. }
-            | Patching::Sealing { .. }
-            | Patching::Checking(_),
-        )
-        | None => false,
-    }
-}
 fn root(store: &Store) -> Root {
     store.directory.root.expect("patching holds the deployment lock")
 }
@@ -300,6 +285,25 @@ pub(crate) fn event(
     }
 }
 /// Finish synchronous KV events with the current step's environment.
+pub(crate) fn ready(store: &Store) -> bool {
+    if store.phase == Phase::Stopped {
+        return false;
+    }
+    match directory::patching(store) {
+        Some(phase) => match phase {
+            Patching::Walking(walking) => walking.ready(),
+            Patching::Recovering { opened: 3 } | Patching::Sealing { number: 0, .. } => true,
+            Patching::Recovering { .. }
+            | Patching::Mapping { .. }
+            | Patching::Closing { .. }
+            | Patching::Dropping(_)
+            | Patching::Copying(_)
+            | Patching::Sealing { .. }
+            | Patching::Checking(_) => false,
+        },
+        None => false,
+    }
+}
 pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase == Phase::Stopped {
         return;

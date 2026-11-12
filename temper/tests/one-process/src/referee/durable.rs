@@ -258,7 +258,9 @@ impl Store {
                 committed.extend(self.active_file(limits, names, connector));
                 continue;
             }
-            if number <= self.applied { continue; }
+            if number <= self.applied {
+                continue;
+            }
             let commit = self.commit(number, ops, limits, names, connector);
             self.apply(&commit, limits);
             self.pending.retain(|pending| pending.number > number);
