@@ -3,7 +3,7 @@ use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use temper_service::{self as service, settings::Seeds};
+use temper_engine_service::{self as service, settings::Seeds};
 use temper_service_shell::{close, jig_directories, read_files_with_asked};
 use temper_shell::directories::{Directories, EnvironmentEntry, unread};
 mod accounts_runtime;
@@ -143,9 +143,6 @@ fn prepare_given(
     service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
-    if named.worker.is_some() {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
     let engine = settings(bytes, directories, given);
     let Runtimes { roots, github } = runtimes(binary, &named)?;
     let user = skein_shell::effective_user();
@@ -156,14 +153,10 @@ fn prepare_given(
         bytes,
         &jig_directories(directories),
         &files,
-        None,
         &seeds,
         Some(accounts),
-        None,
         List::with_capacity(0),
         Some(&checked),
-        None,
-        None,
         given,
         program_environment(directories, environment, working, &printed::running_word(environment)),
     )
@@ -256,7 +249,7 @@ pub fn settings(bytes: &[u8], directories: &Directories, given: &service::stock:
     let document =
         config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
             .expect("named checked document");
-    temper_service::startup::engine_with(
+    temper_engine_service::startup::engine_with(
         &document,
         member(&document, 0, b"engine"),
         &jig_directories(directories),

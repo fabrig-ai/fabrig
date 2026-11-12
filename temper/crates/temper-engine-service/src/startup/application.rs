@@ -158,7 +158,7 @@ pub struct Identity {
 #[derive(Debug)]
 pub struct Worker {
     pub root: Box<[u8]>,
-    #[cfg(feature = "worker")]
+    
     pub git: Option<Box<[u8]>>,
 }
 fn configured_limits(
@@ -270,7 +270,7 @@ fn workers(
                     workers
                         .push(Worker {
                             root,
-                            #[cfg(feature = "worker")]
+                            
                             git,
                         })
                         .expect("bounded workers");
@@ -392,6 +392,7 @@ pub fn parse(
     })
 }
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
+#[must_use]
 pub fn files(members: &Members) -> Box<[config::File]> {
     let mut files = List::with_capacity(
         members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),

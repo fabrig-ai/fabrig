@@ -9,3 +9,11 @@ impl crate::Service {
         }
     }
 }
+
+impl crate::Service {
+    pub fn configure_forge_runtime(&mut self, github: crate::ForgeRuntime, roots: skein_tls::Config) { self.engine.as_mut().expect("composition engine").configure_forge_runtime(github, roots); }
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "startup resolution returns numbered host and port tuples")]
+    pub fn unresolved(&self) -> alloc::boxed::Box<[(u16, alloc::boxed::Box<[u8]>, u16)]> { self.engine.as_ref().expect("composition engine").unresolved() }
+    pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) { self.engine.as_mut().expect("composition engine").resolved(forge, address); }
+}

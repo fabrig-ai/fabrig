@@ -5,13 +5,13 @@ use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
 
-#[cfg(feature = "worker")]
-pub(crate) use temper_service_core::values::SOURCE_NAME_BYTES;
+
 pub(crate) use temper_service_core::values::{grant_bytes, token_credential_bytes};
 
 /// A configured key can exceed the OAuth token bound. The worker has no
 /// provider declarations and reserves the key ceiling unconditionally.
-pub(crate) fn credential_bytes(engine: &jig_protocol_config::Engine) -> u32 {
+#[must_use]
+pub fn credential_bytes(engine: &jig_protocol_config::Engine) -> u32 {
     let token = engine.limits.token;
     for provider in &engine.llm.providers {
         if provider.keys {

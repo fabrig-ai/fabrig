@@ -387,7 +387,7 @@ pub fn run(
         }
     }
 }
-fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<core::net::SocketAddr>, String> {
+fn webhook_listener(named: &temper_engine_service::startup::Named) -> Result<Option<core::net::SocketAddr>, String> {
     named.webhooks.as_ref().map(|hooks| super::address(&hooks.listener)).transpose()
 }
 

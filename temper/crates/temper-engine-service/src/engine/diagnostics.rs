@@ -4,7 +4,8 @@ use crate::diagnostics::{self, EngineEvent};
 use skein_lib::{List, Time};
 
 impl Engine {
-    pub(crate) fn pending(&self, now: Time) -> diagnostics::Engine {
+    #[must_use]
+    pub fn pending(&self, now: Time) -> diagnostics::Engine {
         let active = self.store.opened || self.end.is_some();
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();

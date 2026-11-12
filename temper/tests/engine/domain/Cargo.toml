@@ -27,7 +27,7 @@ jig-protocol-store.workspace = true
 jig-protocol-config.workspace = true
 skein-kv.workspace = true
 temper-protocol-store.workspace = true
-temper-service = { workspace = true, features = ["worker"] }
+temper-service.workspace = true
 skein-lib.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-trials.workspace = true

@@ -238,5 +238,3 @@ pub fn github_identity(
     Ok(wire::identity(&value))
 }
 
-#[cfg(feature = "worker")]
-pub use temper_worker_service::worker_route::translate::{Assigned, preparation, value, work, workspace};

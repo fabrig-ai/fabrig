@@ -12,7 +12,8 @@ const RELEASE_CYCLES: u32 = 22;
     clippy::struct_excessive_bools,
     reason = "fact-drain readiness is independent of start, release and input admission"
 )]
-pub(crate) struct Engine {
+#[expect(missing_debug_implementations, reason = "the engine owns account token records")]
+pub struct Engine {
     pub(crate) domain: root::Domain,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
@@ -336,7 +337,8 @@ impl Engine {
             self.facts = self.facts.saturating_add(1);
         }
     }
-    pub(crate) fn next_deadline(&self) -> Option<Time> {
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
         let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.workers.host.next_deadline());
         if self.end.is_none() {
             next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
@@ -353,7 +355,8 @@ impl Engine {
             },
         )
     }
-    pub(crate) fn work_pending(&self, now: Time) -> bool {
+    #[must_use]
+    pub fn work_pending(&self, now: Time) -> bool {
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
         let components = (self.store.opened || self.end.is_some())
@@ -391,7 +394,7 @@ impl Engine {
                                     || due
                                     || self.domain.ready() && !self.first_periods.is_empty())))
     }
-    pub(crate) fn abort_if_ended(&mut self) {
+    pub fn abort_if_ended(&mut self) {
         if self.end.is_some() {
             // An ended owner owes no root continuation. Late component terminals
             // still close their IO, but cannot release another domain decision.
@@ -981,4 +984,9 @@ mod release_tests {
         assert!(engine.domain.revision() > revision);
         assert!(engine.release_pending(), "direct root inputs wake the owner too");
     }
+}
+
+impl Engine {
+    pub fn clock(&mut self, now: Time, wall: Wall) { clock(self, now, wall); }
+    pub fn iterate(&mut self, now: Time, wall: Wall) { iterate(self, now, wall); }
 }

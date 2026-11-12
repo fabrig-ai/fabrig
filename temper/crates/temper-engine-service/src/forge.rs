@@ -458,7 +458,7 @@ pub(crate) fn indexed(
     unusable
 }
 
-pub(crate) fn prepare(
+pub fn prepare(
     config: &settings::Engine,
     _runtime: List<ForgeRuntime>,
 ) -> Result<skein_forge_connection::settings::Settings, Problems> {

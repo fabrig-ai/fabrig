@@ -11,7 +11,7 @@ use std::{
 };
 use temper_forge_setup::sign_in;
 use temper_forge_setup_shell::process as host;
-use temper_service::startup::Named;
+use temper_engine_service::startup::Named;
 use temper_service_shell::jig_directories;
 
 /// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).
@@ -40,7 +40,7 @@ pub(crate) fn run(
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
     )
     .expect("checked document");
-    let engine = temper_service::startup::engine(
+    let engine = temper_engine_service::startup::engine(
         &document,
         super::member(&document, 0, b"engine"),
         &jig_directories(directories),
