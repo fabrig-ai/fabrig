@@ -1,4 +1,5 @@
 //! Stop integration: real root, agent channel and git component; scripted IO.
+#![expect(clippy::disallowed_methods, reason = "ordinary stop integration tests inspect scripted IO and owners")]
 use super::*;
 use crate::tests::fixtures;
 use fixtures::worker_peers::{AGENT_CHILD, AGENT_ERROR, AGENT_INPUT, AGENT_OUTPUT, AgentPeer, LinkPeer, socket_stand};
@@ -37,14 +38,14 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
     items.repositories[0].access =
         root::wire::Access::Writable { push: b"topic".as_slice().into(), expected: None, landing: None };
     stand.worker.events.push(root::Event::Assign { assignment, items: Ok(items) });
-    for _ in 0..2000 {
+    for _ in 0_u32..2000 {
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
         if let Some((owner, _)) = stand.worker.processes.iter().next() {
             let owner = *owner;
             let peer = AgentPeer::launch(&mut stand.worker, &fixtures::worker_agent(), owner, true);
             return (stand, peer, link);
         }
-        for _ in 0..16 {
+        for _ in 0_u32..16 {
             if let Some(jig_protocol_engine_workers::Request::Up { up: hub::LinkUp::Answer { answer, .. }, .. }) =
                 link.exchange(&mut stand.worker)
             {
@@ -60,7 +61,7 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
 fn drain_run(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer) {
     stand.worker.drain();
     peer.settle(&mut stand.worker);
-    assert!(matches!(peer.events.pop(), Some(smith_protocol_channel::Heard::Drain)));
+    let Some(smith_protocol_channel::Heard::Drain) = peer.events.pop() else { panic!("the peer receives Drain") };
     assert!(peer.events.is_empty(), "not cancelled during its turn");
     let agent = fixtures::worker_agent();
     let body = fixtures::worker_peers::cancellation_turn(&agent);
@@ -120,9 +121,9 @@ fn a_drained_runs_save_and_push_complete_while_the_worker_stops() {
     push.transcript.stdout = b"To http://forge.example/app.git\n*\t0000000000000000000000000000000000000006:refs/heads/temper/saved-7\t[new branch]\nDone\n".as_slice().into();
     stand.below.script.invocations.push_back(push);
     let mut answer = None;
-    for _ in 0..2000 {
+    for _ in 0_u32..2000 {
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
-        for _ in 0..16 {
+        for _ in 0_u32..16 {
             if let Some(jig_protocol_engine_workers::Request::Up {
                 up: hub::LinkUp::Answer { answer: got, .. },
                 parts,
@@ -140,10 +141,9 @@ fn a_drained_runs_save_and_push_complete_while_the_worker_stops() {
         stand.input();
     }
     let (answer, parts) = answer.expect("the saved run answers during shutdown");
-    assert!(matches!(
-        answer.ending,
-        hub::Ending::Failed { failure: hub::Failure::Cancelled(hub::Reason::Shutdown), .. }
-    ));
+    let hub::Ending::Failed { failure: hub::Failure::Cancelled(hub::Reason::Shutdown), .. } = answer.ending else {
+        panic!("the run ends cancelled for shutdown")
+    };
     let hub::Ending::Failed { work, .. } = answer.ending else { panic!("cancelled run") };
     let saved = work.saved.expect("saved-work part");
     let part = parts.iter().find(|part| part.token == saved).unwrap();
@@ -152,18 +152,17 @@ fn a_drained_runs_save_and_push_complete_while_the_worker_stops() {
         &mut skein_lib::Reader::new(&part.bytes),
     )
     .unwrap();
-    assert!(matches!(
-        record.repositories().get(0).unwrap().landing(),
-        temper_protocol_worker_wire::v1::Landing::Landed(_)
-    ));
+    let temper_protocol_worker_wire::v1::Landing::Landed(_) = record.repositories().get(0).unwrap().landing() else {
+        panic!("the saved repository landed")
+    };
     assert!(stand.worker.stopping());
 }
 
 fn save_push(stand: &mut fixtures::WorkerStand, peer: &AgentPeer, link: &mut LinkPeer) -> (Token, kernel::Spawn) {
-    for _ in 0..2000 {
+    for _ in 0_u32..2000 {
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
         close_agent(&mut stand.worker, peer.owner);
-        for _ in 0..16 {
+        for _ in 0_u32..16 {
             link.exchange(&mut stand.worker);
         }
         for _ in 0..stand.worker.io().len() {
@@ -201,7 +200,7 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
     stand.worker.iterate(at, Wall::EPOCH);
     assert!(stand.worker.aborted.is_some(), "the bound abandons the hung push");
     assert_eq!(stand.worker.end(), Some(&crate::worker_alone::End::Aborted));
-    let mut bound_notes = 0;
+    let mut bound_notes = 0_u32;
     while let Some(note) = stand.worker.notes().pop() {
         if let crate::worker_alone::Note::StopBoundPassed { abandoned } = note {
             assert_eq!(abandoned, 1, "its last turn was not acknowledged");
@@ -211,7 +210,7 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
     assert_eq!(bound_notes, 1);
     let mut killed = false;
     let mut child_closed = false;
-    for _ in 0..1000 {
+    for _ in 0_u32..1000 {
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             match request {
@@ -234,7 +233,17 @@ fn the_stop_bound_aborts_a_save_push_that_never_answers_and_ends_the_worker() {
                 }
                 io::Request::Stream { stream, .. } | io::Request::Output { stream, .. }
                     if [Token::new(902), Token::new(903), Token::new(44)].contains(&stream) => {}
-                other => stand.below.out.io.push(other),
+                other @ (io::Request::Listen { .. }
+                | io::Request::Connect { .. }
+                | io::Request::Bind { .. }
+                | io::Request::Reject { .. }
+                | io::Request::Stream { .. }
+                | io::Request::Output { .. }
+                | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
+                | io::Request::Signal { .. }
+                | io::Request::Usage { .. }
+                | io::Request::Window { .. }) => stand.below.out.io.push(other),
             }
         }
         if killed && !child_closed {

@@ -987,7 +987,13 @@ fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
     fixtures::assert_worker_only(&service);
     service.shutdown();
     assert!(service.worker.stopping());
-    assert!(service.worker.events.iter().any(|event| matches!(event, root::Event::Shutdown { drain: true })));
+    let mut drains = false;
+    for event in &service.worker.events {
+        if let root::Event::Shutdown { drain: true } = event {
+            drains = true;
+        }
+    }
+    assert!(drains);
     assert_eq!(service.end(), None);
     service.shutdown();
     assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));
