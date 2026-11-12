@@ -14,6 +14,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["-h"],
         vec!["help"],
         vec!["--version"],
+        vec!["run", "--help"],
         vec!["triage", "none", "--help"],
         vec!["triage", "case", "--help"],
         vec!["show", "--help"],
@@ -36,7 +37,9 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     paragraph(&stdout),
                     "temper-qa: QA after landing: main's landings triaged into cases, and builds kept for them."
                 );
-                for internal in ["triage none", "triage case", "show", "lines", "TEMPER_QA_HOME", "TEMPER_QA_SESSION"] {
+                for internal in
+                    ["run", "triage none", "triage case", "show", "lines", "TEMPER_QA_HOME", "TEMPER_QA_SESSION"]
+                {
                     assert!(!stdout.contains(internal), "internal entry: {internal}");
                 }
                 assert_eq!(stdout, TABLE.help());

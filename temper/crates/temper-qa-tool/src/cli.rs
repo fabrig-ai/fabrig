@@ -45,6 +45,17 @@ const CASE: Command = Command {
     variables: &[&HOME, &SESSION],
     notes: "",
 };
+const RUN: Command = Command {
+    reach: Reach::Words(&["run"]),
+    set: Set::Internal,
+    forms: &[""],
+    line: "Watch main and triage its landings, one service per QA home.",
+    arguments: &[],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "Holds run.lock for its life; reads qa.json once at start.",
+};
 const SHOW: Command = Command {
     reach: Reach::Words(&["show"]),
     set: Set::Internal,
@@ -72,7 +83,7 @@ pub const TABLE: Table = Table {
     line: "QA after landing: main's landings triaged into cases, and builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[NONE, CASE, SHOW, LINES],
+    commands: &[RUN, NONE, CASE, SHOW, LINES],
     settings: &[],
     variables: &[&HOME, &SESSION],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -144,7 +155,25 @@ fn run(command: &Command, argument: Option<&[u8]>, environment: &Environment) ->
         None
     };
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_QA_HOME is not set"))?;
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
+    let directory = Path::new(OsStr::from_bytes(directory));
+    // Session commands run from another working directory, so the home placed
+    // in their environment must not depend on this command's working directory.
+    let absolute = if command == &RUN {
+        Some(std::fs::canonicalize(directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?)
+    } else {
+        None
+    };
+    let home = Home::open(absolute.as_deref().unwrap_or(directory))?;
+    if command == &RUN {
+        let environment = environment.to_vec();
+        let git = crate::faces::RealGit {
+            directory: home.configuration.git.directory.clone(),
+            environment: environment.clone(),
+        };
+        let processes = crate::faces::RealProcesses::new(environment.clone());
+        crate::runner::Run::start(home, git, processes, crate::faces::RealClock::default(), environment)?.serve()?;
+        return Ok(String::new());
+    }
     if command == &SHOW {
         return home.read(|ledger| Ok(ledger.show()));
     }

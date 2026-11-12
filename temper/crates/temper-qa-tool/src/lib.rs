@@ -1,11 +1,15 @@
 //! Landed QA's ledger and commands (temper/docs/design/testing/qa/ledger.md).
+mod brief;
 mod case;
 mod cli;
 mod config;
 mod document;
+pub mod faces;
 mod home;
 mod ledger;
+pub mod runner;
 mod text;
+pub mod watch;
 
 pub use case::{CaseInput, Step};
 pub use cli::{HOME, SESSION, TABLE, main};
