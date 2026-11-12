@@ -1,6 +1,6 @@
 # fake-forge: status
 
-2026-11-11. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-12. Where skein's code lags or departs from [forge.md](forge.md).
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses
 the key's public half and verifies without signing; its exact-token/key
@@ -8,6 +8,9 @@ cache and the claims checked on every request are present.
 
 - **Not yet:** 4: the runs' listing has no `workflow_id`
   (`skein-fake-forge-forgejo/src/routes.rs`).
+- **Not yet:** 4: a hook's patch sets the secret it sends
+  (`skein-fake-forge-forgejo/src/setup/repo_hooks.rs`, `edit_repo_hook`)
+  [in flight: change 1620].
 - **Not yet:** 4: conditional reads: a raw read answers no `ETag`, and no
   route answers `304` (`skein-fake-forge-forgejo/src/server.rs`,
   `src/response.rs`).

@@ -9,6 +9,9 @@
   neither the secret nor a delivery's signature, so 1.5's making a hook
   again, and the fake's patch keeping its secret, stand on a deployment's
   observation alone.
+- **Not yet:** 1.4, 1.5: `skein-forge-setup/src/forgejo/access.rs`
+  keeps the lowest id with the listener's URL and patches it, rather
+  than deleting each and making one [in flight: change 1620].
 
 - **Not yet:** 2: `skein/tests/forge/conformance/src/migrate.rs`,
   `ordinary`, judges a missing source's refusal under its earlier name, by
