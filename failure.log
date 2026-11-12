@@ -1,0 +1,14 @@
+   Compiling temper-version v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-version)
+   Compiling temper-engine-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-shell)
+   Compiling temper-worker-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-worker-shell)
+   Compiling temper-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-agent-shell)
+   Compiling temper-box-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-box-shell)
+   Compiling temper-real-loop-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/real-loop)
+   Compiling temper-box v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/bin/temper-box)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.77s
+────────────
+ Nextest run ID afb3d72e-73fb-47be-ae3e-08b10f0a54b8 with nextest profile: default
+    Starting 1 test across 1 binary (267 tests skipped)
+        PASS [   0.055s] (1/1) temper-box::suite configuration::the_clusters_documents_check_as_their_shapes
+────────────
+     Summary [   0.059s] 1 test run: 1 passed, 267 skipped

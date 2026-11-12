@@ -135,7 +135,7 @@
         "people.waiters": 2,
         "people.words": 512,
         "tasks.authority_bytes": 70,
-        "tasks.authority_grants": 14,
+        "tasks.authority_grants": 15,
         "tasks.batch": 1,
         "tasks.charter_documents": 0,
         "tasks.charters": 10,

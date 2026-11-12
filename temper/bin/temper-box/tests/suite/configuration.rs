@@ -19,7 +19,7 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     value["engine"]["limits"]["overrides"]["authority.executors"] = 18.into();
     // The standing charter, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 18.into();
-    value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
+    value["engine"]["limits"]["overrides"]["notes.scopes"] = 18.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.
