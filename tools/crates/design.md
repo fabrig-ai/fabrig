@@ -238,8 +238,8 @@ Times are in whole seconds and shares in whole percent.
 
 `tools/crates/test_crates.py`, run with `python3 -I -B tools/crates/test_crates.py`. It uses small
 fixtures: a `metadata.json`, timing reports holding a `UNIT_DATA` of a few units, and a scratch git
-repository whose commits carry fixed committer dates. `build` runs against a fake `cargo` on `PATH`,
-as the delivery check's tests do (`tools/pre-pr/design.md`, 9). No test builds the workspace.
+repository whose commits carry fixed committer dates. `build` runs against a fake `cargo` and a fake
+`rustc`, as the delivery check's tests fake theirs (`tools/pre-pr/design.md`, 9). No test builds the workspace.
 
 ## 5. Open questions and Later
 
