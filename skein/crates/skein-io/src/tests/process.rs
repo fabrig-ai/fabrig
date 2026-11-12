@@ -624,3 +624,64 @@ fn abort_read_waits_for_the_read_and_does_not_retry_an_unsubmitted_cancel() {
     assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: pipe }]);
     rig.empty();
 }
+
+#[test]
+fn cancelling_a_pipe_read_waits_for_both_flights_and_can_read_again() {
+    use crate::kernel::{Error, Submit};
+    for (read_first, bytes_win) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut rig = Rig::new(limits());
+        let pipe = rig.io.adopt_read_pipe(Fd::new(40)).expect("read pipe");
+        let read = rig.next().take(Kind::PipeRead);
+        rig.down(Request::Stream { stream: pipe, down: Down::Demand { read: Read::Arrived { max: 2 }, room: 0 } })
+            .nothing();
+        rig.next().nothing();
+        let cancel = rig.cancel_read(pipe).take(Kind::Cancel);
+        assert_eq!(cancel.kind, Op::Cancel { target: read.op });
+        rig.next().nothing();
+        rig.cancel_read(pipe).nothing();
+        rig.next().nothing();
+        let cancel = if read_first {
+            cancel
+        } else {
+            let retried = rig.complete(cancel, Err(Error::Other(11))).take(Kind::Cancel);
+            assert_eq!(retried.kind, Op::Cancel { target: read.op });
+            retried
+        };
+        let Op::PipeRead { fd, mut buf } = read.kind else { panic!("read returns its buffer") };
+        for (to, from) in buf.iter_mut().zip(b"ok") {
+            *to = *from;
+        }
+        let read = Submit { op: read.op, kind: Op::PipeRead { fd, buf } };
+        let result = if bytes_win { Ok(Done::Count(2)) } else { Err(Error::Cancelled) };
+        let cancel_result = if bytes_win { Err(Error::TooLate) } else { Ok(Done::Nothing) };
+        let (first, last) = if read_first {
+            let first = rig.complete(read, result);
+            assert!(!rig.io.read_cancelled(pipe), "both flights must settle");
+            let last = rig.complete(cancel, cancel_result);
+            (first, last)
+        } else {
+            let first = rig.complete(cancel, cancel_result);
+            assert!(!rig.io.read_cancelled(pipe), "both flights must settle");
+            let last = rig.complete(read, result);
+            (first, last)
+        };
+        assert!(rig.io.read_cancelled(pipe), "the cancelled read has settled");
+        assert!(first.subs.is_empty() && last.subs.is_empty(), "a paused input never reads ahead");
+        let mut events = first.events;
+        events.extend(last.events);
+        let mut expected = Vec::new();
+        if bytes_win {
+            expected.push(Event::Stream { owner: pipe, up: Up::Bytes(Box::from(&b"ok"[..])) });
+        }
+        assert_eq!(events, expected, "read first {read_first}, bytes win {bytes_win}");
+        rig.cancel_read(pipe).nothing();
+        rig.next().nothing();
+        rig.down(Request::Stream { stream: pipe, down: Down::Demand { read: Read::Fill(1), room: 0 } }).nothing();
+        let resumed = rig.next().take(Kind::PipeRead);
+        let cancel = rig.down(Request::Abort { entity: pipe }).take(Kind::Cancel);
+        rig.complete(cancel, Ok(Done::Nothing)).nothing();
+        let close = rig.complete(resumed, Err(Error::Cancelled)).take(Kind::Close);
+        assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: pipe }]);
+        rig.empty();
+    }
+}
