@@ -1,10 +1,14 @@
-//! UI rendering of the domain's adoption phrases.
+//! UI rendering of the domain's adoption phrases, with the browser's out-of-date words
+//! (temper/docs/design/client/forge/family.md, 4).
 use crate::words::Words;
 use alloc::boxed::Box;
 use skein_ui::{Builder, Run, phrases::Hole};
 use temper_client_domain::forge::words::{self, Word};
 #[must_use]
 pub fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
+    if word == Word::OutOfDate && words.shell == crate::words::Shell::Browser {
+        return words.say(crate::words::Word::ForgeOutOfDateBrowser, holes);
+    }
     words.book.say(words.language, words::id(words.connector, word), holes).expect("checked adoption phrase").text
 }
 pub fn text(words: &Words, builder: &mut Builder, word: Word, holes: &[Hole]) {

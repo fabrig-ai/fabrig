@@ -40,3 +40,6 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
+- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
+- test temper-client-journeys-tool tests::the_overlay_is_empty
+- lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs

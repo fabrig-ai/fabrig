@@ -7,6 +7,10 @@ impl Domain {
         self.link
     }
     #[must_use]
+    pub fn unreadable(&self) -> bool {
+        self.unreadable
+    }
+    #[must_use]
     pub fn streams_full(&self) -> Option<crate::StreamsFull> {
         self.streams_full
     }

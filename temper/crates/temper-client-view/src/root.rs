@@ -225,7 +225,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::sign_in::main(&mut builder, root, &view.forge_words, origin, &view.forge_sign_in);
     } else if let Some(heading) = crate::frame::unavailable(root) {
         crate::outside::column(&mut builder, &view.forge_words.say(heading, &[]), &[]);
-        crate::frame::unavailable_main(&mut builder, root, &view.forge_words);
+        crate::frame::unavailable_main(&mut builder, root, &view.forge_words, &mut view.pages);
         if let Some(page) = root.pages().task()
             && page.document(root.client()).is_none()
         {
@@ -490,6 +490,28 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
     }
 }
+/// A page act carried by the browser shell rather than the domain (client/view.md, 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShellEvent {
+    Reload,
+}
+
+/// Decode a shell act in the current tree; only a press can reload (client/view.md, 1).
+#[must_use]
+pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
+    match act {
+        Act::Press => {
+            let bound = view.render.act(node, Act::Press)?;
+            if bound.binding.owner == crate::frame::owner() {
+                view.pages.shell_event(bound.binding.token)
+            } else {
+                None
+            }
+        }
+        Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } | Act::Drawing { .. } => None,
+    }
+}
+
 /// Read the event an act gives, without changing the view (client/web/journeys.md, 3.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]

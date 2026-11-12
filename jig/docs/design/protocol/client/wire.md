@@ -64,9 +64,8 @@
   within them. A list the client bounds by its rows (a task's
   dependencies, a role's holdings, a pattern's segments) takes at most
   32 items, so 32 is the most the client's `rows` may be, and with it
-  the rows of its pages and windows. More changes the wire's schema;
-  until the first release its version stays fixed (`README.md`, section 6; skein's
-  `data/codec/README.md`, section 5). A client whose rows pass it is unusable: the link
+  the rows of its pages and windows. More changes the wire's schema,
+  and so moves its version (`README.md`, section 6). A client whose rows pass it is unusable: the link
   refuses its limits at construction, and nothing is cut to fit.
 - **A document's nested collections cross as pieces.** The client bounds
   a document by its bytes in all, not each list by its count times its
@@ -172,7 +171,7 @@ the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
 `picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
 codecs,
 translations, golden records and served-version declarations carry those
-fields (`README.md`, sections 6 and 11), changed in place before the first release. The
+fields (`README.md`, sections 6 and 11). The
 preview says what a run's check would take now for a task keeping no
 account (`../../domain/accounts.md`, 4.3), never task intent or a reservation;
 no store family carries it or the offer, and application families' versions
@@ -347,7 +346,12 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
   (`README.md`, section 6); each delivery and run's text routed to its watch by name;
   heartbeats keeping the watches alive; `StreamGone`, or silence past
   twice the heartbeat, dropping it; the stream refused signed out, a
-  `Streamed` message the transport makes, ending the sign-in.
+  `Streamed` message the transport makes, ending the sign-in. A record
+  of it that the link refuses as malformed or of another version, or a
+  watch's answer whose bytes don't decode, drops it and leaves the
+  client out of date, `unreadable`
+  (`../../client/domain/client/watches.md`, 2); one refused for a bound
+  or for its order drops it, to open again after its backoff.
 - **The predecessor's stream:** the stream's name saved at each hello;
   the name kept at start sent gone before the first `OpenStream`, which
   waits for that exchange's terminal (section 2).

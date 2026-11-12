@@ -16,22 +16,15 @@
   reused. `Pages` and `Runner` ask only for jig's operations, reads and
   subjects, so no request, read or subject of their own reaches the
   engine.
-- **`CLIENT_VERSION`:** the version of every record below, 1 at first,
-  2 since the playground's read, 3 since a change's panel, 4 since a forge's
-  set up and the deployment's forges, 5 since jig's client wire 13
-  carried in its refusals, 6 since the first repository (`SetUp`'s
-  fields and the row's `first`), 7 since the playground's state (its
-  read's `state` and its start), 8 since a sign-in's return, since gone,
-  9 since connecting a GitHub App (`Connect`,
-  `Install`, `ForgeRefusal`), 10 since the forges row's installations
-  and last connect's end, 11 since GitHub's manifest (`Connect`'s
-  `GitHubManifest` and the row's `app`). It stays at 11 until the first
-  release, as `../../protocol/README.md`, section 7 says (skein's
-  `data/codec/README.md`, section 5). A request, an outcome, a read, a subject or a
-  field added to the family (the FORGE requests of `../engine.md`, the
-  picker's ids in `Adopt`, the forge's kind in the adopted outcome, the
-  playground's read, a change's panel) changes its schema, generated code and
-  one set of golden bytes in place. The version moves at a release.
+- **`CLIENT_VERSION`:** the version of every record below, the number
+  the schema's `family` line names. It moves with the family's layout,
+  at the landing that changes it: a request, an outcome, a read, a
+  subject or a field added to the family (the FORGE requests of
+  `../engine.md`, the picker's ids in `Adopt`, a change's panel) changes
+  its schema, generated code and one set of golden bytes, and moves its
+  version by one, its layouts' list taking the new version's line;
+  `PUBLIC_VERSION` does the same for the visitors' records (jig's
+  `protocol/client/README.md`, section 6).
   The engine serves exactly one version (jig's `protocol/client/README.md`, section 6): a client of another
   is out of date for the forge (`family.md`, 4), and its kept adoption is dropped
   as kept work at start (`../line.md`, 6; jig's `protocol/client/README.md`, section 7).
