@@ -227,6 +227,7 @@ impl Heap for api::Git {
             Self::Clone | Self::Fetch { want: api::Want::Commit(_) | api::Want::Default } => Some(0),
             Self::Fetch { want: api::Want::Branch(branch) }
             | Self::Push { branch, .. }
+            | Self::PushNew { branch, .. }
             | Self::Create { branch, .. } => branch.heap(),
         }
     }
@@ -276,6 +277,7 @@ impl Heap for api::Answer {
             | Self::Revision(_)
             | Self::Done
             | Self::Pushed(_)
+            | Self::PushNew { .. }
             | Self::Branch(_) => Some(0),
         }
     }

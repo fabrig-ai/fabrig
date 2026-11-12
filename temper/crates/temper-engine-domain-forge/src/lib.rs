@@ -16,6 +16,9 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
+/// The prepare job (temper/docs/design/domain/worker.md, 4.4).
+pub const PREPARE_KIND: u32 = 1;
+
 /// The merge job (temper/docs/design/domain/worker.md, 4.4).
 pub const MERGE_KIND: u32 = 3;
 /// The close job (temper/docs/design/domain/worker.md, 4.4).

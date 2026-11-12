@@ -41,6 +41,7 @@ pub enum Ending {
     Paths { files: u32 },
     Looked { holds: bool },
     IsAncestor { contains: bool },
+    Brings { brings: bool },
     Succeeded,
     Fetched { commit: Commit },
     Committed { commit: Commit },

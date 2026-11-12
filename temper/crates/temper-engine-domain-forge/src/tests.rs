@@ -3065,7 +3065,8 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                     .expect("item");
                 let eligible = kind == change::Delegate::Produce && writable;
                 assert_eq!(item.landing.as_deref(), if eligible { Some(base.as_ref()) } else { None });
-                let start = match &item.start {
+                let start: &[u8] = match &item.start {
+                    items::Start::Commit(_) => b"",
                     items::Start::Base(b)
                     | items::Start::Branch(b)
                     | items::Start::Saved(b)
@@ -3082,7 +3083,8 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                 };
                 let heads = match &item.start {
                     items::Start::Merged { heads, .. } => heads.len() * size_of::<skein_forge::api::Commit>(),
-                    items::Start::Base(_)
+                    items::Start::Commit(_)
+                    | items::Start::Base(_)
                     | items::Start::Branch(_)
                     | items::Start::Saved(_)
                     | items::Start::Merge { .. } => 0,

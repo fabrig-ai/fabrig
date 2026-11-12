@@ -114,6 +114,7 @@ impl Fill {
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },
                 Request::Prepared { prepared, .. } => Asked::Prepared {
                     prepared: match prepared {
+                        Prepared::Candidate { .. } => unreachable!("branch-only clients"),
                         Prepared::Ready { workspace, conflicts } => Preparation::Ready {
                             workspace,
                             conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
@@ -321,7 +322,7 @@ impl Fill {
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
-                    self.done(hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                    self.done(hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..],
                     [Asked::Io { op: Kind::Fetch }]
                 );
             }
@@ -357,7 +358,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert!(fill.meter.held() >= 2 * payload, "released and live preparations both retain full path bytes");
     assert_eq!(fill.domain.holds(), limits.workspaces * 2);
     for hold in &active {
-        let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits) });
+        let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false });
         let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
         assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
         assert_eq!(
@@ -366,7 +367,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
         );
         for _ in 0..limits.repositories - 1 {
             assert_eq!(
-                fill.done(*hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..],
                 [Asked::Io { op: Kind::Commit }]
             );
         }
@@ -377,6 +378,6 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert!(before - fill.meter.held() >= payload, "reclaim releases retired path ownership");
     assert_eq!(fill.domain.holds(), limits.workspaces);
     for hold in active {
-        assert_eq!(fill.done(hold, Done::Conflicted { files: full_paths(&limits) })[..], [Asked::Pushed]);
+        assert_eq!(fill.done(hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..], [Asked::Pushed]);
     }
 }

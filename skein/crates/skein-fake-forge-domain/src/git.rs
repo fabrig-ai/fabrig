@@ -228,6 +228,7 @@ pub(crate) fn serve(
         }
         Git::Push { branch, commit, expected } => push(domain, env, id, user, &branch, commit, expected),
         Git::Create { branch, commit } => create(domain, env, id, user, &branch, commit),
+        Git::PushNew { branch, commit } => push_new(domain, env, id, user, &branch, commit),
     }
 }
 
@@ -421,4 +422,35 @@ pub(crate) fn moved(
             }
         }
     }
+}
+
+/// Uploads a commit only under an empty branch lease (testing/fakes/forge.md, 3).
+fn push_new(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    user: u64,
+    branch: &[u8],
+    commit: u64,
+) -> Result<Answer, Error> {
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    repository.require(user, Permission::Write)?;
+    fits(branch, env.limits.limits.name_bytes)?;
+    if repository.refusing {
+        return Err(Error::Refused);
+    }
+    if repository.is_protected(branch) {
+        return Err(Error::Protected);
+    }
+    if !domain.commits.contains_key(&commit) {
+        return Err(Error::Missing(What::Commit));
+    }
+    if let Some(head) = repository.branches.get(branch) {
+        return Ok(Answer::PushNew { existing: Some(*head) });
+    }
+    // No domain call interleaves the empty-lease check and this upload.
+    let Answer::Pushed(Pushed::Pushed) = push(domain, env, id, user, branch, commit, None)? else {
+        unreachable!("an absent branch accepts its store commit")
+    };
+    Ok(Answer::PushNew { existing: None })
 }

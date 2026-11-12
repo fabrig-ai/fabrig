@@ -1243,6 +1243,8 @@ fn git_run() {
                 | GitCommand::WriteTree
                 | GitCommand::CommitTree { .. }
                 | GitCommand::Origin { .. }
+                | GitCommand::MergeBases { .. }
+                | GitCommand::BringsList { .. }
                 | GitCommand::IsAncestor { .. } => {}
             }
             let at = dir.join(step.at);

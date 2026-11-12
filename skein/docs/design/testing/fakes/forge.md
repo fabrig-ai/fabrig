@@ -347,11 +347,15 @@ against.
 - **The calls** are `Op::Git`. `Clone` (every branch, and the default) and
   `Fetch { Branch | Commit | Default }` (the commit and those before it, by
   both parents) need read permission. `Push { branch, commit, expected }`
-  and `Create { branch, commit }` need write; a protected branch takes
-  neither.
+  `Create { branch, commit }` and `PushNew { branch, commit }` need write;
+  a protected branch takes none of them.
 - **A push** moves a branch by a fast-forward, or creates it; any other move
   is `Rejected`. A given `expected` must be the branch's head, or the push
-  is rejected. A creation answers `Created` or `Exists`.
+  is rejected. `Create` requires the repository already to hold the commit
+  and answers `Created` or `Exists`. `PushNew` uploads the store commit and
+  its ancestry, as `Push` does, only under an empty branch lease: it creates
+  an absent branch, or answers the existing head without moving it or
+  transferring objects. The check and creation are one domain call.
 - **Every move of a branch** is observed, starts CI on the new head, and
   moves the head of each open pull request that follows it. `advance` is
   the world's other party moving a branch under a run.
@@ -489,7 +493,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   a JSON number; a branch or repository name is a string; paths, contents
   and messages are base64, so bytes cross whole. The tally counts it
   route by route, and the byte faults reach it as they reach every route.
-- **The repository's calls** are `clone`, `fetch`, `create` and `push`,
+- **The repository's calls** are `clone`, `fetch`, `create`, `push` and `push-new`,
   section 3's `Op::Git` one for one, and `branch`, the domain's read of a
   branch's head, which a fake asks to word its output as git does. Each
   names a repository by its full name and is one domain call, with
@@ -501,7 +505,8 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   naming it: `403` forbidden, protected or refused, so the caller knows
   it was known; `404` missing, naming the repository, branch or commit;
   `502` unreachable; and `429`, `503` and `500` as above. A push answers
-  pushed or rejected, a creation created or exists, both `200`.
+  pushed or rejected, a creation created or exists; `push-new` answers
+  `existing: null` on creation or the unchanged head, all `200`.
 - **The store's calls** reach git's object database, which is the
   domain's: `objects` reads commits, `commit`, `merge` and `commit-tree`
   store them as section 3's scenario functions do, and `ancestor` asks
@@ -538,6 +543,9 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
     "message"}` with optional `"merging"`. Each answers `{"commit":N|null}`;
     trees carry `[{"path", "content"}]` as above.
   - `ancestor`: `{"ancestor", "commit"}` answers `{"ancestor":true|false}`.
+  - `push-new`: `{"repository", "branch", "commit"}` answers
+    `{"existing":N|null}`, the head when the branch exists, or `null` when
+    this call created it by uploading the commit.
   - An error answers `{"error": NAME}`, NAME the domain error in snake
     case (`missing`, `rate_limited`, `already_queued`, ...), with the
     members that error carries: `"what"` for `missing` (`"repository"`,

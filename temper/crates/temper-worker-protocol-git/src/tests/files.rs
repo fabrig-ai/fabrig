@@ -116,7 +116,10 @@ fn a_merging_commit_with_markers_left_ends_conflicted_staging_nothing() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::Conflicted { files: Box::new([Box::from(&b"first"[..]), Box::from(&b"second"[..])]) }
+            git::Done::Conflicted {
+                files: Box::new([Box::from(&b"first"[..]), Box::from(&b"second"[..])]),
+                cut: false
+            }
         ))
     );
     assert!(component.below.out.io.is_empty(), "nothing staged");

@@ -64,6 +64,7 @@ fn number(answer: &Answer) -> Option<u64> {
         | Answer::Done
         | Answer::Cloned { .. }
         | Answer::Pushed(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => None,
     }
 }
@@ -447,6 +448,7 @@ fn document(
         | Answer::Revision(_)
         | Answer::Done
         | Answer::Pushed(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => answers::read(config, setup, request, answer),
     }
 }
@@ -527,6 +529,7 @@ pub fn answer(
         | Answer::Revision(_)
         | Answer::Cloned { .. }
         | Answer::Pushed(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => {}
     }
     let document = document(config, setup, request, select, answer)?;
@@ -596,6 +599,7 @@ pub fn answer(
         | Answer::Done
         | Answer::Cloned { .. }
         | Answer::Pushed(_)
+        | Answer::PushNew { .. }
         | Answer::Branch(_) => {}
     }
     Ok(Reply { status: status(request), headers: headers.into_boxed(), body })
@@ -955,6 +959,7 @@ mod bounded {
             | a::Answer::Revision(_)
             | a::Answer::Done
             | a::Answer::Pushed(_)
+            | a::Answer::PushNew { .. }
             | a::Answer::Branch(_) => {}
         }
         Some(())

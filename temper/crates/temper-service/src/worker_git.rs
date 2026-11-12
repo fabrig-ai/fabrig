@@ -88,6 +88,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. } => None,
     }
@@ -124,6 +125,7 @@ pub(crate) fn pick(
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. } => {
             return Ok(None);

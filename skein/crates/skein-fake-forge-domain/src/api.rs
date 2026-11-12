@@ -435,6 +435,9 @@ pub enum Git {
     /// Creates `branch` at `commit`, which the repository has, only if it is
     /// nowhere. Answered by [`Answer::Branch`].
     Create { branch: Box<[u8]>, commit: u64 },
+    /// Uploads a store commit and creates the branch only if absent.
+    /// Answered by `PushNew`, carrying the existing head when not created.
+    PushNew { branch: Box<[u8]>, commit: u64 },
 }
 
 /// What a fetch asks for.
@@ -563,6 +566,10 @@ pub enum Answer {
     },
     Pushed(Pushed),
     Branch(Created),
+    /// `Git::PushNew`: None created it; Some is the branch's unchanged head.
+    PushNew {
+        existing: Option<u64>,
+    },
 }
 
 /// Why a call failed.
