@@ -8,11 +8,13 @@ use skein_io::{
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::net::SocketAddr;
 use temper_client_tools::jig::FileEnd;
+mod overlays;
 const OWNER: Token = Token::new(1);
 // The existing five slots plus the two amendment text parents.
 pub(crate) const FILE_SLOTS: u32 = 7;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Stage {
+    Overlay,
     Start,
     Exists,
     Checked,
@@ -35,6 +37,8 @@ enum Stage {
     Closing,
 }
 pub(crate) struct Directory {
+    sets: Option<overlays::Sets>,
+    pub(crate) loaded_sets: Option<skein_lib::List<settings_form::overlay::Directory>>,
     io: FileIo,
     limits: Limits,
     root: Option<Token>,
@@ -78,7 +82,7 @@ impl Directory {
     pub(crate) fn new(startup: Startup, leaf: Box<[u8]>, class: Class, files: Vec<(u8, Fd)>, ask_bytes: u32) -> Self {
         let Startup { parent, file_parent, user, seed, .. } = startup;
         let timeout = Duration::from_secs(30);
-        let limits = Limits { files: FILE_SLOTS, read: ask_bytes, entries: 1, whole: ask_bytes, timeout };
+        let limits = Limits { files: FILE_SLOTS + u32::try_from(files.len()).expect("input files"), read: ask_bytes, entries: 64, whole: ask_bytes, timeout };
         let mut io = FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
         let root = parent.map(|fd| io.adopt_root(fd).expect("parent slot"));
@@ -88,6 +92,8 @@ impl Directory {
             text_roots.push((index, io.adopt_root(fd).expect("text file parent slot")));
         }
         Self {
+            sets: None,
+            loaded_sets: None,
             io,
             limits,
             ask_bytes,
@@ -166,6 +172,7 @@ impl Directory {
         self.close();
     }
     fn answer(&mut self, now: Time, event: file::Event) {
+        if self.stage == Stage::Overlay && !self.closing { self.sets_answer(event); return; }
         if let file::Event::Opened { file, .. } = &event {
             if self.stage == Stage::RecordCreate {
                 self.record = Some(*file);
@@ -195,6 +202,7 @@ impl Directory {
         }
         if let file::Event::Refused { found, .. } = event {
             let part = match self.stage {
+                Stage::Overlay => "overlay",
                 Stage::Address | Stage::Store => "address",
                 Stage::Token => "token",
                 Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => "key file",
@@ -276,6 +284,7 @@ impl Directory {
                         let part = if self.text_root.is_some() { "text file" } else { "FILE" };
                         format!("{part} could not be read: {words}")
                     }
+                    Stage::Overlay => unreachable!("overlay event handled"),
                     Stage::Store => format!("DIRECTORY could not be written: address: {words}"),
                     Stage::Lock => format!("DIRECTORY could not be read: lock: {words}"),
                     Stage::Address => format!("DIRECTORY could not be read: address: {words}"),
@@ -374,6 +383,7 @@ impl Directory {
             self.stage = if self.class == Class::SignIn { Stage::Private } else { Stage::Exists };
         }
         let request = match self.stage {
+            Stage::Overlay => { let Some(request) = self.sets_request() else { return }; request },
             Stage::Exists => file::Request::OpenDirectory {
                 owner: OWNER,
                 root: self.io.descriptor(root).expect("parent"),
@@ -470,6 +480,7 @@ impl Directory {
         if let Some(file) = self
             .record
             .take()
+            .or_else(|| self.close_set())
             .or_else(|| self.key.take())
             .or_else(|| self.check.take())
             .or_else(|| self.private.take())

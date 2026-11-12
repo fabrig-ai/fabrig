@@ -198,6 +198,10 @@ pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Bo
                     }
                 }
             }
+            c::SettingValue::Overlay(overlay) => {
+                if let Some(model) = &overlay.model && let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me) { return Some(why); }
+                if let Some(models) = &overlay.alternatives { for model in models { if let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me) { return Some(why); } } }
+            }
             c::SettingValue::Charter(charter) => {
                 if let Some(why) = setting_effort(index, &charter.model.name, charter.model.effort.as_ref(), me) {
                     return Some(why);

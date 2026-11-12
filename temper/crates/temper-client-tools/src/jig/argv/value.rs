@@ -296,7 +296,7 @@ pub(crate) fn encode(table: &[&Tool], kind: Kind, value: &Value) -> Result<Box<[
             };
             Box::from(bytes)
         }
-        Value::Switch => return Err(Unwritten::NoForm),
+        Value::SettingsFile(_) | Value::Switch => return Err(Unwritten::NoForm),
         Value::Tool(id) => Box::from(table.get(usize::from(*id)).ok_or(Unwritten::NoForm)?.name),
     })
 }

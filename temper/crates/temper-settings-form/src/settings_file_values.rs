@@ -20,8 +20,9 @@ pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overla
             charters.push(name.into()).expect("bounded names");
         }
     }
-    let mut parts = charter_parts(d, optional(&fields, b"parts"))?;
-    if optional(&fields, b"resume").is_some_and(|at| d.boolean(at).unwrap_or(false)) && !parts.is_empty() {
+    let parts = charter_parts(d, optional(&fields, b"parts"))?;
+    if let Some(at) = optional(&fields, b"resume")
+        && d.boolean(at)? && !parts.is_empty() {
         return Err(error(b"overlay.parts", b"a charter that resumes takes no parts"));
     }
     Ok(c::Overlay {
@@ -30,7 +31,7 @@ pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overla
             Some(at) => d.words(at, d.limits.charter_instructions, b"overlay.instructions")?,
             None => c::Text::new(Box::from(b"".as_slice()), d.limits.charter_instructions).expect("empty text"),
         },
-        parts: core::mem::replace(&mut parts, List::with_capacity(0)),
+        parts,
         rest: match optional(&fields, b"rest") { Some(at) => Some(d.boolean(at)?), None => None },
         model: match optional(&fields, b"model") { Some(at) => Some(setting_model(d, at)?), None => None },
         alternatives: match optional(&fields, b"alternatives") { Some(at) => Some({ let positions = d.array(at, d.limits.charter_alternatives, b"overlay.alternatives")?;

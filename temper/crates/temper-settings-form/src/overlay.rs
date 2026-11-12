@@ -28,9 +28,7 @@ pub fn directories(items: &List<c::SettingItem>) -> List<DirectoryName> {
         if let c::SettingEdit::Set(set) = &value.edit
             && let c::SettingValue::Overlay(overlay) = &set.value
         {
-            let mut parts = List::uncapped();
-        for part in &overlay.parts { parts.push(part.clone()).expect("bounded parts"); }
-        for (index, path) in overlay.charters.iter().enumerate() {
+            for (index, path) in overlay.charters.iter().enumerate() {
                 out.push(DirectoryName {
                     item: u32::try_from(item).expect("bounded item").checked_add(1).expect("item number"),
                     index: u32::try_from(index).expect("bounded directory"),
@@ -42,13 +40,14 @@ pub fn directories(items: &List<c::SettingItem>) -> List<DirectoryName> {
     out
 }
 /// Context shared by host read failures and the pure assembly's refusals.
-#[expect(clippy::disallowed_macros, reason = "input boundary renders item and directory diagnostics")]
+#[expect(clippy::disallowed_macros, clippy::disallowed_methods, reason = "input boundary validates and renders UTF-8 directory diagnostics")]
 #[must_use]
 pub fn refusal(name: &DirectoryName, why: &str) -> Box<[u8]> {
     format!("settings file item {}: overlay.charters[{}]: \"{}\": {why}", name.item, name.index,
         core::str::from_utf8(&name.path).unwrap_or("<non-UTF-8 directory>")).into_bytes().into_boxed_slice()
 }
 /// Assemble every named set, including the files the selected charter does not take.
+#[expect(clippy::disallowed_methods, reason = "the input boundary validates directory names and Markdown as UTF-8")]
 pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: &Limits) -> Result<(), Box<[u8]>> {
     for (item, value) in items.iter_mut().enumerate() {
         let c::SettingEdit::Set(set) = &mut value.edit else { continue };
@@ -61,7 +60,9 @@ pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: 
                 item: u32::try_from(item).expect("item count").checked_add(1).expect("item number"),
                 index: u32::try_from(index).expect("directory count"), path: path.clone(),
             };
-            let Some(directory) = inputs.iter().find(|input| input.path == *path) else {
+            let mut found = None;
+            for input in inputs { if input.path == *path { found = Some(input); break; } }
+            let Some(directory) = found else {
                 return Err(refusal(&name, "directory: could not be read"));
             };
             let mut set = Set { common: None, goal: None, designer: None, coordinator: None, implementer: None };
@@ -81,7 +82,7 @@ pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: 
                     None => {}
                 }
             }
-            let goal = temper_charter_set::goal_agent(&set, reason).map_err(|why| assembly_refusal(&name, &why))?;
+            let goal = match temper_charter_set::goal_agent(&set, reason) { Ok(goal) => goal, Err(why) => return Err(assembly_refusal(&name, &why)) };
             let instructions = if number.number == 5 { goal.instructions } else { temper_charter_set::implementer(&set) };
             overlay.instructions = join(&overlay.instructions, &instructions, limits.settings.charter_instructions)?;
             if number.number == 5 {
@@ -121,8 +122,9 @@ pub fn join(first: &c::Text, second: &[u8], maximum: u32) -> Result<c::Text, Box
     let first = trim(first.bytes());
     let second = trim(second);
     let separator = if first.is_empty() || second.is_empty() { b"".as_slice() } else { b"\n\n" };
-    let length = first.len().checked_add(separator.len()).and_then(|n| n.checked_add(second.len()))
-        .ok_or(Box::from(b"settings file: overlay.instructions: bound".as_slice()))?;
+    let length = first.len().checked_add(separator.len()).ok_or(Box::<[u8]>::from(b"settings file: overlay.instructions: bound".as_slice()))?;
+    let length = length.checked_add(second.len())
+        .ok_or(Box::<[u8]>::from(b"settings file: overlay.instructions: bound".as_slice()))?;
     if length > usize::try_from(maximum).expect("instruction bound") {
         return Err(Box::from(b"settings file: overlay.instructions: bound".as_slice()));
     }

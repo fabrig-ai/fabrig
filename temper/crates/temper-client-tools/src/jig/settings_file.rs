@@ -22,7 +22,7 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
     }
 }
 pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings, Box<[u8]>> {
-    let slot = call.values.first().and_then(Option::as_ref);
+    let slot = match call.values.first() { Some(slot) => slot.as_ref(), None => None };
     let files = match slot {
         Some(Values::One(v)) => core::slice::from_ref(v),
         Some(Values::Many(v)) => v,
@@ -35,10 +35,10 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
         let (name, decoded) = match file {
             Value::Text(bytes) => (b"-".as_slice(), settings_form::file::decode(bytes, &form_limits)),
             Value::SettingsFile(input) => {
-                let decoded = settings_form::file::decode(&input.bytes, &form_limits).and_then(|mut items| {
-                    settings_form::overlay::assemble(&mut items, input.directories.as_slice(), &form_limits)?;
-                    Ok(items)
-                });
+                let decoded = match settings_form::file::decode(&input.bytes, &form_limits) {
+                    Ok(mut items) => match settings_form::overlay::assemble(&mut items, input.directories.as_slice(), &form_limits) { Ok(()) => Ok(items), Err(why) => Err(why) },
+                    Err(why) => Err(why),
+                };
                 (input.name.as_ref(), decoded)
             }
             Value::File(_) | Value::Stdin | Value::Number(_) | Value::Word(_) | Value::Duration(_)
@@ -47,13 +47,14 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
                 return Err(Box::from(b"settings file: FILE: input not loaded".as_slice()));
             }
         };
-        let decoded = decoded.map_err(|why| if files.len() > 1 { named_refusal(name, &why) } else { why })?;
+        let decoded = match decoded { Ok(items) => items, Err(why) => return Err(if files.len() > 1 { named_refusal(name, &why) } else { why }) };
         if !settings_form::overlay::directories(&decoded).is_empty() {
             return Err(Box::from(b"settings file: overlay.charters: directories not loaded".as_slice()));
         }
         for (index, next) in decoded.iter().enumerate() {
             let item = u32::try_from(index).expect("bounded item").checked_add(1).expect("item number");
-            let previous = items.iter().position(|old| old.setting == next.setting);
+            let mut previous = None;
+            for (index, old) in items.iter().enumerate() { if old.setting == next.setting { previous = Some(index); break; } }
             if let Some(index) = previous {
                 let (first_file, first_item) = origins.get(u32::try_from(index).expect("item index")).expect("origin");
                 let old = items.get_mut(u32::try_from(index).expect("item index")).expect("previous item");
@@ -90,7 +91,7 @@ fn overlay_mut(edit: &mut settings_form::view::SettingEdit) -> Option<&mut setti
     if let settings_form::view::SettingEdit::Set(set) = edit
         && let settings_form::view::SettingValue::Overlay(v) = &mut set.value { Some(v) } else { None }
 }
-#[expect(clippy::disallowed_macros, reason = "settings input boundary names the conflicting files and items")]
+#[expect(clippy::disallowed_macros, clippy::disallowed_methods, reason = "settings input boundary names the conflicting files and items as UTF-8")]
 fn conflict(setting: settings_form::view::Setting, first: &settings_form::view::SettingEdit, second: &settings_form::view::SettingEdit, first_file: &[u8], first_item: u32, second_file: &[u8], second_item: u32) -> Box<[u8]> {
     let mut measured = settings_form::Text::measure(); settings_form::render::setting_text(setting, &mut measured);
     let mut text = settings_form::Text::writing_exact(measured); settings_form::render::setting_text(setting, &mut text);
@@ -113,24 +114,24 @@ fn merge(first: &mut settings_form::view::Overlay, second: &settings_form::view:
     let mut parts = List::uncapped();
     for part in first.parts.iter().chain(second.parts.iter()) { parts.push(part.clone()).expect("bounded parts"); }
     first.parts = parts;
-    if second.rest.is_some() { first.rest = second.rest.clone(); }
-    if second.model.is_some() { first.model = second.model.clone(); }
-    if second.alternatives.is_some() { first.alternatives = second.alternatives.clone(); }
-    if second.inspect.is_some() { first.inspect = second.inspect.clone(); }
-    if second.modify.is_some() { first.modify = second.modify.clone(); }
-    if second.shell.is_some() { first.shell = second.shell.clone(); }
-    if second.agents.is_some() { first.agents = second.agents.clone(); }
-    if second.tools.is_some() { first.tools = second.tools.clone(); }
-    if second.hosts.is_some() { first.hosts = second.hosts.clone(); }
-    if second.waiting.is_some() { first.waiting = second.waiting.clone(); }
-    if second.resume.is_some() { first.resume = second.resume.clone(); }
-    if second.turns.is_some() { first.turns = second.turns.clone(); }
-    if second.time.is_some() { first.time = second.time.clone(); }
-    if second.reserve_turns.is_some() { first.reserve_turns = second.reserve_turns.clone(); }
-    if second.reserve_time.is_some() { first.reserve_time = second.reserve_time.clone(); }
-    if second.call_timeout.is_some() { first.call_timeout = second.call_timeout.clone(); }
-    if second.spend.is_some() { first.spend = second.spend.clone(); }
-    if second.documents.is_some() { first.documents = second.documents.clone(); }
+    if second.rest.is_some() { first.rest = second.rest; }
+    if second.model.is_some() { first.model.clone_from(&second.model); }
+    if second.alternatives.is_some() { first.alternatives.clone_from(&second.alternatives); }
+    if second.inspect.is_some() { first.inspect = second.inspect; }
+    if second.modify.is_some() { first.modify = second.modify; }
+    if second.shell.is_some() { first.shell = second.shell; }
+    if second.agents.is_some() { first.agents = second.agents; }
+    if second.tools.is_some() { first.tools = second.tools; }
+    if second.hosts.is_some() { first.hosts.clone_from(&second.hosts); }
+    if second.waiting.is_some() { first.waiting = second.waiting; }
+    if second.resume.is_some() { first.resume = second.resume; }
+    if second.turns.is_some() { first.turns = second.turns; }
+    if second.time.is_some() { first.time = second.time; }
+    if second.reserve_turns.is_some() { first.reserve_turns = second.reserve_turns; }
+    if second.reserve_time.is_some() { first.reserve_time = second.reserve_time; }
+    if second.call_timeout.is_some() { first.call_timeout = second.call_timeout; }
+    if second.spend.is_some() { first.spend = second.spend; }
+    if second.documents.is_some() { first.documents.clone_from(&second.documents); }
     Ok(())
 }
 
@@ -142,4 +143,10 @@ pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box
         out.push(settings_adapter::client_setting_item(item)).expect("one client item per form item");
     }
     Ok(out)
+}
+
+/// Directories named by a bounded, decoded input file; the host never parses JSON.
+pub fn directories(bytes: &[u8], limits: &Limits) -> Result<List<settings_form::overlay::DirectoryName>, Box<[u8]>> {
+    let items = settings_form::file::decode(bytes, &settings_adapter::limits(limits))?;
+    Ok(settings_form::overlay::directories(&items))
 }

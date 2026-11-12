@@ -42,6 +42,7 @@ impl OneShot {
                 }
                 self.directory.load_key(arguments::key_file(call).expect("key file"), arguments::key_bytes(call));
             }
+            Parsed::Call { call, .. } if super::settings_input::settings(call) => self.start_settings_input(),
             Parsed::Call { call, .. } => {
                 if let Some((index, path)) = text_file(call) {
                     self.directory.load_text(
@@ -72,7 +73,11 @@ impl OneShot {
             }
             return;
         }
+        if self.finish_settings_input() { return; }
         let Some(bytes) = self.directory.link.take() else { return };
+        if let Some(Parsed::Call { call, .. }) = &self.call && super::settings_input::settings(call) {
+            self.settings_input_bytes(bytes); return;
+        }
         match self.call.take().expect("input's call") {
             Parsed::File { file, json } => match jig::json::call(TOOLS, &bytes, file, &self.root_env.limits.tools) {
                 Ok(call) => {
@@ -175,6 +180,7 @@ impl OneShot {
     fn file_input(&self) -> bool {
         match &self.call {
             Some(Parsed::File { file: Source::Path(_), .. }) => true,
+            Some(Parsed::Call { call, .. }) if super::settings_input::settings(call) => self.settings_file_input(call),
             Some(Parsed::Call { call, .. }) => {
                 call.tool == temper_client_tools::jig::rows::EXPORT_AT
                     || arguments::key_file(call).is_some()

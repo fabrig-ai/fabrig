@@ -505,7 +505,8 @@ fn whole_policy(page: &Readout, setting: c::Setting, against: u32) -> Option<Box
     match &document.value {
         Some(c::SettingValue::Policy(policy)) => Some(policy.clone()),
         Some(
-            c::SettingValue::Charter(_)
+            c::SettingValue::Overlay(_)
+            | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
             | c::SettingValue::Model(_)

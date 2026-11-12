@@ -723,7 +723,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
 }
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
-        overlay: v.overlay.as_ref().map(|v| Box::new(form_overlay(v))),
+        overlay: match &v.overlay { Some(v) => Some(Box::new(form_overlay(v))), None => None },
         setting: form_setting(v.setting),
         revision: v.revision,
         value: match &v.value {
