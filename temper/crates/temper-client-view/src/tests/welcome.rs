@@ -79,10 +79,10 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
 }
 fn temper_and_end(root: &d::Domain) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
-        assert_eq!(f::text(view.tree()).as_ref(), b"temperLivePat");
+        assert_eq!(f::text(view.tree()).as_ref(), b"temperLive");
         super::frame::assert_top_end(
             &view,
-            &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
+            &[(Role::Region, None)],
         );
         let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
         assert_eq!(main.size, 1, "the main has no children");
@@ -503,7 +503,7 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
-fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
+fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);
     let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
@@ -520,7 +520,7 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
     );
     super::frame::assert_top_end(
         &view,
-        &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
+        &[(Role::Region, None)],
     );
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     assert_eq!(tree.nodes()[banner].styles.as_slice(), [crate::look::TOP]);
@@ -530,7 +530,6 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
     let mut child = 1;
     for (role, style) in [
         (Role::Link, crate::look::BRAND),
-        (Role::Slot, crate::look::WELCOME_BOX_LINE),
         (Role::List, crate::look::FLOW_STEPS),
         (Role::Slot, crate::look::TOP_END),
     ] {
@@ -539,18 +538,6 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
         child += usize::try_from(banner[child].size).unwrap();
     }
     assert_eq!(child, banner.len(), "the end finishes the banner");
-    let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
-    let runs: Vec<_> = banner[line + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
-    assert_eq!(
-        runs,
-        [
-            (skein_ui::Run::Strong, b"temper box".as_slice()),
-            (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
-        ]
-    );
-    let server = banner.iter().find(|n| n.role == Role::Link && n.external.is_some()).unwrap();
-    assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
-    assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
     assert!(banner.iter().any(|n| n.role == Role::List && n.name.as_deref() == Some(b"Steps".as_slice())));
     for role in [Role::Disclosure, Role::Navigation] {
         assert!(!tree.nodes().iter().any(|node| node.role == role));
@@ -558,6 +545,54 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
     assert!(f::find(tree, Role::Region, b"Playground").is_none());
     assert!(!String::from_utf8_lossy(&f::text(tree)).contains("No model yet"));
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 3);
+}
+#[test]
+fn every_welcome_step_keeps_the_person_and_sign_out_alert_out_of_the_bar() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let mut root = f::welcome_root(step, true);
+        f::root_event(&mut root, d::Event::Client { event: jig_client::Event::SignOutLost });
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            super::frame::assert_top_end(&view, &[(Role::Region, None)]);
+            assert!(f::find(view.tree(), Role::Button, b"Sign out").is_none());
+            assert!(f::find(view.tree(), Role::Alert, b"Sign out did not reach the engine.").is_none());
+        }
+    }
+}
+#[test]
+fn the_box_paragraph_follows_the_cards_note_only_on_the_welcome_step() {
+    for offered in [true, false] {
+        let root = if offered {
+            f::welcome_root(Step::WelcomeAsked, true)
+        } else {
+            f::forge_root_accounts(Address::Welcome { step: Step::WelcomeAsked }, forge::rows(w::Connection::Connecting, w::Offer::Offered)).0
+        };
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            let line = tree.nodes().iter().find(|n| styled(tree, n.id, crate::look::WELCOME_BOX_NOTE)).unwrap();
+            assert_eq!(line.role, Role::Paragraph);
+            let main = tree.nodes().iter().find(|n| n.role == Role::Main).unwrap();
+            assert_eq!(forge::parent(tree, line.id), Some(main.id));
+            let before = if offered { crate::look::WELCOME_AFTER } else { crate::look::WELCOME_CHOICES };
+            let previous = tree.nodes().iter().find(|n| styled(tree, n.id, before)).unwrap();
+            let start = tree.nodes().iter().position(|n| n.id == previous.id).unwrap();
+            assert_eq!(tree.nodes()[start + usize::try_from(previous.size).unwrap()].id, line.id);
+            let start = tree.nodes().iter().position(|n| n.id == line.id).unwrap();
+            let runs: Vec<_> = tree.nodes()[start + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
+            assert_eq!(runs, [
+                (skein_ui::Run::Strong, b"temper box".as_slice()),
+                (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
+            ]);
+            let server = &tree.nodes()[start + 2];
+            assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
+            assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
+        }
+    }
+    for step in [Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let root = f::welcome_root(step, true);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
+        }
+    }
 }
 #[test]
 fn an_empty_store_offers_both_cards() {
