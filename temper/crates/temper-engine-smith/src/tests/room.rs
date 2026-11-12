@@ -35,9 +35,14 @@ fn measured_limits() -> run::Limits {
 
 fn configured(policy: &engine::RunPolicy) -> engine::Charter {
     engine::Charter {
-        number: 1, rest: false, policy: policy.clone(),
-        hosts: jig_domain_fleet::Kinds::Workers, spend: 1,
-        wake: tasks::WakePolicy::DEFAULT, documents: Box::new([]), parts: Box::new([]),
+        number: 1,
+        rest: false,
+        policy: policy.clone(),
+        hosts: jig_domain_fleet::Kinds::Workers,
+        spend: 1,
+        wake: tasks::WakePolicy::DEFAULT,
+        documents: Box::new([]),
+        parts: Box::new([]),
     }
 }
 
@@ -132,7 +137,10 @@ fn policy_text_is_counted_as_smith_renders_it() {
                 }
                 assignment.run.policy.alternatives = models.into_boxed();
                 assignment.run.sources = sources.into_boxed();
-                assert_eq!(table.non_brief(&configured(&assignment.run.policy)), non_brief(&charter(&assignment), &limits));
+                assert_eq!(
+                    table.non_brief(&configured(&assignment.run.policy)),
+                    non_brief(&charter(&assignment), &limits)
+                );
             }
         }
     }
@@ -156,7 +164,11 @@ fn all_parts_are_counted_as_smith_renders_them() {
             jig_domain_core::CharterPart { on: tasks::Reasons::FIRST, instructions: first.into() },
             jig_domain_core::CharterPart { on: tasks::Reasons::WORDS, instructions: last.into() },
         ]);
-        assignment.run.policy.instructions = [instructions, b"\n\n", first, b"\n\n", last].concat().into();
+        let mut joined = skein_lib::Writer::new(instructions.len() + first.len() + last.len() + 4);
+        for text in [instructions, b"\n\n", first, b"\n\n", last] {
+            joined.put(text).unwrap();
+        }
+        assignment.run.policy.instructions = joined.finish();
         assert_eq!(table.non_brief(&source), non_brief(&charter(&assignment), &limits));
     }
 }

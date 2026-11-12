@@ -48,9 +48,13 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
             }
             charter.policy.instructions = bytes.into_boxed();
             if let Some(bytes) = part {
+                let mut instructions = skein_lib::List::with_capacity(u32::try_from(bytes).unwrap());
+                for _ in 0..bytes {
+                    instructions.push(b'x').unwrap();
+                }
                 charter.parts = Box::new([jig_domain_core::CharterPart {
                     on: jig_domain_tasks::Reasons::FIRST,
-                    instructions: vec![b'x'; bytes].into_boxed_slice(),
+                    instructions: instructions.into_boxed(),
                 }]);
             }
         }
@@ -85,8 +89,10 @@ fn defaults_leaving_2048_bytes_start() {
 #[test]
 fn default_parts_are_counted_before_start() {
     let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
-    assert_eq!(startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,536; it needs at least 2,048\n");
+    assert_eq!(
+        startup::lines(&found).as_ref(),
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,536; it needs at least 2,048\n"
+    );
     start(4_000, None).expect("without the part the default fits");
 }
 
@@ -99,16 +105,18 @@ fn default_parts_are_counted_before_start() {
 fn stock_charters_leave_at_least_2048_bytes() {
     let host = temper_engine_smith::room::host_part(&agent().run_limits);
     let generated = super::stock::generated();
-    for profile in [b"\"small\"".as_slice(), b"\"standard\""] {
+    for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
         let document = fixtures::with(&generated, b"engine.limits.profile", profile);
         let engine = super::stock::engine(&document);
         let mut problems = startup::Problems::empty();
         startup::checks::room(&engine, host, &mut problems);
         assert!(problems.is_empty(), "{:?}", startup::lines(&problems));
         for charter in &engine.charters {
-            let resolved = jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core).unwrap();
+            let resolved =
+                jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
+                    .unwrap();
             let room = host.room(&resolved);
-            std::eprintln!("stock charter {}: profile {profile:?}, room {room}, bound {}", charter.number, host.bound);
+            std::eprintln!("stock charter {}: profile {name}, room {room}, bound {}", charter.number, host.bound);
             assert!(room >= ENOUGH);
             if charter.number == 5 {
                 let mut without = resolved.clone();

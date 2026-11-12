@@ -425,19 +425,11 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
-                if phase == core::start::Phase::LoadCore {
-                    // Rebuild current charters over the restored settings before judging their room.
-                    // A first start has only supplied defaults; start_done tells those settings once.
-                    if domain.core.counters.deployment().commits != 0
-                        && !domain.core.settings_restored(&environment_core(env))
-                    {
-                        domain.stop_core();
-                        return;
-                    }
-                    if let Err(short) = domain.check_room() {
-                        domain.stop_start(crate::StartStop::Room(short));
-                        return;
-                    }
+                if phase == core::start::Phase::LoadCore
+                    && let Err(short) = domain.check_room()
+                {
+                    domain.stop_start(crate::StartStop::Room(short));
+                    return;
                 }
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
@@ -747,10 +739,7 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
 
 /// Only charter values set at an entrance are checked; resets and stored
 /// proposal acceptances retain their admitted values (temper/docs/design/domain/agent/tools.md).
-pub(crate) fn room_refusal(
-    domain: &Domain,
-    items: &[core::settings::Item],
-) -> Option<people::Refusal> {
+pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> Option<people::Refusal> {
     use core::settings::{Edit, Setting, Value};
     let host = domain.host_part?;
     for (index, item) in items.iter().enumerate() {
@@ -768,7 +757,9 @@ pub(crate) fn room_refusal(
                     made = core::settings::overlaid(default, overlay);
                     &made
                 }
-                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => continue,
+                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
+                    continue;
+                }
             };
             if let Err(short) = host.check(charter) {
                 return Some(people::Refusal::Judged {

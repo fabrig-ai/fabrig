@@ -42,9 +42,10 @@ fn parts_include_their_join_and_the_joined_text_ending() {
     ]);
     // Both joining blank lines count; the final empty part leaves a newline for smith.
     assert_eq!(TABLE.non_brief(&charter) - empty, 3_005);
-    let part = charter.parts.first_mut().unwrap();
-    part.instructions = b"x\n".as_slice().into();
-    charter.parts = charter.parts.into_vec().into_iter().take(1).collect();
+    charter.parts = Box::new([jig_domain_core::CharterPart {
+        on: jig_domain_tasks::Reasons::FIRST,
+        instructions: b"x\n".as_slice().into(),
+    }]);
     assert_eq!(TABLE.non_brief(&charter) - empty, 5);
     charter.parts.first_mut().unwrap().instructions = b"x".as_slice().into();
     assert_eq!(TABLE.non_brief(&charter) - empty, 5);
