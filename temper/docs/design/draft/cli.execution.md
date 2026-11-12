@@ -13,7 +13,7 @@
 | C5, features out of temper, each reporting the binaries' sizes before and after: `forge` and `worker` as crates; the recorders' shared journey and redaction code in a crate of its own, then the TUI's recorder; the web's `record`, `small-window`, `loopback-navigation` (with `skein-ui-web`'s) and `playground` | 6, 8.8 | temper/migration for `forge` and `worker`; temper/tui for the shared code and the TUI's recorder, telling temper/ui first; temper/ui for the web's | C1 | none | not started |
 | C6, `temper-worker` and `temper-agent` in `temper/bin/`, with their tables | 4.4, 4.5 | temper/migration, with `deployment-binaries.execution.md`'s M3 and M4 | C1 | none | done |
 | C7, the site: `temper` at the short link, gzipped, and `temper-box` in each commit's directory, with the download line | 5, 8.9 | whoever runs the site's release job, with `deployment-binaries.execution.md`'s M6 | C2, C3 | on a fresh machine, the download line starts the box | not started |
-| C8, temper's tools and fixtures in `temper/bin/`, as internal binaries | 3.1 | temper/ui | C1 | none | not started |
+| C8, temper's tools and fixtures in `temper/bin/`, as internal binaries | 3.1 | temper/ui | C1 | none | done |
 
 ## 2. Order
 

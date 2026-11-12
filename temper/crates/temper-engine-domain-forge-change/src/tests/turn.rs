@@ -85,7 +85,7 @@ fn a_prepare_ask_requires_its_head_and_the_writer_slot() {
     let mut f = prepare_facts();
     f.writer_taken = true;
     let blocked = step(&ready(), &f, &heard(), at(60), &LIMITS);
-    assert_eq!(blocked.decision, Decision::Wait { until: None });
+    assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
     f.writer_taken = false;
     f.ask = Some(Ask::Prepare { head: NEW, main: BASE });
     assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));

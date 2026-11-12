@@ -181,7 +181,7 @@ that changes the stock changes nothing of them.
   `tier_retries` and `verification_bound_ms` are left to their
   defaults.
 - **Charter 5's triage** (`../../draft/reference-code-production.md`,
-  sections 10 and 13; `../../draft/reference-landing.md`, section 6), in
+  sections 10 and 13; `../../draft/archive/reference-landing.md`, section 6), in
   its instructions beside the rest: on a red of g's tier, as news, it
   reads the failing tests, the log's end, the tree and the design, and
   finds the change that owns the failing files; a live change's failure
@@ -233,7 +233,7 @@ that changes the stock changes nothing of them.
   repair while its changes live, by the triage below; a run of the tier
   in flight as the last change ends is not waited for: the landing's CI,
   the project's full gate, checks the whole.
-- **A triage delegate** (`../../draft/reference-landing.md`, section 6):
+- **A triage delegate** (`../../draft/archive/reference-landing.md`, section 6):
   *charter 8, the triage's*, in the settings file, read-only as charter
   6 is (inspect and the forge's reads; no modify, no shell, no
   sub-agents), at gpt-6.1-sol; its instructions: its words carry a
@@ -427,7 +427,7 @@ that changes the stock changes nothing of them.
   the project's checks are its `.temper/pre-pr` (smith's
   `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
-  pins (`../../domain/worker.md`, section 5), the lints of the packages the
+  pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
   direct dependents; a lint or test failure the repository's
   `.temper/known-reds.md` lists, and a counted baseline or citation the
@@ -475,3 +475,32 @@ that changes the stock changes nothing of them.
 
 The reference's charter 6 also returns `finish` for a red the change did not
 cause, with that red on the asker's Left list (2026-11-04).
+
+## 1. Open questions
+
+- **The reference's later runs** (`reference.md`; `../../draft/per-wake.md`,
+  sections 10 and 11): compare high with medium after observing runs
+  that read their selected parts, and decide whether the cut should
+  settle entries. Documents per part, choices per wake kind, parts for
+  resumed runs and offering a message with its part remain deferred in
+  that draft. Default: four fresh-run parts, xhigh first and high later,
+  documents shared by every run, and entries outside a run's parts
+  left for the next run.
+
+- **The checks' deadline** (`reference.md`): `.temper/pre-pr` names each check
+  before it starts (`tools/pre-pr/design.md`, section 4), so a timeout's
+  tail shows where it stopped; with lints and focused tests it builds, and
+  the agent's 60-second `check_timeout` is the owner's to raise, separately
+  (2026-11-09). Default: 60 seconds, with smith's check path and given time
+  in the refusal.
+
+- **Who writes the case's workflows** (`reference.md`). The repository a case runs
+  on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
+  to meet them. Who writes them, and the runner's budget they take, are
+  the user's, open since 2026-11-03, with no default: the walk's copy of
+  fabrig carries them, written for the box that runs the case, CI
+  running the gate's nextest profiles whole, `tier-goal.yml` the gate
+  without its slowest suites and `tier-slow.yml` the slow tiers, within
+  a runner budget the user sets; or fabrig carries them under
+  `.forgejo/workflows/` once that budget is set; or the case runs on a
+  smaller repository than fabrig, whose workflows are cheap.

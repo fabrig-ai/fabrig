@@ -90,6 +90,8 @@ pub(crate) fn world() -> PersonWorld {
     bounds.tasks.batch = 4;
     bounds.tasks.spec_bytes = 512;
     bounds.tasks.parameters = 8;
+    // Nine narrowed forge grants, each with this repository's 30 name bytes.
+    bounds.tasks.authority_bytes = 270;
     bounds.tasks.inbox_messages = 8;
     bounds.tasks.inbox_bytes = 8 * bounds.tasks.message_bytes;
     bounds.tasks.run_inbox = 8;

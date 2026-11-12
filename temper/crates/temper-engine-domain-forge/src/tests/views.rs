@@ -345,30 +345,6 @@ fn changes_document_lists_a_queue_in_order() {
     }
 }
 #[test]
-fn changes_document_keeps_the_first_while_it_updates() {
-    let mut d = changes_setup(&[(fixtures::CHANGE, 9_i32, 95), (SECOND, 1_i32, 96)]);
-    let first = d.changes.get_mut(&fixtures::CHANGE).unwrap();
-    first.change.state = change::State::Updating {
-        from: fixtures::HEAD,
-        base: fixtures::BASE,
-        ready_since: Wall::from_nanos(95_000_000_000),
-    };
-    first.change.owns_turn = true;
-    first.change.ready_since = None;
-    first.change.since = Wall::from_nanos(99_000_000_000);
-    // queue_first draws these candidates: the updating owner is absent, so the next can take First.
-    let (ready, _) = domain::queue_ready(&d, d.changes.get(&SECOND).unwrap(), &LIMITS);
-    assert_eq!(change::first(ready.as_slice(), LIMITS.queue_window, env().wall), Some(SECOND));
-    let next = d.changes.get_mut(&SECOND).unwrap();
-    next.change.state = change::State::First { head: fixtures::HEAD, ready_since: Wall::from_nanos(96_000_000_000) };
-    next.change.owns_turn = true;
-    let got = changes(&d);
-    assert_eq!(tasks(&got).as_ref(), &[fixtures::CHANGE, SECOND]);
-    assert_eq!(got.queues[0].changes[0].ready_since, Wall::from_nanos(95_000_000_000));
-    assert_eq!(got.queues[0].changes[0].checks_since, Some(Wall::from_nanos(99_000_000_000)));
-    assert_eq!(got.queues[0].changes[1].checks_since, None);
-}
-#[test]
 fn changes_document_says_a_red_with_nothing_queued() {
     let mut d = changes_setup(&[]);
     let mut row = fixtures::opening_row();

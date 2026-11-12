@@ -944,8 +944,7 @@ component's worlds run it (../testing/fakes/github.md, sections 1 and 2).
 - **Repository ids past 32 bits** are `TooLarge`, as Forgejo's.
   github.com's are about a third of the way there. Default: so, until
   the vocabulary widens `Repository`.
-- **The blob host's address,** resolved at start (../runtime/io/README.md, section 3).
-  Default: so; a host that moves is a finding.
+- **The blob host's address:** connection.md, section 11's runtime-DNS question.
 - **A classic rule's merge queue** is not read by `Protection`: the
   merge's refusal finds it (5.1). Default: so.
 

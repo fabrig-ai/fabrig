@@ -98,6 +98,7 @@ enum BriefStage {
     Reviews,
     Remarks,
     Checks,
+    Run,
     Job,
 }
 
@@ -471,6 +472,29 @@ pub(crate) fn brief_answer(
             fetch.checks = checks;
             next_failed_job(&mut fetch)
         }
+        answer if fetch.stage == BriefStage::Run => {
+            let attempt = fetch
+                .checks
+                .get(skein_lib::usize_of(fetch.next_check.saturating_sub(1)))
+                .expect("current check")
+                .job
+                .expect("pinned job");
+            if let Ok(skein_forge::api::Answer::Run(run)) = answer
+                && let Some(reason) = crate::change_ci::runner(&run, attempt, fetch.head.0)
+            {
+                append(&mut fetch.words, b"the runner's: ");
+                append(&mut fetch.words, reason);
+                let reruns = attempt.attempt.saturating_sub(1);
+                if reruns > 0 {
+                    append(&mut fetch.words, b"; run again ");
+                    append(&mut fetch.words, &decimal(u64::from(reruns)));
+                    append(&mut fetch.words, if reruns == 1 { b" time" } else { b" times" });
+                    append(&mut fetch.words, b" at this head, failed again");
+                }
+                append(&mut fetch.words, b"\n");
+            }
+            Some(job_log(&mut fetch, attempt))
+        }
         answer if fetch.stage == BriefStage::Job => {
             match answer {
                 Ok(skein_forge::api::Answer::Job { attempt, step, log, truncated }) if attempt.head == fetch.head.0 => {
@@ -507,7 +531,7 @@ pub(crate) fn brief_answer(
                 }
                 BriefStage::Reviews | BriefStage::Remarks => b"[the reviews could not be read: ",
                 BriefStage::Checks => b"[the failed checks could not be read: ",
-                BriefStage::Job => unreachable!("job failures keep their check's marker"),
+                BriefStage::Job | BriefStage::Run => unreachable!("job failures keep their check's marker"),
             };
             append(&mut fetch.words, marker);
             append(&mut fetch.words, &unread.words);
@@ -803,19 +827,8 @@ fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
         append(&mut fetch.words, b"\n");
         match status.job {
             Some(attempt) if attempt.head == fetch.head.0 => {
-                fetch.stage = BriefStage::Job;
-                let count = total.max(1);
-                let share = fetch
-                    .bytes
-                    .checked_div(count)
-                    .expect("positive check count")
-                    .checked_div(2)
-                    .expect("positive divisor");
-                return Some(skein_forge::api::Read::Job {
-                    part: skein_forge::api::LogPart::End,
-                    attempt,
-                    max_bytes: share.max(1).min(fetch.max_job_bytes),
-                });
+                fetch.stage = BriefStage::Run;
+                return Some(skein_forge::api::Read::Run { run: attempt.run });
             }
             Some(_) | None => {
                 append(&mut fetch.words, b"[no pinned job log for this head]\n");
@@ -827,6 +840,17 @@ fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
 }
 
 /// Keep a whole check head; an oversized head ends the admitted prefix.
+fn job_log(fetch: &mut BriefFetch, attempt: skein_forge::api::JobAttempt) -> skein_forge::api::Read {
+    fetch.stage = BriefStage::Job;
+    let count = u32::try_from(fetch.checks.len()).expect("bounded checks").max(1);
+    let share = fetch.bytes.checked_div(count).expect("positive check count").checked_div(2).expect("positive divisor");
+    skein_forge::api::Read::Job {
+        part: skein_forge::api::LogPart::End,
+        attempt,
+        max_bytes: share.max(1).min(fetch.max_job_bytes),
+    }
+}
+
 fn keep_check(fetch: &mut BriefFetch, log: Box<[u8]>, truncated: bool) {
     let words = core::mem::replace(&mut fetch.words, BriefWords::with_capacity(fetch.bytes, false));
     let ci = fetch.ci.as_mut().expect("CI fetch");
@@ -1091,7 +1115,7 @@ pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<
         let Some(owner) = expired_owner(domain, now) else { break };
         let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
         refused(fetch.owner, fetch.stage, "the forge client is busy", None, Some(skein_forge::api::Error::Busy), out);
-        if fetch.stage == BriefStage::Job {
+        if fetch.stage == BriefStage::Job || fetch.stage == BriefStage::Run {
             // Each remaining pinned job has the same unavailable-log marker.
             for _ in 0..=fetch.checks.len() {
                 append(&mut fetch.words, b"[job log could not be read]\n");
@@ -1163,6 +1187,7 @@ fn refused(
         BriefStage::Remarks => "remarks",
         BriefStage::Checks => "checks",
         BriefStage::Job => "job",
+        BriefStage::Run => "run",
     };
     out.push(Request::BriefReadRefused { section, stage, reason, heads, error });
 }

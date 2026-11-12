@@ -1,0 +1,24 @@
+❯ Plan a farewell line for hello.
+
+  Write this up as a draft beside us.
+
+✦ I wrote the farewell draft beside us. Where should the farewell line go?
+  1. At the end of README.md — it closes the page
+  2. In its own file — the greeting stays alone
+  3. Tell me something else
+
+
+
+
+
+
+
+
+
+
+────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:33987 ──
+❯
+────────────────────────────────────────────────────────────────────────────────
+❯ 1. At the end of README.md   it closes the page
+  2. In its own file           the greeting stays alone
+  3. Tell it something else

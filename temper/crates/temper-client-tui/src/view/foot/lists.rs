@@ -1,4 +1,4 @@
-//! The first standing list (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
+//! The first standing list (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
 use crate::{Own, Scheme, Tui, WalkStep, theme::ThemeChoice, view::front, words::Word};
 use alloc::boxed::Box;
@@ -17,6 +17,9 @@ use temper_client_view::shared;
 pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
     if let Some(quit) = front::quit(root, tui, words) {
         return Some(quit);
+    }
+    if let Some(start) = root.pages().start() {
+        return Some(goal(root, start, words));
     }
     if tui.theme_list() {
         return Some(theme(tui, words));
@@ -123,6 +126,47 @@ pub(crate) fn reply(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> 
         items: items.into_boxed(),
         escape: Event::ReplyAside { turn },
     })
+}
+
+fn goal(root: &Domain, start: &temper_client_domain::pages::start_goal::StartGoal, words: &Words) -> Options {
+    let head =
+        words.say(Word::GoalHead, &[Hole::Name(copy_of(temper_client_domain::pages::goal::file_of(&start.draft)))]);
+    let mut items = List::uncapped();
+    if let Some(me) = root.pages().me(root.client()) {
+        let ways = temper_client_view::pages::goals::ways(me, start.project, words.view());
+        for chosen in [true, false] {
+            for way in &ways {
+                let selected = start.way == Some(way.number);
+                if selected != chosen {
+                    continue;
+                }
+                let number = u64::from(items.len()).checked_add(1).expect("way number fits");
+                items
+                    .push(OptionItem {
+                        name: numbered(&way.name, number, words),
+                        words: way.line.clone().unwrap_or_default(),
+                        selected,
+                        event: Event::Way { template: way.number },
+                    })
+                    .expect("project ways fit memory");
+            }
+        }
+    }
+    items
+        .push(OptionItem {
+            name: words.view().say(temper_client_view::words::Word::Cancel, &[]),
+            words: Box::default(),
+            selected: false,
+            event: Event::Act { act: Act::StartCancel },
+        })
+        .expect("cancel fits memory");
+    Options {
+        style: look::OPTION,
+        name: head.clone(),
+        head: Some(head),
+        items: items.into_boxed(),
+        escape: Event::Act { act: Act::StartCancel },
+    }
 }
 
 fn theme(tui: &Tui, words: &Words) -> Options {

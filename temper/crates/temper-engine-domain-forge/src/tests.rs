@@ -38,6 +38,7 @@ mod release;
 mod removal;
 mod requires;
 mod restore_fit;
+mod rules_by_path;
 mod runs;
 mod saved_close;
 mod settings;
@@ -133,6 +134,7 @@ const LIMITS: Limits = Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -522,6 +524,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -615,6 +618,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -701,6 +705,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -2955,7 +2960,7 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
-/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker/jobs.md).
 #[test]
 fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
     use temper_engine_domain_forge_change as change;

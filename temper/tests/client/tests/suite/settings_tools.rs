@@ -605,6 +605,29 @@ fn forge_revision_file(charter: u32, ci: bool) -> String {
 }
 
 #[test]
+fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"landing-rule","project":1,"number":1},"set":{"pattern":{"segments":["6272616e6368"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[],"sets":[1]}}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"sets.json", b"--against", b"1", b"--key", b"rule-sets"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    for json in [false, true] {
+        let mut words = vec![b"settings".as_slice(), b"show", b"landing-rule", b"1", b"--project", b"1"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains("\"sets\":[1]"), "{shown}");
+    }
+}
+
+#[test]
 fn revision_show_keeps_temper_values_after_both_settings_are_overwritten() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);

@@ -24,7 +24,6 @@ struct Exception {
 
 const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },
-    Exception { what: "git-transcripts git-transcripts", until: "cli C8" },
     Exception { what: "github-conformance github-conformance", until: "skein's round" },
     Exception { what: "hearth hearth", until: "hearth's round" },
     Exception { what: "jig-test jig-test", until: "jig's round" },
@@ -48,11 +47,6 @@ const LAYOUT_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-fake-claude fake-claude", until: "smith's round" },
     Exception { what: "smith-fake-claude fake-claude-server", until: "smith's round" },
     Exception { what: "temper-client temper-client", until: "cli C3" },
-    Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
-    Exception { what: "temper-client-gallery temper-client-gallery", until: "cli C8" },
-    Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
-    Exception { what: "temper-stage-one temper-stage-one", until: "cli C8" },
-    Exception { what: "temper-twin twin", until: "cli C8" },
 ];
 const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "forgejo-conformance forgejo-conformance", until: "skein's round" },
@@ -72,9 +66,6 @@ const MAIN_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith smith-agent", until: "smith's round" },
     Exception { what: "smith-bench smith-bench", until: "smith's round" },
     Exception { what: "smith-bench test-peer", until: "smith's round" },
-    Exception { what: "temper-client-browser-world playground-serve", until: "cli C8" },
-    Exception { what: "temper-client-journeys temper-client-journeys", until: "cli C8" },
-    Exception { what: "temper-twin twin", until: "cli C8" },
 ];
 const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "Cargo.toml: temper-protocol-records", until: "cli C5" },
@@ -230,9 +221,12 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/tests/real-loop/Cargo.toml: temper-protocol-records", until: "cli C5" },
     Exception { what: "temper/tests/real-loop/Cargo.toml: temper-service", until: "cli C5" },
     Exception { what: "temper/tests/system/Cargo.toml: temper-service", until: "cli C5" },
-    Exception { what: "temper/tools/journeys/Cargo.toml: temper-client-shell-tui", until: "cli C5" },
-    Exception { what: "temper/tools/stage-one/Cargo.toml: serde", until: "cli C5" },
-    Exception { what: "temper/tools/twin/Cargo.toml: serde_json", until: "cli C5" },
+    Exception {
+        what: "temper/crates/temper-client-journeys-tool/Cargo.toml: temper-client-shell-tui",
+        until: "cli C5",
+    },
+    Exception { what: "temper/crates/temper-stage-one-tool/Cargo.toml: serde", until: "cli C5" },
+    Exception { what: "temper/crates/temper-twin-tool/Cargo.toml: serde_json", until: "cli C5" },
 ];
 
 /// The findings no exception names, and the exceptions that name no

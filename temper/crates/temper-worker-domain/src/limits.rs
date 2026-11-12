@@ -17,7 +17,7 @@ pub struct Limits {
     pub host: host::Limits,
     pub checkout: checkout::Limits,
     pub agent: agent::Limits,
-    /// The job capability's file, process and path bounds (temper/docs/design/domain/worker.md, 4.4).
+    /// The job capability's file, process and path bounds (temper/docs/design/domain/worker/jobs.md).
     pub tooling: tooling::Limits,
     /// The longest host answer the agent takes: smith's `host_reply_bytes`,
     /// its channel's `bodies.host_reply_text`. A hub's answer past it
@@ -28,13 +28,13 @@ pub struct Limits {
     /// place only what fits.
     pub bounds: Bounds,
     /// The longest the worker may take to stop a run it lost contact for
-    /// (`domain/worker.md`, section 2; jig's `domain/hosts/hub.md`, 6), which
+    /// (`domain/worker/README.md`, section 2; jig's `domain/hosts/hub.md`, 6), which
     /// its configuration derives and the hello states. The engine's grace is
     /// strictly longer.
     pub stop_bound: Duration,
     /// The backlog, in entries, at which the worker's service stops taking
     /// new work from the engine (skein's `programming-model.md`, 7.1;
-    /// `domain/worker.md`, 3.1): a limit on pacing, not on memory.
+    /// `domain/worker/README.md`, 3.1): a limit on pacing, not on memory.
     pub watermark: u32,
 }
 

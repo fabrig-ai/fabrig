@@ -49,6 +49,7 @@ fn cancel_task(world: &mut World, task: u64) {
 /// Approval-rule stories shared with the change-panel regression.
 #[path = "forge_routes/approval_identity.rs"]
 pub(super) mod approval_identity;
+mod rules_by_path;
 
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
@@ -895,6 +896,11 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
     let words = ci_words(&repair);
+    assert!(
+        contains(words, b"the runner's: no step failed; run again 1 time at this head, failed again"),
+        "{}",
+        String::from_utf8_lossy(words)
+    );
     assert!(
         contains(words, b"No step failed. End of the job's log:\n[log bytes cut]\n"),
         "{}",

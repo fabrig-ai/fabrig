@@ -240,3 +240,20 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
 - **Pure:** the derivation reads nothing and decides nothing; the root
   gathers what it reads, from the core and the forge, in the decision
   that answers.
+
+## 1. Open questions
+
+- **A closer's stops on a goal's path** (`branch-path.md`; `../branches.md`, 2): its close step's
+  change and its landing draw as a change into the goal's branch and
+  the goal's landing do, with no stop of an agent's; whether the path
+  names them "close" and "land", and a closer's card, is open. Default:
+  as any change's.
+
+- **A close-out's own charter** (`branch-path.md`, *The coordinator's cards*): the
+  "close-out" stop opens the goal template's charter, the coordinator,
+  which makes the close-out, though the reference's is a designer's
+  change (`../../../protocol/configuration/reference.md`) and its card's model and
+  "Asked to" are then the coordinator's. Naming the charter that writes
+  it would be a member of the template's work, kind 11, read where it is
+  set. Default: the coordinator's card, until a draft asks for a
+  close-out's role of its own (`branch-path.md`, *The project's roles*).

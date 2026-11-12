@@ -1,4 +1,4 @@
-//! The browser terminal's conversation walk (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages.md).
+//! The browser terminal's conversation walk (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages/README.md).
 use super::{Entry, Piece, Words, printed, shared};
 use alloc::boxed::Box;
 use jig_client::{
