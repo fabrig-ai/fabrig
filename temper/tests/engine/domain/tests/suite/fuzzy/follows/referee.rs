@@ -23,6 +23,25 @@ impl Referee {
         let mut landed = BTreeMap::new();
         for record in world.store.rows.values() {
             if let Record::Forge { row } = record
+                && let forge::Stored::Change(change) = row.as_ref()
+                && matches!(change.change.state, temper_engine_domain_forge_change::State::Held { .. })
+            {
+                let task = world
+                    .store
+                    .rows
+                    .get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(change.task))))
+                    .or_else(|| {
+                        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change.task))))
+                    });
+                assert!(
+                    matches!(task,
+                    Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))))
+                    if matches!(task.phase, tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_))),
+                    "held change {} must hold its task, unless closing or ended: {task:?}",
+                    change.task
+                );
+            }
+            if let Record::Forge { row } = record
                 && let forge::Stored::Landed { task, .. } = row.as_ref()
             {
                 let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::Change(*task))) else {

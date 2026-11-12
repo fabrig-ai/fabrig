@@ -761,6 +761,72 @@ fn an_asker_that_ends_drops_its_question() {
 }
 
 #[test]
+fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
+    let (mut world, requester, change, producer) = up_world(None);
+    temper_engine_domain_world::kinds::produce(&mut world, change, &producer);
+    let landing = row(&world, change).base.clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &landing, b"file", b"base moved", 1)
+        .expect("base conflicts with the producer");
+    let resolution = super::reviews::next_assignment(&mut world, 3);
+    let number = ask(&mut world, &resolution, change);
+    call(
+        &mut world,
+        &requester,
+        CALL + 1,
+        engine::Tool::Cancel { target: resolution.task, reason: b"stop the asker".as_slice().into() },
+    );
+    park_after_turn(&mut world, &resolution, None, 0);
+    for _ in 0..TICKS {
+        world.tick();
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { source: Some(_), .. })
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(
+        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Failed }
+        if matches!(was.as_ref(), State::Resolving { .. }))
+    );
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, change).phase
+    else {
+        panic!("the ended resolution holds its change with its account: {:?}", live_task(&world, change).phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("resolution's account") };
+    assert_eq!(
+        words.as_ref(),
+        format!("its resolution, task {}, was cancelled: stop the asker", resolution.task).as_bytes()
+    );
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
+    assert_eq!(live_task(&world, change).questions.len(), 1, "the change still owes its own answer");
+    assert!(matches!(live_task(&world, change).escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), .. } if holder == requester.task));
+    world.drain_cut();
+    world.restart(true, true);
+    world.until(Until::Ready);
+    answer(&mut world, &requester, change, CALL + 2);
+    let revision = live_task(&world, change).revisions.hold;
+    call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(row(&world, change).questions.open.is_empty());
+    assert!(live_task(&world, change).questions.is_empty());
+    let expected = format!(
+        "Task {} ended; your answer to its question {number} goes no further: Which behavior should hold?",
+        resolution.task
+    );
+    assert_eq!(
+        replies(&world, requester.task, change)
+            .into_iter()
+            .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == expected.as_bytes())
+            .count(),
+        1
+    );
+    world.close();
+}
+
+#[test]
 fn a_producers_finish_waits_for_its_requesters_answer() {
     let (mut world, requester, change, producer) = up_world(None);
     let number = ask(&mut world, &producer, change);
@@ -859,7 +925,7 @@ fn a_batch_of_one_answers_then_asks_the_next_question() {
     );
 }
 
-fn fill_requester_inbox(world: &mut World, requester: &engine::Assignment) -> u32 {
+pub(super) fn fill_requester_inbox(world: &mut World, requester: &engine::Assignment) -> u32 {
     let mut target = Box::new(live_task(world, requester.task).clone());
     let mut header = world.store.header();
     // The change's terminal keeps one inbox slot; fill the ordinary slots.

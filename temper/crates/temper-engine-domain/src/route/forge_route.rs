@@ -4806,19 +4806,42 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
     }
 }
 
-fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
+fn change_hold_event(task: u64, end: &StepEnd) -> tasks::Event {
+    match end {
+        StepEnd::Hold(why) => tasks::Event::Hold { task, why: *why },
+        StepEnd::HoldFrom { why, source } => tasks::Event::HoldFrom { task, why: *why, source: source.clone() },
+        StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
+    }
+}
+
+// Every hold reaches its task, including a later wake or restore (change/repairs.md).
+fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
+    let task_row = domain.core.tasks.task(task)?;
+    if task_row.due_reason == tasks::Why::Released {
+        return None;
+    }
+    match task_row.phase {
+        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return None,
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => {}
+    }
+    let row = domain.forge.change(task)?;
+    let forge_change::State::Held { why, .. } = row.change.state else { return None };
+    Some(why)
+}
+
+fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice: forge_change::Decision) {
+    if choice == forge_change::Decision::None
+        && let Some(why) = change_rehold(domain, task)
+    {
+        choice = forge_change::Decision::Hold(why);
+    }
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                match hold_change_decision(domain, env, task, why).end {
-                    StepEnd::Hold(why) => domain.work.push(Work::Tasks(tasks::Event::Hold { task, why })),
-                    StepEnd::HoldFrom { why, source } => {
-                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom { task, why, source }));
-                    }
-                    StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
-                }
+                let end = hold_change_decision(domain, env, task, why).end;
+                domain.work.push(Work::Tasks(change_hold_event(task, &end)));
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
@@ -4870,8 +4893,15 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             return;
         }
     };
+    let hold =
+        if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
     let decision = append_change_replies(domain, env, task, decision);
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
+    // The Words copy goes first if admitted. A refused or stale step cannot lose
+    // the hold; jig ignores an identical hold already admitted by that step.
+    if let Some(hold) = hold {
+        domain.work.push(Work::Tasks(hold));
+    }
     // A merge's wake can be coalesced while this change's preceding read is
     // still due. Retry its landed progress after the cached read can expire.
     if again {
