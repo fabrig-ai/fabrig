@@ -195,12 +195,10 @@ impl skein_world::Referee<Proc> for Judge {
         }
         self.arm_write(others);
         let checked = STATE.with(|s| s.borrow().checked);
-        if self.upgrade && checked && !self.client_started && !STATE.with(|s| s.borrow().calibrating) {
+        if self.upgrade && checked && !self.client_started {
             self.start_client(others);
         }
-        let complete = if STATE.with(|s| s.borrow().calibrating) {
-            checked
-        } else if self.upgrade {
+        let complete = if self.upgrade {
             checked && self.store.borrow().agent_records.iter().any(|r| matches!(r, referee::AgentRecord::Start {task, attempt, ..} if STATE.with(|s| *task == s.borrow().task && *attempt > s.borrow().attempt)))
                 && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 3))
                 && self.store.borrow().rows.values().any(|r| matches!(r, temper_engine_domain::Record::Core(Record::Core(CoreRecord::Turn(turn))) if turn.task == 1 && skein_lib::bytes::find(&turn.transcript,b"Paused chat resumed").is_some()))
@@ -210,33 +208,31 @@ impl skein_world::Referee<Proc> for Judge {
                 && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 1))
         };
         if complete && !self.stopped {
-            if !STATE.with(|s| s.borrow().calibrating) {
-                for proc in others.iter() {
-                    if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                        for answer in &caller.answers {
+            for proc in others.iter() {
+                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
+                    for answer in &caller.answers {
+                        assert_eq!(
+                            answer.exit,
+                            skein_io::kernel::Exit::Code(0),
+                            "ctl: {}",
+                            String::from_utf8_lossy(&answer.error)
+                        );
+                    }
+                    if self.upgrade {
+                        STATE.with(|s| {
                             assert_eq!(
-                                answer.exit,
-                                skein_io::kernel::Exit::Code(0),
-                                "ctl: {}",
-                                String::from_utf8_lossy(&answer.error)
+                                caller.answers[0].output,
+                                s.borrow().kept_answer,
+                                "replayed key is answered from its record"
                             );
-                        }
-                        if self.upgrade {
-                            STATE.with(|s| {
-                                assert_eq!(
-                                    caller.answers[0].output,
-                                    s.borrow().kept_answer,
-                                    "replayed key is answered from its record"
-                                );
-                            });
-                        } else {
-                            STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&caller.answers[0].output));
-                        }
+                        });
+                    } else {
+                        STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&caller.answers[0].output));
                     }
                 }
-                if self.upgrade {
-                    continued(&self.store.borrow());
-                }
+            }
+            if self.upgrade {
+                continued(&self.store.borrow());
             }
 
             for proc in others.iter_mut() {

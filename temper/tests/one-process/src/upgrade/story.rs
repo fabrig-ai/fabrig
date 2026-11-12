@@ -85,7 +85,6 @@ struct State {
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
-    calibrating: bool,
     kill_told: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }

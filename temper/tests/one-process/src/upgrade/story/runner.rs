@@ -71,9 +71,7 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
     store.borrow_mut().recovering();
     if let Some(selection) = selection {
         let image = image::Image::read(&mut disk);
-        STATE.with(|s| s.borrow_mut().calibrating = true);
         let _calibration = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, true, None);
-        STATE.with(|s| s.borrow_mut().calibrating = false);
         let before = STATE.with(|s| {
             let s = s.borrow();
             let points = s.points.fixed();
