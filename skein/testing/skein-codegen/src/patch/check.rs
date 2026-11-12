@@ -18,7 +18,7 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
     let base = Crate::base(owner, landed)?;
     let patches = derive::patches(&tree)?;
     let _branch = derive::branch(&tree, &base)?;
-    let frozen = derive::frozen(&derive::patches(&base)?);
+    let frozen = derive::frozen(&derive::patches(&base)?, &base, &tree.wires);
     let mut findings = Vec::new();
     for (family, current) in &tree.current {
         let Some(texts) = tree.kept.get(family) else {
@@ -98,8 +98,10 @@ fn current_findings(
     let renames = derive::confirmed(tree, family, &blocks, &[]);
     let diff = derive::compare(kept, current, &renames)?;
     let frozen = frozen.contains(&(family.to_owned(), kept.version));
-    let verdict = derive::verdict(&diff, frozen);
-    if derive::needs(&diff, frozen) && !moves_to(patches, family, current.version) {
+    let layout_changed = frozen && tree.wires.contains(family) && derive::layout_changed(kept, current)?;
+    let needs = derive::needs(&diff, frozen, layout_changed);
+    let verdict = derive::verdict(&diff, needs);
+    if needs && !moves_to(patches, family, current.version) {
         findings.push(Finding::Unpatched { family: family.into(), version: current.version });
     }
     match verdict {
