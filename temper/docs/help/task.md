@@ -129,9 +129,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
-  `read_task`: specs; `field=result` reads retained reports and Left lists,
-  including changes and reviews, through a proven same-project requester
-  chain. Verdicts print `Verdict: CODE`; offsets count reason bytes.
+  `read_task`: specs and retained results of any task below through a proven same-project requester chain, and tasks its requester waits on; `field=result` reads reports and Left lists, including changes and reviews; for a live task at offset 0 it answers its spec, saying the result comes when it ends.
+  Verdicts print `Verdict: CODE`; offsets count reason bytes.
   `from=next` continues; restart revised specs. Durable question numbers and
   answerers survive delivery: use `message` to the printed target with
   `form=answer` and that `question` number.
