@@ -151,11 +151,20 @@ const SESSION: Settings = Settings {
             twin: None,
             notes: "Given only to the box as TEMPER_INTERNAL_FAKE_BOX_PORTS; a retained sandbox keeps its own ports.",
         },
+        Setting {
+            name: "files",
+            value: "DIR",
+            about: "Read-only directory of the files forge commit lines name.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Optional. Must be an existing directory.",
+        },
     ],
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
-    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST]"],
+    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR]"],
     line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
     settings: &[&SESSION],
     switches: &[Switch {
@@ -165,7 +174,7 @@ pub(crate) const DRIVE: Command = Command {
         notes: "",
     }],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]... makes one commit; forge checks FORGE REPOSITORY waits on its checks. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin} and {git} read the box’s values when run. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
