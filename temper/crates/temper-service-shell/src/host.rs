@@ -52,6 +52,13 @@ impl Host {
             clock: skein_shell::Clock::new(),
         }
     }
+    /// Upgrade refusals name the directory checked, which need not be the configured data directory.
+    #[must_use]
+    pub fn for_upgrade(binary: &str, service: Service, directories: Directories, store: Box<[u8]>) -> Self {
+        let mut host = Self::with_binary(binary, service, directories, &[]);
+        host.store = store;
+        host
+    }
     pub(super) fn keep_link(&self, url: &[u8]) {
         if let Some(path) = &self.link_file
             && let Err(why) = super::link_file::keep(path, url, skein_shell::effective_user())

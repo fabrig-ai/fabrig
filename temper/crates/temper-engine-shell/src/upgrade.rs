@@ -31,6 +31,10 @@ pub fn prepare(directories: &Directories, worker: Option<&dyn WorkerHalf>) -> Re
     }
     let agent = if named.worker.is_some() { Some(worker.expect("checked worker half").preflight(&named)?) } else { None };
     let files = read_files_with_asked(named.files, named.asked_files, skein_shell::effective_user())?;
+    let document = jig_protocol_config::document(&bytes, &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 }).expect("named checked document");
+    let engine = service::startup::engine(&document, crate::member(&document, 0, b"engine"), &jig_directories(directories))
+        .expect("named checked engine");
+    let accounts = crate::serve::accounts(&engine)?;
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("cryptographic seed: errno {errno}"))?;
     let mut installation = [0; 16];
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
@@ -38,7 +42,7 @@ pub fn prepare(directories: &Directories, worker: Option<&dyn WorkerHalf>) -> Re
         &Seeds {
             seed: skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?,
             crypto: drawn, deployment: installation, installation, link_secret: None, local_secret: None,
-        }, &service::stock::Given::Stock,
+        }, Some(accounts), &service::stock::Given::Stock,
     ).map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     Ok((service, named.deployment))
 }
@@ -76,7 +80,7 @@ fn run_inner(binary: &str, directories: &Directories, request: &Request, worker:
         Ok(kernel) => kernel,
         Err(why) => { close(owned); return Err(why.to_string()); }
     };
-    let mut host = temper_service_shell::Host::with_binary(binary, service, directories.clone(), &[]);
+    let mut host = temper_service_shell::Host::for_upgrade(binary, service, directories.clone(), source.clone());
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch { let _removed = std::fs::remove_dir(scratch); }
     Ok(match exit { skein_io::kernel::Exit::Code(code) => code, skein_io::kernel::Exit::Signal(_) => 1 })

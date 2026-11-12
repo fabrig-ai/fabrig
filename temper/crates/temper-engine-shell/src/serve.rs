@@ -100,7 +100,7 @@ fn server_name(bytes: &[u8]) -> Result<skein_tls::Name, String> {
     skein_tls::Name::new(std::str::from_utf8(bytes).map_err(|why| why.to_string())?)
         .ok_or_else(|| "invalid server name".into())
 }
-fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
+pub(crate) fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
     use std::net::ToSocketAddrs;
     accounts_runtime::resolve(engine, |host, port| (host, port).to_socket_addrs().ok()?.next())
 }
