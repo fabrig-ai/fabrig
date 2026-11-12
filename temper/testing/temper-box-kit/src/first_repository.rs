@@ -113,7 +113,7 @@ pub(super) fn call(name: &[u8], value: &Value) -> Turn {
 /// Price a process story's purse from init's stock run cap.
 #[must_use]
 pub fn run_spend(runs: u64) -> u64 {
-    let bytes = include_bytes!("../../../../crates/temper-init/template/bare.json");
+    let bytes = include_bytes!("../../../crates/temper-init/template/bare.json");
     let document = jig_protocol_config::document(
         bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
@@ -258,7 +258,7 @@ pub(super) fn csv_scripts() -> Box<[Script]> {
     delegate["batch"][0]["spec"]["words"] = "@hello-readme Add CSV export to widget in work/hello".into();
     *arguments = serde_json::to_vec(&delegate).expect("delegate JSON").into_boxed_slice();
     let mut coder = scripts[1].turns.to_vec();
-    let template: Value = serde_json::from_str(include_str!("../../../../crates/temper-init/template/temper.json"))
+    let template: Value = serde_json::from_str(include_str!("../../../crates/temper-init/template/temper.json"))
         .expect("shipped template");
     let edit = &template["application"]["demo"]["llm"]["cued"][0]["turns"][1]["lines"][0]["arguments"]["edits"][0];
     let seed = std::str::from_utf8(temper_fake::forge::FILES[1].1).expect("widget source");
@@ -332,7 +332,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
             let charter = super::ctl::json(calls.last().expect("review charter"));
             assert_eq!(
                 charter["value"]["instructions"],
-                include_str!("../../../../crates/temper-service/src/stock/review.txt")
+                include_str!("../../../crates/temper-service/src/stock/review.txt")
             );
             assert_eq!(charter["value"]["modify"], false);
             Call::new(&["change", "show", "2", "--json"])

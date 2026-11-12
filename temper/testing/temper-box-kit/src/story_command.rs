@@ -69,7 +69,6 @@ fn capture(command: &mut Command, what: &'static str, within: Duration, input: O
     output
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::{Duration, output};
     use std::process::Command;

@@ -5,15 +5,14 @@ mod box_binary;
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]
 mod box_lifetime;
-#[path = "fake_backends/box_link.rs"]
-mod box_link;
+use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 #[path = "suite/startover.rs"]
 mod startover;
-pub mod support;
+use temper_box_kit as support;
 #[path = "suite/tui_box.rs"]
 mod tui_box;
 use skein_io::kernel::{Exit, Signal};

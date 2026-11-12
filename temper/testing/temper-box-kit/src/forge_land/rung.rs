@@ -655,11 +655,9 @@ fn twin_peer() -> super::super::llm::Listening {
 }
 
 fn twin_document() -> Value {
-    let mut document: Value = serde_json::from_slice(include_bytes!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/real-loop/tests/fixtures/b0/llm.json"
-    )))
-    .expect("checked-in B0 twin");
+    let mut document: Value =
+        serde_json::from_slice(include_bytes!("../../../../tests/real-loop/tests/fixtures/b0/llm.json"))
+            .expect("checked-in B0 twin");
     let scripts = document["cued"].as_array_mut().expect("twin scripts");
     let mut review = None;
     for (index, script) in scripts.iter().enumerate() {
@@ -1281,7 +1279,6 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
     Ok(())
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::Driver;
     use std::path::Path;
@@ -1312,14 +1309,12 @@ pub mod tests {
     }
 }
 
-#[cfg(test)]
-mod twin_tests {
-    use super::*;
+pub mod twin_tests {
+    use super::{Time, twin_document};
     use skein_fake_llm_domain::{self as llm, api};
     use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 
-    #[test]
-    fn the_twin_waits_for_the_childs_result_after_a_forge_notification() {
+    pub fn the_twin_waits_for_the_childs_result_after_a_forge_notification() {
         for (fresh, prior, expected) in [
             ("2: forge landing before the child's result", 7, "wait"),
             (

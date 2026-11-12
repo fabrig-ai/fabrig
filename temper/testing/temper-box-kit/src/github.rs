@@ -56,7 +56,7 @@ pub fn restart() {
     let clock = Clock::new();
     let began = clock.now().now;
     let scratch = Scratch::new("github_git");
-    let directory = skein_scratch::paths::package().join("tests/support/github");
+    let directory = skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/github");
     let mut description = cluster::Cluster::read_from(scratch.path(), &directory);
     let [clients, workers] = super::free_addresses(&[]);
     description.bind("story.clients", &clients.to_string());
@@ -671,7 +671,7 @@ fn decode(value: &Value) -> Box<[u8]> {
         .expect("file bytes")
 }
 // The fake's object route is credential-free and does not add a repository git call.
-// Like support/webhooks.rs, the referee makes one bounded request to a separate process.
+// Like webhooks.rs, the referee makes one bounded request to a separate process.
 pub(super) fn objects(address: SocketAddr, commit: u64) -> Value {
     let within = skein_lib::Duration::from_secs(10);
     let mut socket = Socket::connect("the GitHub object route", within, address, Scope::World).expect("object route");

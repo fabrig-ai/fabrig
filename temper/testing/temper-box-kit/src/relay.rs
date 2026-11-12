@@ -239,7 +239,14 @@ impl Relay {
             .write(true)
             .open(directory.join("relay.jsonl"))
             .expect("private relay journal");
-        super::write_private(&directory.join("count.txt"), b"0\n");
+        OpenOptions::new()
+            .create_new(true)
+            .mode(0o600)
+            .write(true)
+            .open(directory.join("count.txt"))
+            .expect("private relay count")
+            .write_all(b"0\n")
+            .expect("relay count bytes");
         let shared = Arc::new(Shared {
             guard,
             directory: directory.into(),

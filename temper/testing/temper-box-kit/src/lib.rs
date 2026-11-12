@@ -1,6 +1,10 @@
-//! Shared configuration fixtures for startup and the process tier.
+//! Shared processes, forges, people and fixtures for temper-box tests.
+//!
+//! Compiled once for the binaries (tools/crates/design.md, 3.2).
 pub mod account_move;
 pub mod account_transfer;
+#[expect(clippy::must_use_candidate, reason = "the box fixture callers assert on commands and captured output")]
+pub mod box_link;
 pub mod boxed;
 pub mod case;
 pub mod cluster;
@@ -122,7 +126,7 @@ pub enum Forge<'a> {
     Unreached,
     Throwaway { forgejo: &'a Path, api: std::net::SocketAddr, git: String },
 }
-pub(super) fn write_private(path: &Path, bytes: &[u8]) {
+pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }

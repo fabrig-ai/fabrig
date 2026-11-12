@@ -1336,9 +1336,11 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
     format!("p{party}/{number}")
 }
 
-#[cfg(test)]
 pub mod read_condition_tests {
-    use super::*;
+    use super::{
+        Action, Call, CallKind, Calls, Child, Clock, Duration, Exit, Fd, Host, Judge, PACE, PathBuf, Process,
+        ReadCondition, Referee, RefereeWork, Step, Time, Wall, real,
+    };
 
     pub fn a_box_call_consumes_captured_stderr_once_without_busy_waiting() {
         let step = Step::ThenBox(Box::new(|stderr| {
@@ -1550,9 +1552,8 @@ pub mod read_condition_tests {
     }
 }
 
-#[cfg(test)]
 pub mod serve_gate_tests {
-    use super::*;
+    use super::{Call, Calls, Fd, Host, PACE, Step, Time, WITHIN};
 
     pub fn link_sign_in_waits_for_serve_before_starting_its_bound() {
         let scratch = super::super::Scratch::new("ctl-serve-gate");

@@ -109,7 +109,6 @@ pub fn socket_timeout(deadline: &Deadline) -> std::time::Duration {
     std::time::Duration::from_nanos(deadline.remaining().as_nanos()).max(std::time::Duration::from_millis(1))
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::{Patience, Verdict, socket_timeout};
     use skein_lib::Duration;

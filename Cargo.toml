@@ -278,6 +278,7 @@ members = [
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
+    "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
@@ -598,6 +599,7 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
+temper-box-kit = { path = "temper/testing/temper-box-kit" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }

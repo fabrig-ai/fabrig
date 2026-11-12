@@ -136,7 +136,8 @@ impl Judge {
         self.phase = Phase::Stopping;
     }
 }
-pub(crate) fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
+#[expect(clippy::must_use_candidate, reason = "the fixture callers assert on the returned observations")]
+pub fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
     pids.iter().copied().find(|pid| {
         std::fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref() == Some(program)
             && std::fs::read(format!("/proc/{pid}/cmdline"))

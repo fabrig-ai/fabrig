@@ -20,16 +20,6 @@ struct Exception {
 
 const EXCEPTIONS: &[Exception] = &[
     Exception {
-        package: "temper-box",
-        path: "temper/bin/temper-box/tests/support",
-        until: "G8: temper/testing/temper-box-kit",
-    },
-    Exception {
-        package: "temper-box",
-        path: "temper/bin/temper-box/tests/fake_backends/box_link.rs",
-        until: "G8: temper/testing/temper-box-kit",
-    },
-    Exception {
         package: "smith",
         path: "smith/tests/end-to-end/support",
         until: "G8: smith/testing/smith-end-to-end-kit",
