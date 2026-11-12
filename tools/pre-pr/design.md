@@ -193,6 +193,14 @@ delivery hears every failure; the verdict is section 6's.
      failed build included (a refusal or an invalid run:
      `tools/tiers/design.md`, 11.1 and 11.7).
 
+   **Other packages' binaries** that the tests run are built first: for each
+   package of the tests' set that `tools/tiers/packages.toml`'s
+   `[test-binaries]` lists, the check runs `cargo build -p PACKAGE --bin BINARY`
+   for each binary listed, in order, since nextest builds only the selected
+   packages' own. A failed build is a build failure, and no test runs.
+   `smith`'s end-to-end tests run `smith-fake-claude`'s `fake-claude`
+   (`smith/docs/design/testing.md`, 2.3).
+
    **A starved run is a warning** (`skein/docs/foundation/testing-strategy.md`,
    8.1). Where the directory's `run.json` has `starved` true, or
    `results.json` gives any test the `outcome` `starved` or `cancelled`,

@@ -47,7 +47,7 @@ fn a_starters_pasted_address_is_handed_to_its_sign_in_and_answered_finishing() {
         w.step(Event::Finishing { source: 0 }),
         vec![Request::Answer { request: Token::new(2), answer: Answer::Finishing { source: 0 } }]
     );
-    assert!(w.ended().is_empty());
+    assert_eq!(w.ended().len(), 0);
     assert_eq!(w.step(finish(3, 0, 7)), refused(3, Why::NotWaiting));
 }
 #[test]
@@ -73,7 +73,7 @@ fn a_second_finish_waits_for_the_first_and_a_refused_finish_allows_another() {
     assert_eq!(w.step(finish(2, 0, 7)), redirected(0));
     assert_eq!(w.step(finish(3, 0, 7)), refused(3, Why::NotWaiting));
     assert_eq!(w.step(Event::FinishRefused { source: 0, why: Why::State }), refused(2, Why::State));
-    assert!(w.ended().is_empty());
+    assert_eq!(w.ended().len(), 0);
     assert_eq!(w.step(finish(4, 0, 7)), redirected(0));
 }
 #[test]
@@ -103,8 +103,8 @@ fn an_ending_sign_in_answers_its_pending_finish_not_waiting_first() {
         w.step(finish(2, 0, 7));
         let out = w.step(terminal);
         assert_eq!(out.first(), refused(2, Why::NotWaiting).first());
-        assert!(w.step(Event::Finishing { source: 0 }).is_empty());
-        assert!(w.step(Event::FinishRefused { source: 0, why: Why::State }).is_empty());
+        assert_eq!(w.step(Event::Finishing { source: 0 }).len(), 0);
+        assert_eq!(w.step(Event::FinishRefused { source: 0, why: Why::State }).len(), 0);
     }
 }
 #[test]
@@ -120,7 +120,7 @@ fn starting_again_cancels_ones_waiting_sign_in_and_reuses_its_room() {
     assert!(
         matches!(w.ended().as_slice(), [end] if end.source == 0 && end.end == End::Failed { failure: Failure::Cancelled })
     );
-    assert!(w.step(Event::SignInFailed { source: 0, failure: Failure::Cancelled }).is_empty());
+    assert_eq!(w.step(Event::SignInFailed { source: 0, failure: Failure::Cancelled }).len(), 0);
     assert_eq!(
         w.step(visit(1)),
         vec![Request::Answer {
@@ -146,5 +146,5 @@ fn starting_again_leaves_another_party_another_provider_and_a_taken_sign_in_alon
     w.step(Event::Finishing { source: 1 });
     let out = w.step(start(7, 8, 1));
     assert!(!out.iter().any(|request| matches!(request, Request::Signing(Signing::CancelSignIn { .. }))));
-    assert!(w.ended().is_empty());
+    assert_eq!(w.ended().len(), 0);
 }

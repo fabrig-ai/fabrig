@@ -1,5 +1,5 @@
 //! Funding and resource values shared by tasks rows (protocol/store/records.md, 1).
-use crate::tasks_v10 as wire;
+use crate::tasks_v11 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{List, Wall};
@@ -212,6 +212,7 @@ pub fn class(value: domain::Class) -> wire::Class {
         domain::Class::Agent => wire::Class::Agent,
         domain::Class::Lost => wire::Class::Lost,
         domain::Class::Invalid => wire::Class::Invalid,
+        domain::Class::Infrastructure => wire::Class::Infrastructure,
     }
 }
 
@@ -225,6 +226,7 @@ pub fn read_class(value: wire::Class) -> domain::Class {
         wire::Class::Agent => domain::Class::Agent,
         wire::Class::Lost => domain::Class::Lost,
         wire::Class::Invalid => domain::Class::Invalid,
+        wire::Class::Infrastructure => domain::Class::Infrastructure,
     }
 }
 
@@ -258,7 +260,7 @@ pub fn read_part_kind(value: wire::PartKind) -> domain::PartKind {
 
 /// Translate a tasks tries.
 pub fn tries(value: &domain::Tries, limits: &wire::Limits) -> Result<wire::Tries, wire::Problem> {
-    let domain::Tries { transient, permanent, run, agent, lost, invalid } = value;
+    let domain::Tries { transient, permanent, run, agent, lost, invalid, infrastructure } = value;
     wire::Tries::new(
         limits,
         wire::TriesParts {
@@ -268,14 +270,15 @@ pub fn tries(value: &domain::Tries, limits: &wire::Limits) -> Result<wire::Tries
             agent: *agent,
             lost: *lost,
             invalid: *invalid,
+            infrastructure: *infrastructure,
         },
     )
 }
 /// Read a tasks tries.
 #[must_use]
 pub fn read_tries(value: wire::Tries) -> domain::Tries {
-    let wire::TriesParts { transient, permanent, run, agent, lost, invalid } = value.into_parts();
-    domain::Tries { transient, permanent, run, agent, lost, invalid }
+    let wire::TriesParts { transient, permanent, run, agent, lost, invalid, infrastructure } = value.into_parts();
+    domain::Tries { transient, permanent, run, agent, lost, invalid, infrastructure }
 }
 
 /// Translate the cause of a task activation.

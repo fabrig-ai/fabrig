@@ -430,7 +430,7 @@ fn an_event_cut_before_dispatch_drops_its_document_even_when_json_was_whole() {
         };
         for seed in 0..6 {
             let stacked = run(&transcript, seed);
-            assert!(stacked.events.is_empty());
+            assert_eq!(stacked.events.len(), 0);
             assert!(stacked.documents.is_empty(), "the JSON result waits for dispatch");
             assert_eq!(stacked.sse_outcome, Some(sse::Event::Ended));
         }

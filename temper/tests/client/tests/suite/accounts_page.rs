@@ -92,7 +92,7 @@ fn accounts_row_opens_before_the_answer_and_points_once_without_leaving() {
             .is_none()
     );
     assert_eq!(root.person().pages().address(), &Address::Accounts);
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
     row_sign_in_visit(&mut front, &mut root);
     accounts::settle(&mut front, &mut root);
     let expected = [
@@ -101,8 +101,8 @@ fn accounts_row_opens_before_the_answer_and_points_once_without_leaving() {
     ];
     assert_eq!(front.tabs, expected);
     assert_eq!(d::address::print(root.person().pages().address()).as_ref(), b"/accounts");
-    assert!(front.shows.is_empty());
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.shows.len(), 0);
+    assert_eq!(front.leaves.len(), 0);
     view(&root);
     accounts::settle(&mut front, &mut root);
     go(&mut front, &mut root, Address::Forges);
@@ -115,8 +115,8 @@ fn accounts_row_refused_answer_closes_the_tab_without_leaving() {
     accounts::refused_answer(&mut front, &mut root);
     assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
     assert_eq!(root.person().pages().address(), &Address::Accounts);
-    assert!(front.shows.is_empty());
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.shows.len(), 0);
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn accounts_row_refused_tab_keeps_its_link_without_pointing() {
@@ -141,8 +141,8 @@ fn accounts_row_refused_tab_keeps_its_link_without_pointing() {
             .any(|node| { node.text.iter().any(|run| run.text.as_ref() == b"Open the sign-in page") })
     );
     assert_eq!(root.person().pages().address(), &Address::Accounts);
-    assert!(front.shows.is_empty());
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.shows.len(), 0);
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_folded_account_rows_key_joins_that_account_and_is_shown_there() {

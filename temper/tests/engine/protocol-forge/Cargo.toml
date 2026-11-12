@@ -35,7 +35,7 @@ jig-domain-people.workspace = true
 
 [dev-dependencies]
 temper-test-env.workspace = true
-temper-service = { path = "../../../crates/temper-service" }
+temper-engine-service.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

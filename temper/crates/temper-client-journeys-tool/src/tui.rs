@@ -30,7 +30,7 @@ pub(crate) fn add(root: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]
     let files = printed(name, &recording)?.map_err(|why| proof_refusal(name, journey::Refusal::Stale(why)))?;
     let marks: Vec<_> =
         lines.iter().enumerate().filter(|(_, line)| matches!(line, Line::Mark(_) | Line::End(_))).collect();
-    for (files, (index, line)) in files.chunks_exact(2).zip(marks) {
+    for (files, (index, line)) in files.as_chunks::<2>().0.iter().zip(marks) {
         for file in files {
             if let Some(what) = journey::scan_bytes(file.document.as_bytes(), &codes, &redacted.originals) {
                 return Err(Refusal::TuiFound {

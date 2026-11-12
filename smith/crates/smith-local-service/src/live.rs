@@ -181,7 +181,8 @@ impl Timing {
                     host::Down::Answer { .. }
                     | host::Down::Acknowledge { .. }
                     | host::Down::Grant { .. }
-                    | host::Down::Cancel,
+                    | host::Down::Cancel
+                    | host::Down::Drain,
                 ..
             } => {}
         }
@@ -409,7 +410,7 @@ mod tests {
             model: Box::new([]),
             sequence: number,
             usage: smith_domain::session::llm::Usage::NONE,
-            ..smith_local_domain::fixture::turn()
+            ..smith_local_domain_fixtures::turn()
         };
         timing.received(
             &process::Event::Received {

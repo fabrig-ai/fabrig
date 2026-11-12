@@ -258,6 +258,7 @@ pub enum FailureClass {
     Lost,
     /// The result broke its contract.
     Invalid,
+    Infrastructure,
 }
 
 /// A configured bound a run's model call met, and that bound's configured

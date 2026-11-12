@@ -20,7 +20,7 @@ fn debug_prints_no_bytes() {
     assert_eq!(originals.sought().len(), 1);
     for one in originals.sought() {
         let printed = format!("{one:?}");
-        assert!(printed == "Original { kind: Given, len: 12 }");
+        assert_eq!(printed, "Original { kind: Given, len: 12 }");
     }
 }
 

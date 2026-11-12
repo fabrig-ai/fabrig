@@ -108,9 +108,9 @@ pub fn app_key(bytes: &[u8], key_bytes: u32) -> Option<&[u8]> {
 /// ascending and distinct. The empty value is `Some` of no ids.
 #[must_use]
 pub fn accepted(bytes: &[u8], installations: u32) -> Option<Box<[u64]>> {
-    let chunks = bytes.chunks_exact(8);
+    let (chunks, remainder) = bytes.as_chunks::<8>();
     let count = u32::try_from(chunks.len()).ok()?;
-    if !chunks.remainder().is_empty() || count > installations {
+    if !remainder.is_empty() || count > installations {
         return None;
     }
     let mut previous = 0;
@@ -122,8 +122,8 @@ pub fn accepted(bytes: &[u8], installations: u32) -> Option<Box<[u64]>> {
         previous = id;
     }
     let mut ids = List::with_capacity(count);
-    for chunk in bytes.chunks_exact(8) {
-        let id = u64::from_le_bytes(chunk.try_into().ok()?);
+    for chunk in chunks {
+        let id = u64::from_le_bytes(*chunk);
         ids.push(id).expect("validated installation count");
     }
     Some(ids.into_boxed())

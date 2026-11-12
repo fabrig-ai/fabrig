@@ -112,7 +112,9 @@ fn patched() -> Box<[u8]> {
 #[test]
 fn u1_patches_a_v1_model_then_open_restores_its_catalogue() {
     let bytes = patched();
-    let mut store = store(&bytes, 2);
+    // Planted at the binary's jig level, the store opens current and reads its catalogue.
+    let level = u32::try_from(patches::PATCHES.len()).expect("jig's level fits u32");
+    let mut store = store(&bytes, level);
     let events = open(&mut store);
     let [Event::Opened { .. }] = events.as_ref() else {
         panic!("{events:?}");

@@ -281,7 +281,8 @@ pub(crate) fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::En
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("engine document");
-    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
+    temper_engine_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("stock engine")
 }
 
 #[cfg(test)]

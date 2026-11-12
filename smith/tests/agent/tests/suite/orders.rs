@@ -103,7 +103,7 @@ fn fixture(settings: &Settings, charter: run::Charter, scripts: Vec<Script>, win
             Grant { renewable: true, name: GrantName { account: 0, generation: 1 }, valid: Duration::from_secs(7200) },
             Grant { renewable: false, name: GrantName { account: 1, generation: 1 }, valid: Duration::from_millis(1) },
         ]),
-        ..smith_domain::fixture::start(HOST, charter)
+        ..smith_domain_fixtures::start(HOST, charter)
     });
     let mut world = World::with_workspace_scripts_start(*settings, disk, scripts.into(), start);
     world.record_entrances();

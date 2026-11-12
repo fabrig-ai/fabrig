@@ -64,7 +64,7 @@ struct Harness {
     above: Queue<native::Event>,
     below: Queue<native::LowerRequest>,
     peer: Peer,
-    server_config: Arc<rustls::server::ServerConfig>,
+    server_config: Arc<rustls_std::server::ServerConfig>,
     wire: VecDeque<u8>,
     outgoing: Vec<u8>,
     request: Vec<u8>,
@@ -242,7 +242,7 @@ impl Harness {
             } else {
                 let peer = self.peer.extracted_mut();
                 assert_eq!(peer.alerts, [[1, 100]], "one authenticated refusal before full plaintext");
-                assert_eq!(peer.records.first(), Some(&rustls::ContentType::Alert), "owed prefix first");
+                assert_eq!(peer.records.first(), Some(&rustls_std::ContentType::Alert), "owed prefix first");
                 peer.write(&self.response);
             }
             let start = self.wire.len();
@@ -468,7 +468,7 @@ fn queued_header_drops_after_withdrawal_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
 
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
 
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
@@ -490,8 +490,8 @@ fn queued_header_drops_after_finish_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
 
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
-        assert!(pair.finish().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
+        assert_eq!(pair.finish().len(), 0);
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
         let step = span.end();
@@ -512,7 +512,7 @@ fn queued_body_drops_after_withdrawal_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
         assert!(count >= i64::from(client::MAX_PLAINTEXT), "maximum record body pressure: {versions:?}, count={count}");
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
 
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
@@ -534,8 +534,8 @@ fn queued_body_drops_after_finish_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
         assert!(count >= i64::from(client::MAX_PLAINTEXT), "maximum record body pressure: {versions:?}, count={count}");
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
-        assert!(pair.finish().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
+        assert_eq!(pair.finish().len(), 0);
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
         let step = span.end();

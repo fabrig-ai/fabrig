@@ -12,13 +12,13 @@ test = false
 doctest = false
 
 [dependencies]
-skein-ui-text.workspace = true
 skein-ui.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
-skein-sim.workspace = true
 
 [dev-dependencies]
+skein-ui-text.workspace = true
+skein-sim.workspace = true
 skein-heap.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

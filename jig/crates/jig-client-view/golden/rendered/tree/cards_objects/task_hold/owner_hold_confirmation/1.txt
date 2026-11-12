@@ -25,6 +25,7 @@ Review before confirming:
   Agent tries: 4
   Lost tries: 5
   Invalid tries: 4294967295
+  Infrastructure tries: 0
   Release continues from the shown lifecycle; failure counts reset
   [2] Confirm
   [3] Dismiss

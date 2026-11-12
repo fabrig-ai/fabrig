@@ -332,7 +332,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
             let charter = super::ctl::json(calls.last().expect("review charter"));
             assert_eq!(
                 charter["value"]["instructions"],
-                include_str!("../../../../crates/temper-service/src/stock/review.txt")
+                include_str!("../../../../crates/temper-engine-service/src/stock/review.txt")
             );
             assert_eq!(charter["value"]["modify"], false);
             Call::new(&["change", "show", "2", "--json"])

@@ -43,7 +43,7 @@ fn each_form_and_body_fault_is_refused_without_recording() {
         request.body = body.into_boxed_slice();
         assert_eq!(service.take(request, WALL).status, status, "body {length}/{rs}/{idlen}/{point}");
     }
-    assert!(service.received().is_empty());
+    assert_eq!((service.received()).len(), 0);
     for urgency in [b"very-low".as_slice(), b"low", b"normal", b"high"] {
         let mut request = good.clone();
         field(&mut request, b"Urgency", urgency);
@@ -94,7 +94,7 @@ fn token_faults_are_unauthorized_or_forbidden() {
     let mut malformed = good.clone();
     field(&mut malformed,b"Authorization",b"vapid t=not.a.token.extra, k=BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8");
     assert_eq!(service.take(malformed, WALL).status, 403);
-    assert!(service.received().is_empty());
+    assert_eq!((service.received()).len(), 0);
     let last = b"{\"aud\":\"http://push.test:4000\",\"exp\":1700086400,\"sub\":\"https://example.test/contact\"}";
     let mut request = good;
     field(&mut request, b"Authorization", &authorization(header, last, false));

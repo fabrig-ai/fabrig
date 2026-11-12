@@ -160,6 +160,31 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 3], seed: u64) -> Seede
 }
 
 impl Store {
+    /// Public application rows for a written site's context, at the copy's current
+    /// levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    pub fn patch_page(
+        &mut self,
+        range: skein_kv::Range,
+        after: Option<&Cursor>,
+        rows: u32,
+    ) -> Result<PatchPage, OpenRefusal> {
+        let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
+        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
+        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+            return Err(OpenRefusal::Failed);
+        }
+        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let page = pages::reader::walk(self, &ranges, after, rows).map_err(|failure| {
+            self.open_failed(restore::OpenFailure::Data(failure));
+            OpenRefusal::Failed
+        })?;
+        let mut found = skein_lib::List::with_capacity(rows);
+        for row in page.rows {
+            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
+            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+        }
+        Ok(PatchPage { rows: found.into_boxed(), next: page.next })
+    }
     /// A component over open stores; `models` are the configuration's, in its order.
     #[must_use]
     pub fn over(
@@ -266,6 +291,13 @@ impl Store {
     }
 }
 
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+#[derive(Debug)]
+pub struct PatchPage {
+    pub rows: Box<[skein_kv::Row]>,
+    pub next: Option<Cursor>,
+}
+
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
@@ -305,8 +337,8 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v10::Row::decoded_bound(&codec.tasks)?)?
-        .checked_add(people_v15::Row::decoded_bound(&codec.people)?)?
+        .checked_add(tasks_v11::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(people_v16::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
         .checked_add(settings_v3::Revision::decoded_bound(&codec.settings)?)?
@@ -413,22 +445,11 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits }
 }
 
-#[rustfmt::skip]
-#[path = "generated/accounts_v2.rs"]
-pub mod accounts_v2;
-#[rustfmt::skip]
-#[path = "generated/notes_v1.rs"]
-pub mod notes_v1;
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v15.rs"]
-pub mod people_v15;
-#[rustfmt::skip]
-#[path = "generated/tasks_v10.rs"]
-pub mod tasks_v10;
-#[rustfmt::skip]
-#[path = "generated/core_v6.rs"]
-pub mod core_v6;
+pub use jig_protocol_store_core::core_v6;
+pub use jig_protocol_store_families::accounts_v2;
+pub use jig_protocol_store_families::notes_v1;
+pub use jig_protocol_store_people::people_v16;
+pub use jig_protocol_store_tasks::tasks_v11;
 pub mod keys;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
@@ -439,16 +460,10 @@ pub use boundary::{
 #[cfg(test)]
 mod tests;
 
-#[rustfmt::skip]
-#[path = "generated/settings_v3.rs"]
-pub mod settings_v3;
-#[rustfmt::skip]
-#[path = "generated/component_v3.rs"]
-pub mod component_v3;
+pub use jig_protocol_store_families::component_v3;
+pub use jig_protocol_store_settings::settings_v3;
 #[rustfmt::skip]
 #[path = "generated/layouts.rs"]
 mod layouts;
 
-#[rustfmt::skip]
-#[path = "generated/secrets_v1.rs"]
-pub mod secrets_v1;
+pub use jig_protocol_store_families::secrets_v1;

@@ -163,6 +163,7 @@ fn kept_result(d: &mut Domain, failing: p::Failures, number: u64, tip: api::Comm
     row.branch = TierBranch::Absent;
     row.flight = None;
     row.result = Some(Receipt {
+        logs: Box::new([]),
         passed: false,
         failures: Some(failing),
         run: ReceiptRun { id: RUN, number: 17, url: URL.into() },
@@ -205,7 +206,7 @@ fn a_dropped_goal_run_keeps_its_branch_history_and_is_due_again() {
     span(&mut d, Some(SPAN));
     let goals = row(&d).goals.clone();
     let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Failed);
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
     assert!(row(&d).goal.is_none());
     assert_eq!(row(&d).record.sequence, 2);
@@ -233,8 +234,8 @@ fn a_goal_branch_with_no_landing_is_never_run() {
     assert_eq!(row(&d).goals[0].ran, Some(BASE));
     assert_eq!(row(&d).goals[0].tip, Some(BASE));
     assert!(row(&d).record.run.is_none());
-    assert!(requests(&moved(&mut d, &env(), BRANCH, Some(BASE), BASE)).is_empty());
-    assert!(requests(&fire(&mut d, &later())).is_empty());
+    assert_eq!(requests(&moved(&mut d, &env(), BRANCH, Some(BASE), BASE)).len(), 0);
+    assert_eq!(requests(&fire(&mut d, &later())).len(), 0);
     assert_eq!(crate::tiers::deadline(&d), None);
 }
 
@@ -270,11 +271,11 @@ fn moves_within_the_span_wait_and_take_the_newest_tip() {
     completed(&mut d, api::Conclusion::Success, None);
     finish(&mut d);
     assert!(d.landing.receipts.is_empty());
-    assert!(requests(&moved(&mut d, &env(), BRANCH, Some(NEXT_TIP), HEAD)).is_empty());
-    assert!(requests(&moved(&mut d, &env(), BRANCH, Some(HEAD), LAST_TIP)).is_empty());
+    assert_eq!(requests(&moved(&mut d, &env(), BRANCH, Some(NEXT_TIP), HEAD)).len(), 0);
+    assert_eq!(requests(&moved(&mut d, &env(), BRANCH, Some(HEAD), LAST_TIP)).len(), 0);
     assert_eq!(crate::tiers::deadline(&d), Some(later().now));
     assert_eq!(d.next_deadline(), Some(later().now));
-    assert!(requests(&fire(&mut d, &Env { now: Time::from_nanos(later().now.as_nanos() - 1), ..env() })).is_empty());
+    assert_eq!(requests(&fire(&mut d, &Env { now: Time::from_nanos(later().now.as_nanos() - 1), ..env() })).len(), 0);
     assert_eq!(requests(&fire(&mut d, &later())), [(2, LAST_TIP)]);
     assert_eq!(row(&d).goals[0].started, Some(later().now));
 }
@@ -284,7 +285,7 @@ fn one_run_at_a_time_and_unstarted_goals_run_before_started_ones() {
     let mut d = dispatched();
     hold(&mut d, OTHER, OTHER_BRANCH);
     moved(&mut d, &env(), OTHER_BRANCH, None, BASE);
-    assert!(requests(&moved(&mut d, &env(), OTHER_BRANCH, Some(BASE), HEAD)).is_empty());
+    assert_eq!(requests(&moved(&mut d, &env(), OTHER_BRANCH, Some(BASE), HEAD)).len(), 0);
     moved(&mut d, &env(), BRANCH, Some(NEXT_TIP), LAST_TIP);
     assert_eq!(row(&d).goal, Some(GOAL));
     completed(&mut d, api::Conclusion::Success, None);
@@ -303,7 +304,7 @@ fn confirmed_red_is_new_then_still_and_green_tells_nothing() {
     subscribe(&mut d, GOAL, BRANCH);
     subscribe(&mut d, OTHER, BRANCH);
     failed_rerun(&mut d);
-    assert!(news(&tier_step(&mut d, RELEASE + 11, false)).is_empty());
+    assert_eq!(news(&tier_step(&mut d, RELEASE + 11, false)).len(), 0);
     logs(&mut d);
     let out = tier_step(&mut d, RELEASE + 12, false);
     let reds = news(&out);
@@ -344,7 +345,7 @@ fn confirmed_red_is_new_then_still_and_green_tells_nothing() {
     moved(&mut d, &env(), BRANCH, Some(LAST_TIP), HEAD);
     start(&mut d, HEAD);
     completed(&mut d, api::Conclusion::Success, None);
-    assert!(news(&finish(&mut d)).is_empty());
+    assert_eq!(news(&finish(&mut d)).len(), 0);
     assert_eq!(row(&d).goals[0].failing, failures(&[]));
 }
 
@@ -362,7 +363,7 @@ fn released_hold_drops_the_entry_and_in_flight_red_tells_nothing() {
     assert!(crate::tiers::watched(&d).is_empty());
     failed_rerun(&mut d);
     let out = tier_step(&mut d, RELEASE + 11, false);
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
     let Some(TierDecision::Done { .. }) = choice(&out) else { panic!("released goal run ends") };
     assert!(row(&d).record.run.is_none());
     assert_eq!(row(&d).goal, None);
@@ -379,9 +380,9 @@ fn a_main_tier_waits_its_span_between_moves() {
     completed(&mut d, api::Conclusion::Success, None);
     finish(&mut d);
     seen(&mut d, Some(BASE), NEXT_TIP);
-    assert!(requests(&key_trees(&mut d)).is_empty());
+    assert_eq!(requests(&key_trees(&mut d)).len(), 0);
     seen(&mut d, Some(NEXT_TIP), LAST_TIP);
-    assert!(requests(&key_trees(&mut d)).is_empty());
+    assert_eq!(requests(&key_trees(&mut d)).len(), 0);
     assert_eq!(crate::tiers::deadline(&d), Some(later().now));
     assert_eq!(requests(&fire(&mut d, &later())), [(2, LAST_TIP)]);
     assert_eq!(row(&d).started, Some(later().now));
@@ -401,7 +402,7 @@ fn restart_resumes_the_goal_run_and_tells_once() {
     }
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let out = outputs(&mut cold, Event::ReadAfresh);
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert_eq!(row(&cold).goal, Some(GOAL));
     assert!(cold.tier_ops.follows.contains_key(&(REPO, TIER.into())));
     failed_rerun(&mut cold);
@@ -415,7 +416,7 @@ fn restart_resumes_the_goal_run_and_tells_once() {
     outputs(&mut again, Event::Restore { record: Stored::Tier(row(&cold).clone()) });
     hold(&mut again, GOAL, BRANCH);
     outputs(&mut again, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert!(news(&outputs(&mut again, Event::ReadAfresh)).is_empty());
+    assert_eq!(news(&outputs(&mut again, Event::ReadAfresh)).len(), 0);
     assert!(row(&again).record.run.is_none());
 }
 
@@ -443,7 +444,7 @@ fn restart_keeps_pending_span_deadlines_for_goal_and_main_tiers() {
         }
         outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         let out = outputs(&mut cold, Event::ReadAfresh);
-        assert!(requests(&out).is_empty());
+        assert_eq!(requests(&out).len(), 0);
         assert_eq!(crate::tiers::deadline(&cold), Some(later().now));
         assert_eq!(requests(&fire(&mut cold, &later())), [(2, LAST_TIP)]);
     }
@@ -500,6 +501,7 @@ fn a_goal_run_dispatches_even_with_a_receipt_for_its_tip() {
             record: Stored::Receipt {
                 key: ReceiptKey { project: 5, repository: REPO, check: Check::Tier(TIER.into()), key: NEXT_TIP },
                 receipt: Receipt {
+                    logs: Box::new([]),
                     passed: true,
                     failures: Some(failures(&[])),
                     candidate: NEXT_TIP,

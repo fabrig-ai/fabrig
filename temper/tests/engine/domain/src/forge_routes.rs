@@ -92,6 +92,7 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    auto_prepare: bool,
     restart_config: engine::Config,
     oracle_documents: Vec<(Token, forge_top::Document)>,
     oracle_watcher: u64,
@@ -182,6 +183,7 @@ pub struct StoryLimits {
     pub procedure_batch: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
+    pub dispatch_passes: Option<u32>,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
@@ -382,6 +384,7 @@ impl World {
             merge_authority,
             resolutions,
             turn,
+            dispatch_passes: _,
             landing_members,
             slots,
             tasks,
@@ -612,12 +615,12 @@ impl World {
                     limits.fleet.workstreams = 3;
                 }
                 if turn || tier.is_some() {
-                    limits.authority.grants = 14;
-                    limits.tasks.authority_grants = 14;
+                    limits.authority.grants = 15;
+                    limits.tasks.authority_grants = 15;
                     // The closer procedure and close job add two executor places.
-                    limits.authority.executors = 9;
+                    limits.authority.executors = 10;
                     // The closer procedure and close job add two executor places.
-                    limits.tasks.executor_kinds = 9;
+                    limits.tasks.executor_kinds = 10;
                     // Verification evidence has 256 bytes beside the live result label.
                     limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
                     limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
@@ -625,11 +628,11 @@ impl World {
                     if let Some(slots) = landing_members {
                         limits.forge.landing_members = slots;
                     }
-                    let mut grants = List::with_capacity(14);
+                    let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
                         grants.push(grant.clone()).expect("ceiling grants");
                     }
-                    for kind in [6, 9, 16] {
+                    for kind in [6, 9, 15, 16] {
                         grants.push(authority::Grant { kind, ..grant.clone() }).expect("landing grants");
                     }
                     rules.ceiling.grants = grants.into_boxed();
@@ -642,6 +645,7 @@ impl World {
                         authority::Executor::Procedure(4),
                         authority::Executor::Procedure(6),
                         authority::Executor::Job(4),
+                        authority::Executor::Job(1),
                     ]);
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
@@ -674,6 +678,10 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                gate_retries: 2,
+                                combine_main: engine::Combine::Merge,
+                                combine_other: engine::Combine::Squash,
+                                gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                                 landing_attempts: engine::LANDING_ATTEMPTS,
                                 check_timeout: None,
                                 close_job: None,
@@ -695,6 +703,7 @@ impl World {
                                             workflow: b"gate.yml".as_slice().into(),
                                             ignored: Box::new([b"docs".as_slice().into()]),
                                             blocking: true,
+                                            base: false,
                                         }])
                                     } else {
                                         Box::new([])
@@ -837,6 +846,13 @@ impl World {
             if let Some(spec_bytes) = spec_bytes {
                 limits.tasks.spec_bytes = spec_bytes;
             }
+            if turn {
+                let mut bound = protocol::merge_bound();
+                bound.kind = jig_domain_link::JobKind(1);
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                config.core.jobs = Box::new([bound]);
+            }
             if merge_kind {
                 let mut bound = protocol::merge_bound();
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
@@ -877,7 +893,7 @@ impl World {
             }
             if standing_roles {
                 let model = walking::charter().policy.model;
-                let defaults = temper_service::stock::with_models(
+                let defaults = temper_engine_service::stock::with_models(
                     Box::new([jig_domain_core::settings::CatalogueModel {
                         number: 1,
                         model,
@@ -963,7 +979,7 @@ impl World {
                 limits.people.amendment_bytes = 2048;
             }
             if kinds && index == 1 {
-                config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
+                config.core.kinds = temper_engine_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         })
@@ -1028,7 +1044,7 @@ impl World {
                         latency_min: Duration::from_secs(1),
                         latency_max: Duration::from_secs(1),
                         silent: 0,
-                        passes: 1000,
+                        passes: timing.dispatch_passes.unwrap_or(1000),
                         cue: None,
                     }])
                 } else {
@@ -1074,6 +1090,20 @@ impl World {
         fake::grant(&mut fake, b"org/repo", 1, raw::Permission::Admin);
         fake::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         fake::grant(&mut fake, b"org/repo", 7, raw::Permission::Read);
+        if turn {
+            fake::manual_merges(
+                &mut fake,
+                b"org/repo",
+                raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+            );
+            if across {
+                fake::manual_merges(
+                    &mut fake,
+                    b"org/lib",
+                    raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+                );
+            }
+        }
         let fake_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_config };
         // Match production's derived document bounds to the admitted authorities.
         limits.documents = paths::document_limits(documents.unwrap_or(limits.documents), &limits);
@@ -1170,6 +1200,7 @@ impl World {
             assigned: Vec::new(),
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
+            auto_prepare: turn,
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
             call_errors: Vec::new(),
@@ -1225,6 +1256,16 @@ impl World {
         self
     }
 
+    /// Set the infrastructure retry cadence before startup.
+    #[must_use]
+    pub fn with_infrastructure_retry(mut self, retry: tasks::Retry) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.tasks.retries.infrastructure = retry;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid infrastructure retry configuration");
+        self
+    }
+
     /// A second project with the same owner and policy, before startup.
     #[must_use]
     pub fn with_second_project(mut self) -> Self {
@@ -1275,7 +1316,7 @@ impl World {
             owner.identity = identity.clone();
         }
         self.restart_config.core.kinds =
-            temper_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
+            temper_engine_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
         let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
         bootstrap.core.kinds = Box::new([]);
         self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
@@ -1418,6 +1459,97 @@ impl World {
         self
     }
 
+    /// Give the engine a clean prepare outcome as the scripted worker gives it.
+    pub fn prepare_tick(&mut self) {
+        self.tick();
+    }
+    pub fn manual_prepare_jobs(&mut self) {
+        self.auto_prepare = false;
+    }
+    pub fn automatic_prepare_jobs(&mut self) {
+        self.auto_prepare = true;
+    }
+    fn complete_prepare(&mut self) {
+        let Some(index) = self.jobs.iter().position(|job| job.kind == jig_domain_link::JobKind(1)) else { return };
+        let job = self.jobs.remove(index);
+        let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
+        let item = &workspace.repositories[0];
+        let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
+        let row = self
+            .store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                Record::Forge { row } => match row.as_ref() {
+                    forge_top::Stored::Landing(row) if row.landing.task == landing => Some(row.clone()),
+                    _ => None,
+                },
+                Record::Core(_) => None,
+            })
+            .expect("job's landing");
+        let member = &row.landing.members[0];
+        let base = fake::commit_count(&member.base.expect("round base")).expect("fake base");
+        let head = fake::commit_count(&member.head.expect("member head")).expect("fake head");
+        assert_eq!(item.start, engine::ForgeStart::Commit(translate::commit(base)));
+        assert_eq!(item.push.as_deref(), Some(row.landing.round.branch.as_ref()));
+        assert!(item.save.is_none());
+        let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
+            &temper_protocol_worker_wire::v1::CEILINGS,
+            &mut skein_lib::Reader::new(&job.spec),
+        )
+        .expect("prepare spec");
+        assert!(spec.command().is_empty());
+        let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+        let mut tree: BTreeMap<_, _> = self
+            .fake
+            .object(base)
+            .expect("base")
+            .tree
+            .iter()
+            .map(|(path, content)| (path.clone(), content.clone()))
+            .collect();
+        for (path, content) in &self.fake.object(head).expect("head").tree {
+            tree.insert(path.clone(), content.clone());
+        }
+        let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
+        let squash = request["combine"] == "squash";
+        let message =
+            request["members"][0][if squash { "squash" } else { "message" }].as_str().expect("member message");
+        let candidate = fake::commit_tree(
+            &mut self.fake,
+            &self.fake_env.limits,
+            base,
+            if squash { None } else { Some(head) },
+            files,
+            message.as_bytes(),
+        )
+        .expect("prepared commit");
+        let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
+        assert_eq!(
+            self.external_at(
+                repository,
+                1,
+                raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate })
+            ),
+            raw::Answer::PushNew { existing: None }
+        );
+        let result = format!(
+            "{{\"combined\":[{{\"member\":{},\"by\":\"{}\"}}]}}",
+            member.change,
+            if squash { "squash" } else { "merge" }
+        );
+        let event = self.protocol.answer_job(
+            Token::new(7),
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Finished {
+                result: result.into_bytes().into(),
+                work: host::Work { left: None, saved: None },
+            },
+        );
+        self.send(event);
+    }
+
     /// Configure the project's delivery checks' bound before startup.
     #[must_use]
     pub fn with_check_timeout(mut self, bound: Option<Duration>) -> Self {
@@ -1437,6 +1569,10 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        gate_retries: 2,
+                        combine_main: engine::Combine::Merge,
+                        combine_other: engine::Combine::Squash,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: bound,
                         by: engine::Way::Queue,
@@ -1468,6 +1604,10 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        gate_retries: 2,
+                        combine_main: engine::Combine::Merge,
+                        combine_other: engine::Combine::Squash,
+                        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                         landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: None,
                         close_job: None,
@@ -1516,6 +1656,10 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            gate_retries: 2,
+            combine_main: engine::Combine::Merge,
+            combine_other: engine::Combine::Squash,
+            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
             landing_attempts: engine::LANDING_ATTEMPTS,
             check_timeout: None,
             by: engine::Way::Queue,
@@ -2372,6 +2516,9 @@ impl World {
 
     pub fn tick(&mut self) {
         self.tick_with_reply_cut(None);
+        if self.auto_prepare {
+            self.complete_prepare();
+        }
     }
 
     /// Apply the step saving a reply to `target`, losing its commit terminal.
@@ -3207,7 +3354,7 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
-    temper_service::limits::engine(&jig, &temper).expect("coherent box limits")
+    temper_engine_service::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
 /// The store join allowance from the same init template projection as `box_limits`.
@@ -3216,14 +3363,14 @@ pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
-fn box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
     // A story reads the same template for its defaults, root limits and store joins.
-    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_service::limits::Limits)> =
+    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_engine_service::limits::Limits)> =
         std::sync::OnceLock::new();
     *PROFILES.get_or_init(read_box_profiles)
 }
 
-fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),
@@ -3243,13 +3390,13 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::
     let at = limits.member(&document, b"overrides").expect("application overrides");
     let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
     let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_service::limits::profile(temper_service::limits::Profile::Standard);
+    let mut temper = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Standard);
     for index in at..end {
         let token = document.token(index).expect("application override token");
         let Some(name) = document.text(token) else { continue };
         let Some(value_at) = overrides.member(&document, name) else { continue };
         let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_service::limits::apply(&mut temper, name, value)
+        temper_engine_service::limits::apply(&mut temper, name, value)
             .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
     }
     (parsed.limits, temper)

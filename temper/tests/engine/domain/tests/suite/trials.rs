@@ -195,7 +195,7 @@ fn watched() -> (Driver, engine::Assignment) {
     let mut driver = driver();
     let session = driver.session();
     watch(&mut driver, WATCHER, session);
-    assert!(rows(&driver).is_empty());
+    assert_eq!(rows(&driver), []);
     let account = account(&driver);
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: WATCHER }));
     ask(&mut driver, account, false, 96);
@@ -446,7 +446,7 @@ fn a_restart_cancels_it_and_claims_no_run() {
     // In-process workers die with the engine; startup settles their attempt before Open.
     assert!(driver.task(run.task).is_some());
     restart(&mut driver);
-    assert!(rows(&driver).is_empty());
+    assert_eq!(rows(&driver), []);
     assert_eq!(claims(&driver), 0, "cancel sits after Open and before any due task can claim");
     assert!(driver.task(run.task).is_none());
 }
@@ -471,7 +471,7 @@ fn a_restart_starts_nothing() {
     assert_eq!(row(&driver).state, trials::State::Answered { seconds: 1 });
     let before = tasks_made(&driver);
     restart(&mut driver);
-    assert!(rows(&driver).is_empty());
+    assert_eq!(rows(&driver), []);
     assert_eq!(claims(&driver), 0);
     assert_eq!(tasks_made(&driver), before);
     let account = account(&driver);
@@ -571,7 +571,7 @@ fn another_persons_account_is_not_theirs() {
     assert_eq!(tasks_made(&driver), 0);
     let session = driver.session();
     watch(&mut driver, WATCHER, session);
-    assert!(rows(&driver).is_empty());
+    assert_eq!(rows(&driver), []);
 }
 
 fn sign_in_second(driver: &mut Driver) {

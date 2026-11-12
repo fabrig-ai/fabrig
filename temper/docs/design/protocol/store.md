@@ -263,9 +263,32 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   domain's values are translated to and from the generated ones by small
   total functions, exhaustive both ways, so a domain change to a durable
   field breaks a translation's build.
+- **Its generated record code in a codec crate,**
+  `temper-protocol-store-codec`, which depends on skein-lib and
+  skein-codec alone (skein's `data/codec/README.md`, section 2), so that
+  it compiles beside the forge's domain crates rather than after them.
+  It holds the current version's code alone, `src/generated/v<N>.rs` as
+  the module `v<N>`, which `temper-protocol-store` re-exports at its root
+  under the same name. An older version's record is read as a generic
+  value of its kept text and patched (`baseline.md`), so no older
+  version's code is kept. `temper-protocol-store` keeps the schema, the
+  kept texts, the patches, the golden bytes and the translations. The
+  drift test, `temper-codecs-world`'s, reads the schema and golden bytes
+  there and the code in the codec crate.
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.
+- **Settings history room follows the effective core capacities.** Before
+  map admission, temper raises the profile's value ceiling to at least
+  jig's `sizes::settings_value` (jig's `protocol/store/records.md`, 4),
+  and its page ceiling to at least that value plus the profile's key
+  ceiling. This includes a whole set of edits, their replaced values and
+  the model-name table; stock at the small process deployment's capacities
+  needs 4,385,228 bytes. The figure is calculated at startup, never a
+  second fixed ceiling that stock growth must update. Checked map sizing
+  then derives the opening value, chunk and page from the effective
+  limits. The map budget, row count, queues and read slots retain their
+  configured bounds. Other records still face the resulting value ceiling.
 - **`STORE_VERSION`,** temper's store version: one number for all of
   temper's families. From the baseline (`baseline.md`, 2), a changed
   stored layout moves its version and brings its patch in that landing

@@ -190,7 +190,7 @@ fn version(tool: &str, prefix: &str, strip: &str) -> String {
 fn significant(pipe: &[u8]) -> Vec<u8> {
     pipe.split(|byte| *byte == b'\n')
         .filter(|line| [b"Inst ".as_slice(), b"E: ", b"Err:", b"W: "].iter().any(|prefix| line.starts_with(prefix)))
-        .flat_map(|line| line.iter().copied().chain([b'\n']))
+        .flat_map(|line| line.iter().copied().chain(*b"\n"))
         .collect()
 }
 fn difference(case: &Case, field: &str, actual: &[u8], expected: &[u8]) {

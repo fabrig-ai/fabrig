@@ -63,6 +63,7 @@ impl Referee {
                 }
                 other @ (git::Done::Looked { .. }
                 | git::Done::Paths { .. }
+                | git::Done::Brings { .. }
                 | git::Done::IsAncestor { .. }
                 | git::Done::Merged
                 | git::Done::Conflicted { .. }

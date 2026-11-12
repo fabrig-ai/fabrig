@@ -117,7 +117,7 @@ fn a_trace_off_world_keeps_no_entries_and_names_it_in_the_tail() {
     let mut world = World::new(7, Config { trace: Trace::Off, ..Config::calm() });
     world.spawn(|| Script::new(Time::ZERO, &[Act::Socket]));
     assert_eq!(world.tail(), "the trace is off\n");
-    assert!(support::run(world, None).trace.is_empty());
+    assert_eq!(support::run(world, None).trace.len(), 0);
 }
 
 #[test]

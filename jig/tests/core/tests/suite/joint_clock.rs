@@ -88,7 +88,7 @@ fn joint_scheduler_expires_the_actual_sign_in_at_its_armed_people_deadline() {
     });
     sign_in(&mut world, 7);
     let due = Time::from_nanos(now.as_nanos() + limits.core.people.sign_in_lifetime.as_nanos());
-    assert!(world.domain.core().next_deadline(world.clocks().0, world.clocks().1) == Some(due));
+    assert_eq!(world.domain.core().next_deadline(world.clocks().0, world.clocks().1), Some(due));
     let saved = world
         .store
         .rows
@@ -167,7 +167,7 @@ fn joint_scheduler_resamples_the_effect_wall_after_correction_and_consumes_the_r
         deadline,
         proposal: None,
     });
-    assert!(world.answers.is_empty());
+    assert_eq!(world.answers.len(), 0);
     assert_eq!(world.domain.effect_deadline(), Some(deadline));
     assert_eq!(world.next_due(), Some(Time::from_nanos(now.as_nanos() + 500)));
     let corrected = Wall::from_nanos(wall.as_nanos() - 100);
@@ -177,7 +177,7 @@ fn joint_scheduler_resamples_the_effect_wall_after_correction_and_consumes_the_r
     let applied = world.store.applied;
     let makes = world.systems[0].observed().len();
     world.fire_due(Time::from_nanos(elapsed.as_nanos() + 599), Wall::from_nanos(deadline.as_nanos() - 1));
-    assert!(world.answers.is_empty());
+    assert_eq!(world.answers.len(), 0);
     world.fire_due(Time::from_nanos(elapsed.as_nanos() + 600), deadline);
     assert_eq!(world.answers.len(), 1);
     assert_eq!(world.answers[0].0, Token::new(9001));

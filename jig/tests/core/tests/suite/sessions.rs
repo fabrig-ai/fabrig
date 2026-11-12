@@ -166,7 +166,7 @@ fn a_warm_wake_keeps_the_transcript_instructions_and_session() {
     say(&mut world, run.0, 80);
     assignment(&world, run.0, FIRST, true);
     assert_eq!(live_row(&world, run.0).session, session);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     assert!(live_row(&world, run.0).activation_open);
     world.close();
 }
@@ -254,7 +254,7 @@ fn retries_and_an_interrupted_attempt_are_not_judged_as_wakes() {
     let retry = assignment(&world, run.0, FIRST, true);
     assert_eq!(live_row(&world, run.0).session.expect("same session").first, run.1);
     assert_eq!(live_row(&world, run.0).tries.transient, 1);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     world.send(root::Event::Answer {
         channel: Token::new(7),
         task: retry.0,
@@ -267,7 +267,7 @@ fn retries_and_an_interrupted_attempt_are_not_judged_as_wakes() {
     assignment(&world, run.0, FIRST, true);
     assert_eq!(live_row(&world, run.0).session.expect("interrupted session").first, run.1);
     assert_eq!(live_row(&world, run.0).tries.transient, 1);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     world.close();
 }
 
@@ -304,7 +304,7 @@ fn a_restart_between_parks_preserves_the_record_and_resumes_within_the_span() {
     let next = assignment(&world, run.0, FIRST, true);
     consume_and_park(&mut world, next);
     assert_eq!(live_row(&world, run.0).session.expect("same session").first, run.1);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     world.close();
 }
 
@@ -407,7 +407,7 @@ fn an_engine_stop_preserves_the_activation_and_session() {
     gap(&mut world, 271);
     world.stop();
     assert!(live_row(&world, run.0).activation_open);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     world.restart_with(config);
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
@@ -425,7 +425,7 @@ fn an_engine_stop_preserves_the_activation_and_session() {
     let next = assignment(&world, run.0, FIRST, true);
     assert!(next.1 > run.1);
     assert_eq!(live_row(&world, run.0).session.expect("interrupted session").first, run.1);
-    assert!(ends(&world, run.0).is_empty());
+    assert_eq!(ends(&world, run.0).len(), 0);
     consume_and_park(&mut world, next);
     world.close();
 }

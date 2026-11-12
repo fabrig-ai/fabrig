@@ -389,7 +389,7 @@ fn a_press_with_no_open_menu_moves_nothing() {
     page.focused(MAIN);
     assert_eq!(page.act(Event::Click { node: MAIN, modifier: false }, &mut ops), None);
     assert_eq!(page.act(Event::PressOutside { focus_taken: false }, &mut ops), None);
-    assert!(ops.is_empty());
+    assert_eq!(ops.len(), 0);
     assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
 }
 
@@ -400,7 +400,7 @@ fn a_press_on_a_disabled_item_leaves_the_menu_open() {
     page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
     page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
     assert_eq!(page.act(Event::Click { node: DISABLED_ITEM, modifier: false }, &mut ops), None);
-    assert!(ops.is_empty());
+    assert_eq!(ops.len(), 0);
     assert_eq!(page.html(), include_str!("../golden/menu-open.html").trim_end());
 }
 
@@ -577,7 +577,7 @@ fn an_apply_measures_each_bound_log() {
     assert!(ops.ends_with(&[Op::Measure { node: LOG }, Op::Measure { node: NodeId(5) }]));
     ops.clear();
     page.apply(&[], &mut ops);
-    assert!(ops.is_empty());
+    assert_eq!(ops.len(), 0);
 }
 
 #[test]
@@ -682,7 +682,7 @@ fn a_delivery_after_a_page_up_leaves_the_position() {
     page.apply(&[Patch::Text { node: LOG, text: Box::new([]) }], &mut ops);
     assert_eq!(ops.first(), Some(&Op::HoldView { node: LOG }));
     assert!(ops.ends_with(&[Op::PutView { node: LOG }, Op::Measure { node: LOG }]));
-    assert!(scroll_ends(&ops).is_empty());
+    assert_eq!(scroll_ends(&ops).len(), 0);
 }
 
 #[test]
@@ -709,7 +709,7 @@ fn the_browsers_scroll_event_after_a_page_key_changes_nothing() {
     assert_eq!(scroll(&mut page, 200, 600, 200), NEAR_HEAD);
     let mut ops = Vec::new();
     assert_eq!(page.act(Event::Scrolled { node: LOG, top: 200, height: 600, viewport: 200 }, &mut ops), None);
-    assert!(ops.is_empty());
+    assert_eq!(ops.len(), 0);
 }
 
 #[test]
@@ -764,7 +764,7 @@ fn pgup_and_pgdn_scroll_the_first_log_from_a_field() {
         }
         ops.clear();
         assert_eq!(page.act(event, &mut ops), None);
-        assert!(ops.is_empty());
+        assert_eq!(ops.len(), 0);
     }
     page.act(Event::Scrolled { node: NodeId(4), top: 400, height: 1000, viewport: 200 }, &mut Vec::new());
     page.apply(&[Patch::Move { node: NodeId(4), parent: MAIN, before: Some(LOG) }], &mut Vec::new());
@@ -799,7 +799,7 @@ fn a_menu_or_a_dialog_keeps_them() {
         let mut ops = Vec::new();
         for down in [false, true] {
             assert_eq!(page.act(page_key(down, true), &mut ops), None);
-            assert!(ops.is_empty());
+            assert_eq!(ops.len(), 0);
         }
     }
 }

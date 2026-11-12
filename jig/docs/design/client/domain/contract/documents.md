@@ -538,3 +538,11 @@ executor not offered.
 The job executor's visible name is `job KIND`, KIND its numeric application
 kind, in the shared client and the application's command-line task reads
 (2026-11-04).
+
+A job's result, heard by its requester, is an activity line like any
+delegate's result (1): its word's result kind is `Job`, with no payload,
+and its words are empty. The job's result bytes are its procedure's to
+read, not words, and no client is sent them
+(`../../../protocol/client/wire.md`, 1). The shared client shows the line
+as a result card of kind job with no words; the application's
+command-line activity prints its kind as `job`, as it prints `report`.

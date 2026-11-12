@@ -196,10 +196,7 @@ impl<'a> State<'a> {
                 return Ok(false);
             }
         }
-        if self.openings.insert((value.run, value.conversation), (value, now)).is_some() {
-            return Ok(false);
-        }
-        Ok(true)
+        Ok(self.openings.insert((value.run, value.conversation), (value, now)).is_none())
     }
 
     fn request(&mut self, value: &smith_events::ResponseStarted) -> Checked {
@@ -277,10 +274,7 @@ impl<'a> State<'a> {
         let (budget, at) = self.budgets.get(&value.run).ok_or("child usage lacks a preceding run budget")?;
         let identity = (value.run, value.conversation, value.call.clone());
         let returned = Returned { tool: value, budget, budget_at: *at, at: now };
-        if self.pending.insert(identity, returned).is_some() {
-            return Ok(false);
-        }
-        Ok(true)
+        Ok(self.pending.insert(identity, returned).is_none())
     }
 
     fn record(&mut self, record: &'a Record) -> Checked {

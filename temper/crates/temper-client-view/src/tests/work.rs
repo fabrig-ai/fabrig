@@ -248,6 +248,8 @@ impl Fixture {
                 queues: list(&[w::ChangesQueue::new(
                     &w::CEILINGS,
                     w::ChangesQueueParts {
+                        way: w::Way::Queue,
+                        in_flight: None,
                         repository: b"owner/repo".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: full,

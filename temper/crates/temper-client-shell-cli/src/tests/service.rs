@@ -12,8 +12,8 @@ fn party_make_writes_the_private_file_only_after_the_answer_is_durable() {
     f.answer_sign_in_then_me();
     assert_eq!(f.made_services, 1);
     assert!(!f.record_exists, "no file before the answer is durable");
-    assert!(f.record_data.is_empty());
-    assert!(f.stdout().is_empty());
+    assert_eq!(f.record_data.len(), 0);
+    assert_eq!((f.stdout()).len(), 0);
     f.store_token_with_address();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert_eq!(f.stdout(), b"made: party 9\n");
@@ -42,7 +42,7 @@ fn party_make_refuses_an_existing_file_before_sending() {
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.requests(), 0);
-    assert!(f.file_steps.is_empty());
+    assert_eq!(f.file_steps.len(), 0);
     assert_eq!(f.stderr(), b"temper ctl: record exists or could not be checked\n");
 }
 #[test]
@@ -53,7 +53,7 @@ fn a_party_make_key_replay_prints_the_party_and_writes_nothing() {
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert_eq!(f.stdout(), b"made: party 9\n");
     assert!(!f.record_exists);
-    assert!(f.file_steps.is_empty());
+    assert_eq!(f.file_steps.len(), 0);
     f.no_service_leaked();
 }
 #[test]
@@ -66,7 +66,7 @@ fn sign_in_service_uses_the_files_address_and_credential_and_keeps_the_sign_in()
     assert!(f.link_bearers.first().and_then(Option::as_ref).is_some_and(|bytes| bytes.as_ref() == service::CREDENTIAL));
     assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4100\n".as_slice()));
     assert!(f.stored(b"token").is_some_and(|token| token == super::fixtures::TOKEN_BYTES));
-    assert!(!f.stdout().is_empty());
+    assert_ne!((f.stdout()).len(), 0);
     f.no_service_leaked();
 }
 #[test]

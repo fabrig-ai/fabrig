@@ -299,7 +299,7 @@ pub struct Rule {
 }
 impl Rule {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
-        if matches!(self.answer, Answer::Refused { refusal: _, .. }) && !self.changes.is_empty() {
+        if matches!(self.answer, Answer::Refused { .. }) && !self.changes.is_empty() {
             return Err(Invalid::Script);
         }
         if crate::codec::ask(&self.ask, bounds).is_err() || crate::codec::answer(&self.answer, bounds).is_err() {

@@ -153,7 +153,7 @@ fn the_playground_names_default_for_a_resolved_model() {
         assert_eq!(super::choice::using_text(&root), expected, "{row}");
     }
     let root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
-    assert!(super::choice::using_text(&root) == "Scripted model · Default");
+    assert_eq!(super::choice::using_text(&root), "Scripted model · Default");
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn pending_words_without_a_party_are_named_you() {
 fn a_real_account_keeps_the_playgrounds_scripted_model() {
     let root = f::playground_kept_root();
     assert!(root.forge().playground().is_some());
-    assert!(super::choice::using_text(&root) == "Scripted model · Default");
+    assert_eq!(super::choice::using_text(&root), "Scripted model · Default");
 }
 
 #[test]

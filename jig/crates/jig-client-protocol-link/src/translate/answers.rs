@@ -421,6 +421,7 @@ pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
         w::HoldFailure::Agent => c::HoldFailure::Agent,
         w::HoldFailure::Lost => c::HoldFailure::Lost,
         w::HoldFailure::Invalid => c::HoldFailure::Invalid,
+        w::HoldFailure::Infrastructure => c::HoldFailure::Infrastructure,
     }
 }
 

@@ -76,7 +76,7 @@ impl Typed {
         let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
             .expect("domain tool declarations fit");
         Self {
-            translation: smith_protocol_llm::fixture::small(client, stated),
+            translation: smith_protocol_llm_fixtures::small(client, stated),
             provider: crate::scripted_provider(&settings.provider, settings.seed ^ 0x25),
             stage: Stage::uncapped(settings.provider),
             failure: None,

@@ -1,5 +1,6 @@
 //! Delivery-log transcripts run wholly over the component's scripted byte streams.
 use skein_forge::api::{self, Answer, Op, Read};
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{Change, Event, Fact, Limits, Request, Stopped, seam::State};
 use skein_forge_machine_world::hand::{self as f, self as start};
 use skein_lib::bytes::concat;

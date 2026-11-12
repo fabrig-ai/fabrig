@@ -76,14 +76,14 @@ fn generated(item: Item, bytes: &[u8]) -> Result<v1::Item, Unreadable> {
     })
 }
 fn accepted(bytes: &[u8]) -> Result<v1::Accepted, Unreadable> {
-    let chunks = bytes.chunks_exact(8);
+    let (chunks, remainder) = bytes.as_chunks::<8>();
     let count = u32::try_from(chunks.len()).or(Err(Unreadable))?;
-    if !chunks.remainder().is_empty() || count > v1::CEILINGS.accepted_values {
+    if !remainder.is_empty() || count > v1::CEILINGS.accepted_values {
         return Err(Unreadable);
     }
     let mut values = List::with_capacity(count);
     for chunk in chunks {
-        values.push(u64::from_le_bytes(chunk.try_into().or(Err(Unreadable))?)).or(Err(Unreadable))?;
+        values.push(u64::from_le_bytes(*chunk)).or(Err(Unreadable))?;
     }
     v1::Accepted::new(&v1::CEILINGS, v1::AcceptedParts { values }).or(Err(Unreadable))
 }

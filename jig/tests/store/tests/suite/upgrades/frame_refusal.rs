@@ -213,7 +213,7 @@ fn a_later_turn_past_the_page_refuses_its_whole_commit() {
     world.crash(SEED + 1);
     assert_eq!(world.contents(), files, "none of the refused batch survives the crash");
     recovered(&mut world, &records, bytes * 2);
-    assert!(world.transcript(TranscriptRead::Page { task: TASK + 1, backwards: false, after: None }).is_empty());
+    assert_eq!(world.transcript(TranscriptRead::Page { task: TASK + 1, backwards: false, after: None }).len(), 0);
 }
 
 #[test]

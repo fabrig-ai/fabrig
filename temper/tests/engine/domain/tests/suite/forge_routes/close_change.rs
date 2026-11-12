@@ -231,7 +231,7 @@ fn refused(command: bool, authority: bool, request: &[u8], extra: Option<tasks::
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("refusal account") };
     assert!(words.starts_with(expected), "{}", core::str::from_utf8(words).expect("refusal text"));
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(task))));
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     assert_eq!(world.assigned.len(), 1);
     world.close();
 }

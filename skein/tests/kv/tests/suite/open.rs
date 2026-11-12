@@ -29,7 +29,7 @@ fn a_small_store_opens_with_reads_of_its_own_size() {
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 }, "a new store opens at number 0");
 
-    for (index, key) in [b'a', b'b', b'c', b'd', b'e', b'f'].into_iter().enumerate() {
+    for (index, key) in (*b"abcdef").into_iter().enumerate() {
         let number = u64::try_from(index + 1).expect("six commits fit u64");
         let owner = Token::new(number + 1);
         let request = Request::Commit {

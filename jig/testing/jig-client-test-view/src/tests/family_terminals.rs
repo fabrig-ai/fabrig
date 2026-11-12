@@ -51,7 +51,7 @@ fn denied_and_ended_family_values_have_distinct_public_captions_without_mutation
             || n.name.as_deref() == Some(b"Parameters".as_slice()))
             && n.binding.is_some()));
         assert_eq!(root.first().object(root.first().page().unwrap()).unwrap().value, first::Value::Known(document));
-        assert!(patches(&mut view, &root).is_empty());
+        assert_eq!(patches(&mut view, &root).len(), 0);
         assert!(view.tree().len() <= view.limits().tree.nodes);
     }
 }
@@ -97,7 +97,7 @@ fn every_family_departure_fits_the_public_view_and_checked_selected_words() {
         assert!(view.tree().len() <= view.limits().tree.nodes);
 
         assert_eq!(family.book.limits().phrases, 22);
-        assert!(patches(&mut view, &root).is_empty());
+        assert_eq!(patches(&mut view, &root).len(), 0);
     }
     let checked = &family;
     for (word, number) in [

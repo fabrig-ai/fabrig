@@ -477,7 +477,7 @@ fn a_tui_in_front_signs_in_by_its_handed_link_and_ticks_the_browsers_sign_in() {
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.sign_in_sends, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     let text = tui.text();
     // The 92-byte link wraps at the host's 80 columns.
     let unwrapped: String = text.lines().map(str::trim).collect();
@@ -593,7 +593,7 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.sign_in_sends, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
     assert!(
         world.front().local_link().is_some_and(|next| next != link),
@@ -708,7 +708,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert!(tui.status().ends_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
     assert!(world.front().local_link().is_some_and(|next| next != link), "renewal spends the file's local link");
     file_secret_is_in_no_frame(&tui, &link);

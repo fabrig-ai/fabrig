@@ -132,6 +132,8 @@ pub fn limits() -> Limits {
             unacknowledged: 1,
             reply_bytes: None,
         },
+        drain: Duration::from_secs(10),
+        after_grace: Duration::from_secs(15),
         stop_bound: STOP_BOUND,
     }
 }

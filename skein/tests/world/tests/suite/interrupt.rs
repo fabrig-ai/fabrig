@@ -29,8 +29,8 @@ impl Referee<Binary> for Judge {
             assert!(child.counts().is_none(), "a live tree retains its keeper");
             assert_eq!(child.tree_status().interrupted_pids.len(), 1);
             assert_eq!(child.tree_status().cleanup(), Cleanup::None);
-            assert!(child.tree_status().terminated_pids.is_empty());
-            assert!(child.tree_status().killed_pids.is_empty());
+            assert_eq!(child.tree_status().terminated_pids.len(), 0);
+            assert_eq!(child.tree_status().killed_pids.len(), 0);
             child.signal_tree(Signal::Kill);
             self.checked = true;
         }

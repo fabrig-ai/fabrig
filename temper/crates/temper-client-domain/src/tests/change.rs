@@ -68,7 +68,7 @@ fn each_step_supplies_its_slot_line_and_held_word() {
             for (candidate, literals, kinds) in crate::forge::words::CHANGES {
                 if candidate == word {
                     assert_eq!(literals, &[b"Repairing: a person asked for changes on the forge.".as_slice()]);
-                    assert!(kinds.is_empty());
+                    assert_eq!((kinds).len(), 0);
                     found = true;
                 }
             }

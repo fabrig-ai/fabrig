@@ -541,7 +541,7 @@ mod tests {
         })));
         let mut body = row.clone();
         let Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = &mut body else { panic!("turn") };
-        turn.transcript = Box::new([b'x']);
+        turn.transcript = Box::new(*b"x");
         let other: Box<[Record]> = Box::new([Record::Forge {
             row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [1; 32], task: TASK }),
         }]);
@@ -615,7 +615,7 @@ mod tests {
             read: None,
             at: skein_lib::Wall::EPOCH,
             opens_window: true,
-            transcript: Box::new([b'x']),
+            transcript: Box::new(*b"x"),
         };
         let rows = Box::new([Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))]);
         let after = Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }));

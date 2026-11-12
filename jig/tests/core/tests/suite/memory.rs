@@ -139,7 +139,7 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_
             run: skein_lib::Token::new(41),
             turn: jig_domain_views::TurnName { attempt: 1, turn: 1, retry: 0 },
             offset: 0,
-            text: Box::new([b'x']),
+            text: Box::new(*b"x"),
             call: None,
         },
         &mut quiet,

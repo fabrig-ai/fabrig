@@ -275,11 +275,11 @@ fn an_account_sign_in_is_answered_started_with_the_address_when_the_component_vi
 #[test]
 fn a_second_account_visit_or_the_visit_of_no_account_sign_in_is_ignored() {
     let mut world = started(vec![]);
-    assert!(world.step(visited(0)).is_empty());
+    assert_eq!(world.step(visited(0)).len(), 0);
     world.step(sign_in(1, ALICE, PROVIDER));
     world.step(visited(0));
-    assert!(world.step(visited(0)).is_empty());
-    assert!(world.step(visited(99)).is_empty());
+    assert_eq!(world.step(visited(0)).len(), 0);
+    assert_eq!(world.step(visited(99)).len(), 0);
     assert_eq!(world.domain.facts_lost(), 0);
 }
 
@@ -292,7 +292,7 @@ fn an_account_sign_in_that_ends_before_its_visit_is_answered_not_started() {
         refused(1, Refusal::NotStarted)
     );
     assert_eq!(world.ended(), ended(1, 0, End::Failed { failure: Failure::Cancelled }));
-    assert!(world.step(visited(0)).is_empty());
+    assert_eq!(world.step(visited(0)).len(), 0);
     world.step(sign_in(2, ALICE, PROVIDER));
     let requests = world.step(signed_in(1, b"alice", b"", false));
     assert_eq!(requests.first(), refused(2, Refusal::NotStarted).first());
@@ -314,7 +314,7 @@ fn an_account_sign_in_that_visited_is_not_answered_again_when_it_ends() {
         let requests = world.step(event);
         assert!(!requests.iter().any(|r| matches!(r, Request::Answer { .. })));
         assert_eq!(world.ended().len(), 1);
-        assert!(world.step(visited(0)).is_empty());
+        assert_eq!(world.step(visited(0)).len(), 0);
     }
 }
 
@@ -332,8 +332,8 @@ fn a_close_cancels_each_account_sign_in_and_answers_it_closing_before_its_visit(
         }
         expected.push(Request::Component(ToComponent::Close));
         assert_eq!(world.step(Event::Close), expected);
-        assert!(world.step(Event::Close).is_empty());
-        assert!(world.step(visited(0)).is_empty());
+        assert_eq!(world.step(Event::Close).len(), 0);
+        assert_eq!(world.step(visited(0)).len(), 0);
         assert_eq!(world.step(Event::Component(FromComponent::Closed)), vec![Request::Closed]);
     }
 }

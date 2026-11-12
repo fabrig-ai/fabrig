@@ -333,7 +333,8 @@ fn a_fixture_set_without_tasks_uses_the_binarys_tasks_version_at_zero() {
 
 #[test]
 fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
-    for (level, tasks, wanted) in [(0, 10, 9), (1, 9, 10)] {
+    let current = u32::from(format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT).tasks);
+    for (level, tasks, wanted) in [(0, 10, 9), (1, 9, current)] {
         refused(
             &mut at_jig_level(level, tasks),
             OpenRefusal::Format { family: Family::Tasks, found: u32::from(tasks), wanted },

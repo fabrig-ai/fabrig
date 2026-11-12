@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 
 fn digest(rng: &mut Rng) -> Digest {
     let mut value = [0; 32];
-    for word in value.chunks_exact_mut(8) {
+    for word in value.as_chunks_mut::<8>().0 {
         word.copy_from_slice(&rng.next_u64().to_be_bytes());
     }
     Digest(value)
@@ -71,7 +71,7 @@ pub fn one_of_each(rng: &mut Rng, limits: &Limits) -> [Record; 5] {
 
 fn uuid(rng: &mut Rng) -> [u8; 16] {
     let mut value = [0; 16];
-    for word in value.chunks_exact_mut(8) {
+    for word in value.as_chunks_mut::<8>().0 {
         word.copy_from_slice(&rng.next_u64().to_be_bytes());
     }
     value

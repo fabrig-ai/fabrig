@@ -163,6 +163,14 @@ impl Remote for Route {
             api::Created::Exists => Created::Exists,
         })
     }
+    fn push_new(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
+        let Answer::PushNew { existing } =
+            self.faulting(Call::PushNew { repository: repository(remote), branch: branch.into(), commit })?
+        else {
+            panic!("push-new answer");
+        };
+        Ok(existing)
+    }
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let Answer::Pushed(pushed) =
             self.faulting(Call::Push { repository: repository(remote), branch: branch.into(), commit, expected })?

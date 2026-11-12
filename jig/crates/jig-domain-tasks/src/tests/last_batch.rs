@@ -64,7 +64,7 @@ fn a_rejected_recurring_batch_restores_funding_without_emitting_writes() {
         period: FIRST_PERIOD,
         numbers: Box::new([FIRST_MEMBER, SECOND_MEMBER]),
     });
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     assert_eq!(test.domain.funding(period), Some(&before));
     assert!(test.domain.funding(Funder::Recurring { project: PROJECT, task: MASTER, period: FIRST_PERIOD }).is_none());
     assert!(test.domain.task(MASTER).unwrap().recurring.as_ref().unwrap().last_batch.is_empty());

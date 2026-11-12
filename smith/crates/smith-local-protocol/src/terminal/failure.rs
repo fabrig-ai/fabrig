@@ -49,7 +49,7 @@ pub(super) fn run(
             }
         }
         host::RunFailure::Model(_)
-        | host::RunFailure::Budget { exhausted: _, .. }
+        | host::RunFailure::Budget { .. }
         | host::RunFailure::Policy(_)
         | host::RunFailure::Transcript(_)
         | host::RunFailure::Stale => append(text, b"run failed: "),

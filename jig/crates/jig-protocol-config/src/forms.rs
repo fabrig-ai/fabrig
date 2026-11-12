@@ -9,7 +9,7 @@ pub fn digest(input: &[u8]) -> Result<Digest, What> {
         return Err(What::Digest);
     }
     let mut words = [0_u64; 4];
-    for (word, group) in words.iter_mut().zip(digits.chunks_exact(16)) {
+    for (word, group) in words.iter_mut().zip(digits.as_chunks::<16>().0) {
         for digit in group {
             let value = match digit {
                 b'0'..=b'9' => digit.checked_sub(b'0'),

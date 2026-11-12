@@ -26,7 +26,7 @@ fn an_answer_reports_sent_and_queued_names_and_later_ingress_has_its_own_refusal
     message(&mut world, 2);
     answer(&mut world, 0);
     assert_eq!(world.seen.unread, Some(vec![Token::new(1), Token::new(2)]));
-    assert!(world.seen.refused_messages.is_empty());
+    assert_eq!(world.seen.refused_messages.len(), 0);
     message(&mut world, 3);
     assert_eq!(world.seen.refused_messages, [(Token::new(3), MessageRefusal::Ending)]);
     assert_eq!(world.seen.fault, None);

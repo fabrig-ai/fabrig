@@ -71,7 +71,7 @@ fn a_response_given_before_the_body_is_read_gives_up_the_rest_on_a_connection_no
     machine.down(Request::Body(Down::Demand { read: Read::Fill(2), room: 0 }));
     let (events, requests) = machine.bytes(b"12");
     assert_eq!(events, [Event::Body(Up::Bytes(boxed(b"12")))]);
-    assert!(requests.is_empty());
+    assert_eq!((requests).len(), 0);
     machine.down(Request::Body(Down::Demand { read: Read::Fill(2), room: 0 }));
     let (events, requests) = machine.down(Request::Respond(response(204, Body::None)));
     assert_eq!(events, [Event::Body(Up::Failed(Fault::Other)), Event::Done(Reuse::Close)]);
@@ -112,7 +112,7 @@ fn the_stream_ending_mid_body_fails_the_exchange_and_after_it_lets_the_response_
     let mut machine = Machine::new(LIMITS);
     machine.call(get());
     let (events, _) = machine.up(Up::End);
-    assert!(events.is_empty());
+    assert_eq!((events).len(), 0);
     machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
     let (events, requests) = machine.down(Request::Respond(response(204, Body::None)));
     assert_eq!(events, [Event::Done(Reuse::Close)], "no other request follows");

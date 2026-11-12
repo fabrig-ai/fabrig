@@ -70,18 +70,42 @@ what they write, and how they end. temper runs them as jobs on a worker
 ## 4. `prepare`
 
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
-  COMMIT, "members": [{"number": N, "branch": BRANCH, "head": COMMIT}],
-  "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
-  COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
-  names as the project's settings give them.
+  COMMIT, "combine": "merge" | "squash", "train_upstream": COMMIT,
+  "members": [{"number": N, "branch": BRANCH, "head": COMMIT,
+  "message": TEXT, "squash": TEXT}], "upstreams": [{"repository": NAME,
+  "main": COMMIT, "candidate": COMMIT}], "gates": [NAME]}`; commits as
+  40 or 64 hexadecimal digits, names as the project's settings give
+  them, `main` the round's base.
+  - **`combine`** is the train's (`../domain/landing.md`, 5.2 and
+    13.1), and **`train_upstream`** its upstream's tip as the round read
+    it, present only where the train has an upstream: a member whose
+    head holds a commit `main` lacks and `train_upstream` holds is
+    merged under `squash` too.
+  - **`message`** is the commit message temper's own merge gives the
+    member: `Merge pull request 'TITLE' (#N) from BRANCH into BASE`, a
+    blank line, then `Landed by landing L for change C.`, L and C task
+    numbers, BASE the train's branch.
+  - **`squash`** is its squash's: `TITLE`, a blank line, then three
+    trailers, a line each, `Temper-Change: C`, `Temper-Pull: N` and
+    `Temper-Head: HEAD`, HEAD the member's head in hexadecimal at the
+    forge's length. The engine knows a squash on the landing's branch by
+    its `Temper-Head` trailer (`../domain/landing.md`, 5.2).
+  - **TITLE** is the member's pull request's title, N its number.
+- **temper's own,** where the project names no prepare command: the
+  same request, read by the worker itself, with no command run, and the
+  results below with `{"combined": [{"member": N, "by": "merge" |
+  "squash"}]}` for exit 0's, a member's way as it combined it
+  (`../domain/worker/jobs.md`).
 - **`result.json`, exit 0:** `{"candidate": COMMIT, "keys": [{"gate":
   NAME, "key": HEX64}]}`, `keys` present only where the project names
   a `key` command and the command chose to give them here.
-- **`result.json`, exit 3:** `{"conflict": {"member": N, "files":
-  [PATH]}}`: the member whose change does not apply, and the files.
+- **`result.json`, exit 3:** `{"conflict": {"member": N, "with":
+  "branch", "files": [PATH], "cut": BOOL}}`: the member whose change
+  does not apply, what it conflicts with (`branch`, the round's base),
+  and the files, `cut` true when the list was cut to its bound.
   temper resolves it under that member in a workspace of its own,
   main's tip merged into the member's head (`../domain/landing.md`,
-  5.3); nothing of the command's directory is kept.
+  5.2); nothing of the command's directory is kept.
 - **Any other exit,** a missing or malformed result, a candidate absent
   or not containing main's tip, or a file past its bound: the command's
   failure, the stderr's last `tooling_log_bytes` kept for the landing's

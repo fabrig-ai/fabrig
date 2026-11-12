@@ -133,6 +133,7 @@ fn every_policy_table_reports_the_stored_key_at_capacity() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn duplicate_policy_rows_assert_before_replacing_the_key() {
     let (mut core, env) = loaded();
     assert!(core.restore_policy(&env.limits, 1, "First".into(), policy()));

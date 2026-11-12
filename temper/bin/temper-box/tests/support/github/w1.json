@@ -12,6 +12,7 @@
       }},
       "graces": {{
         "grace_ms": 1000,
+        "drain_ms": 1000,
         "agent_stop_ms": 100,
         "delivery_ms": 100,
         "save_ms": 100

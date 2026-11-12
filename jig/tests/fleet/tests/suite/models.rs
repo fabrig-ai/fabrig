@@ -158,7 +158,7 @@ fn a_waiting_run_is_placed_when_a_suitable_host_joins() {
     let mut fleet = Fleet::new();
     fleet.hello(FIRST, &[b"main"]);
     fleet.start(MODEL_CHARTER);
-    assert!(fleet.settle().is_empty());
+    assert_eq!(fleet.settle().len(), 0);
     assert_eq!(fleet.domain.waiting(), 1);
     assert!(!fleet.domain.is_ready(), "an unavailable model does not spin");
     fleet.hello(SUITABLE, &[b"main", b"alternative"]);
@@ -183,7 +183,7 @@ fn a_busy_refusal_keeps_the_runs_model_requirements() {
     fleet.settle();
     fleet.hello(SECOND, &[b"main"]);
     fleet.send(Event::Answer { channel: FIRST, run: RUN, attempt: ATTEMPT, answer: Answer::Busy, payload: RUN });
-    assert!(fleet.settle().is_empty());
+    assert_eq!(fleet.settle().len(), 0);
     assert_eq!(fleet.domain.waiting(), 1);
     fleet.hello(SUITABLE, &[b"main", b"alternative"]);
     assert_eq!(fleet.settle(), vec![SUITABLE]);

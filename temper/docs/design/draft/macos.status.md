@@ -1,6 +1,6 @@
 # macos: status
 
-2026-11-05. Where the design lags or departs from [macos.md](macos.md).
+2026-11-12. Where the design lags or departs from [macos.md](macos.md).
 
 skein carries section 3: the readiness backend on epoll and kqueue (skein's `runtime/kernel.md`; `skein/docs/design/runtime/readiness.md`, 5). `macos.md`, section 6's steps 1 to 5 stand in the design: skein's `forge/README.md`, 4.3, `../protocol/setup/owned.md`, 1 and 6, and `../testing/README.md`, 2.8 and `../testing/real-loop.md`'s story, this draft's acceptance, passes on the runner.
 
@@ -12,3 +12,4 @@ skein carries section 3: the readiness backend on epoll and kqueue (skein's `run
   - 5: no `macos` nextest profile exists, and no design lists smith's or jig's Linux-only tests by name; `../testing/README.md`, 2.8 has the workflow compile every target and run the one story, what the first stages ask of it, and its section 11 defers the rest of 2.1, 2.2 and 2.3.
 - **Design departs:**
   - 4.3: `../protocol/setup/box.md`, 2, and `../protocol/setup/init.md`, 2: the pipe check stays Linux's and asks the shell nothing, and macOS's login is what `/usr/bin/id -un` prints, where the draft has the shell's `getpwuid` answer on both. It needs no change to skein and leaves Linux as it is, by the user's rule of 2026-11-04; the cut of `macos-cheap` chose it.
+  - 5.1: `../testing/README.md`, 2.8, installs the toolchain the repository's `rust-toolchain.toml` pins, `nightly-2026-10-21` with LLVM, where the draft has Rust 1.95, the workspace's `rust-version`: the later draft `crate-graph.md`, 2, moves the workspace to that nightly, by the user's choice of 2026-11-12.

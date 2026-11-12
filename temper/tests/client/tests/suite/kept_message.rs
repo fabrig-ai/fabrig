@@ -174,7 +174,7 @@ fn a_kept_message_reaches_its_answer_while_its_chat_cannot_take_it() {
     let printed = &story.printed.iter().find(|(n, _)| *n == 1).expect("answer within a span of room returning").1;
     assert_eq!(printed.status, 0);
     assert!(printed.stdout.starts_with(b"done:"), "{printed:?}");
-    assert!(story.records.is_empty());
+    assert_eq!(story.records.len(), 0);
 }
 
 #[test]

@@ -108,9 +108,8 @@ pub enum Event {
     Activity { owner: Token, activity: Option<host::AgentActivity> },
     /// Terminal for `Io`.
     Done { owner: Token, done: git::Done },
-    /// From the shell: cancel every run, admit no more, and stop once nothing
-    /// is left.
-    Shutdown,
+    /// From the shell: admit no more, optionally drain current turns, then stop.
+    Shutdown { drain: bool },
 }
 
 /// domain -> protocol
@@ -154,6 +153,8 @@ pub enum Request {
     CancelRelay { run: Token, attempt: Token, call: Box<[u8]> },
     /// Nothing is left: the shell stops.
     Stop,
+    /// The stop bound passed: abort every owned IO entity and exit.
+    Abandon,
     /// One of smith's process requests.
     Process(Box<agent::process::Request>),
     /// Decode the hub's start into smith's, for the hosted run `run`.

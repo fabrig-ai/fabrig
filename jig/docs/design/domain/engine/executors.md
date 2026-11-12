@@ -614,11 +614,15 @@ once, as the worker's hello is. A batch naming an undeclared job kind is
 refused as `Executor`; a job's spec or deadline beyond its declared bound is
 refused as `Spec` (2026-11-04).
 
-A job's transient preparation or failed delivery uses the transient retry
-class; permanent preparation, stale or refused delivery, and an invalid
+A job's transient preparation uses the infrastructure retry class
+(../tasks/lifecycle.md, 6), and its failed delivery the transient one;
+permanent preparation, stale or refused delivery, and an invalid
 assignment use the permanent class. Its own failure and deadline use the
 run's-own class; failure to start uses the agent's class; an oversized
-result uses invalid; lost contact and shutdown use lost. Engine cancellation
+result uses invalid; lost contact uses lost. A cancel for its host's
+shutdown, which the hub answers only before the job's delivery began
+(../hosts/hub.md, 9), ends the attempt interrupted, as a run's does,
+spending no try and with no backoff (../tasks/lifecycle.md, 2). Engine cancellation
 ends it as cancelled. Busy before starting is a refusal, spending no try. A
 finished job becomes its task's Job result, without asking to cancel
 delegates (2026-11-04). A failed job's nonempty detail accompanies its

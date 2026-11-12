@@ -1139,7 +1139,7 @@ impl Judge {
 impl Judge {
     fn check_tokens(&self) {
         let token = &self.admin_token;
-        assert!(!token.is_empty());
+        assert_ne!((token).len(), 0);
         for &name in &self.cast {
             let dir = self.members.dir(name);
             let worker = read(&dir.join("config/temper.json"));

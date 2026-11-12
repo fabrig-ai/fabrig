@@ -20,8 +20,8 @@ fn evidence_reads_a_directory_and_names_a_missing_file() {
     let evidence = evidence::read(&fixture()).expect("minimal evidence");
     assert_eq!(evidence.facts.project, 1);
     assert_eq!(evidence.revision["number"], 1);
-    assert!(evidence.items.items.is_empty());
-    assert!(evidence.current.items.is_empty());
+    assert_eq!(evidence.items.items.len(), 0);
+    assert_eq!(evidence.current.items.len(), 0);
     assert_eq!(evidence.proposal, "Apply the proposed settings.\n");
     assert_eq!(evidence.chat, "Describe the workflow from the process documents.\n");
     assert_eq!(evidence.confirmed.len(), 1);

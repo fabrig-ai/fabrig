@@ -47,6 +47,12 @@ impl Endpoints {
         true
     }
 
+    /// The configured identities, in their declaration order, without endpoint addresses.
+    #[must_use]
+    pub const fn entries(&self) -> &List<Endpoint> {
+        &self.entries
+    }
+
     /// Find a charter name without exposing endpoint addresses.
     #[must_use]
     #[expect(clippy::manual_find, reason = "production steps do not use closures")]

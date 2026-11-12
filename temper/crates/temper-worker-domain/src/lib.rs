@@ -60,6 +60,7 @@ mod limits;
 mod push;
 mod route;
 mod smith_delivery;
+mod stopping;
 #[cfg(test)]
 mod tests;
 mod translate;

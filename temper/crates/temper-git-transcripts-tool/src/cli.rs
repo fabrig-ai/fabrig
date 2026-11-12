@@ -68,7 +68,6 @@ pub const TABLE: Table = Table {
 };
 
 /// Capture once and answer the table before recording anything.
-#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-git-transcripts' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
