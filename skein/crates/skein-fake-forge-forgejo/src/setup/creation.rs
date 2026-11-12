@@ -80,7 +80,7 @@ impl Store {
             let limits = &env.limits;
             let full_name = path_of(at);
             let signature = domain::Signature { name: author.name.clone(), email: author.email.clone() };
-            let domain_env = env.with(*hosted.config);
+            let domain_env = env.with(hosted.config.clone());
             let result = domain::create_file(
                 hosted.domain,
                 &domain_env,

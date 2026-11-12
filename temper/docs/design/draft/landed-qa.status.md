@@ -31,20 +31,29 @@ and places are tuned from (`../testing/qa/ledger.md`, 2.10, 4.17 and
 `testing/fakes/forge.md`, 2.7 and 5, `testing/fakes/github.md`, 1.7;
 `../testing/fakes.md`, 2; `../protocol/setup/box.md`, 5), and scripts
 that take values from the conversation (skein's `testing/fakes/llm.md`,
-2.6; `../protocol/setup/playground.md`; `../testing/fakes.md`, 1), and
-the drive session's `forge` lines, a person's commit and the wait on its
-checks on the box's own Forgejo (`../client/drive.md`, 3.5).
+2.6; `../protocol/setup/playground.md`; `../testing/fakes.md`, 1).
+
+Milestone Q5, QA on the fakes alone, is designed in
+`../testing/qa/setups.md` (every setup on the box's fake Forgejo, no
+place running a Forgejo or a runner), `../client/drive.md`, 3.4 and 3.5
+(ctl lines naming the box's values, and `forge` lines committing a
+recipe's files to the fake Forgejo as the person, no credential named),
+`../client/recipe.md`, 2 and 4 (a recipe's `files/`, in its hash), a
+pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
+5 and 6), a head's CI declared by what it holds (skein's
+`testing/fakes/forge.md`, 2.3 and 4; `../testing/fakes.md`, 2;
+`../protocol/setup/box.md`, 5), and the process-tier story of a box at
+its place on its fake forges' state (`../testing/process-tier.md`).
 
 - **Design lags:**
-  - 5, 6, 10: the setups and their places run on the box's own Forgejo, with its runner (`../testing/qa/places.md`; `../../development/qa/setups/`), where the draft, since 2026-11-12, has the fakes alone; Q5 moves them.
   - 5, 7: a copy whose store a newer build refuses by name is made again with no finding (`../testing/qa/places.md`, 4), where the draft, since 2026-11-12, files a finding as well, so that passes prove the stores' patches; no milestone carries it yet.
 - **Design departs:**
+  - 5: `project-landing` connects the box's fake Forgejo as its admin through a ctl line naming the box's values, where the draft names the web journey's setup as the first recipes' source: the web's connect takes the admin's token itself, which no recipe names, and gives no git program, so the box's agents would reach no fake forge's git. It reaches the journey's state, Hello with `work/hello` and ChatGPT, on the fake Forgejo (`../testing/qa/setups.md`, 2). The goal's designer, 2026-11-12.
   - 6, 10: a take reads the whole conversation, the agent's brief in its system text among it, rather than a tool's output alone, since a review's brief is where its pull request and head are named (skein's `testing/fakes/llm.md`, 2.6). The goal's designer, 2026-11-12.
   - 2, 12: bounds and places are tuned by the deployment from `temper-qa tune`'s figures and suggestions, never by the loop itself, since `qa.json` is the deployment's (`../testing/qa/ledger.md`, 6). More than one place gives each place its own ports (`../testing/qa/places.md`, 2). The goal's designer, 2026-11-12.
   - 3, 10: the client a build keeps is the TUI's recording build (`temper` with `TEMPER_INTERNAL_RECORD=1`, `../client/tui/journeys.md`, 2), beside the bundle's recording build: the drive session reads the TUI's frames from its saves, replayed natively, since nothing in the tree reads a pseudo-terminal's screen (`../client/drive.md`, 2.1 and 3.3). The goal's designer, 2026-11-12.
   - 10: the journeys' `again` keeps building from the checkout and recording into it, a person's command (`../client/web/journeys.md`, 8.1); the drive session and the recipe walk are what walks and drives with a given build in a given scratch directory (`../client/drive.md`, 2; `../client/recipe.md`, 5), since `again` writes into the checkout, which a QA session never touches. The goal's designer, 2026-11-12.
   - 7: the session signs the TUI in itself, by the browser's approval, when a line first needs it, so that no line and no recipe approves and a recipe walks the same from a fresh box or a copy (`../client/drive.md`, 3.3). The goal's designer, 2026-11-12.
-  - 5, 7, 10: drive sessions and recipes take a fourth client, `forge`: one commit of the files a line names to a repository of the box's owned Forgejo, as the person, with the forge's `person_write.header`, and a wait on its checks, so that B1's twin reaches its gate as its walk did (`../client/drive.md`, 3.5; `../testing/qa/setups.md`, 4.4). The user, 2026-11-12.
   - 6: B1's twin commits the gate its fixture holds, not acceptance.md, 7's later text, which the twin never met (`../testing/qa/setups.md`, 4.4). The goal's coordinator, 2026-11-12.
   - 3: a kept build's `bin/fake-claude`, smith's fake of the coding agent's command line, prints no temper commit as its version; it is held by the build's manifest alone, and every temper executable of the build prints the commit (`../testing/qa/builds.md`, 3). The goal's designer, 2026-11-12.
   - 5, 7: a recipe's step that broke with no landing meaning it to fails the cases on that setup, with its finding, as section 7 has it, where section 5 says they are blocked by it: failed, they come back at the pass's resume (`../testing/qa/places.md`, 7). The goal's designer, 2026-11-12.

@@ -255,6 +255,20 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   git route's `objects` call gives a commit's tree, which the case's
   referee reads for main once the last merge is observed, before the
   forge stops.
+- **Its CI, as a process:** each repository of `temper-box fake forge
+  --document FILE` names its `ci`, its one context `check` judged by: on
+  `null`, every head passing; on `{"path", "green"}`, the domain's
+  `Cue::File`; on `{"declared": PATH}`, the domain's `Cue::Declared`,
+  each head judged by the rule its own tree holds at PATH, a head with
+  none passing (skein's `testing/fakes/forge.md`, 2.3). PATH is
+  relative, with no empty, `.` or `..` segment, within the domain's
+  name limit. The document's `made_ci`, optional and of the same form,
+  is the CI of every repository the forge makes through its setup
+  routes, an admin's `CreateRepository` and a copy's destination
+  (skein's `testing/fakes/forge.md`, 4, `Config.made_checks`); absent,
+  they report none, as before. So the box's fake forges let a person's
+  commit decide a head's checks by what it holds
+  (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6).
 - **Its state kept, as a process:** `temper-box fake forge --document
   FILE [--state STATE]`. With `--state`, the forge's state lasts across
   its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;

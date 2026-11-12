@@ -66,7 +66,7 @@ fn a_github_document_installs_each_accounts_installation() {
     shared
         .borrow()
         .domain
-        .inspect(&forge::LIMITS, b"umbra/widget", &domain::api::Read::Branch { branch: b"main".as_slice().into() })
+        .inspect(&forge::limits(), b"umbra/widget", &domain::api::Read::Branch { branch: b"main".as_slice().into() })
         .expect("the second owner's repository exists");
 }
 
@@ -123,7 +123,7 @@ fn clone(
         Wall::EPOCH,
         reply(),
     );
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::LIMITS };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::limits() };
     for _ in 0..8 {
         outcome = match outcome {
             Outcome::Reply(response) => return response.status,
