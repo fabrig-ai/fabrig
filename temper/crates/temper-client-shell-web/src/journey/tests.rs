@@ -2,6 +2,8 @@ use super::*;
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
 
+mod saving;
+
 #[test]
 fn every_record_reads_back_as_written() {
     let bytes = || Box::from(b"bytes".as_slice());
@@ -143,7 +145,7 @@ fn a_malformed_line_is_unreadable() {
     assert_eq!(lines(b"").expect_err("empty recording").line, 1);
 }
 
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
         seed: 11,
         now: Time::ZERO,
