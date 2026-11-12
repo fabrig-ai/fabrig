@@ -594,8 +594,8 @@ deployment's lock as a start does (1, step 1).
 - **A rehearsal** is a start that stops before its switch step. It
   never writes the directory it is given, a copy of a stopped
   deployment's such as a backup: it reads `active` and that
-  generation's maps, copies them into a scratch deployment under the
-  application's cache directory as that generation, and opens the
+  generation's maps, copies them into a scratch deployment as that
+  generation, and opens the
   scratch as any start does (1 and 2), with its patch sets, the
   transcripts read where they are and never cut, and no generation
   dropped. The plan, the copy, the patches and the restores (loaded and
@@ -611,7 +611,7 @@ deployment's lock as a start does (1, step 1).
   (3), from which the application says whether its workers may
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
-  removed as it ends.
+  emptied as it ends.
 - **Every record decoded** in a rehearsal, after the copy and before
   the plan, whether or not a pending patch changes its family (the
   user's words of 2026-11-11): each family of each set, at the version `A`
@@ -645,7 +645,7 @@ deployment's lock as a start does (1, step 1).
   backup.
 
 ```rust
-Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written
+Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
 Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool }           // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 Event::Decoded { owner: Token, records: u64 }                                              // every record of A decoded; the plan runs
@@ -657,11 +657,16 @@ Event::Back { owner: Token, to: u64 }                 // `active` names generati
 Event::BackRefused { owner: Token, why: BackRefusal }
 pub fn levels(sets: &PatchSets) -> Levels             // the binary's levels, for its versions' lines
 Request::Close { owner: Token }                       // a rehearsal's end, in any state; refused for any other store
-Event::Closed { owner: Token, removed: bool }         // false on a file's fault: the next rehearsal removes the rest
+Event::Closed { owner: Token, removed: bool }         // `scratch` emptied; false on a file's fault: the next rehearsal removes the rest
 ```
 
-A rehearsal's store refuses `Request::Switch`, though its root never
-asks, and its close (`Request::Close`; an engine's store ends with its
-process and has none) removes the scratch; a rehearsal that crashed
-leaves one, which the next rehearsal removes before it copies. Its
-patches answer `Patched` as a start's do.
+The scratch is a `Root` like the directory: a directory the
+application makes under its cache directory and adopts before it
+asks, as it adopts the directory. The store never removes that directory, only what is under it, deepest
+first as 1, step 5 removes a stray; making and removing the directory
+itself are the application's. A rehearsal's store refuses
+`Request::Switch`, though its root never asks, and its close
+(`Request::Close`; an engine's store ends with its process and has
+none) empties the scratch, `removed` saying it is empty; a rehearsal
+that crashed leaves entries there, which the next rehearsal removes
+before it copies. Its patches answer `Patched` as a start's do.
