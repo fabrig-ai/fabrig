@@ -3230,6 +3230,14 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     assert!(status < stop && stop < close && close < spend);
                 }
                 let path = if asking { b"Ask temper".as_slice() } else { b"Chats" };
+                let trail = subtree(tree, styled(tree, look::TRAIL));
+                assert_eq!(trail.len(), 2, "a chat's trail is one link, naming no project");
+                assert_eq!(trail[1].role, Role::Link);
+                assert_eq!(trail[1].name.as_deref(), Some(path));
+                let crumbs = subtree(tree, styled(tree, look::CRUMBS));
+                assert_eq!(crumbs[1].styles.as_slice(), [look::BACK]);
+                assert_eq!(crumbs[2].styles.as_slice(), [look::TRAIL]);
+                assert_eq!(crumbs.last().unwrap().role, Role::Heading { level: 1 });
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {
