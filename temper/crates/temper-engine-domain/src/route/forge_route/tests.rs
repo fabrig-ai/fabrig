@@ -4502,11 +4502,10 @@ fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     let first = domain.forge.change(7).unwrap().change.landing.unwrap();
     assert_eq!(domain.forge.change(8).unwrap().change.landing, None);
     assert_eq!(domain.forge.landing(first).unwrap().landing.branch.as_ref(), b"main");
-    // An emptied landing and a cancelled landing both release the train; neither
-    // asks the waiting change to become ready again.
+    // Cancelling the landing releases its ready member and frees the train.
     domain.work.push(Work::Forge(forge::Event::SettleEffects {
-        task: 7,
-        root: 7,
+        task: first,
+        root: first,
         ending: forge::ReleaseEnding::Cancelled,
     }));
     // Keep the member out of forming while the terminal is settled by jig.

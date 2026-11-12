@@ -856,35 +856,17 @@ fn cancelling_a_landing_leaves_its_change_live_and_detached() {
     }
 }
 #[test]
-fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_branch() {
+fn cancelling_a_member_retains_its_identity_for_the_rounds_cleanup() {
     let mut d = landing_fixture();
     member_landing(&mut d);
-    outputs(
+    let requests = outputs(
         &mut d,
         Event::SettleEffects { task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled },
     );
-    assert!(d.landing(61).expect("landing").landing.members.is_empty());
-    let requests = outputs(
-        &mut d,
-        Event::StepLanding {
-            task: 61,
-            entry: 92,
-            heard: LandingHeard {
-                held: Box::new([]),
-                failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
-                released: false,
-                cancelled: false,
-                kept: Box::new([]),
-            },
-        },
-    );
-    assert!(requests.contains(&Request::LandingDecision {
-        task: 61,
-        decision: policy::Decision::Cancel,
-        entry: None,
-        evidence: None
-    }));
+    let member = &d.landing(61).expect("landing").landing.members[0];
+    assert_eq!(member.change, fixtures::CHANGE);
+    assert_eq!(member.left, Some(policy::Leave::Cancelled));
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }));
 }
 
 const OTHER_CHANGE: u64 = fixtures::CHANGE + 1;
