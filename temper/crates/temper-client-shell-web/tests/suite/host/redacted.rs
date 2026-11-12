@@ -131,6 +131,43 @@ fn check_key_walk(byte_at_a_time: bool) {
 }
 
 #[test]
+fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
+    use temper_client_shell_web::journey::{prove, saved, typed};
+    let record = skein_ui_web::store::Record {
+        key: jig_client::STREAM_KEY.into(),
+        value: {
+            let kept = w::Kept::new(&w::CEILINGS, w::KeptParts { store_version: 1, record: vec![8; 16].into() })
+                .expect("bounded stored fixture");
+            let mut writer = Writer::new(usize::try_from(kept.measure()).expect("kept length"));
+            kept.encode(&mut writer).expect("measured kept");
+            writer.finish()
+        },
+    };
+    let key = key();
+    let walks = [walk::walked(), walk::stored_stream(record), walk::keyed(&key, false), walk::departed()];
+    let mut typed_acts = 0;
+    for recording in walks {
+        prove(&recording).expect("kept walk proves");
+        let output = saved(&recording);
+        prove(&output).expect("saved walk still proves");
+        let added = redact(&output, &[]).expect("saved walk redacts");
+        assert_eq!(added.originals.count(Kind::Link), 0);
+        assert_eq!(added.originals.count(Kind::Stored), 0);
+        let before = lines(&recording).expect("kept lines");
+        let after = lines(&output).expect("saved lines");
+        for (before, after) in before.iter().zip(&after) {
+            if typed(before) {
+                typed_acts += 1;
+                assert_eq!(after, before, "saving leaves real typed keys for add");
+            }
+        }
+        absent(&output, &[7; 16]);
+        absent(&output, &[8; 16]);
+    }
+    assert!(typed_acts > 0, "the key walk includes a secret input");
+}
+
+#[test]
 fn the_key_fields_event_shows_the_secret() {
     let key = key();
     let event = walk::key_event(&key);

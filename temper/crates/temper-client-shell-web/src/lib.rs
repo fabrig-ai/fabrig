@@ -470,10 +470,10 @@ impl<P: ShellPlatform> Shell<P> {
     fn save_recording(&mut self, departing: bool) {
         if departing {
             if let Some(recorder) = self.recorder.take() {
-                save_recording(&recorder.end(&self.page.borrow()));
+                save_recording(&journey::saved(&recorder.end(&self.page.borrow())));
             }
         } else if let Some(recorder) = &self.recorder {
-            save_recording(&recorder.save(&self.page.borrow()));
+            save_recording(&journey::saved(&recorder.save(&self.page.borrow())));
         }
     }
 }

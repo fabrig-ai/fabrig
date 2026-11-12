@@ -10,6 +10,14 @@ pub const SECRET_EVENT: &[u8] = b"Secret { len: ";
 /// Read the originals of a recording's lines and the given texts (client/web/journeys.md, 3.6).
 #[must_use]
 pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
+    collect(lines, given, true)
+}
+
+pub(super) fn sign_in(lines: &[Line]) -> Originals {
+    collect(lines, &[], false)
+}
+
+fn collect(lines: &[Line], given: &[Box<[u8]>], include_typed: bool) -> Originals {
     let mut candidates = Vec::new();
     for line in lines {
         match line {
@@ -21,7 +29,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                 }
             }
             Line::Act { act, event: _, name: _ } => {
-                if typed(line) {
+                if include_typed && typed(line) {
                     match act {
                         Act::Input { value } => candidates.push((Kind::Typed, value.clone())),
                         Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => {}
