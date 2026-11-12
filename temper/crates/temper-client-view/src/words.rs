@@ -78,6 +78,34 @@ pub enum Word {
     HowBudgetLine,
     HowAmount,
     HowUpTo,
+    HowFollows,
+    HowFollowsLine,
+    HowFollowTitle,
+    HowFollowMain,
+    HowFollowBranch,
+    HowFollowTouches,
+    HowFollowOwned,
+    HowFollowYou,
+    HowFollowYourWord,
+    HowFollowOwnerWord,
+    HowFollowUnknownWord,
+    HowFollowCode,
+    HowFollowCheck,
+    HowFollowStatus,
+    HowFollowStopped,
+    HowHearsLanding,
+    HowAgentPorts,
+    HowCodeChecks,
+    HowTiersTitle,
+    HowTiersWords,
+    HowTierChecks,
+    HowCodeRuns,
+    HowAgentRepairs,
+    HowWeek,
+    HowPeriod,
+    HowRenews,
+    HowStanding,
+
     HowPath,
     HowRoles,
     HowRolesLine,
@@ -1822,7 +1850,7 @@ const PHRASES: u32 = 2345;
 const SEGMENTS: u32 = 4232;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 56704;
-const ALL: [Word; 1661] = [
+const ALL: [Word; 1688] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -1888,6 +1916,33 @@ const ALL: [Word; 1661] = [
     Word::HowBudgetLine,
     Word::HowAmount,
     Word::HowUpTo,
+    Word::HowFollows,
+    Word::HowFollowsLine,
+    Word::HowFollowTitle,
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowYou,
+    Word::HowFollowYourWord,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowUnknownWord,
+    Word::HowFollowCode,
+    Word::HowFollowCheck,
+    Word::HowFollowStatus,
+    Word::HowFollowStopped,
+    Word::HowHearsLanding,
+    Word::HowAgentPorts,
+    Word::HowCodeChecks,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+    Word::HowCodeRuns,
+    Word::HowAgentRepairs,
+    Word::HowWeek,
+    Word::HowPeriod,
+    Word::HowRenews,
+    Word::HowStanding,
     Word::HowPath,
     Word::HowRoles,
     Word::HowRolesLine,
@@ -3618,6 +3673,34 @@ impl Word {
             Self::HowBudgetLine => 4911,
             Self::HowAmount => 4912,
             Self::HowUpTo => 4913,
+            Self::HowFollows => 5680,
+            Self::HowFollowsLine => 5681,
+            Self::HowFollowTitle => 5682,
+            Self::HowFollowMain => 5683,
+            Self::HowFollowBranch => 5684,
+            Self::HowFollowTouches => 5685,
+            Self::HowFollowOwned => 5686,
+            Self::HowFollowYou => 5687,
+            Self::HowFollowYourWord => 5688,
+            Self::HowFollowOwnerWord => 5689,
+            Self::HowFollowUnknownWord => 5690,
+            Self::HowFollowCode => 5691,
+            Self::HowFollowCheck => 5692,
+            Self::HowFollowStatus => 5693,
+            Self::HowFollowStopped => 5694,
+            Self::HowHearsLanding => 5695,
+            Self::HowAgentPorts => 5696,
+            Self::HowCodeChecks => 5697,
+            Self::HowTiersTitle => 5698,
+            Self::HowTiersWords => 5699,
+            Self::HowTierChecks => 5700,
+            Self::HowCodeRuns => 5701,
+            Self::HowAgentRepairs => 5702,
+            Self::HowWeek => 5703,
+            Self::HowPeriod => 5704,
+            Self::HowRenews => 5705,
+            Self::HowStanding => 5706,
+
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
@@ -5219,6 +5302,18 @@ const CLASSES_OBJECTS_BYTES: u32 = 6400;
 const APPROVAL_SET_NAMES_BYTES: u32 = 253;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if [Word::HowFollowMain, Word::HowFollowBranch, Word::HowFollowTouches, Word::HowFollowOwned,
+        Word::HowFollowTitle, Word::HowFollowOwnerWord, Word::HowFollowCheck, Word::HowFollowStopped,
+        Word::HowFollowStatus, Word::HowTiersTitle, Word::HowTiersWords, Word::HowTierChecks].contains(&word) {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let paths = bounds.follow_source_paths_item.checked_add(4).ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.follow_source_paths).ok_or(Invalid::Overflow)?;
+        let tiers = bounds.card_name.checked_add(bounds.fact_value).ok_or(Invalid::Overflow)?
+            .checked_add(5).ok_or(Invalid::Overflow)?.checked_mul(bounds.branch_path_stops).ok_or(Invalid::Overflow)?;
+        let branch = bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
+        return Ok(joined.max(paths).max(tiers).max(branch).max(bounds.follow_check_workflow)
+            .max(bounds.follow_view_stopped_some).checked_add(32).ok_or(Invalid::Overflow)?);
+    }
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
     }
@@ -5529,6 +5624,7 @@ impl Words {
             text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(hole_bytes(Word::HowFollowMain, HoleKind::Name, false, joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(CLASSES_OBJECTS_BYTES)
@@ -5746,6 +5842,34 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowBudgetLine => (&[b"each given its own when it starts"], &[]),
         Word::HowAmount => (&[b"", b""], &[Number]),
         Word::HowUpTo => (&[b"up to ", b""], &[Number]),
+        Word::HowFollows => (&[b"What follows a landing"], &[]),
+        Word::HowFollowsLine => (&[b"code triggers, agents judge"], &[]),
+        Word::HowFollowTitle => (&[b"", b" follows ", b""], &[Name, Name]),
+        Word::HowFollowMain => (&[b"Each landing on ", b"", b" makes a change in ", b"", b"."], &[Name, Name, Name, Name]),
+        Word::HowFollowBranch => (&[b"", b"'s ", b""], &[Name, Name]),
+        Word::HowFollowTouches => (&[b" that touches ", b""], &[Name]),
+        Word::HowFollowOwned => (&[b", owned by ", b""], &[Name]),
+        Word::HowFollowYou => (&[b"you"], &[]),
+        Word::HowFollowYourWord => (&[b"Each waits for your word."], &[]),
+        Word::HowFollowOwnerWord => (&[b"Each waits for ", b"'s word."], &[Name]),
+        Word::HowFollowUnknownWord => (&[b"Each waits for its owner's word."], &[]),
+        Word::HowFollowCode => (&[b"Each starts once the one before it has landed."], &[]),
+        Word::HowFollowCheck => (&[b"Its check: ", b"."], &[Name]),
+        Word::HowFollowStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HowFollowStopped => (&[b"Stopped: ", b"."], &[Name]),
+        Word::HowHearsLanding => (&[b"code hears the landing"], &[]),
+        Word::HowAgentPorts => (&[b"an agent ports"], &[]),
+        Word::HowCodeChecks => (&[b"code checks"], &[]),
+        Word::HowTiersTitle => (&[b"Tiers on ", b""], &[Name]),
+        Word::HowTiersWords => (&[b"Code runs each after landings on ", b": ", b". A red reaches the goals whose changes landed in it, and their agents repair it."], &[Name, Name]),
+        Word::HowTierChecks => (&[b"", b" (", b")"], &[Name, Name]),
+        Word::HowCodeRuns => (&[b"code runs"], &[]),
+        Word::HowAgentRepairs => (&[b"an agent repairs"], &[]),
+        Word::HowWeek => (&[b"a week"], &[]),
+        Word::HowPeriod => (&[b"each period"], &[]),
+        Word::HowRenews => (&[b"", b" \xc2\xb7 renews ", b""], &[Name, Name]),
+        Word::HowStanding => (&[b"a standing role \xc2\xb7 ", b" left"], &[Number]),
+
         Word::HowRoles => (&[b"Roles"], &[]),
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),

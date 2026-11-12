@@ -51,6 +51,7 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
+        period: None, standing: Box::default(),
         roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {

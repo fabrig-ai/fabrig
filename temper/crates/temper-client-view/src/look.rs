@@ -1454,6 +1454,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-shared",
         b"temper-chips",
         b"temper-size-files",
+        b"temper-how-follows",
+        b"temper-how-follow",
+        b"temper-how-chips",
+        b"temper-how-who-code",
+
     ],
     regions: &[b"temper-link"],
 };
@@ -1933,6 +1938,11 @@ pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
 /// An approval's size (temper/docs/design/client/forge/README.md, 4.1).
 pub const CHIPS: Style = Style { owner: owner(), token: 730 };
 pub const SIZE_FILES: Style = Style { owner: owner(), token: 731 };
+
+pub const HOW_FOLLOWS: Style = Style { owner: owner(), token: 732 };
+pub const HOW_FOLLOW: Style = Style { owner: owner(), token: 733 };
+pub const HOW_CHIPS: Style = Style { owner: owner(), token: 734 };
+pub const HOW_WHO_CODE: Style = Style { owner: owner(), token: 735 };
 
 #[cfg(test)]
 mod tests {

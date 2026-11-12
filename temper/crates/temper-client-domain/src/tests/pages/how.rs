@@ -284,8 +284,8 @@ fn parts_and_facts_follow_the_project_rules() {
         for (asking, roles) in [(false, false), (true, false), (false, true), (true, true)] {
             for (classes, several) in [(false, false), (true, false), (false, true), (true, true)] {
                 assert_eq!(
-                    how::parts(&Facts { roles, asking, read, goals: false, budget: None, classes, several }),
-                    Parts { roles, head, ask: asking, path, budget: None, reaches: classes, several },
+                    how::parts(&Facts { period: None, standing: Box::default(), roles, asking, read, goals: false, budget: None, classes, several }),
+                    Parts { period: None, standing: Box::default(), roles, head, ask: asking, path, budget: None, reaches: classes, several },
                     "{read:?}, asking={asking}, roles={roles}, classes={classes}, several={several}"
                 );
             }
@@ -302,7 +302,7 @@ fn parts_and_facts_follow_the_project_rules() {
     ] {
         for (goals, expected) in [(false, None), (true, shown)] {
             assert_eq!(
-                how::parts(&Facts {
+                how::parts(&Facts { period: None, standing: Box::default(),
                     roles: false,
                     asking: false,
                     read: Read::Reading,
@@ -311,7 +311,7 @@ fn parts_and_facts_follow_the_project_rules() {
                     classes: false,
                     several: false
                 }),
-                Parts {
+                Parts { period: None, standing: Box::default(),
                     roles: false,
                     head: Head::Reading,
                     ask: false,
@@ -330,7 +330,7 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             None,
             Read::Reading,
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Reading,
@@ -345,7 +345,7 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, SELECTED)),
             Read::Shown { current: Some(0) },
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Shown { current: Some(0) },
@@ -360,7 +360,7 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((false, SELECTED)),
             Read::Shown { current: None },
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Shown { current: None },
@@ -375,7 +375,7 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, 0)),
             Read::Ended,
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Ended,
@@ -390,7 +390,7 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, OTHER)),
             Read::Reading,
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Reading,
@@ -405,7 +405,7 @@ fn parts_and_facts_follow_the_project_rules() {
             false,
             Some((true, SELECTED)),
             Read::Reading,
-            Facts {
+            Facts { period: None, standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Reading,
@@ -423,7 +423,7 @@ fn parts_and_facts_follow_the_project_rules() {
             (ClassesRead::Unread, true),
             (ClassesRead::Stock, true),
         ] {
-            let mut expected = expected;
+            let mut expected = expected.clone();
             expected.classes = match &classes {
                 ClassesRead::Unread => false,
                 ClassesRead::Stock | ClassesRead::Given(_) => true,
@@ -433,7 +433,7 @@ fn parts_and_facts_follow_the_project_rules() {
             assert_eq!(how::facts(&root, f::PROJECT), expected);
             assert_eq!(
                 how::facts(&root, OTHER),
-                Facts {
+                Facts { period: None, standing: Box::default(),
                     roles: false,
                     asking: false,
                     read: Read::Reading,
@@ -595,7 +595,7 @@ fn parts_and_facts_follow_the_project_rules() {
     let root = crate::unlinked(&f::limits(), f::SEED);
     assert_eq!(
         how::facts(&root, f::PROJECT),
-        Facts {
+        Facts { period: None, standing: Box::default(),
             roles: false,
             asking: false,
             read: Read::Reading,
