@@ -98,6 +98,7 @@ Needs you:
           Agent tries: 0
           Lost tries: 0
           Invalid tries: 0
+          Infrastructure tries: 0
           Hold wait began: 0
           Budget: 1:
             Budget: 1
