@@ -10,7 +10,7 @@ use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role};
 use temper_client_domain::pages::team::{self, Facts, Shown};
 
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
         people: List::with_capacity(0),
         cut: false,
@@ -37,6 +37,7 @@ fn facts() -> Facts {
             rules: None,
             wakes: List::with_capacity(0),
             wakes_cut: false,
+            report: None,
             sessions: List::from_boxed(Box::new([
                 team::Session { start: Wall::from_nanos(1_794_102_720_000_000_000), end: None, words: None, spent: 0 },
                 team::Session {

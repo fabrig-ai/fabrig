@@ -6,8 +6,12 @@ pub(super) fn page() -> c::ActivityPage {
     let friday = 1_794_006_300_000_000_000;
     let saturday = 1_794_068_400_000_000_000;
     let sunday = 1_794_102_720_000_000_000;
-    let mut rows = List::with_capacity(10);
+    let mut rows = List::with_capacity(11);
     for (position, nanos, line) in [
+        (9, sunday + 60_000_000_000, c::Activity::NowWritten {
+            attempt: 4,
+            line: c::Text::new(b"Reproduced finding 91; asked you about its fix.".as_slice().into(), 512).expect("Now line fits"),
+        }),
         (8, sunday, c::Activity::RunBegan { attempt: 4, why: c::RunWhy::Ready, resumed: false }),
         (7, sunday - 120_000_000_000, c::Activity::SessionEnded { attempt: 2, end: c::SessionEnd::Quiet }),
         (6, saturday + 1_320_000_000_000, c::Activity::RunEnded { attempt: 3, end: c::RunEnd::Parked, spent: 4 }),
@@ -16,10 +20,10 @@ pub(super) fn page() -> c::ActivityPage {
         (
             3,
             saturday + 500_000_000_000,
-            c::Activity::Stood {
+            c::Activity::NowWritten {
                 attempt: 2,
-                words: c::Text::new(b"Triaged three findings;\nrouted two to you.".as_slice().into(), 512)
-                    .expect("Stood fits"),
+                line: c::Text::new(b"Triaged three findings;\nrouted two to you.".as_slice().into(), 512)
+                    .expect("Now line fits"),
             },
         ),
         (2, saturday, c::Activity::RunBegan { attempt: 2, why: c::RunWhy::Ready, resumed: false }),
