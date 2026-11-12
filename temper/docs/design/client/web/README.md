@@ -302,7 +302,8 @@ replay says the same clocks (`../view.md`, 6).
   files, and a reload loads the new (skein's `ui/web/bundle.md`, 4). A page
   from the binary's own bundle always speaks its engine's records, so a
   client out of date (`../view.md`, 1) comes only from a binary
-  replaced under an open tab, or from a directory configured.
+  replaced under an open tab, or from a directory configured, and its
+  page asks the person to reload, which loads the engine's bundle.
 
 ### 2.3 Addresses
 

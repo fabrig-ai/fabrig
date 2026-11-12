@@ -1,5 +1,5 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
-#[path = "../../../../bin/temper-box/tests/support/configuration.rs"]
+#[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
 mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;

@@ -377,7 +377,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   with the record still in the store: a panic through a sitting kills the
   box before its return, and a return that fails stops it all the same.
   The runner's return and the story's own each need a box up, so neither
-  answers then. `Lent` (`tests/support/held_login.rs`) stands from before
+  answers then. `Lent` (`testing/temper-box-kit/src/held_login.rs`) stands from before
   the first sitting to the test's end. On every ending, a panic anywhere,
   a failed assertion or an early return, its `Drop` settles what is owed,
   by `stat` alone, the record never read:

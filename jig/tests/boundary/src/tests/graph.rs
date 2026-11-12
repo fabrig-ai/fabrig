@@ -750,6 +750,7 @@ fn client_crates_carry_the_client_prefix() {
         "jig-fake-parties",
         "jig-protocol-transcript",
         "jig-test",
+        "jig-test-kit",
         "jig-test-service",
         "jig-one-process-world",
         "jig-channel-world",

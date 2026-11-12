@@ -162,6 +162,7 @@ name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-codec",
  "skein-codegen",
  "skein-scratch",
  "skein-shell",
@@ -2194,6 +2195,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-store",
  "jig-test-domain",
+ "jig-test-kit",
  "jig-test-service",
  "serde_json",
  "skein-fail-stop",
@@ -2269,6 +2271,31 @@ dependencies = [
  "jig-test-connector",
  "jig-test-connector-kit",
  "skein-lib",
+]
+
+[[package]]
+name = "jig-test-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-client",
+ "jig-client-protocol-kit",
+ "jig-client-shell-native",
+ "jig-protocol-accounts-kit",
+ "serde_json",
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-fake-oauth",
+ "skein-fake-peers",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-scratch",
+ "skein-shell",
+ "skein-tls-kit",
+ "skein-world",
+ "tempfile",
 ]
 
 [[package]]
@@ -2820,19 +2847,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "skein-browser-world"
+name = "skein-browser-rig"
 version = "0.0.0"
 dependencies = [
  "skein-browser",
  "skein-fake-person-browser",
- "skein-heap",
- "skein-http",
  "skein-io",
  "skein-lib",
  "skein-shell",
  "skein-ui",
- "skein-ui-web",
  "skein-world",
+]
+
+[[package]]
+name = "skein-browser-world"
+version = "0.0.0"
+dependencies = [
+ "skein-browser",
+ "skein-browser-rig",
+ "skein-fake-person-browser",
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-web",
 ]
 
 [[package]]
@@ -5220,6 +5258,7 @@ dependencies = [
  "smith-domain-run",
  "smith-host-domain",
  "smith-protocol-program",
+ "temper-box-kit",
  "temper-box-machine",
  "temper-box-shell",
  "temper-client-domain",
@@ -5248,6 +5287,59 @@ dependencies = [
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
+ "temper-worker-shell",
+]
+
+[[package]]
+name = "temper-box-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-shell-native",
+ "jig-domain-core",
+ "jig-domain-tasks",
+ "jig-protocol-config",
+ "jig-protocol-store",
+ "rustls",
+ "serde_json",
+ "skein-fake-forge-domain",
+ "skein-fake-llm-domain",
+ "skein-fake-oauth",
+ "skein-fake-peers",
+ "skein-fake-person",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-oauth",
+ "skein-oauth-accounts",
+ "skein-scratch",
+ "skein-shell",
+ "skein-throwaway-forgejo",
+ "skein-tls",
+ "skein-tls-kit",
+ "skein-ui",
+ "skein-world",
+ "smith-host-domain",
+ "temper-box-shell",
+ "temper-client-domain",
+ "temper-client-shell-cli",
+ "temper-client-shell-terminal",
+ "temper-engine-domain-forge",
+ "temper-fake",
+ "temper-fixtures",
+ "temper-forge-setup",
+ "temper-init",
+ "temper-playground",
+ "temper-real-loop-world",
+ "temper-service",
+ "temper-shell",
+ "temper-test-env",
  "temper-worker-shell",
 ]
 

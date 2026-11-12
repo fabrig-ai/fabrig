@@ -1,4 +1,4 @@
-//! The process tier's deployment, copied: `documents` from `bin/temper-box/tests/support/configuration.rs`
+//! The process tier's deployment, copied: `documents` from `testing/temper-box-kit/src/configuration.rs`
 //! and `write` from `support::configuration` with `Forge::Unreached`, which are test modules of package
 //! `temper` and cannot be imported. The LLM endpoint is unreached at `127.0.0.1:9`; no forge is kept
 //! until connected; `application.clients.bundle` names the bundle; and every relative path is made absolute
