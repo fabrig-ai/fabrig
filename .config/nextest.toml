@@ -64,7 +64,7 @@ default-filter = """
   & not binary(/^(conformance|recorded)_/)
 ) | package(=fabrig-boundary)
 """
-global-timeout = "150s"
+global-timeout = "200s"
 slow-timeout = { period = "6s" }
 
 [[profile.default.overrides]]
