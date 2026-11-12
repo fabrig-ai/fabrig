@@ -498,7 +498,7 @@ fn copied_pieces_do_not_decode_their_items() {
     const NEW: &str = "record R { a: bool } record D { p: bytes 32 pieces R after: bool }";
     for bytes in [
         &[0, 0, 0, 5, 0, 0, 0, 1, 2][..], // Invalid bool, valid framing.
-        &[0, 0, 0, 1, 255][..], // Invalid framing.
+        &[0, 0, 0, 1, 255][..],           // Invalid framing.
     ] {
         let (mut patcher, _) = started(OLD, NEW, "add D.after bool false\n", "D", bytes);
         let mut expected = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small fixture"));
@@ -554,10 +554,20 @@ fn opened_pieces_count_old_and_new_nodes_and_output_bytes() {
         (Capacity { nodes: 6, bytes: 16, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, true),
         (Capacity { nodes: 5, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, false),
         (Capacity { bytes: 15, ..CAPACITY }, NEW, "widen R.a u8 u16\n", WIDENED, false),
-        (Capacity { nodes: 8, ..CAPACITY }, "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
-            "add R.b bool false\n", &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..], true),
-        (Capacity { nodes: 7, ..CAPACITY }, "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
-            "add R.b bool false\n", &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..], false),
+        (
+            Capacity { nodes: 8, ..CAPACITY },
+            "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+            "add R.b bool false\n",
+            &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..],
+            true,
+        ),
+        (
+            Capacity { nodes: 7, ..CAPACITY },
+            "record R { a: u8 b: bool } record D { p: bytes 32 pieces R }",
+            "add R.b bool false\n",
+            &[0, 0, 0, 12, 0, 0, 0, 2, 1, 0, 0, 0, 0, 2, 2, 0][..],
+            false,
+        ),
     ] {
         let (mut patcher, plan) = planned_at(capacity, OLD, new, lines);
         patcher.start(plan, DeclIx::new(1), BYTES.into()).expect("opaque old field fits");
@@ -571,8 +581,10 @@ fn opened_pieces_count_old_and_new_nodes_and_output_bytes() {
     }
     // Old decoded nodes count even when the conversion drops their fields.
     let (mut patcher, plan) = planned_at(
-        Capacity { nodes: 5, ..CAPACITY }, OLD,
-        "record R {} record D { p: bytes 32 pieces R }", "drop R.a\n",
+        Capacity { nodes: 5, ..CAPACITY },
+        OLD,
+        "record R {} record D { p: bytes 32 pieces R }",
+        "drop R.a\n",
     );
     patcher.start(plan, DeclIx::new(1), BYTES.into()).expect("opaque old field fits");
     assert_eq!(patcher.next(), Err(Halt::Room));
@@ -583,7 +595,9 @@ fn carrying_a_part_with_opened_pieces_halts_misbuilt() {
     let (mut patcher, plan) = started(
         "record R { a: u8 } record D { p: bytes 32 pieces R }",
         "record R { a: u16 } record D { p: bytes 32 pieces R }",
-        "widen R.a u8 u16\nwritten D\n", "D", &[0, 0, 0, 5, 0, 0, 0, 1, 1],
+        "widen R.a u8 u16\nwritten D\n",
+        "D",
+        &[0, 0, 0, 5, 0, 0, 0, 1, 1],
     );
     let at = stopped(&mut patcher);
     let (old, new) = patcher.parts();

@@ -1,8 +1,8 @@
 //! Bounded conversion frames shared by next and carry (data/codec/patches.md, 4–5).
 
 use super::{
-    Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Part, Path, Shape, Site, Source, Span, State, Step,
-    Stop, Type, add, plan, spelled, ty, Problem, Refusal,
+    Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Part, Path, Problem, Refusal, Shape, Site, Source,
+    Span, State, Step, Stop, Type, add, plan, spelled, ty,
 };
 use skein_lib::Reader;
 
@@ -91,8 +91,17 @@ impl Build {
         }
         let bound = match ty(self.new_schema(), new.source) {
             Type::Bytes { bound, .. } | Type::Secret { bound, .. } => bound,
-            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration
-            | Type::Fixed(_) | Type::Text(_) | Type::List { .. } | Type::Option(_) | Type::Named(_) => {
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Text(_)
+            | Type::List { .. }
+            | Type::Option(_)
+            | Type::Named(_) => {
                 return Err(Halt::Misbuilt(new.path));
             }
         };
@@ -119,12 +128,22 @@ impl Build {
             Err(Refusal::Room) => return Err(Halt::Room),
             Err(refusal) => return Err(Halt::Decode(refusal)),
         };
-        let decl = self.current().declarations.get(item.index()).expect("item conversion").new
+        let decl = self
+            .current()
+            .declarations
+            .get(item.index())
+            .expect("item conversion")
+            .new
             .ok_or(Halt::Misbuilt(new.path))?;
         let piece = self.out.len();
         self.put(&0_u32.to_be_bytes())?;
         self.push(Frame::Pieces {
-            at, rest: Span { start: end, end: rest.end }, item, new, length, piece: Some(piece),
+            at,
+            rest: Span { start: end, end: rest.end },
+            item,
+            new,
+            length,
+            piece: Some(piece),
         })?;
         self.push(Frame::Enter {
             at: node,
@@ -141,7 +160,10 @@ impl Build {
         self.state = State::Stopped;
         Ok(Some(event))
     }
-    #[expect(clippy::too_many_lines, reason = "the conversion walk lists every terminal type (data/codec/patches.md, 4)")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the conversion walk lists every terminal type (data/codec/patches.md, 4)"
+    )]
     fn enter(
         &mut self,
         old: &Old,
@@ -200,8 +222,7 @@ impl Build {
                     | Type::Named(_) => old.content(at)?,
                 };
                 match old_ty {
-                    Type::Bytes { held: Held::Pieces(item), .. }
-                    | Type::Secret { held: Held::Pieces(item), .. } => {
+                    Type::Bytes { held: Held::Pieces(item), .. } | Type::Secret { held: Held::Pieces(item), .. } => {
                         let converted = self.current().declarations.get(item.index()).expect("pieces item conversion");
                         if !converted.copies {
                             if carrying {
@@ -224,10 +245,19 @@ impl Build {
                             return Ok(None);
                         }
                     }
-                    Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration
-                    | Type::Fixed(_) | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
-                    | Type::Text(_) | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. }
-                    | Type::List { .. } | Type::Option(_) | Type::Named(_) => {}
+                    Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::Bool
+                    | Type::Duration
+                    | Type::Fixed(_)
+                    | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
+                    | Type::Text(_)
+                    | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. }
+                    | Type::List { .. }
+                    | Type::Option(_)
+                    | Type::Named(_) => {}
                 }
                 self.write_content(new, bytes)?;
             }
