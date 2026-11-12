@@ -1,12 +1,12 @@
 # binaries: status
 
-2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
+2026-11-12. Where the tree's code lags or departs from [binaries.md](binaries.md).
+
+- **Not yet:** 2: `versions` prints `wire NAME LOWEST HIGHEST` and `layout` lines from `temper_service::wires()` [in flight: change 1756].
 
 - **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
 
-
 - **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses
-
 
 - **Not yet:** the whole document: the restored-forge link gap remains `../domain/root.status.md`, 8.1.  the deferred setup-close gap remains `README.status.md`, 4.
 
@@ -32,7 +32,6 @@ fakes' crates, `temper-fake` with skein's fake forge, LLM and OAuth
 beneath it, which `temper-engine-shell`'s check of the document reads
 for its `box` limits and `demo` member, as the box's does (`components.md`;
 `../draft/deployment-binaries.status.md`).
-
 
 `binaries.md`'s deployment client, `temper-client`, is present: its table
 of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,

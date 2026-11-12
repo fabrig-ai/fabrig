@@ -92,11 +92,10 @@ What an application gives the machine, as data, checked when the machine
 is made:
 
 - **its magic:** four bytes naming the application's protocol;
-- **its versions:** the contiguous range this side speaks. An
-  application speaks one version at a time: its formats change at will,
-  and from the first release a change its peer would notice is a new
-  version (../data/codec/README.md, 5); before it, the version never moves. Its
-  range is then that one version, a peer of another is refused with
+- **its versions:** the contiguous range this side speaks. A channel's
+  bodies are a wire, whose version moves with its layout
+  (../data/codec/README.md, 5). An application that speaks one version at
+  a time has that one as its range, a peer of another is refused with
   *version* (5.2), and nothing is translated;
 - **for each version, its kinds:** for each kind, its direction and the
   largest body this side takes or may send of it, from the owner's limits;
@@ -162,9 +161,13 @@ Terms                                           ───►
   - A wrong magic is refused with *framing*.
   - A malformed range (`lowest` above `highest`) is refused with
     *framing*.
-  - A range with no version in common is refused with *version*.
+  - A range with no version in common is refused with *version*, its
+    text naming both ranges, `speaks L..H, offered L..H`, this side's
+    first, so that an operator reading either side's log sees why.
 
-  None of these asks the owner.
+  None of these asks the owner. The owner hears each as the channel's
+  terminal (8.3), refused by this side, with the reason and the text it
+  sent.
 - **Otherwise the owner decides.** It hears of the opening, with the
   credential and the versions both speak. It accepts with one of them,
   normally the highest, or refuses with a reason of its own: the
@@ -306,7 +309,7 @@ the output stream is finished once what is queued has gone.
 - **One terminal.** A channel is active, then closing, then closed, and its
   owner hears closed once, with why (../../foundation/programming-model.md, 5.2):
   - closed by its owner;
-  - refused, by this side or by the peer, with the reason;
+  - refused, by this side or by the peer, with the reason and the text;
   - a framing error;
   - a stream failed;
   - the stream ended inside a frame, or before ready.

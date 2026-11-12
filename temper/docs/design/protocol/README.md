@@ -116,13 +116,17 @@ its tests, is `cluster.md`.
 17. **baseline.md:** the store every later build upgrades from: its
     kept texts, the patch sets temper hands jig's store, the golden
     store, and the gate on stored changes.
+18. **wires.md:** the wires between the engine, its workers, their
+    agents and its clients: their versions moving with their layouts,
+    what the opening states, a mismatch, the host tools' contract, and
+    `versions`.
 
 ## 3. Names
 
 jig's names keep their meaning here (jig's `protocol/README.md`, section
 3; jig's `domain/README.md`, section 4): the hub, the core, the fleet,
 the worker's link, credential grant, an application's credential,
-payload version, profile, the clients' component, the default HTTP
+wire, profile, the clients' component, the default HTTP
 mapping, the reference service (`jig-test-service`), the reference
 binary (`jig-test`).
 
@@ -138,7 +142,7 @@ binary (`jig-test`).
 | the forge component | skein's `skein-forge-connection` (forge/README.md; skein's `forge/connection.md`) |
 | the git component | `temper-worker-protocol-git` (git.md) |
 | temper's parts | the workspace items, the saved-work branch, the work, the preparation (channel.md) |
-| payload version, store version, client version | temper's three own versions: `PAYLOAD_VERSION`, `STORE_VERSION`, `CLIENT_VERSION` (section 7) |
+| temper's wires, store version, client version | temper's own versions: its wires' (`temper-worker-wire`, `temper-host-tools`: wires.md), `STORE_VERSION`, `CLIENT_VERSION` (section 7) |
 | temper's families | the forge connector's records in jig's main store (store.md) |
 | a forge's records | its credentials, ids and accepted installations: rows of jig's secrets' store under temper's tag (credentials.md, 2.1) |
 | git identity | one of temper's application credentials, one per forge: Forgejo's git token, or a GitHub App's installations' tokens, with a login and an author (credentials.md, section 4) |
@@ -478,8 +482,9 @@ the client wire (`README.md`, section 11).
 ## 7. Versions
 
 jig's rules hold (jig's `protocol/README.md`, section 7): one version at a
-time before release, a reader that refuses another and says so, and an
-upgrade that stops the engine and its workers together. jig's versions
+time, moving with its layout, and a reader that refuses another and says
+so. The wires between temper's parts, and what their opening states,
+are `wires.md`'s. jig's versions
 (its channel's, its store's format and families', its clients' per
 owner) and smith's (its charter's, transcript's and result's) are as
 jig's `protocol/README.md`, section 7 and smith's `protocol/README.md`,
@@ -487,29 +492,27 @@ section 8 give them. temper's sit beside them:
 
 | Version | Owner | Covers | Checked |
 |---|---|---|---|
-| `PAYLOAD_VERSION` | `temper-protocol-worker-wire` | temper's parts: the workspace items, the saved-work branch, the work, the preparation; a git identity's value; and a delivery's evidence, smith's record as the smith temper links encodes it | the worker's credential at the link's opening: another is refused as *application* (channel.md, section 3) |
+| `temper-worker-wire` | `temper-protocol-worker-wire` | temper's parts: the workspace items, the saved-work branch, the work, the preparation, a job's spec; a git identity's value | the worker's credential at the link's opening: another layout is refused as *wires* (channel.md, section 3; wires.md, section 4) |
+| `temper-host-tools` | `temper-engine-smith` | the host tools a charter offers: names, effects, inputs | its kept text, by the gate (wires.md, section 6) |
 | `STORE_VERSION` | `temper-protocol-store` | temper's families | at the store's opening: a store written by another refuses to open (store.md, section 4) |
-| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`) |
+| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`); it moves with its layout (wires.md, section 8) |
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
 - **The store's baseline is `bc23255eb7`'s store** (`baseline.md`; the
   user, 2026-11-11), not the first release: from it, a change of
   temper's families lands with its patch, which moves `STORE_VERSION`
-  (`baseline.md`, 7). The payload's and the client's versions are no
-  store's, and keep the first release as theirs (skein's
-  `data/codec/README.md`, section 5): until it each keeps its current
-  number, and a change a reader would notice changes the schema, its
-  generated code and its one set of golden bytes in place, including a
-  repin of smith that changes a delivery's record (channel.md, section 3).
-  A reader still refuses another version.
-- **Both channel components are given `PAYLOAD_VERSION`** when they are
-  made; neither knows what it covers.
+  (`baseline.md`, 7). The wires' and the clients' versions are no
+  store's: from 2026-11-12 each moves at the landing that changes its
+  layout (wires.md, sections 3 and 8).
+- **Both channel components are given temper's wire,** its `Spoken`
+  statement, when they are made; neither knows what it covers
+  (wires.md, section 4).
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): temper's shell hands jig's store
-  `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
-  next binary's rehearsal can say whether the workers may stay
-  (`../draft/upgrades.md`, section 9).
+  every wire of `temper_service::wires()`, jig's and smith's beside
+  temper's, so the next binary's rehearsal can say whether the workers
+  may stay (wires.md, section 9).
 - **What the baseline freezes.** From it (`baseline.md`), every byte of
   temper's a deployment keeps must stay readable by every later build
   (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Made before it, in place, each
