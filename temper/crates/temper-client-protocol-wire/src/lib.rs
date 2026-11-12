@@ -349,6 +349,8 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::DismissMaking(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
+        | v1::Request::AddDevice(_)
+        | v1::Request::RemoveDevice(_)
         | v1::Request::TryAccount(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)
@@ -610,3 +612,21 @@ pub const GOAL_SCOPE: &[u8] =
 /// A goal asks for agreement before changes (temper/docs/design/domain/agent/agents.md, 2).
 pub const GOAL_AGREED: &[u8] =
     b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";
+
+/// Encode a person's devices (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn devices(record: &v1::Devices) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured devices size fits"));
+    record.encode(&mut writer).expect("measured devices room");
+    writer.finish()
+}
+/// Decode one whole devices document, refusing trailing bytes.
+#[must_use]
+pub fn decode_devices(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Devices> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Devices::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(record)
+}

@@ -294,6 +294,22 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.project_facts.capacity(),
             d.project_facts.contains_key(&row.project),
         ),
+        Stored::Device(row) => {
+            let mut replacing = false;
+            let mut held = 0_u32;
+            for ((_, number), _) in d.devices_of(row.party) {
+                held = held.saturating_add(1);
+                if *number == row.number {
+                    replacing = true;
+                }
+            }
+            let total = match &d.devices {
+                Some(state) => state.rows.len(),
+                None => 0,
+            };
+            room(K::Device, Rows(K::Device), held, crate::DEVICES, replacing)?;
+            room(K::Device, Rows(K::Device), total, l.devices(), replacing)
+        }
         Stored::Away(row) => room(
             K::Away,
             Rows(K::Away),

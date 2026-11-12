@@ -12,6 +12,7 @@ mod ci_brief;
 mod closer;
 mod completed_reads;
 mod connect;
+mod devices;
 mod dismissed;
 mod early;
 pub(crate) mod fixtures;
@@ -274,7 +275,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -811,7 +813,8 @@ fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
     let mut d = Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: b"test".as_slice().into(),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -1951,7 +1954,7 @@ fn routing_domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &configured(),
         false,
@@ -2150,7 +2153,8 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -2169,7 +2173,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         let result = Domain::new(
             &LIMITS,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[forge],
             false,
@@ -2334,8 +2338,8 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
 }
 #[test]
 fn configured_forges_are_bounded_at_construction() {
-    fn config() -> skein_forge_client::Config {
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
+    fn config() -> Config {
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
     let count = usize::try_from(LIMITS.forges).unwrap();
     let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());

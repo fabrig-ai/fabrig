@@ -272,6 +272,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "remove", "3", "--key", "remove"],
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
+    &["push", "add", "subscription.json", "--key", "push-add"],
+    &["push", "remove", "1", "--key", "push-remove"],
 ];
 fn direct_me(argv: &[&str]) -> c::Me {
     if argv.first() == Some(&"goal") { super::goal_template::goal_me() } else { f::chat_me(f::CHAT_BUDGET) }
@@ -292,7 +294,9 @@ fn direct(argv: &[&str]) {
         let mut request = None;
         let mut key = None;
         for _ in 0_u32..2 {
-            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
+            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"push add" {
+                Some(skein_lib::Secret::new(f::PUSH_SUBSCRIPTION.into()))
+            } else if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
                 Some(skein_lib::Secret::new(
                     b"-----BEGIN RSA PRIVATE KEY-----\nfake-key-for-step-tests\n-----END RSA PRIVATE KEY-----"
                         .as_slice()

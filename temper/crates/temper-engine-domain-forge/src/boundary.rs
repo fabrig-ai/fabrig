@@ -259,6 +259,7 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    Device(crate::DeviceAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1237,6 +1238,7 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    Device(crate::Device),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1285,6 +1287,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    Device { party: u64, number: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1963,6 +1966,19 @@ pub enum Event {
     PersonOf {
         forge: u16,
         answer: PersonAnswer,
+    },
+    AddDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        person: bool,
+        call: crate::AddDevice,
+    },
+    RemoveDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        number: u32,
     },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five

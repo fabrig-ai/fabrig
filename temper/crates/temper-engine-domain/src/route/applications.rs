@@ -43,7 +43,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Try { .. } => people::ApplicationScope::Own,
+        Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => {
+            people::ApplicationScope::Own
+        }
         Application::Dismiss {
             what:
                 forge::PersonFact::ToBegin { project }
@@ -73,7 +75,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
-        | Application::Overturn { .. } => carried,
+        | Application::Overturn { .. }
+        | Application::AddDevice(_)
+        | Application::RemoveDevice { .. } => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -122,6 +126,22 @@ pub(super) fn admitted(
                 )
                 .expect("one marker per retained key");
             finished(domain, request, Ok(token));
+        }
+        Application::AddDevice(call) => {
+            let person_kind = match domain.core.people.kind(person) {
+                Some(people::Kind::Person) => true,
+                Some(people::Kind::Service) | None => false,
+            };
+            domain.work.push(Work::Forge(forge::Event::AddDevice {
+                request,
+                token,
+                party: person,
+                person: person_kind,
+                call,
+            }));
+        }
+        Application::RemoveDevice { number } => {
+            domain.work.push(Work::Forge(forge::Event::RemoveDevice { request, token, party: person, number }));
         }
         Application::SetAway { project, on, until } => {
             domain.work.push(Work::Forge(forge::Event::SetAway { request, token, party: person, project, on, until }));
@@ -195,6 +215,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Looked(answer)) => Some(ApplicationAnswer::Looked(answer)),
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
+        Some(forge::Answered::Device(answer)) => Some(ApplicationAnswer::Device(answer)),
         None => None,
     }
 }

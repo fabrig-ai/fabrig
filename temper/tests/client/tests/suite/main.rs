@@ -32,6 +32,7 @@ mod only_you;
 mod open_chat;
 mod playground;
 mod project_fund;
+mod push;
 mod reading;
 mod recovery;
 mod remembered_page;

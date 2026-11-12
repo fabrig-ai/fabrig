@@ -68,7 +68,7 @@ fn forge_list_encodes_the_repository_resource_host() {
     let domain = forge::Domain::new(
         &limits.forge,
         4,
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        temper_engine_domain_forge::Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
         &[],
         &[configured],
         false,
@@ -1462,6 +1462,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
+                        | root::Application::AddDevice(_)
+                        | root::Application::RemoveDevice { .. }
                         | root::Application::Overturn { .. } => {
                             panic!("manifest or install")
                         }

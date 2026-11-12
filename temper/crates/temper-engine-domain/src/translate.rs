@@ -31,7 +31,7 @@ pub struct Config {
     /// The stock ways, in their order (temper/docs/design/protocol/configuration/settings.md, 8).
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Forge writer identities and this deployment's branch namespace.
-    pub forge: skein_forge_client::Config,
+    pub forge: temper_engine_domain_forge::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
