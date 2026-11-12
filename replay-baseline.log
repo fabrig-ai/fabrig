@@ -1,0 +1,38 @@
+   Compiling smith-protocol-events v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-protocol-events)
+   Compiling smith-protocol-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-protocol-machine)
+   Compiling jig-client-protocol-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/jig/crates/jig-client-protocol-http)
+   Compiling smith-inline-agent v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-inline-agent)
+   Compiling smith-fake-claude v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/tests/fake-claude)
+   Compiling skein-tls-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/skein/testing/skein-tls-kit)
+   Compiling skein-ui-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/skein/crates/skein-ui-web)
+   Compiling skein-fake-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/skein/testing/skein-fake-channel)
+   Compiling jig-client-shell-native v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/jig/crates/jig-client-shell-native)
+   Compiling temper-fake-git-hosted v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-fake-git-hosted)
+   Compiling temper-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-client-view)
+   Compiling temper-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-shell)
+   Compiling smith-local-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-local-domain)
+   Compiling smith-agent-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-agent-profile)
+   Compiling skein-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/skein/crates/skein-playground)
+   Compiling temper-test-env v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/testing/temper-test-env)
+   Compiling jig-client-protocol-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/jig/testing/jig-client-protocol-kit)
+   Compiling temper-client-shell-cli v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-client-shell-cli)
+   Compiling smith-agent-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-agent-service)
+   Compiling smith-agent-document v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-agent-document)
+   Compiling temper-fixtures v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/testing/temper-fixtures)
+   Compiling temper-service-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-service-shell)
+   Compiling smith-local-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-local-protocol)
+   Compiling temper-github-app v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/testing/temper-github-app)
+   Compiling smith-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-agent-shell)
+   Compiling smith-local-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/crates/smith-local-service)
+   Compiling smith-agent-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/smith/tests/agent-process)
+   Compiling temper-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-playground)
+   Compiling jig-channel-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/jig/testing/jig-channel-kit)
+   Compiling temper-client-shell-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/crates/temper-client-shell-terminal)
+   Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/tests/one-process)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.76s
+────────────
+ Nextest run ID 11f9f655-323d-4ecb-97d1-2fe463c0d08f with nextest profile: default
+    Starting 1 test across 1 binary (66 tests skipped)
+        PASS [   2.122s] (1/1) temper-one-process-world::suite replay::story_a_kept_log_replays_under_the_referee
+────────────
+     Summary [   2.122s] 1 test run: 1 passed, 66 skipped

@@ -1,0 +1,33 @@
+   Compiling temper-engine-domain-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/tests/engine/domain)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.52s
+────────────
+ Nextest run ID 9bef3e1f-ef90-48e2-beb2-e6ac030c6fa8 with nextest profile: default
+    Starting 5 tests across 1 binary (1132 tests skipped)
+        FAIL [   0.230s] (1/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+  stdout ───
+
+    running 1 test
+    test forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager ... FAILED
+
+    failures:
+
+    failures:
+        forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1136 filtered out; finished in 0.21s
+
+  stderr ───
+
+    thread 'forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager' (2124088) panicked at temper/crates/temper-engine-domain-forge/src/reconcile.rs:298:13:
+    forge link Follow -> Task { task: 4, retired: Some(1) } for Follow { project: 2, follow: 1 }
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: 4 tests still running
+        PASS [   0.235s] (2/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_is_the_standing_roles_first_area_and_news_without_a_run
+        PASS [   0.236s] (3/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_without_an_owned_area_falls_back_to_the_triager
+        PASS [   0.251s] (4/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_persons_follow_red_lists_under_mine_with_their_area
+        PASS [   0.331s] (5/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_forgotten_follow_change_leaves_its_red_with_the_triager
+────────────
+     Summary [   0.333s] 5 tests run: 4 passed, 1 failed, 1132 skipped
+        FAIL [   0.230s] (1/5) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+error: test run failed

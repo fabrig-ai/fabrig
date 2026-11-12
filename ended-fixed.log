@@ -1,0 +1,29 @@
+   Compiling temper-engine-domain-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/0/fabrig/temper/tests/engine/domain)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.43s
+────────────
+ Nextest run ID 4ecefb2f-9dcf-4995-b0b9-9fecd13fb3e7 with nextest profile: default
+    Starting 1 test across 1 binary (1136 tests skipped)
+        FAIL [   0.261s] (1/1) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+  stdout ───
+
+    running 1 test
+    test forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager ... FAILED
+
+    failures:
+
+    failures:
+        forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1136 filtered out; finished in 0.24s
+
+  stderr ───
+
+    thread 'forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager' (2143645) panicked at temper/crates/temper-engine-domain-forge/src/reconcile.rs:298:13:
+    forge link Follow -> Task { task: 4, retired: Some(1) } for Follow { project: 2, follow: 1 }
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure
+────────────
+     Summary [   0.264s] 1 test run: 0 passed, 1 failed, 1136 skipped
+        FAIL [   0.261s] (1/1) temper-engine-domain-world::suite forge_routes::red_findings::follows::a_follow_red_with_an_ended_area_owner_falls_back_to_the_triager
+error: test run failed
