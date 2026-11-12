@@ -291,7 +291,7 @@ impl Parent {
             }
             Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
             Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
-            Request::Agent(ToAgent::Cancel { agent }) => self.stop(agent),
+            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => self.stop(agent),
             Request::DeliverJob { owner, workspace, .. }
             | Request::DeliverUnchecked { owner, workspace }
             | Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),

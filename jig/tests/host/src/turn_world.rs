@@ -672,7 +672,7 @@ impl World {
                 });
             }
 
-            Request::Agent(ToAgent::Cancel { agent }) => {
+            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => {
                 assert_eq!(agent, AGENT);
                 self.stop_pending = true;
                 if !self.stop_waits {
