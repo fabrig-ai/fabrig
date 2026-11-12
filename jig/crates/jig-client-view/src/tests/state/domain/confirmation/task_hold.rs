@@ -15,7 +15,15 @@ fn owner(reason: HoldCategory) -> ChipHold {
             by: u64::MAX,
             reason: DocumentText { bytes: text(b"exact rejected reason"), cut: true },
         }),
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
+        tries: FailureTries {
+            transient: 1,
+            permanent: 2,
+            run: 3,
+            agent: 4,
+            lost: 5,
+            invalid: u32::MAX,
+            infrastructure: 0,
+        },
         hold_wait_since: None,
     }
 }

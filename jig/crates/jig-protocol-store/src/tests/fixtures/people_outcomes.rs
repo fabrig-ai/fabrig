@@ -12,6 +12,7 @@ pub fn failure_class_values() -> Box<[domain::FailureClass]> {
         domain::FailureClass::Agent,
         domain::FailureClass::Lost,
         domain::FailureClass::Invalid,
+        domain::FailureClass::Infrastructure,
     ])
 }
 pub fn hold_reason_values() -> Box<[domain::HoldReason]> {

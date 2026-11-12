@@ -6,7 +6,7 @@ pub fn hold_refusal(value: w::HoldCategory) -> w::Refusal {
     let what = w::Moved::Hold(w::MovedHold::new(&wire(), w::MovedHoldParts { reason }).expect("hold"));
     w::Refusal::Moved(w::RefusalMoved::new(&wire(), w::RefusalMovedParts { now: revision(31), what }).expect("moved"))
 }
-pub fn holds() -> [(p::HoldReason, w::HoldCategory); 21] {
+pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
     let limits = wire();
     [
         (p::HoldReason::Stalled, w::HoldCategory::Stalled),
@@ -91,6 +91,16 @@ pub fn holds() -> [(p::HoldReason, w::HoldCategory); 21] {
             w::HoldCategory::Failures(
                 w::HoldCategoryFailures::new(&limits, w::HoldCategoryFailuresParts { class: w::HoldFailure::Invalid })
                     .expect("failure"),
+            ),
+        ),
+        (
+            p::HoldReason::Failures { class: p::FailureClass::Infrastructure },
+            w::HoldCategory::Failures(
+                w::HoldCategoryFailures::new(
+                    &limits,
+                    w::HoldCategoryFailuresParts { class: w::HoldFailure::Infrastructure },
+                )
+                .expect("failure"),
             ),
         ),
     ]

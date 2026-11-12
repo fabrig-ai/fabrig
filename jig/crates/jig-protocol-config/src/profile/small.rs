@@ -13,8 +13,15 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::Duration;
 const RETRY: tasks::Retry = tasks::Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
-const RETRIES: tasks::Retries =
-    tasks::Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY };
+const RETRIES: tasks::Retries = tasks::Retries {
+    transient: RETRY,
+    permanent: RETRY,
+    run: RETRY,
+    agent: RETRY,
+    lost: RETRY,
+    invalid: RETRY,
+    infrastructure: tasks::Retry { retries: 12, base: Duration::from_secs(10), max: Duration::from_secs(300) },
+};
 pub(super) const TASKS: tasks::Limits = tasks::Limits {
     placed_holds: 4,
     project_placed_holds: 4,

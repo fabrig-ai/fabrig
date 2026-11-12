@@ -77,7 +77,9 @@ fn baseline_fixture_sets() -> PatchSets {
         jig.families.iter().chain(jig_protocol_accounts::JIG_PATCH_SET.families).copied().collect::<Vec<_>>();
     let (_, blocks) = jig_protocol_store::patches::PATCHES[0].split_once("\n\n").expect("real jig blocks");
     let first: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[0]).into_boxed_str());
-    let texts = Box::leak(vec![first, jig.patches[1]].into_boxed_slice());
+    let (_, blocks) = jig_protocol_store::patches::PATCHES[1].split_once("\n\n").expect("real overlay blocks");
+    let second: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[1]).into_boxed_str());
+    let texts = Box::leak(vec![first, second, jig_protocol_store::patches::PATCHES[2]].into_boxed_slice());
     PatchSets {
         sets: Box::leak(Box::new([
             jig_protocol_store::SKEIN_PATCH_SET,
@@ -97,7 +99,7 @@ const REAL_SETS: PatchSets = PatchSets {
 };
 
 #[test]
-fn real_jig_set_versions_are_baseline_at_zero_and_binary_at_two() {
+fn real_jig_set_versions_match_each_level() {
     let baseline = codec::component::Format {
         application: root::APPLICATION.version,
         deployment: root::DEPLOYMENT,
@@ -105,9 +107,14 @@ fn real_jig_set_versions_are_baseline_at_zero_and_binary_at_two() {
     };
     let binary = jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT);
     for (level, mut expected, steps) in [
-        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2)][..]),
-        (1, codec::component::Format { settings: 2, ..binary }, &[(Owner::Jig, 2)][..]),
-        (2, binary, &[][..]),
+        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3)][..]),
+        (
+            1,
+            codec::component::Format { tasks: 10, people: 15, settings: 2, ..binary },
+            &[(Owner::Jig, 2), (Owner::Jig, 3)][..],
+        ),
+        (2, codec::component::Format { tasks: 10, people: 15, ..binary }, &[(Owner::Jig, 3)][..]),
+        (3, binary, &[][..]),
     ] {
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };

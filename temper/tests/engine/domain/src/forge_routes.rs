@@ -1256,6 +1256,16 @@ impl World {
         self
     }
 
+    /// Set the infrastructure retry cadence before startup.
+    #[must_use]
+    pub fn with_infrastructure_retry(mut self, retry: tasks::Retry) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.tasks.retries.infrastructure = retry;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid infrastructure retry configuration");
+        self
+    }
+
     /// A second project with the same owner and policy, before startup.
     #[must_use]
     pub fn with_second_project(mut self) -> Self {

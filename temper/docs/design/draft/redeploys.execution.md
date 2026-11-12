@@ -12,7 +12,7 @@
 | R4, bridges: reverses, floors and the breaking declaration in the command; translation in the channel's components; the bridges of 4.2, git identities, host tools' contracts and jobs' requests and results among them; placement by agreed versions; messages to running attempts whole | 3.3, 4 | temper/migration | R1 | the engine redeployed alone across a wire change, its workers kept | not started |
 | R5, the engine alone: a settled stop that places nothing; the graces sized from the enforced stop bound; workers' openings kept; `upgrade --check` given its verdict on which workers may stay, at R1's floor and at R4's | 5 | temper/migration | R1, R2; goal 648's `upgrade --check` (main `182801bf82`), the store's rehearsal, whose verdict on the workers compares the stored wire numbers | the engine redeployed alone, its runs adopted | not started |
 | R6, the redeploy script and its referee: the engine alone by default, workers in turn, every part together across a breaking change | 7 | temper/migration, as the deployments' operator | R2, R3, R5; R4 for the engine alone across a wire change | every redeploy from then on | not started |
-| R7, the policy for infrastructure failures | 9 | temper/migration | — | none of its own | not started |
+| R7, the policy for infrastructure failures | 9 | temper/migration | — | none of its own | done |
 
 ## 2. Order
 

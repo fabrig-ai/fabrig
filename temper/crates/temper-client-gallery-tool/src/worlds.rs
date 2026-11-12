@@ -2277,7 +2277,15 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
                 revision: 1,
                 before: c::PriorPhase::Active(c::RunStage::Idle),
                 escalation: None,
-                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries {
+                    transient: 0,
+                    permanent: 0,
+                    run: 0,
+                    agent: 0,
+                    lost: 0,
+                    invalid: 0,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             });
             line.chip.phase = c::Phase::Held;
@@ -4413,7 +4421,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4453,7 +4469,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 2,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4495,7 +4519,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 1,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));

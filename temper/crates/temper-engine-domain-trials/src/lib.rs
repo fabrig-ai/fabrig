@@ -51,6 +51,7 @@ pub enum Class {
     Lost,
     Invalid,
     Refused,
+    Infrastructure,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Event {

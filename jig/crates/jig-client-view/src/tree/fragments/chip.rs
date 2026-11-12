@@ -84,6 +84,7 @@ pub(crate) fn hold_failure(b: &mut Builder, value: HoldFailure, words: &Words) {
         HoldFailure::Agent => P::AgentFailure,
         HoldFailure::Lost => P::Lost,
         HoldFailure::Invalid => P::InvalidFailure,
+        HoldFailure::Infrastructure => P::InfrastructureFailure,
     };
     text(b, words, phrase, &[]);
 }
@@ -185,6 +186,7 @@ pub(crate) fn hold(b: &mut Builder, value: &ChipHold, words: &Words, bindings: &
         (P::AgentTries, value.tries.agent),
         (P::LostTries, value.tries.lost),
         (P::InvalidTries, value.tries.invalid),
+        (P::InfrastructureTries, value.tries.infrastructure),
     ] {
         number(b, words, pair.0, u64::from(pair.1));
     }

@@ -13,6 +13,7 @@ pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
         t::Class::Agent => w::HoldFailure::Agent,
         t::Class::Lost => w::HoldFailure::Lost,
         t::Class::Invalid => w::HoldFailure::Invalid,
+        t::Class::Infrastructure => w::HoldFailure::Infrastructure,
     })
 }
 pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
@@ -212,6 +213,7 @@ pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::
             agent: value.agent,
             lost: value.lost,
             invalid: value.invalid,
+            infrastructure: value.infrastructure,
         },
     )
 }

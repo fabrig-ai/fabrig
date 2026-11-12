@@ -44,7 +44,7 @@ fn hosting(world: &World) -> Hosting {
 fn lost_once_then_fresh(world: &mut World, task: u64, attempt: u64) {
     assert_eq!(
         fresh_windows::tries(world),
-        tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 1, invalid: 0 }
+        tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 1, invalid: 0, infrastructure: 0 }
     );
     assert_eq!(fixtures::live_row(world, task).refusals, 0);
     world.retry_due();

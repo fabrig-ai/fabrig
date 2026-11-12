@@ -3914,6 +3914,8 @@ pub enum TrialClass {
     Invalid,
     /// `refused` without a payload.
     Refused,
+    /// `infrastructure` without a payload.
+    Infrastructure,
 }
 
 impl TrialClass {
@@ -18410,7 +18412,7 @@ impl TrialClass {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Transient | Self::Permanent | Self::Run | Self::Agent | Self::Lost | Self::Invalid | Self::Refused => 1,
+            Self::Transient | Self::Permanent | Self::Run | Self::Agent | Self::Lost | Self::Invalid | Self::Refused | Self::Infrastructure => 1,
         }
     }
 
@@ -18424,6 +18426,7 @@ impl TrialClass {
             Self::Lost => writer.put(&[4_u8])?,
             Self::Invalid => writer.put(&[5_u8])?,
             Self::Refused => writer.put(&[6_u8])?,
+            Self::Infrastructure => writer.put(&[7_u8])?,
         }
         Ok(())
     }
@@ -18445,6 +18448,7 @@ impl TrialClass {
             4 => Self::Lost,
             5 => Self::Invalid,
             6 => Self::Refused,
+            7 => Self::Infrastructure,
             _ => return Err(Problem { path: Path::TrialClassTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -43166,6 +43170,8 @@ mod golden_tests {
         ("enum_trial_class_invalid_full", || { let value = TrialClass::Invalid; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialClass::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_trial_class_refused_smallest", || { let value = TrialClass::Refused; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialClass::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_trial_class_refused_full", || { let value = TrialClass::Refused; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialClass::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_trial_class_infrastructure_smallest", || { let value = TrialClass::Infrastructure; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialClass::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_trial_class_infrastructure_full", || { let value = TrialClass::Infrastructure; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialClass::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_trial_ended_smallest", || { let value = TrialEnded::new(&CEILINGS, TrialEndedParts { class: TrialClass::Transient }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_trial_ended_full", || { let value = TrialEnded::new(&CEILINGS, TrialEndedParts { class: TrialClass::Transient }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialEnded::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_trial_why_ended_smallest", || { let value = TrialWhy::Ended(TrialEnded::new(&CEILINGS, TrialEndedParts { class: TrialClass::Transient }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TrialWhy::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -44100,8 +44106,6 @@ mod golden_tests {
         ("enum_reason_semantic_full", || { let value = Reason::Semantic; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Reason::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_reason_review_smallest", || { let value = Reason::Review; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Reason::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_reason_review_full", || { let value = Reason::Review; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Reason::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_repairing_smallest", || { let value = Repairing::new(&CEILINGS, RepairingParts { reason: Reason::Ci }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Repairing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_repairing_full", || { let value = Repairing::new(&CEILINGS, RepairingParts { reason: Reason::Ci }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Repairing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -44109,7 +44113,9 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 410] = [
+    static GOLDEN_1: [Case; 412] = [
+        ("record_repairing_smallest", || { let value = Repairing::new(&CEILINGS, RepairingParts { reason: Reason::Ci }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Repairing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_repairing_full", || { let value = Repairing::new(&CEILINGS, RepairingParts { reason: Reason::Ci }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Repairing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_landed_smallest", || { let value = Landed::new(&CEILINGS, LandedParts { merge: [0_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Landed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_landed_full", || { let value = Landed::new(&CEILINGS, LandedParts { merge: [165_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Landed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_in_landing_smallest", || { let value = InLanding::new(&CEILINGS, InLandingParts { landing: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, InLanding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

@@ -226,6 +226,25 @@ fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
     }
 }
 
+#[test]
+fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
+    use jig_domain_tasks::{Class, Retry};
+    use skein_lib::Duration;
+    for selected in [Profile::Small, Profile::Standard] {
+        let retries = profile(selected).core.tasks.retries;
+        assert_eq!(
+            retries.infrastructure,
+            Retry { retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000) }
+        );
+        for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
+            assert_eq!(
+                retries.of(class),
+                Retry { retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000) }
+            );
+        }
+    }
+}
+
 // jig/docs/design/protocol/limits.md: first deliveries and the HTTP frame carrying each.
 #[test]
 fn standard_stream_edges_hold_every_first_delivery() {

@@ -80,6 +80,9 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `tasks.retries.invalid.retries`: count, 3. Bounds failures allowed before holding a task for invalid failures.
 - `tasks.retries.invalid.base_ms`: milliseconds, 1,000. Bounds the initial exponential-backoff delay for invalid failures.
 - `tasks.retries.invalid.max_ms`: milliseconds, 30,000. Bounds the exponential-backoff delay for invalid failures.
+- `tasks.retries.infrastructure.retries`: count, 12. Bounds failures allowed before holding a task for infrastructure failures.
+- `tasks.retries.infrastructure.base_ms`: milliseconds, 10,000. Bounds the initial exponential-backoff delay for infrastructure failures.
+- `tasks.retries.infrastructure.max_ms`: milliseconds, 300,000. Bounds the exponential-backoff delay for infrastructure failures.
 
 ## people
 

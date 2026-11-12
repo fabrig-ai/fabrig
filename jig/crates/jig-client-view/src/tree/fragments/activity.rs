@@ -198,6 +198,7 @@ fn tries(b: &mut Builder, value: FailureTries, words: &Words) {
     number(b, words, P::AgentTries, u64::from(value.agent));
     number(b, words, P::LostTries, u64::from(value.lost));
     number(b, words, P::InvalidTries, u64::from(value.invalid));
+    number(b, words, P::InfrastructureTries, u64::from(value.infrastructure));
 }
 fn why(b: &mut Builder, value: RunWhy, words: &Words) {
     match value {
@@ -224,6 +225,7 @@ fn failure(b: &mut Builder, value: HoldFailure, words: &Words) {
         HoldFailure::Agent => P::AgentFailure,
         HoldFailure::Lost => P::Lost,
         HoldFailure::Invalid => P::Invalid,
+        HoldFailure::Infrastructure => P::Infrastructure,
     };
     caption(b, words, phrase);
 }
