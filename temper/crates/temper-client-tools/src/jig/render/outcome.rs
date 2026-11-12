@@ -383,6 +383,13 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
+    | c::Outcome::Made { what: c::Made::Service { party } } = done
+    {
+        out.put(b"made: party ");
+        out.number(*party);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));
@@ -693,6 +700,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
+        rows::PARTY_MAKE_AT => &rows::PARTY_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
         rows::PROJECT_REMOVE_AT => &rows::PROJECT_REMOVE,

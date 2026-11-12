@@ -33,7 +33,7 @@ fn playground_answer(bytes: &[u8]) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one mutation sweep checks the forge-family decoders and request outcomes")]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 13] = [
+    let decoders: [fn(&[u8]); 15] = [
         requesting,
         answer,
         reading,
@@ -47,6 +47,8 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         proposal_items_answer,
         ways_panel,
         view_answer,
+        project_areas,
+        project_triager,
     ];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
@@ -405,5 +407,25 @@ fn ways_panel(bytes: &[u8]) {
 fn view_answer(bytes: &[u8]) {
     if let Some(record) = temper_client_protocol_wire::decode_view_answer(bytes, &v1::CEILINGS) {
         assert_eq!(temper_client_protocol_wire::view_answer(&record).as_ref(), bytes, "ViewAnswer");
+    }
+}
+
+fn project_areas(bytes: &[u8]) {
+    let mut reader = Reader::new(bytes);
+    if let Ok(record) = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader) {
+        assert!(reader.is_empty());
+        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
+        record.encode(&mut writer).expect("measured room");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
+}
+
+fn project_triager(bytes: &[u8]) {
+    let mut reader = Reader::new(bytes);
+    if let Ok(record) = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader) {
+        assert!(reader.is_empty());
+        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
+        record.encode(&mut writer).expect("measured room");
+        assert_eq!(writer.finish().as_ref(), bytes);
     }
 }

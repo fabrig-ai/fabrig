@@ -4,6 +4,7 @@ use jig_domain_core::settings::Setting;
 use jig_domain_people::Proposer;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks each address grammar production")]
 fn addresses_parse_in_the_chats_project() {
     for (line, expected) in [
         ("settings", Address::Inventory),
@@ -15,6 +16,8 @@ fn addresses_parse_in_the_chats_project() {
         ("settings landing-rule 1", Address::Setting(Setting::Application { kind: 1, scope: 0, number: 1 })),
         ("settings landing-rule 3 project", Address::Setting(Setting::Application { kind: 2, scope: 7, number: 3 })),
         ("settings forge-charter 1", Address::Setting(Setting::Application { kind: 3, scope: 0, number: 1 })),
+        ("settings project-areas", Address::Setting(Setting::Application { kind: 12, scope: 7, number: 1 })),
+        ("settings project-triager", Address::Setting(Setting::Application { kind: 13, scope: 7, number: 1 })),
         ("settings template-goal 4", Address::Setting(Setting::Application { kind: 11, scope: 0, number: 4 })),
         ("settings project-ways", Address::Setting(Setting::Application { kind: 7, scope: 7, number: 1 })),
         ("settings project-questions", Address::Setting(Setting::Application { kind: 6, scope: 7, number: 1 })),

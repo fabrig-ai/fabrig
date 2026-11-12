@@ -640,6 +640,25 @@ impl Joint {
         joint
     }
 
+    /// The owner and the service's member role both have configured authority.
+    #[must_use]
+    pub fn with_service_party(seed: u64, limits: client::Limits) -> Self {
+        let mut engine_limits = engine_limits();
+        engine_limits.authority.roles = 2;
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            let owner = config.core.seed_projects[0].policy.policy.roles[0].clone();
+            let mut member = owner.clone();
+            member.number = 2;
+            config.core.seed_projects[0].policy.policy.roles = Box::new([owner, member]);
+            config
+        });
+        let mut joint =
+            Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), configs, &engine_limits, 1);
+        joint.offer_printed_link(limits);
+        joint
+    }
+
     /// Four retained Ask temper chats sharing the fixture's allowance, with two-row
     /// activity pages and the TUI's pasted-link sign-in (client/testing.md).
     #[must_use]

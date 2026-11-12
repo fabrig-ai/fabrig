@@ -19,6 +19,10 @@ pub(crate) mod specification;
 pub enum FileEnd {
     Keep,
     Remove,
+    /// Match the one-time credential to this durable service answer before writing.
+    Service {
+        party: u64,
+    },
 }
 #[derive(Debug)]
 pub struct Printed {
@@ -210,6 +214,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::MOVE_TO_NEWEST_AT
         | rows::RESTORE_AT
         | rows::PROJECT_MAKE_AT
+        | rows::PARTY_MAKE_AT
         | rows::PROJECT_FUND_AT
         | rows::PROJECT_AMEND_AT
         | rows::PROJECT_REMOVE_AT => {

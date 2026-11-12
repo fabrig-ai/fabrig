@@ -108,16 +108,29 @@ pub struct ProjectWords {
 
 /// Project ownership (temper/docs/design/domain/areas.md, 2 and 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AreaOwner { Task(u64), Party(u64), Role(u32), Charter(u32) }
+pub enum AreaOwner {
+    Task(u64),
+    Party(u64),
+    Role(u32),
+    Charter(u32),
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Area { pub name: Box<[u8]>, pub words: Box<[u8]>, pub owner: AreaOwner }
+pub struct Area {
+    pub name: Box<[u8]>,
+    pub words: Box<[u8]>,
+    pub owner: AreaOwner,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProjectAreas { pub areas: Box<[Area]> }
+pub struct ProjectAreas {
+    pub areas: Box<[Area]>,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ProjectTriager { pub owner: AreaOwner }
+pub struct ProjectTriager {
+    pub owner: AreaOwner,
+}
 
 /// Words saved with a setting fit `most`: 1 to `most` bytes of UTF-8 holding no
 /// control character (temper/docs/design/protocol/configuration/settings.md, 2).
@@ -308,8 +321,14 @@ pub enum Refusal {
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
     Words,
-    Owner { name: Box<[u8]>, owner: AreaOwner },
-    Area { name: Box<[u8]>, rule: &'static [u8] },
+    Owner {
+        name: Box<[u8]>,
+        owner: AreaOwner,
+    },
+    Area {
+        name: Box<[u8]>,
+        rule: &'static [u8],
+    },
 }
 
 impl Refusal {
@@ -325,14 +344,18 @@ impl Refusal {
             let number = skein_lib::Decimal::of(number);
             let mut words = skein_lib::List::uncapped();
             for part in [name.as_ref(), b": owner ", kind, b" ", number.as_bytes(), b" is not of the project"] {
-                for &byte in part { words.push(byte).expect("bounded owner refusal"); }
+                for &byte in part {
+                    words.push(byte).expect("bounded owner refusal");
+                }
             }
             return words.into_boxed();
         }
         if let Self::Area { name, rule } = self {
             let mut words = skein_lib::List::uncapped();
             for part in [b"area ".as_slice(), name, b": ", rule] {
-                for &byte in part { words.push(byte).expect("bounded area refusal"); }
+                for &byte in part {
+                    words.push(byte).expect("bounded area refusal");
+                }
             }
             return words.into_boxed();
         }
@@ -383,7 +406,13 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectAreas | Kind::ProjectTriager | Kind::ProjectWords
+        Kind::ProjectRules
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager
+        | Kind::ProjectWords
             if item.scope == 0 =>
         {
             return Err(Refusal::Scope);
@@ -396,13 +425,20 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectClasses
         | Kind::CharterWords
         | Kind::ProjectWords
-        | Kind::TemplateGoal | Kind::ProjectAreas | Kind::ProjectTriager => {}
+        | Kind::TemplateGoal
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
         Kind::CharterWords => bounds.charters,
-        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectAreas | Kind::ProjectTriager | Kind::ProjectWords => 1,
+        Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager
+        | Kind::ProjectWords => 1,
         Kind::TemplateGoal => bounds.templates,
     };
     if item.number == 0 || item.number > numbers {
@@ -419,8 +455,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                | Value::ProjectTriager(_)
+                | Value::ProjectWords(_),
             ) => return Err(Refusal::Value),
             None => return Ok(()),
         },
@@ -436,8 +472,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -452,8 +488,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -472,8 +508,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -488,8 +524,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -511,8 +547,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -534,8 +570,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
-                     | Value::ProjectAreas(_)
-                     | Value::ProjectTriager(_),
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -543,13 +579,33 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             return match &item.value {
                 Some(Value::ProjectAreas(value)) => judge_areas(value),
                 None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Goal(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::CharterWords(_) | Value::ProjectWords(_) | Value::ProjectTriager(_)) => Err(Refusal::Value),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
             };
         }
         Kind::ProjectTriager => {
             return match &item.value {
                 Some(Value::ProjectTriager(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Goal(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::CharterWords(_) | Value::ProjectWords(_) | Value::ProjectAreas(_)) => Err(Refusal::Value),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::ProjectAreas(_),
+                ) => Err(Refusal::Value),
             };
         }
         Kind::TemplateGoal => {
@@ -563,8 +619,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
-                 | Value::ProjectTriager(_)
-                 | Value::ProjectWords(_),
+                    | Value::ProjectTriager(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -654,27 +710,38 @@ pub fn rows(l: &Limits) -> Option<u32> {
 
 fn judge_areas(value: &ProjectAreas) -> Result<(), Refusal> {
     if !within(value.areas.len(), 16) {
-        return Err(Refusal::Area { name: b"areas".as_slice().into(), rule: b"more than 16 areas" });
+        return Err(Refusal::Area {
+            name: value.areas.get(16).expect("past 16 areas").name.clone(),
+            rule: b"more than 16 areas",
+        });
     }
     for (at, area) in value.areas.iter().enumerate() {
         let mut twice = false;
-        for prior in value.areas.iter().take(at) { twice |= prior.name == area.name; }
+        for prior in value.areas.iter().take(at) {
+            twice |= prior.name == area.name;
+        }
         let rule: &'static [u8] = if !area_name_fits(&area.name) {
             b"name must be 1 to 32 bytes of lowercase ASCII letters, digits and -, starting with a letter"
         } else if !words_fit(&area.words, 480) {
             b"words must be 1 to 480 bytes of UTF-8 with no control character"
         } else if twice {
             b"name occurs twice"
-        } else { continue };
+        } else {
+            continue;
+        };
         return Err(Refusal::Area { name: area.name.clone(), rule });
     }
     Ok(())
 }
 fn area_name_fits(name: &[u8]) -> bool {
     let Some(first) = name.first() else { return false };
-    if !first.is_ascii_lowercase() || !within(name.len(), 32) { return false; }
+    if !first.is_ascii_lowercase() || !within(name.len(), 32) {
+        return false;
+    }
     for byte in name {
-        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' { return false; }
+        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' {
+            return false;
+        }
     }
     true
 }

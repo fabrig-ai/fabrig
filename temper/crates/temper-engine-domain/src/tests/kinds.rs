@@ -148,10 +148,7 @@ fn a_refusal_carries_the_forges_words() {
         None,
         Box::new([application::Item { kind: 3, scope: 0, number: 1, edit: application::Edit::Set(Box::default()) }]),
     );
-    assert_eq!(
-        answer(&mut domain).as_ref(),
-        &[connector::Judged::Refuse { why: settings::Refusal::Charter.words() }]
-    );
+    assert_eq!(answer(&mut domain).as_ref(), &[connector::Judged::Refuse { why: settings::Refusal::Charter.words() }]);
 }
 
 #[test]
@@ -171,10 +168,7 @@ fn a_set_without_its_typed_value_is_refused_as_another_kind() {
         None,
         Box::new([project_rule(application::Edit::Set(b"opaque bytes".as_slice().into()))]),
     );
-    assert_eq!(
-        answer(&mut domain).as_ref(),
-        &[connector::Judged::Refuse { why: settings::Refusal::Value.words() }]
-    );
+    assert_eq!(answer(&mut domain).as_ref(), &[connector::Judged::Refuse { why: settings::Refusal::Value.words() }]);
 }
 
 #[test]
@@ -1062,7 +1056,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7, 8, 10] {
+    for kind in [2, 6, 7, 8, 10, 12, 13] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1086,6 +1080,16 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                         lede: b"We review changes.".as_slice().into(),
                     }),
                     size: 33,
+                },
+                12 => settings::SizedValue {
+                    value: settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([]) }),
+                    size: 4,
+                },
+                13 => settings::SizedValue {
+                    value: settings::Value::ProjectTriager(settings::ProjectTriager {
+                        owner: settings::AreaOwner::Role(0),
+                    }),
+                    size: 5,
                 },
                 _ => unreachable!("table kind"),
             };

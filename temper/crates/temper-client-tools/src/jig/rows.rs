@@ -141,13 +141,16 @@ pub const RUN: Tool = Tool {
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
-    line: b"Sign in with the link the deployment printed",
+    line: b"Sign in with a printed link or a service file",
     prints: b"Your party, as me prints it",
     result: b"sign_in",
-    forms: &[&[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")]],
+    forms: &[
+        &[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")],
+        &[flag(b"service", b"FILE", Kind::File, Required, b"The private file party make wrote")],
+    ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token and the engine's address into DIR. A link\nsigns in once, and expires; `the sign-in link was refused` (exit\n1) asks for a fresh link. With every sign-in in use, it says when\nthe earliest ends and until when this link stays usable. It leaves\nthe link's file as it was.\n",
+    notes: b"It writes the token and the engine's address into DIR. A link\nsigns in once, and expires; `the sign-in link was refused` (exit\n1) asks for a fresh link. With every sign-in in use, it says when\nthe earliest ends and until when this link stays usable. It leaves\nthe link's file as it was. With --service FILE, sign in as the\nservice at the address FILE holds. FILE must be owner-only and\nin party make's form; otherwise exit 1 before sending anything.\n",
 };
 pub const SIGN_OUT: Tool = Tool {
     name: b"sign-out",
@@ -1130,6 +1133,22 @@ pub const HAND_BACK: Tool = Tool {
 };
 
 /// Appended position for creating a project without setting up a forge.
+pub const PARTY_MAKE_AT: u8 = 75;
+pub const PARTY_MAKE: Tool = Tool {
+    name: b"party make",
+    line: b"Make a service party in a project with a role",
+    prints: b"`made: party N`; writes the address and one-time credential to FILE, never to output",
+    result: b"party_make",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project, by name or number"),
+        flag(b"role", b"ROLE", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The role's number"),
+        flag(b"out", b"FILE", Kind::File, Required, b"A new private file for sign-in --service"),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"The service's name"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"The project's owner makes a party with no person, holding ROLE.\nFILE existing refuses the call before anything is sent, exit 1.\nThe host writes FILE at 0o600, with this engine's address and\nthe credential answered once. The credential is never printed\nor passed in argv. A key replay prints the party and writes nothing.\n",
+};
 pub const PROJECT_MAKE_AT: u8 = 70;
 /// Create a project from policy 1 and return its number under a kept key.
 pub const PROJECT_MAKE: Tool = Tool {

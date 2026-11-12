@@ -1657,6 +1657,22 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 9,
                 charters: 0
             },
+            Kind {
+                number: 12,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 8),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 13,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 9,
+                per_scope: 1,
+                charters: 0
+            },
         ]
     );
     limits.authority.segment_bytes = 6;

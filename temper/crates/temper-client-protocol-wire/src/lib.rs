@@ -13,7 +13,17 @@ pub mod v1;
 /// (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
-    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7 || kind == 8 || kind == 9 || kind == 10 || kind == 11 || kind == 12 || kind == 13
+    kind == 1
+        || kind == 2
+        || kind == 3
+        || kind == 6
+        || kind == 7
+        || kind == 8
+        || kind == 9
+        || kind == 10
+        || kind == 11
+        || kind == 12
+        || kind == 13
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).

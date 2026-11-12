@@ -151,7 +151,9 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 | Value::Questions(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
-                | Value::ProjectAreas(_) | Value::ProjectTriager(_) | Value::ProjectWords(_)
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
+                | Value::ProjectWords(_)
                 | Value::Ways(_) => {}
             },
             Edit::Remove => {
@@ -188,7 +190,9 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
                 | Value::Questions(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
-                | Value::ProjectAreas(_) | Value::ProjectTriager(_) | Value::ProjectWords(_) => {}
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
+                | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = own_ways(None),
         }
@@ -215,7 +219,9 @@ pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> T
                 | Value::Ways(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
-                | Value::ProjectAreas(_) | Value::ProjectTriager(_) | Value::ProjectWords(_) => {}
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
+                | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = TemplateGoal::default(),
         }
@@ -234,7 +240,9 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
             | Value::Questions(_)
             | Value::CharterWords(_)
             | Value::Classes(_)
-            | Value::ProjectAreas(_) | Value::ProjectTriager(_) | Value::ProjectWords(_) => unreachable!("kind 7 is ways"),
+            | Value::ProjectAreas(_)
+            | Value::ProjectTriager(_)
+            | Value::ProjectWords(_) => unreachable!("kind 7 is ways"),
         },
     }
 }
