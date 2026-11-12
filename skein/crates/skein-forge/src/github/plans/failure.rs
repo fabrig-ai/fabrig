@@ -35,12 +35,16 @@ pub fn read(
 #[must_use]
 pub fn malformed(malformed: Malformed) -> api::Error {
     match malformed {
-        Malformed::Bound { .. } => api::Error::TooLarge(Excess::unnamed()),
+        Malformed::DocumentTooLong { limit, size } => {
+            api::Error::TooLarge(Excess::at_least(api::Bound::Forge, u64::from(limit), size))
+        }
+        Malformed::Bound { .. }
+        | Malformed::TooLong { .. }
+        | Malformed::Json(skein_json::tokenizer::Error::TooLong) => api::Error::TooLarge(Excess::unnamed()),
         Malformed::Json(_)
         | Malformed::Shape { .. }
         | Malformed::Missing { .. }
         | Malformed::Range { .. }
-        | Malformed::TooLong { .. }
         | Malformed::Id { .. }
         | Malformed::Time { .. }
         | Malformed::Value { .. } => api::Error::InvalidAnswer,
