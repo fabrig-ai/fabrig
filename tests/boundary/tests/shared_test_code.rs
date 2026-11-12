@@ -45,16 +45,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "G8: skein/testing/skein-browser-rig",
     },
     Exception {
-        package: "jig-test",
-        path: "jig/testing/jig-test/tests/support",
-        until: "G8: jig/testing/jig-test-kit",
-    },
-    Exception {
-        package: "jig-test",
-        path: "jig/testing/jig-protocol-accounts-kit/src/visitor.rs",
-        until: "G8: jig/testing/jig-protocol-accounts-kit, as a dependency",
-    },
-    Exception {
         package: "temper-real-loop-world",
         path: "temper/tests/real-loop/tests/support/mod.rs",
         until: "G8: the world's library's terminal module",

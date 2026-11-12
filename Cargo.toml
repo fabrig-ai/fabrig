@@ -163,6 +163,7 @@ members = [
     "jig/tests/client-browser",
     "jig/tests/one-process",
     "jig/testing/jig-test",
+    "jig/testing/jig-test-kit",
     "jig/crates/jig-client-shell-native",
     "jig/crates/jig-client-shell-web",
     "jig/tests/client-protocol",
@@ -559,6 +560,7 @@ jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
 jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-test-kit = { path = "jig/testing/jig-test-kit" }
 jig-people-kit = { path = "jig/testing/jig-people-kit" }
 jig-tasks-kit = { path = "jig/testing/jig-tasks-kit" }
 jig-channel-kit = { path = "jig/testing/jig-channel-kit" }
