@@ -42,8 +42,8 @@ fn file_creation_answers_201_with_the_new_commit() {
     let head = format!("HTTP/1.1 201 Created\r\nContent-Length: {}\r\n\r\n", body.len());
     assert_eq!(
         answering(connection(), head.as_bytes(), body).result,
-        Some(Reply::Document(Document::CreatedFile {
+        Some(Reply::Document(Box::new(Document::CreatedFile {
             commit: id::read(b"0000000000000000000000000000000000000001").expect("id")
-        }))
+        })))
     );
 }

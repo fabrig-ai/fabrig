@@ -294,6 +294,17 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.project_facts.capacity(),
             d.project_facts.contains_key(&row.project),
         ),
+        Stored::LandedDraft(row) => {
+            let replacing = crate::drafts::held(d, &(row.repository, row.path.clone())).is_some();
+            room(K::LandedDraft, Rows(K::LandedDraft), crate::drafts::count(d, row.project), crate::DRAFTS, replacing)?;
+            room(
+                K::LandedDraft,
+                Rows(K::LandedDraft),
+                crate::drafts::len(d),
+                crate::DRAFTS.saturating_mul(l.judge_projects),
+                replacing,
+            )
+        }
         Stored::Away(row) => room(
             K::Away,
             Rows(K::Away),

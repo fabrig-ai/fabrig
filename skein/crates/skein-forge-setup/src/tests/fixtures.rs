@@ -68,7 +68,7 @@ impl Run {
             Need::Send { request: Request::User.into(), auth: Auth::Token(secret(ADMIN)) }
         );
         assert_eq!(
-            self.step(Event::Reply(Reply::Document(Document::User(admin())))),
+            self.step(Event::Reply(Reply::Document(Box::new(Document::User(admin()))))),
             Need::Send { request: Request::UserOf { login: self.bot() }.into(), auth: Auth::Token(secret(ADMIN)) }
         );
     }
@@ -86,7 +86,7 @@ impl Run {
                 Need::Send { request: Request::User.into(), auth: Auth::Token(secret(b"bot-token")) }
             );
             assert_eq!(
-                self.step(Event::Reply(Reply::Document(Document::User(person(b"kit", b"kit:bot"))))),
+                self.step(Event::Reply(Reply::Document(Box::new(Document::User(person(b"kit", b"kit:bot")))))),
                 Need::Read(next)
             );
         }
@@ -130,7 +130,7 @@ pub fn to_bot(run: &mut Run) {
     use skein_forge::forgejo::document::Document;
     run.step(Event::Begin);
     run.step(Event::Read(Some(secret(ADMIN))));
-    run.step(Event::Reply(Reply::Document(Document::User(admin()))));
+    run.step(Event::Reply(Reply::Document(Box::new(Document::User(admin())))));
 }
 // Shared profile and small page sizes from forge/setup/forgejo.md, 1.3 and 1.4.
 pub const PROFILE_REACHABLE: u32 = 4;
@@ -141,16 +141,16 @@ pub fn bot_event() -> crate::reconcile::Event {
     user_event(person(b"kit", b"kit:bot"))
 }
 pub fn user_event(user: skein_forge::forgejo::document::User) -> crate::reconcile::Event {
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(skein_forge::forgejo::document::Document::User(
-        user,
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(
+        skein_forge::forgejo::document::Document::User(user),
     )))
 }
 pub fn settings_event(cap: u32) -> crate::reconcile::Event {
     use skein_forge::forgejo::document::{ApiSettings, Document};
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Document::ApiSettings(ApiSettings {
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::ApiSettings(ApiSettings {
         max_response_items: cap,
         default_paging_num: 30,
-    })))
+    }))))
 }
 pub fn keep_token(run: &mut Run) {
     run.step(crate::reconcile::Event::Read(Some(secret(b"bot-token"))));
@@ -242,13 +242,13 @@ pub fn create_token(item: crate::item::Item) -> skein_forge::forgejo::request::R
 }
 pub fn token_event() -> crate::reconcile::Event {
     use skein_forge::forgejo::document::{AccessToken, Document};
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Document::Token(AccessToken {
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::Token(AccessToken {
         id: 7,
         name: b"unused".as_slice().into(),
         scopes: Box::new([]),
         last_eight: Box::new([]),
         value: Some(secret(b"new-token")),
-    })))
+    }))))
 }
 pub fn named_failure(
     step: crate::reconcile::Stage,
@@ -376,7 +376,7 @@ pub fn user_repos(rows: Box<[skein_forge::forgejo::document::Row]>) -> crate::re
 pub fn search(ok: bool, rows: Box<[skein_forge::forgejo::document::Row]>) -> crate::reconcile::Event {
     use crate::reconcile::{Event, Reply};
     use skein_forge::forgejo::document::Document;
-    Event::Reply(if ok { Reply::Rows(rows) } else { Reply::Document(Document::RepoSearch { ok: false }) })
+    Event::Reply(if ok { Reply::Rows(rows) } else { Reply::Document(Box::new(Document::RepoSearch { ok: false })) })
 }
 pub fn reachable(page: u32) -> crate::reachable::Reachable {
     crate::reachable::Reachable::new(&given(), None, page).expect("fixture admitted")
@@ -387,7 +387,7 @@ pub fn repository(id: u64, owner: &[u8], name: &[u8]) -> crate::reconcile::Event
         document::{Document, MergeStyle, Repository},
         id::ObjectFormat,
     };
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Document::Repository(Repository {
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::Repository(Repository {
         id,
         owner: user(8, owner, false),
         name: name.into(),
@@ -398,14 +398,13 @@ pub fn repository(id: u64, owner: &[u8], name: &[u8]) -> crate::reconcile::Event
         allow_squash_merge: true,
         allow_rebase: true,
         html_url: Box::new([]),
-    })))
+    }))))
 }
 pub fn permission(permission: skein_forge::forgejo::document::Permission) -> crate::reconcile::Event {
     use skein_forge::forgejo::document::{CollaboratorPermission, Document};
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Document::Permission(CollaboratorPermission {
-        permission,
-        user: user(42, b"kit", false),
-    })))
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::Permission(
+        CollaboratorPermission { permission, user: user(42, b"kit", false) },
+    ))))
 }
 pub struct AdoptRun {
     pub(super) machine: crate::adopt::Adopt,

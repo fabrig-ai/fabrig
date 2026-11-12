@@ -161,6 +161,13 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   A named call's `CallPayload` gains `decided`, `CallDecided`: the taken
   option's words, or none for ask, and its `Reach`, or none where it was
   answered ask unjudged (`../domain/forge/attention.md`, 5).
+- **A project's landed drafts,** after the closer's family, 40, a
+  family and a record variant of their own appended after the last, so
+  that every row kept before them still decodes as it was written:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 41 | `LandedDraft` | `LandedDraft { repository, path }`: the forge's number, the repository's, then the path's bytes | a draft landed in the repository that its writer says is ready: `project`, `branch`, `commit`, `title` at most 200 bytes, `writer`, `at`, `chat` or none, `goal` or none, `ready` (`../domain/forge/drafts.md`, 1). Written by `SetDraft` (`../client/forge/records.md`); a new row at the bound erases the project's oldest unlisted row in its decision; erased with its project and with its forge | 64 times `judge_projects` |
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/forge/family.md`).

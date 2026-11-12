@@ -78,7 +78,7 @@ fn save(need: Need, id: Option<u64>) -> HookSpec {
 }
 pub(super) fn saved() -> Event {
     let Row::Hook(hook) = fixtures::hook(3, &url()) else { unreachable!("hook fixture") };
-    Event::Reply(Reply::Document(Document::Hook(hook)))
+    Event::Reply(Reply::Document(Box::new(Document::Hook(hook))))
 }
 #[test]
 fn a_bot_with_write_and_a_listener_asks_for_the_webhook_secret() {

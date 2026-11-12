@@ -39,6 +39,7 @@ pub enum RecordKind {
     Looked,
     Away,
     Decided,
+    LandedDraft,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -258,6 +259,7 @@ impl Reconciliation {
             | Stored::Binding { .. }
             | Stored::Making(_)
             | Stored::ProjectFacts(_)
+            | Stored::LandedDraft(_)
             | Stored::Away(_)
             | Stored::Decided(_)
             | Stored::Looked(_)
@@ -371,6 +373,7 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Binding
             | RecordKind::ProjectFacts
+            | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided
             | RecordKind::Looked

@@ -220,6 +220,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"APP",
     b"ROLE",
     b"FILE",
+    b"PATH",
     b"TEXT",
     b"REASON",
     b"KEY",
