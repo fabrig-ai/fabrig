@@ -273,12 +273,11 @@ fn running_job() -> Harness {
 
 /// Forbidden job terminals leave even a priced attempt live (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
-fn a_job_refuses_parks_followups_exceeded_and_recheck_without_changing_its_attempt() {
+fn a_job_refuses_parks_followups_and_exceeded_without_changing_its_attempt() {
     let mut h = running_job();
     let before = h.domain.task(2).unwrap().clone();
     for end in [
         crate::End::Parked,
-        crate::End::Recheck,
         crate::End::Exceeded(crate::Exceeded { bound: crate::Bound::Items, value: 1 }),
         crate::End::FinishedWithFollowups {
             result: crate::TaskResult::Job { bytes: Box::new([]) },
@@ -436,4 +435,28 @@ fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
     let held = h.domain.task(2).unwrap().phase.clone();
     h.restart();
     assert_eq!(h.domain.task(2).unwrap().phase, held);
+}
+
+/// A shutdown interruption releases a job without backoff or a try (lifecycle.md, 2).
+#[test]
+fn a_job_recheck_releases_its_attempt_due_without_spending_a_try() {
+    for cause in [crate::Cause::Unpriced, crate::Cause::Priced { cumulative: 0 }] {
+        let mut h = running_job();
+        let tries = crate::Tries { lost: 1, ..crate::Tries::NONE };
+        crate::domain::task_mut(&mut h.domain, 2).unwrap().record.tries = tries;
+        h.send(Event::Activation {
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt: 1,
+            end: crate::End::Recheck,
+            saved: None,
+            cause,
+        });
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(row.phase, crate::Phase::Active(crate::Active::Due));
+        assert_eq!(row.tries, tries);
+        assert_eq!(row.last_answer, Some(1));
+        assert_eq!(row.run_reserved, 0);
+        assert_eq!(row.refusals, 0);
+    }
 }
