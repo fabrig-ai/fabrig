@@ -72,6 +72,11 @@ fn exact_reviews_and_checks_wait_at_the_round_pull_beside_tests_and_survive_rest
         assert_eq!((target.landing, target.round, Some(target.pull), &target.branch, &target.base, target.prefix),
             (LANDING, row.preparation, row.round.pull, &row.round.branch, &row.branch, prefix));
         assert_ne!(Some(target.pull), world.change(CHANGE).pull);
+        let workspace = world.workspace_item(top::Seed { modify: false, task: 71, parent: Some(CHANGE), repository: temper_engine_forge_world::REPO, run_branch: Box::new([]), saved_branch: None }).expect("review checkout");
+        assert_eq!(workspace.start, top::Start::Branch(target.branch.clone()));
+        assert_eq!(workspace.push, None);
+        let brief = String::from_utf8(world.pull_brief(CHANGE, prefix).into_vec()).expect("pull brief");
+        assert!(brief.contains(&format!("Pull request: #{}\nBranch: {}\nBase: main\nHead: ", target.pull, String::from_utf8_lossy(&target.branch))), "{brief}");
         world.restart();
         assert_eq!(world.change(CHANGE).change.state, expected);
         for entry in 210..225 {

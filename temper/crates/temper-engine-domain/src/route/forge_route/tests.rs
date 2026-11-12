@@ -1740,6 +1740,21 @@ fn expected_landing(line: &[u8]) -> Box<[u8]> {
 }
 
 #[test]
+fn a_prefix_reviews_words_name_the_round_and_repairs_return_to_the_changes_pull() {
+    use super::forge_change::{Judgement, State};
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    row.change.state = State::Judging { head: SHA1, ready_since: skein_lib::Wall::EPOCH,
+        target: Judgement { landing: 81, round: 3, pull: 17, branch: b"temper/1/l81".as_slice().into(), base: b"goal".as_slice().into(), prefix: SHA256 }, asked: Box::new([9]) };
+    let words = super::review_words(&row, 9, &SHA256, &[], 1024).expect("round identity");
+    let prefix = format!("Review this change at the named head\nPull request: #17\nBranch: temper/1/l81\nBase: goal\nHead: {}\n", core::str::from_utf8(&super::commit_text(&SHA256)).unwrap());
+    assert!(words.starts_with(prefix.as_bytes()), "{}", String::from_utf8_lossy(&words));
+    row.change.state = State::Repairing { requested: false, why: super::forge_change::Repair::Gate(9) };
+    let words = super::review_words(&row, 9, &SHA1, &[], 1024).expect("own identity");
+    assert!(words.starts_with(b"Review this change at the named head\nPull request: #42\nBranch: temper/7\nBase: main\nHead: "));
+}
+
+#[test]
 fn a_review_never_starts_with_a_cut_pull_identity() {
     let row = change_row(Some(42));
     let identity = b"Review this change at the named head\nPull request: #42\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\n";
