@@ -75,17 +75,20 @@ Their forms are today's:
   package as the binary, one `[[bin]]` at `main.rs` beside it, no
   library, and its table test as `[[test]]` `suite` at
   `tests/suite/main.rs` (section 6), as `temper-worker`'s package has
-  them. It depends on its crate and `skein-fail-stop`, and its tests on
-  what they run.
+  them. It depends on its crate, `skein-fail-stop` and `temper-version`,
+  and its tests on what they run.
 - **Its `main.rs`,** the whole of it:
 
   ```rust
   //! The twin tool's binary (temper/docs/design/testing/tools.md, 3).
   fn main() -> std::process::ExitCode {
       skein_fail_stop::install();
-      temper_twin_tool::main()
+      temper_twin_tool::main(temper_version::VERSION, temper_version::COMMIT)
   }
   ```
+
+  It hands the build's identity in, as every binary does
+  (`../release.md`, 3).
 
 - **Its crate,** `temper/crates/<binary>-tool/`: the tool's library as
   it was, with what its `main.rs` held beside it, its files with it
@@ -94,7 +97,8 @@ Their forms are today's:
   and its tests. The playground's static host, today the whole of the
   browser world's `playground-serve.rs`, is its crate's library, and
   the world keeps its stories. The crate holds `pub const TABLE: Table`
-  and `pub fn main() -> ExitCode` (4.3).
+  and `pub fn main(version: &'static str, commit: &'static str) ->
+  ExitCode` (4.3), and none of its tables names `temper-version`.
 - **Lints:** both packages take the `harness` profile, as development
   tools do, each with its copy of the `ordinary` clippy variant
   (`tools/lints/design.md`, 3 and 4). `temper/tools/` goes with its
@@ -120,10 +124,11 @@ Their forms are today's:
 ### 4.1 The entries
 
 - **The table** (`skein/docs/design/runtime/shell.md`, 14.1): its binary,
-  its line (section 2), `temper-version`'s `VERSION` and `COMMIT`, its
-  commands, no settings of its own, its variables, and as its last line
-  where to read more: its design document from section 2, by path from
-  the repository's root, and for a binary with commands of words,
+  its line (section 2), an empty version and commit, which its `main`
+  fills with what its binary hands in (4.2), its commands, no settings
+  of its own, its variables, and as its last line where to read more:
+  its design document from section 2, by path from the repository's
+  root, and for a binary with commands of words,
   `BINARY COMMAND --help prints a command;` before it.
 - **Its commands** are its forms (section 2), each `Set::Internal`,
   reached by its words or, for a bare form, by none. Each command's line
@@ -152,7 +157,9 @@ Their forms are today's:
 ### 4.2 Its answers
 
 - **The front first:** the crate's `main` hands the captured arguments
-  to `TABLE.front` (`skein/docs/design/runtime/shell.md`, 14.5) and
+  to the front of its table with the identity filled in, `Table {
+  version, commit, ..TABLE }.front(&arguments)`
+  (`skein/docs/design/runtime/shell.md`, 14.5), and
   writes what it prints to stdout with exit 0, or what it refuses to
   stderr with exit 2. So `-h`, `--help`, `help` and `--version` are the
   front's in every binary, and neither `OUT` can be named `help`.

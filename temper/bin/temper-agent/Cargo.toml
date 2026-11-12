@@ -17,6 +17,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-version.workspace = true
 temper-agent-shell.workspace = true
 skein-fail-stop.workspace = true
 

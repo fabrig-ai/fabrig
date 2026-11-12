@@ -78,6 +78,13 @@ standing roles under its open period; and Roles the charters its standing
 roles and follows run (`domain/forge/change/branch-path.md`). Their render
 check and walk follow landing (`client/pages/settings.md`, 3).
 
+Each binary's
+package, the client's included, links `temper-version` and hands its
+build identity to its crate; no library links it, a row of the boundary
+test's direction rule holds it, and a new commit relinks the binaries
+and rebuilds no library or world below them (`release.status.md`;
+`draft/version-rebuilds.status.md`).
+
 The stock from files is the stock charters' milestone S1, by goal 1144
 (`draft/stock-charters.execution.md`): the stock's charters 5, the goal's
 agent, and 2, the implementer, assembled from five Markdown files in
@@ -276,6 +283,7 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
 

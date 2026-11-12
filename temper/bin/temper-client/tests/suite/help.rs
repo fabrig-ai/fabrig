@@ -1,4 +1,4 @@
-use temper_client::{COMMANDS, NAME};
+use temper_client_shell::{COMMANDS, NAME};
 use temper_shell::{
     commands,
     help::{Request, answer},
