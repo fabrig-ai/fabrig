@@ -2178,6 +2178,42 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
 }
 
 #[test]
+fn landed_drafts_round_trip_the_smallest_and_full_rows_and_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for full in [false, true] {
+        let path: Box<[u8]> = if full {
+            let mut path = skein_lib::Writer::new(1024);
+            path.put(&[b'p'; 1021]).unwrap();
+            path.put(b".md").unwrap();
+            path.finish()
+        } else {
+            b".md".as_slice().into()
+        };
+        let row = forge::Stored::LandedDraft(forge::LandedDraft {
+            repository: skein_forge::api::Repository {
+                forge: if full { u16::MAX } else { 0 },
+                repository: if full { u32::MAX } else { 0 },
+            },
+            path,
+            project: if full { u32::MAX } else { 0 },
+            branch: if full { Box::from([b'b'; 1024]) } else { Box::new([]) },
+            commit: if full { [255; 32] } else { [0; 32] },
+            title: if full { Box::from([b't'; 200]) } else { Box::new([]) },
+            writer: if full { u64::MAX } else { 0 },
+            at: skein_lib::Wall::from_nanos(if full { u64::MAX } else { 0 }),
+            chat: full.then_some(u64::MAX),
+            goal: full.then_some(u64::MAX),
+            ready: full,
+        });
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(key.first(), Some(&41));
+        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn pull_size_is_omitted_without_changing_the_stored_pull() {
     use skein_forge::api::{Answer, Size};
     let mut pull = fixtures::pull();

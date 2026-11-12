@@ -42,6 +42,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             Some(project) => people::ApplicationScope::Project(*project),
             None => people::ApplicationScope::Deployment,
         },
+        Application::Forge(forge::Ask::SetDraft(call)) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
@@ -135,6 +136,20 @@ pub(super) fn admitted(
         Application::Dismiss { what } => {
             domain.work.push(Work::Forge(forge::Event::Dismiss { request, token, party: person, what }));
         }
+        Application::Forge(forge::Ask::SetDraft(call)) => {
+            if let Some(carried) = carried {
+                assert!(
+                    super::now(
+                        domain,
+                        crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused {
+                            number: carried.number
+                        }))
+                    ),
+                    "carried value output door reserved"
+                );
+            }
+            domain.work.push(Work::Forge(forge::Event::SetDraft { request, token, party: person, call }));
+        }
         Application::Forge(ask) => {
             if let Some(context) = domain.application_playground.take() {
                 if domain.playground_contexts.len() == domain.playground_contexts.capacity() {
@@ -193,6 +208,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Install(answer)) => Some(ApplicationAnswer::Install(answer)),
         Some(forge::Answered::Dismiss(answer)) => Some(ApplicationAnswer::Dismiss(answer)),
         Some(forge::Answered::Looked(answer)) => Some(ApplicationAnswer::Looked(answer)),
+        Some(forge::Answered::SetDraft(answer)) => Some(ApplicationAnswer::SetDraft(answer)),
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
         None => None,

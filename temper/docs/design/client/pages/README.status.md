@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
+  not read, and no landed draft's card starts a goal [in flight: change 664].
+
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 
 `README.md`'s Models tab, switches, add-by-name form, source, estimated
