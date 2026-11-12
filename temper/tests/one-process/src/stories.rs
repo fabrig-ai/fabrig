@@ -239,23 +239,11 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     while transport.forge.borrow_mut().domain.pop_observation().is_some() {}
     transport
 }
-pub(crate) fn prepare_merge_branch(transport: &temper_fake_git_hosted::Typed) { prepare_branch(transport, false); }
-/// Public read stories need a landed record, not a conflict-resolution interaction.
-pub(crate) fn prepare_public_branch(transport: &temper_fake_git_hosted::Typed) { prepare_branch(transport, true); }
-fn prepare_branch(transport: &temper_fake_git_hosted::Typed, clean: bool) {
+pub(crate) fn prepare_merge_branch(transport: &temper_fake_git_hosted::Typed) {
     let mut forge = transport.forge.borrow_mut();
     let env = skein_lib::Env { now: forge.now, wall: skein_lib::Wall::EPOCH, limits: forge.config };
     let token = forge.next_reply();
     let skein_fake_peers::forge::Forge { domain, pending, .. } = &mut *forge;
-    let op = if clean {
-        let base = domain.branch(b"acme/app", b"main").expect("main");
-        let tree = domain.object(fixtures::BRANCH_HEAD).expect("member").tree.iter().map(|(path, content)| skein_fake_forge_domain::api::File { path: path.clone(), content: content.clone() }).collect();
-        let commit = skein_fake_forge_domain::merge_commit(domain, &env.limits, fixtures::BRANCH_HEAD, base, tree, b"Resolved public fixture head").expect("clean member");
-        skein_fake_forge_domain::manual_merges(domain, b"acme/app", skein_fake_forge_domain::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true });
-        skein_fake_forge_domain::api::Git::PushNew { branch: fixtures::MERGE_BRANCH.into(), commit }
-    } else {
-        skein_fake_forge_domain::api::Git::Create { branch: fixtures::MERGE_BRANCH.into(), commit: fixtures::BRANCH_HEAD }
-    };
     skein_fake_forge_domain::step(
         domain,
         &env,
@@ -263,7 +251,10 @@ fn prepare_branch(transport: &temper_fake_git_hosted::Typed, clean: bool) {
             reply_to: skein_lib::ReplyTo::new(token),
             user: fixtures::WORKER_USER,
             repository: b"acme/app".as_slice().into(),
-            op: skein_fake_forge_domain::api::Op::Git(op),
+            op: skein_fake_forge_domain::api::Op::Git(skein_fake_forge_domain::api::Git::Create {
+                branch: fixtures::MERGE_BRANCH.into(),
+                commit: fixtures::BRANCH_HEAD,
+            }),
         },
         pending,
     );
@@ -283,7 +274,7 @@ fn prepare_branch(transport: &temper_fake_git_hosted::Typed, clean: bool) {
                     }
                     assert_eq!(
                         result,
-                        Ok(if clean { skein_fake_forge_domain::api::Answer::PushNew { existing: None } } else { skein_fake_forge_domain::api::Answer::Branch(skein_fake_forge_domain::api::Created::Created) }),
+                        Ok(skein_fake_forge_domain::api::Answer::Branch(skein_fake_forge_domain::api::Created::Created)),
                         "the existing private merge branch"
                     );
                     created = true;

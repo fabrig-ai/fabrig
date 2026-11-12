@@ -1,9 +1,14 @@
+   Compiling temper-engine-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain)
+   Compiling temper-engine-smith v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-smith)
+   Compiling temper-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-service)
+   Compiling temper-github-app v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/testing/temper-github-app)
+   Compiling temper-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-playground)
    Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/tests/one-process)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.34s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.09s
 ────────────
- Nextest run ID d89da552-a4e4-4e14-bace-d7d424573720 with nextest profile: default
+ Nextest run ID 91860552-7abb-49de-9615-b55a2e28a262 with nextest profile: default
     Starting 1 test across 1 binary (45 tests skipped)
-        FAIL [   1.237s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+        FAIL [   1.853s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
   stdout ───
 
     running 1 test
@@ -14,13 +19,14 @@
     failures:
         public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 
-    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 1.21s
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 1.84s
 
   stderr ───
+    STEP REFUSED task=2 why=Refused(Problem { task: Some(2), why: Busy, blocked_by: None, capacity: Some(Capacity { project: Some(1), by: Task(2), action: Batch { first: Some(5), members: 1 }, cause: Inbox { task: 2, messages: 8, bytes: 4096 } }) })
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (733229) panicked at skein/testing/skein-world/src/lib.rs:74:5:
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (985022) panicked at skein/testing/skein-world/src/lib.rs:74:5:
     seed 7: at 20000000000 ns, the referee failed the world:
-    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Idle)), (2, 1, Some(1), false, false, false, Active(Due)), (3, 1, None, false, false, true, Ended(Done(Report { words: [97, 99, 109, 101, 47, 97, 112, 112, 32] }))), (4, 1, None, false, false, true, Ended(Done(Job { bytes: [123, 34, 99, 111, 110, 102, 108, 105, 99, 116, 34, 58, 123, 34, 109, 101, 109, 98, 101, 114, 34, 58, 50, 44, 34, 119, 105, 116, 104, 34, 58, 34, 98, 114, 97, 110, 99, 104, 34, 44, 34, 102, 105, 108, 101, 115, 34, 58, 91, 34, 99, 111, 110, 102, 108, 105, 99, 116, 46, 116, 120, 116, 34, 93, 44, 34, 99, 117, 116, 34, 58, 102, 97, 108, 115, 101, 125, 125] })))] forge=["change 2 Resolving { requested: true, base: [29, 11, 20, 228, 219, 1, 143, 237, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } landing=None", "landing 3 Landed round=Round { branch: [116, 101, 109, 112, 101, 114, 47, 51, 47, 108, 51], pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: [] }"]load phase 0, stage 0, calls []
+    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false), (2, 1, Some(1), false, false, false), (3, 1, None, false, false, true), (4, 1, None, false, false, true)]load phase 0, stage 0, calls []
     the last 80 lines of the trace:
      15000000000 ns  pid 0  Submit { op: Token(1385), kind: Recv { fd: Fd(191), len: 16384 } }
      15000000000 ns  pid 5  Complete { op: Token(8589934712), kind: Send { fd: Fd(45), len: 109, from: 0 }, result: Ok(Count(109)) }
@@ -105,9 +111,9 @@
 
     note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (733229) panicked at temper/tests/one-process/src/public.rs:147:9:
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (985022) panicked at temper/tests/one-process/src/public.rs:148:9:
     public walk every_inaccessible_identifier_is_one_unknown_byte_for_byte, seed 7: seed 7: at 20000000000 ns, the referee failed the world:
-    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false, Active(Idle)), (2, 1, Some(1), false, false, false, Active(Due)), (3, 1, None, false, false, true, Ended(Done(Report { words: [97, 99, 109, 101, 47, 97, 112, 112, 32] }))), (4, 1, None, false, false, true, Ended(Done(Job { bytes: [123, 34, 99, 111, 110, 102, 108, 105, 99, 116, 34, 58, 123, 34, 109, 101, 109, 98, 101, 114, 34, 58, 50, 44, 34, 119, 105, 116, 104, 34, 58, 34, 98, 114, 97, 110, 99, 104, 34, 44, 34, 102, 105, 108, 101, 115, 34, 58, 91, 34, 99, 111, 110, 102, 108, 105, 99, 116, 46, 116, 120, 116, 34, 93, 44, 34, 99, 117, 116, 34, 58, 102, 97, 108, 115, 101, 125, 125] })))] forge=["change 2 Resolving { requested: true, base: [29, 11, 20, 228, 219, 1, 143, 237, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } landing=None", "landing 3 Landed round=Round { branch: [116, 101, 109, 112, 101, 114, 47, 51, 47, 108, 51], pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: [] }"]load phase 0, stage 0, calls []
+    public every_owner_version_and_kind_answers_as_declared, stage 0, seed 7merge stage 2, tasks [(1, 1, None, true, false, false), (2, 1, Some(1), false, false, false), (3, 1, None, false, false, true), (4, 1, None, false, false, true)]load phase 0, stage 0, calls []
     the last 80 lines of the trace:
      15000000000 ns  pid 0  Submit { op: Token(1385), kind: Recv { fd: Fd(191), len: 16384 } }
      15000000000 ns  pid 5  Complete { op: Token(8589934712), kind: Send { fd: Fd(45), len: 109, from: 0 }, result: Ok(Count(109)) }
@@ -193,6 +199,6 @@
 
   Cancelling due to test failure
 ────────────
-     Summary [   1.246s] 1 test run: 0 passed, 1 failed, 45 skipped
-        FAIL [   1.237s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+     Summary [   1.866s] 1 test run: 0 passed, 1 failed, 45 skipped
+        FAIL [   1.853s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 error: test run failed

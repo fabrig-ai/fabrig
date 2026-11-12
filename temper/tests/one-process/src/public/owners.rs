@@ -150,7 +150,7 @@ impl Walk {
                         String::from_utf8_lossy(&answer.error)
                     );
                 }
-                crate::stories::prepare_public_branch(transport);
+                crate::stories::prepare_merge_branch(transport);
                 service::command(
                     caller,
                     &[

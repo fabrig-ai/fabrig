@@ -77,7 +77,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         worker["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
         worker["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
         worker["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
     }
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
@@ -97,9 +97,10 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("people.projects", 4),
         ("authority.projects", 3),
         ("tasks.spec_bytes", 16_384),
+        ("tasks.batch_bytes", 32_768),
         ("tasks.result_bytes", 4096),
         ("tasks.message_bytes", 4096),
-        ("tasks.inbox_bytes", 4096),
+        ("tasks.inbox_bytes", 32_768),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
