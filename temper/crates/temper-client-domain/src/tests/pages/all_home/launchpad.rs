@@ -297,7 +297,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
 }
 
 #[test]
-fn launchpad_decided_prioritizes_distinct_open_needs_then_me_to_four() {
+fn launchpad_decided_prioritizes_root_then_distinct_open_needs_then_me_to_four() {
     use temper_protocol_reaches::{Class, Kind, Reach, Reason};
     let mut fixture = Across::waiting(Address::Accounts);
     fixture.event(Event::Launchpad);
@@ -314,7 +314,7 @@ fn launchpad_decided_prioritizes_distinct_open_needs_then_me_to_four() {
             projects.push(row.project()).expect("fixture projects grow");
         }
     }
-    assert_eq!(projects.as_slice(), [THIRD, SECOND, FIRST, FOURTH]);
+    assert_eq!(projects.as_slice(), [FIRST, THIRD, SECOND, FOURTH]);
     let reach = Reach {
         kind: Kind::Implementation,
         class: Class::Ask,
@@ -362,4 +362,116 @@ fn launchpad_decided_prioritizes_distinct_open_needs_then_me_to_four() {
     assert_eq!(task_reads(&out).first().expect("showing task").0, 1);
     assert_eq!(all_home::decided(&fixture.root, Wall::EPOCH).len(), 1);
     assert_eq!(parts::needs_facts(&fixture.root, Wall::EPOCH).showing, 1);
+}
+
+#[test]
+fn launchpad_findings_and_decided_keep_the_root_once_before_needs() {
+    for needs in [Box::<[u32]>::from([SECOND, THIRD, FOURTH, FIFTH]), Box::from([SECOND, FIRST, THIRD, FOURTH, FIFTH])] {
+        let mut fixture = Across::waiting(Address::Accounts);
+        fixture.event(Event::Launchpad);
+        fixture.go(Address::Home { project: FIRST });
+        inbox(&mut fixture, &needs);
+        fixture.frame(&[FIFTH, FOURTH, THIRD, SECOND, FIRST]);
+        for kind in ["findings", "decided"] {
+            let mut projects = List::uncapped();
+            for (_, subject) in &fixture.opened {
+                if let Watchable::Family { record, .. } = subject {
+                    let watch = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("forge subject");
+                    if kind == "findings" {
+                        if let w::Watch::Findings(row) = watch.watch() {
+                            projects.push(row.project()).expect("fixture projects grow");
+                        }
+                    } else if let w::Watch::Decided(row) = watch.watch() {
+                        projects.push(row.project()).expect("fixture projects grow");
+                    }
+                }
+            }
+            assert_eq!(projects.as_slice(), [FIRST, SECOND, THIRD, FOURTH], "{kind}: needs {needs:?}");
+        }
+    }
+}
+
+fn now_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
+    let mut reads = List::uncapped();
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down {
+            down: Down::Read { read, what: Readable::Jig(c::Read::Notes {
+                scope: c::NoteScope::Task { project, task }, description, after,
+            }) },
+        }} = request {
+            assert_eq!(*project, FIRST);
+            assert_eq!(description.as_ref().expect("description").bytes(), b"now");
+            assert_eq!(*after, None);
+            reads.push((*task, *read)).expect("fixture reads grow");
+        }
+    }
+    reads.into_boxed()
+}
+fn now_answer(fixture: &mut Across, read: Token, task: u64, body: &[u8]) -> Queue<Request> {
+    let text = c::DocumentText::complete(c::Text::new(body.into(), 128).expect("Now fits"));
+    let note = c::Note {
+        number: 1, revision: c::Revision { value: 1 },
+        scope: c::NoteScope::Task { project: FIRST, task },
+        description: c::DocumentText::complete(c::Text::new(b"now".as_slice().into(), 3).expect("description")),
+        body: text, writer: c::NoteAuthor::Task { task, attempt: 1 },
+        tasks: List::uncapped(), changed: Some(Wall::EPOCH), acts: List::uncapped(), cut: false,
+    };
+    fixture.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+        rows: List::from_boxed(Box::new([note])), cut: false, before: None, after: None,
+    })))) })
+}
+#[test]
+fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
+    use pages::team;
+    for enabled in [false, true] {
+        let mut fixture = Across::new(&[FIRST], Address::Accounts);
+        if enabled { fixture.event(Event::Launchpad); }
+        fixture.go(Address::Home { project: FIRST });
+        let query = c::TaskQuery {
+            project: Some(FIRST), label: Some(3), order: c::QueryOrder::Number,
+            requester: None, root: None, parent: None, phase: None, executor: None, tracked: None,
+        };
+        let watch = fixture.watch(Watchable::Jig(c::Subject::Tasks { query, window: team::ROLES }));
+        let mut first = task_line(FIRST, None);
+        first.chip.task = 40;
+        first.label = 3;
+        first.ended_at = None;
+        let mut second = first.clone();
+        second.chip.task = 41;
+        let rows = List::from_boxed(Box::new([first, second]));
+        let out = fixture.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: false }))) });
+        assert_eq!(now_reads(&out).len(), usize::from(enabled));
+        if enabled {
+            let reads = now_reads(&out);
+            let (task, read) = *reads.first().expect("first Now");
+            assert_eq!(task, 40);
+            let out = now_answer(&mut fixture, read, task, b"First role's Now\nMore");
+            let reads = now_reads(&out);
+            assert_eq!(reads.len(), 1, "only the second Now starts");
+            let (task, read) = *reads.first().expect("second Now");
+            assert_eq!(task, 41);
+            let out = now_answer(&mut fixture, read, task, b"Second role's Now");
+            assert!(now_reads(&out).is_empty());
+            let shown = team::shown_at(&fixture.root, FIRST, Wall::EPOCH);
+            let facts = shown.facts().expect("roles don't wait for people");
+            assert_eq!(facts.roles.len(), 2);
+            assert_eq!(facts.roles.get(0).expect("first").now.as_deref(), Some(b"First role's Now".as_slice()));
+            assert_eq!(facts.roles.get(1).expect("second").now.as_deref(), Some(b"Second role's Now".as_slice()));
+            for (_, subject) in &fixture.opened {
+                if let Watchable::Jig(c::Subject::Task { .. }) = subject {
+                    panic!("Team-only card watch stays closed");
+                }
+            }
+            let out = fixture.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))) });
+            let reads = now_reads(&out);
+            let (task, pending) = *reads.first().expect("refresh Now");
+            fixture.go(Address::Work { project: FIRST, filter: crate::WorkFilter::All });
+            let out = now_answer(&mut fixture, pending, task, b"Late Now");
+            assert!(now_reads(&out).is_empty(), "leaving Home leaves Now reads");
+            let shown = team::shown_at(&fixture.root, FIRST, Wall::EPOCH);
+            for role in &shown.facts().expect("roles kept on project page").roles {
+                assert!(role.now.is_none(), "Nows closed off Home");
+            }
+        }
+    }
 }

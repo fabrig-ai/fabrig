@@ -132,9 +132,8 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<
         HeldRole::Policy { role } => w.say(Word::TeamPolicy, &[Hole::Number(u64::from(role))]),
     };
     paragraph(b, &role, look::TEAM_ROLE);
-    if let Some(waits) = person.waits {
-        let whom = if person.you { w.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
-        paragraph(b, &line(w, &waits, whom), look::TEAM_LINE);
+    if let Some(line) = crate::shared::person_line(w, person) {
+        paragraph(b, &line, look::TEAM_LINE);
     }
     if let Some(signed) = signed {
         paragraph(b, signed, look::TEAM_LINE);
@@ -142,41 +141,6 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<
     b.close();
 }
 
-fn line(w: &Words, waits: &team::Waits, whom: Box<[u8]>) -> Box<[u8]> {
-    let total = waits.total();
-    if total == 0 {
-        return w.say(Word::TeamNothing, &[Hole::Name(whom)]);
-    }
-    let mut kind = None;
-    let mut mixed = false;
-    for (count, one, many) in [
-        (waits.questions, Word::TeamQuestion, Word::TeamQuestions),
-        (waits.reviews, Word::TeamReview, Word::TeamReviews),
-        (waits.proposals, Word::TeamProposal, Word::TeamProposals),
-        (waits.held, Word::TeamHeldTask, Word::TeamHeldTasks),
-        (waits.person_tasks, Word::TeamPersonTask, Word::TeamPersonTasks),
-    ] {
-        if count > 0 {
-            mixed |= kind.is_some();
-            kind = Some(if total == 1 { one } else { many });
-        }
-    }
-    let kind = if mixed { Word::TeamThings } else { kind.expect("a positive total has a kind") };
-    let number = if waits.cut {
-        w.say(Word::TeamCountCut, &[Hole::Number(u64::from(total))])
-    } else if total == 1 {
-        w.say(Word::TeamOne, &[])
-    } else {
-        match super::home::number_word(total) {
-            Some(word) => w.say(word, &[]),
-            None => w.say(Word::TeamCount, &[Hole::Number(u64::from(total))]),
-        }
-    };
-    w.say(
-        if total == 1 { Word::TeamWaits } else { Word::TeamWait },
-        &[Hole::Name(number), Hole::Name(w.say(kind, &[])), Hole::Name(whom)],
-    )
-}
 
 fn paragraph(b: &mut Builder, value: &[u8], style: Style) {
     b.open(Role::Paragraph);
