@@ -20,7 +20,29 @@ use smith_real_world::{
     Scratch,
     settled::{Before, assert_no_children},
 };
-use std::{fmt::Write as _, path::Path};
+use std::{
+    fmt::Write as _,
+    os::unix::fs::PermissionsExt as _,
+    path::{Path, PathBuf},
+};
+
+/// The fake program built beside this package's shipped binary.
+pub fn fake_claude() -> PathBuf {
+    fake_claude_beside(&skein_scratch::paths::binary("smith"))
+}
+
+/// Find the executable sibling, naming the build command when it is absent.
+pub fn fake_claude_beside(smith: &Path) -> PathBuf {
+    let path = smith.parent().expect("smith binary has a parent directory").join("fake-claude");
+    let executable = std::fs::metadata(&path)
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
+    assert!(
+        executable,
+        "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
+        path.display()
+    );
+    path
+}
 
 pub enum Process {
     Binary(Box<Binary>),
