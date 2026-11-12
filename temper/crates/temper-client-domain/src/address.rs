@@ -12,6 +12,7 @@ pub enum Address {
     ConnectModel { way: Option<ModelWay> },
     Welcome { step: Step },
     Chat { task: u64 },
+    Talk { project: u32, task: u64 },
     Task { task: u64 },
     Home { project: u32 },
     AllHome,
@@ -158,6 +159,14 @@ pub fn print(address: &Address) -> Box<[u8]> {
         }
         Address::NewChat { draft } => {
             return if *draft { b"/chats/new?draft=1".as_slice().into() } else { b"/chats/new".as_slice().into() };
+        }
+        Address::Talk { project, task } => {
+            return skein_lib::bytes::concat(&[
+                b"/projects/",
+                Decimal::of(u64::from(*project)).as_bytes(),
+                b"/talk/",
+                Decimal::of(*task).as_bytes(),
+            ]);
         }
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
@@ -313,6 +322,13 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"goals") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Goals { project, filter: parse_goals(fields) }
+        }
+        (b"projects", _, tail) if tail.starts_with(b"talk/") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            let Some(task) = decimal(tail.strip_prefix(b"talk/").expect("talk prefix")) else {
+                return Place::Missing;
+            };
+            Address::Talk { project, task }
         }
         (b"projects", _, b"team") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };

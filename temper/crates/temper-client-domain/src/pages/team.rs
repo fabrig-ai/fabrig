@@ -13,10 +13,25 @@ mod standing;
 pub mod wakes;
 pub use rules::{Rules, asked};
 pub use standing::{Card, Now, Role, StartedBy};
+pub(crate) use standing::now;
 pub(crate) mod sessions;
 pub use sessions::Session;
 /// The standing roles watch’s window.
 pub const ROLES: u32 = 16;
+
+/// The project's open period lasts seven days (client/pages/talk.md, 2).
+#[must_use]
+pub fn weekly(root: &crate::Domain, project: u32) -> bool {
+    let Some(document) = root.pages().team.document(project) else { return false };
+    let Some(period) = &document.current_period else { return false };
+    if period.closed {
+        return false;
+    }
+    match (period.began, period.next) {
+        (Some(began), Some(next)) => next.as_nanos().checked_sub(began.as_nanos()) == Some(604_800_000_000_000),
+        (Some(_), None) | (None, Some(_) | None) => false,
+    }
+}
 
 /// Other people whose waits are read, one `tasks{query}` watch each.
 pub const OTHERS: u32 = 8;

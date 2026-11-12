@@ -36,7 +36,17 @@ fn efforts(root: &Domain) -> bool {
     let Some(model) = models.get(index) else { return false };
     !model.efforts.is_empty()
 }
+#[expect(clippy::too_many_lines, reason = "one command match keeps chat permissions and the talk's exclusions together")]
 pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
+    if let Some(chat) = root.pages().chat()
+        && chat.talk().is_some()
+    {
+        return match command {
+            Command::Model | Command::Effort | Command::Draft | Command::Pause | Command::Close
+            | Command::StartOver | Command::Goal => false,
+            Command::New | Command::Chats | Command::Theme | Command::Font | Command::Help | Command::Exit => true,
+        };
+    }
     match command {
         Command::Model => crate::choice::changeable(root, task),
         Command::Effort => crate::choice::changeable(root, task) && efforts(root),
@@ -62,6 +72,7 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                             }
                     }
                     Address::Chat { .. }
+                    | Address::Talk { .. }
                     | Address::Ask { .. }
                     | Address::AllHome
                     | Address::Inbox { .. }

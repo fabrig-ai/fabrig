@@ -35,6 +35,7 @@ mod report;
 mod start_goal;
 mod switcher;
 mod task;
+mod talk;
 mod welcome;
 mod work;
 use super::fixtures;

@@ -445,6 +445,7 @@ impl Session {
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Models { .. }
@@ -881,6 +882,7 @@ pub(crate) fn act(
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
+                | Address::Talk { .. }
                 | Address::Task { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }
@@ -911,6 +913,7 @@ pub(crate) fn act(
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
+                | Address::Talk { .. }
                 | Address::Task { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }

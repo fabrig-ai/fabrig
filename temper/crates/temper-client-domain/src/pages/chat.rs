@@ -4,6 +4,8 @@ pub mod document;
 mod request;
 pub mod sheet;
 mod views;
+mod talking;
+pub use talking::Talking;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -40,6 +42,7 @@ struct CardRead {
 )]
 pub struct Chat {
     pub mode: Mode,
+    talking: Option<Talking>,
     opening_mode: Option<Mode>,
     pub restarting: bool,
     pub decided: Option<(u64, Wall)>,
@@ -94,8 +97,17 @@ impl Chat {
     /// The first message's bytes and whether they are whole (client/view.md, 4).
     #[must_use]
     pub fn request<'a>(&'a self, client: &'a Client) -> Option<(&'a [u8], bool)> {
+        if self.talking.is_some() {
+            return None;
+        }
         let words = &self.task(client)?.spec.specification.words;
         Some(self.request.words(words))
+    }
+
+    /// A standing role's talk (temper/docs/design/client/pages/talk.md, 2).
+    #[must_use]
+    pub fn talk(&self) -> Option<&Talking> {
+        self.talking.as_ref()
     }
 
     /// The log's end request (temper/docs/design/client/pages/chat/conversation.md, 2).
@@ -123,6 +135,7 @@ impl Chat {
         asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             mode,
+            talking: None,
             opening_mode: Some(mode),
             restarting: false,
             decided: None,
@@ -196,6 +209,9 @@ impl Chat {
         }
         if self.goal_watched.is_some() {
             unwatch(self.goal_read, out);
+        }
+        if let Some(talk) = &self.talking {
+            talk.leave(out);
         }
         self.request.leave(out);
         self.views.leave(out);
@@ -292,6 +308,12 @@ impl Chat {
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch routes the chat's independent read handles")]
     pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+        if let Some(talk) = &mut self.talking
+            && talk.told(&told, out)
+        {
+            self.refresh_talk(client, out);
+            return true;
+        }
         if let Told::Page { handle, page } = &told
             && self.views.page(now, client, *handle, page)
         {
@@ -302,7 +324,9 @@ impl Chat {
             Told::Changed { handle } if handle == self.document => {
                 if let Some(Latest::Jig(c::Delivery::Task(task))) = latest(client, handle) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(task), out);
-                    self.request.start(task, &mut self.next, out);
+                    if self.talking.is_none() {
+                        self.request.start(task, &mut self.next, out);
+                    }
                     self.watch_run(task, out);
                     self.proposals(task, out);
                     self.open_draft(task.project, out);
@@ -316,7 +340,9 @@ impl Chat {
             Told::Page { handle, page } if handle == self.document => {
                 if let Some(task) = page_task(page, self.task) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(&task), out);
-                    self.request.start(&task, &mut self.next, out);
+                    if self.talking.is_none() {
+                        self.request.start(&task, &mut self.next, out);
+                    }
                     self.watch_run(&task, out);
                     self.proposals(&task, out);
                     self.open_draft(task.project, out);
@@ -413,9 +439,13 @@ impl Chat {
         self.made_cards(client, out);
         self.delegations(client, out);
         self.sync_views(client, out);
+        self.refresh_talk(client, out);
         true
     }
     fn open_draft(&mut self, project: u32, out: &mut Queue<Request>) {
+        if self.talking.is_some() {
+            return;
+        }
         if self.draft_project.is_none() {
             self.draft_project = Some(project);
             self.ask_draft(out);
@@ -1367,12 +1397,13 @@ impl Chat {
             Some(Latest::Jig(c::Delivery::Me(me))) => Some(me.as_ref()),
             Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
         };
-        let resumes = match me {
+        let message_act = if self.talking.is_some() { c::ActKind::Talk } else { c::ActKind::Message };
+        let resumes = self.talking.is_none() && match me {
             Some(me) => paused(&task.chip, me) && allowed(task, c::ActKind::Release),
             None => false,
         };
         let words = match kind {
-            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => {
+            Sending::Message if !message.is_empty() && allowed(task, message_act) => {
                 let Some(me) = me else { return };
                 if supplied.is_none() && super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
                     return;
@@ -1386,7 +1417,9 @@ impl Chat {
         let ask = match kind {
             Sending::Message => {
                 let words = words.as_ref().expect("message words checked").clone();
-                if resumes {
+                if let Some(talk) = &self.talking {
+                    c::Ask::Talk { project: talk.project, task: talk.task, words }
+                } else if resumes {
                     c::Ask::Compound {
                         project: task.project,
                         operations: List::from_boxed(Box::new([

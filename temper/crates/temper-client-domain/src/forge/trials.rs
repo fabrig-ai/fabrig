@@ -121,6 +121,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }
         | crate::Address::Chat { .. }
+        | crate::Address::Talk { .. }
         | crate::Address::Task { .. }
         | crate::Address::Home { .. }
         | crate::Address::Work { .. }

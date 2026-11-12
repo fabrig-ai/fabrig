@@ -143,6 +143,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Chats { .. }
             | temper_client_domain::Address::NewChat { .. }
             | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Talk { .. }
             | temper_client_domain::Address::Task { .. }
             | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
@@ -180,6 +181,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
             | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Talk { .. }
             | temper_client_domain::Address::Task { .. }
             | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
@@ -356,7 +358,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
             &mut view.forge,
         );
-    } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
+    } else if let temper_client_domain::Address::Chat { .. }
+    | temper_client_domain::Address::Talk { .. } = root.pages().address() {
         crate::pages::chat::main(
             &mut builder,
             root,
