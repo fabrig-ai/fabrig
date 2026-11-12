@@ -44,6 +44,9 @@ pub(crate) fn serves(
                     named = true;
                 }
             }
+            if !named {
+                return false;
+            }
             named
         }
     };
