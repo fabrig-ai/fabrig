@@ -2,8 +2,6 @@
 
 2026-11-12. Where skein's code lags or departs from [llm.md](llm.md).
 
-- **Not yet:** 2.5: no strict switch; a turn no script answers takes
-  "done" or the random answer [in flight: change 1019].
 
 Section 3.2 has no known implementation gap in configured list bodies,
 status replacement between reads, credential observations or keeping

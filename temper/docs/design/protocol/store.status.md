@@ -4,9 +4,6 @@
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
-- **Not yet:** 5: a row this build cannot read ends the start as
-  `restore forge: store load failed`, naming neither the store nor the
-  family [in flight: change 1031].
 
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only
