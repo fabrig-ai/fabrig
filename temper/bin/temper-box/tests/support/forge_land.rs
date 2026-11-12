@@ -965,7 +965,9 @@ pub fn printed_command(args: &[String]) -> Vec<String> {
     match args {
         [account, add_key, provider, _file, rest @ ..] if account == "account" && add_key == "add-key" => {
             [account.clone(), add_key.clone(), provider.clone(), "FILE".into()]
-                .into_iter().chain(rest.iter().cloned()).collect()
+                .into_iter()
+                .chain(rest.iter().cloned())
+                .collect()
         }
         [account, import, _file, rest @ ..] if account == "account" && import == "import" => {
             [account.clone(), import.clone(), "FILE".into()].into_iter().chain(rest.iter().cloned()).collect()
@@ -1342,7 +1344,9 @@ impl LiveModel<'_> {
     const fn unavailable(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => KEPT_SIGN_IN_EXPIRED,
-            Self::AnthropicKey { .. } => "the Anthropic key is refused or limited; check TEMPER_TEST_LIVE_ANTHROPIC_KEY",
+            Self::AnthropicKey { .. } => {
+                "the Anthropic key is refused or limited; check TEMPER_TEST_LIVE_ANTHROPIC_KEY"
+            }
             Self::ClaudeCode { .. } => "the held Claude Code login is not usable; stop and return it to its holder",
         }
     }
@@ -1351,11 +1355,18 @@ impl LiveModel<'_> {
             Self::ChatGpt { .. } => super::live::ready_account(value),
             Self::AnthropicKey { .. } => {
                 let accounts = value["accounts"]["party"].as_array().ok_or("person's accounts missing")?;
-                let sources: Vec<_> = accounts.iter().filter(|account| account["provider"] == 2)
-                    .filter_map(|account| account["sources"].as_array()).flatten()
-                    .filter(|source| source["kind"] == "key").collect();
+                let sources: Vec<_> = accounts
+                    .iter()
+                    .filter(|account| account["provider"] == 2)
+                    .filter_map(|account| account["sources"].as_array())
+                    .flatten()
+                    .filter(|source| source["kind"] == "key")
+                    .collect();
                 require(!sources.is_empty(), "Anthropic provider 2 key source missing")?;
-                require(sources.iter().any(|source| source["usable"] == true), "Anthropic provider 2 key source is not usable")
+                require(
+                    sources.iter().any(|source| source["usable"] == true),
+                    "Anthropic provider 2 key source is not usable",
+                )
             }
             Self::ClaudeCode { login } => {
                 let account = declared_program(value, source_name(login))?;
@@ -1426,9 +1437,14 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     if let LiveModel::AnthropicKey { .. } = model {
         let path = config.join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let provider = value["engine"]["llm"]["providers"].as_array_mut().expect("providers")
-            .iter_mut().find(|provider| provider["name"] == "anthropic").expect("init Anthropic provider")
-            .as_object_mut().expect("provider");
+        let provider = value["engine"]["llm"]["providers"]
+            .as_array_mut()
+            .expect("providers")
+            .iter_mut()
+            .find(|provider| provider["name"] == "anthropic")
+            .expect("init Anthropic provider")
+            .as_object_mut()
+            .expect("provider");
         provider.remove("keep");
         provider.remove("drop");
         super::write_private(&path, &serde_json::to_vec(&value).expect("key configuration"));

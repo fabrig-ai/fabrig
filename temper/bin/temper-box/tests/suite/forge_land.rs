@@ -479,7 +479,9 @@ fn stock_charters_choose_claude_before_the_demo_model() {
 
 /// The Claude deployment's stock catalogue, endpoints, providers and charters 1 and 2
 /// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
-fn live_model_world(configure: fn(&[std::path::PathBuf; 3])) -> (
+fn live_model_world(
+    configure: fn(&[std::path::PathBuf; 3]),
+) -> (
     support::Scratch,
     jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>,
 ) {
@@ -605,8 +607,11 @@ fn assert_live_settings(model: support::forge_land::LiveModel<'_>, configure: fn
     let changes = live_settings(model, &inventory, [&charters[0], &charters[1]], &row).expect("live settings");
     let claude = live_settings(
         LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
-        &inventory, [&charters[0], &charters[1]], &row,
-    ).expect("Claude Code settings");
+        &inventory,
+        [&charters[0], &charters[1]],
+        &row,
+    )
+    .expect("Claude Code settings");
     assert!(changes == claude, "the key applies exactly Claude Code's model and charter changes");
     let newest = inventory["newest"].as_u64().expect("newest");
     for (at, change) in changes.iter().enumerate() {
@@ -1868,7 +1873,10 @@ fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
     let link = scratch.path().join("link");
     std::os::unix::fs::symlink(&file, &link).expect("link to good fixture");
     for path in [&link, scratch.path()] {
-        assert_eq!(anthropic_key(Some(path.into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link"));
+        assert_eq!(
+            anthropic_key(Some(path.into())),
+            Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link")
+        );
     }
     fs::write(&file, b"").expect("empty fixture");
     assert_eq!(anthropic_key(Some(file.into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty"));
@@ -1901,25 +1909,36 @@ fn a_key_plan_requires_a_usable_provider_two_key_beside_demo_accounts() {
         json!([{"provider":2,"sources":[{"kind":"program","usable":true}]}]),
         json!([{"provider":2}]),
     ] {
-        assert_eq!(model.ready(&json!({"accounts":{"party":party}})), Err("Anthropic provider 2 key source missing".into()));
+        assert_eq!(
+            model.ready(&json!({"accounts":{"party":party}})),
+            Err("Anthropic provider 2 key source missing".into())
+        );
     }
     for usable in [json!(false), Value::Null] {
-        assert_eq!(model.ready(&json!({"accounts":{"party":[
-            {"provider":3,"sources":[{"kind":"key","usable":true}]},
-            {"provider":2,"sources":[{"kind":"key","usable":usable}]}
-        ]}})), Err("Anthropic provider 2 key source is not usable".into()));
+        assert_eq!(
+            model.ready(&json!({"accounts":{"party":[
+                {"provider":3,"sources":[{"kind":"key","usable":true}]},
+                {"provider":2,"sources":[{"kind":"key","usable":usable}]}
+            ]}})),
+            Err("Anthropic provider 2 key source is not usable".into())
+        );
     }
-    assert_eq!(model.ready(&json!({"accounts":{"party":[
-        {"provider":3,"sources":[{"kind":"key","usable":true}]},
-        {"provider":2,"sources":[{"kind":"key","usable":false}]},
-        {"provider":2,"sources":[{"kind":"key","usable":true}]}
-    ]}})), Ok(()));
+    assert_eq!(
+        model.ready(&json!({"accounts":{"party":[
+            {"provider":3,"sources":[{"kind":"key","usable":true}]},
+            {"provider":2,"sources":[{"kind":"key","usable":false}]},
+            {"provider":2,"sources":[{"kind":"key","usable":true}]}
+        ]}})),
+        Ok(())
+    );
 }
 
 fn configure_key(paths: &[std::path::PathBuf; 3]) {
     use std::path::Path;
     support::forge_land::configure_live_model(
-        &paths[0], support::forge_land::LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") }, Path::new(""),
+        &paths[0],
+        support::forge_land::LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") },
+        Path::new(""),
     );
 }
 
@@ -1931,8 +1950,14 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     let agent_path = paths[0].join("agent.json");
     let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
     let agent = fs::read(&agent_path).expect("init agent");
-    let provider = expected["engine"]["llm"]["providers"].as_array_mut().expect("providers").iter_mut()
-        .find(|provider| provider["name"] == "anthropic").expect("Anthropic").as_object_mut().expect("provider");
+    let provider = expected["engine"]["llm"]["providers"]
+        .as_array_mut()
+        .expect("providers")
+        .iter_mut()
+        .find(|provider| provider["name"] == "anthropic")
+        .expect("Anthropic")
+        .as_object_mut()
+        .expect("provider");
     assert!(provider.remove("keep").is_some());
     assert!(provider.remove("drop").is_some());
     configure_key(&paths);
@@ -1945,10 +1970,15 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
 
 #[test]
 fn the_live_temper_profile_selects_only_the_key_and_claude_code_stories() {
-    let config = std::fs::read_to_string(skein_scratch::paths::tree().join("../.config/nextest.toml")).expect("profiles");
-    let profile = config.split("[profile.live-temper]\n").nth(1).expect("live-temper").split("\n[").next().expect("section");
+    let config =
+        std::fs::read_to_string(skein_scratch::paths::tree().join("../.config/nextest.toml")).expect("profiles");
+    let profile =
+        config.split("[profile.live-temper]\n").nth(1).expect("live-temper").split("\n[").next().expect("section");
     let filter = profile.lines().find(|line| line.starts_with("default-filter = ")).expect("default filter");
-    assert_eq!(filter, "default-filter = \"(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)\"");
+    assert_eq!(
+        filter,
+        "default-filter = \"(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)\""
+    );
     assert!(!filter.contains("chatgpt"));
 }
 
@@ -1974,8 +2004,12 @@ fn the_key_launcher_refuses_invalid_files_and_other_held_inputs() {
         (Some("good"), Some(temper_test_env::LIVE_CLAUDE.name), "TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude"),
     ] {
         let mut command = launcher(root, "forge-land-claude-key", None);
-        if let Some(file) = file { command.env(temper_test_env::LIVE_ANTHROPIC_KEY.name, root.join(file)); }
-        if let Some(extra) = extra { command.env(extra, &good); }
+        if let Some(file) = file {
+            command.env(temper_test_env::LIVE_ANTHROPIC_KEY.name, root.join(file));
+        }
+        if let Some(extra) = extra {
+            command.env(extra, &good);
+        }
         let output = command.output().expect("offline key launcher refusal");
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(String::from_utf8_lossy(&output.stderr).trim(), message);
@@ -1985,9 +2019,9 @@ fn the_key_launcher_refuses_invalid_files_and_other_held_inputs() {
 
 #[test]
 fn a_key_store_is_kept_without_a_held_record() {
+    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
     use std::{fs, path::Path};
     use support::forge_land::{LiveModel, story_store};
-    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
     let scratch = support::Scratch::new("live-kept-key-store");
     let stores = scratch.path().join("stores");
     let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
@@ -1997,9 +2031,13 @@ fn a_key_store_is_kept_without_a_held_record() {
         fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
     }
     for file in [
-        "config/temper.json".to_owned(), "config/agent.json".to_owned(), "data/box/started/1".to_owned(),
-        "data/forge-1/forgejo/app.ini".to_owned(), "data/forge-1/forgejo/forgejo.db".to_owned(),
-        format!("cache/forgejo/{VERSION}/forgejo"), format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
+        "config/temper.json".to_owned(),
+        "config/agent.json".to_owned(),
+        "data/box/started/1".to_owned(),
+        "data/forge-1/forgejo/app.ini".to_owned(),
+        "data/forge-1/forgejo/forgejo.db".to_owned(),
+        format!("cache/forgejo/{VERSION}/forgejo"),
+        format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
     ] {
         let file = store.join(file);
         fs::create_dir_all(file.parent().expect("fixture parent")).expect("fixture directories");
