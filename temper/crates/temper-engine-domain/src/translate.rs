@@ -193,7 +193,8 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
             }
-            Tool::Decided(_)
+            Tool::Finding(_)
+            | Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
             | Tool::See { .. }
@@ -233,7 +234,8 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
             }
         }
         Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
-        Tool::Decided(_)
+        Tool::Finding(_)
+            | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -282,7 +284,8 @@ pub(crate) fn relay_call(
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
-        Tool::Decided(_)
+        Tool::Finding(_)
+            | Tool::Decided(_)
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
@@ -343,7 +346,8 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             }
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
-        Tool::Decided(_)
+        Tool::Finding(_)
+            | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -484,7 +488,7 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
-        Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
+        Tool::Finding(_) | Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
         Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
         Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
@@ -528,6 +532,7 @@ pub(crate) fn connector_answer(domain: &Domain, key: crate::CallKey) -> Option<C
 
 pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     match payload {
+        forge::CallPayload::Finding(reply) => CallAnswer::Finding(Box::new(crate::FindingToolAnswer::Write(*reply))),
         forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
         forge::CallPayload::Refused(error) => CallAnswer::ForgeEffectRefused(error),
@@ -545,6 +550,10 @@ pub(crate) fn keep_connector_answer(
     answer: CallAnswer,
 ) -> Result<Option<CallAnswer>, CallAnswer> {
     let payload = match answer {
+        CallAnswer::Finding(answer) => match *answer {
+            crate::FindingToolAnswer::Write(reply) => forge::CallPayload::Finding(Box::new(reply)),
+            crate::FindingToolAnswer::List(_) | crate::FindingToolAnswer::Show { .. } => unreachable!("finding reads are not recorded"),
+        },
         CallAnswer::Decided { took, reach } => forge::CallPayload::Decided { took, reach },
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
@@ -599,6 +608,10 @@ pub(crate) fn keep_connector_answer(
 
 pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
+        Tool::Finding(call) => match call {
+            crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => true,
+            crate::FindingCall::File { .. } | crate::FindingCall::Hand { .. } | crate::FindingCall::Triage { .. } => false,
+        },
         Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
         Tool::Document { .. }
         | Tool::Remember { .. }

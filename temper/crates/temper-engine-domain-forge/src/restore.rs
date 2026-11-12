@@ -87,6 +87,9 @@ fn count(value: usize) -> u64 {
 }
 
 pub(super) fn named_payload(l: &Limits, answer: &CallPayload) -> Result<(), RestoreFit> {
+    if let CallPayload::Finding(reply) = answer {
+        field(RecordKind::Call, RestoreSet::NamedAnswerBytes, crate::findings::reply_bytes(reply).unwrap_or(u64::MAX), u64::from(l.client.answer_bytes))?;
+    }
     if let CallPayload::Read(answer) = answer
         && let Ok(answer) = answer.as_ref()
     {

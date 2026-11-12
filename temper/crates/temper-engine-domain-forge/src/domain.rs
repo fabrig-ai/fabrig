@@ -580,6 +580,7 @@ impl Domain {
                 crate::CallPayload::Effect { .. }
                 | crate::CallPayload::Read(_)
                 | crate::CallPayload::Refused(_)
+                | crate::CallPayload::Finding(_)
                 | crate::CallPayload::Decided { .. } => {}
             }
         }
@@ -595,7 +596,7 @@ impl Domain {
         let Some(answer) = self.named_calls.get_mut(&key) else { unreachable!("named effect owner") };
         match answer {
             crate::CallPayload::Effect { outcome: kept, .. } => *kept = Some(outcome),
-            crate::CallPayload::Read(_) | crate::CallPayload::Refused(_) | crate::CallPayload::Decided { .. } => {
+            crate::CallPayload::Read(_) | crate::CallPayload::Refused(_) | crate::CallPayload::Finding(_) | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")
             }
         }

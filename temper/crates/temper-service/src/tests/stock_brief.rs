@@ -106,6 +106,22 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
+fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
+    let limits = configured().service.limits.domain.run;
+    let mut declarations = vec![];
+    for number in engine(&generated()).charters.iter().map(|charter| charter.number) {
+        let charter = temper_engine_smith::charter(&assignment(number, false, 0));
+        let room = run::brief_room(&charter, None, &limits).expect("stock host part fits");
+        eprintln!("finding host part: charter {number}: non-brief={}, room={room}, bound={}", limits.host_part - u64::from(room), limits.host_part);
+        assert!(room >= 2_048, "charter {number}");
+        declarations.push((number, charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding")));
+    }
+    for (number, offered) in declarations {
+        assert_eq!(offered, [1, 5, 13, 14, 15, 16].contains(&number), "charter {number}");
+    }
+}
+
+#[test]
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;

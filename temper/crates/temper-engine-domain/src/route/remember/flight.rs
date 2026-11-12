@@ -56,6 +56,7 @@ impl RememberFlight {
                 | notes::Refusal::PastEnd { .. } => RememberRefusal::Note(why),
             }),
             answer @ (CallAnswer::ToolDenied { .. }
+            | CallAnswer::Finding(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)
