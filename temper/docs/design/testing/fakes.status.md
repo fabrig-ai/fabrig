@@ -14,6 +14,7 @@
    the live held-record guard proof remains `live-tier.status.md` (Not yet).
   3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:** 2: a fake forge document's declared `ci` and its `made_ci` [in flight: change 1691].
 - **Departs:**  the retired case library remains `reference-case.status.md` (Departs, the whole document).
   3: `temper-fake-git/src/exchange.rs`, `decode`, and its
   `src/tests/net.rs`, `decode`, each drive a tokenizer over one whole body
