@@ -2869,6 +2869,7 @@ fn home_domain(name: &str) -> Domain {
                     | w::Watch::Landing(_)
                     | w::Watch::Landings(_)
                     | w::Watch::Drafts(_)
+                    | w::Watch::Follows(_)
                     | w::Watch::Ways(_)
                     | w::Watch::Trials
                     | w::Watch::Approvals

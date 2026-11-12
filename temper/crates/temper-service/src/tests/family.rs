@@ -11,6 +11,72 @@ use temper_engine_domain_forge_change as change;
 const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
 const REQUEST_KEY: [u8; 16] = [5; 16];
 const WATCHER: Token = Token::new(7);
+#[test]
+fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
+    use forge::follows::FollowAct as A;
+    let after = [0xab; 32];
+    let next = [0xcd; 32];
+    let mut afters = List::with_capacity(2);
+    afters.push(after).unwrap();
+    afters.push(next).unwrap();
+    for (act, expected) in [
+        (w::FollowAct::Start(w::FollowAt::new(&w::CEILINGS, w::FollowAtParts { after }).unwrap()), A::Start { after }),
+        (
+            w::FollowAct::Hold(
+                w::FollowReasonAct::new(
+                    &w::CEILINGS,
+                    w::FollowReasonActParts { after, reason: b"waits".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            A::Hold { after, reason: b"waits".as_slice().into() },
+        ),
+        (
+            w::FollowAct::Skip(
+                w::FollowReasonAct::new(
+                    &w::CEILINGS,
+                    w::FollowReasonActParts { after, reason: b"build only".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            A::Skip { after, reason: b"build only".as_slice().into() },
+        ),
+        (
+            w::FollowAct::Merge(w::FollowMergeAct::new(&w::CEILINGS, w::FollowMergeActParts { afters }).unwrap()),
+            A::Merge { afters: Box::new([after, next]) },
+        ),
+    ] {
+        let request =
+            w::FollowActRequest::new(&w::CEILINGS, w::FollowActRequestParts { project: 2, follow: 1, act }).unwrap();
+        let record =
+            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::FollowAct(request) }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to, sign_in, key, digest, request, carried, ..
+        }) = event
+        else {
+            panic!("follow act")
+        };
+        assert_eq!((reply_to, sign_in, key, digest, carried), (REPLY, 3, REQUEST_KEY, [7; 32], None));
+        assert_eq!(request, root::Application::Follow { project: 2, follow: 1, act: expected });
+    }
+    for refusal in [None, Some(b"ab: this entry was skipped".as_slice().into())] {
+        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let bytes = family::answer(Some(root::ApplicationAnswer::Follow(refusal.clone())), &w::CEILINGS, &jig).unwrap();
+        let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        let w::Outcome::Follow(answer) = answer.into_parts().outcome else { panic!("follow outcome") };
+        assert_eq!(answer.into_parts().refusal, refusal);
+    }
+}
 fn configured(git: &[u8]) -> Box<[crate::settings::Forge]> {
     let mut forges = fixtures::forges();
     forges.get_mut(0).unwrap().git = git.into();
@@ -1458,7 +1524,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Try { .. }
+                        root::Application::Follow { .. }
+                        | root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }

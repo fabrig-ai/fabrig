@@ -325,6 +325,7 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
             outputs(&mut d, Event::Change { row });
             let item = d
                 .workspace_item(items::Seed {
+                    project: 5,
                     modify: false,
                     task: DELEGATE,
                     parent: Some(fixtures::CHANGE),

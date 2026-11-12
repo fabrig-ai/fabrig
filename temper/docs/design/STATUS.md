@@ -17,6 +17,20 @@ order, and keeps the deployment's builds of landed tips until no pass
 can need them, all in one ledger; its passes follow in Q2 and Q3
 (`testing/qa/README.md`; `draft/landed-qa.status.md`).
 
+A follow across projects is the whole story's milestone F1
+(`domain/forge/follows.md`): kind 12, a follow of a branch of a
+repository its project adopts as context, each project's context
+adoption kept beside the writer's; the forge hearing the source's
+landings into a queue kept across a restart; a follow task making one
+follow change per landing in order, its words made by code, parameter
+18 naming what it follows; the owner's start, hold, skip and merge in
+`temper ctl`, keeping the chain whole; the follow's check dispatched by
+its change with the followed commit; and lag and parity in the forge's
+`follows` document. A standing role as owner waits on R1; the follow
+change's words carry no diff, and a person's follow's holds reach the
+project's escalation role, each asked of the user
+(`domain/forge/follows.status.md`; `draft/follows.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -81,6 +95,7 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)
 - [`domain/forge/branches.md`](domain/forge/branches.status.md)

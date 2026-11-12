@@ -62,6 +62,7 @@ fn facts() -> Facts {
         merge_job: false,
         delegate: None,
         catch_up: None,
+        follows: false,
         close: false,
         contains_catch_up: Status::Pending,
         updates: true,
@@ -1468,6 +1469,7 @@ fn a_bare_authority_release_holds_again_and_a_funded_one_retries() {
         assert_eq!(retry.decision, Decision::Delegate(Delegate::Produce));
     }
 }
+mod follow;
 mod turn;
 
 #[test]
@@ -1575,6 +1577,24 @@ fn the_open_bound_leaves_room_for_the_one_past_the_bound() {
 
 fn pending_facts(pending: Box<[Pending]>) -> Facts {
     Facts { pending, branch: None, pull: Pull::Missing, kept: true, ..facts() }
+}
+
+#[test]
+fn a_follow_change_waits_for_every_dependency_without_starting_from_it() {
+    let c = change(State::Producing { requested: false });
+    for kind in [PendingKind::Change { head: Some(HEAD), kept: false }, PendingKind::Elsewhere] {
+        let mut f = pending_facts(Box::new([Pending { task: 11, kind }]));
+        f.follows = true;
+        let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+        assert_eq!(waiting.decision, Decision::Wait { until: None });
+        assert_eq!(waiting.change.state, State::Producing { requested: false });
+        assert_eq!(waiting.change.early, Early::None);
+        f.pending = Box::new([]);
+        let started = step(&waiting.change, &f, &heard(), at(90), &LIMITS);
+        assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+        assert_eq!(started.change.early, Early::None);
+        assert_eq!(started.change.since, at(90));
+    }
 }
 
 #[test]

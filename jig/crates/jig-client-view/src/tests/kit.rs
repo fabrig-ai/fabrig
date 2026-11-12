@@ -98,10 +98,8 @@ impl Goldens {
         let mut print = skein_ui_text::Print::new(&bounds).unwrap();
         skein_ui_text::render(tree, b"jig", Some(crate::regions::JigRegion::Link.region()), &mut print);
         let rendered = print.text.as_slice();
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("golden/rendered")
-            .join(&self.name)
-            .join(format!("{}.txt", self.next));
+        let path =
+            skein_scratch::paths::package().join("golden/rendered").join(&self.name).join(format!("{}.txt", self.next));
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, rendered).unwrap();
