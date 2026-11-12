@@ -145,7 +145,9 @@ fn value(
     let result_pending = field == TaskTextField::Result
         && match row.phase {
             tasks::Phase::Ended(_) => false,
-            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => true,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+                true
+            }
         };
     if result_pending && from != 0 {
         return Err(tasks::Refusal::Unknown);
@@ -465,8 +467,8 @@ mod tests {
             },
         ] {
             row.phase = phase;
-            let mut spec = in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[])
-                .expect("specification");
+            let mut spec =
+                in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("specification");
             assert!(!spec.result_pending);
             assert_eq!(spec.words.field, TaskTextField::Specification);
             assert_eq!(spec.words.from, 0);
@@ -780,22 +782,16 @@ mod tests {
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
         let expected = (row.spec.words.clone(), task_state(row));
         for field in [TaskTextField::Specification, TaskTextField::Result] {
-        let out = run(
-            &mut core,
-            &env,
-            ReplyTo::new(skein_lib::Token::new(90)),
-            CallKey { task: GOAL, attempt: 9, completion: 1, position: 0 },
-            Read {
-                joined: false,
-                task: PRODUCER,
-                field,
-                from: 0,
-                room: limits.call_answer_bytes,
-            },
-        );
-        let read = read_answer(out).expect("live grandchild read");
-        assert_eq!(read.result_pending, field == TaskTextField::Result);
-        assert_eq!((read.words.bytes, read.state), expected);
+            let out = run(
+                &mut core,
+                &env,
+                ReplyTo::new(skein_lib::Token::new(90)),
+                CallKey { task: GOAL, attempt: 9, completion: 1, position: 0 },
+                Read { joined: false, task: PRODUCER, field, from: 0, room: limits.call_answer_bytes },
+            );
+            let read = read_answer(out).expect("live grandchild read");
+            assert_eq!(read.result_pending, field == TaskTextField::Result);
+            assert_eq!((read.words.bytes, read.state), expected);
         }
     }
 
@@ -880,11 +876,13 @@ mod tests {
             let row = core.tasks.task(4).expect("live dependency");
             let read = in_document_room(&core, &limits, PRODUCER, row, TaskTextField::Specification, 0, &[]);
             if fault == 0 {
-                assert_eq!(read.expect("requester's dependency").words.bytes, row.spec.words);
+                let mut specification = read.expect("requester's dependency");
+                assert_eq!(specification.words.bytes, row.spec.words);
+                specification.result_pending = true;
                 assert_eq!(
                     in_document_room(&core, &limits, PRODUCER, row, TaskTextField::Result, 0, &[]),
-                    Err(tasks::Refusal::Unknown),
-                    "a live result is authorized but has no kept report yet"
+                    Ok(specification),
+                    "a live dependency's result read answers its specification"
                 );
                 let sibling = core.tasks.task(22).expect("sibling without dependency");
                 assert_eq!(
