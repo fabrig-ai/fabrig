@@ -106,6 +106,11 @@ impl skein_shell::Host for Host {
         if !self.service.is_empty() {
             return None;
         }
+        if let Some(report) = self.service.upgrade_report() {
+            let (lines, code) = crate::upgrade::lines(&self.binary, report, &self.directories, &self.store);
+            print!("{lines}");
+            return Some(Exit::Code(code));
+        }
         if let Some(long) = self.watch.held() {
             eprint!("{}", long_pass_line(&self.binary, long));
         }
@@ -139,6 +144,7 @@ impl skein_shell::Host for Host {
             }
         }
         while let Some(note) = self.service.notes().pop() {
+            if self.service.upgrade_report().is_some() { continue; }
             let lines = note_line(&self.binary, note);
             eprint!("{lines}");
         }
@@ -461,7 +467,7 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
             )
         }
         temper_service::Note::Patched { of, patch, counts } => {
-            format!("{binary} serve: {of:?} patch {patch}: {} records, {} commits\n", counts.records, counts.commits)
+            format!("{binary} serve: patched {} {patch}: {} records in {} commits\n", crate::upgrade::owner(of), counts.records, counts.commits)
         }
         temper_service::Note::Listening { listener, addr } => {
             let name = match listener {

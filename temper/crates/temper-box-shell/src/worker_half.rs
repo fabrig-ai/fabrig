@@ -9,6 +9,9 @@ pub(crate) struct Half {
     pub environment: Box<[EnvironmentEntry]>,
 }
 impl WorkerHalf for Half {
+    fn preflight(&self, named: &service::startup::Named) -> Result<service::settings::Agent, String> {
+        agent::preflight(named)
+    }
     fn alone(
         &self,
         directories: &Directories,

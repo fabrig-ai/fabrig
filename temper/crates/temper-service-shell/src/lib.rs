@@ -15,6 +15,7 @@ use temper_shell::{
     link_file,
 };
 pub mod host;
+pub mod upgrade;
 mod restart_fault;
 pub use host::{Host, ending};
 

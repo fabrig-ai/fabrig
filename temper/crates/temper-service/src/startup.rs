@@ -867,6 +867,19 @@ fn checked_start(
 ) -> Result<CheckedStart, Problems> {
     checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock)
 }
+/// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
+pub fn restoring_with(
+    document: &[u8], directories: &config::Directories, files: &settings::Files,
+    agent: Option<&settings::Agent>, seeds: &settings::Seeds, given: &crate::stock::Given,
+) -> Result<Service, Problems> {
+    let CheckedStart { engine, io, forges, .. } =
+        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
+    match Service::prepared(engine, seeds, None, forges, None, io, None, None) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(Problems::jig(found, &Path::root())),
+    }
+}
+
 /// Build the engine and worker together from the parsed document and read files.
 #[expect(clippy::too_many_arguments, reason = "startup receives the same directories as named plus the runtime facts")]
 pub fn startup_with(
