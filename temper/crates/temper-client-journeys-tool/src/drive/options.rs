@@ -116,6 +116,20 @@ impl Plan {
         all.extend(args.iter().map(|arg| OsStr::from_bytes(arg).to_os_string()));
         self.program("temper-client", all, input)
     }
+    pub(super) fn tui(&self, origin: &[u8]) -> Result<Program, String> {
+        let given = self.environment.iter().map(|(name, value)|
+            (name.as_bytes().into(), value.as_bytes().into())).collect::<Vec<_>>();
+        let mut environment = crate::tui_driver::environment(&given, &self.options.scratch.join("session"))
+            .map_err(|why| format!("cannot build TUI environment: {why}"))?;
+        for (name, value) in &mut environment {
+            if ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"].iter().any(|key| name == key) {
+                value.clone_from(&self.environment.iter().find(|(key, _)| key == name).expect("session XDG directory").1);
+            }
+        }
+        let mut program = self.program("temper-client", vec![OsStr::from_bytes(origin).into()], Input::Null);
+        program.environment = environment;
+        Ok(program)
+    }
     fn program(&self, name: &str, args: Vec<OsString>, input: Input) -> Program {
         Program {
             program: self.options.bin.join(name),

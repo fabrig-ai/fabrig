@@ -19,10 +19,12 @@ use std::{
     path::PathBuf,
 };
 mod process;
+mod tui;
 use process::Child;
 type LogLines = Vec<Box<[u8]>>;
 enum FaceJob {
     Opening,
+    Address,
     Find(Find),
     Operation,
     Snapshot,
@@ -41,6 +43,7 @@ pub struct Session {
     browser_started: bool,
     browser_closing: bool,
     children: Vec<Child>,
+    tui: tui::Tui,
     serial: u64,
     actions: VecDeque<Action>,
     answers: VecDeque<Answer>,
@@ -76,6 +79,7 @@ impl Session {
             browser_started: false,
             browser_closing: false,
             children: vec![],
+            tui: tui::Tui::new(scratch.join("session")),
             serial: 1024,
             actions: actions.into(),
             answers: VecDeque::new(),
@@ -189,9 +193,11 @@ impl Session {
     }
     fn tick(&mut self) {
         self.apply();
-        for report in self.pump.poll(&mut self.face, self.machine.next_deadline()) {
+        let deadline = self.tui.deadline(self.pump.now(), self.machine.next_deadline());
+        for report in self.pump.poll(&mut self.face, deadline) {
             self.report(report);
         }
+        for event in self.tui.tick() { self.event(event); }
         self.face_progress();
         let now = self.pump.now();
         if self.machine.next_deadline().is_some_and(|at| now >= at) {
@@ -246,6 +252,10 @@ impl Session {
             return;
         };
         match job {
+            FaceJob::Address => {
+                if let Some(address) = self.face.take_address() { self.event(Event::BrowserAddress(address)); }
+                else { self.event(Event::FaceDone(Err("browser supplied no address".into()))); }
+            }
             FaceJob::Opening => self.face_job = Some(FaceJob::Opening),
             FaceJob::Find(find) => match self.face.find(&find) {
                 Found::Pending => self.face_job = Some(FaceJob::Find(find)),
@@ -301,13 +311,15 @@ impl Session {
             FaceJob::Cancel => {}
         }
     }
+    #[expect(clippy::too_many_lines, reason = "one dispatch translates the session machine's actions without policy")]
     fn apply(&mut self) {
         while let Some(action) = self.actions.pop_front() {
             if matches!(self.face_job, Some(FaceJob::Cancel))
                 && self.face.pending()
                 && matches!(
                     action,
-                    Action::Open(_)
+                    Action::BrowserAddress
+                        | Action::Open(_)
                         | Action::Find(_)
                         | Action::Perform(_)
                         | Action::Snapshot
@@ -319,6 +331,15 @@ impl Session {
                 break;
             }
             match action {
+                Action::StartTui { program, rows, columns } => {
+                    if let Err(why) = self.tui.start(&program, rows, columns) { self.event(Event::TuiFailure(why)); }
+                }
+                Action::WriteTui(bytes) => self.tui.write(bytes),
+                Action::SaveTui => {
+                    if let Err(why) = self.tui.save() { self.event(Event::TuiFailure(why)); }
+                }
+                Action::StopTui => { self.tui.stop(); self.event(Event::TuiStopped); }
+                Action::BrowserAddress => { self.face.address(); self.face_job = Some(FaceJob::Address); }
                 Action::Start { process, program } => {
                     if process == Process::Ctl
                         && let Err(why) = super::options::check_destinations(&program, &self.scratch)
@@ -412,6 +433,7 @@ impl Session {
         Ok((read(self.scratch.join("data/box/logs/serve.log"))?, read(self.scratch.join("session/box.log"))?))
     }
     fn drain(&mut self) {
+        self.tui.stop();
         if let Some(entity) = self.input.take() {
             self.pump.request(io::Request::Close { entity });
         }

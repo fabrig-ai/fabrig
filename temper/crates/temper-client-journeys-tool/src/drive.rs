@@ -6,6 +6,7 @@ use skein_ui::{Act, NodeId, Role};
 use std::path::PathBuf;
 mod io;
 mod options;
+mod tui;
 pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
 const STEP: Duration = Duration::from_secs(60);
@@ -62,6 +63,11 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Action {
     Start { process: Process, program: Program },
+    StartTui { program: Program, rows: u16, columns: u16 },
+    WriteTui(Vec<u8>),
+    SaveTui,
+    StopTui,
+    BrowserAddress,
     Open(Box<[u8]>),
     Find(Find),
     Perform(Doing<Box<[u8]>>),
@@ -82,6 +88,12 @@ pub enum Action {
 }
 #[derive(Debug)]
 pub enum Event {
+    TuiReady,
+    TuiSaved(Box<[u8]>),
+    TuiWritten,
+    TuiStopped,
+    TuiFailure(String),
+    BrowserAddress(Box<[u8]>),
     Line(Box<[u8]>),
     End,
     BoxLine { output: Output, line: Box<[u8]> },
@@ -113,6 +125,19 @@ enum Phase {
     Snapshot,
     Diagnosing,
     Ctl,
+    TuiStarting,
+    TuiBrowse,
+    TuiAddress,
+    TuiOpening,
+    TuiApprove,
+    TuiPressed,
+    TuiReturning,
+    TuiRecover,
+    TuiSeeing,
+    TuiLook,
+    TuiKey,
+    TuiStopping,
+    ClosingTui,
     ClosingBrowser,
     Stopping,
     Classifying,
@@ -132,6 +157,10 @@ pub struct Machine {
     box_failed: Option<String>,
     diagnostic: String,
     shown: Vec<String>,
+    tui_running: bool,
+    save_until: Option<Time>,
+    frame: Box<[u8]>,
+    return_address: Option<Box<[u8]>>,
 }
 impl Machine {
     #[must_use]
@@ -152,6 +181,10 @@ impl Machine {
                 box_failed: None,
                 diagnostic: String::new(),
                 shown: vec![],
+                tui_running: false,
+                save_until: None,
+                frame: Box::new([]),
+                return_address: None,
             },
             vec![action],
         )
@@ -162,11 +195,13 @@ impl Machine {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        self.until.into_iter().chain(self.poll).min()
+        self.until.into_iter().chain(self.poll).chain(self.save_until).min()
     }
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
         match event {
+            Event::TuiReady | Event::TuiSaved(_) | Event::TuiWritten | Event::TuiStopped
+            | Event::TuiFailure(_) | Event::BrowserAddress(_) => self.tui_event(event, now, &mut out),
             Event::Line(bytes) => self.line(&bytes, now, &mut out),
             Event::End => self.end(now, &mut out),
             Event::BoxLine { output, line } => self.box_line(output, &line, now, &mut out),
@@ -191,7 +226,7 @@ impl Machine {
                 self.phase = Phase::Finished;
                 self.until = None;
                 self.poll = None;
-                out.extend([Action::CancelFace, Action::StopCtl, Action::KillBox, Action::Finished(Exit::own(why))]);
+                out.extend([Action::StopTui, Action::CancelFace, Action::StopCtl, Action::KillBox, Action::Finished(Exit::own(why))]);
             }
             Event::Snapshot(_) | Event::Description(_) | Event::Logs { .. } => {}
         }
@@ -229,7 +264,7 @@ impl Machine {
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
-            Record::Tui(_) => self.tui(out),
+            Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {
                 if let Err(why) = self.plan.check_ctl_writes(args) {
                     self.answer(Some(why), out);
@@ -267,10 +302,6 @@ impl Machine {
             }
         }
     }
-    // The next change fills this one seam; the parsed TUI line is self.current.
-    fn tui(&mut self, out: &mut Vec<Action>) {
-        self.answer(Some("the TUI's lines are not driven yet".into()), out);
-    }
     fn answer(&mut self, why: Option<String>, out: &mut Vec<Action>) {
         let failed = why.map(|why| format!("line {}: {}", self.number, why.replace(['\n', '\r'], " ")));
         if let Some(line) = self.current.take().filter(Line::kept) {
@@ -280,6 +311,7 @@ impl Machine {
         self.phase = Phase::Ready;
         self.until = None;
         self.poll = None;
+        self.save_until = None;
     }
     fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
         out.push(Action::Log { output, line: line.into() });
@@ -366,6 +398,16 @@ impl Machine {
         }
     }
     fn found(&mut self, node: Option<NodeId>, now: Time, out: &mut Vec<Action>) {
+        if self.phase == Phase::TuiApprove {
+            if let Some(node) = node {
+                self.phase = Phase::TuiPressed;
+                self.poll = None;
+                out.push(Action::Perform(Doing::Act { node, act: Act::Press }));
+            } else {
+                self.poll = Some(now.saturating_add(POLL));
+            }
+            return;
+        }
         if !matches!(self.phase, Phase::Main | Phase::MainLine | Phase::Seeing | Phase::Finding) {
             return;
         }
@@ -394,6 +436,7 @@ impl Machine {
         }
     }
     fn face_done(&mut self, result: Result<(), String>, now: Time, out: &mut Vec<Action>) {
+        if self.tui_face_done(&result, now, out) { return; }
         if let Err(why) = result {
             if self.phase == Phase::ClosingBrowser {
                 self.stop_box(now, out);
@@ -444,6 +487,7 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.tui_deadline(now, out) { return; }
         if self.until.is_some_and(|until| now >= until) {
             if self.current.is_some() && !matches!(self.phase, Phase::ClosingBrowser | Phase::Stopping) {
                 out.push(Action::CancelFace);
@@ -495,12 +539,18 @@ impl Machine {
         }
     }
     fn end(&mut self, now: Time, out: &mut Vec<Action>) {
-        if matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingBrowser | Phase::Stopping) {
+        if matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingTui | Phase::ClosingBrowser | Phase::Stopping) {
             return;
         }
         self.current = None;
-        self.wait(Phase::ClosingBrowser, now, STEP);
-        out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);
+        self.save_until = None;
+        if self.tui_running {
+            self.wait(Phase::ClosingTui, now, LOOK);
+            out.extend([Action::CancelFace, Action::StopCtl, Action::StopTui]);
+        } else {
+            self.wait(Phase::ClosingBrowser, now, STEP);
+            out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);
+        }
     }
     fn fail_box(&mut self, why: String, now: Time, out: &mut Vec<Action>) {
         self.box_failed.get_or_insert(why);

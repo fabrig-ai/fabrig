@@ -181,9 +181,6 @@ fn failure_names_sought_controls_keeps_line_and_continues() {
     assert!(answer(&actions).failed.as_ref().is_some_and(|why| why.contains("line 2") && why.contains("name")));
     assert!(!actions.iter().any(|a| matches!(a, Action::Keep(_))));
     assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
-    let actions = line(&mut m, "tui key enter");
-    assert_eq!(answer(&actions).print(), "failed: line 4: the TUI's lines are not driven yet\n");
-    assert!(actions.iter().any(|a| matches!(a, Action::Keep(_))));
 }
 struct Pages {
     page: u32,
@@ -248,13 +245,12 @@ fn kept_steps_replay_on_a_fresh_face() {
         r#"web press button "Start""#,
         "web look 1000",
         r#"web input textbox "Name" "Hello""#,
-        "tui key enter",
         r#"web press button "Continue""#,
         "web look",
     ] {
         pages.walk(&mut m, source.as_bytes(), &mut kept);
     }
-    assert_eq!(kept.len(), 4);
+    assert_eq!(kept.len(), 3);
     let mut replay = Pages { page: 0, value: Box::new([]) };
     let mut fresh = ready();
     let mut replay_kept = vec![];
@@ -378,3 +374,5 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         assert_eq!(fs::read(root.join(dir).join("kept")).expect("unchanged"), dir.as_bytes());
     }
 }
+
+mod tui;
