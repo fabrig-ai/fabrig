@@ -2243,13 +2243,32 @@ fn a_closer_row_round_trips() {
 fn a_closers_question_round_trips_with_its_owned_bytes() {
     use temper_engine_domain_forge_closer::{Closer, Step, relay::*};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
-    for stands in [Stands::Taken, Stands::Asked { question: 30, answer: None }, Stands::Asked { question: 30, answer: Some(b"Use known reds.".as_slice().into()) }] {
+    for stands in [
+        Stands::Taken,
+        Stands::Asked { question: 30, answer: None },
+        Stands::Asked { question: 30, answer: Some(b"Use known reds.".as_slice().into()) },
+    ] {
         let row = forge::Stored::Closer(forge::CloserRow {
-            task: 8, goal: 7, closer: Closer::new(), making: None,
-            close_changes: Box::new([]), landing_changes: Box::new([]), done: false,
+            task: 8,
+            goal: 7,
+            closer: Closer::new(),
+            making: None,
+            close_changes: Box::new([]),
+            landing_changes: Box::new([]),
+            done: false,
             relay: Relay {
-                open: Some(Question { asker: 20, number: 10, step: Step::Land, words: b"Which rule?".as_slice().into(), stands }),
-                replies: Box::new([Message { target: 7, form: Form::Words, words: b"Change 20: asker ended".as_slice().into() }]),
+                open: Some(Question {
+                    asker: 20,
+                    number: 10,
+                    step: Step::Land,
+                    words: b"Which rule?".as_slice().into(),
+                    stands,
+                }),
+                replies: Box::new([Message {
+                    target: 7,
+                    form: Form::Words,
+                    words: b"Change 20: asker ended".as_slice().into(),
+                }]),
             },
         });
         let meter = skein_world::domain::heap::Meter::new();
@@ -2266,8 +2285,14 @@ fn a_closers_question_round_trips_with_its_owned_bytes() {
 fn a_closer_stored_without_the_optional_relay_decodes_as_none() {
     use temper_engine_domain_forge_closer::{Closer, relay::Relay};
     let row = forge::Stored::Closer(forge::CloserRow {
-        task: 8, goal: 7, closer: Closer::new(), making: None,
-        close_changes: Box::new([]), landing_changes: Box::new([]), done: false, relay: Relay::new(),
+        task: 8,
+        goal: 7,
+        closer: Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        landing_changes: Box::new([]),
+        done: false,
+        relay: Relay::new(),
     });
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     let bytes = records::encode(&row);

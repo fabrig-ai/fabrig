@@ -2,12 +2,12 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
-// TierRow dominates Row with eight goal branches, each holding sixteen 256-byte test ids.
-const APPLICATION_ROW_BYTES: u32 = 178_063;
+// The closer's optional question and deferred messages dominate Row at these limits.
+const APPLICATION_ROW_BYTES: u32 = 604_927;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // The full tier row reaches its encoded bound, including all goals (tests/tiers.rs).
+    // The bound includes the closer's retained question, answer and deferred messages.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application { version: 11, key: 525, value: APPLICATION_ROW_BYTES })
@@ -86,7 +86,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v11::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v11::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; TierRow dominates Row.
+    // The schema's fixed framing plus the measured view; the closer still dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v11::IssueRow::encoded_bound(&before), Some(5657));

@@ -117,7 +117,10 @@ fn decode_wire(bytes: &[u8], bounds: &Bounds) -> Result<w::Row, Undecodable> {
     match w::Row::decode(bounds.limits(), &mut reader) {
         Ok(row) => Ok(row),
         Err(problem) => {
-            if problem.path != w::Path::CloserRelay || problem.reason != skein_codec::Reason::Short || reader.remaining() != 0 {
+            if problem.path != w::Path::CloserRelay
+                || problem.reason != skein_codec::Reason::Short
+                || reader.remaining() != 0
+            {
                 return Err(Undecodable::Malformed);
             }
             let mut writer = Writer::new(bytes.len().checked_add(1).expect("stored row and optional tail fit usize"));

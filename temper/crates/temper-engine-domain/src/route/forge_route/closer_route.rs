@@ -709,7 +709,9 @@ fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<
 pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
     let pending = domain.closer_steps.remove(&(task, step));
     let Some(mut row) = domain.forge.closer(task).cloned() else { return };
-    if let Some(child) = child && let Some(kind) = row.making.take() {
+    if let Some(child) = child
+        && let Some(kind) = row.making.take()
+    {
         row.closer.running = Some(c::Running { step: kind, change: child });
         let prior = match kind {
             c::Step::Close => &row.close_changes,
@@ -771,7 +773,11 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domai
             {
                 let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return true };
                 domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task, step, connector, code, decision: ProcedureStep::new(StepEnd::Wait),
+                    task,
+                    step,
+                    connector,
+                    code,
+                    decision: ProcedureStep::new(StepEnd::Wait),
                 }));
                 return true;
             }

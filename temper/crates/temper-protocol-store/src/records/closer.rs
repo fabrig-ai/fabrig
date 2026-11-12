@@ -121,19 +121,35 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
 
 fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
     use c::relay::{Form, Stands};
-    if relay.open.is_none() && relay.replies.is_empty() { return None; }
+    if relay.open.is_none() && relay.replies.is_empty() {
+        return None;
+    }
     let open = match &relay.open {
         None => None,
         Some(open) => {
             let stands = match &open.stands {
                 Stands::Taken => w::ClosingStands::Taken,
-                Stands::Asked { question, answer } => w::ClosingStands::Asked(w::ClosingAsked::new(
-                    &w::CEILINGS, w::ClosingAskedParts { question: *question, answer: answer.clone() },
-                ).expect(FITS)),
+                Stands::Asked { question, answer } => w::ClosingStands::Asked(
+                    w::ClosingAsked::new(
+                        &w::CEILINGS,
+                        w::ClosingAskedParts { question: *question, answer: answer.clone() },
+                    )
+                    .expect(FITS),
+                ),
             };
-            Some(w::ClosingQuestion::new(&w::CEILINGS, w::ClosingQuestionParts {
-                asker: open.asker, number: open.number, step: encode_step(open.step), words: open.words.clone(), stands,
-            }).expect(FITS))
+            Some(
+                w::ClosingQuestion::new(
+                    &w::CEILINGS,
+                    w::ClosingQuestionParts {
+                        asker: open.asker,
+                        number: open.number,
+                        step: encode_step(open.step),
+                        words: open.words.clone(),
+                        stands,
+                    },
+                )
+                .expect(FITS),
+            )
         }
     };
     let mut replies = List::with_capacity(u32::try_from(relay.replies.len()).expect(FITS));
@@ -141,11 +157,19 @@ fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
         let form = match message.form {
             Form::Words => w::ClosingForm::Words,
             Form::Question => w::ClosingForm::Question,
-            Form::Answer { question } => w::ClosingForm::Answer(w::Number::new(&w::CEILINGS, w::NumberParts { number: question }).expect(FITS)),
+            Form::Answer { question } => {
+                w::ClosingForm::Answer(w::Number::new(&w::CEILINGS, w::NumberParts { number: question }).expect(FITS))
+            }
         };
-        replies.push(w::ClosingMessage::new(&w::CEILINGS, w::ClosingMessageParts {
-            target: message.target, form, words: message.words.clone(),
-        }).expect(FITS)).expect(FITS);
+        replies
+            .push(
+                w::ClosingMessage::new(
+                    &w::CEILINGS,
+                    w::ClosingMessageParts { target: message.target, form, words: message.words.clone() },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
     }
     Some(w::ClosingRelay::new(&w::CEILINGS, w::ClosingRelayParts { open, replies }).expect(FITS))
 }

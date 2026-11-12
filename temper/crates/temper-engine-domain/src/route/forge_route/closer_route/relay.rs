@@ -3,7 +3,12 @@ use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, c, forge, ta
 use c::relay::Form;
 use jig_domain_core::StepMessage;
 
-pub(super) fn apply(domain: &Domain, env: &Env<Limits>, row: &mut forge::CloserRow, decision: &mut ProcedureStep) -> (bool, bool) {
+pub(super) fn apply(
+    domain: &Domain,
+    env: &Env<Limits>,
+    row: &mut forge::CloserRow,
+    decision: &mut ProcedureStep,
+) -> (bool, bool) {
     let record = domain.core.tasks.task(row.task).expect("live closer");
     let offered = domain.core.tasks.procedure_offered(row.task).unwrap_or(0);
     let live = match domain.forge.closer(row.task) {
@@ -15,7 +20,9 @@ pub(super) fn apply(domain: &Domain, env: &Env<Limits>, row: &mut forge::CloserR
         Some(_) | None => None,
     };
     for word in &record.inbox {
-        if word.number > offered { continue; }
+        if word.number > offered {
+            continue;
+        }
         let tasks::Party::Task(from) = word.from else { continue };
         let Some(form) = form(&word.kind) else { continue };
         c::relay::take(&mut row.relay, live, row.goal, from, word.number, &form, &word.words);
@@ -35,7 +42,9 @@ pub(super) fn apply(domain: &Domain, env: &Env<Limits>, row: &mut forge::CloserR
             Form::Question => tasks::MessageKind::Question,
             Form::Answer { question } => tasks::MessageKind::Answer { question },
         };
-        messages.push(StepMessage { target: message.target, kind, words: message.words }).expect("relay uses remaining message room");
+        messages
+            .push(StepMessage { target: message.target, kind, words: message.words })
+            .expect("relay uses remaining message room");
     }
     row.relay = relayed.relay;
     decision.messages = messages.into_boxed();
@@ -79,4 +88,3 @@ fn form(kind: &tasks::MessageKind) -> Option<Form> {
         | tasks::MessageKind::News { .. } => None,
     }
 }
-
