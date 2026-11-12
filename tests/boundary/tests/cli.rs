@@ -3,7 +3,8 @@
 //! Every binary is its own package at <tree>/bin/<name>/main.rs, with no
 //! library or other binary; its source is at most 30 lines. No member has
 //! a [features] table or dependency feature switches; only external crates
-//! in the root's [workspace.dependencies] may choose features.
+//! in the root's [workspace.dependencies] may choose features. Members inherit
+//! every external crate.
 //! Findings are excepted by name until their tree's round or temper's
 //! milestone. Exceptions only shrink: an unmatched exception fails too.
 //! Metadata, sources and manifest lines the check cannot read fail it.
@@ -317,6 +318,7 @@ fn members(root: &str) -> Result<Vec<String>, String> {
 #[derive(Default)]
 struct Dependency {
     path: bool,
+    workspace: bool,
     switches: bool,
 }
 
@@ -327,6 +329,7 @@ fn attribute(dependency: &mut Dependency, line: &str) -> Result<(), String> {
         return Err(format!("an attribute the check does not read: {line}"));
     }
     dependency.path |= name == "path";
+    dependency.workspace |= name == "workspace" && value.trim() == "true";
     dependency.switches |= ["optional", "default-features", "features"].contains(&name);
     Ok(())
 }
@@ -390,6 +393,9 @@ fn manifest_findings(manifest: &str, source: &str, root: bool) -> Result<Vec<Str
         };
         read.map_err(|why| format!("{manifest}: {why}"))?;
         for (name, dependency) in dependencies {
+            if !root && !dependency.path && !dependency.workspace {
+                findings.insert(format!("{manifest}: {name} is not inherited"));
+            }
             if dependency.switches && (!root || dependency.path) {
                 findings.insert(format!("{manifest}: {name}"));
             }
@@ -507,18 +513,18 @@ fn features_are_found_in_every_dependency_form_and_only_external_root_entries_ar
     for (root, source, expected) in [
         (false, "[features]\n", vec!["[features]"]),
         (false, "['features'] # a table comment\n", vec!["[features]"]),
-        (false, "[dependencies]\ndemo = { version = '1', optional = false }\n", vec!["demo"]),
+        (false, "[dependencies]\ndemo = { path = 'demo', optional = false }\n", vec!["demo"]),
         (false, "[dev-dependencies]\ndemo = { workspace = true, default-features = true }\n", vec!["demo"]),
-        (false, "[build-dependencies]\n'demo' = { version = '1', features = [] }\n", vec!["demo"]),
-        (false, "[target.'cfg(unix)'.dependencies]\ndemo = { features = ['one', 'two'] }\n", vec!["demo"]),
-        (false, "[target.'cfg(target_os = \"a.b\")'.dev-dependencies.demo]\nfeatures = []\n", vec!["demo"]),
-        (false, "[target.'cfg(unix)'.build-dependencies]\ndemo.features = []\n", vec!["demo"]),
+        (false, "[build-dependencies]\n'demo' = { workspace = true, features = [] }\n", vec!["demo"]),
+        (false, "[target.'cfg(unix)'.dependencies]\ndemo = { workspace = true, features = ['one', 'two'] }\n", vec!["demo"]),
+        (false, "[target.'cfg(target_os = \"a.b\")'.dev-dependencies.demo]\nworkspace = true\nfeatures = []\n", vec!["demo"]),
+        (false, "[target.'cfg(unix)'.build-dependencies]\ndemo.workspace = true\ndemo.features = []\n", vec!["demo"]),
         (false, "[dependencies.demo]\nworkspace = true\noptional = true\nfeatures = []\n", vec!["demo"]),
-        (false, "[\"dependencies\"]\ndemo = { features = [] }\n", vec!["demo"]),
-        (false, "[dependencies]\ndemo = '1'\nother.workspace = true\n", vec![]),
+        (false, "[\"dependencies\"]\ndemo = { workspace = true, features = [] }\n", vec!["demo"]),
+        (false, "[dependencies]\ndemo = { workspace = true }\nother.workspace = true\n", vec![]),
         (
             false,
-            "[dependencies]\ndemo = { version = 'features # optional', package = 'features' } # features = []\n",
+            "[dependencies]\ndemo = { path = 'demo', version = 'features # optional', package = 'features' } # features = []\n",
             vec![],
         ),
         (false, "[package.metadata]\nfeatures = []\noptional = true\n", vec![]),
@@ -536,6 +542,37 @@ fn features_are_found_in_every_dependency_form_and_only_external_root_entries_ar
     ] {
         let expected: Vec<_> = expected.into_iter().map(|finding| format!("Cargo.toml: {finding}")).collect();
         assert_eq!(manifest_findings("Cargo.toml", source, root).expect("the fixture reads"), expected, "{source}");
+    }
+}
+
+#[test]
+fn members_must_name_a_path_or_inherit_in_every_dependency_form() {
+    for (root, source, expected) in [
+        (false, "[dependencies]\ndemo = \"1\"\n", vec!["demo is not inherited"]),
+        (false, "[dev-dependencies]\ndemo = '1'\n", vec!["demo is not inherited"]),
+        (false, "[build-dependencies]\ndemo.version = '1'\n", vec!["demo is not inherited"]),
+        (false, "[target.'cfg(unix)'.dev-dependencies]\ndemo = { version = \"1\" }\n", vec!["demo is not inherited"]),
+        (false, "[dependencies.demo]\nversion = \"1\"\n", vec!["demo is not inherited"]),
+        (false, "[dependencies]\ndemo = { workspace = false }\n", vec!["demo is not inherited"]),
+        (false, "[dependencies]\ndemo = { workspace = 'true' }\n", vec!["demo is not inherited"]),
+        (false, "[dependencies]\ndemo.workspace = true\n", vec![]),
+        (false, "[dependencies]\ndemo = { workspace = true }\n", vec![]),
+        (false, "[dependencies.demo]\nworkspace = true\n", vec![]),
+        (false, "[dependencies]\ndemo = { path = \"demo\" }\n", vec![]),
+        (false, "[dependencies]\ndemo.path = 'demo'\n", vec![]),
+        (false, "[dependencies.demo]\npath = 'demo'\n", vec![]),
+        (true, "[workspace.dependencies]\ndemo = { version = \"1\" }\n", vec![]),
+        (true, "[workspace.dependencies]\ndemo = '1'\n", vec![]),
+        (true, "[workspace.dependencies]\ndemo.version = '1'\n", vec![]),
+        (true, "[workspace.dependencies.demo]\nversion = '1'\n", vec![]),
+        (
+            false,
+            "[dependencies]\ndemo = { version = '1', features = [] }\n",
+            vec!["demo", "demo is not inherited"],
+        ),
+    ] {
+        let expected: Vec<_> = expected.into_iter().map(|finding| format!("member/Cargo.toml: {finding}")).collect();
+        assert_eq!(manifest_findings("member/Cargo.toml", source, root).expect("the fixture reads"), expected, "{source}");
     }
 }
 

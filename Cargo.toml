@@ -565,6 +565,11 @@ smith-tools-world = { path = "smith/tests/tools" }
 jig-test-patches = { path = "jig/testing/jig-test-patches" }
 jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
+base64 = { version = "0.22" }
+regex = { version = "1" }
+serde_path_to_error = { version = "0.1" }
+tempfile = { version = "3" }
+toml = { version = "0.9" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
