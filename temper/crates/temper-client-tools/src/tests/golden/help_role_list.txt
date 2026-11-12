@@ -1,0 +1,9 @@
+role list --project PROJECT [--after CURSOR]
+  --project PROJECT: a project's name or number; required. The project
+  --after CURSOR: a cursor, as a read prints it; optional. The cursor a page printed, to read on
+List a project's live standing roles and their Now headlines
+Prints: A line per role: its number, charter, state, budget left and Now's first line, or `no Now yet`; then a continuation or `no more`
+--json: the record roles.
+Key: none.
+Reads live tasks labelled 3 and the note described now in each
+role's own scope. The lowest-numbered matching note is its Now.

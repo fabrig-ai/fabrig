@@ -1107,6 +1107,10 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
+    pub session: Option<crate::Session>,
+    /// Whether this activation continues across retries and kept parks (standing.md, 5.1).
+    pub activation_open: bool,
     /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 11).
     pub closer: Option<u64>,
     /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).
@@ -1805,6 +1809,8 @@ pub enum Event {
     /// `Preparing`-to-`Claimed` admission with a strictly increasing root attempt, producing `Done`
     /// or `Refused`.
     Claim {
+        /// The session verdict prepared at a standing task's wake, committed only by this claim.
+        session_end: Option<crate::SessionEnd>,
         /// The prepared run's reasons (jig/docs/design/domain/tasks/messages.md, 6).
         reasons: crate::Reasons,
         /// The kinds its preparation offers (jig/docs/design/domain/tasks/messages.md, 6).
@@ -1899,6 +1905,8 @@ pub enum Event {
     QuestionOwedNotice { task: u64, message: u64 },
     /// Core-numbered notice after a park with nothing pending.
     NothingAwaitedNotice { task: u64, message: u64 },
+    /// Core supplies the oldest open question's bounded reason; no message is numbered.
+    QuestionParked { task: u64, question: u64, reason: Box<[u8]> },
     /// A caller cancels its own unanswered question.
     CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
     /// Root numbers the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
@@ -1958,6 +1966,8 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
+    /// Finish an idle park's question wake with words from the core's question cache.
+    QuestionParked { task: u64, question: crate::OpenQuestion },
     /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle.md, 11).
     CloserDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
@@ -2151,6 +2161,10 @@ pub struct Added {
 /// (domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunContext {
+    /// A standing task's wake, rather than a retry or continuation (standing.md, 5.1).
+    pub session_wake: bool,
+    /// Kinds waking it, excluding entries and words that are always offered.
+    pub session_kinds: crate::Reasons,
     /// Why this run runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
     pub ended_by: crate::EndedBy,

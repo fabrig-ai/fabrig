@@ -1889,8 +1889,13 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
 
 #[test]
 fn a_closer_in_a_people_batch_round_trips() {
-    let mut member = fixtures::people_member();
-    member.flags.conversation = false;
-    member.flags.ended_by = jig_domain_people::EndedBy::Closer(jig_domain_people::Closer { connector: 1, code: 6 });
-    ask_round_trip(jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) });
+    for ended_by in [
+        jig_domain_people::EndedBy::Closer(jig_domain_people::Closer { connector: 1, code: 6 }),
+        jig_domain_people::EndedBy::Standing,
+    ] {
+        let mut member = fixtures::people_member();
+        member.flags.conversation = false;
+        member.flags.ended_by = ended_by;
+        ask_round_trip(jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) });
+    }
 }

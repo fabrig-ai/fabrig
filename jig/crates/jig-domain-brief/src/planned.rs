@@ -14,6 +14,8 @@ use skein_lib::{List, Token};
 pub enum Core {
     /// The task's specification and result contract.
     Task,
+    /// A standing task's current note (domain/tasks/standing.md, 6).
+    Now,
     /// Its requesters' specifications, nearest first.
     Lineage,
     /// Dependencies' and inputs' results.
@@ -24,7 +26,7 @@ pub enum Core {
     Attempts,
     /// Calls committed since the last turn when the run does not resume.
     Calls,
-    /// Proposals and escalations waiting for this run.
+    /// Open questions, proposals and escalations waiting for this run.
     Waiting,
     /// The index of notes in scope.
     NotesIndex,
@@ -39,6 +41,7 @@ pub enum Core {
 pub fn core_name(kind: Core) -> &'static [u8] {
     match kind {
         Core::Task => b"task",
+        Core::Now => b"now",
         Core::Lineage => b"lineage",
         Core::Results => b"results",
         Core::Plan => b"plan",

@@ -117,6 +117,8 @@ mod room;
 pub use room::{LiveRoom, RoomWait};
 mod run;
 mod runtime;
+mod session;
+pub use session::{Session, SessionEnd, SessionWake, context_bound, quiet_span, session_end};
 mod settings;
 mod settings_moves;
 mod standing;
@@ -131,7 +133,9 @@ mod waiting;
 mod waits;
 mod wake;
 mod writers;
-pub use activity::{ActivityLine, DecidedProposal, EndKind, Line, Why, line_bytes_limit, lines_per_decision};
+pub use activity::{
+    ActivityLine, DecidedProposal, EndKind, Line, STOOD_WORDS, Why, line_bytes_limit, lines_per_decision,
+};
 pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
@@ -168,6 +172,7 @@ pub use proposals::{
     ProposalDecision, ProposalHolder, ProposalKind, ProposalOutcome, ProposalState, SETTINGS_ITEMS, Setting,
     SettingEdit, SettingHead, SettingsDecision, SettingsOutcome,
 };
+pub use questions::{OpenQuestion, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,

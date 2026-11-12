@@ -22,13 +22,9 @@ fn service(states: u32, life: Duration) -> crate::Service {
     service
 }
 // The page owners emit their measured sizes only in the usual figure write mode.
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects measured page size output; the test table will pass it; figure write mode names and writes the sizes"
-)]
+#[expect(clippy::disallowed_macros, reason = "figure write mode names and writes the sizes")]
 pub(super) fn measure_page(name: &str, bytes: usize) {
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let directory = skein_scratch::paths::tree().join("target/q-pages");
         std::fs::create_dir_all(&directory).unwrap();
         std::fs::write(directory.join(format!("{name}.txt")), format!("{bytes}\n")).unwrap();
@@ -915,6 +911,7 @@ fn local_store(token: bool) -> crate::store::Store {
 fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: true,

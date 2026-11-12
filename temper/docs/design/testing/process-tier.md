@@ -116,8 +116,8 @@
     (../client/line.md and ../client/testing.md).
 - **Its Forgejo is owned,** provisioned by the setup's commands
   (../protocol/setup/testing.md, 4): the configuration's one forge is owned
-  (../protocol/setup/init.md), its binaries those `TEMPER_FORGEJO` and
-  `TEMPER_FORGEJO_RUNNER` name, which the commands check against temper's
+  (../protocol/setup/init.md), its binaries those `TEMPER_TEST_FORGEJO` and
+  `TEMPER_TEST_FORGEJO_RUNNER` name, which the commands check against temper's
   pins (../protocol/setup/owned.md, 1); its address, the clients' listener and
   the webhooks' listener are loopback addresses of the test's own. The
   test runs the commands itself, in the order `temper box` would
@@ -223,11 +223,11 @@
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
 - **The throwaway Forgejo** is the one in skein's `testing/fakes/forge.md`,
-  section 6, never an existing Forgejo: temper's `tools/git-transcripts`
+  section 6, never an existing Forgejo: temper's `temper-git-transcripts`
   records real git against it (../protocol/git.md, section 9). temper's
-  users give it the binaries `TEMPER_FORGEJO` and
-  `TEMPER_FORGEJO_RUNNER` name, and refuse to run without
-  `TEMPER_FORGEJO` (and, for a story with CI, `TEMPER_FORGEJO_RUNNER`),
+  users give it the binaries `TEMPER_TEST_FORGEJO` and
+  `TEMPER_TEST_FORGEJO_RUNNER` name, and refuse to run without
+  `TEMPER_TEST_FORGEJO` (and, for a story with CI, `TEMPER_TEST_FORGEJO_RUNNER`),
   naming it.
 - **Its referee:** the person's script finishes within its deadline; the
   binary does not exit before the test stops or crashes it, or its
@@ -320,7 +320,7 @@
     printed link. Connect makes the App by its manifest and installs it
     on the one repository, and Ready adopts that repository. The
     sitting's driver runs the same test as its client, naming its mode
-    in `TEMPER_MANAGED_CLIENT` and giving the link on stdin. The test
+    in `TEMPER_TEST_MANAGED_CLIENT` and giving the link on stdin. The test
     ends as the driver's fake mode does: the engine and the fake GitHub
     stopped, the relay's scan finds no secret bytes in its log or its
     record. The push, the planted refusals, the cleanup, `fake-wide`'s
@@ -332,8 +332,7 @@
   suites that hold them.
 
 - **Outside the gate suites:** nextest profile `process-temper`, run
-  once the binary and the fake `claude` are built, with
-  `TEMPER_TEST_CLAUDE` set. The 6-minute aim is the starting point for
+  once the binary and the fake `claude` beside it are built. The 6-minute aim is the starting point for
   the process tier's CPU budget, the user's to set from measurements,
   separate from its wall hard limit. Both follow skein/docs/foundation/testing-strategy.md,
   8.1 and its three-question repair rule: a story moves only if what it

@@ -1525,6 +1525,7 @@ fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the table inspects semantic cards in both shells")]
 fn first_need_keeps_card_order_navigation_and_terminal_words() {
+    use d::forge::{approvals::ApprovalSet, forges::Kind};
     for beginning in [false, true] {
         let root = everyday(beginning, &[PARSED], false, true);
         for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
@@ -1564,13 +1565,24 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             absent(&printed(&view), "Answer in a row");
         }
     }
-    let mut root = everyday(false, &[], false, true);
-    let row = super::needs::approval_row();
-    super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
-    for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        contains(&f::main_text(view.tree()), "Needs you · 1");
-        let id = f::find(view.tree(), Role::Link, "Review on Forgejo ↗".as_bytes()).unwrap();
-        assert_eq!(view.tree().external(id), Some(row.address.as_ref()));
+    for (kind, sets, label) in [
+        (Kind::Forgejo, [].as_slice(), "Review on Forgejo ↗"),
+        (Kind::Forgejo, [1].as_slice(), "Sign off on Forgejo ↗"),
+        (Kind::GitHub, [].as_slice(), "Review on GitHub ↗"),
+        (Kind::GitHub, [1].as_slice(), "Sign off on GitHub ↗"),
+    ] {
+        let mut root = everyday(false, &[], false, true);
+        let row = d::forge::approvals::Row {
+            kind,
+            sets: sets.iter().map(|number| ApprovalSet { number: *number, name: b"core".as_slice().into() }).collect(),
+            ..super::needs::approval_row()
+        };
+        super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            contains(&f::main_text(view.tree()), "Needs you · 1");
+            let id = f::find(view.tree(), Role::Link, label.as_bytes()).unwrap();
+            assert_eq!(view.tree().external(id), Some(row.address.as_ref()));
+        }
     }
 }
 #[test]

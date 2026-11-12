@@ -12,6 +12,8 @@ skein-lib.workspace = true
 skein-codec.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
+temper-test-env.workspace = true
 skein-codegen.workspace = true
 
 [lints]

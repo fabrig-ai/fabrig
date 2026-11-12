@@ -85,7 +85,7 @@ digest: task 7c1e09a2b44f0d13
   prints `out of tries: run failures`, and `way out:` starts `the engine's log
   names each failure (temper help hold), then`. `temper help hold` says where
   that log is, under `temper box` and under `temper-box serve`
-  (`../../domain/worker.md`, 12, on keeping the text with the hold).
+  (`../../domain/worker/README.md`, 10, on keeping the text with the hold).
 - **`next run:`** prints what a run that can't start waits for, then the
   lines that say why and what to run (`tools.md`, 2). When no account serves the
   work, an account wait with neither an account nor a source and the why

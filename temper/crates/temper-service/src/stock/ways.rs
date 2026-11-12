@@ -51,6 +51,7 @@ pub fn ways() -> Box<[StockWay]> {
 
 fn branch(last: GateLast, checked: bool) -> LandingRule {
     LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern { segments: Box::new([bytes::copy_of(b"branch")]), last },
         enforce: true,
         ci: checked,

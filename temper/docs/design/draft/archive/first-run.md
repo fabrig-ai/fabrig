@@ -97,7 +97,7 @@ line. What the terminal shows, and why, is 2.5.
    forge. A link to the forge's pull request opens a page the demo
    forge does not serve, for now (section 7).
 
-The mockup of what the person sees is `../../client/mockups/first-run.html`.
+The mockup of what the person sees is `../../client/web/mockups/first-run.html`.
 
 ### 2.2 Going real
 
@@ -124,7 +124,7 @@ below that keep it are superseded.*
 
 ### 2.3 The welcome, and the demo's end
 
-With the user, 2026-10-23. Mockups: `../../client/mockups/welcome.html`,
+With the user, 2026-10-23. Mockups: `../../client/web/mockups/welcome.html`,
 in the first-run world (its step 0, the demo chosen at step 1, its end
 at step 7) and the first-run-real world (the wizard to a connected
 Forgejo and model).
@@ -170,7 +170,7 @@ Forgejo and model).
 ### 2.4 Projects, made as the person goes
 
 With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
-`../../client/mockups/welcome.html`, in the three first-run worlds.
+`../../client/web/mockups/welcome.html`, in the three first-run worlds.
 
 - **Why there was a default project.** jig made projects only at a
   deployment's first start, from its configuration, so the default

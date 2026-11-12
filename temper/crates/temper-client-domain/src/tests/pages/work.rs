@@ -1,5 +1,5 @@
-use crate::pages::work::{self, Belongs, Card, Change, Chat, Facts, Filters, Goal, Item, Where, Work};
-use skein_lib::{List, Wall};
+use crate::pages::work::{self, Belongs, Card, Change, Chat, Facts, Filters, Goal, Item, Landing, Where};
+use skein_lib::{List, Set, Wall};
 
 const NOW: u64 = 1_209_600;
 const WEEK_AGO: u64 = 604_800;
@@ -13,7 +13,22 @@ fn list<T: Clone>(items: &[T]) -> List<T> {
 }
 
 fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
-    Facts { goals: list(goals), changes: list(changes), chats: list(chats) }
+    let mut landed_default = List::uncapped();
+    let mut seen = Set::with_capacity(u32::try_from(changes.len()).unwrap());
+    for change in changes {
+        if !seen.insert(change.task).unwrap() {
+            continue;
+        }
+        match change.at {
+            Where::Landed { at, default_branch: true } => {
+                landed_default
+                    .push(Landing { task: change.task, commit: [0xab; 32], at, belongs: change.belongs })
+                    .unwrap();
+            }
+            Where::Landed { default_branch: false, .. } | Where::Queued { .. } => {}
+        }
+    }
+    Facts { goals: list(goals), changes: list(changes), chats: list(chats), landed_default, ..Facts::default() }
 }
 
 fn goal(task: u64, live: bool, activity: u64) -> Goal {
@@ -29,29 +44,41 @@ fn queued(task: u64, place: u32, since: u64, belongs: Belongs) -> Change {
 }
 
 fn landed(task: u64, at: u64, belongs: Belongs) -> Change {
-    Change { task, at: Where::Landed { at: wall(at) }, belongs }
+    Change { task, at: Where::Landed { at: wall(at), default_branch: true }, belongs }
 }
 
 fn card(item: Item, changes: &[u64]) -> Card {
     Card { item, changes: list(changes) }
 }
 
-fn work(in_flight: &[Card], drafts: &[Card], landed: &[u64], filters: Filters) -> Work {
-    Work { in_flight: list(in_flight), drafts: list(drafts), landed: list(landed), filters }
+struct Expected {
+    in_flight: List<Card>,
+    drafts: List<Card>,
+    landed: List<u64>,
+    filters: Filters,
+}
+
+fn work(in_flight: &[Card], drafts: &[Card], landed: &[u64], filters: Filters) -> Expected {
+    Expected { in_flight: list(in_flight), drafts: list(drafts), landed: list(landed), filters }
 }
 
 struct Case {
     name: &'static str,
     facts: Facts,
     wall: Wall,
-    want: Work,
+    want: Expected,
 }
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table compares Work for each placement rule and the whole project")]
 fn each_item_is_placed_by_its_own_facts() {
     let cases = [
-        Case { name: "empty project", facts: Facts::default(), wall: wall(NOW), want: Work::default() },
+        Case {
+            name: "empty project",
+            facts: Facts::default(),
+            wall: wall(NOW),
+            want: work(&[], &[], &[], Filters::default()),
+        },
         Case {
             name: "live goals get cards; ended goals still count",
             facts: facts(&[goal(1, true, 10), goal(2, false, 20)], &[], &[]),
@@ -255,11 +282,24 @@ fn each_item_is_placed_by_its_own_facts() {
         Case {
             name: "the week preserves nanoseconds",
             facts: Facts {
+                landed_default: list(&[
+                    Landing { task: 1, commit: [0xab; 32], at: wall(WEEK_AGO), belongs: Belongs::Nothing },
+                    Landing {
+                        task: 2,
+                        commit: [0xab; 32],
+                        at: Wall::from_nanos(wall(WEEK_AGO).as_nanos() + 1),
+                        belongs: Belongs::Nothing,
+                    },
+                ]),
                 changes: list(&[
-                    Change { task: 1, at: Where::Landed { at: wall(WEEK_AGO) }, belongs: Belongs::Nothing },
+                    Change {
+                        task: 1,
+                        at: Where::Landed { at: wall(WEEK_AGO), default_branch: true },
+                        belongs: Belongs::Nothing,
+                    },
                     Change {
                         task: 2,
-                        at: Where::Landed { at: Wall::from_nanos(wall(WEEK_AGO).as_nanos() + 1) },
+                        at: Where::Landed { at: Wall::from_nanos(wall(WEEK_AGO).as_nanos() + 1), default_branch: true },
                         belongs: Belongs::Nothing,
                     },
                 ]),
@@ -330,7 +370,15 @@ fn each_item_is_placed_by_its_own_facts() {
     ];
     for case in cases {
         let before = case.facts.clone();
-        assert_eq!(work::place(&case.facts, case.wall), case.want, "{}", case.name);
+        let got = work::place(&case.facts, case.wall);
+        assert_eq!(got.in_flight, case.want.in_flight, "{}", case.name);
+        assert_eq!(got.drafts, case.want.drafts, "{}", case.name);
+        assert_eq!(got.filters, case.want.filters, "{}", case.name);
+        let mut tasks = List::uncapped();
+        for row in &got.landed {
+            tasks.push(row.change).unwrap();
+        }
+        assert_eq!(tasks.as_slice(), case.want.landed.as_slice(), "{}", case.name);
         assert_eq!(case.facts, before, "{} leaves its facts alone", case.name);
     }
 }
@@ -380,6 +428,7 @@ struct Fixture {
     goals: Token,
     chats: Token,
     changes: Token,
+    drafts: Token,
 }
 impl Fixture {
     fn new() -> Self {
@@ -400,6 +449,7 @@ impl Fixture {
         let mut goals = None;
         let mut chats = None;
         let mut changes = None;
+        let mut drafts = None;
         for request in &out {
             if let Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
@@ -416,13 +466,22 @@ impl Fixture {
                     Watchable::Family { .. } => {
                         if Some(subject.clone()) == crate::forge::changes::watch(f::PROJECT, &f::limits().forge) {
                             changes = Some(*watch);
+                        } else if Some(subject.clone()) == crate::forge::drafts::watch(f::PROJECT, &f::limits().forge) {
+                            drafts = Some(*watch);
                         }
                     }
                     Watchable::Jig(_) => {}
                 }
             }
         }
-        Self { root, out, goals: goals.unwrap(), chats: chats.unwrap(), changes: changes.unwrap() }
+        Self {
+            root,
+            out,
+            goals: goals.unwrap(),
+            chats: chats.unwrap(),
+            changes: changes.unwrap(),
+            drafts: drafts.unwrap(),
+        }
     }
     fn up(&mut self, up: Up) {
         let mut out = super::welcome::event(&mut self.root, Event::Client { event: jig_client::Event::Up { up } });
@@ -485,6 +544,18 @@ impl Fixture {
             }
         }
     }
+    fn drafts(&mut self, rows: &[w::LandedDraft]) {
+        let panel =
+            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+        self.up(Up::FamilyDelivered {
+            watch: self.drafts,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::drafts_panel(&panel),
+            },
+        });
+    }
     fn panel(&mut self) {
         let mut queued = List::with_capacity(4);
         for task in 11..=14 {
@@ -506,6 +577,8 @@ impl Fixture {
         let panel = w::ChangesPanel::new(
             &w::CEILINGS,
             w::ChangesPanelParts {
+                landed_default: List::with_capacity(0),
+                landed_default_more: 0,
                 project: f::PROJECT,
                 landing: b"main".as_slice().into(),
                 queues: list(&[w::ChangesQueue::new(
@@ -521,7 +594,13 @@ impl Fixture {
                 more: 0,
                 landed: list(&[w::ChangesLanded::new(
                     &w::CEILINGS,
-                    w::ChangesLandedParts { task: 15, title: b"Landed".as_slice().into(), at: wall(NOW).as_nanos() },
+                    w::ChangesLandedParts {
+                        commit: [0xab; 32],
+                        default_branch: true,
+                        task: 15,
+                        title: b"Landed".as_slice().into(),
+                        at: wall(NOW).as_nanos(),
+                    },
                 )
                 .unwrap()]),
                 landed_more: 0,
@@ -546,6 +625,7 @@ fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
     fixture.lists();
     assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "changes unread");
     fixture.panel();
+    fixture.drafts(&[]);
     let mut reads = List::uncapped();
     for request in &fixture.out {
         if let Request::Unlinked {
@@ -592,7 +672,7 @@ fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
         let found = found.unwrap();
         assert_eq!(found.belongs, expected, "task {task}");
         if task == 15 {
-            assert_eq!(found.at, Where::Landed { at: wall(NOW) });
+            assert_eq!(found.at, Where::Landed { at: wall(NOW), default_branch: true });
         } else {
             assert_eq!(found.at, Where::Queued { place: u32::try_from(task - 10).unwrap(), since: wall(40) });
         }
@@ -693,4 +773,187 @@ fn work_limits() -> crate::Limits {
     limits.client.domain.reads = 32;
     limits.client.exchanges = 32;
     limits
+}
+
+fn draft(path: &[u8], ready: bool, goal: Option<u64>, at: u64) -> w::LandedDraft {
+    w::LandedDraft::new(
+        &w::CEILINGS,
+        w::LandedDraftParts {
+            forge: 1,
+            owner: b"owner".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            path: path.into(),
+            branch: b"main".as_slice().into(),
+            commit: b"abc".as_slice().into(),
+            title: b"Catch up".as_slice().into(),
+            writer: 9,
+            at: wall(at).as_nanos(),
+            chat: Some(8),
+            goal,
+            ready,
+        },
+    )
+    .unwrap()
+}
+#[test]
+fn landed_drafts_place_only_when_listed_and_mix_newest_first_with_chats() {
+    let mut facts = facts(&[], &[], &[chat(2, 36_000, true), chat(1, 36_000, true)]);
+    for row in [
+        draft(b"new.md", true, None, 39_600),
+        draft(b"not-ready.md", false, None, 50_000),
+        draft(b"started.md", true, Some(42), 50_000),
+        draft(b"neither.md", false, Some(42), 50_000),
+        draft(b"z.md", true, None, 36_000),
+        draft(b"a.md", true, None, 36_000),
+    ] {
+        facts.landed.push(work::LandedDraft::row(&row)).unwrap();
+    }
+    let base = facts.landed.get(5).unwrap().clone();
+    for row in [
+        work::LandedDraft { name: b"aaa".as_slice().into(), ..base.clone() },
+        work::LandedDraft { owner: b"aaa".as_slice().into(), ..base.clone() },
+        work::LandedDraft { forge: 0, ..base },
+    ] {
+        facts.landed.push(row).unwrap();
+    }
+    facts.landed.push(facts.landed.get(0).unwrap().clone()).unwrap();
+    let placed = work::place(&facts, wall(NOW));
+    assert!(placed.in_flight.is_empty());
+    assert_eq!(
+        placed.drafts,
+        list(&[
+            card(Item::Landed(0), &[]),
+            card(Item::Draft(1), &[]),
+            card(Item::Draft(2), &[]),
+            card(Item::Landed(8), &[]),
+            card(Item::Landed(7), &[]),
+            card(Item::Landed(6), &[]),
+            card(Item::Landed(5), &[]),
+            card(Item::Landed(4), &[]),
+        ])
+    );
+    assert_eq!(placed.filters.drafts, 8);
+    facts.chats.clear();
+    let placed = work::place(&facts, wall(NOW));
+    assert_eq!(placed.filters.drafts, 6);
+    assert!(work::shown(&placed.filters, work::Overrides::default()).drafts);
+}
+#[test]
+fn facts_wait_for_drafts_and_gather_the_wire_rows() {
+    let mut fixture = Fixture::new();
+    fixture.lists();
+    fixture.panel();
+    assert!(work::facts(&fixture.root, f::PROJECT).is_none(), "drafts unread");
+    let rows = [
+        draft(b"ready.md", true, None, 40),
+        draft(b"started.md", true, Some(42), 50),
+        draft(b"later.md", false, None, 60),
+    ];
+    fixture.drafts(&rows);
+    let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+    let mut expected = List::uncapped();
+    for row in &rows {
+        expected.push(work::LandedDraft::row(row)).unwrap();
+    }
+    assert_eq!(facts.landed, expected);
+    assert_eq!(work::place(&facts, wall(NOW)).drafts, list(&[card(Item::Landed(0), &[]), card(Item::Draft(3), &[])]));
+}
+#[test]
+fn refused_or_ended_drafts_answer_with_no_rows() {
+    for reason in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
+        let mut fixture = Fixture::new();
+        fixture.lists();
+        fixture.panel();
+        fixture.up(Up::WatchEnded { watch: fixture.drafts, end: reason });
+        assert!(work::facts(&fixture.root, f::PROJECT).unwrap().landed.is_empty());
+    }
+}
+#[test]
+fn work_goals_and_changes_keep_the_drafts_watch_until_leaving() {
+    let mut fixture = Fixture::new();
+    fixture.lists();
+    fixture.panel();
+    fixture.drafts(&[draft(b"ready.md", true, None, 40)]);
+    fixture.out = Queue::uncapped();
+    for address in [
+        Address::Goals { project: f::PROJECT, filter: crate::GoalsFilter::All },
+        Address::Changes { project: f::PROJECT },
+        Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts },
+    ] {
+        let out = super::welcome::event(&mut fixture.root, Event::Went { place: Place::Address(address) });
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+                request
+            {
+                assert_ne!(*watch, fixture.drafts);
+            }
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { subject, .. } },
+            } = request
+            {
+                assert_ne!(Some(subject.clone()), crate::forge::drafts::watch(f::PROJECT, &work_limits().forge));
+            }
+        }
+        assert_eq!(work::facts(&fixture.root, f::PROJECT).unwrap().landed.len(), 1);
+    }
+    let out = super::welcome::event(
+        &mut fixture.root,
+        Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
+    );
+    let mut closed = false;
+    for request in &out {
+        if *request
+            == (Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: fixture.drafts } },
+            })
+        {
+            closed = true;
+        }
+    }
+    assert!(closed);
+    assert!(fixture.root.pages().drafts().is_none());
+}
+
+#[test]
+fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_branches() {
+    let mut facts = Facts::default();
+    for (task, at, belongs) in [
+        (22, NOW - 10_800, Belongs::Goal(7)),
+        (30, NOW - 7_200, Belongs::Chat(9)),
+        (21, NOW - 3_600, Belongs::Goal(7)),
+        (40, NOW - 7_200, Belongs::Nothing),
+        (21, NOW - 3_600, Belongs::Goal(7)),
+        (50, WEEK_AGO, Belongs::Nothing),
+        (51, WEEK_AGO - 1, Belongs::Nothing),
+        (52, NOW + 1, Belongs::Goal(8)),
+    ] {
+        facts
+            .landed_default
+            .push(Landing { task, at: wall(at), commit: [u8::try_from(task).unwrap(); 32], belongs })
+            .unwrap();
+    }
+    for (task, at, belongs, default_branch) in [
+        (21, WEEK_AGO - 1, Belongs::Goal(7), false),
+        (22, WEEK_AGO, Belongs::Goal(7), false),
+        (21, NOW, Belongs::Goal(7), false),
+        (23, NOW, Belongs::Goal(7), true),
+        (24, WEEK_AGO - 1, Belongs::Goal(7), false),
+        (25, NOW + 1, Belongs::Goal(7), false),
+        (26, NOW, Belongs::Chat(9), false),
+        (27, NOW, Belongs::Nothing, false),
+    ] {
+        facts.changes.push(Change { task, at: Where::Landed { at: wall(at), default_branch }, belongs }).unwrap();
+    }
+    let got = work::place(&facts, wall(NOW));
+    assert_eq!(
+        got.landed.as_slice(),
+        &[
+            work::Landed { item: Item::Goal(7), change: 21, at: wall(NOW - 3_600), commit: [21; 32] },
+            work::Landed { item: Item::Change(30), change: 30, at: wall(NOW - 7_200), commit: [30; 32] },
+            work::Landed { item: Item::Change(40), change: 40, at: wall(NOW - 7_200), commit: [40; 32] },
+            work::Landed { item: Item::Change(50), change: 50, at: wall(WEEK_AGO), commit: [50; 32] },
+        ]
+    );
+    assert_eq!(got.goal_branches, 2, "each goal-branch task once, only in the window");
+    assert_eq!(got.filters.changes, 7, "default-branch history adds no filter rows");
 }

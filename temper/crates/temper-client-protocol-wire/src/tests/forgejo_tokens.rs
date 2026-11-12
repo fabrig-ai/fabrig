@@ -19,17 +19,11 @@ fn connected(host: &[u8], port: u16) -> v1::Making {
     let v1::ForgeAsk::Managed(value) = super::managed(host, port) else { unreachable!() };
     super::making_new(v1::ForgeAsk::Connected(value))
 }
-#[expect(clippy::disallowed_macros, reason = "golden fixtures are relative to the test crate")]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn golden(request: v1::Request, name: &str) {
     let record = v1::Requesting::new(&fixtures::limits(), v1::RequestingParts { request }).unwrap();
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden").join(name);
-    match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) if value == "1" => std::fs::write(&path, crate::requesting(&record)).unwrap(),
-        Some(_) | None => {}
+    let path = skein_scratch::paths::package().join("golden").join(name);
+    if temper_test_env::rewrite() {
+        std::fs::write(&path, crate::requesting(&record)).unwrap();
     }
     let bytes = std::fs::read(path).unwrap();
     assert_eq!(crate::requesting(&record).as_ref(), bytes);

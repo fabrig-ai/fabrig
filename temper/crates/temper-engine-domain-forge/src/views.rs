@@ -6,7 +6,9 @@ use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 mod changes;
+mod follows;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
+pub use follows::{FollowLagEntry, FollowView, FollowsView, follows_subject};
 
 /// The changes waiting on a person's approval, the party's own scope (domain/forge/change/questions.md, 2).
 pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
@@ -34,11 +36,13 @@ pub enum Document {
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
+    Follows(FollowsView),
     Changes(ChangesView),
     Status(crate::StatusView),
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
+    Drafts(crate::DraftsView),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -120,6 +124,9 @@ impl Domain {
             ApplicationScope::Project(project) => project,
             ApplicationScope::Deployment => return None,
         };
+        if subject == follows_subject(project) {
+            return Some(Document::Follows(self.follows_view(project, limits)?));
+        }
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
@@ -130,6 +137,9 @@ impl Domain {
         }
         if subject == crate::status_subject(project) {
             return Some(Document::Status(self.status_view(project, party, now, limits)?));
+        }
+        if subject == crate::drafts_subject(project) {
+            return Some(Document::Drafts(self.drafts_view(project)));
         }
         if subject == changes_subject(project) {
             return Some(Document::Changes(self.changes_view(project, now, limits)?));
@@ -334,14 +344,30 @@ fn proof_key(proof: policy::Proof) -> Option<[u8; 32]> {
 impl Document {
     /// Owned storage retained by the root's asking decision (domain/routing.md, 1).
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "the document inventory counts owned bytes for every panel variant")]
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Drafts(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for draft in &view.rows {
+                    size = size
+                        .saturating_add(draft.owner.len())
+                        .saturating_add(draft.name.len())
+                        .saturating_add(draft.row.path.len())
+                        .saturating_add(draft.row.branch.len())
+                        .saturating_add(draft.row.title.len());
+                }
+            }
+            Self::Follows(view) => {
+                size = size.saturating_add(follows::owned_bytes(view));
+            }
             Self::Changes(view) => {
                 size = size
                     .saturating_add(view.landing.len())
                     .saturating_add(size_of_val(view.queues.as_ref()))
-                    .saturating_add(size_of_val(view.landed.as_ref()));
+                    .saturating_add(size_of_val(view.landed.as_ref()))
+                    .saturating_add(size_of_val(view.landed_default.as_ref()));
                 for queue in &view.queues {
                     size = size
                         .saturating_add(queue.repository.len())
@@ -352,6 +378,9 @@ impl Document {
                     }
                 }
                 for change in &view.landed {
+                    size = size.saturating_add(change.title.len());
+                }
+                for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
                 }
             }

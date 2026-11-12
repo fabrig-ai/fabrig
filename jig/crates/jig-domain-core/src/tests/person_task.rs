@@ -302,6 +302,7 @@ fn claim(core: &mut Core, env: &Env<Limits>, task: u64, account: Option<u32>) {
         core,
         &env.limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(Token::new(1)),

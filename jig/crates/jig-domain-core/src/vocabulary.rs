@@ -595,6 +595,8 @@ pub struct CoreBriefBudgets {
     pub notes: u32,
     /// Whole preferences of the run's requester (domain/engine/briefs.md, 2.1).
     pub preferences: u32,
+    /// A standing task's Now body (domain/tasks/standing.md, 6).
+    pub now: u32,
 }
 
 /// One event routed to a child of the core.
@@ -1243,6 +1245,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::PersonStallNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }

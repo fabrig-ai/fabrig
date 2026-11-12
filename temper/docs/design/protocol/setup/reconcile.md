@@ -265,3 +265,37 @@ runs it or writes what it makes.
   what to set. A delivery's failure stays the forge's: temper reads no
   delivery's outcome from a Forgejo, so none reaches a task, the forge's
   row or its connection.
+
+## 7. Open questions
+
+- **A story of Reconcile over TLS.** The managed string form takes a
+  forge on another host over TLS and the service hands that transport to
+  skein (`reconcile.md`, 6), but every test of the admin connect, the process story
+  among them, reaches its Forgejo over loopback plaintext: a TLS story
+  waits for a fake forge that serves TLS (skein's `forge/setup/README.md`,
+  section 6).
+
+- **A secret drawn at a reconcile with no repository,** so that a forge's
+  first hook needs no access handed again, which ends the calls then open
+  (`reconcile.md`, 4). It is a change to skein's plan (skein's `forge/setup/forgejo.md`, 1.3),
+  which the request `managed-listener` left to keep to one task.
+
+- **An adopted row's kinds after the forge changes** (`reconcile.md`, 4;
+  `../../domain/forge/adoption.md`, 2): a row keeps the kinds its adoption read,
+  and only a capability refusal reads them afresh, which a row that may
+  not push never meets. So a repository adopted while temper's user could
+  only read stays so in its row until it is adopted again, whatever the
+  forge says after: a person's write on a connected Forgejo, or reconcile's
+  repair on a managed one, for a row whose adoption ran no `Adopt`. "Work
+  there fails until it has write" (`../../client/forge/family.md`, 6) does not
+  say so. Reading each adopted repository's permission at a connect is
+  what would close it.
+
+- **A managed forge whose host list refuses the listener.** Default:
+  `temper help forgejo` says what to set, and at run time nothing tells
+  the person but the hints that never arrive (`../../domain/forge/adoption.md`
+  ).
+
+- **Two deployments on one managed forge.** Default: each its own bot
+  login, carried by its connect (`reconcile.md`, 5), and so its own collaborators and
+  hooks; the marker does not tell deployments apart.

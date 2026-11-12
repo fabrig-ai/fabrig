@@ -9,6 +9,7 @@
 | a foreman (../forge/change/questions.md, 1) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (`tools.md`; ../forge/branches.md, 3); `wait` | its goal's report is written |
+| a standing role (`standing.md`) | its person's words; its own work's questions, results and the answers to its own questions; its timers; news its subscriptions class as waking, at a pace; proposals and escalations to decide | `goal`, `change`, `delegate`, `decided`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe`, `subscribe_forge`, `note`, its Now among its notes, `recall`, `message`, the forge's reads, `propose_settings` for its own rules; `wait` | only a cancel: a finish parks it (jig's `domain/tasks/standing.md`, section 2) |
 | Ask temper (`ask-temper.md`) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 **A coordinator hears its changes while it designs.** A coordinator's
@@ -490,3 +491,95 @@ conversation its person ends, kept, listed among the project's chats.
   ctl`, `chat start --template 6` (`../../client/ctl/tools.md`, 3); in the
   terminal, `/draft` (`../../draft/surfaces.md`, 11.2), which the terminal's
   design takes up.
+
+## 5. Open questions
+
+- **A permission for its own requester alone** (`agents.md`, 2): a goal a person
+  started may address anyone holding that person's role, since jig's
+  executor permission is a role's, and a requester who has since changed
+  role can no longer be addressed. A permission naming the requester would
+  be jig's, a new executor kind. And `shapes::set_agreed_goal_from`, were it
+  sent, would owe a question no person task answers. Default: the role, the
+  charter's words, and that shape unsent.
+
+- **Constraining models in settings reads and proposals** (`agents.md`, 1): whole
+  charter values can name models outside the current offer. Restricting what
+  a read exposes while still round-tripping that value, or rejecting a new
+  unoffered choice without rejecting an unchanged charter, needs a settings
+  contract. Default: the inventory is filtered; whole charter reads and
+  configured-model validation stay. Ask temper's instructions impose no
+  restriction to the current offer (`../../draft/ask-temper.md`, section 8).
+
+- **The person's forge identity in a chat's brief,** rather than in the
+  settings inventory (`agents.md`, 1), which Ask temper reads first.
+  A brief section would spend every chat's room for what one charter
+  uses. Default: the inventory.
+
+- **A person known by a login alone** (`agents.md`, 1), where no link vouches for them:
+  `temper-box serve` with several members, a managed Forgejo, a pasted App. Often
+  no collaborator, adoption finds no person for them and the inventory's forge
+  person has no forge user id; `read_permission` takes an id, so the agent
+  cannot match them, and `propose_settings` refuses at the call, in
+  acceptance's words, an approval only they could meet (`../forge/change/gates.md`, 3;
+  `ask-temper.md`, 2), saying who to add on the forge before adopting again, in the browser the adoption
+  form typed afresh (`../../client/forge/family.md`, 4). A family of links waits for
+  `temper-box serve`'s members (`../../protocol/sign-in.md`, section 9).
+  Default: adoption's seeds and the refusal above; a configured login alone
+  supplies no verified forge identity.
+
+- **What sizes temper's own way** (`agents.md`, 1): a read of the deployment's worker slots,
+  an address of `see`'s, or an answer from the person.
+  Default: the person's, as nothing reads
+  them.
+
+- **QA in temper's own way** (`agents.md`, 1): `../../draft/own-way.md`, 6, has it proposed once
+  a tester is set; QA after landing isn't built (`../findings.md`, section 8).
+  Default: the agent says so, and leaves it out.
+
+- **Ask temper woken by a landing** of a document a charter
+  names, where the landing touches structure, to say what it means for
+  the settings ("the process document changed; here is what it means
+  for your setup": `../../draft/configuring.md`, section 6). Default: a
+  person starts it (`agents.md`, 1); a landed document reaches the next runs of the
+  charters that name it (`../../protocol/configuration/settings.md`, 6).
+
+- **A goal's question kept with its chat** (jig's `domain/tasks/messages.md`,
+  5): the chat, woken by it, would answer from what it knows (its
+  person's priorities, its notes), or ask its person a question of its
+  own and answer the goal once it has the answer, in place of `agents.md`, 2's
+  route through the person's inbox. Default: `agents.md`, 2's route.
+
+- **Who else writes a question's line form** (`agents.md`, 2): the stock goal alone
+  is taught it, by one sentence of charter 1, as the request of 2026-11-05
+  for *Needs you* asks. A change's producers, its repairs and resolutions, and
+  the reference's charters are not, so their questions read as words,
+  answered by a reply. Default: as it is; a line in each charter that asks.
+
+- **Ask temper changing the catalogue** (`agents.md`, 1): observe a real model
+  reading and proposing a model setting, including estimated prices, and
+  keeping its suggestions within the offer, which its instructions do not
+  name. Default: scripted stories of `see` and `propose_settings`; the
+  real-provider observation is the user's, by trying it (`ask-temper.md`).
+
+- **A real model asking its person** (`agents.md`, 2; the request `ui-goal-asks`):
+  the client world's sheet-to-answer story supplies a typed `delegate`
+  call, and the stock and host-answer tests hold the instructions. They
+  do not establish a real model choosing that call from the sheet or
+  Goals, with Away on or off or with always-ask words. Default: those
+  instructions and focused stories; real-model observation follows landing.
+
+- **A real model revising a proposal** (`agents.md`, 1; the request `ui-proposal-2`
+  of 2026-11-06): after landing, check that a request from "Change
+  something" leads to a fresh proposal without a trip to Needs you, and
+  that a request for a model no account runs leads to browser Settings,
+  Accounts. Default: the stock instructions and scripted stories; the
+  real-model observation follows landing.
+
+- **A goal as the designer** (`tools.md`;
+  `../../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
+  path is independent of the stock and reference instructions, their
+  wakes and their location. Those words and settings are folded into the
+  reference workflow together. Calls, briefs and reports take the room
+  of `../../protocol/configuration/settings.md`, 7, with the reference's fallback.
+  Default: the existing stock and reference words and wakes; test charters
+  exercise goal delivery.

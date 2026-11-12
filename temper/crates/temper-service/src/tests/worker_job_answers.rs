@@ -1,4 +1,4 @@
-//! Job answers through the root and service link (temper/docs/design/domain/worker.md, 4.4).
+//! Job answers through the root and service link (temper/docs/design/domain/worker/jobs.md).
 use super::fixtures;
 use crate::Worker;
 use jig_domain_host as hub;
@@ -62,7 +62,12 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-        Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
+        Op::Point { .. }
+        | Op::Store { .. }
+        | Op::Make { .. }
+        | Op::Clone { .. }
+        | Op::Create { .. }
+        | Op::CheckOut { .. } => Done::Succeeded,
     }
 }
 
@@ -87,7 +92,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, fault: GitFault) -
         match request {
             root::Request::Io { owner, op, .. } => {
                 let done = match (&op, fault) {
-                    (root::checkout::git::Op::Clone { .. }, GitFault::CloneRefused) => {
+                    (root::checkout::git::Op::Store { .. }, GitFault::CloneRefused) => {
                         root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
                     }
                     (
@@ -202,7 +207,7 @@ fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
     (worker, peer)
 }
 
-/// temper/docs/design/domain/worker.md, 4.4; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
+/// temper/docs/design/domain/worker/jobs.md; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
 #[test]
 fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     let (mut worker, mut peer) = merge_worker();

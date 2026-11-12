@@ -20,12 +20,18 @@ pub struct BriefTextLimits {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BriefPart {
     Spec,
+    /// Received open questions not carried by the run's start (domain/engine/briefs.md, 1.2).
+    Waiting {
+        carried: u32,
+    },
     Dependencies,
     Delegates,
     Attempts,
     TranscriptTail,
     /// Whole requester preferences (domain/engine/briefs.md, 2.1).
     Preferences,
+    /// A standing task's Now (domain/tasks/standing.md, 6).
+    Now,
 }
 
 /// Render the bounded note index by durable name so a run can recall entries.
@@ -104,10 +110,12 @@ pub fn read_brief_part(core: &Core, limits: BriefTextLimits, task: u64, part: Br
     let tail = match part {
         BriefPart::TranscriptTail => true,
         BriefPart::Spec
+        | BriefPart::Waiting { .. }
         | BriefPart::Dependencies
         | BriefPart::Delegates
         | BriefPart::Attempts
-        | BriefPart::Preferences => false,
+        | BriefPart::Preferences
+        | BriefPart::Now => false,
     };
     let read = task_section(core, task, part, limits.parts, limits.read_bytes);
     let parts = match read {
@@ -195,6 +203,7 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
             Some(context) => task_read(context, parts, bytes),
             None => BriefRead::Failed,
         },
+        BriefPart::Waiting { carried } => waiting_read(core, task, carried, bytes),
         BriefPart::Delegates => match core.contexts.get(&task) {
             Some(context) => delegates_read(&context.delegates, bytes),
             None => BriefRead::Failed,
@@ -214,11 +223,109 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
             Some(text) => BriefRead::Got(Box::new([text_part(&text, b"", b"", b"", bytes)])),
             None => BriefRead::Failed,
         },
+        BriefPart::Now => match crate::routing::run::now::text(core, task) {
+            Some(text) => BriefRead::Got(Box::new([text_part(&text, b"", b"", b"", bytes)])),
+            None => BriefRead::Failed,
+        },
         BriefPart::TranscriptTail => match core.transcripts.get(&task) {
             Some(transcript) => tail_read(transcript, bytes),
             None => BriefRead::Failed,
         },
     }
+}
+
+const WAITING_OPENING: &[u8] = b"Questions asked of you, still open, oldest first:\n";
+
+fn question_heading(question: tasks::OpenQuestion) -> Box<[u8]> {
+    let asker = Decimal::of(question.asker);
+    let number = Decimal::of(question.number);
+    let parts = [
+        b"Task ".as_slice(),
+        asker.as_bytes(),
+        b" asks (question ",
+        number.as_bytes(),
+        b"); answer with message target=",
+        asker.as_bytes(),
+        b", form=answer, question=",
+        number.as_bytes(),
+        b":\n",
+    ];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded heading");
+    }
+    let mut writer = Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("measured heading");
+    }
+    writer.finish()
+}
+
+fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
+    let Some(context) = core.contexts.get(&task) else { return BriefRead::Failed };
+    let Some(row) = core.tasks.task(task) else { return BriefRead::Failed };
+    let offered = crate::routing::run::parts::offered_kinds(
+        core.charter_of(task),
+        row.instructions.is_some(),
+        context.reasons,
+        row.flags.ended_by == tasks::EndedBy::Standing,
+    );
+    let messages = crate::routing::run::preparation::start_messages(context.inbox.clone(), carried, offered);
+    let open = core.tasks.open_questions(task);
+    let mut questions = List::with_capacity(open.len());
+    for question in open.into_boxed() {
+        let mut carried = false;
+        for message in &messages {
+            carried |= message.kind == tasks::MessageKind::Question && message.number == question.number;
+        }
+        if !carried {
+            questions.push(question).expect("open question subset");
+        }
+    }
+    if questions.is_empty() {
+        return BriefRead::Got(Box::new([]));
+    }
+    let mut length = WAITING_OPENING.len();
+    for question in &questions {
+        let Some(words) = core.open_question_words(*question) else { return BriefRead::Failed };
+        length = length
+            .checked_add(question_heading(*question).len())
+            .expect("bounded headings")
+            .checked_add(words.len())
+            .expect("bounded question words")
+            .checked_add(usize::from(!words.ends_with(b"\n")))
+            .expect("question newline");
+    }
+    let bound = length.min(skein_lib::usize_of(bytes));
+    let mut kept = skein_lib::bytes::utf8_prefix(WAITING_OPENING, bound).len();
+    let mut cut = kept < WAITING_OPENING.len();
+    for question in &questions {
+        let words = core.open_question_words(*question).expect("measured question words");
+        let heading = question_heading(*question);
+        let newline = if words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        for part in [heading.as_ref(), words, newline] {
+            if cut {
+                break;
+            }
+            let prefix = skein_lib::bytes::utf8_prefix(part, bound.checked_sub(kept).expect("bounded waiting text"));
+            kept = kept.checked_add(prefix.len()).expect("bounded waiting prefix");
+            cut = prefix.len() < part.len();
+        }
+    }
+    let mut exact = Writer::new(kept);
+    exact.put(skein_lib::bytes::utf8_prefix(WAITING_OPENING, exact.room())).expect("bounded opening");
+    for question in &questions {
+        let heading = question_heading(*question);
+        let words = core.open_question_words(*question).expect("measured words");
+        let newline = if words.ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        for part in [heading.as_ref(), words, newline] {
+            exact.put(skein_lib::bytes::utf8_prefix(part, exact.room())).expect("measured waiting text");
+        }
+    }
+    BriefRead::Got(Box::new([BriefFragment {
+        bytes: exact.finish(),
+        left: u64::try_from(length.checked_sub(kept).expect("waiting prefix")).expect("usize fits u64"),
+    }]))
 }
 
 fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, bytes: u32) -> BriefRead {
@@ -579,7 +686,7 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     }
     let contract = match record.ended_by {
         tasks::EndedBy::Result | tasks::EndedBy::Closer(_) => contract_text(&record.contract),
-        tasks::EndedBy::Requester => Box::new([]),
+        tasks::EndedBy::Requester | tasks::EndedBy::Standing => Box::new([]),
     };
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =

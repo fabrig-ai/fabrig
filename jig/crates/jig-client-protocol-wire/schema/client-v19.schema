@@ -341,7 +341,7 @@ record BudgetAsAllowed { cap: option u64 }
 enum NewBudget { named, as_allowed: BudgetAsAllowed }
 enum Retention { kept, forgotten_once_read }
 record Closer { connector: u16 code: u32 }
-enum EndedBy { result, requester, closer: Closer }
+enum EndedBy { result, requester, closer: Closer, standing }
 record TaskFlags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum NewDeadline { named, span: DeadlineSpan }
@@ -533,7 +533,10 @@ record ActivityDecidedProposal { number: u64 made: bool }
 record ActivityDecided { revision: u64 proposal: option ActivityDecidedProposal }
 record ActivityMilestone { position: u64 }
 record ActivityKept { attempt: u64 pending: list 32 u64 question: option u64 }
-enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept }
+record ActivityStood { attempt: u64 words: text 512 }
+enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules }
+record ActivitySessionEnded { attempt: u64 end: SessionEnd }
+enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept, stood: ActivityStood, session_ended: ActivitySessionEnded }
 record ActivityLine { task: u64 position: u64 at: u64 line: Activity }
 record TurnName { attempt: u64 number: u32 }
 record TurnCarried { bytes: bytes 8388608 }

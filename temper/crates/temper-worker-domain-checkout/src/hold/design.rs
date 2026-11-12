@@ -1,4 +1,4 @@
-//! Design deliveries (temper/docs/design/domain/worker.md, 5): take the goal
+//! Design deliveries (temper/docs/design/domain/worker/checkouts.md): take the goal
 //! tip first, admit Markdown alone, and push leased on that tip, never stale.
 use super::{Asked, Hold, Holding, Push, PushStep, State, Tips, To};
 use crate::boundary::{Landing, Repository, Request};
@@ -282,6 +282,7 @@ fn run(
     let head = super::tips(holding, delivery.repository).head;
     let op = match step {
         Step::Fetch => Op::Fetch {
+            store: super::borrowed(holding, delivery.repository).store.token(),
             at,
             remote: spec.remote.clone(),
             want: Want::Branch { branch: super::branch_of(spec, &push.to) },

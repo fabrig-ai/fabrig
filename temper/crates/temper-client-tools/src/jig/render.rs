@@ -7,6 +7,7 @@ pub(crate) mod lists;
 mod notes;
 pub(crate) mod outcome;
 pub mod pending;
+pub(crate) mod roles;
 pub(crate) mod task_source;
 mod turn;
 pub(super) mod visibility;
@@ -470,6 +471,9 @@ pub(crate) fn reads(
             vocabulary,
         );
     }
+    if reading.called.call.tool == crate::jig::rows::ROLE_LIST_AT {
+        return roles::list(reading, limits);
+    }
     if plain_task(reading) {
         return read(reading.pages.get(&1).expect("task read"), client, me, reading.called.json, limits, vocabulary);
     }
@@ -494,12 +498,13 @@ fn deleted_project(project: u32) -> Box<[u8]> {
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
+        (crate::jig::rows::ROLE_LIST_AT | 2, 1, ReadValue::Tasks(_))
+        | (crate::jig::rows::ROLE_LIST_AT, 8.., ReadValue::Notes(_))
+        | (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
         | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
-        | (2, 1, ReadValue::Tasks(_))
         | (3, 1, ReadValue::Task(_))
         | (3, 2, ReadValue::Activity(_))
         | (4 | 5, 1, ReadValue::Activity(_))

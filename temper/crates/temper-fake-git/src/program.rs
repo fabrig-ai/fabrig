@@ -99,10 +99,13 @@ impl<T: Transport> Git<T> {
             }
             match &checked.command {
                 Command::Version => {}
-                Command::Origin { directory } | Command::Clone { directory, .. } => {
+                Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
-                Command::SnapshotHead
+                Command::Format
+                | Command::Remote { .. }
+                | Command::UpdateRef { .. }
+                | Command::SnapshotHead
                 | Command::SnapshotMerge { .. }
                 | Command::SnapshotReachable { .. }
                 | Command::SnapshotReset { .. }
@@ -213,6 +216,10 @@ impl<T: Transport> Git<T> {
             self.file_complete(pending, complete.kind, complete.result);
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the file completion table includes discovering alternate object directories"
+    )]
     fn file_complete(&mut self, pending: Pending, kind: Op, result: Result<Done, k::Error>) {
         match (pending, kind, result) {
             (Pending::Scan(path), _, Ok(Done::Fd(fd))) => {
@@ -245,6 +252,11 @@ impl<T: Transport> Git<T> {
             (Pending::Read(path, fd, mut bytes), Op::Read { buf, .. }, Ok(Done::Count(count))) => {
                 if count == 0 {
                     self.checkout.write(&path, &bytes);
+                    if let Some(objects) = path.strip_suffix(b"/info/alternates") {
+                        for alternate in skein_fake_checkout::git::alternate_directories(objects, &bytes) {
+                            self.jobs.push_back(Job::Scan(alternate));
+                        }
+                    }
                     self.files.insert(path, bytes);
                     self.jobs.push_front(Job::Close(fd));
                 } else {

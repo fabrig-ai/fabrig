@@ -324,6 +324,13 @@ impl World {
         self.send(Event::OpenPeriod { reply_to, project: 1, period, budget });
     }
 
+    /// Route a period's standing renewals as the parent does.
+    pub fn renew_standing(&mut self, period: u64) {
+        for task in self.domain.standing_tasks(1) {
+            self.send(Event::RenewStanding { task, period });
+        }
+    }
+
     /// Configure procedures that start kept, including after a restart.
     pub fn set_kept_starts(&mut self, starts: Box<[tasks::KeptStart]>) {
         self.domain.set_kept_starts(starts.clone());
@@ -411,6 +418,22 @@ impl World {
         }
     }
 
+    fn question_parked(&mut self, task: u64, question: tasks::OpenQuestion) {
+        let Some(Stored::Activity(line)) =
+            self.records.get(&Key::Activity { task: question.asker, position: question.line })
+        else {
+            panic!("open question activity")
+        };
+        let tasks::Line::Words { words, .. } = &line.line else { panic!("question words") };
+        let reason = tasks::open_question_reason(question, words);
+        tasks::step(
+            &mut self.domain,
+            &self.env,
+            Event::QuestionParked { task, question: question.number, reason },
+            &mut self.out,
+        );
+    }
+
     fn route_hint(&mut self, request: &Request) {
         match request {
             Request::PersonStallDue { task } => {
@@ -423,6 +446,7 @@ impl World {
                 );
             }
             Request::CloserDue { task } => self.closer_due(*task),
+            Request::QuestionParked { task, question } => self.question_parked(*task, *question),
             Request::QuestionOwedDue { task } | Request::NothingAwaitedDue { task } => {
                 self.message = self.message.checked_add(1).expect("reminder number room");
                 let event = if matches!(request, Request::QuestionOwedDue { .. }) {
@@ -610,6 +634,7 @@ impl World {
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionOwedNotice { .. }
+            | Event::QuestionParked { .. }
             | Event::NothingAwaitedNotice { .. }
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
@@ -705,6 +730,7 @@ impl World {
             | Event::SubscribeTopic { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
+            | Event::QuestionParked { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
             | Event::Turn { .. } => {}
@@ -867,6 +893,7 @@ impl World {
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::QuestionParked { .. }
                 | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
@@ -963,6 +990,7 @@ impl World {
                 | Request::EscalationNeeded { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::QuestionParked { .. }
                 | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
@@ -1228,6 +1256,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

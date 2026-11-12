@@ -64,38 +64,16 @@ with "this proposal isn't waiting; it may have been decided or replaced."
 The tools' settings table checks both accepted-decision words and the
 unknown-proposal explanation; the generated help states the same limit.
 
-- **Not yet:**  the groups `finding`, `qa`, `party` and
-  `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
-   `repository receipts`, `finding list`, `finding show`, `qa marks`,
-  `qa passes` and `hold list`.  `task move
-  --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold` and `project hold`.
-   area 2's procedure executor choice for `goal start`,
-  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
-  show`, `task move`, and the project's
-  `policy`, `role` and `pool`; area 4's `create`, `propose` and
-  `compound`; area 6's `forge forget`, with no request on the wire.
+- **Not yet:**  the absent command groups remain `tools.status.md`, 1.
+   the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
+   the missing area operations remain `areas.status.md` (Not yet, the whole document).
   1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
-   `GROUP VERB --help`; `temper ctl` parses a
-  leading `help` alone. 
-  the joined story of a model's amendment (`tests/client`'s
-  `amend_tools.rs` parses `--model` alone); the joined stories of
-  `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
-  forge setting reads, including historical revision values. 
-  the real loop's connected Forgejo, its tokens connect, a replace of
-  its git token and another user's tokens stopped.
-- **Departs:**  `project` is area 1's (`jig/rows.rs`
-  `PROJECT_SHOW`, `PROJECT_FUND`, `PROJECT_MAKE`), not area 3's; the placeholders add
-  `HOST:PORT` and `URL`.  `settings show template|policy` takes
-  `--revision` too; `landing show` takes `TASK [--project PROJECT]`, not
-  `LANDING`; `landing list` takes no `--newer-than` or `--after`, and
-  its `--ended` adds the ended to the live.  `task stop` places a
-  hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
-  does (jig's `domain/people/acts.md`, 1), where its row holds the task;
-  `hold lift` is keyed optionally (`Keyed::Optional`). 1: a party's wait
+   the trailing-help command syntax remains `README.status.md`, 6.1.
+  the missing joined ctl stories remain `testing.status.md`, 2.
+  the real-loop connected-forge stories remain `testing.status.md`, 3.
+- **Departs:**  the command-area and placeholder departures remain `tools.status.md`, 1.  the read-command option departures remain `tools.status.md`, 2.  the stop scope and lift key remains `tools.status.md`, 3. 1: a party's wait
   prints `you: question of task 44 · 1 waiting`, with no question's number,
   where the section's sample and `temper help task` have `question 3`, and
   the `plainer-panels` request has that page say what the line prints: jig's
@@ -113,5 +91,4 @@ unknown-proposal explanation; the generated help states the same limit.
   so these lines can still say opposite things (`README.md`, section 11). A person task's
   `task amend` prints `task amend 41 --key KEY`, where that request has the act
   and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
-  `person_call` (`render/document.rs`) gives an answer alone its arguments.  an
-  authority's entries are 14 (`limits.rs`).
+  `person_call` (`render/document.rs`) gives an answer alone its arguments.  the authority-entry bound remains `README.status.md`, 9.

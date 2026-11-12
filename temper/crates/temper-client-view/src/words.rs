@@ -487,6 +487,8 @@ pub enum Word {
     SettingsNoneTag,
     SettingsNoneBody,
     SettingsSignedIn,
+    WorkGoalBranchOne,
+    WorkGoalBranchMany,
     WorkOne,
     WorkKicker,
     WorkNothing,
@@ -515,6 +517,12 @@ pub enum Word {
     WorkAChatWithYou,
     WorkByline,
     WorkOpenDraft,
+    WorkLandedIn,
+    WorkReadySince,
+    WorkStartWay,
+    WorkProjectWay,
+    WorkAnotherWay,
+    WorkStartGoal,
 
     GoalsWaySeparator,
     GoalsWayEnd,
@@ -1299,7 +1307,7 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
-    /// A model writing its answer, on the shared running line (client/tui/pages.md).
+    /// A model writing its answer, on the shared running line (client/tui/pages/README.md).
     RunningWork,
     ConnectForge,
     ChatTitle,
@@ -1619,12 +1627,15 @@ pub enum Word {
     ApprovalProjectRule,
     ApprovalOne,
     ApprovalMany,
-    ApprovalBehindOne,
-    ApprovalBehindMany,
     ApprovalCut,
     ApprovalTooFew,
     ApprovalNoAccount,
     ApprovalOtherRole,
+    ApprovalSets,
+    ApprovalPathSet,
+    ApprovalJoin,
+    ApprovalAnd,
+    ApprovalSignOff,
     ApprovalReview,
     ApprovalOwner,
     ApprovalMaintainer,
@@ -1636,6 +1647,9 @@ pub enum Word {
     ApprovalObservers,
     ApprovalRole,
     ApprovalRoles,
+    ApprovalSizeLines,
+    ApprovalSizeFile,
+    ApprovalSizeFiles,
     ProposalOwnedApproval,
     ApproveTitle,
     ApproveTyping,
@@ -1782,7 +1796,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2336;
+const PHRASES: u32 = 2350;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1809,10 +1823,10 @@ const PHRASES: u32 = 2336;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4201;
+const SEGMENTS: u32 = 4243;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56759;
-const ALL: [Word; 1651] = [
+const ENGLISH_BYTES: u32 = 56917;
+const ALL: [Word; 1665] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2280,6 +2294,8 @@ const ALL: [Word; 1651] = [
     Word::SettingsNoneTag,
     Word::SettingsNoneBody,
     Word::SettingsSignedIn,
+    Word::WorkGoalBranchOne,
+    Word::WorkGoalBranchMany,
     Word::WorkOne,
     Word::WorkKicker,
     Word::WorkNothing,
@@ -2308,6 +2324,12 @@ const ALL: [Word; 1651] = [
     Word::WorkAChatWithYou,
     Word::WorkByline,
     Word::WorkOpenDraft,
+    Word::WorkLandedIn,
+    Word::WorkReadySince,
+    Word::WorkStartWay,
+    Word::WorkProjectWay,
+    Word::WorkAnotherWay,
+    Word::WorkStartGoal,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -3375,12 +3397,15 @@ const ALL: [Word; 1651] = [
     Word::ApprovalProjectRule,
     Word::ApprovalOne,
     Word::ApprovalMany,
-    Word::ApprovalBehindOne,
-    Word::ApprovalBehindMany,
     Word::ApprovalCut,
     Word::ApprovalTooFew,
     Word::ApprovalNoAccount,
     Word::ApprovalOtherRole,
+    Word::ApprovalSets,
+    Word::ApprovalPathSet,
+    Word::ApprovalJoin,
+    Word::ApprovalAnd,
+    Word::ApprovalSignOff,
     Word::ApprovalReview,
     Word::ApprovalOwner,
     Word::ApprovalMaintainer,
@@ -3392,6 +3417,9 @@ const ALL: [Word; 1651] = [
     Word::ApprovalObservers,
     Word::ApprovalRole,
     Word::ApprovalRoles,
+    Word::ApprovalSizeLines,
+    Word::ApprovalSizeFile,
+    Word::ApprovalSizeFiles,
     Word::ProposalOwnedApproval,
     Word::ApproveTitle,
     Word::ApproveTyping,
@@ -3486,12 +3514,15 @@ impl Word {
             Self::ApprovalProjectRule => 4126,
             Self::ApprovalOne => 4127,
             Self::ApprovalMany => 4128,
-            Self::ApprovalBehindOne => 4129,
-            Self::ApprovalBehindMany => 4130,
             Self::ApprovalCut => 4131,
             Self::ApprovalTooFew => 4132,
             Self::ApprovalNoAccount => 4133,
             Self::ApprovalOtherRole => 4134,
+            Self::ApprovalSets => 5652,
+            Self::ApprovalPathSet => 5653,
+            Self::ApprovalJoin => 5654,
+            Self::ApprovalAnd => 5655,
+            Self::ApprovalSignOff => 5656,
             Self::ApprovalReview => 4135,
             Self::ApprovalOwner => 4136,
             Self::ApprovalMaintainer => 4137,
@@ -3503,6 +3534,9 @@ impl Word {
             Self::ApprovalObservers => 4143,
             Self::ApprovalRole => 4144,
             Self::ApprovalRoles => 4145,
+            Self::ApprovalSizeLines => 5674,
+            Self::ApprovalSizeFile => 5675,
+            Self::ApprovalSizeFiles => 5676,
             Self::ProposalOwnedApproval => 4146,
             Self::ApproveTitle => 4147,
             Self::ApproveTyping => 4148,
@@ -3547,9 +3581,9 @@ impl Word {
             Self::StartOverTitle => 3749,
             Self::CloseGoal => 3750,
             Self::CloseTaskTitle => 3751,
-            Self::DeleteProject => 5672,
-            Self::DeleteProjectTitle => 5673,
-            Self::DeleteProjectSays => 5674,
+            Self::DeleteProject => 5677,
+            Self::DeleteProjectTitle => 5678,
+            Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
             Self::RejectTitle => 3756,
@@ -3969,6 +4003,8 @@ impl Word {
             Self::StartGoalAlways => 3593,
             Self::StartGoalAlwaysDetail => 3594,
             Self::GoalFollowsAway => 3595,
+            Self::WorkGoalBranchOne => 5672,
+            Self::WorkGoalBranchMany => 5673,
             Self::WorkOne => 4679,
             Self::WorkKicker => 4650,
             Self::WorkNothing => 4651,
@@ -3997,6 +4033,12 @@ impl Word {
             Self::WorkAChatWithYou => 4676,
             Self::WorkByline => 4677,
             Self::WorkOpenDraft => 4678,
+            Self::WorkLandedIn => 4680,
+            Self::WorkReadySince => 4681,
+            Self::WorkStartWay => 4682,
+            Self::WorkProjectWay => 4683,
+            Self::WorkAnotherWay => 4684,
+            Self::WorkStartGoal => 4685,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -4267,7 +4309,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
-            Self::ProjectDeleted => 5675,
+            Self::ProjectDeleted => 5680,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -5185,10 +5227,15 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 // Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/pages/settings.md, 2).
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
+// Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
+const APPROVAL_SET_NAMES_BYTES: u32 = 253;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
+    }
+    if [Word::ApprovalSets, Word::ApprovalJoin, Word::ApprovalAnd].contains(&word) {
+        return Ok(APPROVAL_SET_NAMES_BYTES);
     }
     if word == Word::ClassesSet {
         return Ok(if last { 490 } else { 40 });
@@ -5242,6 +5289,12 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     if word == Word::AnsweredReply {
         return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
+    // A landed draft names its complete directory, or the root repository and slash.
+    if word == Word::WorkLandedIn {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let name = bounds.landed_draft_name.checked_add(1).ok_or(Invalid::Overflow)?;
+        return Ok(name.max(bounds.landed_draft_path));
     }
     // Changes names the wire's complete repository and branch (client/forge/records.md).
     if word == Word::ChangesQueueNamed {
@@ -5588,12 +5641,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalProjectRule => (&[b"This project's landing rule ", b""], &[Number]),
         Word::ApprovalOne => (&[b"", b" asks for one approval by ", b"."], &[Name, Name]),
         Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"; ", b" so far."], &[Name, Number, Name, Number]),
-        Word::ApprovalBehindOne => (&[b"1 more change waits behind this one."], &[]),
-        Word::ApprovalBehindMany => (&[b"", b" more changes wait behind this one."], &[Number]),
         Word::ApprovalCut => (&[b"There are too many reviews to read them all, so one may already count."], &[]),
         Word::ApprovalTooFew => (&[b"Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change."], &[]),
         Word::ApprovalNoAccount => (&[b"temper knows no ", b" account of yours, so your review wouldn't count."], &[Name]),
         Word::ApprovalOtherRole => (&[b"It waits for a review by ", b"; yours wouldn't count."], &[Name]),
+        Word::ApprovalSets => (&[b"Signs off changes to ", b"."], &[Name]),
+        Word::ApprovalPathSet => (&[b"path set ", b""], &[Number]),
+        Word::ApprovalJoin => (&[b"", b", ", b""], &[Name, Name]),
+        Word::ApprovalAnd => (&[b"", b" and ", b""], &[Name, Name]),
+        Word::ApprovalSignOff => (&[b"Sign off on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalReview => (&[b"Review on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalOwner => (&[b"an owner"], &[]),
         Word::ApprovalMaintainer => (&[b"a maintainer"], &[]),
@@ -5605,6 +5661,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalObservers => (&[b"observers"], &[]),
         Word::ApprovalRole => (&[b"someone with role ", b""], &[Number]),
         Word::ApprovalRoles => (&[b"people with role ", b""], &[Number]),
+        Word::ApprovalSizeLines => (&[b"+", b" -", b""], &[Name, Name]),
+        Word::ApprovalSizeFile => (&[b" in 1 file"], &[]),
+        Word::ApprovalSizeFiles => (&[b" in ", b" files"], &[Name]),
         Word::ApproveTitle => (&[b"Sign in a terminal?"], &[]),
         Word::ApproveTyping => (&[b"Type the code your terminal shows."], &[]),
         Word::ApproveUnread => (&[b"That isn\xe2\x80\x99t a terminal\xe2\x80\x99s code. Type the eight letters your terminal shows."], &[]),
@@ -5810,6 +5869,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsMoreMany => (&[b"More than ", b" goals, ", b" under way."], &[Number, Number]),
         Word::GoalsLede => (&[b"A goal turns a draft into landed work."], &[]),
         Word::GoalsWays => (&[b"A goal turns a draft into landed work, its own way: "], &[]),
+        Word::WorkGoalBranchOne => (&[b"Also one change landed into a goal branch."], &[]),
+        Word::WorkGoalBranchMany => (&[b"Also ", b" changes landed into goal branches."], &[Name]),
         Word::WorkOne => (&[b"One"], &[]),
         Word::WorkKicker => (&[b"", b" \xc2\xb7 Work"], &[Name]),
         Word::WorkNothing => (&[b"Nothing in flight yet."], &[]),
@@ -5838,6 +5899,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkAChatWithYou => (&[b"a chat with you"], &[]),
         Word::WorkByline => (&[b"Written by the goal at ", b""], &[Name]),
         Word::WorkOpenDraft => (&[b"Open the draft"], &[]),
+        Word::WorkLandedIn => (&[b"landed in ", b""], &[Name]),
+        Word::WorkReadySince => (&[b"ready since ", b""], &[Name]),
+        Word::WorkStartWay => (&[b"Start a goal: ", b""], &[Name]),
+        Word::WorkProjectWay => (&[b"", b"\xe2\x80\x99s way"], &[Name]),
+        Word::WorkAnotherWay => (&[b"Another way"], &[]),
+        Word::WorkStartGoal => (&[b"Start a goal\xe2\x80\xa6"], &[]),
         Word::GoalsWaySeparator => (&[b", "], &[]),
         Word::GoalsWayEnd => (&[b"."], &[]),
         Word::GoalsAll => (&[b"All"], &[]),

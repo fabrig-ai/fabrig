@@ -403,6 +403,10 @@ hearth-activator.service      Delegate=yes; memory and pids enabled
 
 ## 10. Open questions
 
+- **The steward's diagnostics:** whether its traces reach the journal
+  through its own standard error, or through the activator; depends on
+  skein's spawn. The builder's standard error is the steward's
+  (hearth/docs/design/domain/steward.md, 3.1 and section 10).
 - **The linger, the deadlines and the builder's ceiling,** to set from
   measurements of the builder's start, its passes and its peak memory
   (hearth/docs/design/domain/build/README.md, section 10).

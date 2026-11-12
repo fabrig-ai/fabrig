@@ -82,7 +82,8 @@ contact or for the host's own shutdown (../hosts/hub.md, 6), whose answer
 ends its attempt interrupted in the same way, with the saved work it
 names kept for the next attempt. A kept
 task is never due, and a run of it that finishes done parks instead
-(8).
+(8). A standing task's run that finishes parks too (`standing.md`,
+section 2).
 
 **Nothing left to await.** After the ordinary unread-message wake rules,
 a result-ended agent task that parks still idle is due again if it is not
@@ -94,9 +95,36 @@ will come: your delegates have ended and no question waits. Finish with
 your result." It always wakes and merges in the dependency-met notice
 slot: an unread dependency-met notice already wakes it before this rule
 is reached. Each such park consumes a run try, retained across these
-wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (9). A task ended by its closer is
+wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
+
+**A question left open wakes it again.** After the ordinary
+unread-message wake rules, an agent task whose run parks idle while a
+question asked of it is still open (`messages.md`, 2) is due again at
+once, `question` among its reasons (`messages.md`, 6), when all of
+these hold:
+
+- its wake policy lets a question wake it (`messages.md`, 3);
+- its runs start from a brief, never resuming (../engine/executors.md,
+  2), since a resumed run's window already holds the question and a wake
+  would bring it nothing new;
+- it is no conversation, does not stand (`standing.md`), and is not
+  ended by its requester (9): each waits on its person or its session;
+- it awaits nothing that would bring the answer: it is not kept (8), and
+  has no pending proposal, no live person delegate, and no
+  executor-taken timer or task watch naming a live task.
+
+Its next run's brief shows each open question (../engine/briefs.md,
+1.2). No notice is numbered: the open question is the reason. Each such
+park consumes a run try, retained across these wakes as Nothing left to
+await's are. Past its run tries the task is held, as a task past its
+tries is (6), for `Failures` of the run's class, its hold's words
+`Task A's question N is still open: LINE`, A, N and LINE the oldest open
+question's asker, number and first line, cut at a character's edge to
+the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that whoever
+the hold reaches sees what waits. A task held so is not failed: its
+delegates go on, and a release counts its tries again from it.
 
 ## 3. Procedure tasks
 
@@ -192,6 +220,8 @@ them (8).
   preparing or its newest word changed: the newest of its inbox and of the
   proposals and escalations waiting on it, which never enter that inbox.
   Every attempt, a failed one included, takes a new attempt number.
+  A standing task's tries start again as each of its sessions begins
+  (`standing.md`, 5.1).
 - **A configured bound holds at once.** `End::Exceeded(Exceeded)` becomes
   `Hold::Exceeded(Exceeded)`, with prior lifecycle `Active(Due)` and no
   source. The tasks child's own `Exceeded { bound: Bound, value: u64 }`
@@ -385,7 +415,8 @@ batch per asker; the core numbers each notice once.
 
 ## 9. Ended by its requester
 
-A task is ended by its result, by its requester or by its closer (11):
+A task is ended by its result, by its requester or by its closer (11),
+or it stands, ended only by a cancel (`standing.md`, section 2):
 its `ended_by`, fixed at its making. A result ends it by default. Its requester may end it
 only if it is an agent's conversation with a person, its requester;
 making it refuses any other shape, and a restart takes what was made

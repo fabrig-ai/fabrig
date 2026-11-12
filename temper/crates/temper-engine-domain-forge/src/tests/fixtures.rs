@@ -81,6 +81,7 @@ pub fn open_pull() -> skein_forge::api::Pull {
         ci: skein_forge::api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     }
 }
 
@@ -139,9 +140,11 @@ pub fn opening_row() -> ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -426,5 +429,34 @@ pub fn workflows_absent(d: &mut Domain) {
         let (call, op) = next_call(d);
         assert_eq!(op, Op::Read(Read::File { head: BASE, path: path.into(), max_bytes: LIMITS.client.answer_bytes }));
         answer(d, call, Err(Error::Missing));
+    }
+}
+
+/// A job's first failed step, including the runner's set-up and completion.
+pub fn failed_run(attempt: skein_forge::api::JobAttempt, step: Option<u32>) -> skein_forge::api::Run {
+    use skein_forge::api::{Conclusion, Run, RunJob, RunState, Step};
+    Run {
+        id: attempt.run,
+        number: attempt.run,
+        workflow: b"ci".as_slice().into(),
+        commit: attempt.head,
+        event: skein_forge::api::Event::Other,
+        actor: 7,
+        state: RunState::Completed,
+        conclusion: Some(Conclusion::Failure),
+        url: Box::new([]),
+        created: Time::ZERO,
+        jobs: Box::new([RunJob {
+            id: attempt.job,
+            name: b"test".as_slice().into(),
+            attempt: attempt.attempt,
+            state: RunState::Completed,
+            conclusion: Some(Conclusion::Failure),
+            steps: 4,
+            step: match step {
+                Some(number) => Some(Step { number, name: b"step".as_slice().into() }),
+                None => None,
+            },
+        }]),
     }
 }

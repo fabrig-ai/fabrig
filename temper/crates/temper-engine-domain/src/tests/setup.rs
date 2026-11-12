@@ -897,6 +897,7 @@ fn seed_with_landing() -> crate::Config {
         .insert(
             1,
             Box::new([crate::LandingRule {
+                sets: Box::new([]),
                 connector: 0,
                 kind: 4,
                 pattern: authority::Pattern {

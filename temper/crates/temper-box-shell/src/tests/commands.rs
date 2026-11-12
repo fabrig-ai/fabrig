@@ -192,10 +192,6 @@ fn rows_are_within_bounds() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = temper_shell::table::commands_reference(&[
         &temper_engine_shell::ENGINE,
@@ -203,12 +199,9 @@ fn the_page_commands_is_what_the_table_renders() {
         &temper_agent_shell::AGENT,
         &TABLE,
     ]);
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        let path = skein_scratch::paths::tree().join("docs/help/reference/commands.md");
         std::fs::write(path, &rendered).expect("write commands reference");
         return;
     }
@@ -220,17 +213,13 @@ fn the_page_commands_is_what_the_table_renders() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_page_host_tools_is_what_the_declarations_render() {
     let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
     temper_engine_smith::reference(&mut measured).expect("host-tools fits PAGE_BYTES");
     let mut out = skein_lib::Writer::new(measured.written());
     temper_engine_smith::reference(&mut out).expect("host-tools fits measured length");
     let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/host-tools.md");
         std::fs::write(path, &rendered).expect("write host-tools reference");
         return;
@@ -243,17 +232,13 @@ fn the_page_host_tools_is_what_the_declarations_render() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn the_page_see_is_what_the_addresses_render() {
     let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
     temper_engine_smith::see_reference(&mut measured).expect("see fits PAGE_BYTES");
     let mut out = skein_lib::Writer::new(measured.written());
     temper_engine_smith::see_reference(&mut out).expect("see fits measured length");
     let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+    if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/see.md");
         std::fs::write(path, &rendered).expect("write see reference");
         return;
@@ -262,13 +247,21 @@ fn the_page_see_is_what_the_addresses_render() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");
+    let directory = skein_scratch::paths::tree().join("docs/help/reference");
+    if temper_test_env::rewrite() {
+        for group in GROUPS {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within renderer's text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("reference within renderer's text bound");
+            let name = format!("ctl-{}", core::str::from_utf8(group.name).expect("group name"));
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+        return;
+    }
     let expected = GROUPS
         .iter()
         .map(|group| format!("ctl-{}", core::str::from_utf8(group.name).expect("group name")))
@@ -303,7 +296,7 @@ fn every_ctl_group_page_is_what_the_table_renders() {
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
         let path = directory.join(name).with_extension("md");
-        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        if temper_test_env::rewrite() {
             std::fs::write(path, &rendered).expect("write group reference");
         } else {
             assert_eq!(
@@ -327,10 +320,6 @@ fn bundle_build_variable_is_internal_in_both_tables() {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the checked documents; the test table will pass it"
-)]
 fn arguments_and_environment_documents_are_the_tables() {
     let documents = [
         ("temper-box-args.md", TABLE.arguments_document()),
@@ -342,7 +331,7 @@ fn arguments_and_environment_documents_are_the_tables() {
         ("temper-agent-env.md", temper_agent_shell::AGENT.environment_document(&TREE)),
         ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
     ];
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    let write = temper_test_env::rewrite();
     for (name, rendered) in documents {
         let path = skein_scratch::paths::tree().join("docs/design/cli").join(name);
         if write {

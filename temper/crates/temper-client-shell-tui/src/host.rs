@@ -110,6 +110,7 @@ pub struct Host {
     boxed: bool,
     focus: Focus,
     frame: Frame,
+    draft_shown: bool,
     mapping: jig_client_protocol_http::Mapping,
     credential: Option<Secret>,
     signing: Set<Token>,
@@ -150,6 +151,7 @@ impl Host {
             boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
+            draft_shown: false,
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
@@ -201,7 +203,11 @@ impl Host {
                 }
             }
             Report::Key(key) => {
-                if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
+                if key == Key::Control(b'p') {
+                    if let Some(event) = tui::pane_key(&self.view) {
+                        self.event(event, &mut duties);
+                    }
+                } else if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
                     self.tell(Told::Walk { by_key: true });
                 } else if let Some(event) = self.arrow(&key) {
                     self.event(event, &mut duties);
@@ -238,6 +244,12 @@ impl Host {
         self.route(&mut duties);
         self.launchpad(project);
         self.route(&mut duties);
+        if self.state().start_chat().is_some() && self.root.pages().start().is_none() {
+            if matches!(self.root.pages().needs().toast(), Some(needs::Toasted::Proposed { .. })) {
+                self.notice(tui::Notice::Proposed);
+            }
+            self.tell(Told::Starting { chat: None });
+        }
         if let Some(aside) = self.state().aside()
             && !self.aside_stands(aside)
         {
@@ -521,6 +533,25 @@ impl Host {
                 }
                 self.tell(Told::Cleared);
             }
+            tui::Event::Command { command: TuiCommand::Goal } => {
+                if tui::goal_offered(&self.root)
+                    && let Some(chat) = self.root.pages().chat()
+                    && let Some(document) = &chat.draft
+                {
+                    let task = chat.task;
+                    let path = root::pages::chat::sheet::path(&root::pages::chat::document::slug(&document.title));
+                    self.act(Act::OpenStart { draft: Some(path), chat: Some(task) });
+                    if self.root.pages().start().is_some() {
+                        self.tell(Told::Starting { chat: Some(task) });
+                    }
+                }
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            tui::Event::Way { template } => {
+                self.act(Act::StartWay { template });
+                self.act(Act::StartGoal);
+            }
             tui::Event::Command { command } => {
                 self.act(Act::Terminal(terminal::Act::Run { command }));
                 self.tell(Told::Cleared);
@@ -594,6 +625,9 @@ impl Host {
     }
 
     fn act(&mut self, act: Act) {
+        if act == Act::StartCancel {
+            self.tell(Told::Starting { chat: None });
+        }
         self.step(Event::Act { action: root::Action::Pages(act) });
     }
 
@@ -765,6 +799,13 @@ impl Host {
     }
 
     fn show(&mut self, address: Address) {
+        if matches!(&address, Address::Task { .. })
+            && let Some(task) = self.state().start_chat()
+        {
+            self.tell(Told::Starting { chat: None });
+            self.act(Act::Go { address: Address::Chat { task } });
+            return;
+        }
         let project = match &address {
             Address::AllHome | Address::Home { .. } | Address::Chat { .. } => {
                 self.went(address);
@@ -964,6 +1005,14 @@ impl Host {
 
     pub fn frame(&mut self) -> &Frame {
         if self.state.is_some() {
+            let draft = self.view.pane_mode() == Some(root::pages::chat::document::Mode::Draft);
+            if draft != self.draft_shown {
+                self.focus.follow = !draft;
+                if draft {
+                    self.focus.scroll = 0;
+                }
+                self.draft_shown = draft;
+            }
             skein_ui_screen::render(self.view.tree(), &self.theme, self.size, &mut self.focus, &mut self.frame);
         } else {
             self.frame.clear(self.size, Cell::BLANK);
@@ -978,6 +1027,9 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Control(b'p') {
+            return tui::pane_key(&self.view);
+        }
         if *key == Key::Char('n')
             && let Some(event) = tui::walk_key(&self.view)
         {

@@ -113,6 +113,7 @@ pub struct Domain {
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
+    pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
@@ -131,7 +132,7 @@ pub struct Domain {
     pub(crate) facts_lost: u64,
 }
 
-/// Volatile operator queues (temper/docs/design/domain/worker.md, 4.3).
+/// Volatile operator queues (temper/docs/design/domain/worker/README.md, 4.3).
 #[derive(Hash, Debug)]
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
@@ -567,6 +568,9 @@ impl Domain {
                 limits.call_records.checked_add(limits.tasks.tasks).expect("effect handoff capacity"),
             ),
             next_effect_owner: 1,
+            follow_steps: Map::with_capacity(
+                limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
+            ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -743,20 +747,20 @@ impl Domain {
     }
 
     /// Take the oldest accepted failed answer's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
     pub fn pop_run_diagnostic(&mut self) -> Option<crate::RunDiagnostic> {
         self.changed();
         self.run_diagnostics.failed.pop()
     }
 
     /// Take the oldest accepted refusal's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
     pub fn pop_run_refusal(&mut self) -> Option<crate::RunRefusalDiagnostic> {
         self.changed();
         self.run_diagnostics.refused.pop()
     }
 
-    /// Take an accepted job's operator evidence once (temper/docs/design/domain/worker.md, 4.4).
+    /// Take an accepted job's operator evidence once (temper/docs/design/domain/worker/jobs.md).
     pub fn pop_job_diagnostic(&mut self) -> Option<crate::JobDiagnostic> {
         self.changed();
         self.run_diagnostics.jobs.pop()
@@ -1239,6 +1243,7 @@ fn released_into(
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
+        Delivery::MoveStanding { project, owner } => crate::route::standing::move_roles(domain, project, owner),
         Delivery::ProjectMade { project } => {
             if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period

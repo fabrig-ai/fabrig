@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 63] = [
+pub static PAGES: [Page; 66] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -393,6 +393,13 @@ pub static PAGES: [Page; 63] = [
         text: include_str!("../../../docs/help/reference/ctl-goal.md"),
     },
     Page {
+        name: "ctl-role",
+        kind: Kind::Reference,
+        title: "temper ctl role",
+        summary: "Standing roles: start one, list them, read one and its Now.",
+        text: include_str!("../../../docs/help/reference/ctl-role.md"),
+    },
+    Page {
         name: "ctl-proposal",
         kind: Kind::Reference,
         title: "temper ctl proposal",
@@ -414,11 +421,25 @@ pub static PAGES: [Page; 63] = [
         text: include_str!("../../../docs/help/reference/ctl-change.md"),
     },
     Page {
+        name: "ctl-follow",
+        kind: Kind::Reference,
+        title: "temper ctl follow",
+        summary: "Follows: read a project's follows and their lag and parity.",
+        text: include_str!("../../../docs/help/reference/ctl-follow.md"),
+    },
+    Page {
         name: "ctl-landing",
         kind: Kind::Reference,
         title: "temper ctl landing",
         summary: "Landings: read one or a project's landings.",
         text: include_str!("../../../docs/help/reference/ctl-landing.md"),
+    },
+    Page {
+        name: "ctl-draft",
+        kind: Kind::Reference,
+        title: "temper ctl draft",
+        summary: "Landed drafts: say ready or not ready, list them.",
+        text: include_str!("../../../docs/help/reference/ctl-draft.md"),
     },
     Page {
         name: "ctl-repository",

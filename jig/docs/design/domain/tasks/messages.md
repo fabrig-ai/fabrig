@@ -50,6 +50,14 @@ again when a run leaves one undecided only as 6 says.
   are evicted first, and an unanswered position is never evicted. A
   question past `inbox_messages` unanswered ones is refused at its
   sender's entrance, as words past the inbox's bound are.
+- **Open questions stay in front of it.** A question asked of the task
+  is open until it hears an answer or the question ends
+  (`lifecycle.md`, 8). Read or not, an open question is shown to every
+  run that starts from a brief: in its waiting section, with its asker,
+  its number and how to answer, unless the run's start carries it as a
+  message (../engine/briefs.md, 1.2). It is among
+  every run's reasons (6), and, left open by a run that parks idle,
+  wakes the task again (`lifecycle.md`, 2).
 - **Within what a run reads.** Every message an inbox admits fits a
   run's message bound as it is rendered (smith's `protocol/limits.md`,
   3.9), so no run refuses one as too large: words and questions larger
@@ -207,6 +215,12 @@ those parts are for.
   lets wake it when it is activated (3). A kind that rides along without
   waking it is no reason: a non-last result under `last_or_failure`, or
   news a pace holds, gives none.
+- **An open question is a reason.** While a question asked of the task
+  is open (2), `question` is among the reasons of each of its runs,
+  whatever woke it and whatever its policy, as an entry waiting for its
+  decision gives its kind. So under a charter in parts, a run woken by
+  words, a result or news reads the part for questions too, and is
+  offered what that part names.
 - **A continuation and a retry** run for the reasons of the attempt before
   them, kept with the task (`README.md`, section 3), plus the kinds that wake them at
   their own activation. A retry is due by its backoff, not by a message, and
@@ -226,13 +240,18 @@ those parts are for.
   its charter's instructions, then each part whose `on` meets its reasons,
   in the charter's order, each part once (../engine/executors.md, 1); a run no part is
   for reads the charter's instructions alone. A charter holds at most
-  `tasks.charter_parts` parts (`../../protocol/limits.md`),
-  and one whose runs resume holds none: a resumed run keeps the
+  `tasks.charter_parts` parts (`../../protocol/limits.md`).
+  One whose runs resume may hold parts, which a standing task reads at
+  each session's start and keeps through the session (`standing.md`,
+  5.4); any other task under it reads its charter's instructions alone,
+  every run, and is offered every message: a resumed run keeps the
   instructions its conversation began with, which changing would lose its
   cache and leave its earlier turns read under other words.
 - **What a run is offered:** under a charter with parts, the always-offered
-  and every kind named in the `on` of a part it reads; under a charter with
-  none, or for a task with instructions of its own (`changes.md`), every
+  and every kind named in the `on` of a part it reads, for a standing task
+  the parts its session's reasons chose (`standing.md`, 5.4); under a
+  charter with none, for a task that does not stand under a charter whose
+  runs resume, or for a task with instructions of its own (`changes.md`), every
   message, as a charter with no parts gave every run before. The parts are
   those its preparation chose (../engine/executors.md, 1, step 2).
 - **A live run hears its results.** Beside what its parts offer, a

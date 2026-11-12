@@ -55,6 +55,7 @@ fn assignment() -> engine::Assignment {
                     dialect: 1,
                     endpoint: 1,
                     name: b"scripted".as_slice().into(),
+                    cache_life_ms: 0,
                     window: 8192,
                     output: 1024,
                     input_price: 1,
@@ -516,7 +517,10 @@ fn a_starting_inbox_keeps_question_and_answer_references() {
     ) else {
         panic!("start conversion")
     };
-    assert_eq!(messages[0].label.as_ref(), b"2 asks (question 4)");
+    assert_eq!(
+        messages[0].label.as_ref(),
+        b"2 asks (question 4; answer with message target=2, form=answer, question=4)"
+    );
     assert_eq!(messages[0].text.as_ref(), b"The plan?");
     assert_eq!(messages[1].label.as_ref(), b"1 answers question 4");
     assert_eq!(messages[1].text.as_ref(), b"Approved.");
@@ -1188,6 +1192,7 @@ fn pull_answer(state: skein_forge::api::State, head: [u8; 32], merged: Option<[u
         ci: api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     })
 }
 

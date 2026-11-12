@@ -223,7 +223,7 @@ fn landing_phase(phase: &f::PublicLandingPhase) -> W {
         f::PublicLandingPhase::Cancelled => W::EndedLine,
     }
 }
-fn short(hash: &[u8; 32]) -> [u8; 7] {
+pub(crate) fn short(hash: &[u8; 32]) -> [u8; 7] {
     let mut digits = [0; 7];
     for (position, digit) in digits.iter_mut().enumerate() {
         let byte = hash.get(position.checked_div(2).expect("nonzero divisor")).expect("short hash byte");

@@ -75,6 +75,10 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   and the union's resource and repository bounds before retaining the
   subscription. Restart reconstruction, task-name changes and forge removal
   use the same union, excluding ended forges.
+- **Follows own watches too:** each follow contributes its source
+  repository and branch (`follows.md`, section 3) to the same union, for
+  as long as its setting lives; accepting or removing a follow rebuilds
+  it, and admission checks the union's bounds before the follow is kept.
 
 ## 2. Keeping up
 
@@ -429,3 +433,24 @@ back. The forge stays connected throughout: connected is its access
   once a read has answered without it past its lifetime: reads that end
   `Unavailable` or `Timeout` are waited out, and neither a runner fault
   nor a retry is spent for them.
+
+## 6. Open questions
+
+- **The connector's own retries** (`keeping-up.md`, 3): a brief read or lost-read
+  recovery waiting for client room is retried when the connector resumes
+  with room, without a timed backoff. A run's host call instead uses
+  smith's growing, capped backoff (`smith/docs/design/domain/run.md`,
+  5.2). Whether those internal reads need a timed backoff is separate
+  connector work. Default: retry when room is available; the host-call
+  rule changes no connector timer or admission bound.
+
+- **Which checks are CI on GitHub, without required checks:** temper's
+  draft (`../../draft/github.md`, section 9) takes the repository's Actions
+  workflows' check runs there, so that another App's check run (a
+  Codecov's) is not CI. That needs each row's App, which skein's
+  `Status` carries only for a failed Actions run; until skein's dialect
+  carries it on every row, every row is CI (`keeping-up.md`, 3), another App's check
+  runs among them, and its suites with no run list nothing.
+
+- **A resource refused as forbidden:** whether the connector should hear
+  when it is readable again, rather than read it on a backoff.

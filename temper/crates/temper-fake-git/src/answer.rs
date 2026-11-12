@@ -5,7 +5,7 @@ use skein_fake_checkout::{
     git::{self, Created, Fault, Pushed, Tree, Want, What},
     in_git,
 };
-use temper_worker_domain_checkout::git::{Commit, Into};
+use temper_worker_domain_checkout::git::Commit;
 use temper_worker_protocol_git::invocation::{Command, Source};
 
 /// Bytes written to the invocation's pipes and its terminal status.
@@ -101,17 +101,55 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 }
             }
         }
-        Command::Clone { remote, directory } => {
-            let destination = path(at, directory);
-            match git::clone_repository(transport, checkout, remote, &destination) {
-                Ok(()) => {
-                    checkout.write(&path(&destination, b".git/temper-remote"), remote);
-                    Answer::success(Vec::new())
-                }
+        Command::Format => {
+            if !checkout.exists(&path(at, b".git")) && !checkout.exists(&path(at, b"HEAD")) {
+                return Answer::local_failure();
+            }
+            Answer::success(match git::object_format(checkout, at) {
+                git::ObjectFormat::Sha1 => b"sha1\n".to_vec(),
+                git::ObjectFormat::Sha256 => b"sha256\n".to_vec(),
+            })
+        }
+        Command::Clone { directory, format } => {
+            let format = match format {
+                temper_worker_protocol_git::invocation::Format::Sha1 => git::ObjectFormat::Sha1,
+                temper_worker_protocol_git::invocation::Format::Sha256 => git::ObjectFormat::Sha256,
+            };
+            git::init_with_format(checkout, &path(at, directory), false, format);
+            Answer::success(Vec::new())
+        }
+        Command::Store { directory, remote } => {
+            match git::clone_bare(transport, checkout, remote, &path(at, directory)) {
+                Ok(()) => Answer::success(Vec::new()),
                 Err(fault) => failed(remote, fault),
             }
         }
-        Command::Fetch { remote, source, into } => fetch(checkout, at, transport, remote, source, *into),
+        Command::Remote { remote } => {
+            checkout.write(&path(at, b".git/temper-remote"), remote);
+            Answer::success(Vec::new())
+        }
+        Command::UpdateRef { into, commit } => {
+            match git::update_ref(
+                checkout,
+                at,
+                match into {
+                    temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched",
+                    temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing",
+                },
+                count(*commit),
+            ) {
+                Ok(()) => Answer::success(Vec::new()),
+                Err(_) => Answer::local_failure(),
+            }
+        }
+        Command::Fetch { remote, source, into, workspace } => fetch(
+            checkout,
+            at,
+            transport,
+            remote,
+            source,
+            &temper_worker_protocol_git::invocation::store_reference(*workspace, *into),
+        ),
         Command::Create { remote, branch, commit } => create(checked, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = path(at, b".git/index.lock");
@@ -152,7 +190,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             Answer::success(Vec::new())
         }
         Command::DiffPaths { before, after } => {
-            if !checkout.exists(&object(at, count(*before))) || !checkout.exists(&object(at, count(*after))) {
+            if !git::object_present(checkout, at, count(*before)) || !git::object_present(checkout, at, count(*after)) {
                 return Answer::local_failure();
             }
             let before = transport.tree(count(*before));
@@ -168,7 +206,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             Answer::success(bytes)
         }
         Command::DiffIndex { parent } => {
-            if !checkout.exists(&object(at, count(*parent))) {
+            if !git::object_present(checkout, at, count(*parent)) {
                 return Answer::local_failure();
             }
             let mut out = Answer::success(Vec::new());
@@ -182,8 +220,8 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 return Answer::local_failure();
             }
             let parent = count(*parent);
-            if !checkout.exists(&object(at, parent))
-                || merging.is_some_and(|second| !checkout.exists(&object(at, count(second))))
+            if !git::object_present(checkout, at, parent)
+                || merging.is_some_and(|second| !git::object_present(checkout, at, count(second)))
             {
                 return Answer::local_failure();
             }
@@ -202,7 +240,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     }
 }
 fn merge(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, theirs: u64) -> Answer {
-    // git-transcripts' merge-in-progress records this refusal before even an already-contained head.
+    // temper-git-transcripts' merge-in-progress records this refusal before even an already-contained head.
     if checkout.exists(&path(at, b".git/MERGE_HEAD")) {
         return Answer {
             exit: 128,
@@ -347,13 +385,9 @@ fn fetch(
     transport: &mut impl Transport,
     remote: &[u8],
     source: &Source,
-    into: Into,
+    reference: &[u8],
 ) -> Answer {
-    let reference = match into {
-        Into::Fetched => b"refs/temper/fetched".as_slice(),
-        Into::Landing => b"refs/temper/landing".as_slice(),
-    };
-    let target = path(at, &[b".git/".as_slice(), reference].concat());
+    let target = path(at, reference);
     let previous = checkout.content(&target).map_or(0, count_bytes);
     let want = match source {
         Source::Branch(branch) => Want::Branch(branch),
@@ -407,7 +441,7 @@ fn push(
     expected: Option<Commit>,
 ) -> Answer {
     let commit = count(*commit);
-    if !checkout.exists(&object(at, commit)) {
+    if !git::object_present(checkout, at, commit) {
         return Answer::local_failure();
     }
     let old = transport.branch(remote, branch);

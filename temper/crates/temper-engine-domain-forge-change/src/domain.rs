@@ -29,6 +29,9 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
 #[expect(clippy::too_many_lines, reason = "the ordered guards include requester-branch moves before phase dispatch")]
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
+    if facts.kept {
+        next.owns_turn = false;
+    }
     if change.gates.len() > skein_lib::usize_of(limits.gates)
         || change.clean.len() > skein_lib::usize_of(limits.clean_heads)
         || change.gate_failures.len() > skein_lib::usize_of(limits.gates)
@@ -46,6 +49,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     match facts.pull {
         Pull::Merged { commit } => {
             next.state = State::Landed { merge: commit, since: now };
+            next.owns_turn = false;
             next.released = None;
             return verifying(next, commit, now, facts, standing.cancelled, now);
         }
@@ -96,14 +100,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
     };
     if facts.writer_taken && !start_conflicted {
-        if let State::WaitingProducer { .. } = change.state {
-            return Stepped { change: next, decision: Decision::Wait { until: None } };
-        }
-        return if let State::Ready { .. } = change.state {
-            Stepped { change: next, decision: Decision::Wait { until: None } }
-        } else {
-            waiting(next, now, limits)
-        };
+        return waiting_on_agent(next, facts, standing, now, limits);
     }
     if let Some(why) = facts.drift {
         return hold(next, why);
@@ -273,6 +270,16 @@ fn advance_phase(
         State::Reopening { requested, retarget } => {
             reopening(next, *requested, *retarget, facts, standing, now, limits)
         }
+        State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
+            if standing.effect == EffectResult::Pending =>
+        {
+            waiting(next, now, limits)
+        }
+        State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
+            if standing.effect == EffectResult::Failed =>
+        {
+            hold(next, Hold::Failed)
+        }
         State::Checking { head } => checking(next, *head, facts, standing, now, limits),
         State::Gating { head, asked } => gating(next, *head, asked, facts, now, limits),
         State::Ready { head, ready_since } => ready(next, *head, *ready_since, facts, now, limits),
@@ -280,7 +287,7 @@ fn advance_phase(
             preparing(next, *from, *main, *ready_since, facts, standing, now, limits)
         }
         State::CancellingGates { head } => cancelling_gates(next, *head, facts, now, limits),
-        State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts),
+        State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts, standing, now, limits),
         State::First { head, ready_since } => first(next, *head, *ready_since, facts, standing, now, limits),
         State::Updating { from, base, ready_since } => {
             updating(next, *from, *base, *ready_since, facts, standing, now, limits)
@@ -539,10 +546,11 @@ fn waiting_on_agent(mut change: Change, facts: &Facts, standing: &Heard, now: Wa
 }
 
 fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    let stall = Wall::from_nanos(change.since.as_nanos().saturating_add(limits.stall.as_nanos()));
     if let Some(end) = facts.settling
-        && now < end
+        && now < end.min(stall)
     {
-        Stepped { change, decision: Decision::Wait { until: Some(end) } }
+        Stepped { change, decision: Decision::Wait { until: Some(end.min(stall)) } }
     } else {
         waiting(change, now, limits)
     }
@@ -564,6 +572,9 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if !requested && facts.follows && !facts.pending.is_empty() {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     match &change.early {
         Early::Started(heads) => {
             if standing.start_conflict.is_some() {
@@ -729,6 +740,7 @@ fn opening(
         }
         Pull::Missing if !requested => {
             change.state = State::Opening { requested: true };
+            change.since = now;
             Stepped { change, decision: Decision::Effect(Effect::Open) }
         }
         Pull::Missing => match standing.effect {
@@ -784,6 +796,18 @@ fn reopening(
     }
 }
 
+fn rerun_due(facts: &Facts, limits: &Limits) -> bool {
+    match facts.fault {
+        crate::Fault::Runner { reruns } => reruns < limits.reruns,
+        crate::Fault::Change => false,
+    }
+}
+
+fn rerun(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    change.since = now;
+    Stepped { change, decision: Decision::Effect(Effect::Rerun { head }) }
+}
+
 fn checking(
     mut change: Change,
     head: [u8; 32],
@@ -805,9 +829,13 @@ fn checking(
     match facts.ci.status {
         Status::Passed => {
             change.state = State::Gating { head, asked: Box::new([]) };
+            change.since = now;
             Stepped { change, decision: Decision::None }
         }
         Status::Failed => {
+            if rerun_due(facts, limits) {
+                return rerun(change, head, now);
+            }
             let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
             repair_due(change, why, facts, now, limits)
         }
@@ -888,8 +916,12 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return hold(change, Hold::BranchMoved);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
+        if rerun_due(facts, limits) {
+            return rerun(change, head, now);
+        }
         if facts.live_gate == Some(head) {
             change.state = State::CancellingGates { head };
+            change.owns_turn = false;
             return Stepped { change, decision: Decision::CancelGates { head } };
         }
         let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
@@ -914,11 +946,12 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         match verdict(&change, gate, facts, head) {
             Status::Failed if gate.blocking => match gate.kind {
                 GateKind::Person => return hold(change, Hold::Rejected),
-                GateKind::Agent | GateKind::Check => {
+                GateKind::Agent | GateKind::Check | GateKind::Follow => {
                     return repair_due(change, Repair::Gate(gate.number), facts, now, limits);
                 }
             },
             Status::Unknown if !asked.contains(&gate.number) => {
+                change.owns_turn = false;
                 // The top owns one delegate slot: retain it until that gate ends.
                 if facts.live_gate.is_some() {
                     return waiting(change, now, limits);
@@ -929,6 +962,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                 }
                 collected.push(gate.number).expect("gate admission checked");
                 change.state = State::Gating { head, asked: collected.into_boxed() };
+                change.since = now;
                 return Stepped { change, decision: Decision::Delegate(Delegate::Gate { number: gate.number, head }) };
             }
             Status::Unknown | Status::Pending if gate.blocking => waiting_gate = true,
@@ -939,6 +973,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         return waiting(change, now, limits);
     }
     if facts.kept {
+        change.owns_turn = false;
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
     let since = match change.ready_since {
@@ -955,10 +990,18 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
     } else {
         change.state = State::Queued { head, ready_since: since };
     }
+    change.since = now;
     Stepped { change, decision: Decision::Ready }
 }
 
-fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if facts.branch == Some(head)
+        && facts.ci.head == head
+        && facts.ci.status == Status::Failed
+        && rerun_due(facts, limits)
+    {
+        return rerun(change, head, now);
+    }
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -968,13 +1011,28 @@ fn cancelling_gates(change: Change, head: [u8; 32], facts: &Facts, now: Wall, li
     if let Some(head) = green_head(facts) {
         return take_pushed_head(change, head, now);
     }
+    if facts.ci.head != head || facts.ci.status == Status::Pending || facts.ci.status == Status::Unknown {
+        return waiting(change, now, limits);
+    }
+    change.owns_turn = false;
     let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
     repair_due(change, why, facts, now, limits)
 }
 
-fn queued(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts) -> Stepped {
+fn queued(
+    mut change: Change,
+    head: [u8; 32],
+    ready_since: Wall,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
+    }
+    if let Some(reviewed) = standing.review_request {
+        return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
     }
     if facts.kept
         || facts.ci.head != head
@@ -987,6 +1045,7 @@ fn queued(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts) 
     }
     if facts.first {
         change.state = State::First { head, ready_since };
+        change.since = now;
         change.owns_turn = true;
         Stepped { change, decision: Decision::None }
     } else {
@@ -1045,6 +1104,7 @@ fn first(
                 return Stepped { change, decision: Decision::Wait { until: None } };
             }
             change.state = State::Landing { head };
+            change.since = now;
             Stepped { change, decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }) }
         }
         Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
@@ -1116,6 +1176,7 @@ fn updated(mut change: Change, from: [u8; 32], head: [u8; 32], now: Wall, limits
 }
 
 fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    change.owns_turn = false;
     if change.way == Way::Queue {
         match facts.contains_base {
             Status::Failed => match facts.branch {
@@ -1133,7 +1194,6 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
         return hold(change, Hold::Repairs);
     }
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
-    change.owns_turn = false;
     match why {
         Repair::Semantic => {}
         Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
@@ -1395,6 +1455,7 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     if *current != head || !asked.contains(&number) {
         return next;
     }
+    next.owns_turn = false;
     let mut failures = List::with_capacity(limits.gates);
     let mut count = 1;
     for failure in &change.gate_failures {
@@ -1475,6 +1536,16 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
 }
 
 fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
+    match delegate {
+        Delegate::Gate { number: crate::FOLLOW_CHECK_GATE, .. } => return None,
+        Delegate::Gate { .. }
+        | Delegate::Produce
+        | Delegate::Close
+        | Delegate::Repair(_)
+        | Delegate::Resolve { .. }
+        | Delegate::Merge { .. } => {}
+    }
+
     if let Some(why) = standing.lacking {
         return Some(why);
     }

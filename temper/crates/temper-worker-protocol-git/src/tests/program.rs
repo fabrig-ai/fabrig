@@ -7,7 +7,7 @@ use temper_worker_domain_checkout::git;
 const FIRST: &[u8] = b"/fake/first";
 const SECOND: &[u8] = b"/fake/second";
 // The fresh layout has seven kernel operations, through its workspaces open.
-const LAYOUT_STEPS: u8 = 7;
+const LAYOUT_STEPS: u8 = 10;
 const CURRENT: &[u8] = b"git version 2.41.0\n";
 const REMOTE: &[u8] = b"https://forge.example.test:8443/acme/app.git";
 
@@ -220,7 +220,7 @@ fn start(machine: bool) -> Started {
     .expect("valid");
     world.component.start(world.now, &mut world.below.out);
     assert!(world.below.out.io.is_empty(), "no start version spawn");
-    for _ in 0_u8..7 {
+    for _ in 0_u8..10 {
         world.file_operation();
         world.complete_ok();
     }
@@ -237,7 +237,15 @@ fn request(program: Option<&[u8]>, remote: bool) -> Request {
     Request::Io {
         owner: fixtures::OWNER,
         op: if remote {
-            git::Op::Clone { at, remote: Box::from(REMOTE), identity: 1, account: None }
+            git::Op::Fetch {
+                at,
+                remote: Box::from(REMOTE),
+                store: skein_lib::Token::new(9),
+                want: git::Want::Default,
+                into: git::Into::Fetched,
+                identity: 1,
+                account: None,
+            }
         } else {
             git::Op::CheckOut { at, commit: fixtures::COMMIT, clean: true }
         },

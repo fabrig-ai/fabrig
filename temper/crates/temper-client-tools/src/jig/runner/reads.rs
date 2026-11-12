@@ -161,6 +161,28 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let before = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Activity { task, before }, out);
         }
+        rows::ROLE_LIST_AT => {
+            let Some(me) = super::acts::me(runner, client) else { return };
+            let Some(project) = project(&reading.called.call, me) else {
+                let printed = render::failure(b"unknown project", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            };
+            let query = c::TaskQuery {
+                project: Some(project),
+                requester: None,
+                root: None,
+                parent: None,
+                label: Some(3),
+                phase: None,
+                executor: None,
+                tracked: None,
+                order: c::QueryOrder::Number,
+            };
+            let live = cursor(&reading.called.call, 1);
+            read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
+        }
+        rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
@@ -303,7 +325,11 @@ pub(super) fn page(
         person_page(runner, client, env, reading, page, out);
         return;
     }
-    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::TASK_TEXT_AT) && local == 7 {
+    if (reading.called.call.tool == rows::TASK_AT
+        || reading.called.call.tool == rows::TASK_TEXT_AT
+        || reading.called.call.tool == rows::ROLE_SHOW_AT)
+        && local == 7
+    {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
         return;
@@ -510,6 +536,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if let Some((local, what)) = super::role::next(&reading) {
+        read(runner, &mut reading, local, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if let Some(what) = super::specification::next(&mut reading, &env.limits) {
         read(runner, &mut reading, 7, what, out);
         runner.active.insert(reading.called.call_number, reading);
@@ -543,8 +574,15 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         super::accounts::resolved(runner, client, env, reading, out);
         return;
     }
-    let printed =
-        render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
+    let printed = if reading.called.call.tool == rows::ROLE_SHOW_AT {
+        let now = reading.pages.remove(&8);
+        reading.called.call.tool = rows::TASK_AT;
+        let task =
+            render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
+        render::roles::show(task, now.as_ref(), reading.called.json, &env.limits)
+    } else {
+        render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall)
+    };
     finish(reading, printed, out);
 }
 
@@ -659,7 +697,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
         None => super::super::settings_file::selector(call),
     };
     if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = number(call, if call.form == 2 { 3 } else { 2 }) {
+        if let Some(revision) = number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }) {
             super::application::historical(
                 runner,
                 reading,
