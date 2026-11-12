@@ -502,7 +502,7 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
     let Some(derived) = jig_protocol_store::codec::people::derived_limits(&baseline) else {
         return Err(Problem { path: Path::root().member(b"limits"), what: What::CodecArithmetic });
     };
-    if let Err(problem) = jig_protocol_store::people_v15::check_limits(&derived) {
+    if let Err(problem) = jig_protocol_store::people_v16::check_limits(&derived) {
         let configured = match jig_protocol_store::codec::people::derived_limits(limits) {
             Some(configured) => configured,
             None => derived,
@@ -536,14 +536,14 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
 }
 
 fn batch_ceiling(limits: &jig_domain_core::Limits) -> Option<Problem> {
-    if limits.tasks.batch > jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups {
+    if limits.tasks.batch > jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups {
         return Some(Problem {
             path: codec_path(b"tasks.batch"),
             what: What::CodecCeiling {
                 bound: CodecBound {
                     field: b"tasks-v9.TaskInterests.result_followups",
                     needed: limits.tasks.batch,
-                    ceiling: jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups,
+                    ceiling: jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups,
                 },
             },
         });
@@ -635,7 +635,7 @@ fn codec_admits(limits: &jig_domain_core::Limits) -> bool {
 
 fn binding_bound(edge: &jig_domain_core::Limits, configured: &jig_domain_core::Limits) -> Option<CodecBound> {
     let edge = jig_protocol_store::codec::people::derived_limits(edge)?;
-    let problem = jig_protocol_store::people_v15::check_limits(&edge).err()?;
+    let problem = jig_protocol_store::people_v16::check_limits(&edge).err()?;
     let configured = jig_protocol_store::codec::people::derived_limits(configured)?;
     Some(people_bound(&configured, problem.path)?.bound)
 }
@@ -664,10 +664,10 @@ struct PeopleBound {
     reason = "Path is shared with decoding; non-limit paths must return None without panicking"
 )]
 fn people_bound(
-    limits: &jig_protocol_store::people_v15::Limits,
-    path: jig_protocol_store::people_v15::Path,
+    limits: &jig_protocol_store::people_v16::Limits,
+    path: jig_protocol_store::people_v16::Path,
 ) -> Option<PeopleBound> {
-    use jig_protocol_store::people_v15::{CEILINGS, Path as P};
+    use jig_protocol_store::people_v16::{CEILINGS, Path as P};
     macro_rules! b {
         ($name:literal, $words:literal, $field:ident) => {
             Some(PeopleBound {
@@ -770,7 +770,7 @@ fn people_bound(
 mod tests {
     #[test]
     fn a_non_limit_people_path_has_no_bound() {
-        use jig_protocol_store::people_v15::{CEILINGS, Path};
+        use jig_protocol_store::people_v16::{CEILINGS, Path};
 
         assert!(super::people_bound(&CEILINGS, Path::SegmentTail).is_none());
     }

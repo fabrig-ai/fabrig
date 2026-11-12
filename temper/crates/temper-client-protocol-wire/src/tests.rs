@@ -1988,6 +1988,7 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
         v1::TrialClass::Lost,
         v1::TrialClass::Invalid,
         v1::TrialClass::Refused,
+        v1::TrialClass::Infrastructure,
     ] {
         states
             .push(v1::TrialState::Failed(

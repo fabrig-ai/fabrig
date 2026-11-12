@@ -15,6 +15,7 @@ pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
         w::HoldFailure::Agent => c::HoldFailure::Agent,
         w::HoldFailure::Lost => c::HoldFailure::Lost,
         w::HoldFailure::Invalid => c::HoldFailure::Invalid,
+        w::HoldFailure::Infrastructure => c::HoldFailure::Infrastructure,
     }
 }
 
@@ -175,6 +176,7 @@ pub(crate) fn failure_tries(value: &w::FailureTries) -> c::FailureTries {
         agent: value.agent(),
         lost: value.lost(),
         invalid: value.invalid(),
+        infrastructure: value.infrastructure(),
     }
 }
 
@@ -226,6 +228,37 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
 mod tests {
     use super::*;
     use skein_lib::{Reader, Writer};
+
+    #[test]
+    fn infrastructure_holds_and_tries_round_trip_through_wire_and_client_facts() {
+        let class = w::HoldFailure::Infrastructure;
+        let mut writer = Writer::new(usize::try_from(class.measure()).unwrap());
+        class.encode(&mut writer).unwrap();
+        let wire = writer.finish();
+        let class = w::HoldFailure::decode(&w::CEILINGS, &mut Reader::new(&wire)).unwrap();
+        assert_eq!(hold_failure(&class), c::HoldFailure::Infrastructure);
+        let tries = w::FailureTries::new(
+            &w::CEILINGS,
+            w::FailureTriesParts {
+                transient: 1,
+                permanent: 2,
+                run: 3,
+                agent: 4,
+                lost: 5,
+                invalid: 6,
+                infrastructure: 13,
+            },
+        )
+        .unwrap();
+        let mut writer = Writer::new(usize::try_from(tries.measure()).unwrap());
+        tries.encode(&mut writer).unwrap();
+        let wire = writer.finish();
+        let tries = w::FailureTries::decode(&w::CEILINGS, &mut Reader::new(&wire)).unwrap();
+        assert_eq!(
+            failure_tries(&tries),
+            c::FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 13 }
+        );
+    }
 
     #[test]
     fn retry_reasons_round_trip_through_wire_and_client_facts() {

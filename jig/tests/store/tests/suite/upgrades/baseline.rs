@@ -97,17 +97,14 @@ const REAL_SETS: PatchSets = PatchSets {
 };
 
 #[test]
-fn real_jig_set_versions_are_baseline_at_zero_and_binary_at_one() {
-    for level in [0, 1] {
-        let mut expected = if level == 0 {
-            codec::component::Format {
-                application: root::APPLICATION.version,
-                deployment: root::DEPLOYMENT,
-                ..fixed::BASELINE.format
-            }
-        } else {
-            jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)
-        };
+fn real_jig_set_versions_match_each_level() {
+    for (level, format) in [
+        (0, fixed::BASELINE.format),
+        (1, codec::component::Format { tasks: 10, people: 15, settings: 2, ..fixed::BASELINE.format }),
+        (2, jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)),
+    ] {
+        let mut expected =
+            codec::component::Format { application: root::APPLICATION.version, deployment: root::DEPLOYMENT, ..format };
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
         let mut valid = source_world(expected, Vec::new(), REAL_SETS);

@@ -4,8 +4,11 @@ use skein_codec::patch::{Capacity, Patcher, Step};
 fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 2, patches: 1, text: skein_codec::schema::MAX_TEXT,
-        bytes: 131_072, nodes: 16_384,
+        versions: 2,
+        patches: 1,
+        text: skein_codec::schema::MAX_TEXT,
+        bytes: 131_072,
+        nodes: 16_384,
     });
     for text in texts {
         patcher.keep(text.as_bytes()).expect("kept schema");
@@ -30,20 +33,24 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     patcher.finish().expect("patched record").into()
 }
 
-fn baseline_golden(name: &str) -> Vec<u8> {
+fn baseline_golden(name: &str) -> Box<[u8]> {
     let schema = skein_codegen::parse(crate::patches::kept::temper_store::TEXTS[0]).expect("old schema");
-    skein_codegen::generate(&schema).goldens.into_iter().find(|golden| golden.name == name)
-        .expect("old golden").bytes
+    for golden in skein_codegen::generate(&schema).goldens {
+        if golden.name == name {
+            return skein_lib::bytes::copy_of(&golden.bytes);
+        }
+    }
+    panic!("old golden");
 }
 
 #[test]
 fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = baseline_golden("record_adopted_full.bin");
-    let mut before = vec![0, 11, 2]; // Row version, repository variant.
-    before.extend_from_slice(&adopted);
-    let bytes = patched(b"Row", before.into_boxed_slice());
-    let row = crate::v12::Row::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
-        .expect("current row");
+    let mut before = skein_lib::Writer::new(adopted.len().checked_add(3).expect("golden with prefix"));
+    before.put(&[0, 11, 2]).expect("row version, repository variant");
+    before.put(&adopted).expect("adopted golden");
+    let bytes = patched(b"Row", before.finish());
+    let row = crate::v12::Row::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
     let crate::v12::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
@@ -53,8 +60,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
 #[test]
 fn a_foreman_with_a_task_becomes_retired() {
     let before = baseline_golden("enum_stands_foreman_full.bin");
-    let bytes = patched(b"Stands", before.into_boxed_slice());
-    let value = crate::v12::Stands::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
-        .expect("current stands");
+    let bytes = patched(b"Stands", before);
+    let value =
+        crate::v12::Stands::decode(&crate::v12::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
     assert_eq!(value, crate::v12::Stands::Retired);
 }

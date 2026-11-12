@@ -488,7 +488,7 @@ fn a_members_absent_wake_round_trips_without_a_default() {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured batch");
     let bytes = writer.finish();
-    let value = crate::people_v15::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    let value = crate::people_v16::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
     assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }
 

@@ -189,6 +189,7 @@ impl Judge {
     }
 }
 impl skein_world::Referee<Proc> for Judge {
+    #[expect(clippy::too_many_lines, reason = "the referee's tick walks every golden-store observation in order")]
     fn act(&mut self, _: Time, procs: &mut [Proc]) {
         self.ticks += 1;
         let (first, others) = procs.split_at_mut(1);

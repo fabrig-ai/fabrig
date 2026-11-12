@@ -329,13 +329,14 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
 }
 
 fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, bytes: u32) -> BriefRead {
-    let classes: [(&[u8], u32); 6] = [
+    let classes: [(&[u8], u32); 7] = [
         (b"transient: ", tries.transient),
         (b"permanent: ", tries.permanent),
         (b"run: ", tries.run),
         (b"agent: ", tries.agent),
         (b"lost: ", tries.lost),
         (b"invalid: ", tries.invalid),
+        (b"infrastructure: ", tries.infrastructure),
     ];
     let mut total = 0_usize;
     for (name, count) in classes {

@@ -2207,6 +2207,7 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
                                     Class::Agent => w::TrialClass::Agent,
                                     Class::Lost => w::TrialClass::Lost,
                                     Class::Invalid => w::TrialClass::Invalid,
+                                    Class::Infrastructure => w::TrialClass::Infrastructure,
                                     Class::Refused => w::TrialClass::Refused,
                                 },
                             },

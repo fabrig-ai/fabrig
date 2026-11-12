@@ -170,7 +170,15 @@ pub fn valid(limits: &Limits, kept: crate::Kept) -> bool {
     {
         return false;
     }
-    for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
+    for class in [
+        Class::Transient,
+        Class::Permanent,
+        Class::Run,
+        Class::Agent,
+        Class::Lost,
+        Class::Invalid,
+        Class::Infrastructure,
+    ] {
         let retry = limits.retries.of(class);
         if retry.retries == u32::MAX || retry.base == skein_lib::Duration::ZERO || retry.max < retry.base {
             return false;

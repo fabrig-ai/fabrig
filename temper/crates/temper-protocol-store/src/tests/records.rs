@@ -823,8 +823,8 @@ fn application_limit_refusals(rows: &mut skein_lib::List<jig_domain_people::Refu
 fn application_refusal_lists(rows: &mut skein_lib::List<jig_domain_people::Refusal>) {
     use jig_domain_people as p;
     for (count, circle) in [
-        (jig_protocol_store::people_v15::CEILINGS.refusal_circle_tasks, true),
-        (jig_protocol_store::people_v15::CEILINGS.refusal_kept_pending, false),
+        (jig_protocol_store::people_v16::CEILINGS.refusal_circle_tasks, true),
+        (jig_protocol_store::people_v16::CEILINGS.refusal_kept_pending, false),
     ] {
         let mut tasks = skein_lib::List::with_capacity(count);
         for task in 0..count {
@@ -891,6 +891,7 @@ fn application_moved_and_ended(rows: &mut skein_lib::List<jig_domain_people::Ref
         p::FailureClass::Run,
         p::FailureClass::Agent,
         p::FailureClass::Lost,
+        p::FailureClass::Infrastructure,
     ] {
         rows.push(p::Refusal::Moved { now: p::Moved::Hold { revision: 4, reason: p::HoldReason::Failures { class } } })
             .expect("bounded application cases");
@@ -978,9 +979,9 @@ fn every_application_outcome_preserves_its_complete_record() {
     }
     // Settings judgement words cannot occur in a forge application refusal.
     let limits =
-        jig_protocol_store::people_v15::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v15::CEILINGS };
+        jig_protocol_store::people_v16::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v16::CEILINGS };
     assert!(
-        jig_protocol_store::people_v15::Refusal::encoded_bound(&limits).expect("bounded facts")
+        jig_protocol_store::people_v16::Refusal::encoded_bound(&limits).expect("bounded facts")
             <= u64::from(v12::CEILINGS.core_refused_refusal)
     );
 }
@@ -1109,7 +1110,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     // The people v12 generated Unknown golden was [9]; v12 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
     let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v15::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_protocol_store::people_v16::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 12);
 }

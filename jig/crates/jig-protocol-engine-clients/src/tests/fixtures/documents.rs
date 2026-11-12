@@ -139,7 +139,7 @@ pub fn hold() -> d::HoldLine {
         revision: 31,
         before: d::PriorPhase::Waiting,
         escalation: None,
-        tries: t::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
+        tries: t::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13, infrastructure: 17 },
         hold_wait_since: Some(Wall::from_nanos(17)),
     }
 }

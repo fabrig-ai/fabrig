@@ -101,7 +101,7 @@ fn hold() -> ChipHold {
         revision: u64::MAX,
         before: PriorPhase::Active(RunStage::Running { attempt: 17 }),
         escalation: Some(HoldEscalation::Rejected { by: 19, reason: doc(b"hold explanation", true) }),
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 7 },
         hold_wait_since: Some(Wall::from_nanos(23)),
     }
 }

@@ -2492,7 +2492,7 @@ fn paused_task() -> c::Task {
         revision: PAUSE_REVISION,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     });
     task.acts = skein_lib::List::with_capacity(2);

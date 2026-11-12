@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 238] = [
+pub static NAMES: [Name; 241] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -417,6 +417,24 @@ pub static NAMES: [Name; 238] = [
         unit: Unit::Milliseconds,
         line: "Bounds the exponential-backoff delay for invalid failures.",
         value: |limits| limits.core.tasks.retries.invalid.max.as_millis(),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.retries",
+        unit: Unit::Count,
+        line: "Bounds failures allowed before holding a task for infrastructure failures.",
+        value: |limits| u64::from(limits.core.tasks.retries.infrastructure.retries),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.base_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the initial exponential-backoff delay for infrastructure failures.",
+        value: |limits| limits.core.tasks.retries.infrastructure.base.as_millis(),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the exponential-backoff delay for infrastructure failures.",
+        value: |limits| limits.core.tasks.retries.infrastructure.max.as_millis(),
     },
     Name {
         name: "people.program_hosts",

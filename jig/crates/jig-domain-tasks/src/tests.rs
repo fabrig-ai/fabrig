@@ -137,6 +137,7 @@ fn validity_checks_each_retry_class() {
         crate::Class::Agent,
         crate::Class::Lost,
         crate::Class::Invalid,
+        crate::Class::Infrastructure,
     ] {
         for retry in [
             Retry { retries: u32::MAX, base: Duration::from_nanos(1), max: Duration::from_nanos(2) },
@@ -151,6 +152,7 @@ fn validity_checks_each_retry_class() {
                 crate::Class::Agent => limits.retries.agent = retry,
                 crate::Class::Lost => limits.retries.lost = retry,
                 crate::Class::Invalid => limits.retries.invalid = retry,
+                crate::Class::Infrastructure => limits.retries.infrastructure = retry,
             }
             assert!(!crate::valid(&limits, KEPT), "{class:?}: {retry:?}");
         }

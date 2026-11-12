@@ -425,8 +425,59 @@ fn ended_reference_survives_restart_as_a_stub_until_its_peer_ends() {
 }
 
 #[test]
+fn infrastructure_owns_twelve_retries_and_does_not_spend_a_transient_try() {
+    use jig_domain_tasks::{HoldSource, Retry};
+    use skein_lib::Duration;
+    let mut limits = LIMITS;
+    limits.retries.transient = Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
+    limits.retries.infrastructure = Retry { retries: 12, base: Duration::from_secs(10), max: Duration::from_secs(300) };
+    for last_class in [Class::Infrastructure, Class::Transient] {
+        let mut w = World::new(24, limits);
+        w.make(Party::Person(1), vec![task(1, &[])]);
+        let reason: Box<[u8]> = Box::from(b"fetch: TimedOut".as_slice());
+        for attempt in 1..=12 {
+            w.claim(1, attempt);
+            w.terminal(1, End::FailedWithReason { class: Class::Infrastructure, reason: reason.clone() });
+            assert!(matches!(w.record(1).phase, Phase::Active(Active::BackingOff { .. })));
+            assert_eq!(w.record(1).tries.infrastructure, u32::try_from(attempt).unwrap());
+            assert_eq!(w.record(1).tries.transient, 0);
+            w.advance();
+        }
+        w.claim(1, 13);
+        w.terminal(1, End::FailedWithReason { class: last_class, reason: reason.clone() });
+        if last_class == Class::Infrastructure {
+            assert_eq!(
+                w.record(1).phase,
+                Phase::Held {
+                    was: Was::Active(Active::Due),
+                    why: Hold::Failures(Class::Infrastructure),
+                    source: Some(Box::new(HoldSource::Preparation { words: reason })),
+                }
+            );
+            assert_eq!(w.record(1).tries.infrastructure, 13);
+            assert_eq!(w.record(1).tries.transient, 0);
+        } else {
+            assert!(matches!(w.record(1).phase, Phase::Active(Active::BackingOff { .. })));
+            assert_eq!(w.record(1).tries.infrastructure, 12);
+            assert_eq!(w.record(1).tries.transient, 1);
+        }
+        let records = w.records.clone();
+        w.restart();
+        assert_eq!(w.records, records);
+    }
+}
+
+#[test]
 fn every_failure_class_holds_after_its_retry_budget() {
-    for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
+    for class in [
+        Class::Transient,
+        Class::Permanent,
+        Class::Run,
+        Class::Agent,
+        Class::Lost,
+        Class::Invalid,
+        Class::Infrastructure,
+    ] {
         let mut w = World::new(4, LIMITS);
         w.make(Party::Person(1), vec![task(1, &[])]);
         for attempt in 1..=3 {
