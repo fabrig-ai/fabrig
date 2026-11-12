@@ -88,6 +88,21 @@ pub(crate) fn preparing(store: &Store) -> bool {
         Stage::Opening | Stage::Closing | Stage::Cleaning(_) | Stage::Finished => false,
     }
 }
+pub(crate) fn waiting(store: &Store) -> Option<&'static str> {
+    let state = store.rehearsal.as_ref()?;
+    Some(match state.stage {
+        Stage::Locking => "lock source",
+        Stage::Reading => "read source active",
+        Stage::Emptying(_) => "empty scratch",
+        Stage::Making => "make scratch generations",
+        Stage::Copying(_) => "copy source generation",
+        Stage::Active => "write scratch active",
+        Stage::Opening => "open scratch store",
+        Stage::Closing => "close scratch handles",
+        Stage::Cleaning(_) => "remove scratch entries",
+        Stage::Finished => "finished",
+    })
+}
 pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     let transition = core::mem::replace(&mut state(store).stage, Stage::Opening);
     match transition {

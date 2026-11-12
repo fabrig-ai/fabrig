@@ -6,6 +6,9 @@ use temper_service::{self as service, settings::Seeds};
 use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
     Check(Box<[u8]>),
@@ -139,7 +142,13 @@ fn run_inner(
             return Err(why.to_string());
         }
     };
-    let mut host = temper_service_shell::Host::for_upgrade(binary, service, crate::served::SERVED, directories.clone(), source.clone());
+    let mut host = temper_service_shell::Host::for_upgrade(
+        binary,
+        service,
+        crate::served::SERVED,
+        directories.clone(),
+        source.clone(),
+    );
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch {
         let _removed = std::fs::remove_dir(scratch);

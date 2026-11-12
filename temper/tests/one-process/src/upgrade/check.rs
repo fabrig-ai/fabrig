@@ -48,6 +48,13 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
         Until::Back => service.back_store(source, 1000).expect("back adoption"),
         Until::Switched | Until::Wires => service.adopt_store(source, 1000).expect("start adoption"),
     }
+    if let Until::Check | Until::Back = until {
+        let owners = service.wait_state().engine.expect("upgrade engine");
+        assert!(
+            owners.workers.closed && owners.setup.closed && owners.forge.closed,
+            "upgrade closes unstarted owners before store I/O: {owners:?}"
+        );
+    }
     let mut patched = Vec::new();
     for _ in 0..100_000 {
         temper_service::iterate(&mut service, sim.now(), sim.wall());
@@ -100,6 +107,7 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
                 }
             }
         }
+        service.check_wait_boundary(sim.now());
         sim.submit(pid, service.submissions());
         skein_fake_machine::serve(disk, &mut sim);
         if !service.work_pending(sim.now()) && sim.ready(pid) == 0 {
@@ -112,6 +120,68 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
         service.wait_state(),
         service.upgrade_report()
     );
+}
+
+/// Pre-baseline component layouts have no wires and must reach a refusal,
+/// including the layout before patch levels were added to version 3.
+pub fn prebaseline_rehearsals() {
+    let mut unleveled = jig_protocol_store::format::current(1, [7; 16]);
+    unleveled.tasks = 9;
+    unleveled.people = 14;
+    unleveled.settings = 1;
+    let before_levels =
+        [0, 3, 0, 3, 0, 6, 0, 9, 0, 13, 0, 1, 0, 2, 0, 1, 0, 0, 0, 1, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7];
+    for format in [unleveled.encode().expect("unleveled format"), Box::from(before_levels)] {
+        source_rehearsal(&format, "A store from before the baseline is not translated");
+    }
+}
+
+/// A corrupt opening terminal must end the tool even before any root load exists.
+pub fn corrupt_open_rehearsal() {
+    source_rehearsal(
+        &[0],
+        "store opening failed: Data(Failure { cause: Decode(Value), row: Some(RowSite { family: Some(Component), key: [0, 0]",
+    );
+}
+
+fn source_rehearsal(format: &[u8], expected: &str) {
+    use skein_fake_machine::Item;
+    let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64).expect("format key");
+    let mut body = vec![1];
+    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
+    body.extend(key.as_ref());
+    body.extend(u32::try_from(format.len()).expect("format length").to_be_bytes());
+    body.extend(format);
+    let mut frame = b"SKVC".to_vec();
+    frame.extend(1_u16.to_be_bytes());
+    frame.extend(1_u64.to_be_bytes());
+    frame.extend(1_u32.to_be_bytes());
+    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
+    frame.extend(body);
+    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    let mut disk = Machine::for_user(1000);
+    let root = disk.lay(&[
+        Item::file(b"active", b"1\n"),
+        Item::directory(b"generations"),
+        Item::directory(b"generations/1"),
+        Item::directory(b"generations/1/store"),
+        Item::directory(b"generations/1/secrets").mode(0o700),
+        Item::file(b"generations/1/store/log-00000000000000000001", &frame),
+        Item::directory(b"transcripts"),
+    ]);
+    disk.close(root);
+    let before = image(&mut disk);
+    let (report, code, patches) =
+        drive(&mut disk, &fixtures::document(), temper_service::store::PATCH_SETS, Until::Check);
+    eprintln!("{report}");
+    assert_eq!(code, 1, "{report}");
+    assert!(report.contains(expected), "{report}");
+    assert!(report.contains("the copy keeps no wires"), "{report}");
+    assert!(patches.is_empty());
+    assert_eq!(image(&mut disk), before, "every source path and byte unchanged");
+    let scratch = disk.reopen_root(1);
+    assert!(disk.list(scratch, 32, 4096).expect("scratch list").is_empty(), "scratch emptied");
+    disk.close(scratch);
 }
 
 type Image = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
