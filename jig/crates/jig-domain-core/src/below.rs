@@ -1,6 +1,7 @@
 //! The core's vocabulary: what crosses its edge (jig/docs/design/domain/engine/README.md, section 3).
 
 pub mod acts;
+pub mod documents;
 pub mod inbox;
 pub mod limits;
 pub mod numbers;
