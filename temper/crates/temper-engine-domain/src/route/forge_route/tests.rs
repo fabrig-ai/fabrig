@@ -2563,8 +2563,9 @@ fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
         jig_domain_core::Event::Tasks(event),
     ));
     offer_tier(&mut domain, &env, task);
-    let Some(Work::Forge(forge::Event::StepTier { task: got, heard: forge::TierHeard { released: false }, .. })) =
-        domain.work.pop()
+    let Some(Work::Forge(forge::Event::StepTier {
+        task: got, heard: forge::TierHeard { released: false, .. }, ..
+    })) = domain.work.pop()
     else {
         panic!("step woken tier")
     };

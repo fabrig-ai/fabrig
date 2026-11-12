@@ -809,7 +809,10 @@ fn unknown_tier_events_keep_state_and_hold_the_step() {
     ] {
         assert!(outputs(&mut d, event).is_empty());
     }
-    let out = outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true } });
+    let out = outputs(
+        &mut d,
+        Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, message_bytes: 4096 } },
+    );
     let [Request::TierDecision { task, decision, entry, projection: _ }] = out.as_ref() else {
         panic!("one tier decision")
     };
