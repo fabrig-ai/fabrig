@@ -1,9 +1,9 @@
 //! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
 use crate::directories::jig_directories;
 pub(crate) mod check;
-mod state;
 mod control;
 pub mod git;
+mod state;
 use skein_fake_peers::{forge as forge_peer, llm as llm_peer, oauth as oauth_peer};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Submit};
 use skein_lib::{List, Queue, Time, Token, Wall};
@@ -285,7 +285,9 @@ pub(crate) fn configure(
     } else {
         None
     };
-    Ok(super::Command::Fake { arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict } })
+    Ok(super::Command::Fake {
+        arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict },
+    })
 }
 
 fn forge_number(number: &[u8]) -> Result<u16, &'static str> {
@@ -326,12 +328,16 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
             created.rollback();
             let command = if arguments.kind == Kind::Forge && why.starts_with("state ") {
                 "temper-box fake forge"
-            } else { command };
+            } else {
+                command
+            };
             return Err(super::prefixed(command, &why));
         }
     };
     let exit = skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host);
-    if exit == Exit::Code(0) && host.stopped && !host.failed
+    if exit == Exit::Code(0)
+        && host.stopped
+        && !host.failed
         && let Some(path) = &arguments.state
     {
         let Peer::Forge(peer) = &host.peer else { unreachable!("only a forge keeps state") };

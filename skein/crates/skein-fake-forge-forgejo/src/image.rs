@@ -16,17 +16,22 @@ impl Service {
     /// Keeps the setup store and the owner's hook endpoint, not connection state.
     #[must_use]
     pub fn image(&self) -> Box<[u8]> {
+        self.image_with_hooks(self.config.hooks.as_ref())
+    }
+    /// Keeps an owner's endpoint held outside the service between hosted passes.
+    #[must_use]
+    pub fn image_with_hooks(&self, hooks: Option<&Endpoint>) -> Box<[u8]> {
         let mut measure = Encoder::measure();
-        self.encode_image(&mut measure);
+        self.encode_image(&mut measure, hooks);
         let mut out = measure.writer();
-        self.encode_image(&mut out);
+        self.encode_image(&mut out, hooks);
         out.finish()
     }
-    fn encode_image(&self, out: &mut Encoder) {
+    fn encode_image(&self, out: &mut Encoder, hooks: Option<&Endpoint>) {
         out.bytes(b"forgejo image");
         self.setup.encode_image(out);
-        out.flag(self.config.hooks.is_some());
-        if let Some(endpoint) = &self.config.hooks {
+        out.flag(hooks.is_some());
+        if let Some(endpoint) = hooks {
             out.num(u64::from(endpoint.forge));
             out.bytes(&endpoint.host);
             out.bytes(endpoint.secret.expose());

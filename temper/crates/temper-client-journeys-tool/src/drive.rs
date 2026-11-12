@@ -136,7 +136,7 @@ pub enum Event {
     FaceDone(Result<(), String>),
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
-    Logs { serve: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
+    Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
     Deadline,
     OwnFailure(String),
 }
@@ -240,7 +240,7 @@ impl Machine {
         let mut out = vec![];
         match event {
             Event::ForgeLog(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
-                self.forge_event(event, now, &mut out)
+                self.forge_event(event, now, &mut out);
             }
             Event::TuiReady
             | Event::TuiSaved(_)
@@ -264,8 +264,8 @@ impl Machine {
                 let text = String::from_utf8_lossy(text.get(..4096).unwrap_or(&text));
                 self.answer(Some(format!("{}; shown instead: {text}", self.diagnostic)), &mut out);
             }
-            Event::Logs { serve, box_tail } if self.phase == Phase::Classifying => {
-                self.classify(&serve, &box_tail, &mut out);
+            Event::Logs { serve, forges, box_tail } if self.phase == Phase::Classifying => {
+                self.classify(&serve, &forges, &box_tail, &mut out);
             }
             Event::Deadline => self.deadline(now, &mut out),
             Event::OwnFailure(why) => {
@@ -645,16 +645,21 @@ impl Machine {
         self.poll = None;
         out.push(Action::Classify);
     }
-    fn classify(&mut self, serve: &[Box<[u8]>], box_tail: &[Box<[u8]>], out: &mut Vec<Action>) {
+    fn classify(&mut self, serve: &[Box<[u8]>], forges: &[Box<[u8]>], box_tail: &[Box<[u8]>], out: &mut Vec<Action>) {
         let scratch = self.plan.options.scratch.as_os_str().as_encoded_bytes();
         let refusal = serve.iter().find_map(|line| {
             let line = strip_log_time(line);
-            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch) || forge_state_refused(line, scratch)
-            {
+            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch) {
                 Some(String::from_utf8_lossy(line).into_owned())
             } else {
                 None
             }
+        });
+        let refusal = refusal.or_else(|| {
+            forges.iter().find_map(|line| {
+                let line = strip_log_time(line);
+                forge_state_refused(line, scratch).then(|| String::from_utf8_lossy(line).into_owned())
+            })
         });
         let (status, shown) = if let Some(line) = refusal {
             (3, vec![format!("refused: {line}")])

@@ -629,10 +629,23 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
     assert!(!state.exists(), "startup writes no state");
     let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
     let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-    let grant = request(&run, run.address, "PUT", "/api/v1/repos/fake/widget/collaborators/temper-admin", &auth, br#"{"permission":"admin"}"#);
+    let grant = request(
+        &run,
+        run.address,
+        "PUT",
+        "/api/v1/repos/fake/widget/collaborators/temper-admin",
+        &auth,
+        br#"{"permission":"admin"}"#,
+    );
     assert!(grant.starts_with(b"HTTP/1.1 204"));
-    let response = request(&run, run.address, "POST", "/api/v1/repos/fake/widget/issues", &auth,
-        br#"{"title":"Kept across stop","body":"Kept body"}"#);
+    let response = request(
+        &run,
+        run.address,
+        "POST",
+        "/api/v1/repos/fake/widget/issues",
+        &auth,
+        br#"{"title":"Kept across stop","body":"Kept body"}"#,
+    );
     assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
     assert!(!state.exists(), "API writes do not checkpoint");
     run.stop();
@@ -663,9 +676,15 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
         match kind {
             "public" => fs::set_permissions(&state, fs::Permissions::from_mode(0o644)).expect("public state"),
             "linked" => fs::hard_link(&state, &extra).expect("second link"),
-            "symlink" => { fs::rename(&state, &extra).expect("target"); symlink(&extra, &state).expect("link"); }
-            "directory" => { fs::remove_file(&state).expect("remove file"); fs::create_dir(&state).expect("directory"); }
-            "bytes" => {},
+            "symlink" => {
+                fs::rename(&state, &extra).expect("target");
+                symlink(&extra, &state).expect("link");
+            }
+            "directory" => {
+                fs::remove_file(&state).expect("remove file");
+                fs::create_dir(&state).expect("directory");
+            }
+            "bytes" => {}
             _ => unreachable!(),
         }
         let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
@@ -680,7 +699,9 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
             assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
             fs::remove_file(&state).expect("remove fixture");
         }
-        if extra.exists() { fs::remove_file(extra).expect("remove extra"); }
+        if extra.exists() {
+            fs::remove_file(extra).expect("remove extra");
+        }
     }
 }
 #[test]

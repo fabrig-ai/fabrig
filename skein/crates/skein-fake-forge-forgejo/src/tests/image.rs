@@ -7,6 +7,22 @@ use skein_forge::forgejo::{
 use skein_lib::Secret;
 
 #[test]
+fn an_image_can_keep_the_owners_endpoint_between_hosted_passes() {
+    let source = f::setup_harness();
+    assert!(source.service.config.hooks.is_none());
+    let endpoint =
+        Endpoint { forge: 7, host: boxed(b"127.0.0.1:7201"), secret: Secret::new(boxed(b"owner hook secret")) };
+    let image = source.service.image_with_hooks(Some(&endpoint));
+    let mut target = f::setup_harness();
+    target.service.restore(&image).expect("restore supplied endpoint");
+    let restored = target.service.set_hooks(None).expect("take endpoint").expect("retained endpoint");
+    assert_eq!(
+        (restored.forge, restored.host, restored.secret.expose()),
+        (endpoint.forge, endpoint.host, endpoint.secret.expose())
+    );
+    assert!(source.service.config.hooks.is_none(), "imaging borrows the endpoint");
+}
+#[test]
 fn setup_image_restores_authentication_counters_and_hooks() {
     let mut source = f::setup_harness();
     let token = f::make_setup_token(&mut source).value.expect("issued token");

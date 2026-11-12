@@ -133,7 +133,7 @@ impl Connection {
                 }
             }
             io::Event::Stream { up, .. } if !self.closing => {
-                client::up(&mut self.client, &env, up, &mut self.above, &mut self.below)
+                client::up(&mut self.client, &env, up, &mut self.above, &mut self.below);
             }
             io::Event::Failed { error, .. } => {
                 if !self.cancelled {
@@ -198,7 +198,7 @@ impl Connection {
                 client::Event::Done(_) => self.response(),
                 client::Event::Failed(why) => self.result = Some(Event::ForgeFailure(format!("forge HTTP: {why:?}"))),
                 client::Event::Body(Up::Failed(why)) => {
-                    self.result = Some(Event::ForgeFailure(format!("forge HTTP body: {why:?}")))
+                    self.result = Some(Event::ForgeFailure(format!("forge HTTP body: {why:?}")));
                 }
                 client::Event::Upload(Up::Failed(_)) | client::Event::Body(Up::End) | client::Event::Closed => {}
                 client::Event::Upload(Up::Bytes(_) | Up::End) | client::Event::Body(Up::Room) => {

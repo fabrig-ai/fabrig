@@ -309,7 +309,7 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
         assert!(step(&mut m, exited(Process::Box, 1)).iter().any(|a| matches!(a, Action::CloseBrowser)));
         assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Classify]));
         let box_tail = (0..30).map(|n| format!("box {n}").into_bytes().into()).collect();
-        let actions = step(&mut m, Event::Logs { serve, box_tail });
+        let actions = step(&mut m, Event::Logs { serve, forges: vec![], box_tail });
         let exit = finish(&actions);
         assert_eq!(exit.status, expected);
         if expected == 3 {
@@ -332,7 +332,7 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     assert_eq!(answer(&line(&mut m, "web look")).print(), "failed: line 1: the box exited\n");
     step(&mut m, Event::End);
     step(&mut m, Event::FaceDone(Ok(())));
-    assert_eq!(finish(&step(&mut m, Event::Logs { serve: vec![], box_tail: vec![] })).status, 4);
+    assert_eq!(finish(&step(&mut m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] })).status, 4);
     let mut m = ready();
     step(&mut m, Event::End);
     step(&mut m, Event::FaceDone(Ok(())));
@@ -345,7 +345,10 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
 fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
     for (line, expected) in [
         ("temper-box fake forge: state /scratch/data/github-forge.state refused: Domain(Malformed(\"format\"))", 3),
-        ("2026-11-12T01:00:00Z temper-box fake forge: state /scratch/data/forgejo-forge.state refused: image length", 3),
+        (
+            "2026-11-12T01:00:00Z temper-box fake forge: state /scratch/data/forgejo-forge.state refused: image length",
+            3,
+        ),
         ("temper-box fake forge: state /scratch-other/data/forge.state refused: format", 4),
         ("temper-box fake forge: state /elsewhere/state refused: /scratch/data", 4),
         ("temper-box fake forge: state /scratch/data/state: cannot write", 4),
@@ -353,7 +356,8 @@ fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
         let (mut m, _) = Machine::start(plan(), Time::ZERO);
         step(&mut m, exited(Process::Box, 1));
         step(&mut m, Event::FaceDone(Ok(())));
-        let actions = step(&mut m, Event::Logs { serve: vec![line.as_bytes().into()], box_tail: vec![] });
+        let actions =
+            step(&mut m, Event::Logs { serve: vec![], forges: vec![line.as_bytes().into()], box_tail: vec![] });
         let exit = finish(&actions);
         assert_eq!(exit.status, expected, "{line}");
         if expected == 3 {
@@ -364,15 +368,16 @@ fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
     let logs = scratch.path().join("data/box/logs");
     std::fs::create_dir_all(&logs).expect("box logs");
     for name in ["fake-github.log", "fake-forgejo.log"] {
-        let line = format!("temper-box fake forge: state {}/data/forge.state refused: format", scratch.path().display());
+        let line =
+            format!("temper-box fake forge: state {}/data/forge.state refused: format", scratch.path().display());
         std::fs::write(logs.join(name), &line).expect("forge log");
-        let (serve, box_tail) = super::io::logs(scratch.path()).expect("read box logs");
+        let (serve, forges, box_tail) = super::io::logs(scratch.path()).expect("read box logs");
         let mut p = plan();
         p.options.scratch = scratch.path().into();
         let (mut m, _) = Machine::start(p, Time::ZERO);
         step(&mut m, exited(Process::Box, 1));
         step(&mut m, Event::FaceDone(Ok(())));
-        let actions = step(&mut m, Event::Logs { serve, box_tail });
+        let actions = step(&mut m, Event::Logs { serve, forges, box_tail });
         let exit = finish(&actions);
         assert_eq!(exit.status, 3);
         assert_eq!(exit.shown, [format!("refused: {line}")]);

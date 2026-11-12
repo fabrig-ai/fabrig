@@ -207,10 +207,10 @@ Refused, changing nothing, when the configuration directory already holds temper
 ### `temper-box fake forge`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 - Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`
 
 ### `temper-box fake forge check`
 
@@ -318,3 +318,9 @@ Refused, changing nothing, when the configuration directory already holds temper
 
 - **Set:** internal
 - Create the LLM's JSON lines query stream.
+
+### `--state STATE`
+
+- **Set:** internal
+- Keep the forge's state across orderly stops.
+- **Notes:** A present file must be this user's private single-link regular file. A refused image leaves it unchanged.
