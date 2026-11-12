@@ -54,6 +54,7 @@ pub use away::{
 };
 pub use findings::{
     AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingKind, FindingRefusal, FindingRow,
+    FindingReply, FindingDone,
     FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage, TriageFinding,
     TriageFindingAnswer, findings_subject, owner,
 };
@@ -521,6 +522,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Finding(reply) => findings::reply_bytes(reply),
             CallPayload::Decided { took, .. } => Some(match took {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,

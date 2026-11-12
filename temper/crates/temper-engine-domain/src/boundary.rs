@@ -179,6 +179,8 @@ pub enum RememberAction {
 pub enum Tool {
     /// Ask whether a goal may decide while its person is away (domain/forge/attention.md, 5).
     Decided(forge::DecidedCall),
+    /// File, triage or read findings in the caller's project (domain/agent/tools.md).
+    Finding(FindingCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
@@ -268,6 +270,24 @@ pub enum Tool {
     RejectedNote(jig_domain_notes::Refusal),
     /// The engine records an unavailable answer for a route not yet installed.
     Unavailable,
+}
+
+/// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FindingCall {
+    File { kind: forge::FindingKind, severity: forge::Severity, area: Option<Box<[u8]>>, title: Box<[u8]>, body: Box<[u8]> },
+    Hand { number: u32, area: Box<[u8]>, why: Box<[u8]> },
+    Triage { number: u32, act: forge::Triage },
+    List { state: Option<forge::FindingState>, mine: bool },
+    Show { number: u32 },
+}
+
+/// A snapshot for text rendering; writes retain this result under their call name.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FindingToolAnswer {
+    Write(forge::FindingReply),
+    List(forge::Findings),
+    Show { project: u32, number: u32, finding: Option<forge::FindingAnswer> },
 }
 
 /// One change of a `change` call (domain/agent/tools.md, 1).

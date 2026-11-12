@@ -35,6 +35,7 @@ mod calls;
 mod docs;
 mod document;
 mod finish;
+mod finding;
 mod forge;
 mod json;
 pub mod kinds;

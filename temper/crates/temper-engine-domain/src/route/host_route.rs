@@ -142,6 +142,7 @@ pub(crate) struct Flight {
 pub(crate) enum FlightRender {
     Plain,
     TaskRead,
+    FindingRead,
     ForgeRead,
     Settings {
         see: Option<Box<super::see::SeeFlight>>,
@@ -159,7 +160,7 @@ pub(crate) enum FlightRender {
 impl FlightRender {
     fn is_core_read(&self) -> bool {
         match self {
-            Self::TaskRead | Self::Settings { .. } => true,
+            Self::TaskRead | Self::FindingRead | Self::Settings { .. } => true,
             Self::Plain
             | Self::ForgeRead
             | Self::Amended(_)
@@ -200,7 +201,8 @@ impl DocumentFlight {
                 Some(family) => DocumentOutcome::Refused(DocumentRefusal::Denied { family, answer, findings }),
                 None => return CallAnswer::ToolDenied { answer, findings },
             },
-            answer @ (CallAnswer::Decided { .. }
+            answer @ (CallAnswer::Finding(_)
+            | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)
             | CallAnswer::HoldOwner { .. }
@@ -301,7 +303,9 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
     let mut job = None;
     let mut page = None;
-    let render = if let crate::Tool::ReadTask { .. } = &body.tool {
+    let render = if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. }) = &body.tool {
+        FlightRender::FindingRead
+    } else if let crate::Tool::ReadTask { .. } = &body.tool {
         FlightRender::TaskRead
     } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
         job = super::diagnostics::job_attempt(read);
@@ -536,6 +540,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
         }
         FlightRender::Plain
         | FlightRender::TaskRead
+        | FlightRender::FindingRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { .. }
         | FlightRender::PersonRoles(_) => answer,
@@ -598,6 +603,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             }
             FlightRender::Plain
             | FlightRender::TaskRead
+        | FlightRender::FindingRead
             | FlightRender::Settings { .. }
             | FlightRender::Amended(_)
             | FlightRender::Change(_)
