@@ -250,6 +250,7 @@ enum Backend {
     List,
     Calls,
     Program,
+    BothWays,
 }
 pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
     let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec())
@@ -268,10 +269,13 @@ fn worker_document(
 ) -> Proc {
     let mut roots = skein_lib::List::with_capacity(1);
     roots.push(root).expect("one worker root");
-    let programs = matches!(backend, Backend::Program);
+    let programs = matches!(backend, Backend::Program | Backend::BothWays);
     let mut agent = if programs { crate::program_runs::worker_agent() } else { fixtures::agent() };
     if programs {
         agent.bounds.endpoints[0].window = 272_000;
+    }
+    if matches!(backend, Backend::BothWays) {
+        agent = crate::both_ways::worker_agent();
     }
     if matches!(backend, Backend::List) {
         let bound = agent.bounds.endpoints[0].clone();
@@ -608,37 +612,32 @@ pub(crate) fn auth(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     Proc::Auth(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 pub(crate) fn worker_programs(inherited: &skein_world::Inherited) -> Proc {
-    worker_programs_with(inherited, false, false)
+    worker_programs_with(inherited, Backend::Direct)
 }
 pub(crate) fn worker_program_runs(inherited: &skein_world::Inherited) -> Proc {
-    worker_programs_with(inherited, true, false)
+    worker_programs_with(inherited, Backend::Program)
 }
 pub(crate) fn worker_lists(inherited: &skein_world::Inherited) -> Proc {
-    worker_programs_with(inherited, false, true)
+    worker_programs_with(inherited, Backend::List)
 }
-fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool, lists: bool) -> Proc {
+pub(crate) fn worker_both_ways(inherited: &skein_world::Inherited) -> Proc {
+    worker_programs_with(inherited, Backend::BothWays)
+}
+fn worker_programs_with(inherited: &skein_world::Inherited, backend: Backend) -> Proc {
+    let runs = matches!(backend, Backend::Program | Backend::BothWays);
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
     let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec()).expect("fixture JSON");
-    let document = if runs {
+    let document = if matches!(backend, Backend::BothWays) {
+        document
+            .replace("agent-program", "program-agent")
+            .replace("\"check_interval_ms\":60000", "\"check_interval_ms\":1000")
+    } else if runs {
         document.replace("agent-program", "program-agent")
     } else {
         document.replace(r#""hub.slots":1"#, r#""hub.detail_bytes":8,"hub.slots":1"#)
     };
-    let mut worker = worker_document(
-        root,
-        false,
-        false,
-        false,
-        if runs {
-            Backend::Program
-        } else if lists {
-            Backend::List
-        } else {
-            Backend::Direct
-        },
-        document.as_bytes(),
-    );
+    let mut worker = worker_document(root, false, false, false, backend, document.as_bytes());
     let Proc::Worker(host) = &mut worker else { unreachable!("worker factory") };
     host.service.adopt_signals(inherited.signal).expect("worker signal source");
     host.service
