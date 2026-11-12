@@ -159,6 +159,8 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::Reset
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
@@ -264,6 +266,8 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::Reset
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)

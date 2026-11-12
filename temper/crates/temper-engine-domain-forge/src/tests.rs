@@ -13,6 +13,7 @@ mod closer;
 mod completed_reads;
 mod connect;
 mod dismissed;
+mod drafts;
 mod early;
 pub(crate) mod fixtures;
 mod flight;

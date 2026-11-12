@@ -107,6 +107,18 @@
     width. `../client/web/journeys.md` records none of this section's four
     journeys.
 - **Design departs:**
+  - 5 and 13: `../client/pages/work.md`, 1, *Work*, words a landed
+    draft's card "landed in DIR · ready since CLOCK", CLOCK when its
+    writer said it ready, where `work.html` has "landed in docs/ on
+    Friday · ready": temper keeps the commit it read the draft at, not
+    the one that brought it (`../domain/forge/drafts.md`, 4). The card's
+    second line is the draft's title, where the mockup has a line of its
+    writer's, which nothing keeps; and its choice names the way as the
+    start sheet it opens does, "Start a goal: WAY", WAY the project's
+    tracked template by *Ways*' name, where the mockup names the stock
+    way, "Draft first". A writer says a draft is ready through `temper
+    ctl draft ready` alone (`../client/ctl/areas.md`, area 7). Decided by
+    goal 638's design, 2026-11-11.
   - 6: a person's line on Team counts, for anyone but the person reading,
     what waits on them on the tasks they requested, a task once by its
     oldest entry, and not what waits on them on another's task or on a

@@ -350,6 +350,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::DismissMaking(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
+        | v1::Request::SetDraft(_)
         | v1::Request::TryAccount(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)
@@ -483,6 +484,21 @@ pub fn changes_panel(record: &v1::ChangesPanel) -> Box<[u8]> {
 pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangesPanel> {
     let mut reader = Reader::new(bytes);
     let record = v1::ChangesPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a project's landed drafts (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn drafts_panel(record: &v1::DraftsPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete landed-drafts view (temper/docs/design/client/forge/records.md).
+#[must_use]
+pub fn decode_drafts_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DraftsPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::DraftsPanel::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
 

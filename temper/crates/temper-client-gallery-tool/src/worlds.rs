@@ -975,6 +975,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Drafts(_)
                         | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals

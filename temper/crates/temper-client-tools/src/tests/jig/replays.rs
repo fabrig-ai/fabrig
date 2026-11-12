@@ -244,6 +244,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     super::role::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
+    &["draft", "ready", "--project", "1", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "1", "draft.md", "--key", "draft-not-ready"],
     &["repository", "make", "--project", "1", "team/widget", "--key", "make-widget"],
     &["repository", "copy", "--project", "1", "source.invalid/team/widget", "--key", "copy-widget"],
     &["account", "connect", "9", "--key", "connect"],

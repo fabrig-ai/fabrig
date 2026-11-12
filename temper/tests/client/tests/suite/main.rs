@@ -27,6 +27,7 @@ mod hold_commands;
 mod inbox;
 mod inbox_observation;
 mod kept_message;
+mod landed_draft;
 mod names;
 mod only_you;
 mod open_chat;
