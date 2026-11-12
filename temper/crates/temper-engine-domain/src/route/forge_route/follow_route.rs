@@ -75,6 +75,17 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
     let Some(mut row) = domain.forge.follow_task(task).cloned() else { return };
     refresh(domain, &mut row);
     take_questions(domain, task, &mut row);
+    let Some(setting) = domain.forge.follow(row.project, row.follow).cloned() else { return };
+    match setting.owner {
+        forge::settings::FollowOwner::Person(_) => {}
+        forge::settings::FollowOwner::Task(_) => {
+            for question in &mut row.questions {
+                if question.person.is_none() && question.answer.is_none() {
+                    question.answer = Some(b"The follow's owner gave no answer.".as_slice().into());
+                }
+            }
+        }
+    }
     let act = row.pending.clone();
     let mut decision = ProcedureStep::new(StepEnd::Wait);
     let mut made = List::with_capacity(env.limits.tasks.batch);
@@ -84,7 +95,6 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
         super::holds::hold(domain, task, b"the follow cannot apply its owner act within the specification bound");
         return;
     }
-    let Some(setting) = domain.forge.follow(row.project, row.follow).cloned() else { return };
     let Some(delegation) = domain.core.tasks.delegation(task) else { return };
     // A remake is one batch, including the tail. No held task is released.
     let mut remake = None;
@@ -137,7 +147,7 @@ pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunC
         }
     }
     for question in &row.questions {
-        if question.person.is_none() && batch.room() > 0 {
+        if question.person.is_none() && question.answer.is_none() && batch.room() > 0 {
             let Some(member) = person(env, &delegation, &row, question, &setting) else {
                 super::holds::hold(
                     domain,
@@ -367,7 +377,10 @@ fn person(
     authority.grants = Box::new([]);
     authority.budget.spend = 0;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    let forge::settings::FollowOwner::Person(owner) = setting.owner;
+    let owner = match setting.owner {
+        forge::settings::FollowOwner::Person(owner) => owner,
+        forge::settings::FollowOwner::Task(_) => return None,
+    };
     let mut words = List::uncapped();
     append(&mut words, b"Follow ");
     append(&mut words, &super::decimal(u64::from(row.follow)));
