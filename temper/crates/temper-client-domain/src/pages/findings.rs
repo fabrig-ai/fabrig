@@ -532,34 +532,11 @@ fn send(card: &mut Card, request: w::Request, serial: &mut u64, env: &Env<Limits
 }
 
 pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<crate::Request>) {
-    let mut wanted = List::with_capacity(PROJECTS);
-    let mut more = false;
-    if root.pages.watching
-        && let Some(me) = root.pages.me(root.client())
-    {
-        let focused = if let crate::Address::Inbox { filter } = root.pages.address() {
-            filter.project
-        } else if let crate::Address::Home { project } = root.pages.address() {
-            Some(*project)
-        } else {
-            None
-        };
-        for project in &me.projects {
-            if Some(project.project) == focused {
-                wanted.push(project.project).expect("focused project fits");
-            }
-        }
-        for project in &me.projects {
-            if wanted.as_slice().contains(&project.project) {
-                continue;
-            }
-            if wanted.room() == 0 {
-                more = true;
-                break;
-            }
-            wanted.push(project.project).expect("first projects fit");
-        }
-    }
+    let wanted = super::decided::wanted(root);
+    let more = match root.pages.me(root.client()) {
+        Some(me) => wanted.len() == PROJECTS && me.projects.len() > wanted.len(),
+        None => false,
+    };
     let mut requests = Queue::uncapped();
     let pages = &mut root.pages;
     let mut kept = List::with_capacity(PROJECTS);

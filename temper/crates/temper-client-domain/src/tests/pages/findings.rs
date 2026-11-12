@@ -35,7 +35,8 @@ fn me(projects: u32) -> c::Me {
 fn setup(projects: u32) -> (Domain, Token, Box<[(u32, Token)]>) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
-    let out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me(projects))));
+    let mut out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me(projects))));
+    out.extend(event(&mut root, Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) }));
     let mut watches = List::with_capacity(4);
     let mut inbox = None;
     for request in &out {
@@ -59,18 +60,6 @@ fn setup(projects: u32) -> (Domain, Token, Box<[(u32, Token)]>) {
             assert_eq!(subject.state(), &Some(w::FindingState::New));
             assert!(subject.mine());
             watches.push((subject.project(), *watch)).unwrap();
-        }
-    }
-    let out = event(&mut root, Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) });
-    for request in &out {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) },
-                },
-        } = request
-        {
-            inbox = Some(*watch);
         }
     }
     let inbox = inbox.unwrap();
