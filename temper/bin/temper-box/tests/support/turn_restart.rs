@@ -179,8 +179,8 @@ impl Judge<'_> {
             assert_ne!(before, moved, "notes moved main");
             let compare = forge.repository_observation("acme", "widget", &format!("compare/{original}...{moved}"));
             assert!(!compare["commits"].as_array().expect("comparison commits").is_empty(), "original lacks moved main");
+            eprintln!("turn restart: main moved from {before} to {moved} while the review held readiness at {original}");
             self.advanced = Some((original, moved.to_owned()));
-            eprintln!("turn restart: main moved while the review held readiness");
         }
         let Some(run) = self.waiting_gate(forge) else { return false };
         let (landing, change) = self.members();
@@ -244,15 +244,38 @@ impl Judge<'_> {
         });
         self.chat.forge.expect("forge").pull_update_failure(moved_main(self.advanced.as_ref(), self.previous));
         eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"]));
+        eprintln!("stalled change task: {}", read(self.root, &["task", "show", "3"]));
         eprintln!("stalled review task: {}", read(self.root, &["task", "show", "5"]));
         let list = read(self.root, &["landing", "list", "--project", "1", "--ended"]);
         eprintln!("stalled landings: {list}");
         for landing in list["landings"].as_array().expect("landing rows") {
             let task = landing["task"].as_u64().expect("landing task");
+            eprintln!("stalled landing: {}", read(self.root, &["landing", "show", &task.to_string()]));
             eprintln!("stalled landing task: {}", read(self.root, &["task", "show", &task.to_string()]));
         }
         eprintln!("stalled tasks: {}", read(self.root, &["task", "list", "--project", "1"]));
-        let runs = self.chat.forge.expect("forge").repository_observation("acme", "widget", "actions/runs?limit=100");
+        let forge = self.chat.forge.expect("forge");
+        let pull = forge.repository_observation("acme", "widget", "pulls/1");
+        eprintln!("stalled pull head: {}", pull["head"]["sha"]);
+        let branch = forge.repository_observation("acme", "widget", "branches/temper/2/c3");
+        let head = branch["commit"]["id"].as_str().expect("branch head");
+        let commit = forge.repository_observation("acme", "widget", &format!("git/commits/{head}"));
+        eprintln!("stalled branch commit: {}", json!({"sha":head,"parents":commit["parents"],"committer":commit["committer"]}));
+        let witness = self.advanced.as_ref().map(|(original, moved)| (original, moved))
+            .or_else(|| self.previous.map(|proof| (&proof.original, &proof.moved)));
+        if let Some((original, moved)) = witness {
+            for base in [moved, original] {
+                eprintln!("stalled comparison {base}...{head}: {}",
+                    forge.repository_observation("acme", "widget", &format!("compare/{base}...{head}")));
+            }
+        }
+        let Process::Binary(binary) = &procs[0] else { panic!("serve") };
+        for line in String::from_utf8_lossy(binary.stderr()).lines() {
+            if line.contains("prepar") || line.contains("hold") || line.contains("drift") {
+                eprintln!("stalled serve: {line}");
+            }
+        }
+        let runs = forge.repository_observation("acme", "widget", "actions/runs?limit=100");
         let runs: Vec<_> = runs["workflow_runs"]
             .as_array()
             .expect("runs")
