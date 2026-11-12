@@ -80,6 +80,9 @@ fn page(
     if parts.projects {
         projects(b, facts, w, bindings);
     }
+    if parts.follows {
+        follows(b, &facts.follows, w);
+    }
     if parts.ask
         && !facts.projects.is_empty()
         && let Some(root) = root
@@ -89,6 +92,69 @@ fn page(
     if let Some(root) = root {
         crate::confirm::main(b, root, w, bindings, rows);
     }
+    b.close();
+}
+/// The boxes and their names are fixed by client/pages/home.md, 1, *What follows what*.
+fn follows(b: &mut Builder, relations: &[all_home::Relation], w: &Words) {
+    section(b, w, Word::AllHomeFollows);
+    if w.shell == Shell::Browser {
+        b.style(look::HOME_WIDE);
+    }
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    ask::text(b, Role::Heading { level: 2 }, &w.say(Word::AllHomeFollows, &[]), look::HOME_HEAD);
+    ask::text(b, Role::Text, &w.say(Word::AllHomeAcrossProjects, &[]), look::HOW_REACH_NOTE);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::HOW_FOLLOWS);
+    for relation in relations {
+        let (name, chip, line, stopped, who) = match relation {
+            all_home::Relation::Follow { name, source, line, stopped, .. } => (
+                name,
+                w.say(Word::AllHomeFollowChip, &[Hole::Name(source.clone())]),
+                line.clone(),
+                stopped.as_ref(),
+                super::how::Who::Code,
+            ),
+            all_home::Relation::Dependency { name, dependency, .. } => (
+                name,
+                w.say(Word::AllHomeDependencyChip, &[Hole::Name(dependency.clone())]),
+                w.say(Word::AllHomeDependencyLine, &[]),
+                None,
+                super::how::Who::None,
+            ),
+        };
+        b.open(Role::Group);
+        b.style(look::HOW_FOLLOW);
+        b.name(&skein_lib::bytes::concat(&[name, b" ", &chip]));
+        if w.shell == Shell::Terminal {
+            b.open(Role::Paragraph);
+            super::how::chip(b, &chip, who);
+            b.text(Run::Plain, b" ");
+            b.text(Run::Strong, name);
+            b.text(Run::Plain, b" ");
+            b.text(Run::Plain, &line);
+            if let Some(stopped) = stopped {
+                b.text(Run::Plain, b" ");
+                b.text(Run::Plain, &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]));
+            }
+            b.close();
+        } else {
+            super::how::chip(b, &chip, who);
+            crate::cards::text(b, Role::Heading { level: 3 }, name);
+            ask::text(b, Role::Paragraph, &line, look::HOW_REACH_NOTE);
+            if let Some(stopped) = stopped {
+                ask::text(
+                    b,
+                    Role::Paragraph,
+                    &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]),
+                    look::HOW_REACH_NOTE,
+                );
+            }
+        }
+        b.close();
+    }
+    b.close();
     b.close();
 }
 fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times: &mut Times) {

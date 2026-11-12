@@ -360,10 +360,10 @@ fn candidate_rosters_waiting_snapshots_keyed_history_and_recovery_fit_counted_me
     meter.check(measured, bound, &limits);
 }
 
-// Measured peaks: 116,816 bytes at 17 watches; 452,176 at 136, including the
+// Measured peaks: 130,053 bytes at 26 watches; 506,965 at 208, including the
 // driver and fake store. 25% headroom, rounded up to two significant digits.
-const ONE_STREAM_WATCH_HEAP_CEILING: u64 = 150_000;
-const EIGHT_STREAM_WATCH_HEAP_CEILING: u64 = 570_000;
+const ONE_STREAM_WATCH_HEAP_CEILING: u64 = 170_000;
+const EIGHT_STREAM_WATCH_HEAP_CEILING: u64 = 640_000;
 const WATCH_ROOM_SEED: u64 = 91; // The direct driver's configuration.
 const WATCH_ROOM_PROJECT: u32 = 1; // Walking's seeded project.
 const FIRST_ROOM_WATCH: u64 = 10_000;
@@ -399,7 +399,7 @@ fn watch_room_query(label: u32) -> jig_domain_core::documents::Watched {
 #[test]
 fn a_full_watch_room_fits_its_heap_ceiling() {
     assert_eq!(watch_room_root_heap(1), watch_room_root_heap(8), "unused watch room allocates nothing");
-    for (streams, room, ceiling) in [(1, 22, ONE_STREAM_WATCH_HEAP_CEILING), (8, 176, EIGHT_STREAM_WATCH_HEAP_CEILING)]
+    for (streams, room, ceiling) in [(1, 26, ONE_STREAM_WATCH_HEAP_CEILING), (8, 208, EIGHT_STREAM_WATCH_HEAP_CEILING)]
     {
         for distinct in [false, true] {
             full_watch_room_peak(streams, room, distinct, ceiling);
@@ -440,6 +440,8 @@ fn full_watch_room_peak(streams: u32, room: u32, distinct: bool, ceiling: u64) {
         budget: 1000,
         next: None,
     }));
+    // The eight-stream room has more deliveries than one direct-driver settlement batch.
+    driver.pump();
     driver.settle();
     let measured = meter.end();
     let documents = driver.delivered.iter().filter(|value| matches!(value, root::Delivery::Document { .. })).count();

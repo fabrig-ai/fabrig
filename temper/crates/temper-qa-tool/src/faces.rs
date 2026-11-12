@@ -3,13 +3,16 @@ use crate::{Exit, Refusal, refused};
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    fs::File,
+    fs::{self, File, OpenOptions},
+    io::{BufRead, BufReader, Write},
     os::unix::{
         ffi::OsStrExt,
+        fs::OpenOptionsExt,
         process::{CommandExt, ExitStatusExt},
     },
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
+    time::Duration,
 };
 
 pub type Environment = Vec<(Box<[u8]>, Box<[u8]>)>;
@@ -211,7 +214,15 @@ pub enum Signal {
     Term,
     Kill,
 }
+/// A bounded deployment command's answer, separated from its diagnostic stderr.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandAnswer {
+    pub exit: Exit,
+    pub last_stdout: Option<String>,
+}
 pub trait Processes {
+    /// Run to exit with closed stdin, keeping both streams at `command.output`.
+    fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal>;
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal>;
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal>;
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal>;
@@ -228,6 +239,76 @@ impl RealProcesses {
     }
 }
 impl Processes for RealProcesses {
+    fn run(&mut self, request: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
+        let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
+        // Files drain both streams without pipes filling while we wait. Only stdout
+        // supplies the answer; the output keeps stderr followed by stdout.
+        let stdout_path = request.output.with_extension("stdout");
+        let mut run = || -> Result<CommandAnswer, Refusal> {
+            let stdout = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&stdout_path)
+                .map_err(|why| refused(format!("stdout: {why}")))?;
+            let mut output = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&request.output)
+                .map_err(|why| refused(format!("output: {why}")))?;
+            let mut command = Command::new(program);
+            captured(&mut command, &request.environment);
+            let mut child = command
+                .args(arguments)
+                .current_dir(&request.directory)
+                .stdin(Stdio::null())
+                .stdout(stdout)
+                .stderr(output.try_clone().map_err(|why| refused(format!("output: {why}")))?)
+                .process_group(0)
+                .spawn()
+                .map_err(|why| refused(format!("{program}: {why}")))?;
+            let clock = skein_shell::Clock::default();
+            let started = clock.now().now.as_nanos();
+            let exit = loop {
+                if let Some(status) = child.try_wait().map_err(|why| refused(format!("{program}: {why}")))? {
+                    break status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code);
+                }
+                if clock.now().now.as_nanos().saturating_sub(started) >= seconds.saturating_mul(1_000_000_000) {
+                    self.signal(u64::from(child.id()), Signal::Kill)?;
+                    child.wait().map_err(|why| refused(format!("{program}: {why}")))?;
+                    break Exit::Bound;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            let mut stdout = BufReader::new(File::open(&stdout_path).map_err(|why| refused(format!("stdout: {why}")))?);
+            let mut last = None;
+            let mut line = Vec::new();
+            loop {
+                line.clear();
+                if stdout.read_until(b'\n', &mut line).map_err(|why| refused(format!("stdout: {why}")))? == 0 {
+                    break;
+                }
+                output.write_all(&line).map_err(|why| refused(format!("output: {why}")))?;
+                if !String::from_utf8_lossy(&line).trim().is_empty() {
+                    last = Some(line.clone());
+                }
+            }
+            let last_stdout = last.map(|line| String::from_utf8_lossy(&line).trim_end_matches(['\r', '\n']).to_owned());
+            Ok(CommandAnswer { exit, last_stdout })
+        };
+        let result = run();
+        let cleanup = fs::remove_file(&stdout_path);
+        match cleanup {
+            Ok(()) => (),
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
+            Err(why) => return Err(refused(format!("stdout: {why}"))),
+        }
+        result
+    }
     fn start(&mut self, request: &ProcessCommand) -> Result<u64, Refusal> {
         let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
         let input = File::open(&request.stdin).map_err(|why| refused(format!("stdin: {why}")))?;
@@ -300,7 +381,136 @@ impl ClockFace for RealClock {
     }
 }
 
-fn captured(command: &mut Command, environment: &Environment) {
+/// The place's build alone reads recipes and walks their drive lines (qa/places.md, 8).
+pub trait DriveFace {
+    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal>;
+    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal>;
+    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal>;
+}
+pub struct RecipeWalk<'a> {
+    pub place: &'a crate::place::PlacePaths,
+    pub setups: &'a Path,
+    pub name: &'a str,
+    pub from: Option<&'a str>,
+}
+pub struct WalkOutput {
+    pub code: u8,
+    pub tail: String,
+}
+pub struct RealDrive {
+    pub environment: Environment,
+}
+impl RealDrive {
+    fn command(&self, place: &crate::place::PlacePaths, operation: &str) -> Command {
+        let mut command = Command::new(place.bin.join("temper-client-journeys"));
+        captured(&mut command, &self.environment);
+        command.current_dir(&place.directory).stdin(Stdio::null()).args(["recipe", operation]);
+        command
+    }
+    fn text(command: &mut Command, name: &str) -> Result<String, Refusal> {
+        let output = command.output().map_err(|why| refused(format!("recipe {name}: {why}")))?;
+        if !output.status.success() {
+            let why = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            return Err(refused(format!("recipe {name}: {}", why.trim())));
+        }
+        String::from_utf8(output.stdout).map_err(|why| refused(format!("recipe {name}: {why}")))
+    }
+}
+impl DriveFace for RealDrive {
+    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal> {
+        Self::text(self.command(place, "list").arg("--setups").arg(setups), "list")
+    }
+    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal> {
+        let text = Self::text(self.command(place, "hash").arg(name).arg("--setups").arg(setups), name)?;
+        let hash = text.trim();
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+            return Err(refused(format!("recipe {name}: invalid chain hash")));
+        }
+        Ok(hash.into())
+    }
+    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal> {
+        use std::io::{BufRead, Seek};
+        let place = request.place;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .read(true)
+            .open(&place.walk_log)
+            .map_err(|why| refused(format!("walk.log: {why}")))?;
+        let start = log.seek(std::io::SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        let output = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
+        let error = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
+        let mut command = self.command(place, "walk");
+        command.arg(request.name);
+        if let Some(from) = request.from {
+            command.args(["--from", from]);
+        }
+        let status = command
+            .arg("--bin")
+            .arg(&place.bin)
+            .arg("--bundle")
+            .arg(&place.bundle)
+            .arg("--scratch")
+            .arg(&place.scratch)
+            .arg("--setups")
+            .arg(request.setups)
+            .arg("--strict")
+            .stdout(output)
+            .stderr(error)
+            .status()
+            .map_err(|why| refused(format!("recipe {}: {why}", request.name)))?;
+        log.seek(std::io::SeekFrom::Start(start)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        let mut tail = std::collections::VecDeque::new();
+        for line in std::io::BufReader::new(log).lines() {
+            tail.push_back(line.map_err(|why| refused(format!("walk.log: {why}")))?);
+            if tail.len() > 40 {
+                tail.pop_front();
+            }
+        }
+        Ok(WalkOutput {
+            code: status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1),
+            tail: tail.into_iter().collect::<Vec<_>>().join("\n"),
+        })
+    }
+}
+
+/// Copies hold config/ and data/ alone; cache/ stays at the place (qa/places.md, 2 and 4).
+pub trait ArchiveFace {
+    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal>;
+    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal>;
+}
+pub struct RealArchive {
+    pub environment: Environment,
+}
+impl RealArchive {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
+        let mut command = Command::new("tar");
+        captured(&mut command, &self.environment);
+        command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
+        command
+    }
+}
+impl ArchiveFace for RealArchive {
+    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+        checked(
+            self.command("--create", scratch, archive)
+                .args(["config", "data"])
+                .output()
+                .map_err(|why| refused(format!("tar: {why}")))?,
+            "tar --create",
+        )?;
+        Ok(())
+    }
+    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+        checked(
+            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
+            "tar --extract",
+        )?;
+        Ok(())
+    }
+}
+
+pub(crate) fn captured(command: &mut Command, environment: &Environment) {
     command.env_clear().envs(environment.iter().map(|(key, value)| (OsStr::from_bytes(key), OsStr::from_bytes(value))));
 }
 fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {

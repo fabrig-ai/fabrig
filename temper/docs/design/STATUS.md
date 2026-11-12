@@ -20,11 +20,17 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestone Q1: `temper-qa`
+Landed QA's milestones Q1 and Q3: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
-can need them, all in one ledger; its passes follow in Q3
-(`testing/qa/README.md`; `draft/landed-qa.status.md`).
+can need them, all in one ledger; a pass, by goal 1210, takes the newest
+reached build with every web case it holds, restores each case's setup
+at a place from its copy or its recipe, drives the box a line at a time,
+records outcomes and findings as it goes, files its open findings as one
+request and one goal, and resumes on a build holding that goal's
+landing, two goals at most; its first passes follow landing, and the
+TUI's cases wait for Q4 (`testing/qa/README.md`; `testing/qa/passes.md`;
+`draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -43,8 +49,10 @@ project's dependency on another is milestone F2
 (`domain/forge/dependencies.md`): kind 13, naming another project of
 the deployment, carried in the `follows` document beside the follows
 and printed by `temper ctl follow list`, "dependency 1: fabrig depends
-on vsr-rs"; nothing acts on it, and Home's What follows what draws it
-with the follows (`draft/surfaces.status.md`, 3).
+on vsr-rs"; nothing acts on it, and Home on All projects' What follows
+what draws it beside the follows, from the first four projects'
+`follows` documents (`client/pages/home.md`, 1), within a shipped
+client's 26 watches (`protocol/configuration/limits.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
@@ -191,8 +199,11 @@ Design documents:
 - [`testing/process-tier.md`](testing/process-tier.status.md)
 - [`testing/qa/README.md`](testing/qa/README.status.md)
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/findings.md`](testing/qa/findings.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
+- [`testing/qa/passes.md`](testing/qa/passes.status.md)
+- [`testing/qa/places.md`](testing/qa/places.status.md)
 - [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)

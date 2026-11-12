@@ -370,7 +370,7 @@ fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Prob
     if !jig_domain_views::valid(&temper_engine_domain::views_for(streams)) {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"clients.streams"),
-            What::Against { other: b"representable watch rooms (clients.streams times 22, with two slots per watch)" },
+            What::Against { other: b"representable watch rooms (clients.streams times 26, with two slots per watch)" },
         );
     }
 }

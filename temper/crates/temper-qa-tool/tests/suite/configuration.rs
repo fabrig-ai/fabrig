@@ -4,7 +4,7 @@ use std::path::Path;
 use temper_qa_tool::Configuration;
 
 fn configuration() -> serde_json::Value {
-    json!({"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","{effort}"],"triage":"low"}})
+    json!({"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","{effort}"],"triage":"low","pass":"high"},"request":{"command":["file"]}})
 }
 #[test]
 fn configuration_defaults_paths_required_keys_and_unknown_names() {
@@ -53,4 +53,52 @@ fn configuration_defaults_paths_required_keys_and_unknown_names() {
     assert_eq!(config.notify.expect("notify"), ["notify", "area"]);
     full["bounds"]["unknown"] = json!(0);
     assert!(decode(&full).expect_err("unknown bound").to_string().contains("unknown"));
+}
+
+#[test]
+fn pass_configuration_defaults_and_helpers_and_nested_refusals() {
+    let home = Path::new("/qa/home");
+    let decode = |value: &serde_json::Value| Configuration::decode(&serde_json::to_vec(value).expect("JSON"), home);
+    let mut value = configuration();
+    let config = decode(&value).expect("defaults");
+    assert_eq!(config.agent.pass, "high");
+    assert_eq!(config.bounds.pass, 7200);
+    assert_eq!(config.places, ["places/1"]);
+    assert_eq!(config.surfaces, ["web"]);
+    assert_eq!(config.request.area, "qa");
+    assert_eq!(config.request.state, None);
+    assert_eq!(config.finding_area("web"), "qa");
+    assert_eq!(config.place_directory(home, "places/1").expect("place"), home.join("places/1"));
+    assert!(config.place_directory(home, "unknown").is_err());
+    value["bounds"] = json!({"pass":10});
+    value["places"] = json!(["a", "/absolute/b"]);
+    value["surfaces"] = json!(["web", "tui"]);
+    value["areas"] = json!({"web":"frontend"});
+    value["request"] = json!({"command":["file","arg"],"state":["state"],"area":"fixes"});
+    let config = decode(&value).expect("Q3 keys");
+    assert_eq!(config.bounds.pass, 10);
+    assert_eq!(config.finding_area("web"), "frontend");
+    assert_eq!(config.finding_area("tui"), "qa");
+    assert_eq!(config.place_directory(home, "/absolute/b").expect("absolute"), Path::new("/absolute/b"));
+    assert_eq!(config.request.command, ["file", "arg"]);
+    assert_eq!(config.request.state, Some(vec!["state".into()]));
+    assert_eq!(config.request.area, "fixes");
+    let before = value.clone();
+    value["request"]["surprise"] = json!(1);
+    assert_eq!(decode(&value).expect_err("nested unknown").to_string(), "qa.json: request: unknown field surprise");
+    value = before.clone();
+    value["agent"].as_object_mut().expect("agent").remove("pass");
+    assert_eq!(decode(&value).expect_err("required pass").to_string(), "qa.json: agent.pass: missing pass");
+    for (key, bad) in [
+        ("places", json!([])),
+        ("places", json!(["a", "a"])),
+        ("surfaces", json!(["native"])),
+        ("areas", json!({"native":"qa"})),
+        ("request", json!({})),
+        ("request", json!({"command":[]})),
+    ] {
+        value = before.clone();
+        value[key] = bad;
+        assert!(decode(&value).is_err(), "{key}");
+    }
 }

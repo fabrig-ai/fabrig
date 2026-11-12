@@ -753,7 +753,7 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
 fn the_watch_rooms_follow_the_streams() {
     let settings = fixtures::engine();
     let mut jig = settings.jig.limits;
-    for (streams, room) in [(2, 44), (8, 176)] {
+    for (streams, room) in [(2, 52), (8, 208)] {
         jig.clients.streams = streams;
         let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
         assert_eq!(root.streams, streams);
@@ -769,7 +769,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
     let document = engine_overrides(br#""clients.streams":126322568"#);
     let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
-        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 22, with two slots per watch)\n");
+        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 26, with two slots per watch)\n");
     let mut settings = fixtures::engine();
     settings.jig.limits.clients.streams = u32::MAX;
     assert!(limits::engine(&settings.jig.limits, &settings.limits).is_none());
