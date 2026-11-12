@@ -1,10 +1,12 @@
 # adoption: status
 
-2026-11-11. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-12. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
 - **Not yet:** the opening's first bullet: a context adoption of a
   repository another project writes, kept for its project and read by its
   lookups, runs and follows [in flight: change 97].
+
+- **Not yet:** 1, "One deployment's prefix": a repository already adopted is checked again at a later adoption, against the branch heads alone (`temper-engine-domain-forge/src/adoption.rs`, `adoption_read`) [in flight: change 1828].
 
 - **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected`.
 
