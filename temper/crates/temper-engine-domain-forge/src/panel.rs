@@ -235,7 +235,17 @@ impl Domain {
         let head = row.change.last_head;
         let panel = Panel {
             way: row.change.way,
-            in_landing: row.change.landing,
+            in_landing: if row.change.way == change::Way::Turn {
+                match row.change.landing {
+                    Some(task) => Some(task),
+                    None => match self.newest_landing(task) {
+                        Some(landing) => Some(landing.task),
+                        None => None,
+                    },
+                }
+            } else {
+                None
+            },
             task,
             forge: row.repository.forge,
             owner: repository.owner.clone(),

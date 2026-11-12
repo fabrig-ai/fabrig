@@ -24,6 +24,17 @@ pub struct ChangesQueue {
     pub branch: Box<[u8]>,
     pub red: bool,
     pub changes: Box<[ChangesQueued]>,
+    pub way: temper_engine_domain_forge_change::Way,
+    pub in_flight: Option<TrainLanding>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TrainLanding {
+    pub task: u64,
+    pub member: u64,
+    pub round: u16,
+    pub step: super::LandingStep,
+    pub title: Box<[u8]>,
+    pub ready_since: Wall,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesQueued {
@@ -49,8 +60,16 @@ impl Domain {
                 continue;
             }
             let red = self.branch_red(row.repository, &row.base);
-            if crate::panel::ready(row).is_some() || owns(row) || red {
-                branches.insert((self.repository_address(row)?, row.base.clone(), row.repository), row.task).ok()?;
+            let waiting = row.change.way == temper_engine_domain_forge_change::Way::Turn
+                && !self.waiting_changes(row.repository, &row.base).is_empty();
+            if crate::panel::ready(row).is_some() || owns(row) || red || self.train_landing(row).is_some() || waiting {
+                let repository = if row.change.way == temper_engine_domain_forge_change::Way::Turn {
+                    let repository = self.repositories.get(&row.repository)?;
+                    skein_lib::bytes::concat(&[&repository.owner, b"/", &repository.name])
+                } else {
+                    self.repository_address(row)?
+                };
+                branches.insert((repository, row.base.clone(), row.repository), row.task).ok()?;
             }
         }
         let mut queues = List::with_capacity(QUEUES);
@@ -58,7 +77,17 @@ impl Domain {
         let mut more = 0_u32;
         for ((repository, branch, _), task) in &branches {
             let row = self.changes.get(task)?;
-            let ordered = self.changes_order(row, now, limits)?;
+            let ordered = if row.change.way == temper_engine_domain_forge_change::Way::Turn {
+                let waiting = self.waiting_changes(row.repository, &row.base);
+                let ready = crate::public::order_ready(List::from_boxed(waiting), None, limits, now)?;
+                let mut ordered = List::with_capacity(limits.changes);
+                for candidate in &ready {
+                    ordered.push(candidate.task).ok()?;
+                }
+                ordered
+            } else {
+                self.changes_order(row, now, limits)?
+            };
             let mut changes = List::with_capacity(left);
             for task in &ordered {
                 if left == 0 || queues.room() == 0 {
@@ -70,7 +99,12 @@ impl Domain {
                     Some(ready) => ready.since,
                     None => ready_since(row),
                 };
-                let checks_since = if changes.is_empty() { Some(row.change.since) } else { None };
+                let checks_since =
+                    if row.change.way == temper_engine_domain_forge_change::Way::Queue && changes.is_empty() {
+                        Some(row.change.since)
+                    } else {
+                        None
+                    };
                 changes
                     .push(ChangesQueued {
                         task: *task,
@@ -88,6 +122,8 @@ impl Domain {
                         branch: branch.clone(),
                         red: self.branch_red(row.repository, &row.base),
                         changes: changes.into_boxed(),
+                        way: row.change.way,
+                        in_flight: self.train_landing(row),
                     })
                     .ok()?;
             }
@@ -106,6 +142,32 @@ impl Domain {
         Some(view)
     }
 
+    fn train_landing(&self, change: &ChangeRow) -> Option<TrainLanding> {
+        if change.change.way != temper_engine_domain_forge_change::Way::Turn {
+            return None;
+        }
+        for (_, row) in &self.landing.rows {
+            if super::is_ended(&row.landing.phase) || row.landing.branch != change.base {
+                continue;
+            }
+            for member in &row.landing.members {
+                if member.repository.forge == change.repository.forge
+                    && member.repository.repository == change.repository.repository
+                {
+                    let change = self.changes.get(&member.change)?;
+                    return Some(TrainLanding {
+                        task: row.landing.task,
+                        member: member.change,
+                        round: row.landing.preparation,
+                        step: super::landing_step(self, &row.landing),
+                        title: crate::text::fit(&change.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
+                        ready_since: ready_since(change),
+                    });
+                }
+            }
+        }
+        None
+    }
     fn changes_history(&self, view: &mut ChangesView, limits: &Limits) -> Option<()> {
         let mut recent = Map::with_capacity(
             limits.repositories.checked_mul(limits.landings_kept)?.checked_mul(limits.landing_members)?,

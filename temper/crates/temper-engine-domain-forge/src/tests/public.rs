@@ -499,6 +499,28 @@ fn expected_landing() -> w::PublicLanding {
                 w::PublicMember::new(
                     l,
                     w::PublicMemberParts {
+                        head: Some(HEAD),
+                        left: None,
+                        judgement: Some(
+                            w::PublicJudgement::new(
+                                l,
+                                w::PublicJudgementParts {
+                                    prefix: CANDIDATE,
+                                    verdict: w::PublicCi::Failed,
+                                    gates: list([w::PublicGate::new(
+                                        l,
+                                        w::PublicGateParts {
+                                            number: 9,
+                                            kind: w::PublicGateKind::Review,
+                                            blocks: true,
+                                            verdict: w::PublicVerdict::Changes,
+                                        },
+                                    )
+                                    .unwrap()]),
+                                },
+                            )
+                            .unwrap(),
+                        ),
                         task,
 
                         base: Some(BASE),
@@ -507,6 +529,7 @@ fn expected_landing() -> w::PublicLanding {
                         gates: list([w::PublicGateProof::new(
                             l,
                             w::PublicGateProofParts {
+                                faults: 1,
                                 number: 0,
                                 kind: w::PublicGateKind::Check,
                                 blocks: true,
@@ -523,6 +546,8 @@ fn expected_landing() -> w::PublicLanding {
     w::PublicLanding::new(
         l,
         w::PublicLandingParts {
+            combined: None,
+            step: Some(w::PublicLandingStep::Telling),
             phase: w::PublicLandingPhase::Turn,
             hold: None,
             preparation: 2,
@@ -698,7 +723,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
         refusal_bytes: 64,
     };
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [822, 67_405, 1562]);
+    assert_eq!(declared, [822, 67_405, 8102]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()
@@ -901,6 +926,9 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
                 w::PublicMember::new(
                     &w::CEILINGS,
                     w::PublicMemberParts {
+                        head: None,
+                        left: None,
+                        judgement: None,
                         task: *task,
                         base: None,
                         candidate: None,
@@ -915,6 +943,8 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
     w::PublicLanding::new(
         &w::CEILINGS,
         w::PublicLandingParts {
+            combined: None,
+            step: None,
             phase: w::PublicLandingPhase::Landed,
             hold: None,
             preparation: 0,
@@ -1045,4 +1075,31 @@ fn landings_by_turn_stand_before_queue_merges_within_the_bound() {
     .expect("bounded landings");
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("history");
     assert_eq!(record, expected);
+}
+
+#[test]
+fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
+    let mut d = setup();
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.phase = policy::Phase::Landed;
+    row.round.combined = Some(policy::Combine::Squash);
+    row.round.judging = true;
+    for task in [CHANGE, SECOND] {
+        let row = d.changes.get_mut(&task).unwrap();
+        row.verdicts = Box::new([c::GateReport { number: 9, head: CANDIDATE, status: c::Status::Passed }]);
+    }
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    assert_eq!(got.combined(), &Some(w::PublicCombined::Squash));
+    assert_eq!(got.step(), &Some(w::PublicLandingStep::Landed));
+    let member = got.members().get(0).unwrap();
+    assert_eq!((member.head(), member.landed()), (&Some(HEAD), &Some(MERGE)));
+    let judgement = member.judgement().as_ref().unwrap();
+    assert_eq!((judgement.prefix(), judgement.verdict()), (&CANDIDATE, &w::PublicCi::Passed));
+    assert_eq!(judgement.gates().get(0).unwrap().verdict(), &w::PublicVerdict::Approved);
+    assert_eq!(member.gates().get(0).unwrap().faults(), 1);
+    for marker in MARKERS {
+        assert!(skein_lib::bytes::find(&m.record, marker).is_none());
+    }
+    assert!(skein_lib::bytes::find(&m.record, RUN).is_none());
 }

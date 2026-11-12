@@ -82,6 +82,9 @@ impl Domain {
                     let member = w::PublicMember::new(
                         l,
                         w::PublicMemberParts {
+                            head: None,
+                            left: None,
+                            judgement: None,
                             task: names.name(member.task)?,
                             base: None,
                             candidate: None,
@@ -95,6 +98,8 @@ impl Domain {
                 return w::PublicLanding::new(
                     l,
                     w::PublicLandingParts {
+                        combined: None,
+                        step: None,
                         phase: w::PublicLandingPhase::Landed,
                         hold: None,
                         preparation: 0,

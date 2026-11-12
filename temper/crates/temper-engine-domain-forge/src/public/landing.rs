@@ -21,6 +21,7 @@ impl Domain {
                                 kind: w::PublicGateKind::Check,
                                 blocks: gate.blocking,
                                 proof,
+                                faults: saved.faults,
                             },
                         )
                         .ok()?,
@@ -33,6 +34,15 @@ impl Domain {
                         l,
                         w::PublicMemberParts {
                             task: names.name(member.change)?,
+                            head: member.head,
+                            left: match member.left {
+                                Some(value) => Some(left(value)?),
+                                None => None,
+                            },
+                            judgement: match self.prefix_judgement(row, member) {
+                                Some(value) => Some(make_judgement(value)?),
+                                None => None,
+                            },
                             base: member.base,
                             candidate: member.candidate,
                             landed: member.landed,
@@ -48,7 +58,13 @@ impl Domain {
             w::PublicLandingParts {
                 phase: phase(&row.phase),
                 hold: match row.phase {
-                    policy::Phase::Held { .. } => Some(w::PublicLandingHold::Faults),
+                    policy::Phase::Held { why, .. } => Some(match why {
+                        policy::Hold::Faults { .. } => w::PublicLandingHold::Faults,
+                        policy::Hold::Prepare => w::PublicLandingHold::Prepare,
+                        policy::Hold::Record { .. } => w::PublicLandingHold::Record,
+                        policy::Hold::Timeout { .. } => w::PublicLandingHold::Timeout,
+                        policy::Hold::Turn => w::PublicLandingHold::Turn,
+                    }),
                     policy::Phase::Waiting
                     | policy::Phase::Preparing
                     | policy::Phase::Proving
@@ -61,6 +77,12 @@ impl Domain {
                 members,
                 stale_proofs: row.stale_proofs,
                 holds_turn: crate::views::matches_turn(&row.phase),
+                combined: match row.round.combined {
+                    Some(policy::Combine::Merge) => Some(w::PublicCombined::Merge),
+                    Some(policy::Combine::Squash) => Some(w::PublicCombined::Squash),
+                    None => None,
+                },
+                step: Some(step(crate::views::landing_step(self, row))),
             },
         )
         .ok()
@@ -97,4 +119,79 @@ impl Domain {
         }
         Some(proof)
     }
+}
+fn step(value: crate::LandingStep) -> w::PublicLandingStep {
+    use crate::LandingStep as S;
+    match value {
+        S::Waiting => w::PublicLandingStep::Waiting,
+        S::Preparing => w::PublicLandingStep::Preparing,
+        S::Proving => w::PublicLandingStep::Proving,
+        S::Proved => w::PublicLandingStep::Proved,
+        S::Turn => w::PublicLandingStep::Turn,
+        S::Landed => w::PublicLandingStep::Landed,
+        S::Held => w::PublicLandingStep::Held,
+        S::Cancelled => w::PublicLandingStep::Cancelled,
+        S::Judging => w::PublicLandingStep::Judging,
+        S::Leaving => w::PublicLandingStep::Leaving,
+        S::Recording => w::PublicLandingStep::Recording,
+        S::Telling => w::PublicLandingStep::Telling,
+    }
+}
+fn left(value: policy::Leave) -> Option<w::PublicLeave> {
+    Some(match value {
+        policy::Leave::Conflict => w::PublicLeave::Conflict,
+        policy::Leave::HeadMoved { .. } => w::PublicLeave::HeadMoved,
+        policy::Leave::Cancelled => w::PublicLeave::Cancelled,
+        policy::Leave::Held => w::PublicLeave::Held,
+        policy::Leave::Refused { gate } => {
+            w::PublicLeave::Refused(w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate }).ok()?)
+        }
+        policy::Leave::Failed { gate, .. } => w::PublicLeave::Failed(
+            w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(gate) }).ok()?,
+        ),
+    })
+}
+
+fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
+    let l = &w::CEILINGS;
+    let mut gates = List::with_capacity(l.public_judgement_gates);
+    for gate in value.gates {
+        gates
+            .push(
+                w::PublicGate::new(
+                    l,
+                    w::PublicGateParts {
+                        number: gate.number,
+                        kind: match gate.kind {
+                            temper_engine_domain_forge_change::GateKind::Agent => w::PublicGateKind::Review,
+                            temper_engine_domain_forge_change::GateKind::Person => w::PublicGateKind::Approval,
+                            temper_engine_domain_forge_change::GateKind::Check => w::PublicGateKind::Check,
+                        },
+                        blocks: gate.blocking,
+                        verdict: match gate.verdict {
+                            temper_engine_domain_forge_change::Status::Unknown => w::PublicVerdict::None,
+                            temper_engine_domain_forge_change::Status::Pending => w::PublicVerdict::Pending,
+                            temper_engine_domain_forge_change::Status::Passed => w::PublicVerdict::Approved,
+                            temper_engine_domain_forge_change::Status::Failed => w::PublicVerdict::Changes,
+                        },
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    w::PublicJudgement::new(
+        l,
+        w::PublicJudgementParts {
+            prefix: value.prefix,
+            verdict: match value.verdict {
+                temper_engine_domain_forge_change::Status::Unknown => w::PublicCi::Unknown,
+                temper_engine_domain_forge_change::Status::Pending => w::PublicCi::Pending,
+                temper_engine_domain_forge_change::Status::Passed => w::PublicCi::Passed,
+                temper_engine_domain_forge_change::Status::Failed => w::PublicCi::Failed,
+            },
+            gates,
+        },
+    )
+    .ok()
 }

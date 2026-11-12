@@ -304,6 +304,17 @@ impl<'a> Change<'a> {
         Some((held_step(self.panel.step()), hold(cause), holes))
     }
     #[must_use]
+    pub fn way(self) -> W {
+        match self.panel.way() {
+            w::Way::Queue => W::WayQueue,
+            w::Way::Turn => W::WayTurn,
+        }
+    }
+    #[must_use]
+    pub fn landing(self) -> Option<u64> {
+        *self.panel.in_landing()
+    }
+    #[must_use]
     pub fn runs(self) -> Option<u64> {
         *self.panel.runs()
     }

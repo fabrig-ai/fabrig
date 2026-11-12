@@ -28,7 +28,7 @@ fn startup_names_the_public_kinds_and_private_parts() {
         expected.map(|kind| (kind.owner, kind.kind, kind.first, kind.last, kind.task)),
         [(2, 1, 1, 1, true), (2, 2, 1, 1, false), (2, 3, 1, 1, true)]
     );
-    assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 1562]);
+    assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8102]);
 }
 #[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {

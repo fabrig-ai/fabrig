@@ -354,6 +354,22 @@ fn goal(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
 fn change(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, task: u64) {
     let Some(panel) = panel(root) else { return };
     for queue in panel.queues() {
+        if let Some(flight) = queue.in_flight()
+            && flight.member() == task
+        {
+            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
+            linked_from(
+                b,
+                words,
+                bindings,
+                Word::WorkChangeTag,
+                look::WORK_CODE,
+                flight.title(),
+                Address::Task { task },
+                &[status],
+            );
+            return;
+        }
         for (index, row) in queue.changes().iter().enumerate() {
             if row.task() == task {
                 linked_from(
@@ -364,7 +380,7 @@ fn change(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
                     look::WORK_CODE,
                     row.title(),
                     Address::Task { task },
-                    &[queue_word(index, words)],
+                    &[queue_label(queue, index, words)],
                 );
                 return;
             }
@@ -455,9 +471,16 @@ fn queue_word(index: usize, words: &Words) -> Box<[u8]> {
 fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, task: u64) {
     let Some(panel) = panel(root) else { return };
     for queue in panel.queues() {
+        if let Some(flight) = queue.in_flight()
+            && flight.member() == task
+        {
+            let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
+            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status);
+            return;
+        }
         for (index, row) in queue.changes().iter().enumerate() {
             if row.task() == task {
-                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_word(index, words));
+                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_label(queue, index, words));
                 return;
             }
         }
@@ -599,4 +622,16 @@ fn linked_from(
             b.close();
         }
     }
+}
+
+fn queue_label(queue: &w::ChangesQueue, index: usize, words: &Words) -> Box<[u8]> {
+    if *queue.way() == w::Way::Queue {
+        return queue_word(index, words);
+    }
+    let place = skein_lib::len_u64(index)
+        .checked_add(1)
+        .expect("wire queue fits")
+        .checked_add(u64::from(queue.in_flight().is_some()))
+        .expect("wire queue fits");
+    words.say(Word::ChangesPlace, &[Hole::Name(super::changes::ordinal(place, words))])
 }

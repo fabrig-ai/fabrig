@@ -708,7 +708,12 @@ fn save(d: &mut Domain, row: LandingRow, out: &mut Queue<Request>) {
     emit(
         out,
         Request::Marked {
-            tasks: Box::new([task, crate::landings_subject(project, false), crate::landings_subject(project, true)]),
+            tasks: Box::new([
+                task,
+                crate::landings_subject(project, false),
+                crate::landings_subject(project, true),
+                crate::changes_subject(project),
+            ]),
         },
     );
     // Every project's landing document names the turn's holder.

@@ -144,7 +144,7 @@ fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     assert_eq!(view(&d, 61).members[0].gates[0].proof, GateProof::Passed(receipt.run));
 }
 #[test]
-fn landings_list_the_turns_holder_first_then_newest() {
+fn landings_list_live_first_then_newest() {
     let mut d = setup();
     for (task, phase) in
         [(61, policy::Phase::Turn { at: env().wall }), (62, policy::Phase::Proving), (63, policy::Phase::Waiting)]
@@ -153,17 +153,18 @@ fn landings_list_the_turns_holder_first_then_newest() {
     }
     let got = list(&d, false);
     assert_eq!(got.turn, Some(61));
-    assert_eq!([got.landings[0].task, got.landings[1].task, got.landings[2].task], [61, 63, 62]);
+    assert_eq!([got.landings[0].task, got.landings[1].task, got.landings[2].task], [63, 62, 61]);
     assert_eq!(got.landings[0].repositories[0].as_ref(), b"org/repo");
 }
 #[test]
 fn ended_landings_are_listed_only_when_asked() {
     let mut d = setup();
-    for (task, phase) in [(61, policy::Phase::Landed), (62, policy::Phase::Cancelled), (63, policy::Phase::Proving)] {
+    for (task, phase) in [(61, policy::Phase::Proving), (62, policy::Phase::Cancelled), (63, policy::Phase::Landed)] {
         outputs(&mut d, Event::Restore { record: Stored::Landing(row(task, phase)) });
     }
     assert_eq!(list(&d, false).landings.len(), 1);
-    assert_eq!(list(&d, true).landings.len(), 3);
+    let all = list(&d, true);
+    assert_eq!([all.landings[0].task, all.landings[1].task, all.landings[2].task], [61, 63, 62]);
 }
 #[test]
 fn saving_a_landing_marks_its_subject_and_its_projects_lists() {
@@ -175,7 +176,8 @@ fn saving_a_landing_marks_its_subject_and_its_projects_lists() {
     let mut member_marked = false;
     for request in &got {
         if let Request::Marked { tasks } = request {
-            landing_marked |= tasks.as_ref() == [61, landings_subject(5, false), landings_subject(5, true)];
+            landing_marked |=
+                tasks.as_ref() == [61, landings_subject(5, false), landings_subject(5, true), changes_subject(5)];
             member_marked |= tasks.as_ref() == [51, 61];
         }
     }
@@ -542,6 +544,8 @@ fn changes_owned_bytes_charges_every_field() {
         more: 3,
         landed_more: 4,
         queues: Box::new([ChangesQueue {
+            way: change::Way::Queue,
+            in_flight: None,
             repository: Box::from(b"repo".as_slice()),
             branch: Box::from(b"next".as_slice()),
             red: true,
@@ -651,4 +655,134 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
     );
     assert_eq!(got.landed_default_more, 1);
     assert_eq!(got.landing.as_ref(), b"main", "a push without changes still names the latest branch");
+}
+
+#[test]
+fn a_squashed_landing_keeps_its_train_round_and_prefix_judgement_after_landing() {
+    let mut d = setup();
+    let mut row = row(61, policy::Phase::Landed);
+    row.landing.round.pull = Some(7);
+    row.landing.round.combined = Some(policy::Combine::Squash);
+    row.landing.round.judging = true;
+    row.landing.members[0].candidate = Some([9; 32]);
+    row.landing.members[0].landed = Some([9; 32]);
+    let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    change.change.way = change::Way::Turn;
+    change.change.gates = Box::new([change::Gate {
+        number: 3,
+        kind: change::GateKind::Agent,
+        blocking: true,
+        freshness: change::Freshness::Exact,
+        eager: false,
+    }]);
+    change.verdicts = Box::new([
+        change::GateReport { number: 3, head: [9; 32], status: change::Status::Passed },
+        change::GateReport { number: 3, head: fixtures::HEAD, status: change::Status::Failed },
+    ]);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    let got = view(&d, 61);
+    let train = got.train.unwrap();
+    assert_eq!(
+        (train.repository, train.owner.as_ref(), train.name.as_ref(), train.branch.as_ref()),
+        (REPO, b"org".as_slice(), b"repo".as_slice(), b"main".as_slice())
+    );
+    assert_eq!(got.round.branch.as_ref(), b"temper/1/l61");
+    assert_eq!(
+        (got.preparation, got.round.pull, got.round.combined, got.step),
+        (1, Some(7), Some(policy::Combine::Squash), LandingStep::Landed)
+    );
+    let member = &got.members[0];
+    assert_eq!(
+        (member.head, member.base, member.candidate, member.landed),
+        (Some(fixtures::HEAD), Some(fixtures::BASE), Some([9; 32]), Some([9; 32]))
+    );
+    let judgement = member.judgement.as_ref().unwrap();
+    assert_eq!(
+        (judgement.prefix, judgement.verdict, judgement.gates[0].verdict),
+        ([9; 32], change::Status::Passed, change::Status::Passed)
+    );
+    let Document::Change(panel) = document(&d, fixtures::CHANGE) else { panic!("change panel") };
+    assert_eq!((panel.way, panel.in_landing), (change::Way::Turn, Some(61)));
+}
+
+#[test]
+fn turn_changes_are_grouped_by_train_with_the_landing_before_its_waiters() {
+    let mut d = setup();
+    for (task, base, priority) in [
+        (fixtures::CHANGE, b"main".as_slice(), 0_i32),
+        (SECOND, b"main", 0_i32),
+        (THIRD, b"release", 2_i32),
+        (FOURTH, b"release", 1_i32),
+    ] {
+        let mut row = queued(task, priority, 0);
+        row.change.way = change::Way::Turn;
+        row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        row.change.ready_since = Some(env().wall);
+        row.base = base.into();
+        row.title = TITLE.into();
+        row.change.landing = if task == fixtures::CHANGE { Some(61) } else { None };
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    }
+    let mut landing =
+        row(61, policy::Phase::Held { was: Box::new(policy::Phase::Proving), why: policy::Hold::Prepare });
+    landing.landing.preparation = 2;
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    let got = changes(&d);
+    assert_eq!(got.queues.len(), 2);
+    let busy = &got.queues[0];
+    assert_eq!(
+        (busy.repository.as_ref(), busy.branch.as_ref(), busy.way),
+        (b"org/repo".as_slice(), b"main".as_slice(), change::Way::Turn)
+    );
+    let flight = busy.in_flight.as_ref().unwrap();
+    assert_eq!((flight.task, flight.member, flight.round, flight.step), (61, fixtures::CHANGE, 2, LandingStep::Held));
+    assert_eq!(busy.changes.len(), 1);
+    assert_eq!(busy.changes[0].task, SECOND);
+    assert_eq!(busy.changes[0].checks_since, None);
+    let free = &got.queues[1];
+    assert_eq!(free.branch.as_ref(), b"release");
+    assert_eq!(free.in_flight, None);
+    assert_eq!(free.changes.len(), 2);
+    assert_eq!([free.changes[0].task, free.changes[1].task], [FOURTH, THIRD]);
+}
+
+#[test]
+fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
+    let mut d = setup();
+    let mut landing = row(61, policy::Phase::Proving);
+    landing.landing.round.judging = true;
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().change.gates = Box::new([change::Gate {
+        number: 3,
+        kind: change::GateKind::Agent,
+        blocking: true,
+        freshness: change::Freshness::Exact,
+        eager: false,
+    }]);
+    assert_eq!(view(&d, 61).step, LandingStep::Judging);
+    assert_eq!(view(&d, 61).members[0].judgement.as_ref().unwrap().verdict, change::Status::Pending);
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().verdicts =
+        Box::new([change::GateReport { number: 3, head: fixtures::HEAD, status: change::Status::Passed }]);
+    assert_eq!(view(&d, 61).step, LandingStep::Proving);
+    d.landing.rows.get_mut(&61).unwrap().landing.round.ending = Some(policy::RoundEnd::Stale);
+    assert_eq!(view(&d, 61).step, LandingStep::Leaving);
+    for why in [
+        policy::Leave::Conflict,
+        policy::Leave::HeadMoved { head: [8; 32] },
+        policy::Leave::Cancelled,
+        policy::Leave::Held,
+        policy::Leave::Refused { gate: 3 },
+        policy::Leave::Failed { gate: 0, run: 7 },
+    ] {
+        d.landing.rows.get_mut(&61).unwrap().landing.members[0].left = Some(why);
+        assert_eq!(view(&d, 61).members[0].left, Some(why));
+    }
+    let landing = &mut d.landing.rows.get_mut(&61).unwrap().landing;
+    landing.round.ending = None;
+    landing.phase = policy::Phase::Turn { at: env().wall };
+    landing.round.combined = Some(policy::Combine::Squash);
+    landing.members[0].landed = Some(fixtures::HEAD);
+    assert_eq!(view(&d, 61).step, LandingStep::Recording);
+    d.landing.rows.get_mut(&61).unwrap().landing.round.recorded = true;
+    assert_eq!(view(&d, 61).step, LandingStep::Telling);
 }
