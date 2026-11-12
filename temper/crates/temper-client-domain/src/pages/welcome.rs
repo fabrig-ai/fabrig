@@ -54,8 +54,12 @@ pub enum ModelStep {
 pub fn model_step(root: &Domain) -> Option<ModelStep> {
     let page = root.pages().connect_model()?;
     accounts::current_me(root.client())?;
-    if let connect_model::LoginState::Waiting { .. } = page.login_state(root.client()) {
-        return Some(ModelStep::TerminalLogin);
+    match page.login_state(root.client()) {
+        connect_model::LoginState::Waiting { .. } => return Some(ModelStep::TerminalLogin),
+        connect_model::LoginState::Idle
+        | connect_model::LoginState::Usable { .. }
+        | connect_model::LoginState::NotFinished
+        | connect_model::LoginState::Refused { .. } => {}
     }
     if model_usable(root) == Some(true) {
         return Some(ModelStep::Usable);

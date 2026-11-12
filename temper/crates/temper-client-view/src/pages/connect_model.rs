@@ -237,9 +237,10 @@ fn plan_card(
     };
     let terminal = model::model_way(way).kind == WayKind::Program && plan == b"Claude" && !connected && lendable;
     let (description, note) = match way {
-        Way::Program { .. } => {
-            (w.say(Word::WelcomeModelSubscription, &name), w.say(if terminal { Word::WelcomeClaudeTerminal } else { Word::WelcomeModelProgramTime }, &[]))
-        }
+        Way::Program { .. } => (
+            w.say(Word::WelcomeModelSubscription, &name),
+            w.say(if terminal { Word::WelcomeClaudeTerminal } else { Word::WelcomeModelProgramTime }, &[]),
+        ),
         Way::SignIn { .. } | Way::Key { .. } => {
             (w.say(Word::WelcomeModelPlan, &name), w.say(Word::WelcomeModelSignInTime, &[]))
         }
@@ -260,15 +261,24 @@ fn plan_card(
     b.close();
     b.open(Role::Slot);
     b.style(if welcome(root) { look::FLOW_ACTIONS } else { look::CONNECT_ACTS });
-    let label = if connected { say(w, W::AnotherPlan) } else if terminal { w.say(Word::WelcomeClaudeLogin, &[]) } else { label(me, way, ways, w) };
+    let label = if connected {
+        say(w, W::AnotherPlan)
+    } else if terminal {
+        w.say(Word::WelcomeClaudeLogin, &[])
+    } else {
+        label(me, way, ways, w)
+    };
     let (role, meaning) = if terminal {
         (Role::Button, Meaning::Model(Act::LoginProgram { name: root.pages().account_name() }))
-    } else { match way {
-        Way::SignIn { .. } => (Role::Button, Meaning::Model(Act::SignIn { name: root.pages().account_name(), way })),
-        Way::Key { .. } | Way::Program { .. } => {
-            (Role::Link, Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+    } else {
+        match way {
+            Way::SignIn { .. } => {
+                (Role::Button, Meaning::Model(Act::SignIn { name: root.pages().account_name(), way }))
+            }
+            Way::Key { .. } | Way::Program { .. } => {
+                (Role::Link, Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+            }
         }
-    }
     };
     connect_control(b, root, bindings, &label, role, meaning, default == Some(way), false);
     b.close();
@@ -276,7 +286,7 @@ fn plan_card(
 }
 
 #[expect(clippy::too_many_arguments, reason = "the connection control keeps its role, meaning and state together")]
-fn connect_control(
+pub(super) fn connect_control(
     b: &mut Builder,
     root: &Domain,
     bindings: &mut Bindings,

@@ -602,7 +602,8 @@ pub const fn creation(ask: &c::Ask) -> bool {
         return true;
     }
     if let c::Ask::AccountChange {
-        change: c::AccountChange::AddKey { join: None, .. }
+        change:
+            c::AccountChange::AddKey { join: None, .. }
             | c::AccountChange::DeclareProgram { join: None, .. }
             | c::AccountChange::LoginProgram { .. },
         ..
@@ -650,8 +651,9 @@ impl Default for ConnectModel {
 /// A standalone way lands only after its own successful ending (client/pages/README.md).
 pub(crate) fn added(pages: &Pages, client: &Client) -> Option<accounts::Added> {
     let page = pages.connect_model()?;
-    if let LoginState::Usable { provider } = page.login_state(client) {
-        return Some(accounts::Added { provider, kind: WayKind::Program });
+    match page.login_state(client) {
+        LoginState::Usable { provider } => return Some(accounts::Added { provider, kind: WayKind::Program }),
+        LoginState::Idle | LoginState::Waiting { .. } | LoginState::NotFinished | LoginState::Refused { .. } => {}
     }
     let way = way(pages, client)?;
     let chosen = model_way(way);

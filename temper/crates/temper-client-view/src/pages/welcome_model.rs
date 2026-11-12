@@ -87,7 +87,7 @@ fn usable(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
         {
             b.open(Role::Slot);
             b.style(look::FLOW_MUTED);
-            b.text(Run::Plain, rest);
+            b.text(Run::Plain, rest.strip_prefix(" · ".as_bytes()).unwrap_or(rest));
             b.close();
         }
     } else {

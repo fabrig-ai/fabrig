@@ -46,10 +46,12 @@ impl Login {
                 c::DocumentOutcome::AccountLoginAsked { number },
             )))) => RequestState::Asked { number: *number },
             jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
-                refusal: c::Refusal::NoTerminal, ..
+                refusal: c::Refusal::NoTerminal,
+                ..
             })) => RequestState::NoTerminal,
             jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
-                refusal: c::Refusal::LoginUnderWay, ..
+                refusal: c::Refusal::LoginUnderWay,
+                ..
             })) => RequestState::Following,
             jig_client::Outcome::Answered(_)
             | jig_client::Outcome::Lost
@@ -159,6 +161,12 @@ impl ConnectModel {
         }
     }
     pub(crate) fn refresh_login(&mut self, client: &Client, serial: &mut u64, out: &mut Queue<Output>) {
+        if self.login.state == RequestState::NoTerminal
+            && let Some(doc) = accounts::document(client)
+            && !doc.lendable
+        {
+            self.login.state = RequestState::Idle;
+        }
         if !self.login.cancel || self.login.cancel_sent {
             return;
         }
@@ -190,6 +198,9 @@ impl ConnectModel {
     }
 }
 fn signed_in(doc: &c::Accounts, provider: u32, source: u32, number: u32) -> LoginState {
+    if !crate::route::program_settled(doc, source) {
+        return LoginState::Waiting { number: Some(number), cancelled: false };
+    }
     for row in &doc.accounts {
         if row.provider == Some(provider) {
             for login in &row.sources {
@@ -199,7 +210,7 @@ fn signed_in(doc: &c::Accounts, provider: u32, source: u32, number: u32) -> Logi
             }
         }
     }
-    if !doc.settled || doc.cut || !crate::route::program_settled(doc, source) {
+    if !doc.settled || doc.cut {
         return LoginState::Waiting { number: Some(number), cancelled: false };
     }
     LoginState::NotFinished

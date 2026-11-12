@@ -678,7 +678,7 @@ pub(super) fn outcome(
     }
 }
 
-fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&'a [u8]>)> {
+pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&'a [u8]>)> {
     let change = match ask {
         c::Ask::AccountChange { change, .. } => change,
         c::Ask::ReadLists { .. }
@@ -718,7 +718,7 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
         | c::Ask::SetVisibility { .. } => return None,
     };
     match change {
-        c::AccountChange::DeclareProgram { name, .. } => {
+        c::AccountChange::DeclareProgram { name, .. } | c::AccountChange::LoginProgram { name, .. } => {
             if *refusal == c::Refusal::NameTaken {
                 Some((W::ProgramNameTaken, Some(name)))
             } else if *refusal == c::Refusal::NotOffered {
@@ -734,8 +734,7 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
                 None
             }
         }
-        c::AccountChange::LoginProgram { .. }
-        | c::AccountChange::CancelLogin { .. }
+        c::AccountChange::CancelLogin { .. }
         | c::AccountChange::LoginEnded { .. }
         | c::AccountChange::CheckProgram { .. }
         | c::AccountChange::AddKey { .. }
@@ -932,7 +931,7 @@ pub(crate) fn account_words(
             let signed_in = w.say(crate::words::Word::WelcomeProgramAccount, &[]);
             let separator = words::say(w, W::Separator, &[]);
             words::join(&[&signed_in, if display.is_empty() { b"" } else { &separator }, display])
-        },
+        }
         c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
         c::AccountKind::SignIn | c::AccountKind::None => display.into(),
     };

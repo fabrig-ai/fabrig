@@ -1,11 +1,18 @@
-//! The terminal login note shared by Model and ConnectModel (client/pages/welcome.md, 1).
+//! The terminal login note shared by Model and `ConnectModel` (client/pages/welcome.md, 1).
 use crate::{
-    accounts::{Bindings, words::{self, Word as W}},
+    accounts::{
+        Bindings, Meaning,
+        words::{self, Word as W},
+    },
     look,
     words::{Shell, Word, Words},
 };
-use skein_ui::{Builder, Role, Run};
-use temper_client_domain::{Domain, pages::connect_model::{Act, ConnectModel, LoginState}};
+use jig_client::contract as c;
+use skein_ui::{Builder, Role, Run, phrases::Hole};
+use temper_client_domain::{
+    Domain,
+    pages::connect_model::{Act, ConnectModel, LoginState},
+};
 
 pub(super) fn waiting(root: &Domain) -> bool {
     let Some(page) = root.pages().connect_model() else { return false };
@@ -41,12 +48,22 @@ pub(super) fn note(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.name(&body);
     b.text(Run::Plain, &body);
     b.close();
-    super::connect_model::button(b, bindings, &words::say(w, W::Cancel, &[]), Act::CancelLogin, cancelled, false);
+    super::connect_model::connect_control(
+        b,
+        root,
+        bindings,
+        &words::say(w, W::Cancel, &[]),
+        Role::Button,
+        Meaning::Model(Act::CancelLogin),
+        false,
+        cancelled,
+    );
     b.close();
     b.close();
     if w.shell == Shell::Browser {
         b.open(Role::Disclosure);
         b.style(look::FLOW_MUTED);
+        b.style(look::WELCOME_PASTE);
         b.name(&w.say(Word::WelcomeClaudeDisclosure, &[]));
     }
     b.open(Role::Paragraph);
@@ -59,11 +76,14 @@ pub(super) fn note(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.close();
     }
 }
+#[expect(clippy::match_like_matches_macro, reason = "the strict subset keeps the request pattern explicit")]
 pub(super) fn owns_request(page: &ConnectModel) -> bool {
     let Some(pending) = &page.request.pending else { return false };
-    if let jig_client::contract::Ask::AccountChange {
-        change: jig_client::contract::AccountChange::LoginProgram { .. } | jig_client::contract::AccountChange::CancelLogin { .. }, ..
-    } = &pending.ask {
+    if let c::Ask::AccountChange {
+        change: c::AccountChange::LoginProgram { .. } | c::AccountChange::CancelLogin { .. },
+        ..
+    } = &pending.ask
+    {
         true
     } else {
         false
@@ -83,18 +103,63 @@ pub(super) fn ending(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
         LoginState::Refused { refusal } => {
             b.open(Role::Paragraph);
             b.style(look::FLOW_MUTED);
-            super::accounts::refused(b, w, refusal);
+            b.open(Role::Text);
+            match refusal {
+                c::AccountRefusal::ProgramNameReserved => {
+                    b.text(Run::Plain, &crate::cards::refusal_words(w, &c::Refusal::ProgramNameReserved));
+                }
+                c::AccountRefusal::NotLimited
+                | c::AccountRefusal::Uses
+                | c::AccountRefusal::NotKept { .. }
+                | c::AccountRefusal::Limit { .. }
+                | c::AccountRefusal::Held { .. }
+                | c::AccountRefusal::Provider { .. }
+                | c::AccountRefusal::Subject
+                | c::AccountRefusal::Unknown
+                | c::AccountRefusal::Numbers
+                | c::AccountRefusal::Kind { .. }
+                | c::AccountRefusal::Closing
+                | c::AccountRefusal::NotStarted
+                | c::AccountRefusal::NotSignedIn
+                | c::AccountRefusal::NotOurs
+                | c::AccountRefusal::Cancelled
+                | c::AccountRefusal::Moving => super::accounts::refused(b, w, refusal),
+            }
+            b.close();
             b.close();
         }
         LoginState::Idle => {
-            if owns_request(page) {
-                if let Some(pending) = &page.request.pending
-                    && let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(
-                        jig_client::contract::Answer::Refused { refusal: jig_client::contract::Refusal::NoTerminal, .. }
-                    ))) = &pending.outcome
-                {
+            if !owns_request(page) {
+                return;
+            }
+            let Some(pending) = &page.request.pending else { return };
+            if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal, ..
+            }))) = &pending.outcome
+            {
+                if *refusal == c::Refusal::NoTerminal || *refusal == c::Refusal::LoginUnderWay {
                     return;
                 }
+                let line = match super::accounts::act_refusal(&pending.ask, refusal) {
+                    Some((word, name)) => {
+                        let hole = match name {
+                            Some(name) => Some(Hole::Name(skein_lib::bytes::copy_of(name))),
+                            None => None,
+                        };
+                        words::say(w, word, hole.as_slice())
+                    }
+                    None => crate::cards::refusal_words(w, refusal),
+                };
+                b.open(Role::Paragraph);
+                b.style(look::FLOW_MUTED);
+                b.name(&line);
+                b.text(Run::Plain, &line);
+                b.close();
+            } else if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_)))) =
+                &pending.outcome
+            {
+                // An acknowledgement is not the login's end; Cancelled leaves no line.
+            } else if pending.outcome.is_some() {
                 super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
             }
         }
