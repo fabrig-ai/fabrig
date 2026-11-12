@@ -1168,6 +1168,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
 #app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
 #app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > a.temper-flow-quiet { display: inline-block; margin: 2px 0 0 24px; font-size: 13.5px; line-height: 1.55; color: var(--gf-muted); text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
 #app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }

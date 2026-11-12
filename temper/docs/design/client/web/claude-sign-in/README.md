@@ -18,5 +18,6 @@ Hand-made pages for `../../../draft/claude-sign-in.md`, section 2, and
 - **Not the draft's:** the top bar, with no person, no Sign out and no
   temper box line, is the shared welcome frame (`welcome-top`); the box
   paragraph belongs to the Welcome step's main alone. "Open Forgejo ↗"
-  under the Forge line, set by a style in each page's head, is the
-  separate `forgejo-link` request.
+  is the shared welcome pane's quiet link (`forgejo-link`), at the forge
+  text's 24 px indent, muted, 13.5 px; the page-head style draws the same
+  rule.

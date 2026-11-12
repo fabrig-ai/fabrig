@@ -504,7 +504,9 @@ All `welcome-*` states keep the welcome's bar: temper's mark, Steps and
 its link region alone, no person, Sign out or sign-out alert. Only the
 Welcome step draws temper box's paragraph, under the cards' note, or
 under the cards where there is no note (`../pages/welcome.md`, 1;
-`welcome-top`).
+`welcome-top`). On Model and Ready, "Open Forgejo ↗", when an address is
+known, is a quiet link at the forge text's 24 px indent, muted, 13.5 px
+(`forgejo-link`); with no address there is no link.
 
 ## 3. Its tests
 
