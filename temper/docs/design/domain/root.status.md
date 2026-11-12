@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-11. Where temper's code lags or departs from [root.md](root.md).
+2026-11-12. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past

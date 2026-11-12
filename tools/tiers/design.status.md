@@ -1,6 +1,8 @@
 # design: status
 
-2026-11-08. Where the slow tier runner's code lags or departs from [design.md](design.md).
+2026-11-12. Where the slow tier runner's code lags or departs from [design.md](design.md).
+
+- **Not yet:** 3, 11.9, 11.10: no entry point reads `TIERS_HOLD`: one-process by hand takes no hold, so the executables its listing built run after cargo has exited with nothing holding their build directory, and its suite has no fake hold [in flight: change 1023].
 
 Section 7.3 has no known gap in the gate entries: Skein's `default` is
 `cpu_suite_s` alone at 40, with the header's Skein line naming the user's

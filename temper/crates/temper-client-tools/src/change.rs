@@ -1593,14 +1593,12 @@ fn progress(step: &w::Step) -> Progress {
 fn route(route: &w::Route) -> &'static [u8] {
     match route {
         w::Route::None => b"none",
-        w::Route::Foreman => b"foreman",
         w::Route::Up => b"up",
     }
 }
 fn stands(stands: &w::Stands) -> &'static [u8] {
     match stands {
         w::Stands::Taken => b"taken",
-        w::Stands::Foreman(_) => b"foreman",
         w::Stands::Asked => b"asked",
         w::Stands::Held => b"held",
     }
@@ -1626,12 +1624,6 @@ fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
         out.string(question.line());
         out.key(b"stands");
         out.string(stands(question.stands()));
-        if let w::Stands::Foreman(foreman) = question.stands()
-            && let Some(task) = foreman.task()
-        {
-            out.key(b"foreman");
-            out.unsigned(*task);
-        }
         out.object_end();
     }
     out.array_end();
@@ -1661,13 +1653,6 @@ fn text_questions(questions: &w::Questions, out: &mut Text) {
         out.put(b" \xc2\xb7 ");
         match question.stands() {
             w::Stands::Taken => out.put(b"taken"),
-            w::Stands::Foreman(foreman) => {
-                out.put(b"with foreman");
-                if let Some(task) = foreman.task() {
-                    out.put(b" ");
-                    out.number(*task);
-                }
-            }
             w::Stands::Asked => out.put(b"asked of requester"),
             w::Stands::Held => out.put(b"answered, held for dependencies"),
         }

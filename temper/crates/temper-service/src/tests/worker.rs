@@ -45,7 +45,7 @@ fn a_workspace_start_carries_one_path_per_directory() {
             .unwrap();
     }
     start.directories = directories.into_boxed();
-    let table = jig_protocol_accounts::table::Table::new(0, 0);
+    let table = crate::worker::credentials::Table::new(0, 0);
     let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
     assert_eq!(
         values.paths.as_ref(),
@@ -90,7 +90,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     assert_eq!(run::brief_room(charter, Some(&workspace), &agent.run_limits), Some(256));
     assert!(run::brief_bytes(&charter.brief).unwrap() <= 256);
     assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
-    let table = jig_protocol_accounts::table::Table::new(0, 0);
+    let table = crate::worker::credentials::Table::new(0, 0);
     let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
     encode_grants(start, values, &agent).expect("the fitted start encodes with its prepared workspace");
 }
@@ -224,7 +224,7 @@ fn list_grant(form: jig_domain_link::Form) -> jig_domain_link::Grant {
 
 #[test]
 fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
-    use jig_protocol_accounts::table::{Scheme, Value};
+    use crate::worker::credentials::{Scheme, Value};
     for (scheme, form, dump, environment) in [
         (Scheme::Key, jig_domain_link::Scheme::Key, None, Box::<[Box<[u8]>]>::default()),
         (Scheme::Bearer, jig_domain_link::Scheme::Bearer, None, Box::default()),
@@ -285,7 +285,7 @@ fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
 
 #[test]
 fn a_one_argument_agent_lists_with_its_configuration_alone() {
-    use jig_protocol_accounts::table::{Scheme, Value};
+    use crate::worker::credentials::{Scheme, Value};
     let mut settings = fixtures::worker_settings();
     settings.jig.agent.arguments = Box::new([Box::from(fixtures::AGENT_JSON)]);
     settings.jig.agent.configuration = Box::from(fixtures::AGENT_JSON);
@@ -319,8 +319,8 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
 
 #[test]
 fn reads_without_a_usable_launch_or_grant_fail_without_io() {
+    use crate::worker::credentials::{Scheme, Value};
     use jig_domain_link::{Form, ListFailure, ListOutcome, Scheme as GrantScheme};
-    use jig_protocol_accounts::table::{Scheme, Value};
     let own: &[&[u8]] = &[b"internal", b"agent", fixtures::AGENT_JSON];
     let key = Form::Credential(GrantScheme::Key);
     for (words, generation, scheme, expires, form) in [
@@ -562,7 +562,7 @@ fn worker_preparation_refuses_a_program_path_past_capacity() {
 
 #[test]
 fn start_and_renewal_require_the_declared_form_and_live_generation() {
-    use jig_protocol_accounts::table::{Scheme, Table, Value};
+    use crate::worker::credentials::{Scheme, Table, Value};
     use smith_host_domain as smith;
     let agent = fixtures::worker_agent();
     let forms = [smith::Form::Credential(smith::Scheme::Bearer), smith::Form::Credential(smith::Scheme::Key)];
@@ -604,7 +604,7 @@ fn start_and_renewal_require_the_declared_form_and_live_generation() {
 fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
     use smith_host_domain as smith;
     let agent = fixtures::worker_agent();
-    let table = jig_protocol_accounts::table::Table::new(0, 0);
+    let table = crate::worker::credentials::Table::new(0, 0);
     for size in [0, 1, smith::SourceName::BYTES, smith::SourceName::BYTES + 1] {
         let bytes = repeated(b'a', size);
         let Some(name) = smith::SourceName::new(&bytes) else {
@@ -648,15 +648,6 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
 #[test]
 fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     let name = u32::try_from(smith_host_domain::SourceName::BYTES).unwrap();
-    for (credential, identity, expected) in [
-        (name - 1, name - 1, name),
-        (name, name, name),
-        (name + 1, name, name + 1),
-        (name, name + 1, name + 1),
-        (4096, name, 4096),
-    ] {
-        assert_eq!(worker_settings::grant_bytes(credential, identity), Some(expected));
-    }
     let mut engine = fixtures::engine();
     let mut worker = fixtures::worker_settings();
     let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
@@ -666,8 +657,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
         engine.jig.limits.driver.client.document.token_bytes = 1;
         worker.jig.limits.token = credential;
         let left = crate::workers::limits(&engine).unwrap();
-        let right =
-            worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
+        let right = worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
         let wire = crate::translate::limits(&engine.limits).unwrap();
         let identity = u32::try_from(v1::Identity::encoded_bound(&wire).unwrap()).unwrap();
         assert_eq!(left.sizes.grant, credential.max(name).max(identity));
@@ -688,7 +678,7 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     engine.jig.limits.hub.charter_bytes = u64::MAX;
     assert!(crate::workers::limits(&engine).is_none());
     worker.jig.limits.hub.charter_bytes = u64::MAX;
-    assert!(worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).is_none());
+    assert!(worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).is_none());
     worker_settings::prepare(&worker, &fixtures::worker_agent(), &fixtures::worker_limits())
         .expect_err("an unrepresentable charter envelope is refused");
 }
@@ -837,7 +827,7 @@ fn encode_grants(
 #[test]
 fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
     const SOURCE: u32 = 17;
-    use jig_protocol_accounts::table::{Scheme, Value};
+    use crate::worker::credentials::{Scheme, Value};
     use smith_host_domain as smith;
     let mut settings = fixtures::worker_settings();
     settings.jig.limits.token = 1;
@@ -890,7 +880,7 @@ fn repeated(byte: u8, len: usize) -> Box<[u8]> {
     bytes
 }
 
-fn program_worker_settings() -> (crate::settings::Worker, crate::settings::Agent, crate::limits::Limits) {
+fn program_worker_settings() -> (crate::settings::Worker, crate::settings::Agent, worker_settings::Limits) {
     (fixtures::worker_settings(), fixtures::worker_agent(), fixtures::worker_limits())
 }
 
@@ -909,8 +899,10 @@ fn linked_is_emitted_after_ready_at_each_opening() {
     let mut stand = socket_stand();
     assert!(stand.worker.notes().is_empty(), "never before Ready");
     LinkPeer::new().open(&mut stand.worker);
-    let expected =
-        crate::Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()) };
+    let expected = crate::worker_alone::Note::Linked {
+        worker: b"worker-a".as_slice().into(),
+        address: Box::new(([127, 0, 0, 1], 7100).into()),
+    };
     assert_eq!(stand.worker.notes().pop(), Some(expected));
     assert!(stand.worker.notes().is_empty());
     let owner = Token::new(
@@ -927,7 +919,7 @@ fn linked_is_emitted_after_ready_at_each_opening() {
     LinkPeer::new().open(&mut stand.worker);
     assert_eq!(
         stand.worker.notes().pop(),
-        Some(crate::Note::Linked {
+        Some(crate::worker_alone::Note::Linked {
             worker: b"worker-a".as_slice().into(),
             address: Box::new(([127, 0, 0, 1], 7100).into())
         })
@@ -953,7 +945,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(why) });
         assert_eq!(
             stand.worker.notes().pop(),
-            Some(crate::Note::Refused {
+            Some(crate::worker_alone::Note::Refused {
                 worker: b"worker-a".as_slice().into(),
                 address: Box::new(([127, 0, 0, 1], 7100).into()),
                 reason
@@ -966,7 +958,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
     assert!(stand.worker.notes().is_empty());
 }
 
-pub(super) fn alone_service() -> crate::Service {
+pub(super) fn alone_service() -> crate::worker_alone::Service {
     let part =
         crate::startup::worker_part(&fixtures::worker_alone_document(), &jig_protocol_config::Directories::working())
             .unwrap();
@@ -977,13 +969,12 @@ pub(super) fn alone_service() -> crate::Service {
 #[test]
 fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
     let mut service = alone_service();
-    assert!(service.engine.is_none());
-    assert_eq!(service.adopt_store(io::kernel::Fd::new(99), 1000), Err(io::kernel::Fd::new(99)));
+    fixtures::assert_worker_only(&service);
     service.shutdown();
-    assert!(service.worker.as_ref().unwrap().stopping());
+    assert!(service.worker.stopping());
     assert_eq!(service.end(), None);
     service.shutdown();
-    assert_eq!(service.end(), Some(&crate::End::Aborted));
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));
 }
 
 fn settle_worker_service(linked: bool) {
@@ -999,9 +990,9 @@ fn settle_worker_service(linked: bool) {
     } else {
         stand.worker.up(fixtures::NOW, io::Event::Failed { owner: link_owner, error: io::Error::Unreachable });
     }
-    service.worker = Some(stand.worker);
+    service.worker = stand.worker;
     service.shutdown();
-    stand.worker = service.worker.take().unwrap();
+    stand.worker = service.worker;
     let now = if linked { fixtures::NOW } else { fixtures::NOW.saturating_add(Duration::from_secs(60)) };
     for _ in 0_u16..1000 {
         stand.worker.iterate(now, Wall::EPOCH);
@@ -1054,9 +1045,9 @@ fn settle_worker_service(linked: bool) {
         }
     }
     assert!(stand.worker.is_empty(), "all worker children and its root closed");
-    service.worker = Some(stand.worker);
-    crate::iterate(&mut service, now, Wall::EPOCH);
-    assert_eq!(service.end(), Some(&crate::End::Drained));
+    service.worker = stand.worker;
+    crate::worker_alone::iterate(&mut service, now, Wall::EPOCH);
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Drained));
     assert!(service.is_empty());
 }
 #[test]
@@ -1071,13 +1062,13 @@ fn a_worker_stopped_unlinked_has_ended_past_its_grace() {
 #[test]
 fn signals_route_to_a_worker_alone_then_abort() {
     let mut service = alone_service();
-    service.told.push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert!(service.worker.as_ref().unwrap().stopping());
+    service.process.told().push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+    crate::worker_alone::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    assert!(service.worker.stopping());
     assert_eq!(service.end(), None, "its root is still closing");
-    service.told.push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert_eq!(service.end(), Some(&crate::End::Aborted));
+    service.process.told().push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+    crate::worker_alone::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));
 }
 
 #[test]
@@ -1102,7 +1093,7 @@ fn repeated_refusals_are_noted_once_until_the_reason_changes_or_the_worker_links
     }
     assert_eq!(
         stand.worker.notes().pop(),
-        Some(crate::Note::Linked {
+        Some(crate::worker_alone::Note::Linked {
             worker: b"worker-a".as_slice().into(),
             address: Box::new(([127, 0, 0, 1], 7100).into()),
         })
@@ -1132,15 +1123,19 @@ fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
     assert!(refused.worker.notes().is_empty(), "a dial that never linked has no lost line");
 }
 
-fn lost_note(why: link::Loss) -> crate::Note {
-    crate::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
+fn lost_note(why: link::Loss) -> crate::worker_alone::Note {
+    crate::worker_alone::Note::Lost {
+        worker: b"worker-a".as_slice().into(),
+        address: Box::new(([127, 0, 0, 1], 7100).into()),
+        why,
+    }
 }
 
 #[test]
 fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
     let mut service = fixtures::started();
     let owner = Token::new(crate::tokens::WORKER_LISTENERS);
-    service.told.push(io::Event::Failed { owner, error: io::Error::Unreachable });
+    service.process.told().push(io::Event::Failed { owner, error: io::Error::Unreachable });
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     let address = Some(io::Addr::InProcess(io::Name::new(b"workers").unwrap()));
     assert_eq!(
@@ -1148,13 +1143,13 @@ fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
         Some(crate::Note::WorkerListenerFailed { address, error: Some(io::Error::Unreachable) })
     );
     assert!(!service.is_empty(), "the listener's line does not wait for shutdown");
-    service.told.push(io::Event::Closed { owner });
+    service.process.told().push(io::Event::Closed { owner });
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     assert!(service.notes().is_empty(), "the closing event does not repeat the failure");
 }
 
-fn refusal_note(reason: crate::Refusal) -> crate::Note {
-    crate::Note::Refused {
+fn refusal_note(reason: crate::Refusal) -> crate::worker_alone::Note {
+    crate::worker_alone::Note::Refused {
         worker: b"worker-a".as_slice().into(),
         address: Box::new(([127, 0, 0, 1], 7100).into()),
         reason,

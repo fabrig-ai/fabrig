@@ -77,7 +77,7 @@ login is imported.
 
 - **First preparation:** absent or empty C runs ordinary init in
   C'/D'/K', retaining init's listeners. Give --bundle DIR to name the
-  separately built loopback bundle; C stays untouched. A nonempty C is
+  separately built bundle; C stays untouched. A nonempty C is
   accepted only for the current init-shaped standalone configuration,
   and its public agent document; it reads and copies no charters, which
   are the binary's stock (`stock.md`). --bundle overrides
@@ -115,8 +115,9 @@ login is imported.
   pure transformation is temper-fake's, with bounded bytes and explicit
   paths/sockets as inputs; files and listeners belong to temper's shell.
 - **Browser:** --bundle DIR, or source application.clients.bundle,
-  names a provisioned loopback-navigation bundle (../../client/web/README.md,
-  2.6). Build it once with scripts/bundle.sh --loopback DIR, then run
+  names a provisioned bundle (../../client/web/README.md,
+  2.6), whose page takes its loopback navigation from its address
+  (../../client/web/README.md, 2.1). Build it once with scripts/bundle.sh DIR, then run
   temper box --fake-backends --bundle DIR. Refuse before sandbox mutation
   only when no bundle is known or its shape/types/size are invalid. The
   refusal names that bundle command and --bundle; no hand-edited setting

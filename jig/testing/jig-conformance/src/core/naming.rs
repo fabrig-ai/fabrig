@@ -67,6 +67,10 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             | tasks::Key::PlacedHold(_) => {}
         },
         core::Key::People(key) => match key {
+            people::Key::Deleted(project) => {
+                name.project = Some(*project);
+                name.outlives = Some(r::Outlives::Deleted);
+            }
             people::Key::Roles(project)
             | people::Key::Policy(project)
             | people::Key::Deletion(project)
@@ -151,7 +155,17 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
             | tasks::Stored::Pool(_) => {}
         },
         core::Record::People(record) => match record {
-            people::Stored::Answer { ask, .. } => name.project = ask_project(ask),
+            people::Stored::Answer { ask, outcome, .. } => {
+                name.project = ask_project(ask);
+                if let (
+                    people::Ask::RemoveProject { project, .. },
+                    people::Outcome::ProjectRemoved { project: removed },
+                ) = (ask.as_ref(), outcome)
+                    && project == removed
+                {
+                    name.outlives = Some(r::Outlives::RemovalAnswer);
+                }
+            }
             people::Stored::Acted { act, .. } => match act {
                 people::Act::Close { project, task, .. } => {
                     name.project = Some(*project);
@@ -162,7 +176,8 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 }
                 people::Act::MakeProject { .. } | people::Act::AddKey { .. } | people::Act::RemoveAccount { .. } => {}
             },
-            people::Stored::Deletion { .. }
+            people::Stored::Deleted { .. }
+            | people::Stored::Deletion { .. }
             | people::Stored::Public { .. }
             | people::Stored::Person { .. }
             | people::Stored::ReadResults { .. }
@@ -216,6 +231,8 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::SetPool { project, .. }
         | people::Ask::DecideEscalation { project, .. }
         | people::Ask::DecideProposal { project, .. }
+        | people::Ask::Talk { project, .. }
+        | people::Ask::Leave { project, .. }
         | people::Ask::Say { project, .. }
         | people::Ask::AnswerQuestion { project, .. }
         | people::Ask::Amend { project, .. }

@@ -27,6 +27,7 @@ fn at(seconds: u64) -> Wall {
 }
 fn change(state: State) -> Change {
     Change {
+        ended_held: None,
         early: Early::None,
         way: crate::Way::Queue,
         landing: None,
@@ -62,6 +63,7 @@ fn facts() -> Facts {
         merge_job: false,
         delegate: None,
         catch_up: None,
+        follows: false,
         close: false,
         contains_catch_up: Status::Pending,
         updates: true,
@@ -1386,29 +1388,44 @@ fn a_release_resets_failed_review_tries_before_any_forge_read() {
 
 #[test]
 fn a_cancel_ends_every_held_cause_unless_the_change_landed() {
-    for why in [
-        Hold::Failed,
-        Hold::Repairs,
-        Hold::Rejected,
-        Hold::BranchMoved,
-        Hold::Stalled,
-        Hold::Resolutions,
-        Hold::Updates,
-        Hold::BranchMissing,
-        Hold::PullClosed,
-        Hold::Retargeted,
-    ] {
+    for why in [Hold::Repairs, Hold::Resolutions, Hold::Rejected, Hold::Stalled] {
         let c = change(State::Held { was: Box::new(State::Gating { head: HEAD, asked: Box::new([]) }), why });
         let mut h = heard();
         h.cancelled = true;
         let ended = decide(&c, &facts(), &h);
         assert_eq!(ended.decision, Decision::Cancel, "{why:?}");
         assert_eq!(ended.change.state, State::Ended, "{why:?}");
+        assert_eq!(ended.change.ended_held, Some(why), "{why:?}");
         let mut f = facts();
         f.pull = Pull::Merged { commit: MERGE };
         let landed = decide(&c, &f, &h);
         assert_eq!(landed.change.state, State::Landed { merge: MERGE, since: at(1) });
         assert_eq!(landed.decision, Decision::Finish { merge: MERGE });
+        assert_eq!(landed.change.ended_held, None);
+    }
+}
+
+#[test]
+fn a_cancel_without_a_hold_keeps_no_ending_hold() {
+    let c = change(State::Queued { head: HEAD, ready_since: at(0) });
+    let mut h = heard();
+    h.cancelled = true;
+    let ended = decide(&c, &facts(), &h);
+    assert_eq!(ended.change.state, State::Ended);
+    assert_eq!(ended.change.ended_held, None);
+}
+
+#[test]
+fn an_ended_change_takes_no_hold_past_a_bound() {
+    for ended_held in [None, Some(Hold::Repairs)] {
+        let mut c = change(State::Ended);
+        c.ended_held = ended_held;
+        c.clean = Box::new([HEAD]);
+        let limits = Limits { clean_heads: 0, ..LIMITS };
+        let ended = step(&c, &facts(), &heard(), at(1), &limits);
+        assert_eq!(ended.change.state, State::Ended);
+        assert_eq!(ended.change.ended_held, ended_held);
+        assert_eq!(ended.decision, Decision::Cancel);
     }
 }
 
@@ -1468,6 +1485,7 @@ fn a_bare_authority_release_holds_again_and_a_funded_one_retries() {
         assert_eq!(retry.decision, Decision::Delegate(Delegate::Produce));
     }
 }
+mod follow;
 mod turn;
 
 #[test]
@@ -1575,6 +1593,24 @@ fn the_open_bound_leaves_room_for_the_one_past_the_bound() {
 
 fn pending_facts(pending: Box<[Pending]>) -> Facts {
     Facts { pending, branch: None, pull: Pull::Missing, kept: true, ..facts() }
+}
+
+#[test]
+fn a_follow_change_waits_for_every_dependency_without_starting_from_it() {
+    let c = change(State::Producing { requested: false });
+    for kind in [PendingKind::Change { head: Some(HEAD), kept: false }, PendingKind::Elsewhere] {
+        let mut f = pending_facts(Box::new([Pending { task: 11, kind }]));
+        f.follows = true;
+        let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+        assert_eq!(waiting.decision, Decision::Wait { until: None });
+        assert_eq!(waiting.change.state, State::Producing { requested: false });
+        assert_eq!(waiting.change.early, Early::None);
+        f.pending = Box::new([]);
+        let started = step(&waiting.change, &f, &heard(), at(90), &LIMITS);
+        assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+        assert_eq!(started.change.early, Early::None);
+        assert_eq!(started.change.since, at(90));
+    }
 }
 
 #[test]

@@ -23,7 +23,7 @@ fn check(path: &Path, bytes: &[u8], write: bool) {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn the_saved_token_schema_has_no_drift() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/skein-oauth");
+    let root = skein_scratch::paths::tree().join("crates/skein-oauth");
     let source = fs::read_to_string(root.join("schema/oauth-v3.schema")).expect("schema readable");
     let schema = skein_codegen::parse(&source).expect("schema valid");
     let output = skein_codegen::generate(&schema);

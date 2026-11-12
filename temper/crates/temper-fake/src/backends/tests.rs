@@ -72,7 +72,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, &peers);
+        let given = steps(config, &peers, None, false);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -641,16 +641,16 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     let Some(Need::Read(Item::AdminToken)) = out.pop() else { panic!("read the admin token") };
     reachable::step(&mut machine, Event::Read(Some(Secret::new(token.as_slice().into()))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
-    reachable::step(&mut machine, Event::Reply(Reply::Document(Document::User(user))), &mut out);
+    reachable::step(&mut machine, Event::Reply(Reply::Document(Box::new(Document::User(user)))), &mut out);
     let Some(Need::Send { .. }) = out.pop() else {
         panic!("ordinary reachability must accept the seeded admin despite its different login")
     };
     reachable::step(
         &mut machine,
-        Event::Reply(Reply::Document(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
+        Event::Reply(Reply::Document(Box::new(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
             max_response_items: 32,
             default_paging_num: 30,
-        }))),
+        })))),
         &mut out,
     );
     let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };

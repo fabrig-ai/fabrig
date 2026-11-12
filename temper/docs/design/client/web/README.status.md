@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+
+
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
   proposal's acts among them, and the path's stops on Ask temper's page

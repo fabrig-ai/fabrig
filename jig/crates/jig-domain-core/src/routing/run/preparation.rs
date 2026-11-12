@@ -176,6 +176,7 @@ pub(crate) fn workspace_prepared(
                 session_end = tasks::session_end(
                     session,
                     tasks::SessionWake {
+                        talk: tasks::talk_state(row.talk, row.session, env.wall),
                         at: env.wall,
                         span: tasks::quiet_span(model.cache_life_ms),
                         bytes: transcript.bytes,
@@ -302,7 +303,7 @@ fn answered_calls(core: &Core, task: u64, attempt: u64, limit: u32) -> Box<[crat
     answered.into_boxed()
 }
 
-fn start_messages(inbox: Box<[tasks::Word]>, most: u32, offered: tasks::Reasons) -> Box<[tasks::Word]> {
+pub(crate) fn start_messages(inbox: Box<[tasks::Word]>, most: u32, offered: tasks::Reasons) -> Box<[tasks::Word]> {
     let mut messages = List::with_capacity(most);
     for word in inbox {
         if !tasks::offered(&word, offered) {
@@ -444,6 +445,25 @@ pub(crate) fn plan_brief(
             required: true,
         })
         .expect("task brief room");
+    if wanted.room() > 0
+        && let Some(text) = crate::read_brief_part(
+            core,
+            text_limits,
+            task,
+            crate::BriefPart::Waiting { carried: env.limits.tasks.run_inbox },
+        )
+        && !text.is_empty()
+    {
+        wanted
+            .push(brief::Planned::Core {
+                kind: brief::Core::Waiting,
+                text,
+                limit: env.limits.brief.read_bytes,
+                priority: 0,
+                required: false,
+            })
+            .expect("waiting follows the required task section");
+    }
     if !super::now::plan(core, &env.limits, work, task, &mut wanted) {
         return out;
     }

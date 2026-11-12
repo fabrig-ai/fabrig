@@ -45,7 +45,7 @@ and unchanged accounting. No real-provider result is supplied;
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
   2: a plan's first use, its card in the conversation. 
-  the project's Delete act remains `settings.status.md`, 1. `README.md`, The welcome:
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.

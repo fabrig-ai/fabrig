@@ -19,7 +19,13 @@ fn no_source_of_the_bundle_or_the_servers_pages_names_the_old_mark() {
             files.push(path);
         }
     }
-    let mut directories = vec![root.join("files"), root.join("playground"), root.join("src")];
+    let mut directories = vec![
+        root.join("files"),
+        root.join("src"),
+        root.join("../temper-client-web-page/src"),
+        root.join("../temper-playground-page/playground"),
+        root.join("../temper-playground-page/src"),
+    ];
     while let Some(directory) = directories.pop() {
         for entry in std::fs::read_dir(directory).expect("bundle source directory") {
             let path = entry.expect("bundle source entry").path();
@@ -100,6 +106,28 @@ fn programmatic_page_targets_do_not_draw_control_focus_rings() {
         css.split_once("#app :is(main, h1)[tabindex=\"-1\"]:focus {").expect("page focus targets have their own rule");
     let (rule, _) = rule.split_once('}').expect("focus declarations");
     assert!(rule.contains("outline: none;"), "page focus target: {rule}");
+}
+
+#[test]
+fn phone_home_size_is_muted_without_chip_ground_or_files() {
+    let css = include_str!("../../temper.css");
+    let phone = css
+        .split("@media (max-width: 760px) {")
+        .skip(1)
+        .map(|block| block.split("\n}").next().unwrap())
+        .find(|block| block.contains("#app > .temper-home .temper-size-files"))
+        .expect("Home's phone size rule");
+    let (_, rule) = phone.split_once("#app > .temper-home .temper-chips .temper-chip {").expect("phone chip");
+    let (rule, _) = rule.split_once('}').unwrap();
+    for declaration in ["padding: 0;", "border: 0;", "background: none;", "font-size: 13px;", "color: var(--gf-muted);"]
+    {
+        assert!(rule.contains(declaration), "phone size: {declaration}: {rule}");
+    }
+    assert!(phone.contains("#app > .temper-home .temper-size-files { display: none; }"));
+    assert!(!phone.contains(".temper-needs"), "Needs you keeps its chip and files");
+    let (_, chip) = css.split_once(".temper-needs .temper-chip {").unwrap();
+    let (chip, _) = chip.split_once('}').unwrap();
+    assert!(chip.contains("border: 1px solid var(--gf-line);") && chip.contains("background: var(--gf-surface);"));
 }
 
 mod welcome_copy;

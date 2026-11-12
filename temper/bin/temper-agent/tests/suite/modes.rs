@@ -70,6 +70,18 @@ fn launcher(directory: &Path, right_size: bool) -> PathBuf {
 }
 
 #[test]
+fn the_version_line_names_the_binary_its_version_and_commit() {
+    use temper_version::{COMMIT, VERSION};
+
+    assert_eq!(
+        skein_shell::Table { version: VERSION, commit: COMMIT, ..AGENT }.version_line(),
+        format!("temper-agent {VERSION} ({COMMIT})\n")
+    );
+    let head = COMMIT.strip_suffix("-dirty").unwrap_or(COMMIT);
+    assert!(COMMIT == "unknown" || (head.len() == 12 && head.bytes().all(|byte| byte.is_ascii_hexdigit())), "{COMMIT}");
+}
+
+#[test]
 fn the_binary_runs_every_mode_as_temper_does() {
     let page = AGENT.help();
     let sections: Vec<_> = page.split("\n\n").collect();
@@ -95,7 +107,7 @@ fn the_binary_runs_every_mode_as_temper_does() {
     fs::write(&document, DOCUMENT).expect("plaintext loopback document");
     let absent = format!("configuration metadata: {}: file absent\n", missing.display());
     for (case, invocation, mut arguments, code, stdout, stderr) in [
-        ("version", Invocation::Binary, arguments(&["--version"]), 0, AGENT.version_line().into_bytes(), Errors::Exact(String::new())),
+        ("version", Invocation::Binary, arguments(&["--version"]), 0, format!("temper-agent {} ({})\n", temper_version::VERSION, temper_version::COMMIT).into_bytes(), Errors::Exact(String::new())),
         ("overview", Invocation::Binary, arguments(&["--help"]), 0, AGENT.help().into_bytes(), Errors::Exact(String::new())),
         ("list help", Invocation::Binary, arguments(&["--list", "--help"]), 0, command_help(&["--list"]), Errors::Exact(String::new())),
         ("short overview", Invocation::Binary, arguments(&["-h"]), 0, AGENT.help().into_bytes(), Errors::Exact(String::new())),

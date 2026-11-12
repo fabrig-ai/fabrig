@@ -53,13 +53,13 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     }
     if called.call.tool == rows::PROJECT_FUND_AT
         || called.call.tool == rows::PROJECT_AMEND_AT
-        || called.call.tool == rows::PROJECT_REMOVE_AT
+        || called.call.tool == rows::PROJECT_DELETE_AT
     {
         let Some(me) = me(runner, client) else { return };
         let request = if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
-        } else if called.call.tool == rows::PROJECT_REMOVE_AT {
-            project_remove(&called.call, me)
+        } else if called.call.tool == rows::PROJECT_DELETE_AT {
+            project_delete(&called.call, me)
         } else {
             project_fund(&called.call, me)
         };
@@ -161,20 +161,9 @@ fn project_amend(call: &Call, me: &c::Me) -> Prepared {
     let public = *visibility == 0;
     Ok((Request::Ask(c::Ask::SetVisibility { project, public }), None))
 }
-fn project_remove(call: &Call, me: &c::Me) -> Prepared {
+fn project_delete(call: &Call, me: &c::Me) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Refused(b"unknown project"))?;
-    match shapes::remove_project(me, project) {
-        Ok(ask) => Ok((Request::Ask(ask), None)),
-        Err(shapes::NotOffered::Project) => Err(Failed::Refused(b"unknown project")),
-        Err(
-            shapes::NotOffered::Template
-            | shapes::NotOffered::ChipExecutor
-            | shapes::NotOffered::Ceiling
-            | shapes::NotOffered::Creating,
-        ) => {
-            unreachable!("remove_project only requires project membership")
-        }
-    }
+    Ok((Request::Ask(c::Ask::RemoveProject { project, grace: None }), None))
 }
 fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     match super::reads::project(call, me) {
@@ -484,6 +473,8 @@ fn build(
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT if call.form == 0 => c::Ask::Talk { project, task, words: words(call, 1, limits)? },
+        rows::ROLE_TALK_AT => c::Ask::Leave { project, task },
         rows::ANSWER_AT => c::Ask::Answer { project, on: answer(call, limits)? },
         rows::TAKE_AT => c::Ask::Take { project, task },
         rows::HAND_BACK_AT => c::Ask::HandBack { project, task },
@@ -587,6 +578,8 @@ fn chip_project(chip: &c::Chip) -> u32 {
 fn kind(call: &Call) -> c::ActKind {
     match call.tool {
         rows::MESSAGE_AT => c::ActKind::Message,
+        rows::ROLE_TALK_AT if call.form == 0 => c::ActKind::Talk,
+        rows::ROLE_TALK_AT => c::ActKind::Leave,
         rows::CLOSE_AT | rows::CANCEL_AT => c::ActKind::Cancel,
         rows::ANSWER_AT => c::ActKind::Answer,
         rows::TAKE_AT => c::ActKind::Take,
@@ -824,7 +817,7 @@ fn send(
     out.push(Out::Client { event });
 }
 fn removal_name(call: &Call, me: &c::Me) -> Option<c::DocumentText> {
-    if call.tool != rows::PROJECT_REMOVE_AT {
+    if call.tool != rows::PROJECT_DELETE_AT {
         return None;
     }
     let project = super::reads::project(call, me).expect("removal project resolved");
@@ -864,6 +857,15 @@ pub(super) fn answered(
                 return;
             };
             sent.operation.to = Some(c::Recipient::Role { project, role: *to });
+        }
+        if sent.called.call.tool == rows::ROLE_TALK_AT
+            && sent.called.call.form == 0
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Said { message, .. },
+            )))) = outcome
+        {
+            crate::jig::wait::talk(runner, client, env, sent.called, *message, out);
+            return;
         }
         if sent.called.call.tool == rows::EXPORT_AT {
             super::moves::answered(runner, client, env, sent, outcome, out);

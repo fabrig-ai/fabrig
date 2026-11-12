@@ -41,7 +41,7 @@ mod goal_template;
 mod restore;
 mod role;
 
-mod project_remove;
+mod project_delete;
 mod visibility;
 
 fn malformed_setting(

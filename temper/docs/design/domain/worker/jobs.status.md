@@ -1,6 +1,7 @@
 # jobs: status
 
-2026-11-11. Where the tree's code lags or departs from [jobs.md](jobs.md).
+2026-11-12. Where the tree's code lags or departs from [jobs.md](jobs.md).
+
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,
 prepares the close change's checkout and delivers its staged tree with the

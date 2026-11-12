@@ -43,6 +43,29 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
         gates: gates.into_boxed(),
         approvals: approvals.into_boxed(),
     }));
+    let mut paths = List::with_capacity(limits.forge.follow_paths);
+    for _ in 0..limits.forge.follow_paths {
+        paths.push(word(256)).expect("bounded follow paths");
+    }
+    let follow_bytes = size(&settings::Value::Follow(settings::Follow {
+        source: settings::FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            branch: word(limits.forge.name_bytes),
+            paths: paths.into_boxed(),
+        },
+        target: settings::FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+            branch: word(limits.forge.name_bytes),
+        },
+        owner: settings::FollowOwner::Person(1),
+        start: settings::FollowStart::Code,
+        producer: Some(word(8192)),
+        check: settings::FollowCheck {
+            workflow: word(256),
+            artifact: word(256),
+            format: temper_engine_domain_forge_tiers::Format::Lines,
+        },
+    }));
     Box::new([
         Kind {
             number: 1,
@@ -122,6 +145,22 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             connector,
             value_bytes: size(&settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
             per_scope: limits.templates,
+            charters: 0,
+        },
+        Kind {
+            number: 12,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: follow_bytes,
+            per_scope: limits.forge.follows,
+            charters: 1,
+        },
+        Kind {
+            number: 13,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Dependency(settings::Dependency { project: 1 })),
+            per_scope: limits.forge.dependencies,
             charters: 0,
         },
     ])

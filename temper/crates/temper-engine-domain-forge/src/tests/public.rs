@@ -88,6 +88,16 @@ const LIMITS: Limits = Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -137,6 +147,7 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 }
 fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -210,6 +221,7 @@ fn change_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -247,15 +259,17 @@ fn change_row() -> ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -317,7 +331,7 @@ fn setup() -> Domain {
 }
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
-    d.repositories.insert(REPO, adopted()).expect("repository");
+    d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
     for task in [CHANGE, SECOND, QUEUED] {
         let mut row = change_row();
         row.task = task;
@@ -994,7 +1008,7 @@ fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
         let mut foreign = adopted();
         foreign.project = 6;
         foreign.provider = other;
-        d.repositories.insert(other, foreign).expect("other project");
+        d.repositories.insert(other, Box::new(foreign)).expect("other project");
         let row = d.changes.get_mut(&SECOND).expect("second");
         row.repository = repository;
         row.change.way = way;

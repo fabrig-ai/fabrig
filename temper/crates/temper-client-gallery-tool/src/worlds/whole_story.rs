@@ -1,6 +1,6 @@
 //! Whole-story deliveries (temper/docs/design/client/web/gallery.md, 2; client/pages/README.md).
 use super::{Then, World, base_task, doc, offers};
-use crate::driver::{down, limits};
+use crate::driver::down;
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 use temper_client_domain::{Address, Domain, Event, Request};
@@ -220,6 +220,13 @@ fn approvals(name: &str) -> Box<[u8]> {
                         sets: List::with_capacity(0),
                         whole: true,
                         yours: w::ApprovalYours::Counts,
+                        size: Some(
+                            w::ApprovalSize::new(
+                                &w::CEILINGS,
+                                w::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false },
+                            )
+                            .expect("Pair approval size"),
+                        ),
                     },
                 )
                 .expect("Pair approval"),
@@ -410,6 +417,43 @@ fn forges(name: &str) -> Box<[u8]> {
         .expect("forges"),
     )
 }
+// These document fixtures exercise all four projects independently of the shipped watch room.
+fn limits() -> temper_client_domain::Limits {
+    let mut limits = crate::driver::limits();
+    limits.client.domain.handles = 128;
+    limits.client.domain.watches = 128;
+    limits.client.domain.reads = 128;
+    limits.client.domain.requests.requests = 128;
+    limits
+}
+fn follows(name: &str, project: u32) -> Box<[u8]> {
+    let mut follows = List::with_capacity(1);
+    let mut dependencies = List::with_capacity(1);
+    if !quiet(name) && project == 2 {
+        let mut row =
+            super::ways::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed)).into_parts();
+        row.source = b"work/vsr".as_slice().into();
+        row.target = b"work/vsr-rs".as_slice().into();
+        let mut parity = row.parity.expect("passing check").into_parts();
+        let mut source = [0; 32];
+        source[..6].copy_from_slice(&[0x9c, 0x04, 0xd7, 0xe1, 0xa2, 0xb3]);
+        parity.source = source;
+        row.parity = Some(w::FollowParity::new(&w::CEILINGS, parity).expect("passing check"));
+        follows.push(w::FollowView::new(&w::CEILINGS, row).expect("whole-story follow")).expect("one follow");
+    }
+    if !quiet(name) && project == 4 {
+        dependencies
+            .push(
+                w::DependencyView::new(&w::CEILINGS, w::DependencyViewParts { number: 1, project: 2 })
+                    .expect("whole-story dependency"),
+            )
+            .expect("one dependency");
+    }
+    wire::follows_panel(
+        &w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project, follows, dependencies })
+            .expect("whole-story relations"),
+    )
+}
 fn step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {
     temper_client_domain::step(root, &Env { now: Time::ZERO, wall: now(name), limits: limits() }, event, out);
 }
@@ -512,6 +556,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     w::Watch::Forges => forges(name),
                     w::Watch::Status(key) => wire::project_status(&status(name, key.project())),
                     w::Watch::Decided(key) => decisions(name, key.project()),
+                    w::Watch::Follows(key) => follows(name, key.project()),
                     w::Watch::Approvals => approvals(name),
                     w::Watch::Dismissed => wire::dismissals(
                         &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: List::with_capacity(0) })

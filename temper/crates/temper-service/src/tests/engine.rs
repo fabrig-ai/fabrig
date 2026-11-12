@@ -305,7 +305,10 @@ fn kernel_operations_are_routed_back_to_their_owner() {
 #[test]
 fn an_io_listener_failure_stops_the_engine() {
     let mut service = fixtures::started();
-    service.told.push(skein_io::Event::Closed { owner: skein_lib::Token::new(crate::tokens::WORKER_LISTENERS) });
+    service
+        .process
+        .told()
+        .push(skein_io::Event::Closed { owner: skein_lib::Token::new(crate::tokens::WORKER_LISTENERS) });
     fixtures::turn(&mut service);
     assert_eq!(
         service.end(),
@@ -656,35 +659,35 @@ fn a_cancellation_waiting_unpublished_keeps_its_completed_targets_route() {
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let mut target = None;
-    for _ in 0..service.submissions.len() {
-        let submit = service.submissions.pop().unwrap();
+    for _ in 0..service.submissions().len() {
+        let submit = service.submissions().pop().unwrap();
         if let Op::ReadSignal { fd: found } = submit.kind
             && found == fd
         {
             target = Some(submit);
         } else {
-            service.submissions.push(submit);
+            service.submissions().push(submit);
         }
     }
     let target = target.expect("the signal source's read reached the kernel");
-    while service.submissions.room() > 0 {
-        service.submissions.push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(94) } });
+    while service.submissions().room() > 0 {
+        service.submissions().push(Submit { op: Token::new(9000), kind: Op::Close { fd: Fd::new(94) } });
     }
     service.engine.as_mut().unwrap().end = Some(crate::End::Aborted);
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert_eq!(service.submissions.room(), 0);
+    assert_eq!(service.submissions().room(), 0);
     assert!(service.pending(Time::ZERO).signals_closing);
     assert!(service.pending(Time::ZERO).raw_submissions > 0, "the cancellation waits unpublished");
     let external = target.op;
-    service.completions.push(Complete { op: external, kind: target.kind, result: Err(Error::Cancelled) });
+    service.completions().push(Complete { op: external, kind: target.kind, result: Err(Error::Cancelled) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.completions.is_empty(), "the target completion reached its owner while its cancellation waited");
+    assert!(service.completions().is_empty(), "the target completion reached its owner while its cancellation waited");
     assert!(service.pending(Time::ZERO).signals, "the source still waits for its cancellation terminal");
-    while service.submissions.pop().is_some() {}
+    while service.submissions().pop().is_some() {}
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let mut cancel = None;
-    for _ in 0..service.submissions.len() {
-        let submit = service.submissions.pop().unwrap();
+    for _ in 0..service.submissions().len() {
+        let submit = service.submissions().pop().unwrap();
         if let Op::Cancel { target } = submit.kind
             && target == external
         {
@@ -693,25 +696,25 @@ fn a_cancellation_waiting_unpublished_keeps_its_completed_targets_route() {
             if let Op::Close { fd: found } = submit.kind {
                 assert_ne!(found, fd, "close waits for the cancel owner");
             }
-            service.submissions.push(submit);
+            service.submissions().push(submit);
         }
     }
     let cancel = cancel.expect("the delayed cancellation retains its target's external route");
-    service.completions.push(Complete { op: cancel.op, kind: cancel.kind, result: Err(Error::TooLate) });
+    service.completions().push(Complete { op: cancel.op, kind: cancel.kind, result: Err(Error::TooLate) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let mut close = None;
-    for _ in 0..service.submissions.len() {
-        let submit = service.submissions.pop().unwrap();
+    for _ in 0..service.submissions().len() {
+        let submit = service.submissions().pop().unwrap();
         if let Op::Close { fd: found } = submit.kind
             && found == fd
         {
             close = Some(submit);
         } else {
-            service.submissions.push(submit);
+            service.submissions().push(submit);
         }
     }
     let close = close.expect("the cancellation maps back to its source, which can now close");
-    service.completions.push(Complete { op: close.op, kind: close.kind, result: Ok(Done::Nothing) });
+    service.completions().push(Complete { op: close.op, kind: close.kind, result: Ok(Done::Nothing) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(!service.pending(Time::ZERO).signals, "the source's owner observes its final close");
 }
@@ -961,6 +964,48 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
 }
 
 #[test]
+fn unreadable_temper_rows_refuse_restart_by_their_row_key_before_switch() {
+    use jig_protocol_store as store;
+    use temper_engine_domain_forge as forge;
+    let key = temper_protocol_store::keys::encode(&forge::Key::Flight { task: 3, entry: 8 }, u32::MAX).unwrap();
+    let valid = temper_protocol_store::records::encode(&forge::Stored::Flight { task: 3, entry: 8 });
+    let mut trailing = skein_lib::Writer::new(valid.len() + 1);
+    trailing.put(&valid).unwrap();
+    trailing.put(&[0]).unwrap();
+    let mismatched = temper_protocol_store::records::encode(&forge::Stored::Flight { task: 3, entry: 9 });
+    for value in [Box::from([255]), trailing.finish(), mismatched] {
+        let mut previous = fixtures::ready().engine.unwrap();
+        let mut header = previous.domain.deployment();
+        header.commits += 1;
+        previous.store.host.ask(store::Request::Commit {
+            number: header.commits,
+            writes: Box::new([
+                store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+                store::Write::Put { key: key.clone(), value },
+            ]),
+        });
+        let Some(store::Event::Committed { .. }) = previous.store.host.above.pop() else {
+            panic!("unreadable fixture committed")
+        };
+        let mut service = fixtures::restarting_from(previous);
+        service.engine.as_mut().unwrap().store.pending_generation = true;
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        let expected = crate::End::Stopped(crate::Stop::StoreRow { row: crate::UnreadableRow { key: key.clone() } });
+        assert_eq!(service.end(), Some(&expected));
+        let engine = service.engine.as_ref().unwrap();
+        assert!(!engine.domain.ready());
+        assert!(!engine.store.host.mark_durable());
+        assert!(engine.store.pending_generation, "refused before switch");
+        assert!(engine.store.routes.idle(), "no further load");
+    }
+}
+
+#[test]
 fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     use jig_protocol_store as store;
     use skein_lib::{Env, Queue, Token, Wall};
@@ -1033,4 +1078,83 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
             }),
         }))
     );
+}
+
+fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Box<[u8]>, Box<[u8]>) {
+    use temper_engine_domain_forge::{Key, settings::SettingSlot};
+    use temper_protocol_store::v11 as w;
+    let slot = match key.slot {
+        SettingSlot::Default => w::SettingSlot::Default,
+        SettingSlot::Change => w::SettingSlot::Change,
+        SettingSlot::Replaced(number) => {
+            w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+        }
+        SettingSlot::Proposal(number) => {
+            w::SettingSlot::Proposal(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+        }
+    };
+    // The removed route's tag is 1; the live up route keeps tag 2.
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Retired.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[1]);
+    let value = if key.kind == 6 {
+        w::SettingValue::Questions(
+            w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
+        )
+    } else {
+        w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap())
+    };
+    let value = w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value, size: 1 }).unwrap();
+    let row = w::SettingRow::new(
+        &w::CEILINGS,
+        w::SettingRowParts {
+            kind: key.kind,
+            scope: key.scope,
+            number: key.number,
+            slot,
+            edit: w::SettingEdit::Set(value),
+        },
+    )
+    .unwrap();
+    let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+    row.encode(&mut bytes).unwrap();
+    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes.finish())
+}
+
+#[test]
+fn a_retired_stored_setting_refuses_start_before_switch() {
+    use jig_protocol_store as store;
+    use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
+    for key in [
+        SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Change },
+        SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Change },
+        SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Replaced(2) },
+        SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Replaced(2) },
+    ] {
+        let mut previous = fixtures::ready().engine.unwrap();
+        let mut header = previous.domain.deployment();
+        header.commits += 1;
+        let (stored_key, value) = retired_setting(key);
+        previous.store.host.ask(store::Request::Commit {
+            number: header.commits,
+            writes: Box::new([
+                store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+                store::Write::Put { key: stored_key, value },
+            ]),
+        });
+        let Some(store::Event::Committed { .. }) = previous.store.host.above.pop() else { panic!("fixture committed") };
+        let mut service = fixtures::restarting_from(previous);
+        service.engine.as_mut().unwrap().store.pending_generation = true;
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Setting(key))));
+        let engine = service.engine.as_ref().unwrap();
+        assert!(!engine.domain.ready());
+        assert!(engine.store.pending_generation, "refused before switching generations");
+    }
 }

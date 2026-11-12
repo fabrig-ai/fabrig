@@ -85,7 +85,10 @@ fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?)
 }
 fn receipt_slots(l: &Limits) -> Option<u32> {
-    l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)
+    l.repositories
+        .checked_mul(l.gates.checked_add(l.tiers.tiers)?)?
+        .checked_add(l.judge_projects.checked_mul(l.follows)?)?
+        .checked_mul(l.receipts_per_gate)
 }
 // Landing row indices and retained table counts must fit before construction.
 pub(crate) fn valid(l: &Limits) -> bool {
@@ -831,6 +834,7 @@ pub(crate) fn step(
                     gates: change.verdicts.clone(),
                     reviews: Box::new([]),
                     reviews_complete: false,
+                    size: None,
                 },
             })
             .expect("bounded evidence");
@@ -1057,6 +1061,9 @@ fn advance(
                         wait(d, p.task, env, p.repository, out);
                         return;
                     };
+                    let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
+                    evidence.head = Some(pull.commit);
+                    evidence.size = pull.size;
                     fact.merged = pull.merged;
                     fact.ready = if let change::State::Ready { .. } = change.change.state { true } else { false };
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
@@ -1465,6 +1472,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     let evidence = if let policy::Decision::Merge { member, candidate } = decision {
         let fact = p.facts.get(usize::from(member)).expect("fresh member facts");
         let mut evidence = p.evidence.get(usize::from(member)).expect("member evidence").clone();
+        if evidence.facts.head != Some(candidate) {
+            evidence.facts.size = None;
+        }
         evidence.facts.head = Some(candidate);
         let paths = p.paths.get(usize::from(member)).expect("member paths");
         let classes = d.project_classes(row.landing.project);

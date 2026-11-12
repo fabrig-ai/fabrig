@@ -76,7 +76,7 @@ pub fn document() -> Box<[u8]> {
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
     let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
+    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(

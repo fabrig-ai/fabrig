@@ -78,17 +78,17 @@ pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: 
         directory: root.to_path_buf(),
     };
     let shell = root.join("crates/temper-client-shell-web");
-    let module = nested.join("wasm32-unknown-unknown").join(profile.1).join("temper_client_shell_web.wasm");
+    let module = nested.join("wasm32-unknown-unknown").join(profile.1).join("temper_client_web_page.wasm");
     [
         build(&[
             "build",
             "--locked",
             "--target",
             "wasm32-unknown-unknown",
+            "-p",
+            "temper-client-web-page",
             "--profile",
             profile.0,
-            "-p",
-            "temper-client-shell-web",
         ]),
         build(&["build", "--locked", "--release", "-p", "skein-ui-bundle"]),
         Command {
@@ -97,7 +97,7 @@ pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: 
                 "--module".into(),
                 module.into_os_string(),
                 "--name".into(),
-                "temper_client_shell_web".into(),
+                "temper_client_web_page".into(),
                 "--prefix".into(),
                 "/bundle/".into(),
                 "--title".into(),
@@ -122,6 +122,11 @@ pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: 
             directory: root.to_path_buf(),
         },
     ]
+}
+
+/// The shipped page's dep-info beside its module, in the nested build's directory.
+pub fn module_dep_info(target: &Path, output: &str) -> PathBuf {
+    target.join("bundle/wasm32-unknown-unknown").join(output).join("temper_client_web_page.d")
 }
 
 /// Read the first make rule's prerequisites, honoring escaped spaces and line continuations.

@@ -1107,6 +1107,7 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    pub talk: Option<crate::Talk>,
     /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
     pub session: Option<crate::Session>,
     /// Whether this activation continues across retries and kept parks (standing.md, 5.1).
@@ -1372,14 +1373,28 @@ impl Stored {
 /// (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    NotStanding,
+    TalkOpen {
+        party: u64,
+    },
+    NoTalk,
     /// A standing placed hold forbids delegation into its scope or detachment from it.
-    Placed { hold: u64 },
+    Placed {
+        hold: u64,
+    },
     /// The task caller may not lift this placed hold.
-    HoldOwner { hold: u64 },
+    HoldOwner {
+        hold: u64,
+    },
     /// The named placed hold revision moved.
-    HoldRevision { revision: u64 },
+    HoldRevision {
+        revision: u64,
+    },
     /// An explicit account preference was refused before the task changes.
-    Account { account: u32, why: crate::AccountWhy },
+    Account {
+        account: u32,
+        why: crate::AccountWhy,
+    },
     /// A cancel gave a grace longer than the configured span.
     Grace,
     /// The project has no room for more live tracked tasks.
@@ -1387,7 +1402,9 @@ pub enum Refusal {
     /// No policy role may accept this proposal kind; nothing of it is committed.
     Unproposable,
     /// The address edit names an older person task revision.
-    PersonRevision { revision: u64 },
+    PersonRevision {
+        revision: u64,
+    },
     /// A required resource is unavailable in this project.
     ResourceUnavailable,
     /// Startup is restoring, checked or failed; no mutation is admitted.
@@ -1421,18 +1438,26 @@ pub enum Refusal {
     Dependencies,
     /// The new waits would close a circle of waits; `blocked_by` names its tasks in order, each
     /// waiting for the next, at most `Limits::circle` (domain/tasks/holds.md, 7).
-    Circle { cut: bool },
+    Circle {
+        cut: bool,
+    },
     /// A dependency an amendment adds has ended failed or cancelled; `blocked_by` names it
     /// (domain/tasks/changes.md).
-    DependencyEnded { how: Status },
+    DependencyEnded {
+        how: Status,
+    },
     /// The task is kept by pending dependencies, which `blocked_by` names, the oldest first: a
     /// person's answer, a procedure's step ending it done, or an effect that waits for them
     /// (domain/tasks/lifecycle.md, 8).
     Kept,
     /// Its own unanswered question keeps it (domain/tasks/lifecycle.md, 8).
-    KeptQuestion { question: u64 },
+    KeptQuestion {
+        question: u64,
+    },
     /// Its person answers this question in their inbox (domain/people/README.md, 5).
-    PersonAnswers { question: u64 },
+    PersonAnswers {
+        question: u64,
+    },
     /// `Agent` charter is absent from the admitted configured table.
     Executor,
     /// Specification count or aggregate owned bytes are invalid.
@@ -1467,7 +1492,10 @@ pub enum Refusal {
     /// A task's hold list or a resource's waiting queue exceeds its bound.
     Holds,
     /// An LLM choice names `model`, which it may not, and why (domain/tasks/README.md, sections 3 and 4).
-    Llm { model: u8, why: crate::LlmFault },
+    Llm {
+        model: u8,
+        why: crate::LlmFault,
+    },
 }
 
 /// `Refusal` location and reason returned to the root; batch-wide failures may have no single task
@@ -1530,16 +1558,33 @@ pub enum Accepted {
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
     /// Close project rows (jig/docs/design/domain/tasks/changes.md).
-    CloseProject { project: u32 },
+    CloseProject {
+        project: u32,
+    },
     /// Root-checked placement; the root numbers it and judges standing, the child judges room.
-    Place { reply_to: ReplyTo, hold: crate::PlacedHold },
+    Place {
+        reply_to: ReplyTo,
+        hold: crate::PlacedHold,
+    },
     /// Root-checked lift naming the placed hold revision (domain/tasks/lifecycle.md, 10).
-    Lift { reply_to: ReplyTo, by: Party, hold: u64, revision: u64, with_tasks: bool },
+    Lift {
+        reply_to: ReplyTo,
+        by: Party,
+        hold: u64,
+        revision: u64,
+        with_tasks: bool,
+    },
     /// Move eligible live agent tasks on `from`, or every older revision, to the newest (domain/engine/settings.md, 4).
-    MoveToNewest { from: Option<u32> },
+    MoveToNewest {
+        from: Option<u32>,
+    },
     /// Replace held charter versions and name the newest settings after a commit or start
     /// (domain/engine/settings.md, 2 and 3).
-    Charters { newest: u32, charters: Box<[crate::CharterModels]>, efforts: Box<[u8]> },
+    Charters {
+        newest: u32,
+        charters: Box<[crate::CharterModels]>,
+        efforts: Box<[u8]>,
+    },
     /// One project's party operations, admitted in order and made whole.
     Compound {
         reply_to: ReplyTo,
@@ -1551,21 +1596,46 @@ pub enum Event {
         period_budget: u64,
     },
     /// Latest connector admission rule for this individual resource.
-    Resource { name: Name, hold: HoldKind },
+    Resource {
+        name: Name,
+        hold: HoldKind,
+    },
     /// Current adoption access for a named resource in one project.
-    ResourceAccess { project: u32, name: Name, access: ResourceAccess },
+    ResourceAccess {
+        project: u32,
+        name: Name,
+        access: ResourceAccess,
+    },
     /// Root installs one connector's bounded resource-kind configuration.
-    Kinds { connector: u16, kinds: Box<[Kind]> },
+    Kinds {
+        connector: u16,
+        kinds: Box<[Kind]>,
+    },
     /// Connector reports its current slot count for one opaque pool.
-    Slots { pool: Name, slots: u32 },
+    Slots {
+        pool: Name,
+        slots: u32,
+    },
     /// Connector reports that a holder's allocation in this pool vanished.
-    AllocationGone { pool: Name, task: u64 },
+    AllocationGone {
+        pool: Name,
+        task: u64,
+    },
     /// Connector facts changed for one idle procedure; a due step is offered once.
-    WakeProcedure { task: u64 },
+    WakeProcedure {
+        task: u64,
+    },
     /// Root admits a person's goal proposal after validating policy and shape.
-    ProposePerson { reply_to: ReplyTo, proposal: crate::PersonProposal },
+    ProposePerson {
+        reply_to: ReplyTo,
+        proposal: crate::PersonProposal,
+    },
     /// Withdraw the proposing party's pending proposal.
-    WithdrawPersonProposal { reply_to: Option<ReplyTo>, proposer: u64, proposal: u64 },
+    WithdrawPersonProposal {
+        reply_to: Option<ReplyTo>,
+        proposer: u64,
+        proposal: u64,
+    },
     /// Root commits a policy holder's decision on a person-origin goal proposal.
     DecidePersonProposal {
         reply_to: ReplyTo,
@@ -1577,13 +1647,26 @@ pub enum Event {
         revision: Option<u32>,
     },
     /// A newly opened project period makes the core recurring procedure due.
-    TickRecurring { task: u64, period: u64 },
+    TickRecurring {
+        task: u64,
+        period: u64,
+    },
     /// A subscribed top-level procedure receives its next period's task and spend allotment.
-    RenewStanding { task: u64, period: u64 },
+    RenewStanding {
+        task: u64,
+        period: u64,
+    },
     /// Root supplies fresh identities for the template batch requested by the core procedure.
-    RecurringBatch { task: u64, period: u64, numbers: Box<[u64]> },
+    RecurringBatch {
+        task: u64,
+        period: u64,
+        numbers: Box<[u64]>,
+    },
     /// Root supplies the fresh identity of the task's own closer (domain/tasks/lifecycle.md, 11).
-    CloserBatch { task: u64, number: u64 },
+    CloserBatch {
+        task: u64,
+        number: u64,
+    },
     /// Fenced decision from the owner of one due procedure task.
     Procedure {
         reply_to: ReplyTo,
@@ -1594,13 +1677,29 @@ pub enum Event {
         decision: ProcedureDecision,
     },
     /// Root-authenticated role holder takes an active person task from every role inbox.
-    TakePerson { reply_to: ReplyTo, task: u64, person: u64 },
+    TakePerson {
+        reply_to: ReplyTo,
+        task: u64,
+        person: u64,
+    },
     /// The current holder returns a role task to the role inbox.
-    HandBackPerson { reply_to: ReplyTo, task: u64, person: u64 },
+    HandBackPerson {
+        reply_to: ReplyTo,
+        task: u64,
+        person: u64,
+    },
     /// Root-authenticated addressee answers a live person task under its result contract.
-    AnswerPerson { reply_to: ReplyTo, task: u64, person: u64, result: TaskResult },
+    AnswerPerson {
+        reply_to: ReplyTo,
+        task: u64,
+        person: u64,
+        result: TaskResult,
+    },
     /// Root-authorized bounded proposal and resolved first holder.
-    Propose { reply_to: ReplyTo, proposal: crate::Proposal },
+    Propose {
+        reply_to: ReplyTo,
+        proposal: crate::Proposal,
+    },
     /// Root-checked current holder resolves a pending proposal after executing an acceptance.
     DecideProposal {
         reply_to: ReplyTo,
@@ -1612,9 +1711,16 @@ pub enum Event {
         decision: crate::ProposalDecision,
     },
     /// Root completes a settings proposal atomically with its revision or stale withdrawal.
-    DecideSettingsProposal { reply_to: Option<ReplyTo>, decision: crate::SettingsDecision },
+    DecideSettingsProposal {
+        reply_to: Option<ReplyTo>,
+        decision: crate::SettingsDecision,
+    },
     /// Proposer withdraws its own pending action before it closes.
-    WithdrawProposal { reply_to: ReplyTo, proposer: u64, proposal: u64 },
+    WithdrawProposal {
+        reply_to: ReplyTo,
+        proposer: u64,
+        proposal: u64,
+    },
     /// Root routes one pending proposal only from the holder and revision it checked.
     StalledProposal {
         proposer: u64,
@@ -1624,9 +1730,17 @@ pub enum Event {
         holder: crate::ProposalHolder,
     },
     /// Root-checked live ancestor controls a delegate and its subtree.
-    Cancel { reply_to: ReplyTo, by: Party, operation: crate::Cancel },
+    Cancel {
+        reply_to: ReplyTo,
+        by: Party,
+        operation: crate::Cancel,
+    },
     /// Root-checked release of a live task.
-    Release { reply_to: ReplyTo, by: Party, operation: crate::Release },
+    Release {
+        reply_to: ReplyTo,
+        by: Party,
+        operation: crate::Release,
+    },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {
         /// Ended dependencies and the ended requesters used to judge their reach.
@@ -1638,21 +1752,58 @@ pub enum Event {
         funder: Option<Funder>,
     },
     /// Root-authorized person adoption of one live task, with its reservation moved to that person's pool.
-    Move { reply_to: ReplyTo, person: u64, period: u64, pool_budget: u64, period_budget: u64, operation: crate::Move },
+    Move {
+        reply_to: ReplyTo,
+        person: u64,
+        period: u64,
+        pool_budget: u64,
+        period_budget: u64,
+        operation: crate::Move,
+    },
     /// Install one root-numbered standing interest for a current task.
-    Subscribe { reply_to: ReplyTo, task: u64, subscription: Subscription },
+    Subscribe {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: Subscription,
+    },
     /// Root-authorized connector topic interest with the same durable task subscription.
-    SubscribeTopic { reply_to: ReplyTo, task: u64, subscription: Subscription },
+    SubscribeTopic {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: Subscription,
+    },
     /// Remove one interest owned by a current task.
-    Unsubscribe { reply_to: ReplyTo, task: u64, subscription: u64 },
+    Unsubscribe {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: u64,
+    },
     /// Root places a merged state/timer/connector hint in a subscribed inbox.
-    Notice { task: u64, word: Word },
+    Notice {
+        task: u64,
+        word: Word,
+    },
     /// Give two live tasks referenced by the introducer reciprocal references.
-    Introduce { reply_to: ReplyTo, by: u64, left: u64, right: u64 },
+    Introduce {
+        reply_to: ReplyTo,
+        by: u64,
+        left: u64,
+        right: u64,
+    },
     /// Admit authenticated person words to a live chat and wake or relay after their commit.
-    Message { reply_to: ReplyTo, project: u32, operation: Message },
+    Message {
+        reply_to: ReplyTo,
+        project: u32,
+        operation: Message,
+    },
     /// Admit a question offered to the addressed task's person (domain/people/README.md, 5).
-    PersonQuestion { reply_to: ReplyTo, project: u32, task: u64, person: u64, word: Word },
+    PersonQuestion {
+        reply_to: ReplyTo,
+        project: u32,
+        task: u64,
+        person: u64,
+        word: Word,
+    },
     /// Deliver an authenticated inbox answer and its notice in one decision.
     PersonQuestionAnswer {
         reply_to: ReplyTo,
@@ -1664,12 +1815,33 @@ pub enum Event {
         word: Word,
     },
     /// A person's words whose project standing was admitted by the core; retains that actor.
-    AuthorizedMessage { reply_to: ReplyTo, project: u32, operation: Message },
+    AuthorizedMessage {
+        reply_to: ReplyTo,
+        project: u32,
+        operation: Message,
+    },
+    Talk {
+        reply_to: ReplyTo,
+        project: u32,
+        operation: Message,
+    },
+    Leave {
+        reply_to: ReplyTo,
+        project: u32,
+        task: u64,
+        party: u64,
+        maintainer: bool,
+    },
     /// Root delivers a just-ended delegate's result to its task requester in
     /// the same decision that archived the delegate.
-    DelegateResult { task: u64, word: Word },
+    DelegateResult {
+        task: u64,
+        word: Word,
+    },
     /// Root verified a newly named retained input against its ended store row.
-    RememberStub { stub: Stub },
+    RememberStub {
+        stub: Stub,
+    },
     /// Root `SetRoles` preflight: inspect only current person-requested `Waiting`
     /// contexts without mutation; one terminal even before readiness.
     InspectEscalations {
@@ -1714,7 +1886,11 @@ pub enum Event {
     },
     /// The period source supplied a next boundary; no cadence is inferred.
     /// Update its current ledger, preserve the original opening wall, and ignore stale notices.
-    PeriodNext { project: u32, period: u64, next: Option<Wall> },
+    PeriodNext {
+        project: u32,
+        period: u64,
+        next: Option<Wall>,
+    },
     /// `Open` one finite monotonic project period after root authorization; emits ledger `Save`
     /// plus `Done`, or one `Refused` with no mutation.
     OpenPeriod {
@@ -1742,13 +1918,27 @@ pub enum Event {
     },
     /// Post the connector's maximum price in the effect's deciding commit.
     /// Root already checked authority and the current funding balance.
-    ChargeEffect { funder: Funder, maximum: u64 },
+    ChargeEffect {
+        funder: Funder,
+        maximum: u64,
+    },
     /// Change an existing current-period person's pool while preserving reservations and spending.
-    ResizePool { reply_to: ReplyTo, project: u32, person: u64, period: u64, budget: u64 },
+    ResizePool {
+        reply_to: ReplyTo,
+        project: u32,
+        person: u64,
+        period: u64,
+        budget: u64,
+    },
     /// Change the open period's budget after root authorization, its reservations and
     /// spending kept (domain/authority.md, 7); emits the ledger's `Save` plus `Done`, or one
     /// `Refused` with no mutation.
-    ResizePeriod { reply_to: ReplyTo, project: u32, period: u64, budget: u64 },
+    ResizePeriod {
+        reply_to: ReplyTo,
+        project: u32,
+        period: u64,
+        budget: u64,
+    },
     /// Admit the next contiguous turn, offered inbox read and checked expense delta atomically;
     /// stale turns/attempts and arithmetic failures refuse without debit.
     Turn {
@@ -1773,9 +1963,21 @@ pub enum Event {
         /// from this attempt's reserved run allowance.
         cumulative: u64,
     },
+    /// A run's successful write of its own Now, in the note's saving decision
+    /// (jig/docs/design/domain/tasks/standing.md, 6). Stale/nonstanding attempts are ignored.
+    NowWritten {
+        task: u64,
+        attempt: u64,
+        line: Box<[u8]>,
+    },
     /// Root-validated answer refusals, kept before its activation in the same decision.
     /// Stale attempts or names outside the offered inbox are ignored.
-    Refusals { task: u64, attempt: u64, refused: Box<[u64]>, offered: Option<u64> },
+    Refusals {
+        task: u64,
+        attempt: u64,
+        refused: Box<[u64]>,
+        offered: Option<u64>,
+    },
     /// Create an authorized whole batch and reservations atomically, producing `Made` or
     /// `Refused` plus bounded persistence/lifecycle outputs.
     Make {
@@ -1832,11 +2034,21 @@ pub enum Event {
         writes: Box<[Name]>,
     },
     /// A connector has read a lost run's resource afresh; its slot may now be freed.
-    ReadAfresh { resource: Name },
+    ReadAfresh {
+        resource: Name,
+    },
     /// Claim the writer slot for a connector-owned effect until it settles.
-    EffectInFlight { reply_to: ReplyTo, task: u64, resource: Name, entry: u64 },
+    EffectInFlight {
+        reply_to: ReplyTo,
+        task: u64,
+        resource: Name,
+        entry: u64,
+    },
     /// A connector-owned effect's terminal frees its matching writer slot.
-    EffectSettled { resource: Name, entry: u64 },
+    EffectSettled {
+        resource: Name,
+        entry: u64,
+    },
     /// Notification changing only the matching `Claimed` attempt to `Running`; absent/stale inputs
     /// are ignored and no reply is owed.
     Started {
@@ -1867,11 +2079,20 @@ pub enum Event {
     /// Notification pausing only a `Preparing` task; does not consume a failure try and has no
     /// reply.
     /// Preparation became stale or waits for an account/host; return to due without a retry timer.
-    PreparationWaiting { task: u64 },
+    PreparationWaiting {
+        task: u64,
+    },
     /// Pause preparation without spending a try, retaining its reason.
-    PreparationPaused { task: u64, reason: Box<[u8]> },
+    PreparationPaused {
+        task: u64,
+        reason: Box<[u8]>,
+    },
     /// Count a preparation failure, retaining its reason through backoff and hold.
-    PreparationCounted { task: u64, class: Class, reason: Box<[u8]> },
+    PreparationCounted {
+        task: u64,
+        class: Class,
+        reason: Box<[u8]>,
+    },
     /// Authorized notification preserving prior state and issuing `Stop` for any live run;
     /// absent tasks and unchanged reasons have no output.
     Hold {
@@ -1882,14 +2103,22 @@ pub enum Event {
         why: Hold,
     },
     /// Connector-classified hold with its exact opaque resource or effect identity.
-    HoldFrom { task: u64, why: Hold, source: Box<HoldSource> },
+    HoldFrom {
+        task: u64,
+        why: Hold,
+        source: Box<HoldSource>,
+    },
     /// Root notification that prior effects settled; matching `Effects` stages advance.
     EffectsSettled {
         /// Closing task whose prior effects have settled.
         task: u64,
     },
     /// A connector kept one failed task's resource for its tree root until that root closes.
-    Retained { task: u64, root: u64, holding: Holding },
+    Retained {
+        task: u64,
+        root: u64,
+        holding: Holding,
+    },
     /// Root notification after cleanup finishes; matching `Releases` stages advance,
     /// including held prior closing, without lifting a hold.
     Settled {
@@ -1898,17 +2127,45 @@ pub enum Event {
         task: u64,
     },
     /// Root numbers the news requested by the due person-task timer.
-    PersonStallNotice { task: u64, message: u64 },
+    PersonStallNotice {
+        task: u64,
+        message: u64,
+    },
     /// Root numbers each unanswered-question notice once.
-    QuestionEndedNotice { task: u64, notices: Box<[QuestionNotice]> },
+    QuestionEndedNotice {
+        task: u64,
+        notices: Box<[QuestionNotice]>,
+    },
     /// Root numbers the reminder for a run that finished before asking.
-    QuestionOwedNotice { task: u64, message: u64 },
+    QuestionOwedNotice {
+        task: u64,
+        message: u64,
+    },
     /// Core-numbered notice after a park with nothing pending.
-    NothingAwaitedNotice { task: u64, message: u64 },
+    NothingAwaitedNotice {
+        task: u64,
+        message: u64,
+    },
+    /// Core supplies the oldest open question's bounded reason; no message is numbered.
+    QuestionParked {
+        task: u64,
+        question: u64,
+        reason: Box<[u8]>,
+    },
     /// A caller cancels its own unanswered question.
-    CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
+    CancelQuestion {
+        reply_to: ReplyTo,
+        task: u64,
+        question: u64,
+    },
     /// Root numbers the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
-    MetNotice { task: u64, dependency: u64, removed: bool, by: Party, message: u64 },
+    MetNotice {
+        task: u64,
+        dependency: u64,
+        removed: bool,
+        by: Party,
+        message: u64,
+    },
     /// Admit one `Live`/`Ledger` row during restoring; invalid input permanently fails restoration
     /// with `RestoreRefused`.
     Restore {
@@ -1964,6 +2221,8 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
+    /// Finish an idle park's question wake with words from the core's question cache.
+    QuestionParked { task: u64, question: crate::OpenQuestion },
     /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle.md, 11).
     CloserDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
