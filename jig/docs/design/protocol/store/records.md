@@ -1,8 +1,8 @@
 # Records
 
 The families' current versions are the component's 3, the core's 6,
-the tasks' 9, the people's 14, the notes' 1, the accounts' 2, the
-settings' 1 and the secrets' 1. The tasks family's durable
+the tasks' 10, the people's 15, the notes' 1, the accounts' 2, the
+settings' 2 and the secrets' 1. The tasks family's durable
 `MessageKind` holds `FinishRequested { revision }` for a cancel grace
 and `NothingAwaited` for a result-ended task with nothing pending
 (`../../domain/tasks/lifecycle.md`, 2), and it stores the successful `NoChange`
@@ -87,6 +87,12 @@ follow from the limits that bound each kind (4).
   the first release, their layout fingerprints changing (3).
 - **Change results** keep an explicit title beside their words in the
   tasks family. Both fields independently fit the result-byte limit.
+
+- **Retained project policies** move from people version 14 to 15 in jig's
+  patch 1. The written `StoredPolicy.value` conversion intersects the ceiling's
+  and every policy role's delegation executors with the deployment's configured
+  executors, supplied in the patch context before opening the store. It grants
+  no new executor and keeps every other field. An empty context admits none.
 
 - **Each record carries its family's version,** as every generated record
   does (skein's `data/codec/README.md`, section 5), which is what an upgrade will

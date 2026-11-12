@@ -257,7 +257,7 @@ dev.fabrig.ai's, upgrades to it.
 |---|---|---|---|
 | `jig-store-tasks` 9 | `TaskRecord.activation_open`, `TaskRecord.session`; activity lines `stood`, `session_ended` appended | `activation_open` false, `session` none | moves to 10 in jig's patch 1 |
 | `jig-store-settings` 1 | `Model.cache_life_ms` inserted; `EndedBy`'s `standing` appended | `cache_life_ms` 0, the configuration's "none declared" | moves to 2 in jig's patch 1 |
-| `jig-store-people` 14 | `EndedBy`'s `standing` appended | nothing | kept at 14, its kept text refreshed: no patch needed while no landed patch names it (skein's `data/codec/command.md`, 2, step 3) |
+| `jig-store-people` 14 | `EndedBy`'s `standing` appended; configured delegation executors narrowed | retained policy ceiling and each role retain only executors also granted by the configured deployment ceiling; all other fields kept | moves to 15 in jig's written patch 1 |
 | `temper-store` 11 | `LandingRule.sets` appended | `sets` empty: a rule naming no set covers every change | moves to 12 in temper's patch 1; `STORE_VERSION` 12 |
 
 - **The patches:** jig's patch 1, `owner jig 1 after smith 0 skein 0`,

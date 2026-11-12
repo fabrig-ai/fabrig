@@ -565,11 +565,17 @@ fn a_protocol_crate_linking_smith_is_reported_unless_charter_or_transcript() {
 
 #[test]
 fn the_store_links_smiths_transcript_but_no_other_agent_crate() {
-    let store = parse_manifest(
-        PathBuf::from("fixture/store/Cargo.toml"),
-        "[package]\nname = \"jig-protocol-store\"\n[dependencies]\nsmith-transcript.workspace = true\nsmith-charter.workspace = true\n",
-    );
-    assert_eq!(smith_breaches(&[store]), ["fixture/store/Cargo.toml: smith-charter"]);
+    for name in ["jig-protocol-store", "jig-protocol-transcript"] {
+        let source = format!(
+            "[package]\nname = \"{name}\"\n[dependencies]\nsmith-transcript.workspace = true\nsmith-charter.workspace = true\nsmith-domain.workspace = true\n"
+        );
+        let manifest = parse_manifest(PathBuf::from("fixture/store/Cargo.toml"), &source);
+        assert_eq!(
+            smith_breaches(&[manifest]),
+            ["fixture/store/Cargo.toml: smith-charter", "fixture/store/Cargo.toml: smith-domain"],
+            "{name} permits only the transcript vocabulary"
+        );
+    }
 }
 
 #[test]

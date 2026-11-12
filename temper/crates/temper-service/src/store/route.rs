@@ -20,6 +20,7 @@ pub struct Routes {
     families: families::Bounds,
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
+    pub(crate) patch_context: store::patches::Context,
 }
 #[derive(Debug)]
 pub(super) struct Flight {
@@ -45,6 +46,7 @@ impl Routes {
             families,
             page_failure: None,
             row_failure: None,
+            patch_context: store::patches::Context::default(),
         }
     }
     /// The store's typed cause for the refused startup page.
@@ -238,8 +240,8 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 root(into, engine::StoreInput::ReadLoaded { load, result });
             }
         }
-        store::Event::Site { owner, of, site, patcher, .. } => {
-            into.push(Up::Ask(dispatch(owner, of, site, patcher)));
+        store::Event::Site { owner, of, site, at, patcher, key: _ } => {
+            into.push(Up::Ask(dispatch(owner, of, site, at, patcher, &mut routes.patch_context)));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } | store::Event::SecretsNotReady { .. } => stop(routes, into),
@@ -510,17 +512,26 @@ fn page_bytes(record: &engine::Record, kept: u64) -> Option<(u64, u64)> {
     Some((payload, kept.checked_add(slot)?))
 }
 
-/// No owner has registered a written patch site in this build. Hand the
-/// machine back with the named refusal, so the active generation is preserved.
+/// Route each written site to its owner with the deployment's admitted inputs.
 fn dispatch(
     owner: Token,
     of: store::Owner,
     site: skein_codec::patch::Site,
-    patcher: Box<skein_codec::patch::Patcher>,
+    at: skein_codec::value::Node,
+    mut patcher: Box<skein_codec::patch::Patcher>,
+    context: &mut store::patches::Context,
 ) -> store::Request {
+    let (old, new) = patcher.parts();
     let result = match of {
-        store::Owner::Skein | store::Owner::Smith | store::Owner::Jig | store::Owner::Application => {
-            Err(skein_codec::patch::Halt::NoSite(site))
+        store::Owner::Skein => {
+            skein_oauth::patches::written(site, old, new, at, &mut skein_oauth::patches::Context::default())
+        }
+        store::Owner::Smith => {
+            smith_transcript::patches::written(site, old, new, at, &mut smith_transcript::patches::Context::default())
+        }
+        store::Owner::Jig => store::patches::written(site, old, new, at, context),
+        store::Owner::Application => {
+            families::patches::written(site, old, new, at, &mut families::patches::Context::default())
         }
     };
     store::Request::Site { owner, patcher, result }

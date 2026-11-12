@@ -262,7 +262,12 @@ impl skein_world::Referee<Proc> for Judge {
                     .agent_records
                     .iter()
                     .any(|row| matches!(row, referee::AgentRecord::Start { task: 7, attempt, .. } if *attempt > 6))
-                && live(&store).any(|task| task.number > 7 && task.spec.words.as_ref() == b"Golden after upgrade")
+                && live(&store).any(|task| {
+                    task.number > 7 && task.spec.words.as_ref() == b"Golden after upgrade"
+                        && store.agent_records.iter().any(|row| {
+                            matches!(row, referee::AgentRecord::Start { task: number, .. } if *number == task.number)
+                        })
+                })
                 && others
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 4))

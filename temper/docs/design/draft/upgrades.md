@@ -200,6 +200,11 @@ in its owner's crate beside the schemas. By kind:
   from others, as a function over the generic values; and a change of
   keys, since jig's keys are written out by hand, not generated from
   schemas (jig's `protocol/store/README.md`, 4.1).
+  The catch-up's jig patch 1 narrows retained project ceilings and every
+  policy role's delegation executors to their intersection with the
+  deployment's configured executors (`../protocol/baseline.md`, 9). No
+  executor is added; all other policy fields are kept. The application
+  supplies these configured executors before the store opens.
 
 What every patch keeps:
 

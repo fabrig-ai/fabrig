@@ -154,7 +154,7 @@ fn non_format_open_refusals_preserve_their_own_reason() {
 }
 
 #[test]
-fn stores_before_embedded_people_v14_refuse_at_startup() {
+fn stores_before_embedded_people_v15_refuse_at_startup() {
     // Store 6 named a repository by its id alone; 7 has no Binding family;
     // 8 embeds people v11 refusal tags.
     let wanted = temper_protocol_store::STORE_VERSION;

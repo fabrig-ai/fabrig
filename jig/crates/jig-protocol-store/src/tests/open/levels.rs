@@ -241,10 +241,21 @@ const MOVED_JIG: PatchSets = PatchSets {
         owner: Owner::Jig,
         name: "jig",
         patches: &[
-            "patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\n",
+            "patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\nfamily jig-store-people 14 to 15\n",
         ],
         fresh: None,
         families: &[
+            KeptFamily {
+                name: "jig-store-people",
+                texts: &[
+                    "family jig-store-people 14\nversioned record Data { value: u8 }\n",
+                    "family jig-store-people 15\nversioned record Data { value: u8 }\n",
+                ],
+                map: crate::KeptMap::Store,
+                keys: &[],
+                frames: None,
+                flights: &[],
+            },
             KeptFamily {
                 name: "jig-store-tasks",
                 texts: &[

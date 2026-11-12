@@ -1,6 +1,9 @@
 patch 1
 owner jig 1 after smith 0 skein 0
 
+family jig-store-people 14 to 15
+written StoredPolicy.value
+
 family jig-store-settings 1 to 2
 add Model.cache_life_ms u32 0
 add EndedBy.standing

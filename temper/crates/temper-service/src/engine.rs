@@ -124,7 +124,7 @@ impl Engine {
     pub(crate) fn new(
         config: root::Config,
         limits: &root::Limits,
-        store: crate::store::Store,
+        mut store: crate::store::Store,
         children: Children,
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
@@ -133,6 +133,7 @@ impl Engine {
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
+        store.routes.patch_context.executors = config.core.defaults.rules.ceiling.delegation.kinds.clone();
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
             Err(problem) => {
