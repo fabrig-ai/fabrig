@@ -177,6 +177,10 @@ forge, temper adds:
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/qa/README.md`: QA after landing, beside the deployment: its
+    tool, home and loop; its ledger (`testing/qa/ledger.md`), the
+    watcher on main (`testing/qa/landings.md`), kept builds
+    (`testing/qa/builds.md`) and triage (`testing/qa/triage.md`).
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
   the binary, the configuration, the credentials, temper's parts on the
   workers' channel, its families in the store, the host tools and LLM

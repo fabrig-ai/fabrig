@@ -2,6 +2,8 @@
 
 2026-11-12. Where the design lags or departs from [landed-qa.md](landed-qa.md).
 
+Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the watcher on main's ref, the deployment's kept builds, triage, and the ledger's landings, cases and builds.
+
 Milestone Q2, what the first passes need of temper, is designed and
 built: the drive session (`../client/drive.md`), recipes and their walk
 (`../client/recipe.md`), the fake model's given scripts and strict
@@ -12,9 +14,10 @@ leaves `../domain/findings.md`, 8, temper's own pass, as it is (section
 2).
 
 - **Design lags:**
-  - 2, 7, 9: `../../development/qa.md`, 3 starts each pass from a fresh box, and its section 8 leaves driving the pages to a later design; no design has a pass's watcher, triage or ledger.
+  - 2, 7, 9: `../testing/qa/README.md` has no pass: no place, no pass's session, report or evidence, no waiting or resuming, and `../testing/qa/ledger.md` records no pass, finding or case's outcome; `../../development/qa.md`, 3 starts each pass from a fresh box, and its section 8 leaves driving the pages to a later design.
   - 5: no design has a setup's copy, its place, its archive or its making again, which `../client/recipe.md`, 4's hash names; no recipe is written yet.
   - 6: a scripted call cannot take a value from the conversation (skein's `testing/fakes/llm.md`, 2.4), and `../protocol/setup/box.md`, 5's fake forges start from their seed at every restart.
+  - 8: no design files a pass's findings as one goal's request.
   - 10: its later items, as 6.
 - **Design departs:**
   - 3, 10: the client a build keeps is the TUI's recording build (`temper-client` with `temper-client-shell-tui/record`, `../client/tui/journeys.md`, 2), beside the bundle's recording build: the drive session reads the TUI's frames from its saves, replayed natively, since nothing in the tree reads a pseudo-terminal's screen (`../client/drive.md`, 2.1 and 3.3). The goal's designer, 2026-11-12.

@@ -1634,6 +1634,10 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
 }
 
 fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
+    adopt_repository_as(world, project, name, key, temper_engine_domain_forge::Role::Owned);
+}
+
+fn adopt_repository_as(world: &mut World, project: u32, name: &[u8], key: u8, role: temper_engine_domain_forge::Role) {
     use temper_engine_domain_forge as forge;
     world.driver.send(Event::Party(PartyInput::Application {
         scope: people::ApplicationScope::Project(project),
@@ -1653,7 +1657,7 @@ fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
             ci: true,
             landing: b"main".as_slice().into(),
             prefix: b"temper/".as_slice().into(),
-            role: forge::Role::Owned,
+            role,
         })),
     }));
     world.driver.settle();
@@ -2432,4 +2436,46 @@ fn assert_review_settings(world: &mut World, run: &engine::Assignment, proposal:
         panic!("settings review")
     };
     assert_eq!(items.iter().map(|item| item.setting).collect::<Vec<_>>(), expected);
+}
+
+#[test]
+fn an_owners_follow_proposal_is_accepted_kept_and_read_after_restart() {
+    use serde_json::json;
+    use temper_engine_domain_forge as forge;
+    let mut world = World::stock();
+    world.driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
+        (b"org", b"source", 12),
+        (b"org", b"target", 13),
+    ]));
+    adopt_repository_as(&mut world, PROJECT, b"source", 28, forge::Role::Context);
+    adopt_repository(&mut world, PROJECT, b"target", 29);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let follow = json!({"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":{"person":OWNER_PERSON},"check":{"workflow":".forgejo/workflows/vsr-tests.yml","artifact":"results","format":"junit"}});
+    let items = json!([{"setting":{"kind":"follow","project":PROJECT,"number":1},"set":follow}]);
+    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+    assert_eq!(world.head().number, 1, "a proposal changes no setting");
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { review: Some(settings), .. } = review.action else {
+        panic!("follow review")
+    };
+    assert_eq!(settings.items.len(), 1);
+    assert_eq!(settings.items.get(0).unwrap().setting, s::Setting::Application { kind: 12, scope: PROJECT, number: 1 });
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let mut expected = follow;
+    expected["source"]["branch"] = json!("main");
+    expected["source"]["paths"] = json!([]);
+    expected["target"]["branch"] = json!("main");
+    expected["start"] = json!("owner");
+    let (text, _) = see_whole(&mut world.driver, &run, 2, "settings follow 1");
+    assert!(text.contains("vsr-tests.yml"), "accepted follow kept and readable: {text}");
+    let read: serde_json::Value = serde_json::from_str(text.lines().nth(1).expect("follow JSON")).unwrap();
+    assert_eq!(read, expected);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    restart_stock_world(&mut world, &next);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = see_whole(&mut world.driver, &next, 10, "settings follow 1");
+    let read: serde_json::Value = serde_json::from_str(text.lines().nth(1).expect("restored follow JSON")).unwrap();
+    assert_eq!(read, expected);
 }

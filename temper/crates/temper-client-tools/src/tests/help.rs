@@ -266,7 +266,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\n",
+    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -300,6 +300,12 @@ const USAGES: &[&[u8]] = &[
     b"draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH --key KEY\n",
     b"draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH --key KEY\n",
     b"draft list --project PROJECT [--until CONDITION] [--timeout DURATION]\n",
+    b"follow list --project PROJECT\n",
+    b"follow show --project PROJECT FOLLOW\n",
+    b"follow start --project PROJECT FOLLOW COMMIT --key KEY\n",
+    b"follow hold --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow skip --project PROJECT FOLLOW COMMIT --reason TEXT --key KEY\n",
+    b"follow merge --project PROJECT FOLLOW COMMIT [COMMIT]... --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

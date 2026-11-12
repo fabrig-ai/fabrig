@@ -51,6 +51,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
                 | forge::PersonFact::GoalFrom { project, .. }
                 | forge::PersonFact::KeepAsking { project, .. },
         }
+        | Application::Follow { project, .. }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
         | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
@@ -70,7 +71,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             }
             None
         }
-        Application::Forge(_)
+        Application::Follow { .. }
+        | Application::Forge(_)
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
@@ -108,6 +110,23 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Follow { project, follow, act } => {
+            let authorized = match domain.forge.follow(project, follow) {
+                Some(setting) => match setting.owner {
+                    forge::settings::FollowOwner::Person(owner) => owner == person,
+                },
+                None => false,
+            } || domain.core.people.role(person, project) == Some(people::Role::Owner);
+            domain.work.push(Work::Forge(forge::Event::FollowAct {
+                request,
+                token,
+                retention,
+                project,
+                follow,
+                act,
+                authorized,
+            }));
+        }
         Application::Try { account, again } => {
             sweep_answers(domain, env);
             let answer = super::trials::asked(domain, env, person, account, again);
@@ -196,6 +215,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         return Some(ApplicationAnswer::Try(*answer));
     }
     match domain.forge.application_answer(token) {
+        Some(forge::Answered::Follow(words)) => Some(ApplicationAnswer::Follow(words)),
         Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
         Some(forge::Answered::SetUp(answer)) => Some(ApplicationAnswer::SetUp(answer)),

@@ -144,7 +144,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43644525 bytes, past its bound of 3419252 bytes\n",
+            b"engine.limits.store: the store's map value, 43648982 bytes, past its bound of 3419252 bytes\n",
         );
     }
 }
@@ -222,6 +222,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
     let standard = limits::profile(limits::Profile::Standard);
     let expected = limits::Limits {
         forge: temper_engine_domain_forge::Limits {
+            follows: 8,
+            follow_queue: 64,
             brief_bytes: 131_584,
             tasks: 128,
             holds: 128,
@@ -918,4 +920,32 @@ fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
         overrides.put(part).expect("override map fits its measured length");
     }
     fixtures::with(&document, b"engine.limits.overrides", &overrides.finish())
+}
+
+#[test]
+fn follow_limits_have_their_profile_values_and_dotted_overrides() {
+    let small = limits::profile(limits::Profile::Small);
+    let standard = limits::profile(limits::Profile::Standard);
+    for (name, tiny, normal, unit) in [
+        ("forge.follows", 2, 8, limits::Unit::Count),
+        ("forge.follow_paths", 8, 8, limits::Unit::Count),
+        ("forge.follow_queue", 16, 64, limits::Unit::Count),
+        ("forge.follow_merge", 8, 8, limits::Unit::Count),
+        ("forge.follow_commits", 8, 8, limits::Unit::Count),
+        ("forge.follow_files", 32, 32, limits::Unit::Count),
+        ("forge.follow_message_bytes", 512, 512, limits::Unit::Bytes),
+        ("forge.follow_skips", 8, 8, limits::Unit::Count),
+        ("forge.follow_reason_bytes", 256, 256, limits::Unit::Bytes),
+    ] {
+        let field = limits::find(name.as_bytes()).expect("follow limit named");
+        assert_eq!(field.unit, unit);
+        assert_eq!((field.value)(&small), tiny, "{name} in small");
+        assert_eq!((field.value)(&standard), normal, "{name} in standard");
+        let mut changed = small;
+        limits::apply(&mut changed, name.as_bytes(), tiny + 1).unwrap();
+        assert_eq!((field.value)(&changed), tiny + 1, "{name} override");
+        assert_eq!(limits::apply(&mut changed, name.as_bytes(), u64::from(u32::MAX) + 1), Err(limits::Refused::Range));
+    }
+    assert_eq!(small.forge.follows, 2);
+    assert_eq!(standard.forge.follows, 8);
 }

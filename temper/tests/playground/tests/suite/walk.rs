@@ -15,7 +15,7 @@ const BOUND: Duration = Duration::from_secs(120);
 const REPOSITORY: &[u8] = b"playground/widget";
 
 fn kept_log() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/story-a.log")
+    skein_scratch::paths::package().join("tests/fixtures/story-a.log")
 }
 
 fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
