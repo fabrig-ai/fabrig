@@ -456,6 +456,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }

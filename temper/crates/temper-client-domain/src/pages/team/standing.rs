@@ -481,7 +481,7 @@ fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
     }
     document.latest
 }
-fn now(page: &c::NotePage) -> Option<Now> {
+pub(crate) fn now(page: &c::NotePage) -> Option<Now> {
     let mut first: Option<&c::Note> = None;
     for note in &page.rows {
         if note.description.bytes() == b"now"
