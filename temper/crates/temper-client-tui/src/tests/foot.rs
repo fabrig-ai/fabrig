@@ -2313,6 +2313,9 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
             words: b"csv-export: comma or semicolon?".as_slice().into(),
         }])
     };
+    let mut facts = d::pages::all_home::facts(&root, now);
+    facts.needs = d::pages::home::Needs::Count { count: u32::try_from(body.needs.len()).unwrap(), cut: false };
+    body.lines.get_mut(0).unwrap().words = shared::all_home_headline(words.view(), &facts, now).0;
     let root = walk_root(true);
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Walk { by_key: true });

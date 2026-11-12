@@ -277,12 +277,12 @@ pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_asking_printed_link(seed, domain_limits()))
 }
-/// A committed engine question with the printed link the shipped TUI signs in by.
+/// A committed question in the second of two projects, with the shipped TUI's printed link.
 #[must_use]
 pub fn tui_question_world(seed: u64, words: &[u8]) -> (World<Temper, Joint>, u64) {
-    let mut world = tui_world(seed);
-    let chat = question(world.front(), words);
-    world.front().offer_printed_link(domain_limits());
+    let mut world = world_with(seed, across_people(domain_limits()));
+    let chat = project_question(world.front(), 2, words);
+    world.front().offer_printed_link(temper_client_shell_tui::limits::tui().native.client);
     (world, chat)
 }
 #[must_use]
