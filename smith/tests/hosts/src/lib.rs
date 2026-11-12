@@ -461,7 +461,8 @@ impl HostService {
             | host::Down::Message { .. }
             | host::Down::Acknowledge { .. }
             | host::Down::Grant { .. }
-            | host::Down::Cancel | host::Down::Drain => None,
+            | host::Down::Cancel
+            | host::Down::Drain => None,
         };
         let sent = match message {
             host::Down::Start { start, window } => process.send_start(

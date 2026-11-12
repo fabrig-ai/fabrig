@@ -540,7 +540,27 @@ pub(crate) fn turn(
     });
     let run_id = conversation.run.token();
     if run.draining {
-        cancel(domain, run_id, out);
+        match run.charter.mode {
+            Mode::Finite => cancel(domain, run_id, out),
+            // Open main may park at its ensuing yield; an unsent completion
+            // instead reaches close_drained at this same turn boundary.
+            Mode::Open => {}
+        }
+    }
+}
+
+/// Close main's unsent next completion after its drained turn was told.
+/// A child or a run that did not drain retains its own closing path.
+pub fn close_drained(domain: &mut Domain, conversation: Token, now: Time, out: &mut Queue<Request>) {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return };
+    if conversation.asker.is_some() {
+        return;
+    }
+    let id = conversation.run;
+    let run = domain.runs.get(id).expect("conversation retains its run");
+    if run.draining && !run.main_turn_pending {
+        domain.facts.begin(now);
+        cancel(domain, id.token(), out);
     }
 }
 
@@ -640,9 +660,14 @@ pub(crate) fn drain(domain: &mut Domain, token: Token, out: &mut Queue<Request>)
     let Some(run) = domain.runs.get_mut(Id::from_token(token)) else { return };
     match run.state {
         State::Working { .. } if run.main_turn_pending => run.draining = true,
-        State::Preparing { .. } | State::Awaiting { .. } | State::Stopping { .. }
-        | State::Working { .. } | State::Listening { .. } | State::Waiting { .. }
-        | State::Winding { .. } | State::Closed => cancel(domain, token, out),
+        State::Preparing { .. }
+        | State::Awaiting { .. }
+        | State::Stopping { .. }
+        | State::Working { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Closed => cancel(domain, token, out),
     }
 }
 
@@ -899,10 +924,12 @@ fn wait(
         || (exhausted.is_some() && run.wind_down.is_none())
     {
         Returned::Refused { refusal: AskRefusal::Over }
-    } else if run.draining || run.wind_down.is_some() || (run.charter.waiting == Duration::ZERO && !run.inbox.has_queued()) {
+    } else if run.wind_down.is_some() || (run.charter.waiting == Duration::ZERO && !run.inbox.has_queued()) {
         out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
         out.push(Request::Return { spent: 0, call: made.call, result: Returned::Withheld });
         return wind_down(conversations, reply_to, main, Ending::Parked, out);
+    } else if run.draining {
+        Returned::Cancelled
     } else if run.inbox.has_queued() {
         Returned::Waited { text: prompt::waited() }
     } else {

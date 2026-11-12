@@ -174,7 +174,7 @@ fn required_terms_gap(
 
 impl KindRule {
     /// The wire format version this codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 6;
+    pub const FORMAT_VERSION: u64 = 7;
 }
 
 #[cfg(test)]

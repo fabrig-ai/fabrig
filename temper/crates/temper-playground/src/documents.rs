@@ -62,6 +62,20 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("authority.segments", 8),
     ("core.call_answer_bytes", 2048),
 ];
+/// The shell's pinned launch supplied to the simulated service.
+pub const PINNED_AGENT_PROGRAM: &[u8] = b"/worker/agent/temper";
+#[must_use]
+pub fn pinned_agent() -> jig_protocol_config::Agent {
+    jig_protocol_config::Agent {
+        program: PINNED_AGENT_PROGRAM.into(),
+        configuration: b"/worker/agent/agent.json".as_slice().into(),
+        arguments: Box::new([
+            b"internal".as_slice().into(),
+            b"agent".as_slice().into(),
+            b"/worker/agent/agent.json".as_slice().into(),
+        ]),
+    }
+}
 /// Agents for the composition.
 pub const AGENTS: u32 = 2;
 /// Clients for the composition.

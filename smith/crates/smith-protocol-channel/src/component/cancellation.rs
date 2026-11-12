@@ -1,4 +1,4 @@
-//! One polite cancellation per activation (smith/docs/design/protocol/channel.md, section 5).
+//! One turn drain before the one polite cancellation per activation (smith/docs/design/protocol/channel.md, section 5).
 use crate::Error;
 use core::mem;
 
@@ -12,7 +12,10 @@ pub(super) enum Cancellation {
 impl Cancellation {
     pub(super) fn drain(&mut self) -> Result<(), Error> {
         match self {
-            Self::Waiting => { *self = Self::Draining; Ok(()) }
+            Self::Waiting => {
+                *self = Self::Draining;
+                Ok(())
+            }
             Self::Draining | Self::Requested => Err(Error::Order),
         }
     }

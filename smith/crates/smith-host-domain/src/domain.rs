@@ -90,6 +90,7 @@ pub(crate) struct Agent {
     tree: tree::State,
     word: word::State,
     host_stopped: bool,
+    /// The turn-stop entrance has been used or superseded by a stop.
     turn_stop: bool,
     diagnostic: Option<Fault>,
     reading: reading::State,
@@ -238,13 +239,18 @@ fn from_parent(
                         agent.outbox.push(Down::Drain);
                     }
                 }
-                State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. }
-                | State::Terminating { .. } | State::Killing | State::Closed => {}
+                State::Cancelled { .. }
+                | State::Draining { .. }
+                | State::Exiting { .. }
+                | State::Terminating { .. }
+                | State::Killing
+                | State::Closed => {}
             }
             token
         }
         parent::Event::Stop { agent: token } => {
             let agent = current(domain, token)?;
+            agent.turn_stop = true;
             match agent.supervision {
                 State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } => agent.host_stopped = true,
                 State::Spawning
@@ -547,7 +553,8 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Message { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
-            | Down::Cancel | Down::Drain) => old,
+            | Down::Cancel
+            | Down::Drain) => old,
         };
         agent.outbox.push(next);
     }

@@ -1,13 +1,13 @@
-//! The run handle and a cancel waiting for admission share one state.
-//! No handle is known until the domain names it. `cancel` accepts cancellation,
-//! `admit` retains the handle, and `follow` delivers an owed cancel after requests.
+//! The run handle and a drain or cancel waiting for admission share one state.
+//! No handle is known until the domain names it. `drain` and `cancel` retain controls,
+//! `admit` retains the handle, and `follow` delivers the owed control after requests.
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use super::Stages;
 use skein_lib::Token;
 use smith_domain as domain;
 
-/// The domain's run handle and any cancel waiting for it.
+/// The domain's run handle and any drain or cancel waiting for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Admission {
     /// The domain has not named the run.
@@ -37,7 +37,9 @@ impl Admission {
             Self::Waiting => Self::Admitted { run },
             Self::Cancelled => Self::Owed { run },
             Self::Draining => Self::DrainOwed { run },
-            Self::Owed { .. } | Self::DrainOwed { .. } | Self::Admitted { .. } => unreachable!("one Admitted per Start"),
+            Self::Owed { .. } | Self::DrainOwed { .. } | Self::Admitted { .. } => {
+                unreachable!("one Admitted per Start")
+            }
         };
     }
 }
@@ -61,7 +63,9 @@ pub(super) fn cancel(service: &mut Stages) {
 pub(super) fn drain(service: &mut Stages) {
     service.admission = match service.admission {
         Admission::Waiting => Admission::Draining,
-        state @ (Admission::Cancelled | Admission::Draining | Admission::Owed { .. } | Admission::DrainOwed { .. }) => state,
+        state @ (Admission::Cancelled | Admission::Draining | Admission::Owed { .. } | Admission::DrainOwed { .. }) => {
+            state
+        }
         state @ Admission::Admitted { run } => {
             service.domain_events.push(domain::Event::Drain { run });
             state

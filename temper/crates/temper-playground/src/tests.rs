@@ -19,7 +19,11 @@ fn the_deployment_document_is_one_temper_serve_starts() {
         Some(&documents::agent()),
         &documents::seeds(7).service(),
         None,
-        Some(temper_service::WorkerRuntime { root: skein_io::kernel::Fd::new(2), path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime {
+            root: skein_io::kernel::Fd::new(2),
+            path: b"/worker".as_slice().into(),
+            agent: documents::pinned_agent(),
+        }),
         documents::forges(),
         None,
         None,

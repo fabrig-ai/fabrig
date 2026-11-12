@@ -368,7 +368,11 @@ impl World {
                         Down::Message { name, .. } => {
                             self.seen.sent_messages.insert(*name);
                         }
-                        Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel | Down::Drain => {}
+                        Down::Answer { .. }
+                        | Down::Acknowledge { .. }
+                        | Down::Grant { .. }
+                        | Down::Cancel
+                        | Down::Drain => {}
                     }
                     self.seen.down.push(message);
                 }

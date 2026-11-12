@@ -202,7 +202,7 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     facts::tell(&mut domain.facts, &domain.runs, &domain.conversations, out, mark);
 }
 
-pub use run::{completion_overflow, completion_permit, reserve, settle_reservation};
+pub use run::{close_drained, completion_overflow, completion_permit, reserve, settle_reservation};
 
 /// Live run that owns this conversation, for its parent's acknowledgement routing.
 #[must_use]

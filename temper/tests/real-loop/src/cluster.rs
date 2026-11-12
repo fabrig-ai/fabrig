@@ -144,7 +144,9 @@ impl Shape {
             &graces,
             skein_lib::Duration::from_millis(ping_ms),
             skein_lib::Duration::from_millis(silence_ms),
-        ).expect("cluster stop bound fits a duration").as_millis();
+        )
+        .expect("cluster stop bound fits a duration")
+        .as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);
@@ -247,7 +249,9 @@ impl Runs {
                     self.bytes.drain(..end);
                 }
             }
-            (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == fixtures::AGENT => {
+            (Op::Spawn { spawn }, Ok(Done::Spawned { .. }))
+                if spawn.program.ends_with(fixtures::PINNED_AGENT_SUFFIX) =>
+            {
                 self.tasks.push(self.pending.take().expect("agent follows assignment"));
             }
             (Op::Connect { fd, addr }, Ok(Done::Nothing)) if *addr == engine => {

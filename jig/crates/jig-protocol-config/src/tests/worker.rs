@@ -52,7 +52,12 @@ fn an_absent_drain_uses_three_minutes() {
     assert_eq!(worker.stop_bound, Duration::from_secs(205));
     let member = crate::members::MEMBERS.iter().find(|row| row.shape == "graces" && row.name == "drain_ms").unwrap();
     assert!(!member.required);
-    assert!(crate::members::MEMBERS.iter().filter(|row| row.shape == "graces" && row.name != "drain_ms").all(|row| row.required));
+    assert!(
+        crate::members::MEMBERS
+            .iter()
+            .filter(|row| row.shape == "graces" && row.name != "drain_ms")
+            .all(|row| row.required)
+    );
 }
 #[test]
 fn a_present_drain_accepts_unsigned_milliseconds_up_to_a_duration() {
@@ -76,7 +81,12 @@ fn invalid_drain_members_name_their_field() {
         (b"18446744073710", What::Bound),
         (b"10000, \"drain_ms\": 10", What::Duplicate),
     ] {
-        refuses(b"\"drain_ms\": 10000", &[b"\"drain_ms\": ".as_slice(), drain].concat(), fixtures::path(&[b"graces", b"drain_ms"]), what);
+        refuses(
+            b"\"drain_ms\": 10000",
+            &[b"\"drain_ms\": ".as_slice(), drain].concat(),
+            fixtures::path(&[b"graces", b"drain_ms"]),
+            what,
+        );
     }
 }
 fn a_silence_under_three_pings_is_refused() {
