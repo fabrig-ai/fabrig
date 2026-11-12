@@ -32,6 +32,12 @@ impl<'a> Feed<'a> {
         }
     }
 
+    /// Bytes delivered, including the delivery that passed the document's length bound.
+    #[must_use]
+    pub fn delivered(&self) -> u64 {
+        self.machine.delivered()
+    }
+
     /// States `request`, then meets each demand until the tokenizer answers.
     /// Returns `Failed(Unexpected)` past the step bound or on a demand the
     /// input cannot meet. Requests keep the tokenizer's lifecycle contract.
