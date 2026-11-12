@@ -1,4 +1,4 @@
-//! A red of an ended goal meets its triager and prover (domain/areas.md, 4–5;
+//! A red with no goal subscriber meets its triager and prover (domain/areas.md, 4–5;
 //! domain/after-landing.md, 7; draft/standing-roles.md, 11).
 use super::*;
 use forge_top::settings::{self as settings, AreaOwner};
@@ -18,7 +18,7 @@ fn world() -> World {
             tasks: Some(12), spec_bytes: Some(4096), notes: Some(authority::Scopes::GOAL),
             ..StoryLimits::default()
         },
-    );
+    ).with_goal_closer();
     world.env.limits.tasks.message_bytes = 1024;
     world.env.limits.tasks.inbox_bytes = 8192;
     world.env.limits.call_records = 8;
@@ -116,15 +116,25 @@ fn a_red_meets_the_triager_and_prover_then_clears() {
     park(&mut world, &prover, 302, "Waiting for test findings");
     tiers::baseline(&mut world);
 
-    let ask = tier_runs::goal(&world);
-    let goal = assigned_chat(&mut world, 94, ask);
-    let red = tiers::produce(&mut world, &goal, 303, b"failures", b"suite.alpha\n");
+    let people::Ask::Create { project, mut batch } = tier_runs::goal(&world) else { panic!("goal fixture") };
+    batch[0].flags.ended_by = people::EndedBy::Closer(people::Closer { connector: 0, code: 6 });
+    batch[0].symbols = Box::new([]);
+    let goal = assigned_chat(&mut world, 94, people::Ask::Create { project, batch });
+    let answer = change_tool::change_landing(&mut world, &goal, 303, None, b"Change the C test suite", Some(engine::ChangeLanding::Branch(b"main".as_slice().into())));
+    let red = tier_runs::produce_delegated(&mut world, answer, b"main", b"failures", b"suite.alpha\n");
     let commit = merge(&world, red);
     assert!(matches!(change(&world, red).change.state, State::Landed { .. }));
-    // A person ends the original goal after its change has landed.
-    tiers::sign_in(&mut world);
-    cancel_task(&mut world, goal.task);
-    assert!(matches!(task(&world, goal.task).phase, tasks::Phase::Ended(_)));
+    // A closer-ended goal without a branch has no main-landings subscription.
+    // Keep it and its uncleared change live, but free the worker for the roles.
+    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row }
+        if matches!(row.as_ref(), forge_top::Stored::Subscription(subscription)
+            if subscription.task == goal.task && matches!(&subscription.topic,
+                forge_top::Topic::Landings { branch, .. } if branch.as_ref() == b"main")))));
+    world.scripted_read_inbox(&goal);
+    let row = task(&world, goal.task);
+    let (read, turns) = (row.inbox.last().map(|message| message.number), row.turn);
+    park_after_turn(&mut world, &goal, read, turns);
+    until(&mut world, LANDING_TICKS, "original goal parked", |world| matches!(task(world, goal.task).phase, tasks::Phase::Active(tasks::Active::Idle)));
     let assigned = world.assigned.len();
     until(&mut world, RUN_TICKS * 2, "landing judged red", |world| tier(world).record.sequence == 2);
     assert_eq!(world.assigned.len(), assigned, "no agent runs between verdict and finding news");
@@ -145,7 +155,7 @@ fn a_red_meets_the_triager_and_prover_then_clears() {
 
     let prover_run = next_run(&mut world, &prover);
     let digits = String::from_utf8(forge_top::commit_text(&commit).into_vec()).expect("merge digits");
-    let input = format!(r#"{{"words":"Repair the C test under test/","repairs":"{digits}"}}"#);
+    let input = format!(r#"{{"words":"Repair the C test under test/","landing":"main","repairs":"{digits}"}}"#);
     let answer = call(&mut world, &prover_run, 306, b"change", input.as_bytes());
     let repair = tier_runs::produce_delegated(&mut world, answer, b"main", b"failures", b"");
     assert_eq!(change(&world, repair).repairs, Some(commit));
