@@ -151,6 +151,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         Act::ChangeProposal { .. }
         | Act::MessageWords { .. }
         | Act::Send
+        | Act::LeaveTalk
         | Act::Pause
         | Act::Resume
         | Act::Stop

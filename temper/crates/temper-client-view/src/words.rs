@@ -550,6 +550,8 @@ pub enum Word {
     TeamSince,
     TeamNowAt,
     TeamNow,
+    TeamReportAt,
+    TeamReport,
     TeamStartedPerson,
     TeamStartedTask,
     TeamStartedDeployment,
@@ -1644,6 +1646,12 @@ pub enum Word {
     NoRun,
     RunStarted,
     ItsTasks,
+    Talk,
+    TalkPlaceholder,
+    TalkNote,
+    TalkTerminal,
+    LeaveTalk,
+    LeftTalk,
     SteerNote,
     Amend,
     AmendTask,
@@ -1989,7 +1997,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2538;
+const PHRASES: u32 = 2546;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2016,10 +2024,10 @@ const PHRASES: u32 = 2538;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4622;
+const SEGMENTS: u32 = 4638;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 60290;
-const ALL: [Word; 1852] = [
+const ENGLISH_BYTES: u32 = 60568;
+const ALL: [Word; 1860] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2549,6 +2557,8 @@ const ALL: [Word; 1852] = [
     Word::TeamSince,
     Word::TeamNowAt,
     Word::TeamNow,
+    Word::TeamReportAt,
+    Word::TeamReport,
     Word::TeamStartedPerson,
     Word::TeamStartedTask,
     Word::TeamStartedDeployment,
@@ -3606,6 +3616,12 @@ const ALL: [Word; 1852] = [
     Word::NoRun,
     Word::RunStarted,
     Word::ItsTasks,
+    Word::Talk,
+    Word::TalkPlaceholder,
+    Word::TalkNote,
+    Word::TalkTerminal,
+    Word::LeaveTalk,
+    Word::LeftTalk,
     Word::SteerNote,
     Word::Amend,
     Word::AmendTask,
@@ -4477,6 +4493,8 @@ impl Word {
             Self::TeamSince => 4981,
             Self::TeamNowAt => 4982,
             Self::TeamNow => 4983,
+            Self::TeamReportAt => 5184,
+            Self::TeamReport => 5185,
             Self::TeamStartedPerson => 4984,
             Self::TeamStartedTask => 4985,
             Self::TeamStartedDeployment => 4986,
@@ -5577,6 +5595,12 @@ impl Word {
             Self::NoRun => 1035,
             Self::RunStarted => 1036,
             Self::ItsTasks => 1037,
+            Self::Talk => 9100,
+            Self::TalkPlaceholder => 9101,
+            Self::TalkNote => 9102,
+            Self::TalkTerminal => 9103,
+            Self::LeaveTalk => 9104,
+            Self::LeftTalk => 9105,
             Self::SteerNote => 1038,
             Self::Amend => 1047,
             Self::AmendTask => 1048,
@@ -7853,6 +7877,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TeamSince => (&[b"A standing role \xc2\xb7 since ", b" \xc2\xb7 started by ", b""], &[Name, Name]),
         Word::TeamNowAt => (&[b"Its Now \xc2\xb7 written at ", b""], &[Name]),
         Word::TeamNow => (&[b"Its Now"], &[]),
+        Word::TeamReportAt => (&[b"Its weekly report \xc2\xb7 written ", b""], &[Name]),
+        Word::TeamReport => (&[b"Its weekly report"], &[]),
         Word::TeamStartedPerson => (&[b"person ", b""], &[Number]),
         Word::TeamStartedTask => (&[b"task ", b""], &[Number]),
         Word::TeamStartedDeployment => (&[b"deployment ", b""], &[Number]),
@@ -8151,6 +8177,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NoRun => (&[b"No run now"], &[]),
         Word::RunStarted => (&[b"Started ", b""], &[Name]),
         Word::ItsTasks => (&[b"Its tasks"], &[]),
+        Word::Talk => (&[b"Talk"], &[]),
+        Word::TalkPlaceholder => (&[b"Talk to ", b""], &[Name]),
+        Word::TalkNote => (&[b"Talk with ", b" \xc2\xb7 it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said."], &[Name]),
+        Word::TalkTerminal => (&[b"Or in a terminal: temper ctl DIR role talk ", b" TEXT --key KEY"], &[Number]),
+        Word::LeaveTalk => (&[b"Leave"], &[]),
+        Word::LeftTalk => (&[b"Left: its next session starts fresh from its Now."], &[]),
         Word::SteerNote => (&[b"Steer this task \xc2\xb7 words reach its live run at the next turn."], &[]),
         Word::Amend => (&[b"Amend"], &[]),
         Word::AmendTask => (&[b"Amend task ", b""], &[Number]),

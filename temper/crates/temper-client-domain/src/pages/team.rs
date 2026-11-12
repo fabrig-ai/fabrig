@@ -122,6 +122,7 @@ pub struct Parts {
     pub resume: bool,
     pub now: bool,
     pub sessions: bool,
+    pub report: bool,
     pub rules: bool,
     pub wakes: bool,
     pub wakes_cut: bool,
@@ -151,6 +152,7 @@ impl Default for Parts {
             resume: false,
             now: false,
             sessions: false,
+            report: false,
             rules: false,
             wakes: false,
             wakes_cut: false,
@@ -227,6 +229,7 @@ pub fn parts(facts: &Facts) -> Parts {
         resume: false,
         now: false,
         sessions: false,
+        report: false,
         rules: false,
         wakes: false,
         wakes_cut: false,
@@ -241,7 +244,10 @@ pub fn parts(facts: &Facts) -> Parts {
         parts.wakes = !detail.wakes.is_empty();
         parts.wakes_cut = parts.wakes && detail.wakes_cut;
         parts.sessions = !detail.sessions.is_empty();
-        parts.right = parts.wakes || parts.sessions;
+        if let Some(report) = &detail.report {
+            parts.report = !report.body.is_empty();
+        }
+        parts.right = parts.wakes || parts.sessions || parts.report;
         parts.talk = detail.talk;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;

@@ -58,6 +58,7 @@ fn facts() -> Facts {
             pause: true,
             resume: false,
             talk: true,
+            report: None,
             now: None,
             sessions: List::with_capacity(0),
             rules: None,
