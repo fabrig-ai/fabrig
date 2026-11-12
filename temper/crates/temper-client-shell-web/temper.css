@@ -2602,8 +2602,19 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app:has(> .temper-rail) .temper-team-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 8px 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
 #app:has(> .temper-rail) .temper-team-row > :last-child { grid-column: 3; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #app:has(> .temper-rail) .temper-team-row:has([aria-current]) { background: var(--gf-surface); }
-#app:has(> .temper-rail) .temper-team .temper-how-who-agent { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--gf-ink); white-space: nowrap; text-decoration: none; }
+#app:has(> .temper-rail) .temper-team :is(.temper-how-who-agent, .temper-how-who-person) { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--gf-ink); white-space: nowrap; text-decoration: none; }
 #app:has(> .temper-rail) .temper-team .temper-how-who-agent::before { content: ''; flex: none; width: 11px; height: 11px; background: var(--gf-ink); -webkit-mask: url(files/star.svg) center / contain no-repeat; mask: url(files/star.svg) center / contain no-repeat; }
+#app:has(> .temper-rail) .temper-team .temper-how-who-person::before { content: ''; flex: none; box-sizing: border-box; width: 8px; height: 8px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
+#app:has(> .temper-rail) .temper-team .temper-how-empty { color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-team-areas { overflow-x: auto; }
+#app:has(> .temper-rail) .temper-team .temper-how-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 14px; }
+#app:has(> .temper-rail) .temper-team .temper-how-table th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--gf-muted); padding: 8px 10px; border-bottom: 1px solid var(--gf-line); white-space: nowrap; }
+#app:has(> .temper-rail) .temper-team .temper-how-table td { padding: 12px 10px; border-bottom: 1px solid var(--gf-line); vertical-align: top; }
+#app:has(> .temper-rail) .temper-team .temper-how-table tr[aria-current] { background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-team .temper-how-table td:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#app:has(> .temper-rail) .temper-team-routing { color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-team-routing a { color: inherit; }
+#app:has(> .temper-rail) .temper-team-talk { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 12px; border-radius: 6px; background: var(--gf-ink); color: var(--gf-paper); font: inherit; text-decoration: none; }
 #app:has(> .temper-rail) .temper-team-card { min-width: 0; background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
 #app:has(> .temper-rail) .temper-team-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 #app:has(> .temper-rail) .temper-team-head > div:first-child { min-width: 0; display: flex; flex-direction: column; gap: 4px; }

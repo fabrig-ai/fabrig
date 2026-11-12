@@ -145,6 +145,29 @@ pub(super) fn world(name: &str) -> Domain {
                     &mut out,
                 );
             }
+            Down::Open { watch, subject: Watchable::Family { record, .. } }
+                if role
+                    && wire::decode_watching(&record.bytes, &w::CEILINGS).is_some_and(
+                        |watching| matches!(watching.watch(), w::Watch::Findings(subject) if !subject.mine()),
+                    ) =>
+            {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::findings(&areas(reader)),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
             Down::Read { .. }
             | Down::Open { .. }
             | Down::Continue { .. }
@@ -155,6 +178,38 @@ pub(super) fn world(name: &str) -> Domain {
         }
     }
     root
+}
+
+fn areas(reader: u64) -> w::Findings {
+    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("task"));
+    let holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("task"));
+    let party =
+        w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: reader }).expect("party"));
+    let person =
+        w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: reader }).expect("party"));
+    let rows = [
+        (b"core".as_slice(), b"The protocol, its state machine and its document".as_slice(), party, person),
+        (b"tests".as_slice(), b"Tests, fuzzing and the tiers".as_slice(), owner.clone(), holder.clone()),
+    ]
+    .map(|(name, words, owner, holder)| {
+        w::AreaRow::new(
+            &w::CEILINGS,
+            w::AreaRowParts { name: name.into(), words: words.into(), owner, holder: Some(holder) },
+        )
+        .expect("area")
+    });
+    w::Findings::new(
+        &w::CEILINGS,
+        w::FindingsParts {
+            project: PROJECT,
+            rows: List::with_capacity(0),
+            areas: List::from_boxed(Box::new(rows)),
+            triager: Some(owner),
+            holder,
+            cut: false,
+        },
+    )
+    .expect("Team's areas")
 }
 
 fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
@@ -340,11 +395,10 @@ fn prover(reader: u64) -> c::Task {
         c::Subscription { number: 3, kind: c::SubscriptionKind::Topic { connector: wire::FORGE, topic: 2 } },
         c::Subscription { number: 4, kind: c::SubscriptionKind::Task { target: 61, held: false, result: true } },
     ]));
-    task.acts = List::from_boxed(Box::new([c::Offered {
-        act: c::ActKind::Stop,
-        admission: c::Admission::Allowed,
-        effect: None,
-    }]));
+    task.acts = List::from_boxed(Box::new([
+        c::Offered { act: c::ActKind::Talk, admission: c::Admission::Allowed, effect: None },
+        c::Offered { act: c::ActKind::Stop, admission: c::Admission::Allowed, effect: None },
+    ]));
     task
 }
 fn provers_now() -> c::NotePage {
