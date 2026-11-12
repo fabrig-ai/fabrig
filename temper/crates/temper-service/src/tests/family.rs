@@ -3100,6 +3100,10 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
+                roles: Box::new([ways::WayRoleEntry {
+                    role: ways::WayRole { charter: 14, words: b"Route findings".as_slice().into(), budget: 25_000 },
+                    running: delegation,
+                }]),
                 items: Box::new([
                     ways::Item {
                         kind: 3,
@@ -3154,6 +3158,12 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         assert_eq!(
             (got.name(), got.headline(), got.line(), got.delegation()),
             (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
+        );
+        assert_eq!(got.roles().len(), 1);
+        let role = got.roles().get(0).unwrap();
+        assert_eq!(
+            (role.charter(), role.words(), role.budget(), role.running()),
+            (14, b"Route findings".as_slice(), 25_000, entry.delegation)
         );
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 3);
@@ -3636,6 +3646,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
     let mut entries = List::uncapped();
     for way in crate::stock::ways() {
         let items = ways::items(&way, project, Some(&kind7));
+        let mut roles = List::uncapped();
+        for role in way.roles {
+            roles.push(ways::WayRoleEntry { role, running: false }).unwrap();
+        }
         entries
             .push(ways::WayEntry {
                 name: way.name,
@@ -3644,6 +3658,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
                 path: path.clone(),
                 items,
                 delegation: way.delegation,
+                roles: roles.into_boxed(),
             })
             .unwrap();
     }

@@ -56,7 +56,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
             .0,
         1 | 2 | 4 | 128 | 256 | 512 | 1024 | 2048
     );
-    assignment.run.ended_by = if number == 13 {
+    assignment.run.ended_by = if number >= 13 {
         jig_domain_tasks::EndedBy::Standing
     } else if open {
         jig_domain_tasks::EndedBy::Requester
@@ -65,7 +65,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 5 || number == 13 {
+    } else if number == 5 || number >= 13 {
         jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
     } else if number == 10 {
         jig_domain_tasks::Contract::Report { words: 64 }
@@ -126,12 +126,15 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (11, true),
         (12, true),
         (13, false),
+        (14, false),
+        (15, false),
+        (16, false),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
+        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number >= 13 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))
@@ -206,6 +209,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         (11, true),
         (12, true),
         (13, false),
+        (14, false),
+        (15, false),
+        (16, false),
     ] {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
@@ -215,7 +221,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
+        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 || number >= 13 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))

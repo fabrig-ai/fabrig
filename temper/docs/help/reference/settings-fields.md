@@ -415,7 +415,7 @@ The last segment: an object with one of these members.
 
 The delegates a task may make.
 
-- `kinds`: list of at most 18, each `delegate`. Who its delegates may be.
+- `kinds`: list of at most 22, each `delegate`. Who its delegates may be.
 - `tasks`: integer, 0 to 4,294,967,295. How many tasks its tree may make over its life, not at once.
 - `depth`: integer, 0 to 4,294,967,295. How far below it its tree may go; 0 allows no delegate.
 

@@ -1245,8 +1245,8 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         result_bytes: v.result_bytes,
         text: v.words,
         rows: 32,
-        // Eighteen executor places size each receiving authority list.
-        authority: 18,
+        // The stock's delegation and one deployment charter fit whole.
+        authority: 22,
         fields: 16,
     }
 }
