@@ -395,8 +395,10 @@ impl PatchSets {
   keys' encoders (`README.md`, section 7). A set with no kept text is an owner
   before its baseline, level none; otherwise its level is its patches'
   count. From the baseline, temper's store shell hands the four real
-  sets, `SKEIN_PATCH_SET`, `SMITH_PATCH_SET` and `JIG_PATCH_SET` of this
-  crate and temper's own (temper's `protocol/baseline.md`, 4), each kept
+  sets, `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` of this crate,
+  `JIG_PATCH_SET` of `jig-protocol-accounts` (the lowest jig crate that
+  sees every jig family, since it depends on this one) and temper's own
+  (temper's `protocol/baseline.md`, 4), each kept
   at level 0 with no patch until a landing brings one; the component's tests hand it fixture owners' sets:
   `jig-test-patches` in the application's slot and `jig-test-patches-jig`
   in jig's, so that the order across owners is shown, and
