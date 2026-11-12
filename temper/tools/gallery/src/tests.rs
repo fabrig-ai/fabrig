@@ -241,6 +241,38 @@ const HOW_REACHES_NOTE: Part = Part::Named {
 const HOW_DECIDE_NOTE: Part =
     Part::Named { role: Role::Paragraph, name: "Listed in Decided for you for 24 hours, to overturn." };
 const HOW_WAIT_NOTE: Part = Part::Named { role: Role::Paragraph, name: "Away or not." };
+const HOW_RULES_TABLE: Part = Part::StyledText {
+    style: temper_client_view::look::HOW_TABLE,
+    text: &[
+        "Paths",
+        "Sign-off",
+        "Lands",
+        "include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md",
+        "you",
+        "once you sign off",
+    ],
+};
+const HOW_TEAM_TABLE: Part = Part::StyledText {
+    style: temper_client_view::look::HOW_TABLE,
+    text: &[
+        "Paths",
+        "Review",
+        "Sign-off",
+        "Lands",
+        "payments/",
+        "an agent",
+        "two of you",
+        "once two have signed this head",
+        "everything else",
+        "an agent",
+        "one of you",
+        "once signed",
+    ],
+};
+const HOW_RULES_NOTE: Part = Part::Named {
+    role: Role::Paragraph,
+    name: "A sign-off is for one head. A change pushed after it needs signing again; taking main cleanly keeps it.",
+};
 static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "remembered-none",
@@ -873,6 +905,89 @@ static HOLDS: [Holds; samples::N] = [
             HOW_WAIT_NOTE,
             Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
             Part::Named { role: Role::Select, name: "Away until" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "how-rules",
+        heading: "Draft first, with the protocol core asking you",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::Named { role: Role::Item, name: "you, a person (if protocol core)" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
+            Part::Destination { name: "+ A rule", href: "/projects/1/ask" },
+            Part::Absent { role: Role::ColumnHeader, name: "Review" },
+            HOW_RULES_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 3 },
+        ],
+    },
+    Holds {
+        name: "how-rules-card",
+        heading: "Draft first, with the protocol core asking you",
+        parts: &[
+            HOW_RULES_TABLE,
+            HOW_RULES_NOTE,
+            Part::Expanded { name: "you, a person (if protocol core)" },
+            Part::Named { role: Role::Term, name: "Only for" },
+            Part::Named {
+                role: Role::Description,
+                name: "include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md",
+            },
+            Part::Named { role: Role::Term, name: "Role" },
+            Part::Named { role: Role::Description, name: "owner" },
+            Part::Named { role: Role::Term, name: "Asks" },
+            Part::Named { role: Role::Description, name: "1 of them" },
+            Part::Named { role: Role::Term, name: "Counts" },
+            Part::Named {
+                role: Role::Description,
+                name: "code counts the sign-offs at this head; a clean update keeps them",
+            },
+            Part::Drawing { style: temper_client_view::look::WAYS_CARET, count: 1 },
+        ],
+    },
+    Holds {
+        name: "how-team",
+        heading: "Agents review everything, then one of you signs off",
+        parts: &[
+            Part::Reader { role: jig_client::contract::HeldRole::Owner },
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::Named { role: Role::Item, name: "review, an agent" },
+            Part::Named { role: Role::Item, name: "one of you, a person" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
+            Part::Destination { name: "+ A rule", href: "/projects/1/ask" },
+            HOW_TEAM_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 4 },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Reviewer",
+                description: "For each change: reviews it, and holds it until it approves",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Foreman",
+                description: "When a coding agent asks: answers from the change’s words, or passes it up to you",
+            },
+        ],
+    },
+    Holds {
+        name: "night-how-team",
+        heading: "Agents review everything, then one of you signs off",
+        parts: &[
+            HOW_TEAM_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 4 },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Reviewer",
+                description: "For each change: reviews it, and holds it until it approves",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Foreman",
+                description: "When a coding agent asks: answers from the change’s words, or passes it up to you",
+            },
             Part::Pressed { name: "Night mode" },
         ],
     },

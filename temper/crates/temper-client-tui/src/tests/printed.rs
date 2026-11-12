@@ -133,7 +133,18 @@ fn each_view_prints_its_lines() {
     proposal.extend_from_slice(PATH);
     proposal.push(("After", Some(look::HEAD), 0));
     proposal.extend_from_slice(PATH);
+    let mut conditional = path(&[(w::Actor::Person, w::PathStep::Approve, b"you")]).into_parts();
+    let stop = conditional.stops.get_mut(0).unwrap();
+    let mut parts = stop.clone().into_parts();
+    parts.over = b"if protocol core".as_slice().into();
+    *stop = w::Stop::new(&w::CEILINGS, parts).unwrap();
+    let conditional = w::BranchPath::new(&w::CEILINGS, conditional).unwrap();
     let rows = [
+        (
+            "conditional sign-off",
+            Some(Shown::Drawn(Box::new(w::View::Path(conditional)))),
+            vec![("○", Some(look::SIGNAL), 0), (" ", None, 0), ("you (if protocol core)", None, 0)],
+        ),
         ("way", Some(Shown::Drawn(Box::new(way(false)))), WAY.to_vec()),
         ("current way", Some(Shown::Drawn(Box::new(way(true)))), current),
         (

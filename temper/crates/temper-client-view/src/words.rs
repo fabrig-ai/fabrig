@@ -82,6 +82,13 @@ pub enum Word {
     HowRoles,
     HowRolesLine,
     HowRoleInstructions,
+    HowRules,
+    HowAddRule,
+    HowPaths,
+    HowReview,
+    HowSignOff,
+    HowLands,
+    HowEmpty,
     HowReaches,
     HowReachesOn,
     HowReachesEach,
@@ -1783,7 +1790,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2336;
+const PHRASES: u32 = 2343;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1810,10 +1817,10 @@ const PHRASES: u32 = 2336;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4209;
+const SEGMENTS: u32 = 4216;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56611;
-const ALL: [Word; 1652] = [
+const ENGLISH_BYTES: u32 = 56659;
+const ALL: [Word; 1659] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -1883,6 +1890,13 @@ const ALL: [Word; 1652] = [
     Word::HowRoles,
     Word::HowRolesLine,
     Word::HowRoleInstructions,
+    Word::HowRules,
+    Word::HowAddRule,
+    Word::HowPaths,
+    Word::HowReview,
+    Word::HowSignOff,
+    Word::HowLands,
+    Word::HowEmpty,
     Word::HowReaches,
     Word::HowReachesOn,
     Word::HowReachesEach,
@@ -3600,6 +3614,13 @@ impl Word {
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
+            Self::HowRules => 5680,
+            Self::HowAddRule => 5681,
+            Self::HowPaths => 5682,
+            Self::HowReview => 5683,
+            Self::HowSignOff => 5684,
+            Self::HowLands => 5685,
+            Self::HowEmpty => 5686,
             Self::HowReaches => 5630,
             Self::HowReachesOn => 5631,
             Self::HowReachesEach => 5632,
@@ -5714,6 +5735,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
         Word::HowPath => (&[b"The path of a change"], &[]),
+        Word::HowRules => (&[b"Rules by path"], &[]),
+        Word::HowAddRule => (&[b"+ A rule"], &[]),
+        Word::HowPaths => (&[b"Paths"], &[]),
+        Word::HowReview => (&[b"Review"], &[]),
+        Word::HowSignOff => (&[b"Sign-off"], &[]),
+        Word::HowLands => (&[b"Lands"], &[]),
+        Word::HowEmpty => (&[b"\xe2\x80\x93"], &[]),
         Word::HowReaches => (&[b"What reaches you"], &[]),
         Word::HowReachesOn => (&[b"on ", b""], &[Name]),
         Word::HowReachesEach => (&[b"on ", b"; each project has its own"], &[Name]),

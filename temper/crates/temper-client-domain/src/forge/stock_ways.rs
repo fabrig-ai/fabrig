@@ -200,6 +200,11 @@ impl StockWays {
             self.open = None;
         }
     }
+    /// The project's rules, only while its `ways` read is shown.
+    #[must_use]
+    pub fn rules(&self) -> Option<&w::PathRules> {
+        Some(self.panel()?.rules())
+    }
     fn panel(&self) -> Option<&w::WaysPanel> {
         match &self.state {
             State::Shown(panel) => Some(panel),
