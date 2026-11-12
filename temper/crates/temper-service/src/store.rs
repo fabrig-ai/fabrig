@@ -22,7 +22,7 @@ pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
     sets: &[
         protocol::SKEIN_PATCH_SET,
         protocol::SMITH_PATCH_SET,
-        protocol::JIG_PATCH_SET,
+        jig_protocol_accounts::JIG_PATCH_SET,
         temper_protocol_store::PATCH_SET,
     ],
 };

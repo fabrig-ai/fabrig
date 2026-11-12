@@ -86,6 +86,9 @@ impl Hosted {
                 }
             }
             request @ (crate::Request::Switch { .. }
+            | crate::Request::Rehearse { .. }
+            | crate::Request::Back { .. }
+            | crate::Request::Close { .. }
             | crate::Request::Open { .. }
             | crate::Request::Site { .. }
             | crate::Request::Commit { .. }

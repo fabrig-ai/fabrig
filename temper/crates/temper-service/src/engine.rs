@@ -706,6 +706,10 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.installation = installation;
             }
             jig_protocol_store::Event::OpenRefused { why, .. } => open_refused(engine, why),
+            jig_protocol_store::Event::Rehearsing { .. }
+            | jig_protocol_store::Event::Back { .. }
+            | jig_protocol_store::Event::BackRefused { .. }
+            | jig_protocol_store::Event::Closed { .. } => unreachable!("a serving engine never rehearses or goes back"),
             jig_protocol_store::Event::Patched { of, patch, counts, .. } => {
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }

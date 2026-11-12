@@ -9,3 +9,4 @@
 - **Not yet:** 7: no gate check of patches, and `AGENTS.md` does not name the policy [in flight: change 707]
 - **Not yet:** 8: no fixture patch, and no test seam for the sets in `temper-service` [in flight: change 706]
 - **Not yet:** 9: `main`'s stored changes after `bc23255eb7` (goals 63 and 187) are not on the goal's branch; no owner has a patch, and the fixture patch is temper's 1 [in flight: change 862]
+- **Not yet:** 6: the golden test starts on the kept configuration as is, which today's build refuses on `brief.sections` and `tasks.charters` [in flight: change 862]
