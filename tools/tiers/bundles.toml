@@ -27,7 +27,7 @@ options = [
 features = []
 
 [temper]
-package = "temper-client-shell-web"
+package = "temper-client-web-page"
 out = "temper-bundle"
 variable = "TEMPER_TEST_BUNDLE"
 options = [

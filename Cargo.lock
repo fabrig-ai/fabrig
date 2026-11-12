@@ -5411,6 +5411,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-web-page"
+version = "0.0.0"
+dependencies = [
+ "temper-client-shell-web",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "temper-client-world"
 version = "0.0.0"
 dependencies = [
@@ -6179,6 +6187,20 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "temper-playground-page"
+version = "0.0.0"
+dependencies = [
+ "jig-client-shell-web",
+ "js-sys",
+ "skein-lib",
+ "skein-ui-web",
+ "temper-client-shell-web",
+ "temper-client-view",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
