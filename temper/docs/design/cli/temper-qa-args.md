@@ -34,6 +34,22 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Queue a checked case, or join the queued case for its surface and page.
 - **Arguments:** `FILE`: A case JSON file, or - to read stdin.
 
+### `temper-qa pass setup`
+
+- **Set:** internal
+- **Forms:** `NAME`
+- Restore a pass setup at its place, or make it again from the nearest restoring copy.
+- **Arguments:** `NAME`: fresh, or a recipe of the pass's setups.
+- **Notes:** The drive session must be closed. Walks use the place's build with --strict. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.
+
+### `temper-qa pass recipe`
+
+- **Set:** internal
+- **Forms:** `NAME FILE`
+- Write a recipe in the pass's setups and prove it by walking from its parent.
+- **Arguments:** `NAME`: A recipe name not among the build's setups; a pass-added recipe may be replaced.; `FILE`: A JSON object with after, lines, readme and optional scripts; - reads stdin.
+- **Notes:** The drive session must be closed. A failed proof removes the recipe. Exits are pass setup's.
+
 ### `temper-qa show`
 
 - **Set:** internal

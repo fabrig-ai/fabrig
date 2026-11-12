@@ -12,6 +12,7 @@ mod ledger;
 mod pass_document;
 mod pass_end;
 mod passes;
+pub mod place;
 mod report;
 pub mod runner;
 mod text;

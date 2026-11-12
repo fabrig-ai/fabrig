@@ -5,6 +5,7 @@ mod fuzzy;
 mod home;
 mod ledger;
 mod passes;
+mod place;
 mod reference;
 mod run;
 mod world;
