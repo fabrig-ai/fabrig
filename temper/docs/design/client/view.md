@@ -139,7 +139,12 @@
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "Run the temper the engine runs." under "Out of
     date". What is pending stays in the small store (jig's
-    `client/domain/client/watches.md`, 2).
+    `client/domain/client/watches.md`, 2). In the browser, a page whose
+    link turns out of date, or whose forge's records are not served
+    (`forge/family.md`, 4), first reloads itself, once, to load the
+    engine's bundle (`../protocol/wires.md`, section 8); the column
+    shows when the page that reloaded for it is out of date again, and
+    it reloads no more.
 
   Both are phrases of temper's phrasebook: `jig-client`'s `words` has
   none for the link's states, and temper arranges none of jig's

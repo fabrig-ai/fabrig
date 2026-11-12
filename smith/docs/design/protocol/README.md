@@ -324,9 +324,18 @@ to an older reader or writer. Each has one version at a time.
   turns and transcripts, the event stream, and what a host keeps in files
   each carry a version of their own. Any change a reader would notice is
   a new version. Nothing is translated, and no older version is read.
-  Before v0.1.0, the charter and the channel change in place, their
-  versions unmoved, since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5).
+- **The channel, the charter and turns are wires** (the user,
+  2026-11-12): a consumer's engine and its workers, and a worker and its
+  agents, may be of two builds, so each moves its version at the landing
+  that changes its layout, keeps the old text and brings its forward
+  patch. `smith-channel`, `smith-charter` and `smith-transcript` are
+  patch owners' families marked wires (skein's `data/codec/command.md`,
+  sections 1 and 2, the wire rule), and the gate refuses one changed in
+  place. Each crate says what it speaks in a module `wire`: `FAMILY` and
+  `VERSION`, its header's, and `layout()`, its current text's family
+  fingerprint (skein's `data/codec/README.md`, section 9); every reader
+  and writer that names the version names `wire::VERSION`. A consumer
+  states and checks them where its builds meet.
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none
@@ -347,11 +356,12 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 6 (channel.md, section
-  2); the charter and its result, version 4 (charter.md, section 5); turns
-  and transcripts, version 6 (transcript.md, section 6); the event
-  stream, version 4 (events.md, section 6); and the local host's store,
-  version 1 (host.md, section 5.3).
+- **Where each is.** The channel, the charter with its result, and turns
+  and transcripts speak their schemas' headers' versions, each its
+  crate's `wire::VERSION` (channel.md, section 2; charter.md, section 5;
+  transcript.md, section 6); the event stream, version 4 (events.md,
+  section 6); and the local host's store, version 1 (host.md, section
+  5.3).
 - **A build says which it speaks.** `smith check` prints each format's
   version (`../shell/README.md`), and the event stream's header carries
   them (events.md, section 3.2), so a mismatch shows before a run.

@@ -138,26 +138,24 @@ The opening is skein's (skein's `net/channel.md`, section 5): `Open` from the
 worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 
 - **The magic** names jig's channel; the schema gives its four bytes.
-- **One version at a time.** jig's worker channel speaks version 9.
-  Its messages, live and carried in an assignment, include the boolean
+- **A wire whose version moves with its layout.** jig's worker channel
+  speaks the version its schema's header gives, `wire::VERSION`, its
+  kinds' table in the schema (`wires.md`, 4). Its messages, live and carried in an assignment, include the boolean
   `finish_requested` (`../../domain/hosts/README.md`, section 7). Its assignment
   carries the ask for live content and its fact record a piece of it
   (`records.md`, 1 and 2, and `README.md`, 5.4); a run's typed failure may name the configured
   bound it exceeded (`../../domain/hosts/hub.md`, 3); its `GrantValue` is a
   credential, an application's credential or a program source's name
-  (tags 0 to 2: `README.md`, section 7), with no other form; and it keeps the kind
-  numbers. A
-  worker of another version is refused with skein's *version*, and
-  nothing is translated (skein's `data/codec/README.md`, section 5). An engine and
-  its workers are one application, released together. Before v0.1.0,
-  protocol changes are made in place, without a version bump or migration;
-  there is no supported deployment or compatibility.
+  (tags 0 to 2: `README.md`, section 7), with no other form. A
+  landing that changes its layout moves its version, with its patch
+  (skein's `data/codec/command.md`, 2, the wire rule). A worker of no
+  version in common is refused with skein's *version*; each build's
+  floor is its current version, and nothing is translated.
 - **A worker's credential** is a record of `jig-protocol-worker-wire`'s:
   - the worker's name, which the engine's configuration lists;
   - its secret;
-  - the application's payload version: one number the application gives
-    both components when it makes them, which moves whenever an encoding
-    of the application's carried on the channel changes (section 5);
+  - the wires it speaks, jig's and the application's, each by version
+    and layout (`wires.md`, 2), in place of a payload version;
   - the worker's output room in bytes, its `io.output`, taken from the
     worker component's stream room.
 - **The engine's side checks, in order,** before its domain hears
@@ -166,7 +164,8 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     the digest the configuration holds for that name; an unknown name and
     a wrong secret are one refusal, *unauthorized*, so names cannot be
     probed;
-  - the application's payload version, equal to its own, or *application*;
+  - the wires, each the engine speaks stated alike, or *wires*, naming
+    the first that is not (`wires.md`, 3);
   - the worker's `io.output`, equal to the engine's stream room, or
     skein's *limits*. The refusal and the engine's opening diagnostic
     name both byte values and tell the operator to change `io.output`
@@ -175,11 +174,12 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     channels open, or *busy*. An opening under the name of a worker that
     has a channel always has room, since it replaces that channel (4.2).
 - **jig's reasons,** from 256 as skein's channel reserves them:
-  *unauthorized*, *application*, *busy*, *replaced* (4.2), *not admitted*
+  *unauthorized*, *wires*, *busy*, *replaced* (4.2), *not admitted*
   (the fleet refused the worker's hello, 4.3) and *stopping* (the engine
   is shutting down). Their numbers are the schema's.
 - **Terms.** Each side states the largest body it takes of each kind,
-  from its own limits; each checks the other's against the largest it may
+  from its own limits, as the agreed version encodes it (`wires.md`, 5);
+  each checks the other's against the largest it may
   send, computed from its own limits, and refuses with skein's *limits*,
   naming the kind, when one does not fit. An engine and a worker given
   different limits are told at the opening, not on the first large

@@ -248,6 +248,15 @@ reserved for fields.
   across builds that change its family: a store from an older build is
   started afresh. From it, a version moves in the landing whose patch
   moves it (`command.md`, 2).
+- **A wire's family moves with its layout.** A family that crosses
+  between two builds of its owner's (a channel's bodies, what one side
+  writes and the other reads) is marked a wire in its crate
+  (`command.md`, 1). From its baseline, its owner's first `--baseline`
+  run, its version moves whenever its layout does, an old value
+  surviving or not, so that two builds that name one version lay it out
+  alike and a peer can be judged by its version and its fingerprint
+  (section 9) before anything else crosses (`command.md`, 2, the wire
+  rule).
 - **From the baseline on, any change a reader would notice is a new
   version:** a new schema, whose generated code replaces the old. There
   is one version at a time, and no promise of stability to anyone
@@ -260,9 +269,10 @@ reserved for fields.
   of an older version is read as a generic value (section 8) and patched
   to the current version (`patches.md`) before the generated code reads
   it. A version then names one layout. Until the baseline, nothing is
-  translated. Rolling upgrades, a release running beside the one before
-  it, are designed with the first release: what a channel's sides speak
-  across it (../../net/channel.md, 5.2) and the order a store's readers move in.
+  translated. What a channel's sides speak across two builds is agreed
+  at its opening (../../net/channel.md, 5.2), each side judging the
+  other's wires by their versions and fingerprints; translating between
+  them is its owner's.
 - **A writer writes its current version only.**
 - **On a channel,** the agreed version picks the code for its bodies
   (../../net/channel.md, section 5.2). Bodies carry no version of their own.

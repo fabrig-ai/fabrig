@@ -35,6 +35,7 @@
 | `schema/<family>-v<N>.schema` | the current texts: of each family, the greatest version there | the author's |
 | `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (11) | the command's |
 | `schema/kept/<family>.renames` | the renames waiting for the family's next patch (4), `rename` lines | the command's |
+| `schema/wires` | the crate's families that cross a wire, one name a line, each held to the wire rule (2) | the author's |
 | `patches/NNNN.patch` | the patch's text (`patches.md`, 1) | the command's lines, the author's values, sites and refusals |
 | `patches/pNNNN.rs` | its written functions, for a patch with sites (`patches.md`, 5) | the command's skeleton, then the author's |
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
@@ -83,6 +84,21 @@ text at version `c`:
    patch naming it still plans and keeps its goldens, would serve a
    variant appended and a bound widened alone, at the cost of landed
    kept texts that never change.
+
+   **The wire rule.** A family `schema/wires` names is a wire's: two
+   builds that speak one version of it must lay it out alike, so its
+   version moves whenever its layout does, whether or not an old value
+   survives (temper's `draft/redeploys.md`, 3.1). Its kept texts are
+   frozen from its first landed one (a text kept by the branch itself
+   is kept afresh, as any is, 1), and a patch is also needed
+   when a declaration is dropped or the declarations' order changed:
+   whenever the family fingerprint of `C`, its version set aside, is
+   not `K`'s (`README.md`, section 9). A rename, a comment, `boxed` and
+   the text's layout move no fingerprint and need no patch, so the
+   renames wait as under any frozen text (4). A patch whose block moves
+   the declarations alone has no line, and plans as the identity. A
+   name `schema/wires` lists that is no family of the crate is the
+   run's error, `Error::Wire`.
 4. **The verdict,** `diff.md`, 4's, from whether a patch is needed:
    - `Kept`: the version kept, no patch needed. A kept text not frozen
      is refreshed (made a copy of `C`); a frozen one keeps renames
@@ -308,6 +324,7 @@ pub enum Error {
     Unlanded { patches: Vec<u32> },           // two patches of the branch's own
     Conflict { path: PathBuf },               // conflict markers (12.6)
     Spelled { first: String, second: String },// two names, one constant or function
+    Wire { family: String },                  // schema/wires names no family of the crate (2)
     Golden(Vec<String>),                      // each golden that fails
     Stale,                                    // mod.rs not as generated
 }
@@ -338,7 +355,13 @@ world, no cargo inside a test.
   author's values and sites kept when derived again, each verdict of
   `diff.md`, 4, the gap, renumbering with and without the family moved
   meanwhile, `mod.rs` for a crate of two families and patches, and each
-  finding of 7 and its absence.
+  finding of 7 and its absence; and the wire rule (2): in a wire family
+  at its first kept text, a variant appended, a declaration added, one
+  dropped and the declarations reordered each refused `Unmoved` with
+  the version kept and patched with it moved, the reorder's block with
+  no line; a rename refreshed nowhere and waiting; the same changes in
+  a family `schema/wires` does not list as before; and a name the file
+  lists that is no family refused.
 - **The story,** `tests/codec-patches`, an owner crate whose history the
   command makes: the baseline, by `--baseline`; a field added, its patch
   asking `?`, refused when planned, then filled, planned and its goldens
