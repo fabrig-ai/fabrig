@@ -28,16 +28,16 @@ pub(crate) fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) 
     b.close();
 }
 
-/// The welcome's line between the brand and the steps: what temper box is
-/// for, and where running temper on a server is told
-/// (`temper/docs/design/client/pages/README.md`).
-fn box_line(builder: &mut Builder, words: &Words) {
+/// The Welcome step's paragraph under the cards: what temper box is for,
+/// and where running temper on a server is told (client/pages/welcome.md, 1).
+pub(crate) fn box_line(builder: &mut Builder, words: &Words) {
     use crate::words::Word;
     let name = words.say(Word::WelcomeBoxName, &[]);
     let line = words.say(Word::WelcomeBoxLine, &[]);
     let server = words.say(Word::WelcomeBoxServer, &[]);
-    builder.open(Role::Slot);
-    builder.style(look::WELCOME_BOX_LINE);
+    builder.open(Role::Paragraph);
+    builder.style(look::WELCOME_AFTER);
+    builder.style(look::WELCOME_BOX_NOTE);
     builder.open(Role::Text);
     builder.run(Run::Strong, &name);
     builder.run(Run::Plain, &line);
@@ -56,6 +56,7 @@ pub(crate) fn top(
     root: &temper_client_domain::Domain,
     w: &Words,
     bindings: &mut crate::frame::Bindings,
+    welcome: bool,
 ) {
     use crate::words::Shell;
     use temper_client_domain::{Address, address::Filter, pages::Act};
@@ -71,12 +72,11 @@ pub(crate) fn top(
     w.text(b, Word::Brand, &[]);
     b.close();
     if let Address::Welcome { step } = root.pages().address()
-        && crate::frame::unavailable(root).is_none()
+        && welcome
     {
         if let Some(deployment) = root.forge().deployment()
             && deployment.welcome
         {
-            box_line(b, w);
             crate::pages::welcome::steps(b, root, w, bindings, *step);
         }
     }
@@ -97,19 +97,21 @@ pub(crate) fn top(
         status(b, &w.say(Word::Behind, &[]), Some(look::BEHIND));
     }
     b.close();
-    if behind && w.shell == Shell::Browser {
+    if !welcome && behind && w.shell == Shell::Browser {
         status(b, &w.say(Word::Behind, &[]), Some(look::BEHIND));
     }
-    if let Some(me) = me {
-        status(b, me.party.name.bytes(), None);
+    if !welcome {
+        if let Some(me) = me {
+            status(b, me.party.name.bytes(), None);
+        }
     }
-    if root.client().link().sign_out_lost {
+    if !welcome && root.client().link().sign_out_lost {
         b.open(Role::Alert);
         b.name(&w.say(Word::SignOutLost, &[]));
         w.text(b, Word::SignOutLost, &[]);
         b.close();
     }
-    if me.is_some() || root.client().link().sign_out_lost {
+    if !welcome && (me.is_some() || root.client().link().sign_out_lost) {
         b.open(Role::Button);
         b.name(&w.say(Word::SignOut, &[]));
         b.bind(bindings.insert(Act::SignOut));
