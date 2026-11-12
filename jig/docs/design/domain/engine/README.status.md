@@ -291,5 +291,3 @@ try. A window's later pages keep its first page's slot there
 
 - **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).
 
-- **Not yet:** 3: the core's vocabulary is still part of `jig-domain-core`; `jig-domain-core-vocabulary` doesn't exist yet [in flight: change 2032]
-- **Not yet:** 3, *Each crate names the one it needs*: the libraries that need only the vocabulary still depend on `jig-domain-core` [in flight: change 2033]
