@@ -1896,7 +1896,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             what: skein_forge_client::What::Branch(row.landing.round.branch.clone()),
         };
         if let Some(name) = super::domain::from_client(&resource, &env.limits) {
-            super::domain::record_written_head(d, env, resource, name, candidate, out);
+            super::domain::record_written_head(d, env, resource, name, candidate, p.task, out);
         }
     }
     let decision = stepped.decision;
