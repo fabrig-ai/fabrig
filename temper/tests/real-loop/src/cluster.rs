@@ -144,7 +144,9 @@ impl Shape {
             &graces,
             skein_lib::Duration::from_millis(ping_ms),
             skein_lib::Duration::from_millis(silence_ms),
-        ).expect("cluster stop bound fits a duration").as_millis();
+        )
+        .expect("cluster stop bound fits a duration")
+        .as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);

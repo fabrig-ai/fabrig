@@ -354,7 +354,7 @@ pub static SHAPES: [Shape; 65] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 277] = [
+pub static MEMBERS: [Member; 278] = [
     Member {
         shape: "engine",
         name: "limits",

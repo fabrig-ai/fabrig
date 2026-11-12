@@ -115,7 +115,7 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     progress_bytes: 1_024,
     turns: 32,
     // Derived above the default stop bound: max(5 + 15 + 60, 180) + max(5, 1) + 1 = 186 s
-    // (jig/docs/design/domain/engine/fleet.md, 1). Keep a margin for the engine's grace.
+    // (jig/docs/design/domain/engine/fleet.md). Keep a margin for the engine's grace.
     grace: Duration::from_secs(240),
     facts: 32,
     history: 8,

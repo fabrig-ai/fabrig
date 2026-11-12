@@ -38,9 +38,14 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
             let document = jig_protocol_config::document(
                 &bytes,
                 &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
-            ).unwrap();
-            let worker = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
-            let stop = jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence).unwrap().as_millis();
+            )
+            .unwrap();
+            let worker =
+                jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+            let stop =
+                jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
+                    .unwrap()
+                    .as_millis();
             assert_eq!(stop, 186_000);
             assert_eq!(grace, 240_000);
             assert!(stop < grace);
