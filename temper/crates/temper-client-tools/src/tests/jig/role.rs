@@ -12,9 +12,14 @@ fn role_talk_waits_then_prints_only_the_new_turns_across_pages() {
         let argv = f::extended(TALK, if json { &["--json"] } else { &[] });
         let call = root.submit(argv.as_slice());
         root.serve(call, f::task_result(f::goal(f::TASK, c::WaitsOn::Nothing)));
-        assert_eq!(f::act_ask(&root, call), &c::Ask::Talk {
-            project: f::PROJECT, task: 41, words: c::Text::new(b"From now on, label flaky tests.".as_slice().into(), crate::limits::TEXT).unwrap()
-        });
+        assert_eq!(
+            f::act_ask(&root, call),
+            &c::Ask::Talk {
+                project: f::PROJECT,
+                task: 41,
+                words: c::Text::new(b"From now on, label flaky tests.".as_slice().into(), crate::limits::TEXT).unwrap()
+            }
+        );
         assert_eq!(root.sent_name(call), Some(f::named("talk")));
         root.done(call, c::Outcome::Document(c::DocumentOutcome::Said { task: 41, message: 24 }));
         root.deliver_subject(&f::task_watch(), f::writing_chat());
@@ -25,25 +30,50 @@ fn role_talk_waits_then_prints_only_the_new_turns_across_pages() {
         root.deliver_subject(&f::task_watch(), c::Delivery::Task(task));
         root.serving = None;
         assert!(root.answer(call).is_none(), "must read the committed reply");
-        let c::ReadResult::Value(c::ReadValue::Activity(page)) = f::settings_conversation(true) else { panic!("activity") };
+        let c::ReadResult::Value(c::ReadValue::Activity(page)) = f::settings_conversation(true) else {
+            panic!("activity")
+        };
         let mut newest = List::with_capacity(3);
         let mut older = List::with_capacity(7);
         for mut row in page.rows.into_boxed() {
-            if row.source.position == 26 && let Some(turn) = &mut row.decoded
-                && let c::TurnRead::Decoded(turn) = &mut turn.turn {
-                for message in turn.messages.iter_mut() { for block in message.blocks.iter_mut() {
-                    if let c::Block::Text(text) = block { *text = c::Text::new(b"Add it to my rules?".as_slice().into(), crate::limits::TEXT).unwrap(); }
-                } }
+            if row.source.position == 26
+                && let Some(turn) = &mut row.decoded
+                && let c::TurnRead::Decoded(turn) = &mut turn.turn
+            {
+                for message in turn.messages.iter_mut() {
+                    for block in message.blocks.iter_mut() {
+                        if let c::Block::Text(text) = block {
+                            *text =
+                                c::Text::new(b"Add it to my rules?".as_slice().into(), crate::limits::TEXT).unwrap();
+                        }
+                    }
+                }
             }
-            if row.source.position >= 28 { newest.push(row).unwrap(); } else { older.push(row).unwrap(); }
+            if row.source.position >= 28 {
+                newest.push(row).unwrap();
+            } else {
+                older.push(row).unwrap();
+            }
         }
-        root.serve(call, c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-            rows: newest, before: Some(f::cursor()), after: None, cut: false,
-        }))));
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                rows: newest,
+                before: Some(f::cursor()),
+                after: None,
+                cut: false,
+            }))),
+        );
         assert!(root.answer(call).is_none(), "read back to the admitted words");
-        root.serve(call, c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-            rows: older, before: None, after: None, cut: false,
-        }))));
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                rows: older,
+                before: None,
+                after: None,
+                cut: false,
+            }))),
+        );
         let printed = root.answer(call).expect("reply");
         assert_eq!(printed.status, 0, "{printed:?}");
         let expected = b"Add it to my rules?\nProposal 2 was accepted and made revision 2.\n";
@@ -51,7 +81,9 @@ fn role_talk_waits_then_prints_only_the_new_turns_across_pages() {
             f::unique_keys(&printed.stdout).unwrap();
             assert!(f::has(&printed, br#""met":true"#));
             assert!(f::has(&printed, b"Add it to my rules?"));
-        } else { assert_eq!(printed.stdout.as_ref(), expected); }
+        } else {
+            assert_eq!(printed.stdout.as_ref(), expected);
+        }
         assert!(!f::has(&printed, f::CONVERSATION_WORDS[0]));
         assert!(!f::has(&printed, b"settings_read"));
     }
@@ -68,9 +100,14 @@ fn role_talk_and_leave_name_their_refusals_and_leave_success() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(if leave { &["role", "talk", "41", "--leave", "--key", "left"] } else { TALK });
         root.serve(call, f::task_result(f::goal(f::TASK, c::WaitsOn::Nothing)));
-        if leave { assert_eq!(f::act_ask(&root, call), &c::Ask::Leave { project: f::PROJECT, task: 41 }); }
-        if let Some(refusal) = &refusal { root.answered(call, c::Answer::Refused { refusal: refusal.clone(), at: None }); }
-        else { root.done(call, c::Outcome::Document(c::DocumentOutcome::Left { task: 41 })); }
+        if leave {
+            assert_eq!(f::act_ask(&root, call), &c::Ask::Leave { project: f::PROJECT, task: 41 });
+        }
+        if let Some(refusal) = &refusal {
+            root.answered(call, c::Answer::Refused { refusal: refusal.clone(), at: None });
+        } else {
+            root.done(call, c::Outcome::Document(c::DocumentOutcome::Left { task: 41 }));
+        }
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, if refusal.is_some() { 2 } else { 0 }, "{printed:?}");
         assert_eq!(if refusal.is_some() { printed.stderr.as_ref() } else { printed.stdout.as_ref() }, expected);
@@ -88,7 +125,9 @@ fn role_talk_timeout_hold_or_end_prints_what_came_and_exits_three() {
         let mut delivery = f::writing_chat();
         let c::Delivery::Task(task) = &mut delivery else { panic!("task") };
         task.activity = 27;
-        if let Some(phase) = stop { task.chip.phase = phase; }
+        if let Some(phase) = stop {
+            task.chip.phase = phase;
+        }
         root.serving = Some(call);
         root.deliver_subject(&f::task_watch(), delivery);
         if stop.is_none() {
@@ -110,8 +149,12 @@ fn role_talk_requires_words_or_leave_and_help_lists_both() {
         &["role", "talk", "41", "--key", "k"][..],
         &["role", "talk", "41", "words", "--leave", "--key", "k"],
         &["role", "talk", "41", "words", "--timeout", "3601s", "--key", "k"],
-    ] { assert!(f::parse(argv).is_err(), "{argv:?}"); }
-    for argv in [TALK, &["role", "talk", "41", "--leave", "--key", "k"]] { assert_eq!(f::printed(&f::call(argv)), f::parse(argv).unwrap()); }
+    ] {
+        assert!(f::parse(argv).is_err(), "{argv:?}");
+    }
+    for argv in [TALK, &["role", "talk", "41", "--leave", "--key", "k"]] {
+        assert_eq!(f::printed(&f::call(argv)), f::parse(argv).unwrap());
+    }
     let help = f::help(Some(crate::jig::rows::ROLE_TALK_AT));
     for form in [b"role talk TASK TEXT".as_slice(), b"role talk TASK --leave"] {
         assert!(skein_lib::bytes::find(&help, form).is_some(), "{help:?}");
@@ -127,7 +170,9 @@ fn role_show_reads_the_whole_report_and_names_an_open_talk() {
             let argv = f::extended(&["role", "show", "41", "--report"], if json { &["--json"] } else { &[] });
             let call = root.submit(argv.as_slice());
             let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
-            if written { task.talk = Some(c::Talk { party: f::PARTY, opened: Wall::EPOCH, last: Wall::EPOCH }); }
+            if written {
+                task.talk = Some(c::Talk { party: f::PARTY, opened: Wall::EPOCH, last: Wall::EPOCH });
+            }
             root.serve(call, f::task_result(task));
             assert_note(&root, call, 41, b"report");
             let notes = [(9, b"Later report".as_slice()), (2, body.as_bytes())];
@@ -136,7 +181,14 @@ fn role_show_reads_the_whole_report_and_names_an_open_talk() {
             assert_eq!(printed.status, 0, "{printed:?}");
             if json {
                 f::unique_keys(&printed.stdout).unwrap();
-                assert!(f::has(&printed, if written { br#""report":{"number":2,"revision":4,"written":0,"body":"# } else { br#""report":null"# }));
+                assert!(f::has(
+                    &printed,
+                    if written {
+                        br#""report":{"number":2,"revision":4,"written":0,"body":"#
+                    } else {
+                        br#""report":null"#
+                    }
+                ));
             } else if written {
                 assert!(f::has(&printed, b"talking with you since 1970-01-01 00:00 UTC\nreport: note 2 revision 4 written 1970-01-01 00:00 UTC\n"));
                 assert!(printed.stdout.ends_with(body.as_bytes()));

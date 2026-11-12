@@ -110,7 +110,7 @@ pub(super) fn reply(task: u64, name: c::TurnName, value: &c::TurnRead, limits: &
                     part = part.checked_add(if called.outcome.is_some() { 2 } else { 1 }).expect("bounded parts");
                 }
                 c::Block::Result { .. } => part = part.checked_add(1).expect("bounded parts"),
-                c::Block::Opaque { .. } => {},
+                c::Block::Opaque { .. } => {}
             }
         }
     }

@@ -18,7 +18,12 @@ pub(crate) fn refusal(word: &[u8], refusal: &c::Refusal, me: Option<&c::Me>, out
     true
 }
 
-pub(crate) fn reply_page(thread: &jig_client::thread::Thread, from: u64, through: Option<u64>, limits: &Limits) -> Result<Box<[u8]>, Printed> {
+pub(crate) fn reply_page(
+    thread: &jig_client::thread::Thread,
+    from: u64,
+    through: Option<u64>,
+    limits: &Limits,
+) -> Result<Box<[u8]>, Printed> {
     let bound = u32::try_from(limits.result_bytes).expect("result bound");
     let mut measure = Text::bounded(bound, 0);
     reply_text(thread, from, through, limits, &mut measure);
@@ -31,7 +36,8 @@ pub(crate) fn reply_page(thread: &jig_client::thread::Thread, from: u64, through
 }
 fn reply_text(thread: &jig_client::thread::Thread, from: u64, through: Option<u64>, limits: &Limits, out: &mut Text) {
     for row in thread.lines.rows.as_slice().iter().rev() {
-        if row.source.position > from && row.source.position <= through.unwrap_or(u64::MAX)
+        if row.source.position > from
+            && row.source.position <= through.unwrap_or(u64::MAX)
             && let Some(turn) = &row.decoded
         {
             super::turn::reply(thread.task, turn.name, &turn.turn, limits, out);
@@ -40,9 +46,13 @@ fn reply_text(thread: &jig_client::thread::Thread, from: u64, through: Option<u6
 }
 pub(crate) fn reply(reply: &crate::jig::runner::talk::Reply, json: bool, limits: &Limits) -> Printed {
     let mut measure = Text::measure();
-    for chunk in reply.chunks.values() { measure.put(chunk); }
+    for chunk in reply.chunks.values() {
+        measure.put(chunk);
+    }
     let mut out = Text::writing_exact(measure);
-    for chunk in reply.chunks.values() { out.put(chunk); }
+    for chunk in reply.chunks.values() {
+        out.put(chunk);
+    }
     let text = out.finish();
     let stdout = if json {
         let bounds = JsonLimits { depth: 2, length: u32::try_from(limits.result_bytes).expect("result bound") };
@@ -52,13 +62,17 @@ pub(crate) fn reply(reply: &crate::jig::runner::talk::Reply, json: bool, limits:
         let mut out = Encoder::write(size, &bounds);
         encode_reply(&text, reply.met, &mut out);
         out.finish()
-    } else { text };
+    } else {
+        text
+    };
     Printed { file: crate::jig::FileEnd::Keep, status: if reply.met { 0 } else { 3 }, stdout, stderr: Box::default() }
 }
 fn encode_reply(text: &[u8], met: bool, out: &mut Encoder) {
     out.object_start();
-    out.key(b"reply"); out.string(text);
-    out.key(b"met"); out.boolean(met);
+    out.key(b"reply");
+    out.string(text);
+    out.key(b"met");
+    out.boolean(met);
     out.object_end();
 }
 
@@ -195,7 +209,9 @@ pub(crate) fn show(document: Printed, reading: &Reading, me: Option<&c::Me>, lim
     if document.status != 0 {
         return document;
     }
-    let Some(page) = page(read) else { return super::failure(if report { b"report could not be read" } else { b"Now could not be read" }, json, 1) };
+    let Some(page) = page(read) else {
+        return super::failure(if report { b"report could not be read" } else { b"Now could not be read" }, json, 1);
+    };
     let now = note(page, if report { b"report" } else { b"now" });
     let suffix = if json {
         let bounds = JsonLimits { depth: 4, length: u32::try_from(limits.result_bytes).expect("result bound") };

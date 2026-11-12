@@ -353,7 +353,9 @@ fn document_name_parts_and_fixed_byte_bounds_name_the_refused_member() {
 fn a_resuming_charter_keeps_its_parts_in_a_settings_file() {
     let file = with_parts(&charter_file(DOCUMENTS), PARTS, true);
     let decoded = settings_file::decode(&file, &crate::limits::tools()).expect("resuming charter with parts");
-    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) = &decoded.get(0).expect("charter item").edit else {
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) =
+        &decoded.get(0).expect("charter item").edit
+    else {
         panic!("charter");
     };
     assert!(charter.resume);

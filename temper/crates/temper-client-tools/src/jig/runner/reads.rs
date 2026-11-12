@@ -71,8 +71,18 @@ pub(crate) fn met_inbox(
     start_reading(runner, client, env, called, Some(After::Inbox(fallback)), out);
 }
 
-enum After { Inbox(Printed), Talk(super::talk::Reply) }
-pub(crate) fn talk_reply(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, reply: super::talk::Reply, out: &mut Queue<Out>) {
+enum After {
+    Inbox(Printed),
+    Talk(super::talk::Reply),
+}
+pub(crate) fn talk_reply(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    called: Called,
+    reply: super::talk::Reply,
+    out: &mut Queue<Out>,
+) {
     start_reading(runner, client, env, called, Some(After::Talk(reply)), out);
 }
 fn start_reading(
@@ -83,7 +93,11 @@ fn start_reading(
     after: Option<After>,
     out: &mut Queue<Out>,
 ) {
-    let (met_inbox, talk) = match after { Some(After::Inbox(fallback)) => (Some(fallback), None), Some(After::Talk(reply)) => (None, Some(reply)), None => (None, None) };
+    let (met_inbox, talk) = match after {
+        Some(After::Inbox(fallback)) => (Some(fallback), None),
+        Some(After::Talk(reply)) => (None, Some(reply)),
+        None => (None, None),
+    };
     let reading = Reading {
         called,
         command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
@@ -382,8 +396,11 @@ fn accept_page(
         };
         match reply.page(reading.thread.as_mut().expect("talk thread"), *page.clone(), &env.limits) {
             Ok(Some(next)) => read(runner, &mut reading, local, next, out),
-            Ok(None) => {},
-            Err(printed) => { finish(reading, printed, out); return; }
+            Ok(None) => {}
+            Err(printed) => {
+                finish(reading, printed, out);
+                return;
+            }
         }
     } else if let Some(thread) = &mut reading.thread
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page
@@ -601,7 +618,9 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
             render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
         reading.called.call.tool = rows::ROLE_SHOW_AT;
         *reading.called.call.values.get_mut(1).expect("report flag") = report;
-        if let Some(now) = now { reading.pages.insert(8, now); }
+        if let Some(now) = now {
+            reading.pages.insert(8, now);
+        }
         render::roles::show(task, &reading, super::acts::me(runner, client), &env.limits)
     } else {
         render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall)

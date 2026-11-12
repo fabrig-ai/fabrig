@@ -24,7 +24,8 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
             }
             let Readout::Jig(c::ReadResult::Value(value)) = reading.pages.get(&1)? else { return None };
             let (task, _) = crate::jig::render::read_task(value)?;
-            let description = if crate::jig::call::value(&reading.called.call, 1).is_some() { b"report".as_slice() } else { b"now" };
+            let description =
+                if crate::jig::call::value(&reading.called.call, 1).is_some() { b"report".as_slice() } else { b"now" };
             Some((8, note(task.project, task.chip.task, description)))
         }
         _ => None,

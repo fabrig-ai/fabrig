@@ -1,7 +1,7 @@
 //! A talk's reply is the committed turns after its admitted words, through the wait's delivery.
+use crate::jig::{Limits, Printed, render};
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{contract as c, thread::Thread};
-use crate::jig::{Limits, Printed, render};
 
 #[derive(Debug)]
 pub(crate) struct Reply {
@@ -16,7 +16,12 @@ impl Reply {
         Self { message, through, met, chunks: BTreeMap::new(), bytes: 0 }
     }
     /// Keep text, not an unbounded activity history, while the thread reads back to the words.
-    pub(crate) fn page(&mut self, thread: &mut Thread, page: c::ActivityPage, limits: &Limits) -> Result<Option<c::Read>, Printed> {
+    pub(crate) fn page(
+        &mut self,
+        thread: &mut Thread,
+        page: c::ActivityPage,
+        limits: &Limits,
+    ) -> Result<Option<c::Read>, Printed> {
         let mut from = None;
         let mut first = u64::MAX;
         for row in &page.rows {

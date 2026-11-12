@@ -55,16 +55,34 @@ impl Wait {
 pub(crate) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     start_wait(runner, client, env, called, None, out);
 }
-pub(crate) fn talk(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, message: u64, out: &mut Queue<Out>) {
+pub(crate) fn talk(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    called: Called,
+    message: u64,
+    out: &mut Queue<Out>,
+) {
     start_wait(runner, client, env, called, Some(message), out);
 }
-fn start_wait(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, talk: Option<u64>, out: &mut Queue<Out>) {
+fn start_wait(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    called: Called,
+    talk: Option<u64>,
+    out: &mut Queue<Out>,
+) {
     let subject = if talk.is_some() {
         Subject::Task(crate::jig::call::number(&called.call, 0).expect("role task"))
     } else {
         crate::jig::subject::of(&called.call).expect("watched read")
     };
-    let row = if talk.is_some() { &crate::jig::rows::ROLE_TALK } else { crate::jig::rows::watched(called.call.tool).expect("watched read") };
+    let row = if talk.is_some() {
+        &crate::jig::rows::ROLE_TALK
+    } else {
+        crate::jig::rows::watched(called.call.tool).expect("watched read")
+    };
     let me = live_me(client, runner.me()).expect("signed-in call");
     let Some((subject, name)) = watch(&subject, &called.call, me, env.limits.rows) else {
         let printed = render::failure(b"unknown project", called.json, 1);
@@ -76,10 +94,14 @@ fn start_wait(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: C
     } else {
         Handle { asker: runner.asker, number: u64::from(called.call_number) << 32u32 }
     };
-    let until = if talk.is_some() { Some(Condition::Replied) } else { match argument(row, &called.call, b"until") {
-        Some(Value::Condition(until)) => Some(*until),
-        _ => None,
-    } };
+    let until = if talk.is_some() {
+        Some(Condition::Replied)
+    } else {
+        match argument(row, &called.call, b"until") {
+            Some(Value::Condition(until)) => Some(*until),
+            _ => None,
+        }
+    };
     let since = match argument(row, &called.call, b"since") {
         Some(Value::Digest(bytes)) => Some(Digest::from_bytes(*bytes)),
         _ => None,
@@ -270,9 +292,19 @@ fn complete(
         Err(why) => (false, why, None, false),
     };
     if let Some(message) = wait.talk {
-        let through = match delivery { Some(c::Delivery::Task(task)) => Some(task.activity), _ => None };
+        let through = match delivery {
+            Some(c::Delivery::Task(task)) => Some(task.activity),
+            _ => None,
+        };
         close(&wait, runner.me(), out);
-        runner::reads::talk_reply(runner, client, env, wait.called, runner::talk::Reply::new(message, through, met), out);
+        runner::reads::talk_reply(
+            runner,
+            client,
+            env,
+            wait.called,
+            runner::talk::Reply::new(message, through, met),
+            out,
+        );
         return;
     }
     if !wait.called.json
@@ -485,7 +517,14 @@ fn terminal_page(
         Readout::Jig(c::ReadResult::Value(value)) if final_task(expected, value).is_some() => {
             let (task, result) = final_task(expected, value).expect("matching terminal task read");
             if let Some(message) = wait.talk {
-                runner::reads::talk_reply(runner, client, env, wait.called, runner::talk::Reply::new(message, Some(task.activity), false), out);
+                runner::reads::talk_reply(
+                    runner,
+                    client,
+                    env,
+                    wait.called,
+                    runner::talk::Reply::new(message, Some(task.activity), false),
+                    out,
+                );
                 return;
             }
             let latest = Latest::Jig(c::Delivery::Task(Box::new(task.clone())));

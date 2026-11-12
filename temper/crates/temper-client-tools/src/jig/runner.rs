@@ -14,8 +14,8 @@ pub(crate) mod proposal;
 pub(crate) mod reads;
 mod recovery;
 mod role;
-pub(crate) mod talk;
 pub(crate) mod specification;
+pub(crate) mod talk;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
