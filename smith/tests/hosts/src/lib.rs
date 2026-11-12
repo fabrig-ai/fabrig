@@ -196,7 +196,7 @@ impl HostService {
                 start_bytes: agent_limits.channel.start_bytes,
                 endpoints: agent_limits.channel.endpoints,
                 calls: domain_limits.calls,
-                ..protocol::fixture::small()
+                ..smith_host_protocol_fixtures::small()
             },
             root: launch.root,
             launch: Some(launch),

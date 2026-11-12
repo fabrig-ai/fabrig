@@ -137,17 +137,23 @@ members = [
     "smith/crates/smith-domain-tools",
     "smith/crates/smith-events",
     "smith/crates/smith-host-domain",
+    "smith/testing/smith-host-domain-fixtures",
     "smith/crates/smith-host-protocol",
+    "smith/testing/smith-host-protocol-fixtures",
     "smith/crates/smith-inline-agent",
     "smith/crates/smith-local-domain",
+    "smith/testing/smith-local-domain-fixtures",
     "smith/crates/smith-local-protocol",
+    "smith/testing/smith-local-protocol-fixtures",
     "smith/crates/smith-local-service",
+    "smith/testing/smith-local-service-fixtures",
     "smith/crates/smith-local-shell",
     "smith/crates/smith-protocol-channel",
     "smith/crates/smith-protocol-translate",
     "smith/crates/smith-protocol-llm",
     "smith/testing/smith-protocol-llm-fixtures",
     "smith/crates/smith-protocol-machine",
+    "smith/testing/smith-protocol-machine-fixtures",
     "smith/crates/smith-protocol-program",
     "smith/testing/smith-protocol-program-fixtures",
     "smith/crates/smith-transcript",
@@ -314,6 +320,8 @@ members = [
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
+    "temper/crates/temper-worker-service",
+    "temper/testing/temper-worker-service-fixtures",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -492,8 +500,10 @@ rustls-pki-types = { version = "1.15", features = ["web"] }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
+smith-host-domain-fixtures = { path = "smith/testing/smith-host-domain-fixtures" }
 smith-inline-agent = { path = "smith/crates/smith-inline-agent" }
 smith-local-domain = { path = "smith/crates/smith-local-domain" }
+smith-local-domain-fixtures = { path = "smith/testing/smith-local-domain-fixtures" }
 smith-host-world = { path = "smith/tests/host" }
 smith-local-world = { path = "smith/tests/local" }
 smith-agent-world = { path = "smith/tests/agent" }
@@ -505,6 +515,7 @@ smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
 smith-protocol-llm-fixtures = { path = "smith/testing/smith-protocol-llm-fixtures" }
 smith-protocol-machine = { path = "smith/crates/smith-protocol-machine" }
+smith-protocol-machine-fixtures = { path = "smith/testing/smith-protocol-machine-fixtures" }
 smith-protocol-program = { path = "smith/crates/smith-protocol-program" }
 smith-protocol-program-fixtures = { path = "smith/testing/smith-protocol-program-fixtures" }
 smith-events = { path = "smith/crates/smith-events" }
@@ -525,11 +536,14 @@ smith-channel = { path = "smith/crates/smith-channel" }
 smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-protocol-translate = { path = "smith/crates/smith-protocol-translate" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
+smith-host-protocol-fixtures = { path = "smith/testing/smith-host-protocol-fixtures" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
 smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
+smith-local-protocol-fixtures = { path = "smith/testing/smith-local-protocol-fixtures" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
+smith-local-service-fixtures = { path = "smith/testing/smith-local-service-fixtures" }
 smith-agent-process-world = { path = "smith/tests/agent-process" }
 smith-real-world = { path = "smith/tests/real" }
 smith-local-process-world = { path = "smith/tests/local-process" }
@@ -664,6 +678,8 @@ temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
+temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
+temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }

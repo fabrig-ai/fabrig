@@ -17,22 +17,22 @@ fn the_worker_iterates_only_once_the_engine_listens() {
     let mut stand = fixtures::one_process();
     stand.service.engine.as_mut().expect("engine").store.opened = false;
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
-    assert!(!stand.service.worker.as_ref().unwrap().started, "store still closed");
+    assert!(!stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started, "store still closed");
     stand.service.engine.as_mut().expect("engine").store.opened = true;
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
-    assert!(!stand.service.worker.as_ref().unwrap().started, "listener still opening");
+    assert!(!stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started, "listener still opening");
     for _ in 0_u8..4 {
         stand.turn();
     }
     assert!(stand.service.engine.as_ref().expect("engine").workers.host.opened());
-    assert!(stand.service.worker.as_ref().unwrap().started);
+    assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).started);
 }
 #[test]
 fn a_signal_drains_the_engine_then_ends_the_worker_at_once() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     stand.service.shutdown();
-    assert!(stand.service.worker.as_ref().unwrap().aborted.is_none());
+    assert!(!stand.service.worker.as_ref().unwrap().pending(Time::ZERO).aborted);
     for _ in 0_u16..256 {
         stand.turn();
         if stand.service.is_empty() {
@@ -50,7 +50,7 @@ fn a_second_signal_aborts_both_layers() {
     stand.service.shutdown();
     stand.service.shutdown();
     assert_eq!(stand.service.end(), Some(&End::Aborted));
-    assert!(stand.service.worker.as_ref().unwrap().aborted.is_some());
+    assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).aborted);
     for _ in 0_u16..256 {
         stand.turn();
         if stand.service.is_empty() {
@@ -63,7 +63,7 @@ fn a_second_signal_aborts_both_layers() {
 fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
-    assert!(stand.service.worker.as_ref().unwrap().git.ready, "git completions reached the worker");
+    assert!(stand.service.worker.as_ref().unwrap().git_ready(), "git completions reached the worker");
     assert_eq!(stand.kernel.files, 8, "layout also sets stores aside and opens it");
     stand.service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
@@ -76,7 +76,7 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
         })),
         "clients event reached engine"
     );
-    assert!(stand.service.worker.as_ref().unwrap().aborted.is_some());
+    assert!(stand.service.worker.as_ref().unwrap().pending(Time::ZERO).aborted);
 }
 #[test]
 fn an_unusable_git_stops_the_service_naming_its_program() {

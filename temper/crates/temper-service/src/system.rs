@@ -489,7 +489,7 @@ impl Service {
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
         let engine = self.engine.as_mut().expect("joined service has an engine");
         if let Some(worker) = &mut self.worker {
-            worker.drain_notes(&mut engine.notes);
+            drain_worker_notes(worker, &mut engine.notes);
         }
         &mut engine.notes
     }
@@ -608,7 +608,7 @@ impl Service {
         }
         #[cfg(feature = "worker")]
         if let Some(worker) = &self.worker {
-            roots.entry(&worker.root);
+            roots.entry(worker.domain());
         }
         roots.finish()
     }
@@ -1094,6 +1094,18 @@ fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_d
         git: skein_lib::bytes::copy_of(remote),
         web: None,
     }
+}
+
+#[cfg(feature = "worker")]
+fn drain_worker_notes(worker: &mut Worker, sink: &mut Queue<crate::Note>) {
+    for _ in 0..sink.room() {
+        let Some(note) = worker.notes().pop() else { break };
+        sink.push(note.into());
+    }
+}
+#[cfg(not(feature = "worker"))]
+fn drain_worker_notes(worker: &mut Worker, sink: &mut Queue<crate::Note>) {
+    worker.drain_notes(sink);
 }
 
 #[cfg(test)]

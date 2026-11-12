@@ -196,13 +196,13 @@ impl Worker {
             aborted: None,
         })
     }
-    pub(crate) fn reuse_workspaces(&mut self) {
+    pub fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
         self.git.component.keep_workspaces();
     }
 
     /// Give each agent the dump directory (temper/docs/design/draft/dogfood-hacks.md, 2.13).
-    pub(crate) fn dump_llm(&mut self, directory: &[u8]) {
+    pub fn dump_llm(&mut self, directory: &[u8]) {
         self.environment = Box::new([skein_lib::bytes::concat(&[b"TEMPER_INTERNAL_DUMP_LLM=", directory])]);
     }
 
@@ -212,7 +212,8 @@ impl Worker {
     ) -> Result<(), crate::program_sources::Resources> {
         self.sources.configure(resources)
     }
-    pub(crate) fn stopping(&self) -> bool {
+    #[must_use]
+    pub fn stopping(&self) -> bool {
         self.stopping
     }
     pub(crate) fn end(&self) -> Option<&crate::worker_alone::End> {
@@ -225,14 +226,40 @@ impl Worker {
         let Connection::Socket(remote) = &mut self.connection else { unreachable!("worker alone has a socket") };
         remote.end = Some(end);
     }
-    pub(crate) fn notes(&mut self) -> &mut Queue<crate::worker_alone::Note> {
+    pub fn notes(&mut self) -> &mut Queue<crate::worker_alone::Note> {
         &mut self.notes
     }
-    pub(crate) fn drain_notes(&mut self, sink: &mut Queue<crate::Note>) {
-        for _ in 0..sink.room() {
-            let Some(note) = self.notes.pop() else { break };
-            sink.push(note.into());
-        }
+    /// Offer a domain entrance and dispatch its hand-outs in order.
+    pub fn offer(&mut self, event: root::Event) {
+        self.step(event);
+    }
+    /// Take the component's routed domain entrances.
+    pub fn events(&mut self) -> &mut Queue<root::Event> {
+        &mut self.events
+    }
+    /// Whether the git component's start has completed successfully.
+    #[must_use]
+    pub const fn git_ready(&self) -> bool {
+        self.git.ready
+    }
+    /// Whether shutdown keeps the worker's checkouts.
+    #[must_use]
+    pub fn keeps_workspaces(&self) -> bool {
+        self.git.component.keeps_workspaces()
+    }
+    /// The link's ordered entrances awaiting the worker root.
+    pub fn engine_events(&mut self) -> &mut Queue<root::Event> {
+        &mut self.engine
+    }
+    /// The domain owner of an io process request.
+    #[must_use]
+    pub fn process_owner(&self, owner: Token) -> Option<Token> {
+        self.owners.get(&owner).copied()
+    }
+    /// The worker domain, inspected without exposing component fields.
+    #[must_use]
+    pub const fn domain(&self) -> &root::Domain {
+        &self.root
     }
     pub fn stop(&mut self) {
         if !self.stopping {
@@ -243,7 +270,8 @@ impl Worker {
     }
     /// Whether every agent process the worker spawned has closed, one still
     /// spawning among them (protocol/README.md, section 6).
-    pub(crate) fn agents_ended(&self) -> bool {
+    #[must_use]
+    pub fn agents_ended(&self) -> bool {
         self.processes.is_empty()
     }
     /// End immediately, dropping domain work and aborting every owned IO entity.
@@ -446,7 +474,7 @@ impl Worker {
         self.values.expire(now);
     }
     #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
-    pub(crate) fn link(&mut self, _now: Time, request: link::Request) {
+    pub fn link(&mut self, _now: Time, request: link::Request) {
         match request {
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
@@ -1214,17 +1242,6 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
     root::Domain::new(limits, worker_settings::job_kinds())
 }
 
-impl crate::Service {
-    /// The worker domain, for a world to inspect before requesting shutdown.
-    #[must_use]
-    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
-        match &self.worker {
-            Some(worker) => Some(&worker.root),
-            None => None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod merge_tests {
     use jig_domain_link::{JobBound, JobKind};
@@ -1260,30 +1277,12 @@ mod merge_tests {
         };
         let close =
             JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
-        assert_eq!(hello.jobs.as_ref(), [crate::limits::merge_bound(), close]);
-        let kinds = crate::limits::job_kinds();
+        assert_eq!(hello.jobs.as_ref(), [temper_service_core::limits::merge_bound(), close]);
+        let kinds = crate::worker_settings::job_kinds();
         assert_eq!(kinds.len(), 2);
         let kind = &kinds[1];
         assert_eq!(kind.bound, close);
         assert_eq!(kind.verb.as_ref(), b"close");
         assert!(kind.delivers);
-    }
-
-    /// temper/docs/design/domain/worker/jobs.md.
-    #[test]
-    fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
-        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-        let bound = crate::limits::close_bound();
-        let merge = crate::limits::merge_bound();
-        jig.core.tasks.spec_bytes = bound.spec;
-        jig.core.tasks.result_bytes = bound.result;
-        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
-        jig.core.tasks.spec_bytes = bound.spec - 1;
-        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge]);
-        jig.core.tasks.spec_bytes = bound.spec;
-        jig.core.tasks.result_bytes = bound.result - 1;
-        assert!(crate::limits::jobs(&jig).is_empty());
-        jig.core.tasks.result_bytes = bound.result;
-        assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
     }
 }

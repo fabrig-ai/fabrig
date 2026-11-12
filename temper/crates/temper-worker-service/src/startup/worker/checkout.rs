@@ -54,7 +54,7 @@ fn room(jig: Option<&config::Limits>, payload: &payload::Limits) -> Option<(u32,
 
 /// Gather every checkout-derived shortfall into one refusal before later
 /// domain or link construction can return a less complete one.
-pub(crate) fn capacity<E>(
+pub fn capacity<E>(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
     own: &Limits,

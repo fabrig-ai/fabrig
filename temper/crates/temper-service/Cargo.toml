@@ -10,19 +10,12 @@ publish.workspace = true
 [features]
 default = ["worker"]
 worker = [
+    "dep:temper-worker-service",
     "dep:temper-worker-domain",
-    "dep:temper-worker-domain-checkout",
-    "dep:temper-worker-protocol-git",
-    "dep:jig-protocol-worker-link",
-    "dep:jig-protocol-worker-agents",
-    "dep:smith-protocol-program",
-    "dep:smith-host-protocol",
-    "dep:smith-host-domain",
-    "dep:smith-channel",
-    "dep:smith-protocol-channel",
 ]
 
 [dependencies]
+temper-worker-service = { workspace = true, optional = true }
 temper-charter-set.workspace = true
 temper-service-core.workspace = true
 temper-protocol-reaches.workspace = true
@@ -73,25 +66,26 @@ skein-json.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
-smith-protocol-channel = { workspace = true, optional = true }
 smith-protocol-translate.workspace = true
-smith-channel = { workspace = true, optional = true }
-smith-protocol-program = { workspace = true, optional = true }
-smith-host-protocol = { workspace = true, optional = true }
-smith-host-domain = { workspace = true, optional = true }
 temper-engine-domain.workspace = true
 temper-engine-domain-trials.workspace = true
 temper-engine-domain-forge.workspace = true
 skein-forge-client.workspace = true
 temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
-temper-worker-domain-checkout = { workspace = true, optional = true }
 temper-worker-domain = { workspace = true, optional = true }
-temper-worker-protocol-git = { workspace = true, optional = true }
-jig-protocol-worker-link = { workspace = true, optional = true }
-jig-protocol-worker-agents = { workspace = true, optional = true }
 
 [dev-dependencies]
+temper-worker-protocol-git.workspace = true
+temper-worker-domain-checkout.workspace = true
+smith-host-protocol.workspace = true
+smith-host-domain.workspace = true
+smith-protocol-channel.workspace = true
+smith-protocol-program.workspace = true
+jig-protocol-worker-link.workspace = true
+jig-protocol-worker-agents.workspace = true
+
+temper-worker-service-fixtures.workspace = true
 temper-test-env.workspace = true
 smith-protocol-llm.workspace = true
 serde_json.workspace = true
