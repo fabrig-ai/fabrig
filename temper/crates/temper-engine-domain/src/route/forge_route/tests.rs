@@ -753,9 +753,11 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
     assert_eq!(writer.as_ref(), Some(&resource));
     assert_eq!(description.effect.name, authority_name, "authority still checks the forge branch's grant");
     assert!(description.effect.additional.is_empty(), "the stored hold name needs no authority grant");
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::effect_ask(
         &mut domain,
         &env,
+        &mut decision,
         0,
         connector::Ask::Drop {
             owner,
@@ -1652,12 +1654,13 @@ fn an_erased_tasks_unname_reaches_the_forge_as_unnamed() {
     use super::{Work, forge};
     let (mut domain, env, _) = restored_change([]);
     let connector = domain.config.forge_connector;
-    super::effect_ask(&mut domain, &env, connector, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::effect_ask(&mut domain, &env, &mut decision, connector, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
     let Some(Work::Forge(forge::Event::Unnamed { task: 7 })) = domain.work.pop() else {
         panic!("the erased task reaches the forge");
     };
     assert!(domain.work.is_empty());
-    super::effect_ask(&mut domain, &env, connector + 1, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    super::effect_ask(&mut domain, &env, &mut decision, connector + 1, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
     assert!(domain.work.is_empty());
 }
 

@@ -1,4 +1,5 @@
 //! Findings through the real root, decisions and restart (domain/areas.md, 8).
+mod saves;
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -32,15 +33,20 @@ pub(super) fn configuration() -> engine::Config {
     config
 }
 pub(crate) fn driver() -> (Driver, engine::Assignment) {
-    let limits = limits();
+    configured_driver(&limits(), configuration(), 0, 1)
+}
+fn configured_driver(limits: &engine::Limits, config: engine::Config, previous_task: u64, charter: u32) -> (Driver, engine::Assignment) {
+    let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let mut driver =
-        Driver::cold(temper_engine_domain_world::store::Store::with_limits(&limits), configuration(), &limits);
+        Driver::cold(temper_engine_domain_world::store::Store::with_limits(limits), config, limits);
     driver.settle();
-    driver.store.seed(
-        temper_engine_domain_world::fixtures::account_rows(&configuration().core.settings.llm_providers),
-        Box::default(),
-    );
-    driver.reopen(configuration());
+    let mut records = temper_engine_domain_world::fixtures::account_rows(&configuration().core.settings.llm_providers).into_vec();
+    let mut header = driver.store.header();
+    header.tasks = previous_task;
+    records.push(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))));
+    driver.store.seed(records.into_boxed_slice(), Box::default());
+    // Keep the fixture's configured charters when reopening after seeding accounts.
+    driver.reopen(restart);
     driver.settle();
     driver.hello(Token::new(7));
     driver.settle();
@@ -49,6 +55,8 @@ pub(crate) fn driver() -> (Driver, engine::Assignment) {
     let mut ask = driver.chat_ask(1, b"look after findings");
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat ask") };
     batch[0].label = 3;
+    batch[0].executor = people::TaskExecutor::Agent { charter };
+    batch[0].authority.delegation.kinds = Box::new([people::Executor::Charter(charter)]);
     batch[0].budget = people::Budget::Named;
     batch[0].authority.spend = 100;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -59,6 +67,7 @@ pub(crate) fn driver() -> (Driver, engine::Assignment) {
         ask,
     }));
     driver.settle();
+    assert!(driver.delivered.iter().any(|d| matches!(d, Delivery::Assigned { .. })), "standing role created: {:?}", driver.delivered);
     let run = driver.last_assignment();
     (driver, run)
 }
@@ -94,6 +103,10 @@ pub(crate) fn application(driver: &mut Driver, request: Application) -> Applicat
         .unwrap_or_else(|| panic!("no finding outcome: {:?}", &driver.delivered[before..]))
 }
 pub(crate) fn settings(driver: &mut Driver, areas: Option<s::ProjectAreas>, triager: Option<s::AreaOwner>) {
+    send_settings(driver, areas, triager);
+    driver.settle();
+}
+fn send_settings(driver: &mut Driver, areas: Option<s::ProjectAreas>, triager: Option<s::AreaOwner>) {
     let mut items = vec![];
     if let Some(areas) = areas {
         items.push(kinds::item(12, 1, 1, &s::Value::ProjectAreas(areas)));
@@ -118,7 +131,6 @@ pub(crate) fn settings(driver: &mut Driver, areas: Option<s::ProjectAreas>, tria
             running: jig_domain_core::settings::Running::Stays,
         }),
     }));
-    driver.settle();
 }
 pub(crate) fn area(owner: s::AreaOwner) -> s::ProjectAreas {
     s::ProjectAreas {

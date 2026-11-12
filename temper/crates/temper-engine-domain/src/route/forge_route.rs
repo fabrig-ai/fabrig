@@ -5677,6 +5677,7 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
 pub(crate) fn effect_ask(
     domain: &mut Domain,
     env: &Env<Limits>,
+    decision: &mut Decision,
     number: u16,
     ask: jig_domain_core::effects::connector::Ask,
 ) {
@@ -5736,7 +5737,7 @@ pub(crate) fn effect_ask(
             match flight {
                 Ok(flight) => {
                     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "fresh proposal description");
-                    effect_ask(domain, env, number, jig_domain_core::effects::connector::Ask::Describe { owner });
+                    effect_ask(domain, env, decision, number, jig_domain_core::effects::connector::Ask::Describe { owner });
                 }
                 Err(why) => domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
                     if why == skein_forge::api::Error::Busy {
@@ -5963,7 +5964,7 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
         | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }
         | jig_domain_core::effects::connector::Ask::SaveSettingsDefaults { .. }) => {
-            super::kinds::ask(domain, env, number, ask);
+            super::kinds::ask(domain, env, decision, number, ask);
         }
     }
 }

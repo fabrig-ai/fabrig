@@ -71,7 +71,7 @@ fn expected(driver: &Driver, finding: &forge::Finding, doc: &forge::Findings) ->
         .or_else(|| doc.triager.and_then(|owner| stands(driver, owner)))
         .unwrap_or(forge::Holder::Role(0))
 }
-fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mut Vec<(u64, u64, Box<[u8]>)>) {
+fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mut Vec<(u64, u64, Box<[u8]>)>, before_save: Option<&forge::Findings>) {
     let doc = engine::findings_document(&driver.root, 1, 1, None, false);
     let mut numbers = BTreeSet::new();
     for row in &doc.rows {
@@ -86,6 +86,7 @@ fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mu
         assert_eq!(row.holder, expected(driver, saved, &doc));
         assert_eq!(value.row, *row);
     }
+    let mut saved_news = BTreeSet::new();
     for view in driver.root.tasks().view_tasks() {
         let Some(task) = driver.root.tasks().task(view.number) else { continue };
         for word in &task.inbox {
@@ -95,6 +96,28 @@ fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mu
                 continue;
             }
             let text = std::str::from_utf8(&word.words).expect("news is UTF-8");
+            if let Some(numbers) = text.strip_prefix("Findings on project 1 are yours now: ") {
+                let before = before_save.expect("owner news only follows a save");
+                let gained: Vec<_> = doc.rows.iter().filter(|row| !row.state.ended()
+                    && row.holder == forge::Holder::Task(task.number)
+                    && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder))
+                    .map(|row| row.number).collect();
+                assert!(!gained.is_empty(), "news after a save needs a newly held finding");
+                assert!(saved_news.insert(task.number), "one news per new task holder");
+                let mut named = Vec::new();
+                let mut omitted = 0_usize;
+                for number in numbers.split(", ") {
+                    if let Some(more) = number.strip_prefix("and ").and_then(|s| s.strip_suffix(" more")) {
+                        omitted = more.parse().expect("omitted finding count");
+                    } else {
+                        named.push(number.parse::<u32>().expect("ordered finding number"));
+                    }
+                }
+                assert_eq!(named, gained[..named.len()], "only gained findings, in number order");
+                assert_eq!(named.len() + omitted, gained.len(), "all gained findings accounted for");
+                sent.push((word.number, task.number, word.words.clone()));
+                continue;
+            }
             let address = text.strip_prefix("Finding 1/").expect("finding news");
             let number: u32 = address.split(' ').next().expect("number").parse().expect("decimal finding number");
             let finding = engine::finding_read(&driver.root, 1, number).expect("news names a finding");
@@ -105,6 +128,13 @@ fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mu
             }
             sent.push((word.number, task.number, word.words.clone()));
         }
+    }
+    if let Some(before) = before_save {
+        let expected: BTreeSet<_> = doc.rows.iter().filter_map(|row| {
+            let forge::Holder::Task(task) = row.holder else { return None };
+            (!row.state.ended() && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder)).then_some(task)
+        }).collect();
+        assert_eq!(saved_news, expected, "every new task holder hears once after a save");
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -153,7 +183,7 @@ fn run(seed: u64) -> Replay {
     let mut sent = Vec::new();
     f::settings(&mut driver, Some(f::area(s::AreaOwner::Task(run.task))), Some(s::AreaOwner::Role(0)));
     f::application(&mut driver, Application::FileFinding(f::file(Some(b"tests"))));
-    check(&driver, &mut heard, &mut sent);
+    check(&driver, &mut heard, &mut sent, None);
     let mut ended = false;
     for _ in 0..80 {
         let draw = rng.below(5);
@@ -164,7 +194,9 @@ fn run(seed: u64) -> Replay {
             3 => s::AreaOwner::Role(2),
             _ => s::AreaOwner::Charter(1),
         };
-        match rng.below(9) {
+        let step = rng.below(9);
+        let before_save = (step == 0 || step == 1).then(|| engine::findings_document(&driver.root, 1, 1, None, false));
+        match step {
             0 => f::settings(
                 &mut driver,
                 Some(if rng.below(2) == 0 { f::area(owner) } else { s::ProjectAreas { areas: Box::default() } }),
@@ -219,7 +251,7 @@ fn run(seed: u64) -> Replay {
                 }
             }
         }
-        check(&driver, &mut heard, &mut sent);
+        check(&driver, &mut heard, &mut sent, before_save.as_ref());
     }
     let doc = engine::findings_document(&driver.root, 1, 1, None, false);
     Replay {

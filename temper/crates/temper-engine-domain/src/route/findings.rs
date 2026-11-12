@@ -4,7 +4,7 @@ mod tests;
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_route, tasks};
 use alloc::boxed::Box;
 use forge::{Filer, FindingRefusal, Holder, settings::AreaOwner};
-use skein_lib::{Decimal, List, Queue};
+use skein_lib::{Decimal, List, Map, Queue};
 
 fn live(row: &tasks::TaskRecord, project: u32) -> bool {
     if row.project != project {
@@ -196,6 +196,116 @@ fn commit(
     forge_route::outputs(domain, env, decision, &mut output);
     Ok(number)
 }
+/// Read the old holders while the effective settings still precede the save.
+/// Only the grouped delta crosses the commit barrier (domain/areas.md, 5).
+pub(super) fn settings_holders(domain: &Domain, items: &[forge::settings::Asked]) -> List<(u32, u32, Holder)> {
+    let mut projects = Map::uncapped();
+    for item in items {
+        if item.kind == 12 || item.kind == 13 {
+            projects.insert(item.scope, ()).expect("one project per settings scope");
+        }
+    }
+    let mut holders = List::uncapped();
+    for (&project, ()) in &projects {
+        for (_, row) in domain.forge.findings(project) {
+            if !row.state.ended() {
+                holders.push((project, row.number, holder(domain, project, row.area.as_deref())))
+                    .expect("one old holder per open finding");
+            }
+        }
+    }
+    holders
+}
+
+pub(super) fn settings_saved(
+    domain: &Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    before: &[(u32, u32, Holder)],
+) {
+    let mut groups = Map::<(u32, u64), List<u32>>::uncapped();
+    for &(project, number, old) in before {
+        let Some(row) = domain.forge.finding(project, number) else { continue };
+        let new = holder(domain, project, row.area.as_deref());
+        if new == old {
+            continue;
+        }
+        match new {
+            Holder::Task(task) => {
+                let key = (project, task);
+                if !groups.contains_key(&key) {
+                    groups.insert(key, List::uncapped()).expect("one group per new task holder");
+                }
+                groups.get_mut(&key).expect("inserted holder group").push(number).expect("one number per finding");
+            }
+            Holder::Party(_) | Holder::Role(_) => {}
+        }
+    }
+    for (&(project, task), numbers) in &groups {
+        super::emit(decision, &env.limits, crate::Delivery::FindingsOwned {
+            project, task, words: ownership_words(project, numbers.as_slice(), env.limits.tasks.message_bytes),
+        });
+    }
+}
+
+/// Subscribe and tell the new holder in the decision after the settings commit.
+pub(crate) fn tell_owner(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    project: u32,
+    task: u64,
+    words: Box<[u8]>,
+) {
+    if let Ok(subscription) = subscribe(domain, env, decision, task, project)
+        && let Some(event) = domain.core.connector_news(task, subscription, tasks::NewsClass::Wakes, words, env.wall)
+    {
+        domain.work.push(Work::Tasks(event));
+    }
+}
+
+fn ownership_words(project: u32, numbers: &[u32], limit: u32) -> Box<[u8]> {
+    let mut out = List::uncapped();
+    append(&mut out, b"Findings on project ");
+    append(&mut out, Decimal::of(u64::from(project)).as_bytes());
+    append(&mut out, b" are yours now:");
+    let header = out.as_slice().len();
+    for (index, &number) in numbers.iter().enumerate() {
+        if index == 0 { append(&mut out, b" "); } else { append(&mut out, b", "); }
+        append(&mut out, Decimal::of(u64::from(number)).as_bytes());
+    }
+    let limit = skein_lib::usize_of(limit);
+    if out.as_slice().len() <= limit { return out.into_boxed(); }
+    let mut end = header;
+    let mut kept = header;
+    let mut count = 0_usize;
+    for (index, &number) in numbers.iter().enumerate() {
+        end = end.saturating_add(if index == 0 { 1 } else { 2 });
+        end = end.saturating_add(Decimal::of(u64::from(number)).as_bytes().len());
+        let remaining = numbers.len().saturating_sub(index).saturating_sub(1);
+        let suffix = Decimal::of(skein_lib::len_u64(remaining));
+        if end.saturating_add(11).saturating_add(suffix.as_bytes().len()) <= limit {
+            kept = end;
+            count = index.saturating_add(1);
+        }
+    }
+    let more = Decimal::of(skein_lib::len_u64(numbers.len().saturating_sub(count)));
+    let mut words = List::uncapped();
+    if count == 0 {
+        // A tiny message bound may not fit even the header and the omitted count.
+        let prefix = cut_words(out.as_slice().get(..header).expect("header prefix"),
+            u32::try_from(limit.saturating_sub(10).saturating_sub(more.as_bytes().len())).expect("message bound"));
+        append(&mut words, &prefix);
+    } else {
+        append(&mut words, out.as_slice().get(..kept).expect("fitting number prefix"));
+    }
+    if count != 0 { append(&mut words, b", "); } else { append(&mut words, b" "); }
+    append(&mut words, b"and ");
+    append(&mut words, more.as_bytes());
+    append(&mut words, b" more");
+    words.into_boxed()
+}
+
 fn subscribe(
     domain: &mut Domain,
     env: &Env<Limits>,
