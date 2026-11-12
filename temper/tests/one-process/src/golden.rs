@@ -22,6 +22,9 @@ use temper_playground::{
     service::Observe,
 };
 
+// The start's copy uses this build's brief floor; kept bytes stay unchanged (baseline.md, 6).
+const BRIEF_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS;
+
 struct Golden;
 type Proc = programs::Process<Golden>;
 impl Harness for Golden {
@@ -468,7 +471,12 @@ pub fn read(directory: &Path) {
     PATCHED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
-    let document = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let sections = document
+        .pointer_mut("/engine/limits/overrides/brief.sections")
+        .expect("kept brief section override");
+    *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
+    let configuration = serde_json::to_vec(&document).expect("startup configuration");
     let mut disk = files::load(directory);
     // The terminal keeps its token; ctl additionally reads the engine's address.
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
