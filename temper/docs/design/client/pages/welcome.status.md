@@ -1,6 +1,11 @@
 # welcome: status
 
-2026-11-11. Where the tree's code lags or departs from [welcome.md](welcome.md).
+2026-11-12. Where the tree's code lags or departs from [welcome.md](welcome.md).
+
+- **Not yet:** 1: the Model step's Claude card with a terminal to lend,
+  "Sign in to Claude Code", and *Claude Code's sign-in*: the note,
+  Cancel, its endings (signed in, not finished, refused at the press)
+  and the page closed or opened again [in flight: change 1945].
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
