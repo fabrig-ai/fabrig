@@ -70,15 +70,40 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
             ],
         ));
     }
-    let FollowOwner::Person(owner) = follow.owner;
-    if domain.core.people.role(owner, asked.scope).is_none()
-        || domain.core.people.kind(owner) != Some(jig_domain_people::Kind::Person)
-    {
-        let owner = Decimal::of(owner);
-        return Some(words(
-            asked.number,
-            &[b"its owner ", owner.as_bytes(), b" is not a person of project ", project.as_bytes()],
-        ));
+    match follow.owner {
+        FollowOwner::Person(owner) => {
+            if domain.core.people.role(owner, asked.scope).is_none()
+                || domain.core.people.kind(owner) != Some(jig_domain_people::Kind::Person)
+            {
+                let owner = Decimal::of(owner);
+                return Some(words(
+                    asked.number,
+                    &[b"its owner ", owner.as_bytes(), b" is not a person of project ", project.as_bytes()],
+                ));
+            }
+        }
+        FollowOwner::Task(owner) => {
+            let standing = match domain.core.tasks.task(owner) {
+                Some(row) => {
+                    row.label == 3
+                        && super::super::findings::stands(domain, asked.scope, settings::AreaOwner::Task(owner))
+                            .is_some()
+                }
+                None => false,
+            };
+            if !standing {
+                let owner = Decimal::of(owner);
+                return Some(words(
+                    asked.number,
+                    &[
+                        b"its owner task ",
+                        owner.as_bytes(),
+                        b" is not a live standing role of project ",
+                        project.as_bytes(),
+                    ],
+                ));
+            }
+        }
     }
     let charter = match &follow.producer {
         Some(producer) => settings::producer_charter(producer).flatten(),

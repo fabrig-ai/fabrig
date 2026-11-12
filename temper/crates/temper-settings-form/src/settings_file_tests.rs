@@ -911,6 +911,43 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
 }
 
 #[test]
+fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
+    use temper_client_protocol_wire::v1 as w;
+    let selector = br#"{"kind":"follow","project":2,"number":1}"#;
+    let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
+    let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
+    for (owner, expected) in [
+        (
+            br#"{"task":52}"#.as_slice(),
+            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap()),
+        ),
+        (
+            br#"{"person":4}"#.as_slice(),
+            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()),
+        ),
+    ] {
+        let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
+        let item = items.get(0).unwrap();
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
+        let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+        assert_eq!(record.owner(), &expected);
+        let text = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&text, &joined(&[br#""owner":"#, owner])).is_some());
+    }
+    for owner in [br#"{"person":4,"task":52}"#.as_slice(), b"{}", br#"{"role":3}"#] {
+        file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap_err();
+    }
+}
+
+#[test]
 fn settings_files_refuse_the_retired_questions_route_by_name() {
     let why =
         file::decode(&kind_file(br#"{"kind":"project-questions","project":2}"#, br#""foreman""#), &Limits::standard())

@@ -537,40 +537,41 @@ Context-to-owned follow: select by project and number (1 to forge.follows); no s
 - `source`: `follow-source`. Context source; repository and branch fixed once accepted.
 - `target`: `follow-target`. Owned target; repository and branch fixed once accepted.
 - `owner`: `follow-owner`. Follow changes' owner; required.
-- `start`: `"owner"` or `"code"`. When changes start; absent/empty: owner. `"owner"`: Wait for the owner; the default. `"code"`: Start after the previous change lands.
+- `start`: `"owner"` or `"code"`. When changes start; absent/empty: owner. `"owner"`: Wait for owner (default). `"code"`: Start after the previous change lands.
 - `producer`: text, at most 8,192 bytes. Change parameter 11, C;P;R. Absent/empty: change charter and its defaults.
-- `check`: `follow-check`. The follow check; required.
+- `check`: `follow-check`. Required follow check.
 
 ## follow-source
 
 Context repository. Empty branch: adopted default; empty paths: all.
 
-- `forge`: integer, 0 to 65,535. The forge number.
-- `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
-- `branch`: text, at most 4,096 bytes. Source branch; absent/empty: adopted default.
-- `paths`: list of at most 256, each text, at most 256 bytes. At most forge.follow_paths nonempty segment prefixes; no edge or doubled slash.
+- `forge`: integer, 0 to 65,535. Forge number.
+- `repository`: integer, 0 to 4,294,967,295. Repository id on this forge.
+- `branch`: text, at most 4,096 bytes. Absent/empty: adopted default branch.
+- `paths`: list of at most 256, each text, at most 256 bytes. At most forge.follow_paths nonempty segment prefixes; no edge/doubled slash.
 
 ## follow-target
 
 Owned, writable repository. Absent/empty branch: landing branch.
 
-- `forge`: integer, 0 to 65,535. The forge number.
-- `repository`: integer, 0 to 4,294,967,295. The repository id on that forge.
-- `branch`: text, at most 4,096 bytes. Target branch; absent/empty: landing branch.
+- `forge`: integer, 0 to 65,535. Forge number.
+- `repository`: integer, 0 to 4,294,967,295. Repository id on this forge.
+- `branch`: text, at most 4,096 bytes. Absent/empty: landing branch.
 
 ## follow-owner
 
-A person in any role of this project.
+A project person or live standing role.
 
 - `person`: integer. Project person's number.
+- `task`: integer. Standing role task number.
 
 ## follow-check
 
 Target workflow and report artifact: each required, 1 to 256 bytes.
 
-- `workflow`: text, at most 256 bytes. Target workflow file; required, nonempty.
-- `artifact`: text, at most 256 bytes. Uploaded artifact name; required, nonempty.
-- `format`: `"junit"` or `"lines"`. The report format; required. `"junit"`: JUnit XML. `"lines"`: Line-format report.
+- `workflow`: text, at most 256 bytes. Required nonempty target workflow file.
+- `artifact`: text, at most 256 bytes. Required nonempty uploaded artifact name.
+- `format`: `"junit"` or `"lines"`. Required report format. `"junit"`: JUnit XML. `"lines"`: Line-format report.
 
 ## template-goal
 
