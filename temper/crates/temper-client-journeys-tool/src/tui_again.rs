@@ -164,6 +164,7 @@ fn record(
         expected: vec![],
         origins: vec![],
     })
+    .page_query(b"internal-loopback-navigation=1")
     .horizon(HORIZON);
     let mut walker = Walker::new(name, paths, environment, starting);
     let outcome = harness.run(&mut [&mut walker]);
@@ -393,7 +394,12 @@ impl<'a> Walker<'a> {
                 let address = self.setup.expect("setup exists").setup.reload.clone();
                 self.since = None;
                 self.phase = Phase::Opening;
-                return Ok(Next::Do(Doing::Go { address }));
+                return Ok(Next::Do(Doing::Go {
+                    address: skein_fake_person_browser::harness::with_query(
+                        &address,
+                        b"internal-loopback-navigation=1",
+                    ),
+                }));
             }
             Phase::Opening => {
                 // The load precedes the client's asynchronous sign-in. Its main

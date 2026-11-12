@@ -2,7 +2,7 @@
 //! page sends a same-origin exchange (client/web/testing.md, 5).
 use skein_fake_person::{Find, Next, Step as PersonStep};
 use skein_fake_person_browser::harness::{Origin, Page, ServerAction};
-use skein_fake_person_browser::{BrowserFace, Harness, Outcome, Play, Script, Step};
+use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Step};
 use skein_lib::Time;
 use skein_ui::Role;
 use temper_client_browser_world::{Tier, WITHIN};
@@ -103,5 +103,5 @@ document.querySelector('#authorize').href = url;
         reading: false,
         configured: false,
     };
-    assert_eq!(Harness::new(setup).run(&mut [&mut person]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut person]), Outcome::Done);
 }

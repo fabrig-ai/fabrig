@@ -39,4 +39,4 @@ options = [
     "--files", "temper/crates/temper-client-shell-web/files",
     "--noscript", "temper needs WebAssembly and scripts.",
 ]
-features = ["loopback-navigation", "small-window"]
+features = []
