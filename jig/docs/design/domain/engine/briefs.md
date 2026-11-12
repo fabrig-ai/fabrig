@@ -87,10 +87,7 @@ How it counts decides what becomes of the task:
 
 A brief that fails, however it counts, gives its brief slot back at once,
 its sections still gathering dropped, before its task pauses or backs
-off, so another task's brief takes the slot while it waits; and a
-connector counts a section's failure as capacity only where room frees
-by itself, never where its next try would meet the same refusal again,
-so no brief retries one refused read on a slot without bound.
+off, so another task's brief takes the slot while it waits.
 
 Which is which, by what `executors.md`, 1 prepares:
 
