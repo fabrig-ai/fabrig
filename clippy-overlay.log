@@ -1,2 +1,57 @@
-    Checking temper-client-shell-cli v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/temper/crates/temper-client-shell-cli)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.46s
+    Checking jig-domain-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-link)
+    Checking jig-domain-authority v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-authority)
+    Checking jig-domain-brief v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-brief)
+    Checking jig-domain-notes v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-notes)
+    Checking jig-domain-views v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-views)
+    Checking jig-domain-tasks v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-tasks)
+    Checking rustls-pki-types v1.15.1
+    Checking skein-kv v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/skein/crates/skein-kv)
+    Checking rustls-webpki v0.103.15
+    Checking once_cell v1.21.4
+    Checking jig-test-connector v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/testing/jig-test-connector)
+    Checking jig-domain-people v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-people)
+    Checking jig-domain-fleet v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-fleet)
+    Checking jig-domain-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-accounts)
+    Checking rustls v0.23.41
+    Checking jig-domain-host v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-host)
+    Checking temper-test-env v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/temper/testing/temper-test-env)
+    Checking skein-tls v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/skein/crates/skein-tls)
+    Checking temper-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/temper/crates/temper-client-view)
+    Checking skein-ui-text v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/skein/crates/skein-ui-text)
+    Checking temper-fixtures v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/temper/testing/temper-fixtures)
+    Checking skein-oauth-issuer v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/skein/crates/skein-oauth-issuer)
+    Checking jig-domain-core v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-core)
+    Checking jig-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-protocol-store)
+    Checking jig-domain-hub-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-domain-hub-link)
+    Checking jig-protocol-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/jig/crates/jig-protocol-tools)
+    Checking temper-client-shell-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/8589934592/fabrig/temper/crates/temper-client-shell-terminal)
+error[E0063]: missing fields `overlay_alternatives_some`, `overlay_documents_some`, `overlay_instructions` and 1 other field in initializer of `settings_v1::Limits`
+  --> jig/crates/jig-protocol-store/src/codec/settings.rs:15:29
+   |
+15 | const EMPTY: wire::Limits = wire::Limits {
+   |                             ^^^^^^^^^^^^ missing `overlay_alternatives_some`, `overlay_documents_some`, `overlay_instructions` and 1 other field
+
+error[E0004]: non-exhaustive patterns: `settings_v1::Value::Overlay(_)` not covered
+    --> jig/crates/jig-protocol-store/src/codec/settings.rs:428:14
+     |
+ 428 |     Ok(match value {
+     |              ^^^^^ pattern `settings_v1::Value::Overlay(_)` not covered
+     |
+note: `settings_v1::Value` defined here
+    --> jig/crates/jig-protocol-store/src/generated/settings_v1.rs:4522:10
+     |
+4522 | pub enum Value {
+     |          ^^^^^
+...
+4534 |     Overlay(Box<Overlay>),
+     |     ------- not covered
+     = note: the matched value is of type `settings_v1::Value`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+     |
+ 433 ~         wire::Value::Model(value) => settings::Value::Model(Box::new(decode_catalogue(*value))),
+ 434 ~         settings_v1::Value::Overlay(_) => todo!(),
+     |
+
+Some errors have detailed explanations: E0004, E0063.
+For more information about an error, try `rustc --explain E0004`.
+error: could not compile `jig-protocol-store` (lib) due to 2 previous errors
