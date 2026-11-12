@@ -122,7 +122,7 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
         ));
         grant(&mut core, &env, FIRST_SOURCE);
         // Finish the automatic first read before the party presses read again.
-        finish_read(&mut core, &env, 0);
+        finish_read(&mut core, &env, 0, 1);
         let ask = people::Ask::AccountChange {
             holder: people::AccountHolder::Own,
             change: people::AccountChange::ReadLists { provider },
@@ -163,7 +163,7 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
             assert_eq!(answered, 1);
             assert_eq!(saved, u32::from(attempt == 0));
             if attempt == 0 && provider == PROVIDER {
-                finish_read(&mut core, &env, 1);
+                finish_read(&mut core, &env, 1, 1);
             }
             core.reclaim();
         }
@@ -190,12 +190,63 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
     }
 }
 
-fn finish_read(core: &mut Core, env: &Env<Limits>, read: u64) {
+#[test]
+fn a_key_first_accounts_list_takes_the_direct_way_where_configured() {
+    for direct in [false, true] {
+        let records =
+            vec![account(OWN, accounts::Holder::Party(ALICE)), source(OWN, FIRST_SOURCE, 0, accounts::Kind::Key)];
+        let (mut core, env) = fixture_lists(records, true);
+        if direct {
+            let mut program = core.settings.endpoints[0].clone();
+            program.program = Some(b"claude_code".as_slice().into());
+            core.settings.endpoints = Box::new([
+                program,
+                EndpointFacts {
+                    providers: Box::new([]),
+                    direct: Box::new([PROVIDER]),
+                    number: 4,
+                    dialect: 3,
+                    program: None,
+                },
+            ]);
+        }
+        let mut bounds = fixtures::bounds();
+        bounds.endpoints = Box::new([
+            jig_domain_link::EndpointBound { endpoint: 1, window: 8192, output: 1024 },
+            jig_domain_link::EndpointBound { endpoint: 4, window: 8192, output: 1024 },
+        ]);
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Hello {
+                worker: 0,
+                channel: Token::new(77),
+                hello: Hello {
+                    jobs: Box::new([]),
+                    bounds,
+                    stop_bound: Duration::ZERO,
+                    slots: 1,
+                    workstreams: Box::new([]),
+                    hosting: Box::new([]),
+                },
+            }),
+        ));
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Logins { channel: Token::new(77), logins: Box::new([]) }),
+        ));
+        grant(&mut core, &env, FIRST_SOURCE);
+        finish_read(&mut core, &env, 0, if direct { 4 } else { 1 });
+    }
+}
+
+fn finish_read(core: &mut Core, env: &Env<Limits>, read: u64, expected_endpoint: u32) {
     let mut out = resume_fleet(core, env);
     let Request::Held(held) = out.pop().expect("a queued read reaches the worker") else { panic!("worker read") };
     let Held::ReadList { channel, read: sent, endpoint, grant } = *held else { panic!("worker read") };
     assert_eq!(sent, read);
-    assert_eq!(endpoint, 1);
+    assert_eq!(endpoint, expected_endpoint);
     assert_eq!(grant.account, FIRST_SOURCE);
     assert!(out.is_empty());
     drop(step(

@@ -457,7 +457,13 @@ pub(crate) fn config(seed: u64) -> Config {
         }]),
         connectors: Box::new([1, 2]),
         settings: Settings {
-            endpoints: Box::new([EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]),
+            endpoints: Box::new([EndpointFacts {
+                direct: Box::new([]),
+                providers: Box::new([1]),
+                number: 1,
+                dialect: 3,
+                program: None,
+            }]),
             deployment_provider: 3,
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
