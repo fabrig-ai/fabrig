@@ -129,6 +129,25 @@ pub(crate) fn llm(id: usize, peer: &mut skein_fake_peers::llm::Peer, streak: u64
         pending + i64::from(matches!(event, Observation::Query { .. }))
             - i64::from(matches!(event, Observation::Answered { .. }))
     });
+    for seen in peer.observations() {
+        if let skein_fake_peers::llm::Observation::Query { query, .. } = seen {
+            if query.system.windows(b"## Replying".len()).any(|w| w == b"## Replying") {
+                writeln!(out, "SYSTEM {}", String::from_utf8_lossy(&query.system)).expect("diagnostic");
+                for message in &query.messages {
+                    for part in &message.parts {
+                        match part {
+                            skein_fake_llm_domain::api::Part::Text { text } => writeln!(out, "TEXT {}", String::from_utf8_lossy(text)).expect("diagnostic"),
+                            skein_fake_llm_domain::api::Part::ToolOutput { output, .. } => writeln!(out, "OUTPUT {}", String::from_utf8_lossy(output)).expect("diagnostic"),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        if let skein_fake_peers::llm::Observation::Answered { result: Err(why), .. } = seen {
+            writeln!(out, "LLM failure {why:?}").expect("diagnostic");
+        }
+    }
     // These peer getters return the queues directly; unlike the service adapter they drain nothing.
     let completions = peer.completions().len();
     let submissions = peer.submissions().len();

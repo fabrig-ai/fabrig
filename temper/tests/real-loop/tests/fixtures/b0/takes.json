@@ -1,0 +1,56 @@
+[
+  {
+    "name": "WORK",
+    "value": "2",
+    "before": "Delegated tasks: ",
+    "after": " at spec revision ",
+    "only": [{"call": "message", "argument": "/target"}]
+  },
+  {
+    "name": "CHAT",
+    "value": "1",
+    "before": "[Requested by task ",
+    "after": "]",
+    "only": [{"call": "message", "argument": "/target"}]
+  },
+  {
+    "name": "PULL",
+    "value": "2",
+    "before": "Pull request: #",
+    "after": "\n",
+    "only": [
+      {"call": "read_pull", "argument": "/number"},
+      {"call": "read_pull_files", "argument": "/number"}
+    ]
+  },
+  {
+    "name": "LANDED_PULL",
+    "value": "2",
+    "before": "request #",
+    "after": " merged into main",
+    "only": [
+      {"prefix": "Pull request #"},
+      {"call": "finish", "argument": "/text", "prefix": "Pull request #"}
+    ]
+  },
+  {
+    "name": "HEAD",
+    "value": "975835de1c9756ce000000000000000200000000",
+    "before": "Head: ",
+    "after": "\n"
+  },
+  {
+    "name": "MERGE",
+    "value": "1d0b14e4db018fed000000000000000300000000",
+    "before": ":\n",
+    "after": "\npull request #",
+    "only": [{"call": "finish", "argument": "/text"}]
+  },
+  {
+    "name": "CHAT_MERGE",
+    "value": "1d0b14e4db018fed000000000000000300000000",
+    "before": " merged into main as ",
+    "after": ".",
+    "only": [{}]
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "name": "CHAT",
+    "value": "1",
+    "before": "[Requested by task ",
+    "after": "]",
+    "only": [{"call": "message", "argument": "/target"}]
+  },
+  {
+    "name": "PULL",
+    "value": "2",
+    "before": "Pull request: #",
+    "after": "\n",
+    "only": [
+      {"call": "read_pull", "argument": "/number"},
+      {"call": "read_pull_files", "argument": "/number"},
+      {"call": "write", "argument": "/path", "prefix": "changes/", "suffix": ".md"},
+      {"call": "finish", "argument": "/fields/title", "prefix": "PR #"},
+      {"call": "finish", "argument": "/fields/body", "prefix": "changes/", "suffix": ".md"}
+    ]
+  },
+  {
+    "name": "LANDED_PULL",
+    "value": "2",
+    "before": "request #",
+    "after": " merged into main",
+    "only": [
+      {"prefix": "PR #"},
+      {"call": "finish", "argument": "/text", "prefix": "PR #"}
+    ]
+  },
+  {
+    "name": "HEAD",
+    "value": "1d0b14e4db018fed000000000000000300000000",
+    "before": "Head: ",
+    "after": "\n"
+  },
+  {
+    "name": "MERGE_SHORT",
+    "value": "6e73e372e233",
+    "before": "merged into main as ",
+    "after": ".",
+    "only": [{"call": "finish", "argument": "/text"}]
+  },
+  {
+    "name": "CHAT_MERGE",
+    "value": "6e73e372e233",
+    "before": "merge ",
+    "after": ".",
+    "only": [{}]
+  }
+]

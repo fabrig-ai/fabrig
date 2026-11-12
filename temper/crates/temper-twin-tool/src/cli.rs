@@ -17,7 +17,10 @@ pub const TABLE: Table = Table {
 const TWIN: Command = Command {
     reach: Reach::Words(&[]),
     set: Set::Internal,
-    forms: &["--data DIR --base FILE --out FILE [--cue TASK=PHRASE]... [--replace OLD=NEW]..."],
+    forms: &[
+        "--data DIR --base FILE --out FILE [--cue TASK=PHRASE]... [--replace OLD=NEW]... [--takes FILE]",
+        "--from FILE --out FILE [--replace OLD=NEW]... [--takes FILE]",
+    ],
     line: "Turn a cleanly stopped deployment's selected transcripts into a fake LLM document.",
     arguments: &[],
     settings: &[&FLAGS],
@@ -34,19 +37,37 @@ const FLAGS: Settings = Settings {
             name: "data",
             value: "DIR",
             about: "The deployment directory holding transcripts.",
-            fallback: Fallback::Refuse,
+            fallback: Fallback::Text("none with --from"),
             set: Set::Internal,
             twin: None,
-            notes: "",
+            notes: "Required without --from.",
         },
         Setting {
             name: "base",
             value: "FILE",
             about: "The fake LLM document whose script lists are replaced.",
-            fallback: Fallback::Refuse,
+            fallback: Fallback::Text("none with --from"),
             set: Set::Internal,
             twin: None,
             notes: "",
+        },
+        Setting {
+            name: "from",
+            value: "FILE",
+            about: "Transform an existing twin instead of transcripts.",
+            fallback: Fallback::Text("none"),
+            set: Set::Internal,
+            twin: None,
+            notes: "Cannot be combined with --data, --base or --cue.",
+        },
+        Setting {
+            name: "takes",
+            value: "FILE",
+            about: "Take recorded values from the replay's conversation.",
+            fallback: Fallback::Text("none"),
+            set: Set::Internal,
+            twin: None,
+            notes: "A JSON list of at most 8 distinct named takes; applied after --replace.",
         },
         Setting {
             name: "out",
@@ -117,11 +138,14 @@ fn run(arguments: &[Box<[u8]>]) -> ExitCode {
     }
 }
 
+enum Source {
+    Transcripts { data: PathBuf, base: PathBuf, cues: Box<[Take]> },
+    Document(PathBuf),
+}
 struct Options {
-    data: PathBuf,
-    base: PathBuf,
+    source: Source,
+    values: Option<PathBuf>,
     out: PathBuf,
-    takes: Box<[Take]>,
     replaces: Box<[Replace]>,
 }
 
@@ -129,11 +153,13 @@ fn parse(arguments: &[Box<[u8]>]) -> Result<Options, String> {
     let mut data = None;
     let mut base = None;
     let mut out = None;
+    let mut from = None;
+    let mut values = None;
     let mut takes = Vec::new();
     let mut replaces = Vec::new();
     let mut args = arguments.iter();
     while let Some(arg) = args.next() {
-        if ![b"--data".as_slice(), b"--base", b"--out", b"--cue", b"--replace"].contains(&arg.as_ref()) {
+        if ![b"--data".as_slice(), b"--base", b"--out", b"--cue", b"--replace", b"--from", b"--takes"].contains(&arg.as_ref()) {
             return Err(format!("unknown option: {}", String::from_utf8_lossy(arg).escape_debug()));
         }
         let value = args.next().ok_or_else(|| format!("{} takes a value", String::from_utf8_lossy(arg)))?;
@@ -141,6 +167,8 @@ fn parse(arguments: &[Box<[u8]>]) -> Result<Options, String> {
             b"--data" if data.is_none() => data = Some(PathBuf::from(OsStr::from_bytes(value))),
             b"--base" if base.is_none() => base = Some(PathBuf::from(OsStr::from_bytes(value))),
             b"--out" if out.is_none() => out = Some(PathBuf::from(OsStr::from_bytes(value))),
+            b"--from" if from.is_none() => from = Some(PathBuf::from(OsStr::from_bytes(value))),
+            b"--takes" if values.is_none() => values = Some(PathBuf::from(OsStr::from_bytes(value))),
             b"--cue" => {
                 let text = std::str::from_utf8(value).map_err(|_| "cue must be UTF-8")?;
                 let (task, cue) = text.split_once('=').ok_or("expected --cue TASK=PHRASE")?;
@@ -157,25 +185,34 @@ fn parse(arguments: &[Box<[u8]>]) -> Result<Options, String> {
             _ => return Err(format!("repeated option: {}", String::from_utf8_lossy(arg).escape_debug())),
         }
     }
-    Ok(Options {
-        data: data.ok_or("--data is not given")?,
-        base: base.ok_or("--base is not given")?,
-        out: out.ok_or("--out is not given")?,
-        takes: takes.into_boxed_slice(),
-        replaces: replaces.into_boxed_slice(),
-    })
+    let source = if let Some(from) = from {
+        if data.is_some() || base.is_some() || !takes.is_empty() {
+            return Err("--from cannot be combined with --data, --base or --cue".into());
+        }
+        Source::Document(from)
+    } else {
+        Source::Transcripts {
+            data: data.ok_or("--data is not given")?,
+            base: base.ok_or("--base is not given")?,
+            cues: takes.into_boxed_slice(),
+        }
+    };
+    Ok(Options { source, values, out: out.ok_or("--out is not given")?, replaces: replaces.into_boxed_slice() })
 }
 
 fn convert(options: Options) -> Result<(), String> {
-    let Options { data, base, out, takes, replaces } = options;
-    let Ok(bytes) = std::fs::read(&base) else {
-        return Err(format!("read: {}", base.to_string_lossy().escape_debug()));
+    let Options { source, values, out, replaces } = options;
+    let values = match values {
+        Some(path) => crate::read_takes(&read(&path)?).map_err(|why| line(&why))?,
+        None => Box::new([]),
     };
-    let input = Input { data, base: bytes.into_boxed_slice(), takes, replaces };
-    let twin = match crate::twin(&input) {
-        Ok(twin) => twin,
-        Err(refusal) => return Err(line(&refusal)),
+    let result = match source {
+        Source::Document(path) => crate::from_document(&read(&path)?, &replaces, &values),
+        Source::Transcripts { data, base, cues } => crate::twin(&Input {
+            data, base: read(&base)?.into_boxed_slice(), takes: cues, replaces: replaces.iter().map(|r| Replace { old:r.old.clone(),new:r.new.clone() }).collect(), values: values.clone(),
+        }),
     };
+    let twin = result.map_err(|why| line(&why))?;
     if std::fs::write(&out, &twin.document).is_err() {
         return Err(format!("write: {}", out.to_string_lossy().escape_debug()));
     }
@@ -185,10 +222,16 @@ fn convert(options: Options) -> Result<(), String> {
     for (task, blocks) in &twin.report.dropped {
         println!("task {task}: {blocks} opaque blocks dropped");
     }
-    for (replace, count) in input.replaces.iter().zip(&twin.report.replaced) {
+    for (replace, count) in replaces.iter().zip(&twin.report.replaced) {
         println!("{}: {count}", String::from_utf8_lossy(&replace.old).escape_debug());
     }
+    for (take, count) in values.iter().zip(&twin.report.taken) {
+        println!("take {}: {count} uses", take.name);
+    }
     Ok(())
+}
+fn read(path: &PathBuf) -> Result<Vec<u8>, String> {
+    std::fs::read(path).map_err(|_| format!("read: {}", path.to_string_lossy().escape_debug()))
 }
 fn line(refusal: &Refusal) -> String {
     match refusal {
@@ -199,5 +242,7 @@ fn line(refusal: &Refusal) -> String {
         Refusal::SameCue { cue } => format!("same cue: {:?}", String::from_utf8_lossy(cue)),
         Refusal::Bounds { what } => format!("past bounds: {what}"),
         Refusal::Base => String::from("base: invalid fake LLM document"),
+        Refusal::Takes { why } => format!("takes: {why}"),
+        Refusal::UnusedTake { name } => format!("take {name}: no turn uses it"),
     }
 }

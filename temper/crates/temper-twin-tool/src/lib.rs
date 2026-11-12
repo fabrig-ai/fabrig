@@ -2,6 +2,9 @@
 mod cli;
 mod document;
 mod frames;
+mod takes;
+
+pub use takes::{Place, ValueTake, read_takes};
 
 pub use cli::{TABLE, main};
 
@@ -13,6 +16,7 @@ pub struct Input {
     pub base: Box<[u8]>,
     pub takes: Box<[Take]>,
     pub replaces: Box<[Replace]>,
+    pub values: Box<[ValueTake]>,
 }
 #[derive(Debug)]
 pub struct Take {
@@ -33,6 +37,7 @@ pub struct Twin {
 pub struct Report {
     pub turns: Box<[(u64, u32)]>,
     pub replaced: Box<[u32]>,
+    pub taken: Box<[u32]>,
     /// Opaque blocks omitted from each task, including tasks with none.
     pub dropped: Box<[(u64, u32)]>,
 }
@@ -45,11 +50,35 @@ pub enum Refusal {
     SameCue { cue: Box<[u8]> },
     Bounds { what: &'static str },
     Base,
+    Takes { why: String },
+    UnusedTake { name: String },
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Unheld {
     CutShort,
     Compaction,
+}
+
+/// Transform an existing twin without reading transcripts.
+pub fn from_document(bytes: &[u8], replaces: &[Replace], values: &[ValueTake]) -> Result<Twin, Refusal> {
+    let mut base = document::base(bytes)?;
+    transforms(replaces, values)?;
+    let mut counts = vec![0; replaces.len()];
+    let mut taken = vec![0; values.len()];
+    document::transform(&mut base, &["cued", "asked", "otherwise"], replaces, &mut counts, values, &mut taken)?;
+    Ok(Twin { document: document::checked(&base)?, report: Report {
+        turns: Box::new([]), replaced: counts.into_boxed_slice(), dropped: Box::new([]),
+        taken: taken.into_boxed_slice(),
+    } })
+}
+fn transforms(replaces: &[Replace], values: &[ValueTake]) -> Result<(), Refusal> {
+    takes::validate(values)?;
+    for replace in replaces {
+        if replace.old.is_empty() {
+            return Err(Refusal::Bounds { what: "empty replace" });
+        }
+    }
+    Ok(())
 }
 
 /// Convert selected tasks' completions to scripts matched by their opening
@@ -74,11 +103,7 @@ pub fn twin(input: &Input) -> Result<Twin, Refusal> {
             }
         }
     }
-    for replace in &input.replaces {
-        if replace.old.is_empty() {
-            return Err(Refusal::Bounds { what: "empty replace" });
-        }
-    }
+    transforms(&input.replaces, &input.values)?;
     let mut turns = Vec::new();
     let mut replaced = vec![0; input.replaces.len()];
     let mut cued = Vec::new();
@@ -97,12 +122,16 @@ pub fn twin(input: &Input) -> Result<Twin, Refusal> {
         dropped.push((take.task, blocks));
         turns.push((take.task, count));
     }
-    let document = document::finish(&mut base, &cued, &asked)?;
+    document::finish(&mut base, &cued, &asked)?;
+    let mut taken = vec![0; input.values.len()];
+    document::transform(&mut base, &["cued", "asked"], &[], &mut [], &input.values, &mut taken)?;
+    let document = document::checked(&base)?;
     Ok(Twin {
         document,
         report: Report {
             turns: turns.into_boxed_slice(),
             replaced: replaced.into_boxed_slice(),
+            taken: taken.into_boxed_slice(),
             dropped: dropped.into_boxed_slice(),
         },
     })

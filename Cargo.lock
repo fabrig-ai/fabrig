@@ -6674,6 +6674,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-core",
  "jig-protocol-store",
+ "serde",
  "serde_json",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
