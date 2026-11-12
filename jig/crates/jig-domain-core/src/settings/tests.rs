@@ -1033,3 +1033,24 @@ fn valid_name_takes_the_shapes_a_provider_names_a_model_by() {
     assert!(crate::Model::hole().is_hole());
     assert!(!config(1).settings.models[0].is_hole());
 }
+
+#[test]
+fn overlay_replaces_fields_and_appends_text_and_parts() {
+    let current = Current::new(config(1).defaults, &limits(), &[]);
+    let mut default = current.charter(1).unwrap().clone();
+    default.policy.instructions = Box::from(b"A".as_slice());
+    let part = |text: &[u8]| charters::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(text) };
+    default.parts = Box::new([part(b"p1"), part(b"p2")]);
+    let mut overlay = Overlay { shell: Some(!default.policy.shell), instructions: Box::from(b"B".as_slice()),
+        parts: Box::new([part(b"q1")]), ..Overlay::empty() };
+    let mut expected = default.clone();
+    expected.policy.shell = !default.policy.shell;
+    expected.policy.instructions = Box::from(b"A\n\nB".as_slice());
+    expected.parts = Box::new([part(b"p1"), part(b"p2"), part(b"q1")]);
+    assert_eq!(overlaid(&default, &overlay), expected);
+    overlay.instructions = Box::new([]);
+    assert_eq!(overlaid(&default, &overlay).policy.instructions.as_ref(), b"A");
+    default.policy.instructions = Box::new([]);
+    overlay.instructions = Box::from(b"B".as_slice());
+    assert_eq!(overlaid(&default, &overlay).policy.instructions.as_ref(), b"B");
+}
