@@ -196,9 +196,13 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
     let producer = resume(&mut world, &producer);
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
         .expect("producer pushes H2");
-    finish_resolution(&mut world, &producer);
+    let terminal = world.protocol.answer(CHANNEL, producer.task, producer.attempt, 5,
+        tasks::End::Finished { result: tasks::TaskResult::Change { title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()), connector: 0, kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository), words: b"producer finished".as_slice().into() }, cancel_delegates: false },
+        engine::Parts { saved: None, pushed: Box::new([forge_top::Pushed { tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository), commit: translate::commit(head) }]), preparation: None });
+    world.send(terminal);
     for _ in 0..STEPS { world.tick(); if !world.jobs.is_empty() { break; } }
-    assert_eq!(world.jobs.len(), 1);
+    assert_eq!(world.jobs.len(), 1, "change={:?}; task={:?}; producer={:?}", change_row(&world, task), live_task(&world, task).phase, world.root.tasks().task(producer.task));
     let job = world.jobs.remove(0);
     assert_eq!(job.kind, jig_domain_link::JobKind(1));
     let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("prepare spec");

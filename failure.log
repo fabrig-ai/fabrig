@@ -1,18 +1,8 @@
-   Compiling skein-tls v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/skein/crates/skein-tls)
-   Compiling temper-engine-domain-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-domain-forge)
-   Compiling skein-oauth-issuer v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/skein/crates/skein-oauth-issuer)
-   Compiling skein-oauth v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/skein/crates/skein-oauth)
-   Compiling skein-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/skein/crates/skein-link)
-   Compiling jig-protocol-engine-clients v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/jig/crates/jig-protocol-engine-clients)
-   Compiling skein-oauth-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/skein/crates/skein-oauth-accounts)
-   Compiling temper-engine-domain-ways v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-domain-ways)
-   Compiling jig-protocol-engine-clients-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/jig/crates/jig-protocol-engine-clients-http)
-   Compiling jig-protocol-config v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/jig/crates/jig-protocol-config)
-   Compiling temper-engine-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-domain)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 24.36s
+   Compiling temper-engine-domain-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/engine/domain)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.61s
 ────────────
- Nextest run ID 1d6d15cb-7072-4f45-917e-dce38e55299f with nextest profile: default
-    Starting 1 test across 1 binary (311 tests skipped)
-        PASS [   0.011s] (1/1) temper-engine-domain route::forge_route::tests::a_landing_by_turn_starts_while_the_period_is_reserved_whole
+ Nextest run ID e57e13b7-8c3a-4c5d-b91a-32ec452c557c with nextest profile: default
+    Starting 1 test across 1 binary (1039 tests skipped)
+        PASS [   0.205s] (1/1) temper-engine-domain-world::suite forge_routes::merge_job::producer::a_turn_preparation_waits_for_its_producers_final_head
 ────────────
-     Summary [   0.015s] 1 test run: 1 passed, 311 skipped
+     Summary [   0.207s] 1 test run: 1 passed, 1039 skipped

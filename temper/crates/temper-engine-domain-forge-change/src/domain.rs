@@ -1567,6 +1567,9 @@ fn ready(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if standing.delegate_live {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     if facts.branch != Some(head) {
         if change.last_head == facts.branch && let Some(head) = facts.branch {
             change.state = State::Gating { head, asked: Box::new([]) };
