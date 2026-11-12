@@ -143,7 +143,7 @@ pub(crate) fn call(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: Tool) {
 
 fn propose(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: Tool, asking: bool) {
     let Tool::ProposeSettings { against, items, reason, kinds, .. } = tool else { unreachable!("whole proposal") };
-    if let Some(jig_domain_people::Refusal::Judged { why, .. }) = super::room_refusal(domain.host_part, &items) {
+    if let Some(jig_domain_people::Refusal::Judged { why, .. }) = super::room_refusal(domain, &items) {
         super::host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body: why });
         return;
     }
