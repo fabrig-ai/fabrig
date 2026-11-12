@@ -1149,6 +1149,7 @@ pub enum Word {
     Model,
 
     WaitRefused,
+    NowWritten,
     TalkOpened,
     TalkEnded,
     TalkLapsed,
@@ -1785,7 +1786,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2338;
+const PHRASES: u32 = 2339;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1812,10 +1813,10 @@ const PHRASES: u32 = 2338;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4204;
+const SEGMENTS: u32 = 4205;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56727;
-const ALL: [Word; 1654] = [
+const ENGLISH_BYTES: u32 = 56742;
+const ALL: [Word; 1655] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2924,6 +2925,7 @@ const ALL: [Word; 1654] = [
     Word::ModelDefault,
     Word::Model,
     Word::WaitRefused,
+    Word::NowWritten,
     Word::TalkOpened,
     Word::TalkEnded,
     Word::TalkLapsed,
@@ -4656,6 +4658,7 @@ impl Word {
             Self::ModelDefault => 3952,
             Self::Model => 3951,
             Self::WaitRefused => 1029,
+            Self::NowWritten => 5679,
             Self::TalkOpened => 5674,
             Self::TalkEnded => 5675,
             Self::TalkLapsed => 5676,
@@ -6507,6 +6510,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelApiKey => (&[b"your API key"], &[]),
         Word::ModelEffort | Word::UpdateTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WaitRefused => (&[b"Next run refused \xc2\xb7 ", b""], &[Name]),
+        Word::NowWritten => (&[b"Wrote its Now: "], &[]),
         Word::TalkOpened => (&[b"Talk opened by party "], &[Number]),
         Word::TalkEnded => (&[b"Talk ended"], &[]),
         Word::TalkLapsed => (&[b"Talk lapsed"], &[]),

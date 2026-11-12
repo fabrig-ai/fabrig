@@ -483,6 +483,7 @@ fn a_line_at_long_text_decodes_whole() {
                 | c::Activity::Turn { .. }
                 | c::Activity::Decided { .. }
                 | c::Activity::Milestone { .. }
+                | c::Activity::NowWritten { .. }
                 | c::Activity::Stood { .. }
                 | c::Activity::TalkOpened { .. }
                 | c::Activity::TalkEnded { .. }

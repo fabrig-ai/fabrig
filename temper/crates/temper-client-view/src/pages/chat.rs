@@ -1282,6 +1282,7 @@ fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
             | c::Activity::Turn { .. }
             | c::Activity::Decided { .. }
             | c::Activity::Milestone { .. }
+            | c::Activity::NowWritten { .. }
             | c::Activity::Stood { .. }
             | c::Activity::TalkOpened { .. }
             | c::Activity::TalkEnded { .. }
@@ -1952,6 +1953,7 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
             | c::Activity::Notified { .. }
             | c::Activity::Turn { .. }
             | c::Activity::Decided { .. }
+            | c::Activity::NowWritten { .. }
             | c::Activity::Stood { .. }
             | c::Activity::TalkOpened { .. }
             | c::Activity::TalkEnded { .. }

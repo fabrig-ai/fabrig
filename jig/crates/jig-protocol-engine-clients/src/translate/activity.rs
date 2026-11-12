@@ -34,6 +34,10 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
                 },
             },
         )?),
+        t::Line::NowWritten { attempt, line } => w::Activity::NowWritten(w::ActivityNowWritten::new(
+            limits,
+            w::ActivityNowWrittenParts { attempt: *attempt, line: line.clone() },
+        )?),
         t::Line::Stood { attempt, words } => w::Activity::Stood(w::ActivityStood::new(
             limits,
             w::ActivityStoodParts { attempt: *attempt, words: words.clone() },
@@ -173,6 +177,7 @@ pub fn page_turn(
         | t::Line::RunBegan { .. }
         | t::Line::RunEnded { .. }
         | t::Line::Decided { .. }
+        | t::Line::NowWritten { .. }
         | t::Line::Stood { .. }
         | t::Line::TalkOpened { .. }
         | t::Line::TalkEnded { .. }

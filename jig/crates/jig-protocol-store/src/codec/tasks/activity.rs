@@ -404,6 +404,10 @@ pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, 
                 },
             },
         )?),
+        domain::Line::NowWritten { attempt, line } => wire::Line::NowWritten(wire::NowWrittenLine::new(
+            limits,
+            wire::NowWrittenLineParts { attempt: *attempt, line: line.clone() },
+        )?),
         domain::Line::Stood { attempt, words } => wire::Line::Stood(wire::StoodLine::new(
             limits,
             wire::StoodLineParts { attempt: *attempt, words: words.clone() },
@@ -473,6 +477,10 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
                     None => None,
                 },
             }
+        }
+        wire::Line::NowWritten(source) => {
+            let wire::NowWrittenLineParts { attempt, line } = source.into_parts();
+            domain::Line::NowWritten { attempt, line }
         }
         wire::Line::Stood(source) => {
             let wire::StoodLineParts { attempt, words } = source.into_parts();

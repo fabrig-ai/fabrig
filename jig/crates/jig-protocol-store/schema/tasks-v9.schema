@@ -220,12 +220,13 @@ record DecidedProposal { number: u64 made: bool }
 record DecidedLine { revision: u64 proposal: option DecidedProposal }
 record MilestoneLine { position: u64 }
 record KeptLine { attempt: u64 pending: list 64 Number question: option u64 }
+record NowWrittenLine { attempt: u64 line: bytes 512 }
 record StoodLine { attempt: u64 words: bytes 512 }
 enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules, talk, left }
 record SessionEndedLine { attempt: u64 end: SessionEnd }
 record TalkOpenedLine { party: u64 }
 record TalkEndedLine { party: u64 lapsed: bool }
-enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine, stood: StoodLine, session_ended: SessionEndedLine, talk_opened: TalkOpenedLine, talk_ended: TalkEndedLine }
+enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine, stood: StoodLine, session_ended: SessionEndedLine, talk_opened: TalkOpenedLine, talk_ended: TalkEndedLine, now_written: NowWrittenLine }
 record ActivityLine { task: u64 position: u64 at: u64 line: Line }
 enum Status { done, failed, cancelled }
 record Stub { task: u64 phase: Status result: u64 }

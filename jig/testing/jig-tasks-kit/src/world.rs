@@ -589,6 +589,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::NowWritten { .. }
             | Event::Refusals { .. }
             | Event::Activation { cause: Cause::Unpriced, .. }
             | Event::PreparationWaiting { .. }
@@ -693,6 +694,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::NowWritten { .. }
             | Event::Refusals { .. }
             | Event::Activation { .. }
             | Event::PreparationWaiting { .. }

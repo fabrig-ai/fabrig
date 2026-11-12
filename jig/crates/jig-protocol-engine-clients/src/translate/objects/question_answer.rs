@@ -168,6 +168,7 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
         | t::Line::RunEnded { .. }
         | t::Line::Turn { .. }
         | t::Line::Decided { .. }
+        | t::Line::NowWritten { .. }
         | t::Line::Stood { .. }
         | t::Line::TalkOpened { .. }
         | t::Line::TalkEnded { .. }

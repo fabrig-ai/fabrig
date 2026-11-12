@@ -96,6 +96,10 @@ pub(in crate::codec) fn wire_activity(value: &c::Activity, limits: &w::Limits) -
             limits,
             w::ActivityMilestoneParts { position: *(position) },
         )?),
+        c::Activity::NowWritten { attempt, line } => w::Activity::NowWritten(w::ActivityNowWritten::new(
+            limits,
+            w::ActivityNowWrittenParts { attempt: *attempt, line: line.bytes().into() },
+        )?),
         c::Activity::Stood { attempt, words } => w::Activity::Stood(w::ActivityStood::new(
             limits,
             w::ActivityStoodParts { attempt: *attempt, words: words.bytes().into() },
