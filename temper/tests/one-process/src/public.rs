@@ -37,6 +37,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
                 let prototype = grants[0].clone();
                 *grants = temper_engine_domain_forge::CHANGE_KINDS
                     .into_iter()
+                    .chain([15])
                     .map(|kind| {
                         let mut grant = prototype.clone();
                         grant["kind"] = kind.into();
@@ -77,7 +78,10 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("core.public.depth", 4),
         ("people.projects", 4),
         ("authority.projects", 3),
-        ("tasks.spec_bytes", 256),
+        ("tasks.spec_bytes", 16_384),
+        ("tasks.result_bytes", 4096),
+        ("tasks.message_bytes", 4096),
+        ("tasks.inbox_bytes", 4096),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
