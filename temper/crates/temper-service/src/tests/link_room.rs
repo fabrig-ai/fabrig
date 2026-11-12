@@ -238,7 +238,7 @@ impl Joint {
                     }
                 }
             }
-            while let Some(event) = self.worker.engine.pop() {
+            while let Some(event) = self.worker.engine_events().pop() {
                 match event {
                     temper_worker_domain::Event::Assign { assignment, items } => {
                         self.items.push(items.expect("workspace decodes")).unwrap();

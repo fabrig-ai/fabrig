@@ -373,10 +373,6 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
     }
 }
 
-
-
-
-
 #[test]
 fn a_worker_s_secret_is_read_and_checked_at_its_path() {
     use jig_protocol_config::{Path, Problem, Segment, What};
@@ -611,8 +607,6 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
         assert!(smith::SourceName::new(bytes).is_none());
     }
 }
-
-
 
 #[test]
 fn multiple_models_and_providers_preserve_the_supplied_grant_list() {
@@ -1061,8 +1055,6 @@ fn lost_note(why: link::Loss) -> crate::worker_alone::Note {
         why,
     }
 }
-
-
 
 fn refusal_note(reason: crate::Refusal) -> crate::worker_alone::Note {
     crate::worker_alone::Note::Refused {

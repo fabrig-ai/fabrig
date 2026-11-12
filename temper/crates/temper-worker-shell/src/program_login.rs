@@ -42,14 +42,15 @@ pub fn command(
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let bytes = directories.read()?;
-    let worker = match temper_service_core::startup::nearest(&bytes).ok_or("temper.json: malformed document")?
-    {
-        temper_service_core::startup::Shape::WorkerAlone => {
-            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories))
-                .map_err(|why| String::from_utf8_lossy(&temper_worker_service::startup::lines(&why)).into_owned())?;
+    let worker = match temper_service_core::startup::nearest(&bytes) {
+        Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
+            let part =
+                temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories)).map_err(|why| {
+                    String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
+                })?;
             part.named
         }
-        temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone => {
+        Some(temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone) => {
             deployment.ok_or("temper.json holds no worker alone")?(&bytes, &jig_directories(directories))?
         }
     };

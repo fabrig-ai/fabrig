@@ -1,5 +1,6 @@
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect diagnostic text and edit document fixtures")]
 use super::fixtures;
-use crate::{settings, startup::{What}};
+use crate::{settings, startup::What};
 use jig_protocol_config::{self as config, Path, Segment};
 use skein_lib::List;
 #[test]
@@ -122,4 +123,3 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
     .unwrap();
     assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
 }
-

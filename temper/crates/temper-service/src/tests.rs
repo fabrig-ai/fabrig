@@ -25,7 +25,6 @@ mod clients;
 mod clients_unwatch;
 mod worker;
 mod worker_alone;
-mod worker_declaration;
 
 mod box_link;
 mod checks;

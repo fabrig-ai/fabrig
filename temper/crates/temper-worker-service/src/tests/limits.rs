@@ -7,4 +7,3 @@ fn the_worker_takes_its_agents_host_reply_bound() {
     assert_eq!(agent.limits.bodies.host_reply_text, 4_098);
     assert_eq!(crate::worker_settings::root_limits(&part.worker, &agent, &part.limits).reply_bytes, 4_098);
 }
-

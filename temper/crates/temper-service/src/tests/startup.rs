@@ -1011,12 +1011,6 @@ fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
     assert!(service.worker.is_none());
 }
 
-
-
-
-
-
-
 #[test]
 fn clients_public_keeps_the_parsed_origin_and_jig_name() {
     let jig = fixtures::engine().jig;
@@ -1811,5 +1805,3 @@ fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
     }
     assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
 }
-
-

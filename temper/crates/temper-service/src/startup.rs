@@ -2,10 +2,10 @@
 pub(crate) mod application;
 pub mod members;
 mod reference;
-#[cfg(feature = "worker")]
-use temper_worker_service::startup::worker;
 pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
+#[cfg(feature = "worker")]
+use temper_worker_service::startup::worker;
 #[cfg(feature = "worker")]
 pub use worker::WorkerPart;
 #[cfg(test)]

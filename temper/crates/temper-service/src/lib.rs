@@ -36,11 +36,11 @@ pub mod accounts;
 pub mod assignment;
 pub mod clients;
 pub mod family;
+pub use jig_protocol_engine_clients_http::server;
 #[cfg(feature = "worker")]
 pub use temper_worker_service::identities;
 #[cfg(feature = "worker")]
 pub use temper_worker_service::program_sources;
-pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
 #[cfg(feature = "worker")]

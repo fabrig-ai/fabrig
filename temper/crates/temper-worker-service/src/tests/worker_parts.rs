@@ -114,8 +114,6 @@ fn the_start_passes_each_ask_and_omits_an_empty_one() {
     }
 }
 
-
-
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {
     host::Start {
         live,
@@ -137,8 +135,6 @@ use jig_protocol_worker_wire::Part;
 use skein_lib::{Reader, Secret, Token};
 use temper_protocol_worker_wire::{self as payload, v1};
 use temper_worker_domain::wire;
-
-
 
 #[test]
 fn items_whose_bytes_do_not_decode_are_undecodable() {

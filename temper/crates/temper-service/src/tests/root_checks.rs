@@ -124,7 +124,6 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
     }
 }
 
-
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =
@@ -294,54 +293,6 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
         checks::limits(&limits, &limits.git_component, &mut found);
         assert_eq!(lines(&found).as_ref(), expected);
     }
-}
-
-/// The same typed worker limits that startup checks before allocating a service.
-fn worker_limits() -> temper_worker_domain::Limits {
-    crate::worker_settings::root_limits(
-        &fixtures::worker_settings(),
-        &fixtures::startup_agent(),
-        &crate::limits::worker(&crate::limits::profile(crate::limits::Profile::Small)),
-    )
-}
-
-#[test]
-fn payload_event_refusals_name_the_configured_and_required_bytes() {
-    for (configured, expected) in [
-        (4096, "4096 bytes, short of agent.json profile.declared.tool_payload less the 2-byte separator, 8192 bytes"),
-        (8193, "8193 bytes, past agent.json profile.declared.tool_payload less the 2-byte separator of 8192"),
-    ] {
-        let mut limits = worker_limits();
-        limits.agent.message_bytes = 8194;
-        limits.bounds.message_bytes = 8192;
-        limits.host.event_bytes = configured;
-        let mut found = Problems::empty();
-        checks::worker(&limits, &mut found);
-        let expected = format!("workers[0].limits.overrides.hub.event_bytes: {expected}\n");
-        assert_eq!(lines(&found).as_ref(), expected.as_bytes());
-    }
-}
-
-#[test]
-fn payload_checkout_refusals_name_the_configured_and_required_bytes() {
-    let mut limits = worker_limits();
-    limits.agent.call_bytes = 8194;
-    limits.checkout.message_bytes = 4098;
-    let mut found = Problems::empty();
-    checks::worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agent.json profile.declared.tool_payload), 8194 bytes\n");
-}
-
-#[test]
-fn payload_turn_queue_refusals_name_the_configured_and_required_bytes() {
-    let mut limits = worker_limits();
-    limits.agent.turns = 2;
-    limits.host.turns = 2;
-    limits.host.turn_bytes = 100;
-    limits.host.turn_queue_bytes = 199;
-    let mut found = Problems::empty();
-    checks::worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"workers[0].limits.overrides.hub.turn_queue_bytes: 199 bytes, short of the agent's turns * workers[0].limits.overrides.hub.turn_bytes, 200 bytes\n");
 }
 
 fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {

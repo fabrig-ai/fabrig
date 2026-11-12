@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::worker_settings;
-use skein_lib::{Token, Wall};
 use skein_io as io;
+use skein_lib::{Token, Wall};
 use temper_protocol_worker_wire::v1;
 #[test]
 fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
@@ -94,4 +94,3 @@ fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     assert!(service.notes().is_empty(), "the closing event does not repeat the failure");
 }
-

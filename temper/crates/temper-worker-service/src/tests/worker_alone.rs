@@ -16,4 +16,3 @@ fn a_refused_git_start_stops_and_aborts_the_workers_service() {
     assert_eq!(service.end(), Some(&crate::worker_alone::End::Stopped(crate::worker_alone::Stop::Start(problems))));
     assert!(service.worker.aborted.is_some(), "refused startup aborts every worker child");
 }
-

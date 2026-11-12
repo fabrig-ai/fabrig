@@ -1134,7 +1134,7 @@ fn admitted_review(assignment: temper_engine_domain::Assignment, bound: u64) -> 
         Time::ZERO,
         jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, parts },
     );
-    let temper_worker_domain::Event::Assign { assignment, .. } = worker.engine.pop().unwrap() else {
+    let temper_worker_domain::Event::Assign { assignment, .. } = worker.engine_events().pop().unwrap() else {
         panic!("review reaches worker")
     };
     decode_review(assignment, bound)

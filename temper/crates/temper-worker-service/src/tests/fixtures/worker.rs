@@ -183,21 +183,76 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     use skein_lib::{List, Token};
     use temper_protocol_worker_wire::{self as payload, v1};
     let agent = worker_agent();
-    let charter = smith_protocol_channel::encode_charter(&super::charter(), &agent.limits.charter, &agent.endpoints).unwrap();
+    let charter =
+        smith_protocol_channel::encode_charter(&super::charter(), &agent.limits.charter, &agent.endpoints).unwrap();
     let mut repositories = List::with_capacity(1);
     if repository {
-        repositories.push(v1::Repository::new(&super::wire_limits(), v1::RepositoryParts {
-            save: Some(b"temper/saved-7".as_slice().into()), git: None,
-            tag: (1_u64 << 32) | 3, name: b"app".as_slice().into(),
-            remote: b"https://forge.example/acme/app.git".as_slice().into(),
-            start: v1::Start::Base(v1::Branch::new(&super::wire_limits(), v1::BranchParts { branch: b"main".as_slice().into() }).unwrap()),
-            access: v1::Access::Writable(v1::Writable::new(&super::wire_limits(), v1::WritableParts { push: b"temper/task-7".as_slice().into(), expected: None, landing: None }).unwrap()),
-            identity: 1, account: None,
-        }).unwrap()).unwrap();
+        repositories
+            .push(
+                v1::Repository::new(
+                    &super::wire_limits(),
+                    v1::RepositoryParts {
+                        save: Some(b"temper/saved-7".as_slice().into()),
+                        git: None,
+                        tag: (1_u64 << 32) | 3,
+                        name: b"app".as_slice().into(),
+                        remote: b"https://forge.example/acme/app.git".as_slice().into(),
+                        start: v1::Start::Base(
+                            v1::Branch::new(
+                                &super::wire_limits(),
+                                v1::BranchParts { branch: b"main".as_slice().into() },
+                            )
+                            .unwrap(),
+                        ),
+                        access: v1::Access::Writable(
+                            v1::Writable::new(
+                                &super::wire_limits(),
+                                v1::WritableParts {
+                                    push: b"temper/task-7".as_slice().into(),
+                                    expected: None,
+                                    landing: None,
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                        identity: 1,
+                        account: None,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
     }
-    let parts = if repository { Box::from([jig_protocol_worker_wire::Part { token: Token::new(1), bytes: payload::items(&v1::Items::new(&super::wire_limits(), v1::ItemsParts { repositories }).unwrap()) }]) } else { Box::default() };
-    jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment: host::Assignment {
-        assignment: host::RunAssignment { live: host::LiveAsk::NONE, identity: [7;16], run: Token::new(7), attempt: Token::new(2), workspace: if repository { Some(host::Workspace { workstream: 7, items: Token::new(1) }) } else { None }, save: repository, charter, grants: Box::default() },
-        turns: Box::default(), answered: Box::default(), messages: Box::default(),
-    } }, parts }
+    let parts = if repository {
+        Box::from([jig_protocol_worker_wire::Part {
+            token: Token::new(1),
+            bytes: payload::items(&v1::Items::new(&super::wire_limits(), v1::ItemsParts { repositories }).unwrap()),
+        }])
+    } else {
+        Box::default()
+    };
+    jig_protocol_worker_link::Request::Down {
+        down: host::LinkDown::Assign {
+            assignment: host::Assignment {
+                assignment: host::RunAssignment {
+                    live: host::LiveAsk::NONE,
+                    identity: [7; 16],
+                    run: Token::new(7),
+                    attempt: Token::new(2),
+                    workspace: if repository {
+                        Some(host::Workspace { workstream: 7, items: Token::new(1) })
+                    } else {
+                        None
+                    },
+                    save: repository,
+                    charter,
+                    grants: Box::default(),
+                },
+                turns: Box::default(),
+                answered: Box::default(),
+                messages: Box::default(),
+            },
+        },
+        parts,
+    }
 }

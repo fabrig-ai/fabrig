@@ -251,7 +251,7 @@ pub(crate) const PEER_FRAMES: u32 = 6; // Accept, Terms, Admitted, Live, Turn, A
 pub(crate) const PEER_STEPS: u16 = 1000; // The existing LinkPeer's finite settling bound.
 
 // Private agent peer for the Worker's Process IO, without a root assignment.
-// The ledger measures actual frame writes and demanded byte deliveries; it
+// The ledger measures frame writes and demanded byte deliveries; it
 // neither supplies process events nor stands in for Worker::process_read.
 pub(crate) struct AgentPeer {
     pub(crate) owner: Token,
@@ -370,42 +370,6 @@ impl AgentPeer {
         peer.settle(worker);
         peer
     }
-    /// Receive a real assignment's Start without admitting the run.
-    pub(crate) fn pending(
-        worker: &mut crate::Worker,
-        agent: &crate::settings::Agent,
-        assignment: link::Request,
-    ) -> (Self, Box<smith_protocol_channel::DecodedStart>) {
-        let client = assigned_agent_with(worker, agent, assignment);
-        worker.iterate(fixtures::NOW, Wall::EPOCH);
-        let owner = agent_spawn(worker);
-        let mut peer = Self::new(agent, client);
-        peer.attach(worker, owner);
-        let mut notices = Queue::uncapped();
-        while let Some(event) = peer.events.pop() {
-            if let smith_protocol_channel::Heard::Start { start } = event {
-                return (peer, start);
-            }
-            notices.push(event);
-        }
-        panic!("assigned agent receives Start: {notices:?}");
-    }
-
-    /// End the fake channel, then return its process exit and reap terminals.
-    pub(crate) fn end_process(&mut self, worker: &mut crate::Worker, detail: &[u8]) {
-        self.finished = true;
-        self.settle(worker);
-        for event in [
-            smith_host_domain::process::Event::Exited {
-                owner: self.owner,
-                exit: Some(smith_host_domain::Exit::Code(1)),
-            },
-            smith_host_domain::process::Event::Reaped { owner: self.owner, detail: detail.into() },
-        ] {
-            worker.events.push(root::Event::Process(Box::new(event)));
-        }
-    }
-
     fn attach(&mut self, worker: &mut crate::Worker, owner: Token) {
         worker.up(
             fixtures::NOW,
@@ -749,4 +713,3 @@ pub(crate) fn socket_stand_with_limits(
     }
     panic!("socket worker starts");
 }
-

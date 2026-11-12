@@ -53,4 +53,3 @@ pub enum LinkEvent {
     Cancel,
     Grant,
 }
-

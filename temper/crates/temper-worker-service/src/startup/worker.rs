@@ -378,7 +378,12 @@ pub fn shape(input: &[u8], directories: &config::Directories) -> Result<Shape, P
     Ok(Shape::WorkerAlone)
 }
 /// Check a worker alone without constructing it.
-pub fn check(input: &[u8], directories: &config::Directories, files: &settings::Files, agent: &settings::Agent) -> Result<(), Problems> {
+pub fn check(
+    input: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+) -> Result<(), Problems> {
     let mut part = worker_part(input, directories)?;
     check_worker_part(&mut part, files, agent)
 }

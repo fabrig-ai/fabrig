@@ -1,7 +1,4 @@
-use super::fixtures;
 use crate::{Note as Joined, Refusal, WorkerJobEnding, WorkerLoss, worker_alone::Note};
-
-
 
 #[test]
 fn a_worker_job_keeps_every_field_when_joined() {

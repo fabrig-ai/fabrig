@@ -1096,6 +1096,18 @@ fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_d
     }
 }
 
+#[cfg(feature = "worker")]
+fn drain_worker_notes(worker: &mut Worker, sink: &mut Queue<crate::Note>) {
+    for _ in 0..sink.room() {
+        let Some(note) = worker.notes().pop() else { break };
+        sink.push(note.into());
+    }
+}
+#[cfg(not(feature = "worker"))]
+fn drain_worker_notes(worker: &mut Worker, sink: &mut Queue<crate::Note>) {
+    worker.drain_notes(sink);
+}
+
 #[cfg(test)]
 mod box_tests {
     use super::BoxRefusal;
@@ -1141,16 +1153,4 @@ mod box_tests {
             // In particular, no close or adoption was submitted for either fd.
         }
     }
-}
-
-#[cfg(feature = "worker")]
-fn drain_worker_notes(worker: &mut crate::Worker, sink: &mut Queue<crate::Note>) {
-    for _ in 0..sink.room() {
-        let Some(note) = worker.notes().pop() else { break };
-        sink.push(note.into());
-    }
-}
-#[cfg(not(feature = "worker"))]
-fn drain_worker_notes(worker: &mut crate::Worker, sink: &mut Queue<crate::Note>) {
-    worker.drain_notes(sink);
 }

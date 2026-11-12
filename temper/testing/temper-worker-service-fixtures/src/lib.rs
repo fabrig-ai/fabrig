@@ -1,12 +1,13 @@
 //! Public worker fixtures for composition tests (temper/docs/design/protocol/services.md, 8).
-use temper_worker_service::settings;
 use jig_domain_link::{Bounds, EndpointBound};
+use temper_worker_service::settings;
+#[must_use]
 pub fn agent() -> settings::Agent {
     use skein_lib::Duration;
     let mut endpoints = skein_lib::List::with_capacity(1);
     endpoints
         .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 1, dialect: 3 })
-        .unwrap();
+        .expect("worker fixture values fit their declared bounds");
     let host_limits = smith_host_domain::Limits {
         agents: 1,
         directories: 1,
@@ -93,6 +94,7 @@ pub fn agent() -> settings::Agent {
 }
 use temper_worker_domain::wire;
 
+#[must_use]
 pub fn one_repository() -> wire::Workspace {
     wire::Workspace {
         repositories: Box::new([wire::Repository {
@@ -108,6 +110,7 @@ pub fn one_repository() -> wire::Workspace {
         }]),
     }
 }
+#[must_use]
 pub fn identity(token: &[u8]) -> temper_worker_protocol_git::Identity {
     temper_worker_protocol_git::Identity {
         token: skein_lib::Secret::new(token.into()),
@@ -116,6 +119,7 @@ pub fn identity(token: &[u8]) -> temper_worker_protocol_git::Identity {
         email: b"bot@example.test".as_slice().into(),
     }
 }
+#[must_use]
 pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
@@ -141,6 +145,7 @@ pub const AGENT_JSON: &[u8] = b"/opt/temper/agent.json";
 pub const WORKER_SECRET: &[u8] = b"worker-secret-value";
 pub const NOW: skein_lib::Time = skein_lib::Time::ZERO;
 
+#[must_use]
 pub fn worker() -> temper_worker_service::Worker {
     temper_worker_service::Worker::new(
         &worker_settings(),
@@ -153,9 +158,7 @@ pub fn worker() -> temper_worker_service::Worker {
     .expect("worker settings fit")
 }
 
-
-
-
+#[must_use]
 pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_protocol_worker_link::Request {
     let value = identity(token);
     let record = temper_protocol_worker_wire::v1::Identity::new(
@@ -184,6 +187,7 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
     }
 }
 
+#[must_use]
 pub fn worker_settings() -> temper_worker_service::settings::Worker {
     use jig_protocol_config as config;
     let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -213,7 +217,9 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
     temper_worker_service::settings::Worker {
         jig: config::Worker {
             check_interval: limits.hub.source_interval,
-            engine: config::Address::Addr(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
+            engine: config::Address::Addr(skein_io::Addr::InProcess(
+                skein_io::Name::new(b"workers").expect("worker fixture values fit their declared bounds"),
+            )),
             name: b"worker-a".as_slice().into(),
             secret: b"worker-secret".as_slice().into(),
             slots: 1,
@@ -236,6 +242,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
         git: Some(b"/usr/bin/git".as_slice().into()),
     }
 }
+#[must_use]
 pub fn worker_limits() -> temper_worker_service::worker_settings::Limits {
     let mut own = temper_worker_service::worker_settings::Limits::shared(temper_service_core::limits::profile(
         temper_service_core::limits::Profile::Small,
@@ -248,17 +255,23 @@ pub fn worker_limits() -> temper_worker_service::worker_settings::Limits {
     own.checkout.path_bytes = 64;
     own
 }
+#[must_use]
 pub fn worker_files() -> temper_worker_service::settings::Files {
     let mut entries = skein_lib::List::with_capacity(1);
-    entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(WORKER_SECRET.into()))).unwrap();
+    entries
+        .push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(WORKER_SECRET.into())))
+        .expect("worker fixture values fit their declared bounds");
     temper_worker_service::settings::Files { entries }
 }
+#[must_use]
 pub fn worker_agent() -> temper_worker_service::settings::Agent {
     let mut agent = agent();
     agent.bounds.message_bytes = 512;
     agent
 }
 
-
-
-pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits { temper_worker_service::worker_settings::payload_limits(&worker_limits()).unwrap() }
+#[must_use]
+pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
+    temper_worker_service::worker_settings::payload_limits(&worker_limits())
+        .expect("worker fixture values fit their declared bounds")
+}

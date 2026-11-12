@@ -1,6 +1,6 @@
 //! The worker's own lines (temper/docs/design/protocol/services.md, 7).
-use temper_worker_service::worker_alone as service;
 use temper_shell::directories::Directories;
+use temper_worker_service::worker_alone as service;
 
 /// A worker alone has no listening diagnostic; its first drain carries its worker notes.
 pub fn worker_listening_line(service: &mut service::Service, binary: &str) -> Option<(String, bool)> {

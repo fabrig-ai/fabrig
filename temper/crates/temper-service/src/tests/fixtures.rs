@@ -699,8 +699,8 @@ mod checks;
 mod clients;
 pub mod http;
 mod server;
-pub use temper_worker_service_fixtures::agent;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};
+pub use temper_worker_service_fixtures::agent;
 pub(super) mod system;
 pub use system::{Kernel, hello, one_process, until_hosting};
 pub fn turn(service: &mut crate::Service) {
@@ -1114,12 +1114,10 @@ mod worker;
 mod worker_git;
 pub(crate) mod worker_peers;
 pub use worker::{
-    AGENT_JSON, NOW, TEMPER, application_value, assignment as worker_assignment, chat_assignment, identity,
-    one_repository, repository_assignment, spawn, worker, worker_agent, worker_files, worker_limits, worker_settings,
+    AGENT_JSON, NOW, TEMPER, assignment as worker_assignment, chat_assignment, one_repository, spawn, worker,
+    worker_agent, worker_files, worker_limits, worker_settings,
 };
-pub use worker_git::{
-    IDENTITY, WorkerStand, git_place, github_assignment, github_push, github_record, github_value, started_worker,
-};
+pub use worker_git::{WorkerStand, started_worker};
 pub fn clients() -> crate::clients::Clients {
     let engine = engine();
     crate::clients::Clients::new(
@@ -1136,9 +1134,8 @@ pub fn clients() -> crate::clients::Clients {
 }
 mod startup;
 pub use startup::{
-    APPLICATION, Json, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
-    owned_worker_alone_document, parsed, start, startup_agent, value, webhook_document, with, without,
-    worker_alone_document, worker_runtime,
+    APPLICATION, Json, demo_application, demo_service, document, engine_alone_document, files, parsed, start,
+    startup_agent, value, webhook_document, with, without, worker_alone_document, worker_runtime,
 };
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
@@ -1857,4 +1854,3 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
         },
     }
 }
-

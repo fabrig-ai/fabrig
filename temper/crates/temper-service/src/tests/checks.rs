@@ -118,26 +118,6 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
 }
 
 #[test]
-fn installations_past_the_grant_bound_refuse_the_start_naming_the_limit() {
-    // Nine entries fit; ten entries are the first count past jig's ceiling.
-    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4,"forges.installations":10,"forge_component.installations":10}"#);
-    let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
-    assert_eq!(&*lines(&found), b"engine.limits.application_value_secret: 8625 bytes, past its bound of 8192\nworkers.limits.application_value_secret: 8625 bytes, past its bound of 8192\n".as_slice());
-    let document = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"forges.installations":10,"forge_component.installations":10}"#,
-    );
-    let found = crate::startup::worker_part(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        &*lines(&found),
-        b"workers.limits.application_value_secret: 8625 bytes, past its bound of 8192\n".as_slice()
-    );
-}
-
-
-
-#[test]
 fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let document = fixtures::with(
         &fixtures::worker_alone_document(),
@@ -268,8 +248,6 @@ fn checkout_capacity_keeps_the_agent_saved_and_rooms_in_one_refusal() {
         "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\n"
     );
 }
-
-
 
 #[test]
 fn a_channel_limit_past_a_ceiling_names_the_limit() {
@@ -867,69 +845,6 @@ fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_li
 }
 
 #[test]
-fn a_worker_alone_names_each_shape_departure() {
-    use config::Segment::Index;
-    let root = Path::root();
-    let workers = root.member(b"workers");
-    let engine = workers.child(Index(0)).member(b"engine");
-    let base = fixtures::worker_alone_document();
-    let rows: &[ShapeRow] = &[
-        (b"workers", b"[]", vec![(workers.clone(), What::WorkerAlone)]),
-        (b"workers[0].engine", br#"{"in_process":"workers"}"#, vec![(engine.clone(), What::WorkerAlone)]),
-        (
-            b"workers[0].engine",
-            br#"{"socket":"192.0.2.1:7000"}"#,
-            vec![(engine.clone(), What::Jig(config::What::Plaintext))],
-        ),
-        (
-            b"workers[0].engine",
-            br#"{"socket":"127.0.0.1:7000","transport":"tls"}"#,
-            vec![(engine.member(b"transport"), What::Jig(config::What::Unknown))],
-        ),
-        (b"application.workers", b"[]", vec![(root.member(b"application").member(b"workers"), What::WorkerAlone)]),
-        (
-            b"application.workers",
-            br#"[{"root":"one","git":null},{"root":"two","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::WorkerAlone)],
-        ),
-        (
-            b"application",
-            br#"{"workers":[{"root":"worker","git":null}],"limits":{"profile":"small","overrides":{}},"forges":[]}"#,
-            vec![(root.member(b"application").member(b"forges"), What::WorkerAlone)],
-        ),
-    ];
-    for (member, value, expected) in rows {
-        let input = fixtures::with(&base, member, value);
-        assert_eq!(&shape_problems(&input), expected, "{}", core::str::from_utf8(member).unwrap());
-    }
-    let stray = [b"{\"stray\":null,".as_slice(), &base[1..]].concat();
-    assert_eq!(shape_problems(&stray), vec![(root.member(b"stray"), What::WorkerAlone)]);
-    // Duplicate whole worker documents by their existing raw list body.
-    let text = core::str::from_utf8(&base).unwrap();
-    let (_, body) = text.split_once("\"workers\":[").unwrap();
-    let (body, _) = body.split_once("],\"application\":").unwrap();
-    let two = [b"[".as_slice(), body.as_bytes(), b",", body.as_bytes(), b"]"].concat();
-    assert_eq!(shape_problems(&fixtures::with(&base, b"workers", &two)), vec![(workers, What::WorkerAlone)]);
-}
-
-#[test]
-fn the_cluster_shapes_accept_both_loopback_families_and_the_whole_v4_range() {
-    for socket in [br#"{"socket":"127.42.3.4:7100"}"#.as_slice(), br#"{"socket":"[::1]:7100"}"#] {
-        let worker = fixtures::with(&fixtures::worker_alone_document(), b"workers[0].engine", socket);
-        assert_eq!(
-            crate::startup::shape(&worker, &config::Directories::working()),
-            Ok(crate::startup::Shape::WorkerAlone)
-        );
-        let listener = [b"[".as_slice(), socket, b"]"].concat();
-        let engine = fixtures::with(&fixtures::engine_alone_document(), b"engine.hosts.listener", &listener);
-        assert_eq!(
-            crate::startup::shape(&engine, &config::Directories::working()),
-            Ok(crate::startup::Shape::EngineAlone)
-        );
-    }
-}
-
-#[test]
 fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     const TURN: u32 = 65_536;
     let mut engine = config::profile(config::Profile::Small);
@@ -1001,11 +916,20 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
 }
 
 #[test]
+fn the_cluster_shapes_accept_both_loopback_families_and_the_whole_v4_range() {
+    for socket in [br#"{"socket":"127.42.3.4:7100"}"#.as_slice(), br#"{"socket":"[::1]:7100"}"#] {
+        let listener = [b"[".as_slice(), socket, b"]"].concat();
+        let engine = fixtures::with(&fixtures::engine_alone_document(), b"engine.hosts.listener", &listener);
+        assert_eq!(
+            crate::startup::shape(&engine, &config::Directories::working()),
+            Ok(crate::startup::Shape::EngineAlone)
+        );
+    }
+}
+#[test]
 fn turn_checks_use_only_what_each_process_knows() {
     let engine = config::profile(config::Profile::Small);
     let own = crate::limits::profile(crate::limits::Profile::Small);
-    let worker = fixtures::worker_settings().jig;
-    let mut agent = fixtures::startup_agent();
     // The small hub's 262144 bytes hold its 65536-byte resume window exactly.
     let mut found = Problems::empty();
     checks::turns(Some(&engine), &[], &own, None, &mut found);
@@ -1014,14 +938,11 @@ fn turn_checks_use_only_what_each_process_knows() {
     short_engine.hub.transcript_bytes -= 1;
     checks::turns(Some(&short_engine), &[], &own, None, &mut found);
     assert_eq!(&*lines(&found), b"engine.limits.overrides.hub.transcript_bytes: 262143 bytes, short of the engine's resume window, 262144 bytes\n");
-    let mut found = Problems::empty();
-    agent.limits.bodies.turn_body = u32::try_from(worker.limits.hub.turn_bytes).unwrap();
-    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
-    assert_eq!(&*lines(&found), b"");
-    agent.limits.bodies.turn_body += 1;
-    checks::turns(None, core::slice::from_ref(&worker), &own, Some(&agent.declaration()), &mut found);
-    assert_eq!(
-        &*lines(&found),
-        b"workers[0].limits.overrides.hub.turn_bytes: 65536 bytes, short of the agent's largest turn, 65537 bytes\n"
-    );
+}
+#[test]
+fn installations_past_the_grant_bound_refuse_the_start_naming_the_limit() {
+    // Nine entries fit; ten entries are the first count past jig's ceiling.
+    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4,"forges.installations":10,"forge_component.installations":10}"#);
+    let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
+    assert_eq!(&*lines(&found), b"engine.limits.application_value_secret: 8625 bytes, past its bound of 8192\nworkers.limits.application_value_secret: 8625 bytes, past its bound of 8192\n".as_slice());
 }

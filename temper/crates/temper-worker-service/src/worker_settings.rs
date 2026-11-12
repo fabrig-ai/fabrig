@@ -8,7 +8,7 @@ use skein_lib::Token;
 use smith_host_protocol as host;
 use temper_protocol_worker_wire::{self as payload, v1};
 use temper_service_core::limits;
-pub(crate) use temper_service_core::values::{grant_bytes, token_credential_bytes as credential_bytes};
+pub use temper_service_core::values::{grant_bytes, token_credential_bytes as credential_bytes};
 use temper_worker_domain as root;
 
 /// Git's operations, job files, source inspection and the worker root's close. Git's operation
@@ -193,7 +193,8 @@ fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
 }
 
 /// Translate the shared checkout envelope to the worker's domain (protocol/services.md, 5).
-pub(crate) fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkout::Limits {
+#[must_use]
+pub fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkout::Limits {
     temper_worker_domain_checkout::Limits {
         workspaces: limits.workspaces,
         repositories: limits.repositories,
@@ -208,7 +209,8 @@ pub(crate) fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkou
 }
 
 /// Translate the shared git envelope to the worker's protocol (protocol/services.md, 5).
-pub(crate) fn git_component(limits: limits::GitComponent) -> temper_worker_protocol_git::Limits {
+#[must_use]
+pub fn git_component(limits: limits::GitComponent) -> temper_worker_protocol_git::Limits {
     temper_worker_protocol_git::Limits {
         operations: limits.operations,
         stdout_bytes: limits.stdout_bytes,

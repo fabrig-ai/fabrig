@@ -1,20 +1,20 @@
-#![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary fixture code builds and edits configuration bytes")]
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "ordinary fixture code builds and edits configuration bytes"
+)]
 use crate::settings;
-use skein_lib::{List, Secret};
 use jig_domain_link::{Bounds, EndpointBound};
+use skein_lib::{List, Secret};
 pub fn worker_alone_document() -> Box<[u8]> {
- let document = br#"{"workers":[{
+    let document = br#"{"workers":[{
 "engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "programs":{"check_interval_ms":60000},
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}}"#;
- with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
-}
-/// Copy a JSON value for a fixture derived from another document.
-pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
-    input[member_span(input, path)].into()
+    with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     let json = turn_limits(path, json);
@@ -25,44 +25,13 @@ pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     result.into_boxed_slice()
 }
 
-/// Several reads and disjoint edits of one fixture share its parsed document.
-pub struct Json<'a> {
-    input: &'a [u8],
-    document: skein_json::Document,
-}
-impl<'a> Json<'a> {
-    pub fn new(input: &'a [u8]) -> Self {
-        let document = jig_protocol_config::document(
-            input,
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-        )
-        .unwrap();
-        Self { input, document }
-    }
-    pub fn value(&self, path: &[u8]) -> &[u8] {
-        &self.input[member_span_in(self.input, &self.document, path)]
-    }
-    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Box<[u8]> {
-        let mut edits: Vec<_> = edits
-            .iter()
-            .map(|(path, json)| (member_span_in(self.input, &self.document, path), turn_limits(path, json)))
-            .collect();
-        edits.sort_unstable_by_key(|(span, _)| span.start);
-        let mut result = Vec::new();
-        let mut after = 0;
-        for (span, json) in edits {
-            assert!(after <= span.start, "fixture edits are disjoint");
-            result.extend_from_slice(&self.input[after..span.start]);
-            result.extend_from_slice(&json);
-            after = span.end;
-        }
-        result.extend_from_slice(&self.input[after..]);
-        result.into_boxed_slice()
-    }
-}
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
-    let json = Json::new(input);
-    member_span_in(input, &json.document, path)
+    let document = jig_protocol_config::document(
+        input,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    member_span_in(input, &document, path)
 }
 fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) -> core::ops::Range<usize> {
     use jig_protocol_config::read;
@@ -122,14 +91,31 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 }
 
 fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
-    if path != b"workers[0].limits.overrides" { return json.into(); }
-    let turn = super::agent().limits.bodies.turn_body;
-    let mut value: serde_json::Value = serde_json::from_slice(json).unwrap();
-    let object = value.as_object_mut().unwrap();
-    for (key, bytes) in [("hub.turn_bytes", u64::from(turn)), ("hub.transcript_bytes", u64::from(turn.checked_add(4).unwrap()) * 4), ("hub.turn_queue_bytes", u64::from(turn) * 8)] {
-        object.entry(key).or_insert(serde_json::Value::from(bytes));
+    if path != b"workers[0].limits.overrides" {
+        return json.into();
     }
-    serde_json::to_vec(&value).unwrap().into_boxed_slice()
+    let turn = super::agent().limits.bodies.turn_body;
+    let keys = &[
+        ("hub.turn_bytes", u64::from(turn)),
+        ("hub.transcript_bytes", u64::from(turn.checked_add(4).unwrap()) * 4),
+        ("hub.turn_queue_bytes", u64::from(turn) * 8),
+    ];
+    let mut text = core::str::from_utf8(json).unwrap().trim().trim_end_matches('}').to_string();
+    for (key, value) in keys {
+        let mut quoted = String::from("\"");
+        quoted.push_str(key);
+        quoted.push('"');
+        if !text.contains(&quoted) {
+            if text.trim() != "{" {
+                text.push(',');
+            }
+            text.push_str(&quoted);
+            text.push(':');
+            text.push_str(&value.to_string());
+        }
+    }
+    text.push('}');
+    text.into_bytes().into_boxed_slice()
 }
 /// The owned example's worker and application limits, in the worker-only shape.
 #[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example as fixture data")]
@@ -301,14 +287,3 @@ pub fn files() -> settings::Files {
     }
     settings::Files { entries }
 }
-
-pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8]>, Secret)> {
-    let mut kept = List::with_capacity(entries.len());
-    for entry in entries.into_boxed() {
-        if entry.0.as_ref() != name {
-            kept.push(entry).unwrap();
-        }
-    }
-    kept
-}
-

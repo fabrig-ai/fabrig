@@ -1,9 +1,9 @@
 //! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
 use std::os::unix::ffi::OsStrExt;
-use temper_worker_service as service;
 use temper_service_shell::jig_directories;
 use temper_shell::directories::{Directories, EnvironmentEntry, private_root};
+use temper_worker_service as service;
 /// Prepare a worker's own directories and program sources, with no deployment.
 pub fn alone(
     directories: &Directories,

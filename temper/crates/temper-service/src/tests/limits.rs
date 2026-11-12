@@ -687,8 +687,6 @@ fn effective_core_limits_preserve_the_configured_call_answer_budget() {
     assert_eq!(temper_engine_domain::core_limits(&root).call_answer_bytes, jig.core.call_answer_bytes);
 }
 
-
-
 #[test]
 fn secrets_schema_fits_the_small_page_ceiling() {
     use temper_protocol_records::v1;
@@ -936,16 +934,16 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
 #[test]
 fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
     let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let bound = crate::limits::close_bound();
-    let merge = crate::limits::merge_bound();
+    let bound = limits::close_bound();
+    let merge = limits::merge_bound();
     jig.core.tasks.spec_bytes = bound.spec;
     jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
     jig.core.tasks.spec_bytes = bound.spec - 1;
-    assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge]);
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
     jig.core.tasks.spec_bytes = bound.spec;
     jig.core.tasks.result_bytes = bound.result - 1;
-    assert!(crate::limits::jobs(&jig).is_empty());
+    assert!(limits::jobs(&jig).is_empty());
     jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
 }

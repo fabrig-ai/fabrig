@@ -212,7 +212,8 @@ impl Worker {
     ) -> Result<(), crate::program_sources::Resources> {
         self.sources.configure(resources)
     }
-    pub(crate) fn stopping(&self) -> bool {
+    #[must_use]
+    pub fn stopping(&self) -> bool {
         self.stopping
     }
     pub(crate) fn end(&self) -> Option<&crate::worker_alone::End> {
@@ -229,12 +230,37 @@ impl Worker {
         &mut self.notes
     }
     /// Offer a domain entrance and dispatch its hand-outs in order.
-    pub fn offer(&mut self, event: root::Event) { self.step(event); }
+    pub fn offer(&mut self, event: root::Event) {
+        self.step(event);
+    }
     /// Take the component's routed domain entrances.
-    pub fn events(&mut self) -> &mut Queue<root::Event> { &mut self.events }
+    pub fn events(&mut self) -> &mut Queue<root::Event> {
+        &mut self.events
+    }
+    /// Whether the git component's start has completed successfully.
+    #[must_use]
+    pub const fn git_ready(&self) -> bool {
+        self.git.ready
+    }
+    /// Whether shutdown keeps the worker's checkouts.
+    #[must_use]
+    pub fn keeps_workspaces(&self) -> bool {
+        self.git.component.keeps_workspaces()
+    }
+    /// The link's ordered entrances awaiting the worker root.
+    pub fn engine_events(&mut self) -> &mut Queue<root::Event> {
+        &mut self.engine
+    }
+    /// The domain owner of an io process request.
+    #[must_use]
+    pub fn process_owner(&self, owner: Token) -> Option<Token> {
+        self.owners.get(&owner).copied()
+    }
     /// The worker domain, inspected without exposing component fields.
     #[must_use]
-    pub const fn domain(&self) -> &root::Domain { &self.root }
+    pub const fn domain(&self) -> &root::Domain {
+        &self.root
+    }
     pub fn stop(&mut self) {
         if !self.stopping {
             self.stopping = true;
@@ -708,7 +734,7 @@ impl Worker {
         let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
         self.answered(settled);
     }
-    pub fn route(&mut self, request: root::Request) {
+    pub(crate) fn route(&mut self, request: root::Request) {
         match request {
             root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
             root::Request::CancelRead { read } => {
@@ -1251,14 +1277,12 @@ mod merge_tests {
         };
         let close =
             JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
-        assert_eq!(hello.jobs.as_ref(), [crate::limits::merge_bound(), close]);
-        let kinds = crate::limits::job_kinds();
+        assert_eq!(hello.jobs.as_ref(), [temper_service_core::limits::merge_bound(), close]);
+        let kinds = crate::worker_settings::job_kinds();
         assert_eq!(kinds.len(), 2);
         let kind = &kinds[1];
         assert_eq!(kind.bound, close);
         assert_eq!(kind.verb.as_ref(), b"close");
         assert!(kind.delivers);
     }
-
-
 }

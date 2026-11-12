@@ -1,17 +1,29 @@
 use crate::settings;
 use jig_domain_link::{Bounds, EndpointBound};
 pub const DIALECT: u32 = 3;
+mod agent;
 mod worker;
 mod worker_git;
-mod agent;
 pub(crate) mod worker_peers;
 pub use agent::agent;
 pub use worker::*;
 pub use worker_git::*;
-pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits { crate::worker_settings::payload_limits(&worker_limits()).unwrap() }
-pub fn worker_runtime() -> crate::WorkerRuntime { crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() } }
-pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp { jig_domain_host::LinkUp::Answer { run: skein_lib::Token::new(7), attempt: skein_lib::Token::new(2), answer: jig_domain_host::RunAnswer { read: None, refused: Box::default(), turns: 0, spent: 0, ending } } }
-pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) { let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service; }
+pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
+    crate::worker_settings::payload_limits(&worker_limits()).unwrap()
+}
+pub fn worker_runtime() -> crate::WorkerRuntime {
+    crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() }
+}
+pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
+    jig_domain_host::LinkUp::Answer {
+        run: skein_lib::Token::new(7),
+        attempt: skein_lib::Token::new(2),
+        answer: jig_domain_host::RunAnswer { read: None, refused: Box::default(), turns: 0, spent: 0, ending },
+    }
+}
+pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
+    let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
+}
 fn charter() -> smith_domain_run::Charter {
     use skein_lib::Duration;
     use smith_domain_run::{self as run, charter, outcome};
@@ -54,7 +66,7 @@ fn charter() -> smith_domain_run::Charter {
 }
 
 mod startup;
-pub use startup::{worker_alone_document, owned_worker_alone_document, owned_worker_agent, startup_agent, files, with};
+pub use startup::{files, owned_worker_agent, owned_worker_alone_document, startup_agent, with, worker_alone_document};
 pub use worker::assignment as worker_assignment;
 /// Parse the shipped agent with inert destinations and selected payload/output quantities.
 #[expect(
@@ -131,4 +143,3 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
         },
     }
 }
-

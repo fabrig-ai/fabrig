@@ -1,4 +1,4 @@
-use temper_worker_service_fixtures::*;
+pub use temper_worker_service_fixtures::*;
 fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let settings = super::engine();
     let encoding = super::encoding(&settings);
@@ -43,5 +43,16 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     jig_protocol_worker_link::Request::Down { down, parts }
 }
 
-pub fn chat_assignment() -> jig_protocol_worker_link::Request { assigned(false) }
-pub fn repository_assignment() -> jig_protocol_worker_link::Request { assigned(true) }
+pub fn chat_assignment() -> jig_protocol_worker_link::Request {
+    assigned(false)
+}
+
+pub fn spawn(worker: &mut crate::Worker) -> (skein_lib::Token, skein_io::kernel::Spawn) {
+    worker.iterate(NOW, skein_lib::Wall::EPOCH);
+    for _ in 0..worker.io().len() {
+        if let Some(skein_io::Request::Spawn { owner, spawn }) = worker.io().pop() {
+            return (owner, spawn);
+        }
+    }
+    panic!("decoded start asks for a process");
+}
