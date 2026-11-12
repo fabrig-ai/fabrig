@@ -335,9 +335,11 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
   heartbeats keeping the watches alive; `StreamGone`, or silence past
   twice the heartbeat, dropping it; the stream refused signed out, a
   `Streamed` message the transport makes, ending the sign-in. A record
-  of it that the link refuses, or a watch's answer whose bytes don't
-  decode, drops it and leaves the client out of date, `unreadable`
-  (`../../client/domain/client/watches.md`, 2).
+  of it that the link refuses as malformed or of another version, or a
+  watch's answer whose bytes don't decode, drops it and leaves the
+  client out of date, `unreadable`
+  (`../../client/domain/client/watches.md`, 2); one refused for a bound
+  or for its order drops it, to open again after its backoff.
 - **The predecessor's stream:** the stream's name saved at each hello;
   the name kept at start sent gone before the first `OpenStream`, which
   waits for that exchange's terminal (section 2).

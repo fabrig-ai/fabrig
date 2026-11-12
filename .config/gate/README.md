@@ -52,6 +52,12 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     part of item 4's focused suite. Rule: `temper/docs/design/protocol/baseline.md`, 7,
     and `tests/boundary/tests/patches.rs`: every stored owner passes `check` against
     git's landed files and `current`, and the owner list covers every kept crate.
+12. **The client layouts' check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `jig/docs/design/protocol/client/README.md`, 6,
+    and `tests/boundary/tests/layouts.rs`: each listed wire's versions rise by one,
+    the last line is its schema's version and family fingerprint, and git's landed
+    list stands unchanged at the head. The base is the branch's merge base with
+    `origin/main`, or `HEAD` when that reference is absent, as in the patch check.
 
 ## The gate's lists
 
