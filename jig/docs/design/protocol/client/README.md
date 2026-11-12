@@ -354,10 +354,11 @@ recipient.
   dropped or moved moves it, so a version may move for a change no
   message's bytes show, which costs an open client a reload and never a
   record misread. Two checks hold each list, in `fabrig-boundary`, and
-  delivery runs them for any change to a listed wire's crate:
-  - *Now:* the list's versions rise by one, line to line; its last line
-    is the schema's version and the schema's fingerprint now; and the
-    crate's version constant is that version.
+  delivery runs them for any change to a listed wire's crate; the
+  crate's own tests check that its version constant is its schema's
+  version, so that `fabrig-boundary` builds no wire crate:
+  - *Now:* the list's versions rise by one, line to line, and its last
+    line is the schema's version and the schema's fingerprint now.
   - *Landed:* the list as main has it (git's merge base of the branch
     with `origin/main`, as the patch check takes it, `.config/gate/README.md`)
     stands unchanged at the head of the branch's list, its lines in
