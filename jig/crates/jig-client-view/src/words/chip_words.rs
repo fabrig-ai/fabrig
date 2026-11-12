@@ -304,7 +304,7 @@ impl ChipPhrase {
             Self::AgentFailure => 7081,
             Self::Lost => 7082,
             Self::InvalidFailure => 7083,
-            Self::InfrastructureFailure => 7100,
+            Self::InfrastructureFailure => 7111,
             Self::Stalled => 7084,
             Self::Dependency => 7085,
             Self::Stopped => 7086,
