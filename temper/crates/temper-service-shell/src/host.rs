@@ -1854,9 +1854,10 @@ fn head_refusal_line_names_the_task_only_when_concerned() {
         (Some(7), "temper-engine serve: branch head refused task=7: WORDS\n"),
         (None, "temper-engine serve: branch head refused: WORDS\n"),
     ] {
-        assert_eq!(note_line("temper-engine", temper_service::Note::HeadRefused {
-            task, words: b"WORDS".as_slice().into(),
-        }), expected);
+        assert_eq!(
+            note_line("temper-engine", temper_service::Note::HeadRefused { task, words: b"WORDS".as_slice().into() }),
+            expected
+        );
     }
 }
 

@@ -607,6 +607,20 @@ pub(crate) fn task(
         save(row, out);
     }
 }
+/// A live run and its retained probe still read their branch heads.
+pub(crate) fn needs_head(row: &TierRow, name: &Name) -> bool {
+    if row.repository.forge != name.forge || row.repository.repository != name.repository {
+        return false;
+    }
+    let Some(run) = &row.record.run else { return false };
+    if crate::items::branch_matches(name, &branch(&row.tier, run.number)) {
+        return true;
+    }
+    match &row.probe {
+        Some(probe) => crate::items::branch_matches(name, &probe_branch(row, probe.landing)),
+        None => false,
+    }
+}
 fn branch(tier: &[u8], number: u64) -> Box<[u8]> {
     joined(&[b"temper/tier/", tier, b".", skein_lib::Decimal::of(number).as_bytes()])
 }
