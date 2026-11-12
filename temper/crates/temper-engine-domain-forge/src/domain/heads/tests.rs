@@ -41,23 +41,27 @@ fn change() -> ChangeRow {
 }
 
 fn watch(d: &mut Domain, env: &Env<Limits>) {
-    child(d, env, skein_forge_client::Event::Restored {
-        clock: skein_forge_client::RecoveryClock::Monotonic,
-    }, &mut Queue::uncapped());
-    child(d, env, skein_forge_client::Event::Keep {
-        owner: Token::new(1),
-        watches: Box::new([skein_forge_client::Watch {
-            resource: resource(BRANCH), participating: false,
-        }]),
-    }, &mut Queue::uncapped());
+    child(
+        d,
+        env,
+        skein_forge_client::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        &mut Queue::uncapped(),
+    );
+    child(
+        d,
+        env,
+        skein_forge_client::Event::Keep {
+            owner: Token::new(1),
+            watches: Box::new([skein_forge_client::Watch { resource: resource(BRANCH), participating: false }]),
+        },
+        &mut Queue::uncapped(),
+    );
     assert!(d.client.cached(&resource(BRANCH)).is_some());
 }
 
 fn hold(d: &mut Domain, writer: Option<Writer>) {
     let name = name(BRANCH);
-    d.holds.insert(name.clone(), Hold {
-        name, task: 7, writer, drift: None, design_writers: Box::new([]),
-    }).unwrap();
+    d.holds.insert(name.clone(), Hold { name, task: 7, writer, drift: None, design_writers: Box::new([]) }).unwrap();
 }
 
 fn refused(out: &Queue<Request>, task: Option<u64>, branch: &[u8]) {
@@ -92,7 +96,12 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
         d.changes.insert(TASK, change()).unwrap();
         watch(&mut d, &env);
         hold(&mut d, Some(Writer::Run { task: DELEGATE, attempt: 1 }));
-        child(&mut d, &env, skein_forge_client::Event::Writer { resource: resource(BRANCH), taken: true }, &mut Queue::uncapped());
+        child(
+            &mut d,
+            &env,
+            skein_forge_client::Event::Writer { resource: resource(BRANCH), taken: true },
+            &mut Queue::uncapped(),
+        );
         let mut out = Queue::uncapped();
         answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP)], &mut out);
         refused(&out, Some(TASK), BRANCH);
@@ -127,7 +136,8 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
     watch(&mut d, &env);
     hold(&mut d, None);
     d.holds.get_mut(&name(BRANCH)).unwrap().drift = Some(crate::Drift {
-        at: env.wall, change: crate::DriftChange::Branch { expected: fixtures::HEAD, observed: Some(TIP) },
+        at: env.wall,
+        change: crate::DriftChange::Branch { expected: fixtures::HEAD, observed: Some(TIP) },
     });
     let mut row = change();
     row.drift = Some(change::Hold::BranchMoved);
@@ -143,13 +153,17 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
 #[test]
 fn full_table_observations_name_only_the_live_own_branch_not_a_shared_base() {
     for (branch, ended, concerning) in [
-        (b"landing".as_slice(), false, None), (b"base", false, None),
-        (BRANCH, false, Some(TASK)), (BRANCH, true, None),
+        (b"landing".as_slice(), false, None),
+        (b"base", false, None),
+        (BRANCH, false, Some(TASK)),
+        (BRANCH, true, None),
     ] {
         let (mut d, env) = full();
         let mut row = change();
         row.base = b"base".as_slice().into();
-        if ended { row.change.state = change::State::Ended; }
+        if ended {
+            row.change.state = change::State::Ended;
+        }
         d.changes.insert(TASK, row).unwrap();
         let mut out = Queue::uncapped();
         branch_changed(&mut d, &env, resource(branch), TIP, &mut out);
@@ -166,10 +180,20 @@ fn lost_read_at_capacity_still_completes_the_report() {
     watch(&mut d, &env);
     hold(&mut d, Some(Writer::Lost { task: DELEGATE, attempt: 1 }));
     let owner = Token::new(10);
-    d.lost.insert(owner, PendingLost {
-        task: DELEGATE, attempt: 1, name: name(BRANCH), comparison: None, baseline: None,
-        state: LostReadState::Asked, kind: LostWriterKind::Slot,
-    }).unwrap();
+    d.lost
+        .insert(
+            owner,
+            PendingLost {
+                task: DELEGATE,
+                attempt: 1,
+                name: name(BRANCH),
+                comparison: None,
+                baseline: None,
+                state: LostReadState::Asked,
+                kind: LostWriterKind::Slot,
+            },
+        )
+        .unwrap();
     let mut out = Queue::uncapped();
     lost_read(&mut d, &env, owner, Ok(skein_forge::api::Answer::Commit(TIP)), &mut out);
     refused(&out, Some(TASK), BRANCH);

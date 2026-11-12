@@ -4458,17 +4458,27 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
         let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
         let repository = adopted(1);
         domain.forge.restore_begin(env.wall);
-        forge::step(&mut domain.forge, &env.with(env.limits.forge),
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
             forge::Event::Restore { record: forge::Stored::Repository(repository.clone()) },
-            &mut skein_lib::Queue::uncapped());
+            &mut skein_lib::Queue::uncapped(),
+        );
         let task = if concerned { Some(task) } else { None };
         let mut out = skein_lib::Queue::uncapped();
         out.push(forge::Request::HeadRefused {
             task,
-            resource: forge::Name { forge: repository.provider.forge, repository: repository.provider.repository,
-                what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"2".as_slice().into(), b"c2".as_slice().into()])),
+            resource: forge::Name {
+                forge: repository.provider.forge,
+                repository: repository.provider.repository,
+                what: forge::What::Branch(Box::new([
+                    b"temper".as_slice().into(),
+                    b"2".as_slice().into(),
+                    b"c2".as_slice().into(),
+                ])),
             },
-            configured: 2, needed: 3,
+            configured: 2,
+            needed: 3,
         });
         let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
         super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -4483,7 +4493,8 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
                 panic!("the concerned task is held");
             };
             tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
-            let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+            let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase
+            else {
                 panic!("retained resource hold");
             };
             assert_eq!(*why, tasks::Hold::ResourceUnavailable);

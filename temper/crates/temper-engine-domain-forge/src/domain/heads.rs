@@ -15,12 +15,15 @@ pub(crate) fn record(
     match d.heads.insert(head.name.clone(), head) {
         Ok(_) => true,
         Err((name, _)) => {
-            super::emit(out, Request::HeadRefused {
-                task: concerning,
-                resource: name,
-                configured: u64::from(d.heads.capacity()),
-                needed: u64::from(d.heads.len()).saturating_add(1),
-            });
+            super::emit(
+                out,
+                Request::HeadRefused {
+                    task: concerning,
+                    resource: name,
+                    configured: u64::from(d.heads.capacity()),
+                    needed: u64::from(d.heads.len()).saturating_add(1),
+                },
+            );
             false
         }
     }
