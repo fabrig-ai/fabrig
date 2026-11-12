@@ -553,9 +553,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             Expired::Failed(figures) => figures,
         };
         let diagnostic = self.deadline_diagnostic(figures, iterations, now, last_word);
+        self.forced_cleanup(kernel);
         match expired {
             Expired::Starved(starved) if starved_passes() => {
-                self.forced_cleanup(kernel);
                 starved.pass();
             }
             Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
@@ -563,29 +563,30 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn referee_deadline_reached(self, kernel: &mut Kernel, deadline: &Deadline, now: Time, why: &str) -> ! {
-        let until = self.referee_deadline(deadline.start(), now, why);
+        let Some(until) = self.referee_deadline(now) else {
+            let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, None);
+            self.forced_cleanup(kernel);
+            crate::fail(&diagnostic);
+        };
         let expired = deadline.expired_at("the referee's expectation", until);
         let figures = match &expired {
             Expired::Starved(starved) => starved.figures(),
             Expired::Failed(figures) => figures,
         };
         let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, Some(figures));
+        self.forced_cleanup(kernel);
         match expired {
             Expired::Starved(starved) if starved_passes() => {
-                self.forced_cleanup(kernel);
                 starved.pass();
             }
             Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
         }
     }
 
-    fn referee_deadline(&self, start: Time, now: Time, why: &str) -> Time {
+    fn referee_deadline(&self, now: Time) -> Option<Time> {
         match self.world.referee.next_deadline() {
-            Some(until) if until <= now => until,
-            Some(_) | None => {
-                // A terminal failure before a liveness deadline stays a failure.
-                crate::fail(&referee_diagnostic(now.saturating_since(start), why, None));
-            }
+            Some(until) if until <= now => Some(until),
+            Some(_) | None => None,
         }
     }
 
@@ -612,7 +613,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
         loop {
             let Now { now, wall } = clock.now();
-            check_policy_wake(&mut policy_wake, now);
+            if let Some(why) = check_policy_wake(&mut policy_wake, now) {
+                self.forced_cleanup(kernel);
+                crate::fail(&why);
+            }
             if self.begin_iteration(now, deadline.until()) {
                 let iterations = self.iterations;
                 self.deadline_reached(kernel, &deadline, iterations, now, last_word);
@@ -715,9 +719,13 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn forced_cleanup(mut self, kernel: &mut Kernel) {
-        // Host destructors end their trees as on a failed run. Exit skips
-        // destructors, so finish them and cancel and drain the shared kernel first.
+        // End owned trees before reporting a verdict, including when the verdict
+        // aborts. Observers retain descriptors still named by pending records.
         drop(self.world);
+        let mut abandoned = Vec::new();
+        for ready in &mut self.ring.ready {
+            abandoned.extend(ready.drain(..));
+        }
         let mut targets: VecDeque<Token> = self
             .ring
             .bindings
@@ -730,7 +738,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         loop {
             kernel.reap(&mut self.ring.arrived);
             while let Some(complete) = self.ring.arrived.pop() {
-                drop(complete);
+                abandoned.push(complete);
             }
             if kernel.in_flight() == 0 {
                 break;
@@ -744,6 +752,37 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             } else {
                 self.ring.enter(kernel, Wait::Forever);
             }
+        }
+        // No kernel record can still use an observer's retained leader or
+        // stderr descriptor. Reap the leader as well as its tree, and release
+        // those descriptors before a later test can start.
+        let mut children = BTreeSet::new();
+        let mut descriptors = BTreeSet::new();
+        for complete in abandoned {
+            if let Op::Wait { pidfd, .. } | Op::Signal { pidfd, .. } = &complete.kind
+                && !self.placeholders.contains_key(pidfd)
+            {
+                children.insert(*pidfd);
+                descriptors.insert(*pidfd);
+            }
+            if let Op::PipeRead { fd, .. } = &complete.kind {
+                descriptors.insert(*fd);
+            }
+            if let Ok(Done::Spawned { pidfd, .. }) = &complete.result
+                && !self.placeholders.contains_key(pidfd)
+            {
+                children.insert(*pidfd);
+                descriptors.insert(*pidfd);
+                if let Op::Spawn { spawn } = &complete.kind {
+                    descriptors.extend(spawn.pipes.iter().filter_map(|pipe| pipe.parent));
+                }
+            }
+        }
+        for child in children {
+            skein_shell::keeper::abandon_binary(Some(child), &[]);
+        }
+        for descriptor in descriptors {
+            skein_shell::keeper::close_keeper_fd(descriptor);
         }
     }
 
@@ -1190,15 +1229,16 @@ fn open_startup_append(declaration: &crate::StartupAppend) -> Result<Fd, Error> 
 }
 
 /// Checks deadlines kept before the wait, before a host can fire and clear them.
-fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
+fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) -> Option<String> {
     for (process, deadline) in deadlines.drain(..) {
         if now >= deadline {
-            crate::fail(&format!(
+            return Some(format!(
                 "process {process} woke for policy deadline {} ns after the last word",
                 deadline.as_nanos()
             ));
         }
     }
+    None
 }
 
 #[cfg(test)]
@@ -1318,18 +1358,16 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_referee_failure_without_a_due_deadline_stays_a_plain_failure() {
         let start = Time::ZERO;
         for until in [None, Some(start.saturating_add(Duration::from_secs(1)))] {
             let mut running = children_after_descriptor_cleanup();
             running.world.referee.deadline = until;
-            let error = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                running.referee_deadline(start, start, "startup failed");
-            }))
-            .expect_err("a terminal failure is never starved");
-            let message = error.downcast_ref::<String>().expect("formatted referee failure");
-            assert_eq!(message, "at 0 ms, the referee failed the real loop:\nstartup failed");
+            assert_eq!(running.referee_deadline(start), None, "a terminal failure is never starved");
+            assert_eq!(
+                referee_diagnostic(Duration::ZERO, "startup failed", None),
+                "at 0 ms, the referee failed the real loop:\nstartup failed"
+            );
         }
     }
 

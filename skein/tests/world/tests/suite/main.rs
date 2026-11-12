@@ -14,6 +14,8 @@ mod hosted;
 mod interrupt;
 mod real;
 mod real_conformance;
+#[cfg(target_os = "linux")]
+mod real_failure;
 mod real_memory;
 mod real_roots;
 mod roots;
