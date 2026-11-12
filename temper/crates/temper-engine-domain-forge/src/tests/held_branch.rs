@@ -272,7 +272,10 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
         change::Way::Turn,
         Box::new([]),
         AfterLanding {
-            verdict: temper_engine_domain_forge_tiers::Settings { retries: 2, suspects: temper_engine_domain_forge_tiers::Suspects::Bisect },
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
             bound: Duration::from_millis(7_200_000),
         },
     ));
@@ -283,8 +286,7 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
     row.change.way = change::Way::Turn;
     row.change.owns_turn = true;
     row.change.updates = 1;
-    row.change.state =
-        change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall };
+    row.change.state = change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall };
     row.pending = Some(UPDATE);
     outputs(&mut d, Event::Change { row });
     let mut entry = update_entry(true);
@@ -294,7 +296,11 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
 }
 
 fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
-    let base = Name { forge: REPO.forge, repository: REPO.repository, what: What::Branch(Box::new([b"main".as_slice().into()])) };
+    let base = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"main".as_slice().into()])),
+    };
     d.heads.insert(base.clone(), BranchHead { name: base, commit: LANDING_TIP, owned: false }).unwrap();
     let mut requests = skein_lib::List::uncapped();
     for request in outputs(d, fixtures::change_step()) {
@@ -306,7 +312,9 @@ fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Reque
         }
         let (call, op) = fixtures::next_call(d);
         let answer = match op {
-            Op::Read(Read::Branch { branch }) => Answer::Commit(if branch.as_ref() == b"main" { LANDING_TIP } else { head }),
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { LANDING_TIP } else { head })
+            }
             Op::Read(Read::Pull { .. } | Read::PullFor { .. }) => {
                 let mut pull = fixtures::open_pull();
                 pull.head = d.change(fixtures::CHANGE).unwrap().branch.clone();
@@ -320,7 +328,9 @@ fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Reque
                 Answer::Commits { commits: Box::new([]), more: false }
             }
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
-            Op::Read(Read::Compare { before, after }) => Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 0, changed: 0 },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 0, changed: 0 }
+            }
             Op::Read(_) | Op::Write(_) => panic!("prepare read: {op:?}"),
         };
         for request in fixtures::answer(d, call, Ok(answer)) {
@@ -349,7 +359,11 @@ fn prepares_rebase_answer_is_its_candidate_not_drift() {
             &env(),
             skein_forge_client::Resource {
                 repository: REPO,
-                what: skein_forge_client::What::Branch(if goal_branch { GOAL_BRANCH.into() } else { b"temper/51".as_slice().into() }),
+                what: skein_forge_client::What::Branch(if goal_branch {
+                    GOAL_BRANCH.into()
+                } else {
+                    b"temper/51".as_slice().into()
+                }),
             },
             DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) },
             &mut out,
@@ -377,9 +391,16 @@ fn prepares_rebase_answer_is_its_candidate_not_drift() {
 
 fn prepare_move(d: &mut Domain, actor: u64, forward: bool) -> Box<[Request]> {
     let branch = d.change(fixtures::CHANGE).unwrap().branch.clone();
-    outputs(d, Event::Hint {
-        hint: Hint { repository: REPO, change: skein_forge::api::Change::BranchMoved { branch: branch.clone(), head: fixtures::BASE, actor }, key: None },
-    });
+    outputs(
+        d,
+        Event::Hint {
+            hint: Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::BranchMoved { branch: branch.clone(), head: fixtures::BASE, actor },
+                key: None,
+            },
+        },
+    );
     let mut later = env();
     later.now = later.now.saturating_add(LIMITS.client.hinted);
     fire(d, &later, &mut Queue::uncapped());
@@ -410,7 +431,10 @@ fn prepares_writer_owns_its_forward_head_before_the_answer() {
         assert_eq!(d.hold(&resource).unwrap().drift, None);
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.drift, None);
-        assert_eq!(row.change.state, change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall });
+        assert_eq!(
+            row.change.state,
+            change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall }
+        );
         assert_eq!(d.branch_head(&resource), Some(fixtures::HEAD), "an observation is not a confirmed head");
         for request in &requests {
             if let Request::Drift { .. } = request {
@@ -434,14 +458,24 @@ fn prepares_writer_does_not_own_another_identity_or_a_backwards_move() {
             let (mut d, resource) = preparing_domain(goal_branch);
             let requests = prepare_move(&mut d, actor, forward);
             assert!(requests.contains(&Request::Drift { task: fixtures::CHANGE, resource: resource.clone() }));
-            assert_eq!(d.hold(&resource).unwrap().drift.as_ref().unwrap().change, DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) });
+            assert_eq!(
+                d.hold(&resource).unwrap().drift.as_ref().unwrap().change,
+                DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) }
+            );
             prepare_at_head(&mut d, fixtures::BASE);
             let row = d.change(fixtures::CHANGE).unwrap();
             assert_eq!(row.drift, Some(change::Hold::BranchMoved));
-            assert_eq!(row.change.state, change::State::Held {
-                was: Box::new(change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall }),
-                why: change::Hold::BranchMoved,
-            });
+            assert_eq!(
+                row.change.state,
+                change::State::Held {
+                    was: Box::new(change::State::Preparing {
+                        from: fixtures::HEAD,
+                        main: LANDING_TIP,
+                        ready_since: env().wall
+                    }),
+                    why: change::Hold::BranchMoved,
+                }
+            );
             assert_eq!(d.branch_head(&resource), Some(fixtures::HEAD));
         }
     }
@@ -455,13 +489,23 @@ fn prepares_settled_answer_does_not_explain_a_third_head() {
         rebase_made(&mut d);
         let requests = prepare_at_head(&mut d, OUTSIDE);
         assert!(requests.contains(&Request::Drift { task: fixtures::CHANGE, resource: resource.clone() }));
-        assert_eq!(d.hold(&resource).unwrap().drift.as_ref().unwrap().change, DriftChange::Branch { expected: fixtures::BASE, observed: Some(OUTSIDE) });
+        assert_eq!(
+            d.hold(&resource).unwrap().drift.as_ref().unwrap().change,
+            DriftChange::Branch { expected: fixtures::BASE, observed: Some(OUTSIDE) }
+        );
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.drift, Some(change::Hold::BranchMoved));
-        assert_eq!(row.change.state, change::State::Held {
-            was: Box::new(change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall }),
-            why: change::Hold::BranchMoved,
-        });
+        assert_eq!(
+            row.change.state,
+            change::State::Held {
+                was: Box::new(change::State::Preparing {
+                    from: fixtures::HEAD,
+                    main: LANDING_TIP,
+                    ready_since: env().wall
+                }),
+                why: change::Hold::BranchMoved,
+            }
+        );
         assert_eq!(d.branch_head(&resource), Some(fixtures::BASE));
     }
 }
@@ -473,7 +517,12 @@ fn prepares_candidate_does_not_explain_a_late_copy_of_the_original_head() {
         rebase_made(&mut d);
         prepare_at_head(&mut d, fixtures::BASE);
         let branch = d.change(fixtures::CHANGE).unwrap().branch.clone();
-        outputs(&mut d, Event::Hint { hint: Hint { repository: REPO, change: skein_forge::api::Change::Branch(branch.clone()), key: None } });
+        outputs(
+            &mut d,
+            Event::Hint {
+                hint: Hint { repository: REPO, change: skein_forge::api::Change::Branch(branch.clone()), key: None },
+            },
+        );
         let mut later = env();
         later.now = later.now.saturating_add(LIMITS.client.hinted);
         fire(&mut d, &later, &mut Queue::uncapped());
@@ -481,14 +530,20 @@ fn prepares_candidate_does_not_explain_a_late_copy_of_the_original_head() {
         assert_eq!(op, Op::Read(Read::Branch { branch }));
         let requests = fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::HEAD)));
         assert!(requests.contains(&Request::Drift { task: fixtures::CHANGE, resource: resource.clone() }));
-        assert_eq!(d.hold(&resource).unwrap().drift.as_ref().unwrap().change, DriftChange::Branch { expected: fixtures::BASE, observed: Some(fixtures::HEAD) });
+        assert_eq!(
+            d.hold(&resource).unwrap().drift.as_ref().unwrap().change,
+            DriftChange::Branch { expected: fixtures::BASE, observed: Some(fixtures::HEAD) }
+        );
         prepare_at_head(&mut d, fixtures::HEAD);
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.drift, Some(change::Hold::BranchMoved));
-        assert_eq!(row.change.state, change::State::Held {
-            was: Box::new(change::State::Ready { head: fixtures::BASE, ready_since: env().wall }),
-            why: change::Hold::BranchMoved,
-        });
+        assert_eq!(
+            row.change.state,
+            change::State::Held {
+                was: Box::new(change::State::Ready { head: fixtures::BASE, ready_since: env().wall }),
+                why: change::Hold::BranchMoved,
+            }
+        );
         assert_eq!(d.branch_head(&resource), Some(fixtures::BASE));
     }
 }
@@ -497,7 +552,13 @@ fn prepares_candidate_does_not_explain_a_late_copy_of_the_original_head() {
 fn prepares_let_go_update_takes_its_forward_head_after_the_slot_frees() {
     for goal_branch in [false, true] {
         let (mut d, resource) = preparing_domain(goal_branch);
-        domain::change_outcome(&mut d, &env(), UPDATE, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout), &mut Queue::uncapped());
+        domain::change_outcome(
+            &mut d,
+            &env(),
+            UPDATE,
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout),
+            &mut Queue::uncapped(),
+        );
         let requests = prepare_move(&mut d, 7, true);
         for request in &requests {
             if let Request::Drift { .. } = request {
