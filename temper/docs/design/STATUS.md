@@ -44,7 +44,7 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestones Q1, Q3 and Q4: `temper-qa`
+Landed QA's milestones Q1, Q3, Q4 and Q5: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
 can need them, all in one ledger; a pass, by goal 1210, takes the newest
@@ -55,9 +55,12 @@ request and one goal, and resumes on a build holding that goal's
 landing, two goals at most. By goal 1334 it takes the TUI's cases too.
 Its places have their own ports, and `temper-qa tune` gives the figures
 bounds and places are tuned from. The box's fake forges keep their state
-across a restart. Fake-model scripts take values from the conversation,
-so B0's twin replays as setups on a box's own Forgejo; B1's waits on how
-its gate's commit is made. Its passes follow landing
+across a restart, and a head's CI there is what it declares.
+Fake-model scripts take values from the conversation, so B0's and B1's
+twins replay as setups. By goal 1676 QA runs on the fakes alone: every
+setup's forge is the box's fake Forgejo, connected through ctl lines that
+name the box's values, and a recipe's `forge` lines commit files it
+holds, with no credential named. Its passes follow landing
 (`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
@@ -317,6 +320,7 @@ Design documents:
 Drafts:
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
+- [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
@@ -325,6 +329,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
+- [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
@@ -352,6 +357,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
+- [`draft/redeploys.md`](draft/redeploys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)

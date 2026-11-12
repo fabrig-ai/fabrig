@@ -1441,6 +1441,12 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::devices::pushed(d, party, device, &endpoint, answer, out);
         }
         Event::Closer { row } => crate::closer::save(d, row, out),
+        Event::CloserRelayed { task, relay } => {
+            if let Some(mut row) = d.closer(task).cloned() {
+                row.relay = relay;
+                crate::closer::save(d, row, out);
+            }
+        }
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
             crate::closer::check(d, env, task, step, repository, branch, base, out);

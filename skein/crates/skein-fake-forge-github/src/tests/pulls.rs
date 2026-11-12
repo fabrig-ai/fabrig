@@ -223,7 +223,7 @@ fn github_fake_mergeable_is_null_until_drawn_head_or_base_settle_deadline() {
         config.settle_min = Duration::from_secs(3);
         config.settle_max = Duration::from_secs(7);
         config.resolution = Duration::ZERO;
-        let mut h = f::Harness::with_domain(f::limits(), f::config(), config);
+        let mut h = f::Harness::with_domain(f::limits(), f::config(), config.clone());
         h.drain_timers = false;
         let (number, head) = r::pull(&mut h);
         let token = r::token(&mut h);

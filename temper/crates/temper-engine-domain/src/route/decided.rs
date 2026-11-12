@@ -27,6 +27,31 @@ pub(crate) fn call(
     }
 }
 
+/// HOW is render-only: the caller's current route, not part of the saved judgement
+/// (temper/docs/design/domain/agent/tools.md, HOW names the one way its caller can ask).
+pub(crate) fn how(domain: &Domain, task: u64) -> super::AskHow {
+    let Some(row) = domain.core.tasks.task(task) else { return super::AskHow::None };
+    match row.requester {
+        tasks::Party::Task(_) => {
+            if let Some(context) = domain.core.tasks.delegation(task)
+                && context.authority.tools.0 & domain.core.settings.tools.message.0 != 0
+            {
+                return super::AskHow::Message;
+            }
+        }
+        tasks::Party::Person(person) => {
+            if let tasks::Executor::Agent { charter } = row.executor
+                && let Some(charter) = domain.core.charter(charter)
+                && charter.policy.tools.0 & domain.core.settings.tools.delegate.0 != 0
+            {
+                return super::AskHow::Person(person);
+            }
+        }
+        tasks::Party::Deployment { .. } => {}
+    }
+    super::AskHow::None
+}
+
 fn person(domain: &Domain, task: u64) -> Option<u64> {
     let row = domain.core.tasks.task(task)?;
     match row.requester {

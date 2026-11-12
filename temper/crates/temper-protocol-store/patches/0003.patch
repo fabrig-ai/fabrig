@@ -2,31 +2,10 @@ patch 1
 owner temper 3 after jig 1
 
 family temper-store 13 to 14
-add FindingsTopic
-add Topic.findings
-add FindingCount
-add FindingHolder
-add FindingHeld
-add FindingAreas
-add FindingWords
-add FindingRefusal
-add FindingRefused
-add FindingResult
-add FindingReply
-add CallPayload.finding
-add AreaTask
-add AreaParty
-add AreaRole
-add AreaCharter
-add AreaOwner
-add Area
-add ProjectAreas
-add ProjectTriager
-add SettingValue.areas
-add SettingValue.triager
-add FindingKind
-add Severity
-add FindingState
-add Filer
-add Finding
-add Value.finding
+add ClosingAsked
+add ClosingStands
+add ClosingQuestion
+add ClosingForm
+add ClosingMessage
+add ClosingRelay
+add Closer.relay option ClosingRelay none

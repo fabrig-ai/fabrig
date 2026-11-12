@@ -262,6 +262,7 @@ fn domain_config() -> domain::Config {
         rate_limit: 0,
         rate_window: Duration::ZERO,
         ci: 12,
+        made_checks: domain::Config::test().made_checks,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

@@ -569,7 +569,7 @@ fn an_older_read_is_due() -> fixtures::Scenario {
     let scenario = fixtures::scenario();
     {
         let mut forge = scenario.transport.forge.borrow_mut();
-        let mut config = forge.config;
+        let mut config = forge.config.clone();
         config.limits.calls = 2;
         let mut state = domain::Domain::new(&config, 1);
         domain::repository(
@@ -600,7 +600,7 @@ fn an_older_read_is_due() -> fixtures::Scenario {
             },
         );
         domain::grant(&mut state, b"acme/app", 1, api::Permission::Write);
-        *forge = skein_fake_peers::forge::Forge::new(state, config);
+        *forge = skein_fake_peers::forge::Forge::new(state, config.clone());
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
         let skein_fake_peers::forge::Forge { domain, pending, .. } = &mut *forge;
         domain::step(

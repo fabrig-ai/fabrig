@@ -340,6 +340,42 @@ fn message_is_offered_only_with_the_runs_message_family() {
 }
 
 #[test]
+fn declarations_name_no_asking_tool_the_caller_lacks() {
+    let tools = crate::calls::tools_for(
+        Duration::from_secs(10),
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0),
+    );
+    let mut decided = None;
+    let mut read = None;
+    for tool in &tools {
+        assert_ne!(tool.name.as_ref(), b"message");
+        if tool.name.as_ref() == b"decided" {
+            decided = Some(tool);
+        }
+        if tool.name.as_ref() == b"read_task" {
+            read = Some(tool);
+        }
+    }
+    let decided = decided.expect("decided declared");
+    assert_eq!(decided.description.as_ref(), b"Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.");
+    let schema = crate::json::parse(&decided.schema).expect("schema");
+    let under = schema.required(b"properties").unwrap().required(b"under").unwrap().required(b"description").unwrap();
+    assert_eq!(
+        under.text(b"description").unwrap().as_ref(),
+        b"The item with words of the project's classes that covers this choice."
+    );
+    let read = read.expect("task read declared");
+    assert_eq!(
+        read.description.as_ref(),
+        b"Specs/results, from=next. Durable question numbers and answerers, for an answer."
+    );
+    for text in [&decided.description, &decided.schema, &read.description] {
+        assert!(skein_lib::bytes::find(text, b"message").is_none());
+    }
+}
+
+#[test]
 fn a_charters_mode_is_its_tasks_ending() {
     let change = run::outcome::ChangeSpec {
         checks_must_pass: true,

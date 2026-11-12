@@ -415,7 +415,7 @@ fn git_dispatch() {
 
 fn advance(host: &Host, content: &[u8]) {
     let mut shared = host.shared.as_ref().expect("forge").borrow_mut();
-    let env = skein_lib::Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::LIMITS };
+    let env = skein_lib::Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::limits() };
     skein_fake_forge_domain::advance(&mut shared.domain, &env, b"fake/widget", b"main", b"new", content, forge::OWNER)
         .expect("valid fixture");
 }

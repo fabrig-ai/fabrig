@@ -18,7 +18,7 @@ fn peer_image_is_busy_while_a_domain_call_awaits_its_reply() {
     let mut world = World::new();
     {
         let mut shared = world.forge.borrow_mut();
-        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: shared.config };
+        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: shared.config.clone() };
         let forge::Forge { domain, pending, .. } = &mut *shared;
         domain::step(
             domain,

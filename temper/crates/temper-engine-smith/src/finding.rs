@@ -9,6 +9,7 @@ pub(crate) const SPEC: Spec = Spec {
     description: b"file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number",
     schema: br#"{"type":"object","properties":{"act":{"enum":["file","hand","route","backlog","drop","list","show"]},"kind":{"enum":["qa","flake","red","review","feedback"]},"severity":{"enum":["low","medium","high"]},"area":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"number":{"type":"integer"},"why":{"type":"string"},"goal":{"type":"integer"},"reason":{"type":"string"},"state":{"type":"string"},"mine":{"type":"boolean"}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
+    offer: crate::calls::Offer::Delegate,
 };
 
 pub(crate) fn decode(value: &Value) -> Result<FindingCall, Problem> {

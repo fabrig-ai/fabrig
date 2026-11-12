@@ -729,7 +729,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 };
                 total = total.checked_add(held)?;
             }
-            Some(total)
+            total.checked_add(row.relay.held_bytes()?)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?

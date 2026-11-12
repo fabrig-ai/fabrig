@@ -270,8 +270,12 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   temper's families. From the baseline (`baseline.md`, 2), a changed
   stored layout moves its version and brings its patch in that landing
   (`baseline.md`, 7). U1's patch 1 moves 11 to 12; the devices' patch 2
-  moves 12 to 13; R2's patch 3 moves 13 to 14 with areas, the triager,
-  findings and their retained answers and subscription topic added. Kept schemas and landed patches stay unchanged.
+  moves 12 to 13; the closer question relay's patch 3 moves 13 to 14,
+  adding `Closer.relay` as none for every existing closer. R2's patch 4
+  moves 14 to 15 with areas, the triager, findings and their retained
+  answers and subscription topic added. Kept schemas and landed patches
+  stay unchanged.
+
   The routing gives it to jig's component, whose format row records it;
   opening patches an older supported store in a copy before restoring
   it (jig's `protocol/store/opening.md`).

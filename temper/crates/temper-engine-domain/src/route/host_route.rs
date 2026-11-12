@@ -81,6 +81,15 @@ pub struct ForgePerson {
     pub login: Box<[u8]>,
 }
 
+/// The caller's current asking route, beside its stored judgement
+/// (temper/docs/design/domain/agent/tools.md, HOW names the one way its caller can ask).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum AskHow {
+    Message,
+    Person(u64),
+    None,
+}
+
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
 /// the hub's link names only as text (jig's `domain/hosts/README.md`, 2).
@@ -112,6 +121,7 @@ pub enum HostDelivery {
         tool: Box<[u8]>,
         job: Option<skein_forge::api::JobAttempt>,
         page: Option<(u32, u32)>,
+        ask: AskHow,
         answer: CallAnswer,
     },
     Answer {
@@ -491,6 +501,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
     let Some(flight) = domain.call_renders.get(&right) else { return };
     let key = flight.key.expect("decoded typed call");
     if !flight.render.is_core_read()
+        && !is_decided(&answer)
         && let Some(call) = domain.core.call_settled.get(&key).cloned()
     {
         drop(domain.call_renders.remove(&right));
@@ -556,9 +567,15 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
             tool: flight.tool.clone(),
             job: flight.job,
             page: flight.page,
+            ask: if is_decided(&answer) { super::decided::how(domain, key.task) } else { AskHow::None },
             answer,
         })),
     );
+}
+
+fn is_decided(answer: &CallAnswer) -> bool {
+    let CallAnswer::Decided { .. } = answer else { return false };
+    true
 }
 
 pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) {
@@ -573,7 +590,9 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
     let answer = person_refusal(domain, &flight.render, key, answer);
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
     let reading = flight.render.is_core_read();
-    let recorded = !reading && domain.core.call_parts.contains_key(&key);
+    // A replayed decision is rendered from its stored part with the caller's current HOW.
+    let recorded =
+        !reading && domain.core.call_parts.contains_key(&key) && !domain.core.call_settled.contains_key(&key);
     let answer_bytes = if reading {
         Some(0)
     } else {
@@ -787,6 +806,7 @@ pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
         tool: flight.tool.clone(),
         job: flight.job,
         page: flight.page,
+        ask: AskHow::None,
         answer,
     })));
     assert!(super::now(domain, request), "read render door reserved");

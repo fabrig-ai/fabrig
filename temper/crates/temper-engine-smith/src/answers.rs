@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Decimal, List, Writer, bytes};
 use smith_domain_run::HostAnswer;
-use temper_engine_domain::{CallAnswer, Changed};
+use temper_engine_domain::{AskHow, CallAnswer, Changed};
 
 use crate::Problem;
 
@@ -306,7 +306,7 @@ fn bounded(
             }
         };
     }
-    answer_text(answer, tool, task, forge)
+    answer_text(answer, tool, task, forge, AskHow::None)
 }
 
 fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
@@ -588,11 +588,18 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    answer_text(answer, &[], None, ForgeReadBounds::STOCK)
+    answer_text(answer, &[], None, ForgeReadBounds::STOCK, AskHow::None)
 }
 
-fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: ForgeReadBounds) -> HostAnswer {
-    match rendered(answer, tool, task, forge) {
+/// Render a decision with the asking route the root read from its caller, beside
+/// the unchanged stored answer (domain/agent/tools.md).
+#[must_use]
+pub fn answer_for_decided(answer: &CallAnswer, how: AskHow) -> HostAnswer {
+    answer_text(answer, b"decided", None, ForgeReadBounds::STOCK, how)
+}
+
+fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: ForgeReadBounds, how: AskHow) -> HostAnswer {
+    match rendered(answer, tool, task, forge, how) {
         Ok(answer) => answer,
         Err(Problem::Unasked(reason)) => unasked_refusal(tool, reason, HostAnswer::CAPACITY),
         Err(Problem::TooLarge) => HostAnswer::new(
@@ -649,7 +656,7 @@ fn proposed(
 fn ask_reason(text: &mut Text, reach: Option<temper_protocol_reaches::Reach>) -> Result<(), Problem> {
     use temper_protocol_reaches::{Class, Reason};
     let Some(reach) = reach else {
-        return text.add(b"no person is asked through you: ask your requester");
+        return text.add(b"no person is asked through you");
     };
     if reach.decided() {
         return text.add(b"your person's decided list is full for today");
@@ -688,6 +695,7 @@ fn rendered(
     tool: &[u8],
     task: Option<u64>,
     forge: ForgeReadBounds,
+    how: AskHow,
 ) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
@@ -700,9 +708,17 @@ fn rendered(
                     text.add(b".")?;
                 }
                 None => {
-                    text.add(b"Ask: ")?;
+                    text.add(if how == AskHow::None { b"Not decided: " } else { b"Ask: " })?;
                     ask_reason(&mut text, *reach)?;
-                    text.add(b". Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N.")?;
+                    match how {
+                        AskHow::Message => text.add(b". Ask your requester with message, as a question.")?,
+                        AskHow::Person(person) => {
+                            text.add(b". Ask person ")?;
+                            text.number(person)?;
+                            text.add(b" with delegate, a person task addressed to them.")?;
+                        }
+                        AskHow::None => text.add(b". Nothing you hold asks anyone: decide within your brief, or leave the choice and your recommendation in your result.")?,
+                    }
                 }
             }
             false

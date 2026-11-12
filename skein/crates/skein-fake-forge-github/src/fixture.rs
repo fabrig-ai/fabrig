@@ -140,7 +140,7 @@ pub fn domain_config() -> fake::Config {
         land_min: Duration::ZERO,
         land_max: Duration::ZERO,
         skew: fake::Skew::None,
-        ..fake::Config::TEST
+        ..fake::Config::test()
     }
 }
 

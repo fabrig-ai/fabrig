@@ -13,7 +13,7 @@ fn plan(workstream: u32) -> Plan {
 }
 fn world(workspaces: u32) -> World {
     let mut world = World::new(Settings {
-        checkout: Limits { workspaces, ..LIMITS },
+        checkout: Limits { workspaces, preparations: workspaces, ..LIMITS },
         repositories: 1,
         workstreams: 2,
         ..Settings::calm(1)

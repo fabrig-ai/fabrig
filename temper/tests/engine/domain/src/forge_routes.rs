@@ -1774,7 +1774,7 @@ impl World {
     }
 
     pub fn external_at(&mut self, repository: &[u8], user: u64, op: raw::Op) -> raw::Answer {
-        let mut config = self.fake_env.limits;
+        let mut config = self.fake_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = self.env.with(config);
@@ -2031,7 +2031,7 @@ impl World {
                         };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
-                    let mut limits = self.fake_env.limits;
+                    let mut limits = self.fake_env.limits.clone();
                     if slow {
                         limits.latency_min = Duration::from_secs(20);
                         limits.latency_max = Duration::from_secs(20);

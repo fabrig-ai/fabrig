@@ -1,6 +1,6 @@
 # documentation: status
 
-2026-11-11. Where temper's code lags or departs from [documentation.md](documentation.md).
+2026-11-12. Where temper's code lags or departs from [documentation.md](documentation.md).
 
 Section 5 has no known gap in an asking charter reading the same pages
 through `see help`, with `read_docs` absent from that charter's offer.

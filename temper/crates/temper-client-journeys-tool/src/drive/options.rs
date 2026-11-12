@@ -18,6 +18,7 @@ pub struct Options {
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
     pub ports: Option<String>,
+    pub files: Option<PathBuf>,
 }
 impl Options {
     pub fn parse(arguments: &[Box<[u8]>]) -> Result<Self, String> {
@@ -25,6 +26,7 @@ impl Options {
         let mut scripts = vec![];
         let mut strict = false;
         let mut ports = None;
+        let mut files = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
@@ -46,6 +48,7 @@ impl Options {
                     ports = Some(list.into_owned());
                     continue;
                 }
+                b"--files" => &mut files,
                 b"--bin" => &mut bin,
                 b"--bundle" => &mut bundle,
                 b"--scratch" => &mut scratch,
@@ -67,6 +70,7 @@ impl Options {
             scripts,
             strict,
             ports,
+            files,
         })
     }
 }
@@ -221,6 +225,12 @@ pub(super) fn check_destinations(program: &Program, scratch: &Path) -> Result<()
     Ok(())
 }
 pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
+    if let Some(files) = &mut options.files {
+        *files = absolute(files)?;
+        if !files.is_dir() {
+            return Err(format!("{}: --files needs a directory", files.display()));
+        }
+    }
     options.bin = absolute(&options.bin)?;
     for name in ["temper-box", "fake-claude", "temper"] {
         executable(&options.bin.join(name))?;

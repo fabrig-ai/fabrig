@@ -743,6 +743,10 @@ pub(super) fn get_optional_protection(
 }
 pub(super) fn put_cue(out: &mut Sink, cue: &api::Cue) {
     match cue {
+        api::Cue::Declared { path } => {
+            out.u8(4);
+            out.bytes(path);
+        }
         api::Cue::Tests { path } => {
             out.u8(0);
             out.bytes(path);
@@ -778,6 +782,7 @@ pub(super) fn get_cue(input: &mut Reader<'_>, limits: &Limits) -> Result<api::Cu
             path: bytes(input, limits.name_bytes, "cue path")?,
             green: bytes(input, limits.content_bytes, "cue content")?,
         },
+        4 => api::Cue::Declared { path: bytes(input, limits.name_bytes, "cue path")? },
         3 => api::Cue::Message { fail: bytes(input, limits.content_bytes, "cue message")? },
         _tag => return Err(Refusal::Malformed("cue")),
     };
@@ -790,7 +795,7 @@ pub(super) fn get_cue(input: &mut Reader<'_>, limits: &Limits) -> Result<api::Cu
                 return Err(Refusal::Limits("cue expansion"));
             }
         }
-        api::Cue::Tests { .. } | api::Cue::File { .. } | api::Cue::Message { .. } => {}
+        api::Cue::Declared { .. } | api::Cue::Tests { .. } | api::Cue::File { .. } | api::Cue::Message { .. } => {}
     }
     Ok(cue)
 }

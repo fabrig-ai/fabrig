@@ -12,6 +12,7 @@ pub const COMMIT_256: git::Commit = git::Commit::new([0xcd; 32]);
 pub fn checkout() -> checkout::Limits {
     checkout::Limits {
         workspaces: 2,
+        preparations: 2,
         repositories: 2,
         name_bytes: 64,
         message_bytes: 256,

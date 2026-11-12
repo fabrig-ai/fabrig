@@ -131,7 +131,7 @@ fn no_overwrite_referee_observes_and_rejects_a_divergent_push() {
     let mut config = fake_config();
     config.latency_min = Duration::ZERO;
     config.latency_max = Duration::ZERO;
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() };
     let mut forge = fake::Domain::new(&config, 98);
     let first = fake::repository(
         &mut forge,

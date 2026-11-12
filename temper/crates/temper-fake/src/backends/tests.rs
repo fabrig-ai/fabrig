@@ -748,3 +748,17 @@ fn the_fake_list_preserves_openais_stock() {
         );
     }
 }
+
+#[test]
+fn box_forge_documents_declare_head_owned_ci() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    for bytes in [&docs.forgejo, &docs.github] {
+        let doc = json(bytes);
+        assert_eq!(doc["owner"], "fake-person");
+        assert_eq!(doc["repositories"][0]["name"], "widget");
+        assert_eq!(doc["repositories"][0]["ci"], json!({"declared":".fake-forge/ci"}));
+        assert_eq!(doc["made_ci"], json!({"declared":".fake-forge/ci"}));
+        crate::forge::Document::decode(bytes).expect("generated forge document");
+    }
+}

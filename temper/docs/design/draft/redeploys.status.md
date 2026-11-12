@@ -2,6 +2,8 @@
 
 2026-11-12. Where the design lags or departs from [redeploys.md](redeploys.md).
 
+Sections 6.3 and 6.4 are designed, in `../domain/worker/checkouts.md`: stores kept across a restart and made once, blob-less, workspaces not kept, and preparations a few at a time, `checkout.preparations` of them, 1 by default.
+
 The client wire's version rule (8) is designed in jig's
 `protocol/client/README.md`, 6: the overlay changes its wire from 19 to 20,
 with another version refused. The rest remains below.
@@ -15,7 +17,6 @@ with another version refused. The rest remains below.
   - 4.2: `../protocol/channel.md`, section 6 encodes a git identity's value once, for every worker.
   - 4.4: `../domain/worker/README.md`, section 5 and `../protocol/binaries.md`, section 5 start the agent the configuration names, read again at each spawn.
   - 6.1: jig's `domain/hosts/hub.md`, 7 cancels every run at once, and a job cancelled by its worker's shutdown ends lost.
-  - 6.4: `../domain/worker/checkouts.md` admits every preparation at once.
   - 9: jig's `domain/tasks/lifecycle.md`, 2 counts a preparation's transient failure against the task's tries.
 - **Design departs:** none yet.
 - **Open:** none.

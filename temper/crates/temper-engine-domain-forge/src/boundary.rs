@@ -1976,6 +1976,11 @@ pub enum Event {
     Closer {
         row: crate::CloserRow,
     },
+    /// Commit the admitted relay without replacing concurrent step progress.
+    CloserRelayed {
+        task: u64,
+        relay: temper_engine_domain_forge_closer::relay::Relay,
+    },
     /// Read the next pending CI selection for the closer report.
     ReadCloserSelection {
         task: u64,

@@ -31,11 +31,29 @@ pub enum Tui {
     Stop,
     Look,
 }
-#[expect(clippy::type_complexity, reason = "drive's grammar represents the ordered PATH CONTENT pairs directly")]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Forge {
-    Commit { forge: u32, repository: Box<[u8]>, message: Box<[u8]>, files: Vec<(Box<[u8]>, Box<[u8]>)> },
-    Checks { forge: u32, repository: Box<[u8]> },
+    Commit { repository: Box<[u8]>, message: Box<[u8]>, paths: Vec<Box<[u8]>> },
+    Checks { repository: Box<[u8]> },
+}
+/// Names substituted only in ctl arguments (client/drive.md, 3.4).
+#[derive(Clone, Copy)]
+pub(crate) enum BoxValue {
+    Api,
+    Git,
+    Admin,
+    GitProgram,
+}
+impl BoxValue {
+    pub(crate) fn parse(bytes: &[u8]) -> Option<Self> {
+        match bytes {
+            b"{forgejo.api}" => Some(Self::Api),
+            b"{forgejo.git}" => Some(Self::Git),
+            b"{forgejo.admin}" => Some(Self::Admin),
+            b"{git}" => Some(Self::GitProgram),
+            _ => None,
+        }
+    }
 }
 impl Line {
     /// Parse one line without a terminating newline.
@@ -55,9 +73,11 @@ impl Line {
                     }
                     let mut args = vec![];
                     while let Some(field) = fields.field() {
-                        args.push(match field {
-                            Field::Word(bytes) | Field::Bytes(bytes) => bytes,
-                        });
+                        let (Field::Word(bytes) | Field::Bytes(bytes)) = field;
+                        if bytes.starts_with(b"{") && bytes.ends_with(b"}") && BoxValue::parse(&bytes).is_none() {
+                            return Err(format!("unknown box value {}", String::from_utf8_lossy(&bytes)));
+                        }
+                        args.push(bytes);
                     }
                     Record::Ctl(args)
                 }
@@ -94,23 +114,24 @@ fn word(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
 fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
 }
-#[expect(clippy::type_complexity, reason = "the parsed pairs have the same shape as Forge::Commit")]
 fn forge(fields: &mut Fields) -> Result<Forge, String> {
     let record = word(fields, "forge record: commit or checks")?;
     if record.as_ref() != b"commit" && record.as_ref() != b"checks" {
         return Err("unknown forge record; expected commit or checks".into());
     }
-    let forge = fields.count().map_err(|why| format!("expected FORGE number: {why}"))?;
+    if word(fields, "FORGE forgejo")?.as_ref() != b"forgejo" {
+        return Err("expected FORGE forgejo".into());
+    }
     let repository = word(fields, "REPOSITORY OWNER/NAME")?;
     let parts: Vec<_> = repository.split(|byte| *byte == b'/').collect();
     if parts.len() != 2 || parts.iter().any(|part| part.is_empty() || *part == b"." || *part == b"..") {
         return Err("expected REPOSITORY OWNER/NAME".into());
     }
     if record.as_ref() == b"checks" {
-        return Ok(Forge::Checks { forge, repository });
+        return Ok(Forge::Checks { repository });
     }
     let message = bytes(fields, "MESSAGE")?;
-    let mut files: Vec<(Box<[u8]>, Box<[u8]>)> = vec![];
+    let mut paths = vec![];
     while fields.remaining() != 0 {
         let path = bytes(fields, "PATH")?;
         if path.is_empty()
@@ -119,19 +140,15 @@ fn forge(fields: &mut Fields) -> Result<Forge, String> {
         {
             return Err("expected relative PATH of 1 to 256 bytes without empty, . or .. segments".into());
         }
-        if files.iter().any(|(previous, _)| *previous == path) {
+        if paths.contains(&path) {
             return Err("expected distinct PATHs".into());
         }
-        let content = bytes(fields, "CONTENT after PATH")?;
-        if content.len() > 65536 {
-            return Err("expected CONTENT at most 64 KiB".into());
-        }
-        files.push((path, content));
+        paths.push(path);
     }
-    if !(1..=16).contains(&files.len()) {
-        return Err("expected 1 to 16 PATH CONTENT pairs".into());
+    if !(1..=16).contains(&paths.len()) {
+        return Err("expected 1 to 16 PATHs".into());
     }
-    Ok(Forge::Commit { forge, repository, message, files })
+    Ok(Forge::Commit { repository, message, paths })
 }
 fn web(fields: &mut Fields) -> Result<Web, String> {
     let record = word(fields, "web record")?;

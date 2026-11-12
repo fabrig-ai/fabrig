@@ -1,4 +1,4 @@
-use super::{CALM, ENGINE, FIRST, MAIN, STRANGER};
+use super::{ENGINE, FIRST, MAIN, STRANGER, calm};
 use crate::{self as domain, Config, Domain, Signature, api::Error};
 use skein_lib::{Env, Time, Wall};
 const NAME: &[u8] = b"org/first";
@@ -6,7 +6,7 @@ fn signature() -> Signature {
     Signature { name: b"kit".as_slice().into(), email: b"kit@invalid".as_slice().into() }
 }
 fn configured() -> Config {
-    let mut config = CALM;
+    let mut config = calm();
     config.limits.repositories = 1;
     config.limits.files = 1;
     config
@@ -64,7 +64,7 @@ fn a_full_tree_refuses_a_file_without_allocating_a_commit() {
 }
 #[test]
 fn a_file_write_requires_permission_before_moving_main() {
-    let config = CALM;
+    let config = calm();
     let mut domain = created(&config);
     let room = domain.room().commits;
     assert_eq!(file(&mut domain, config, STRANGER), Err(Error::Forbidden));

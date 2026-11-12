@@ -48,7 +48,7 @@ fn a_client_prepares_edits_pushes_and_its_change_lands_on_a_base_branch_created_
 
 #[test]
 fn a_workstream_reuses_its_workspace_and_others_evict_the_least_recently_used() {
-    let settings = Settings { checkout: Limits { workspaces: 2, ..LIMITS }, ..Settings::calm(2) };
+    let settings = Settings { checkout: Limits { workspaces: 2, preparations: 2, ..LIMITS }, ..Settings::calm(2) };
     let mut world = World::new(settings);
     for (n, workstream) in [0, 1, 0, 2, 1, 3].into_iter().enumerate() {
         world.submit(at(100 * u64::try_from(n).expect("small")), Plan::simple(workstream));
@@ -64,7 +64,7 @@ fn a_workstream_reuses_its_workspace_and_others_evict_the_least_recently_used() 
 
 #[test]
 fn a_held_workstream_is_busy_and_a_full_cache_refuses() {
-    let settings = Settings { checkout: Limits { workspaces: 1, ..LIMITS }, ..Settings::calm(3) };
+    let settings = Settings { checkout: Limits { workspaces: 1, preparations: 1, ..LIMITS }, ..Settings::calm(3) };
     let mut world = World::new(settings);
     let first = world.submit(Time::ZERO, Plan::simple(0));
     let same = world.submit(Time::ZERO, Plan::simple(0));

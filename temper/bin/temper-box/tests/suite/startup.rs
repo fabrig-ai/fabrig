@@ -1630,10 +1630,10 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             )
         );
         let path = scratch.path().display();
-        let command = if boxed { "box" } else { "serve" };
-        assert!(lines.ends_with(&format!(
-            "init: start it with temper {command} --config {path} --data {path} --cache {path}\n"
-        )));
+        let command = if boxed { "temper box" } else { "temper-box serve" };
+        assert!(
+            lines.ends_with(&format!("init: start it with {command} --config {path} --data {path} --cache {path}\n"))
+        );
 
         let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
         assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });

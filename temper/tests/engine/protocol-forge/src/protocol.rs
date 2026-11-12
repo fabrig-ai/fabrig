@@ -492,7 +492,7 @@ impl Protocol {
     }
     // GitHub fake time is wall-based; Forgejo fake time is monotonic.
     fn scripted_env(&self, now: Time) -> Env<forge::Config> {
-        let mut config = self.joint.fake_env.limits;
+        let mut config = self.joint.fake_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let offset = self.joint.fake_env.now.as_nanos().saturating_sub(self.env.now.as_nanos());
