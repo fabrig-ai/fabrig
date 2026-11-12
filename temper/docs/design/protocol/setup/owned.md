@@ -576,7 +576,7 @@ its own for any other host.
     Claude Code`, then this section's lines, `BINARY` being
     `claude-code`. `temper-box program-login`'s terminal shows them.
   - **Its own updates off:** the launcher sets `DISABLE_AUTOUPDATER=1`
-    in the build's environment, so the pin stays the pin. A `claude`
+    and `DISABLE_UPDATES=1` in the build's environment, so the pin stays the pin. A `claude`
     found on `PATH` is the person's, and keeps its own.
 
 ## 7. The first repository

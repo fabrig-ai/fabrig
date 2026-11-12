@@ -540,7 +540,7 @@ internal  temper-agent AGENT.json
   internal agent` and `temper-box internal agent-list` end with stdin
   closed; and Claude Code's launcher by a link named `claude`, reaching
   a build placed in the cache with its arguments unchanged and
-  `DISABLE_AUTOUPDATER=1`, and refusing a build of another size.
+  `DISABLE_AUTOUPDATER=1` and `DISABLE_UPDATES=1`, and refusing a build of another size.
 
 ## 4. Each binary's closure
 
