@@ -114,7 +114,6 @@ LINKED`, as for every link jig's start cannot make
 
 ## Gaps and departures
 
-- **Not yet:** 3: `Fact::HeadRefused`: a branch head refused at a full table is neither a fact nor a log line (`temper-engine-domain/src/boundary.rs`, `Fact`) [in flight: change 1826].
 - **Not yet:** 6.2: a goal's design writer's brief line: no brief says
   that `deliver` pushes Markdown straight to the goal branch
   (`temper-engine-domain/src/assemble.rs`, `plan_home_access`).
