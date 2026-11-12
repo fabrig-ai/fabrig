@@ -387,9 +387,11 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
       "Its check: WORKFLOW.", its check's workflow. OWNER is the owner's
       name among the project's members, else their login, as Team names a
       person (`team.md`, 1), and "you" and "your word" where the owner is
-      the reader; where the members aren't read or don't hold the owner,
-      ", owned by OWNER" is left out and the start's sentence says "its
-      owner's word". Then a line, small and muted, "LAG · PARITY", as
+      the reader; for a standing role, its owner's `task`, the role's
+      name as Team's Standing roles names it, its task's title from the
+      roles' watch (`team.md`, 1), else "task N"; where the members
+      aren't read or don't hold the owner, ", owned by OWNER" is left out
+      and the start's sentence says "its owner's word". Then a line, small and muted, "LAG · PARITY", as
       `temper ctl follow list` words them (`../../domain/forge/follows.md`,
       section 7; the client's `forge::follows`): "caught up" or "K
       behind", then "check passes at AFTER12", "K failing at AFTER12",
