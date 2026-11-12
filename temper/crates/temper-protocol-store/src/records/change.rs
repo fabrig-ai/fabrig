@@ -412,8 +412,14 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
     }
 }
 
-fn encode_change_state(state: &d::State) -> w::ChangeState {
+// An ended live state's single hold stores its ending cause (temper/docs/design/domain/forge/branches.md, 2).
+fn encode_change_state(state: &d::State, ended_held: Option<d::Hold>) -> w::ChangeState {
     let mut holds = List::with_capacity(8);
+    if *state == d::State::Ended
+        && let Some(why) = ended_held
+    {
+        holds.push(encode_hold(why)).expect("one ending hold");
+    }
     let mut current = state;
     for _ in 0..=8_u32 {
         let d::State::Held { was, why } = current else {
@@ -424,13 +430,18 @@ fn encode_change_state(state: &d::State) -> w::ChangeState {
     }
     w::ChangeState::new(&w::CEILINGS, w::ChangeStateParts { live: encode_live(current), holds }).expect(FITS)
 }
-fn decode_change_state(value: w::ChangeState) -> d::State {
+fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
     let w::ChangeStateParts { live, holds } = value.into_parts();
     let mut state = decode_live(live);
+    if state == d::State::Ended
+        && let [why] = holds.as_slice()
+    {
+        return (state, Some(decode_hold(why.clone())));
+    }
     for why in holds.into_boxed().into_iter().rev() {
         state = d::State::Held { was: Box::new(state), why: decode_hold(why) };
     }
-    state
+    (state, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
     let d::Gate { number, kind, blocking, freshness, eager } = value;
@@ -525,13 +536,14 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released,
         way,
         landing,
+        ended_held,
     } = value;
     w::Change::new(
         &w::CEILINGS,
         w::ChangeParts {
             early: encode_early(early),
             task: *task,
-            state: encode_change_state(state),
+            state: encode_change_state(state, *ended_held),
             gates: encode_gates(gates),
             clean: encode_commits(clean),
             repairs: *repairs,
@@ -577,10 +589,12 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         way,
         landing,
     } = value.into_parts();
+    let (state, ended_held) = decode_change_state(state);
     d::Change {
         early: decode_early(early),
         task,
-        state: decode_change_state(state),
+        state,
+        ended_held,
         gates: decode_gates(gates),
         clean: decode_commits(clean),
         repairs,

@@ -112,6 +112,14 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   is read as `merge_job` is, its errors named at
   `application.landing.projects[i].close_job`; a path past its bounds
   refuses the start at its member.
+- **The goal closer's attempts,** beside `close_job`, by either way:
+  `landing_attempts`, a u8 from 1 to 255, 3 when absent: how many of a
+  goal closer's changes for one step, its close step's or its land
+  step's, may end cancelled or failed, each made again with no one's
+  judgement, before the closer asks its goal
+  (`../../domain/forge/branches.md`, 2). A project with no landing
+  entry has 3. One past its bounds, 0 among them, refuses the start at
+  its member, `application.landing.projects[i].landing_attempts`.
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
@@ -156,7 +164,7 @@ member for member:
   one of `engine.projects`; a rule's bounds are those the forge judges
   it by (`settings.md`, 2).
 - **Feeds** `Config.landings`: each project's way, gates, tiers, merge
-  job and turn's settings.
+  job, close job, goal closer's attempts and turn's settings.
 
 **`clients`:** the clients' listener, which `temper-service` owns
 (`../../client/engine.md`), and the browser's bundle it serves

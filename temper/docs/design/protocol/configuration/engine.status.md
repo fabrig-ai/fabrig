@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-11. Where the tree's code lags or departs from [engine.md](engine.md).
+2026-11-12. Where the tree's code lags or departs from [engine.md](engine.md).
 
 - **Not yet:** `landing`, a landing rule's `sets`: `LandingRule` has
   no `sets` in the store's schema, the client wire's or the forge's

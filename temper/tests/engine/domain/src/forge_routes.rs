@@ -673,6 +673,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                landing_attempts: engine::LANDING_ATTEMPTS,
                                 check_timeout: None,
                                 close_job: None,
                                 merge_job: None,
@@ -1360,6 +1361,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: bound,
                         by: engine::Way::Queue,
                         merge_job: None,
@@ -1390,6 +1392,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: None,
                         close_job: None,
                         merge_job: Some(command.into()),
@@ -1437,6 +1440,7 @@ impl World {
             }
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            landing_attempts: engine::LANDING_ATTEMPTS,
             check_timeout: None,
             by: engine::Way::Queue,
             merge_job: None,
@@ -1460,6 +1464,22 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid close job configuration");
+        self
+    }
+
+    /// Set a goal closer's attempt bound before startup.
+    #[must_use]
+    pub fn with_landing_attempts(mut self, bound: u8) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "attempt configuration precedes startup");
+        self.restart_config.landings.get_mut(&1).expect("project landing configured").landing_attempts = bound;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&self.env.limits),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid attempt configuration");
         self
     }
 

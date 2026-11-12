@@ -396,6 +396,59 @@ fn a_change_in_each_state_round_trips_unchanged() {
     }
 }
 #[test]
+fn an_ended_changes_hold_round_trips_in_its_state() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for ended_held in [None, Some(Hold::Repairs), Some(Hold::Resolutions), Some(Hold::Rejected), Some(Hold::Stalled)] {
+        let mut row = fixtures::change_row(State::Ended);
+        row.change.ended_held = ended_held;
+        let row = forge::Stored::Change(Box::new(row));
+        let bytes = records::encode(&row);
+        let wire = v11::Row::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
+        let v11::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        assert_eq!(wire.change().state().live(), &v11::ChangeLive::Ended);
+        assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn old_ended_rows_decode_with_or_without_a_hold() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let row = fixtures::change_row(State::Ended);
+    let bytes = records::encode(&forge::Stored::Change(Box::new(row.clone())));
+    for ended_held in [None, Some(Hold::Repairs)] {
+        let wire = v11::Row::decode(&v11::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
+        let v11::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        let mut wire = wire.into_parts();
+        let mut change = wire.change.into_parts();
+        let mut holds = skein_lib::List::with_capacity(1);
+        if ended_held.is_some() {
+            holds.push(v11::ChangeHold::Repairs).expect("one hold");
+        }
+        // The unchanged schema's representation, independent of the domain encoder.
+        change.state =
+            v11::ChangeState::new(&v11::CEILINGS, v11::ChangeStateParts { live: v11::ChangeLive::Ended, holds })
+                .expect("old state");
+        wire.change = v11::Change::new(&v11::CEILINGS, change).expect("old change");
+        let value = v11::Value::Change(Box::new(v11::ChangeRow::new(&v11::CEILINGS, wire).expect("old row")));
+        let wire = v11::Row::new(&v11::CEILINGS, v11::RowParts { value }).expect("old row");
+        let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("row size"));
+        wire.encode(&mut writer).expect("measured room");
+        let mut expected = row.clone();
+        expected.change.ended_held = ended_held;
+        let forge::Stored::Change(decoded) = records::decode(&writer.finish(), &bounds).expect("old row decodes")
+        else {
+            panic!("change row")
+        };
+        assert_eq!(decoded.change.state, State::Ended);
+        assert_eq!(decoded.change.ended_held, ended_held);
+        assert_eq!(*decoded, expected);
+    }
+}
+
+#[test]
 fn a_changes_role_choices_round_trip_with_or_without_models() {
     use jig_domain_tasks::{LlmChoice, ModelEffort};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

@@ -1826,10 +1826,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 let before = crate::panel::ready(row);
                 let owned = row.change.owns_turn;
                 row.questions = questions;
-                row.change.state = change::State::Held {
-                    was: Box::new(before_relay_hold(&row.change.state)),
-                    why: change::Hold::Failed,
-                };
+                row.change.state = relay_hold(&row.change.state, change::Hold::Failed);
                 row.change.owns_turn = false;
                 row.producer_failure = Some(words);
                 let saved = row.clone();
@@ -1852,10 +1849,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 row.questions = questions;
                 let answered = was_asking && !agent_asking(row);
                 if hold {
-                    row.change.state = change::State::Held {
-                        was: Box::new(before_relay_hold(&row.change.state)),
-                        why: change::Hold::Questions,
-                    };
+                    row.change.state = relay_hold(&row.change.state, change::Hold::Questions);
                     row.change.owns_turn = false;
                 }
                 let saved = row.clone();
@@ -3250,8 +3244,11 @@ fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
     }
 }
 
-fn before_relay_hold(state: &change::State) -> change::State {
-    match state {
+fn relay_hold(state: &change::State, why: change::Hold) -> change::State {
+    if *state == change::State::Ended {
+        return change::State::Ended;
+    }
+    let was = match state {
         change::State::Held { was, .. } => was.as_ref().clone(),
         change::State::Producing { .. }
         | change::State::Opening { .. }
@@ -3275,7 +3272,8 @@ fn before_relay_hold(state: &change::State) -> change::State {
         | change::State::Uncleared { .. }
         | change::State::NoChange { .. }
         | change::State::Ended => state.clone(),
-    }
+    };
+    change::State::Held { was: Box::new(was), why }
 }
 
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
@@ -6158,7 +6156,14 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
     let owned = row.change.owns_turn;
-    row.change.state = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    let ended = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    if ended == change::State::Ended
+        && row.change.ended_held.is_none()
+        && let change::State::Held { why, .. } = &row.change.state
+    {
+        row.change.ended_held = Some(*why);
+    }
+    row.change.state = ended;
     row.ending = match &row.change.state {
         change::State::Landed { .. }
         | change::State::Red { .. }

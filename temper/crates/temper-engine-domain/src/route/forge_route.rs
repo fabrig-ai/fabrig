@@ -2687,6 +2687,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority,
                 ci: None,
                 change: forge_change::Change {
+                    ended_held: None,
                     early: forge_change::Early::None,
                     way: forge_change::Way::Queue,
                     landing: None,

@@ -56,6 +56,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         Pull::Missing | Pull::Open { .. } | Pull::Closed => {}
     }
     if standing.cancelled {
+        if let State::Held { why, .. } = &next.state {
+            next.ended_held = Some(*why);
+        }
         next.state = State::Ended;
         next.released = None;
         next.owns_turn = false;
@@ -557,6 +560,9 @@ fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Steppe
 }
 
 fn hold(mut change: Change, why: Hold) -> Stepped {
+    if change.state == State::Ended {
+        return Stepped { change, decision: Decision::Cancel };
+    }
     if change.owns_turn {
         change.owns_turn = false;
     }
