@@ -1,7 +1,7 @@
 # The ledger
 
 Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 4, 7,
-8 and 9, milestones Q1 and Q3 of `../../draft/landed-qa.execution.md`.
+8 and 9, milestones Q1, Q3 and Q4 of `../../draft/landed-qa.execution.md`.
 The one record of landed QA's state for a project: its landings, cases,
 builds, agent sessions, passes, findings, notes and lines, kept by code,
 written through its operations alone, by the loop and by the agents'
@@ -24,7 +24,8 @@ commands.
   after two goals.
 - **Its refusals** (section 5) are the agents' only feedback: each names
   what it refused, and nothing is recorded.
-- **`show`, `lines` and `report`** (section 6) print it for a person.
+- **`show`, `lines`, `report` and `tune`** (section 6) print it for a
+  person, `tune` with the figures its bounds and places are tuned from.
 
 ## 2. The document
 
@@ -172,6 +173,12 @@ A pass's goal is its last request's.
 `notes`, what a pass's agent noticed off the green path
 (`../../draft/landed-qa.md`, 8). Each: `number`, `pass`, `session`,
 `time`, `words`.
+
+### 2.10 Waits for a place
+
+`place_waits`, in order: each a span when a pass could have started and
+no place was free (4.17): `from`, when it began, and `to`, when it
+ended, absent while it lasts. Absent in a document Q3 wrote, as none.
 
 ## 3. Its lock and writes
 
@@ -412,6 +419,15 @@ waiting on finding F`.
   (`findings.md`, 6). A landing of its goal outranks it: 4.13 reads the
   landing first.
 
+### 4.17 A wait for a place
+
+At the end of the loop's third step, once its resumes and starts are
+done (`README.md`, 4): where a build a pass may take (4.8) is left, no
+place being free, and no wait is open, one opens, `from` now; where
+none is left and a wait is open, it closes, `to` now. So a wait spans
+the time cases a build holds sat queued behind busy places, the
+figure that says a deployment needs another place (section 6).
+
 ## 5. Its refusals
 
 Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
@@ -469,6 +485,29 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
   and words.
 - **`temper-qa lines`:** each line, `N TIME AREA: WORDS`, oldest first.
 - **`temper-qa report PASS`:** the pass's report (`passes.md`, 8).
+- **`temper-qa tune`:** the figures a deployment tunes `qa.json`'s
+  `bounds` and `places` from (`README.md`, 3.2;
+  `../../draft/landed-qa.execution.md`, Q4), read from the ledger and
+  `qa.json`, a line each:
+  - `triage: N sessions; B ended by the bound of S s; time median M s,
+    longest L s; tokens median T, most U`, over every ended triage
+    session but those `lost` or `unstarted`, the tokens over those that
+    report them, `tokens none` when none does;
+  - `pass: ...`, the same over pass sessions, with `bounds.pass`;
+  - `build_wait: C cases waited past S s; the longest wait for a kept
+    build W s`, a case's wait running from its `queued` to the `kept`
+    of the first kept build holding every one of its landings, or to
+    now while there is none;
+  - `places: P; W waits for a place in the last 7 days, the longest L s,
+    T s in all` (2.10), an open wait counted to now.
+
+  Then a line starting `suggest: ` for each figure that asks a change,
+  none when none does: `suggest: raise bounds.KIND past S s: B of its
+  last N sessions ended by it`, when any of the last 20 sessions of
+  that kind ended by its bound; and `suggest: another place: passes
+  waited T s for one in the last 7 days`, when that time is an hour or
+  more. It records nothing; its read takes the lock, as `show`'s
+  does.
 
 ## 7. Later
 

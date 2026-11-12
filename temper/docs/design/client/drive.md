@@ -43,7 +43,7 @@ open.
 ### 2.1 Its command
 
 ```text
-temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict]
+temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST]
 ```
 
 - **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper-client`,
@@ -59,6 +59,12 @@ temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FIL
 - **`--scripts FILE`, `--strict`** are given to the box as they are
   (`../protocol/setup/box.md`, 5), its fake model's scripts and strict
   switch; a recipe's walk gives its chain's scripts (`recipe.md`, 5).
+- **`--ports LIST`,** nine ports, each nonzero and distinct, joined by
+  commas: given to the box as `TEMPER_INTERNAL_FAKE_BOX_PORTS` in its
+  environment (`../protocol/setup/box.md`, 5), so a new sandbox binds
+  them and a retained one keeps its own; a QA place's
+  (`../testing/qa/places.md`, 2). A list that is not nine distinct
+  nonzero ports refuses the session, naming it, before anything starts.
 - **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
   `again` take it.
 - **Each path** is taken relative to the working directory and made
@@ -86,7 +92,8 @@ temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FIL
 | `session/lines` | the kept lines (section 4) | |
 
 The box's own environment is the session's: the `PATH` the session was
-given, and the directories above. The TUI's is `tui/journeys.md`, 8.2's,
+given, the directories above, and `TEMPER_INTERNAL_FAKE_BOX_PORTS` where
+`--ports` gives it. The TUI's is `tui/journeys.md`, 8.2's,
 in the session's directories.
 
 ### 2.3 Its start
