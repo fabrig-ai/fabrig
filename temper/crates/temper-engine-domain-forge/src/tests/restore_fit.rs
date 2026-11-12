@@ -28,6 +28,20 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             repository: skein_forge::api::Repository { forge: 1, repository: number },
             landings: Box::new([]),
         }),
+        RecordKind::Follow => Stored::Follow(FollowRow {
+            project: 5,
+            follow: number,
+            source: REPO,
+            branch: b"main".as_slice().into(),
+            heard: None,
+            task: None,
+            stopped: None,
+            queue: Box::new([]),
+            skips: Box::new([]),
+            parity: None,
+            questions: Box::new([]),
+            pending: None,
+        }),
         RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {
             repository: REPO,
@@ -190,6 +204,39 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Client => panic!("no own table"),
     }
 }
+#[test]
+fn follows_restore_with_per_project_and_queue_bounds() {
+    let mut d = domain();
+    for number in 1..=LIMITS.follows {
+        restore(&mut d, row(RecordKind::Follow, number));
+    }
+    assert_eq!(d.restore_fit_failure(), None);
+    restore(&mut d, row(RecordKind::Follow, LIMITS.follows));
+    assert_eq!(d.restore_fit_failure(), None, "replacement at bound");
+    restore(&mut d, row(RecordKind::Follow, LIMITS.follows + 1));
+    assert_eq!(d.restore_fit_failure().expect("project bound").limit, u64::from(LIMITS.follows));
+    let mut d = domain();
+    let Stored::Follow(mut full) = row(RecordKind::Follow, 1) else { unreachable!("follow fixture") };
+    let entry = FollowEntry {
+        before: [1; 32],
+        after: [2; 32],
+        pull: None,
+        commits: Box::new([]),
+        more_commits: 0,
+        files: None,
+        more_files: 0,
+        change: None,
+        state: FollowState::NotMade,
+        word: false,
+        remake: false,
+    };
+    full.queue = vec![entry.clone(); usize::try_from(LIMITS.follow_queue).expect("queue bound")].into_boxed_slice();
+    restore(&mut d, Stored::Follow(full.clone()));
+    assert_eq!(d.restore_fit_failure(), None);
+    full.queue = vec![entry; usize::try_from(LIMITS.follow_queue + 1).expect("one past")].into_boxed_slice();
+    restore(&mut d, Stored::Follow(full));
+    assert_eq!(d.restore_fit_failure().expect("queue bound").set, RestoreSet::FollowQueue);
+}
 fn application(token: u64, until: Wall) -> Stored {
     Stored::Application { token, until, outcome: ApplicationOutcome::ForgeRefused(AdoptionRefusal::Refused) }
 }
@@ -203,7 +250,11 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     for (kind, limit) in [
         (K::Making, LIMITS.makings),
         (K::Landing, LIMITS.landings),
-        (K::Receipt, LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) * LIMITS.receipts_per_gate),
+        (
+            K::Receipt,
+            (LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) + LIMITS.judge_projects * LIMITS.follows)
+                * LIMITS.receipts_per_gate,
+        ),
         (K::Tier, LIMITS.repositories * LIMITS.tiers.tiers),
         (K::Verification, LIMITS.changes),
         (K::LandingLog, LIMITS.repositories),
@@ -861,7 +912,8 @@ fn receipts_keep_tier_room_when_no_gates_are_configured() {
         false,
     )
     .unwrap();
-    let capacity = LIMITS.repositories * LIMITS.tiers.tiers * LIMITS.receipts_per_gate;
+    let capacity =
+        (LIMITS.repositories * LIMITS.tiers.tiers + LIMITS.judge_projects * LIMITS.follows) * LIMITS.receipts_per_gate;
     let env = Env { limits, ..env() };
     let mut out = Queue::uncapped();
     d.restore_begin(Wall::EPOCH);

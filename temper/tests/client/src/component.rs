@@ -972,6 +972,7 @@ fn family_subject(record: &jig_client::Family, scope: c::Scope) -> jig_client_te
             | temper_client_protocol_wire::v1::Watch::Away
             | temper_client_protocol_wire::v1::Watch::Decided(_)
             | temper_client_protocol_wire::v1::Watch::Status(_)
+            | temper_client_protocol_wire::v1::Watch::Follows(_)
             | temper_client_protocol_wire::v1::Watch::Landings(_) => None,
         })
         .unwrap_or(0);

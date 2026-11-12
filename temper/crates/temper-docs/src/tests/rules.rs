@@ -62,6 +62,12 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn chat_help_shows_the_goal_questions_answer_form() {
+    let text = find(b"chat").expect("chat page").text;
+    assert!(text.contains("`G asks (question Q; answer with message target=G, form=answer, question=Q): ...`"));
+}
+
+#[test]
 fn task_help_explains_refused_invalid_results() {
     let found = search(&PAGES, b"invalid results", 20).expect("search words");
     assert!(found.hits.as_slice().iter().any(|hit| hit.page == "task"), "invalid results must find task help");

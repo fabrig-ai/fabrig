@@ -596,9 +596,15 @@ fn met_words(dependency: u64, removed: bool, words: &[u8]) -> Box<[u8]> {
 #[must_use]
 pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
     let label = word.from.sender();
-    let (kind, question, end) = match word.kind {
-        tasks::MessageKind::Question => (b" asks (question ".as_slice(), word.number, b")".as_slice()),
-        tasks::MessageKind::Answer { question } => (b" answers question ".as_slice(), question, b"".as_slice()),
+    let (kind, question, end, show_answer_form) = match word.kind {
+        tasks::MessageKind::Question => {
+            let show_answer_form = match word.from {
+                tasks::Party::Task(_) => true,
+                tasks::Party::Person(_) | tasks::Party::Deployment { .. } => false,
+            };
+            (b" asks (question ".as_slice(), word.number, b")".as_slice(), show_answer_form)
+        }
+        tasks::MessageKind::Answer { question } => (b" answers question ".as_slice(), question, b"".as_slice(), false),
         tasks::MessageKind::Words
         | tasks::MessageKind::Result(_)
         | tasks::MessageKind::ProposalDecision { .. }
@@ -619,14 +625,20 @@ pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Escalation { .. } => return label,
     };
     let question = Decimal::of(question);
-    let bytes = label.len().checked_add(kind.len()).expect("bounded message kind");
-    let bytes = bytes.checked_add(question.as_bytes().len()).expect("bounded question number");
-    let bytes = bytes.checked_add(end.len()).expect("bounded message label");
+    let [answer, target, form, number]: [&[u8]; 4] = if show_answer_form {
+        [b"; answer with message target=", &label, b", form=answer, question=", question.as_bytes()]
+    } else {
+        [b""; 4]
+    };
+    let parts: [&[u8]; 8] = [&label, kind, question.as_bytes(), answer, target, form, number, end];
+    let mut bytes = 0_usize;
+    for part in parts {
+        bytes = bytes.checked_add(part.len()).expect("bounded message label");
+    }
     let mut writer = Writer::new(bytes);
-    writer.put(&label).expect("measured sender");
-    writer.put(kind).expect("measured kind");
-    writer.put(question.as_bytes()).expect("measured question");
-    writer.put(end).expect("measured end");
+    for part in parts {
+        writer.put(part).expect("measured message label");
+    }
     writer.finish()
 }
 
@@ -857,8 +869,21 @@ mod tests {
     fn a_question_renders_its_number_for_the_answer_form() {
         assert_eq!(
             rendered_line(tasks::Party::Task(2), tasks::MessageKind::Question).as_ref(),
-            b"2 asks (question 4): Go ahead?\nKeep the newline."
+            b"2 asks (question 4; answer with message target=2, form=answer, question=4): Go ahead?\nKeep the newline."
         );
+    }
+
+    #[test]
+    fn non_task_questions_keep_their_number_without_a_task_answer_form() {
+        for (party, expected) in [
+            (tasks::Party::Person(1), b"1 asks (question 4): Go ahead?\nKeep the newline.".as_slice()),
+            (
+                tasks::Party::Deployment { project: 1 },
+                b"deployment asks (question 4): Go ahead?\nKeep the newline.".as_slice(),
+            ),
+        ] {
+            assert_eq!(rendered_line(party, tasks::MessageKind::Question).as_ref(), expected);
+        }
     }
 
     #[test]
