@@ -385,6 +385,11 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
+        out.put(b"left: task ");
+        out.number(*task);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));

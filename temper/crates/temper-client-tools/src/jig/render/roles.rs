@@ -181,7 +181,7 @@ fn encode_list(tasks: &c::TaskPage, reading: &Reading, out: &mut Encoder) {
     out.object_end();
 }
 
-pub(crate) fn show(task: Printed, reading: &Reading, me: Option<&c::Me>, limits: &Limits) -> Printed {
+pub(crate) fn show(document: Printed, reading: &Reading, me: Option<&c::Me>, limits: &Limits) -> Printed {
     let json = reading.called.json;
     let report = crate::jig::call::value(&reading.called.call, 1).is_some();
     let talk = match reading.pages.get(&1) {
@@ -192,8 +192,8 @@ pub(crate) fn show(task: Printed, reading: &Reading, me: Option<&c::Me>, limits:
         _ => None,
     };
     let read = reading.pages.get(&8);
-    if task.status != 0 {
-        return task;
+    if document.status != 0 {
+        return document;
     }
     let Some(page) = page(read) else { return super::failure(if report { b"report could not be read" } else { b"Now could not be read" }, json, 1) };
     let now = note(page, if report { b"report" } else { b"now" });
@@ -216,12 +216,12 @@ pub(crate) fn show(task: Printed, reading: &Reading, me: Option<&c::Me>, limits:
     };
     let key = if report { b",\"report\":".as_slice() } else { b",\"now\":" };
     let parts: &[&[u8]] =
-        if json { &[b"{\"task\":", &task.stdout, key, &suffix, b"}"] } else { &[&task.stdout, &suffix] };
+        if json { &[b"{\"task\":", &document.stdout, key, &suffix, b"}"] } else { &[&document.stdout, &suffix] };
     let bytes = skein_lib::bytes::concat(parts);
     if skein_lib::len_u64(bytes.len()) > limits.result_bytes {
         return super::failure(b"result limit", json, 1);
     }
-    Printed { stdout: bytes, ..task }
+    Printed { stdout: bytes, ..document }
 }
 fn talk_text(talk: Option<c::Talk>, me: Option<&c::Me>, out: &mut Text) {
     if let Some(talk) = talk {

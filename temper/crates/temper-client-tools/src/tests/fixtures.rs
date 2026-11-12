@@ -670,6 +670,7 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
+                | crate::jig::rows::ROLE_TALK_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {

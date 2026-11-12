@@ -982,7 +982,7 @@ pub const ROLE_SHOW: Tool = Tool {
     result: b"role",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
-        switch(b"report", Optional, b"Read its weekly report instead of its Now"),
+        switch(b"report", b"Read its weekly report instead of its Now"),
     ]],
     keyed: Keyed::Never,
     area: 1,
@@ -1002,7 +1002,7 @@ pub const ROLE_TALK: Tool = Tool {
         ],
         &[
             positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
-            switch(b"leave", Required, b"End your talk and its session"),
+            super::table::Argument { occurs: Required, ..switch(b"leave", b"End your talk and its session") },
         ],
     ],
     keyed: Keyed::Required,

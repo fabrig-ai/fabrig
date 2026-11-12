@@ -28,7 +28,7 @@ impl Reply {
             }
         }
         let cut = page.cut;
-        let _ = thread.accept(page);
+        drop(thread.accept(page));
         let chunk = render::roles::reply_page(thread, from.unwrap_or(0), self.through, limits)?;
         self.bytes = self.bytes.saturating_add(skein_lib::len_u64(chunk.len()));
         if self.bytes > limits.result_bytes {
