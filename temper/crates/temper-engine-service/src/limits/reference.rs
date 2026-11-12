@@ -47,8 +47,9 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
 }
 
 /// Jig's engine and worker override names, with small values and the standard tree capacity.
-pub fn engine_reference(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Engine limits\n\nKind: reference\n\nEvery limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.\n")?;
+pub fn engine_reference(out: &mut Writer) -> Result<(), Overflow> { engine_reference_with(out, b"# Engine limits\n\nKind: reference\n\nEvery limit engine.limits.overrides takes: its unit, the small profile's value and what it bounds.\n") }
+pub fn engine_reference_with(out: &mut Writer, introduction: &[u8]) -> Result<(), Overflow> {
+    out.put(introduction)?;
     out.put(b"\nThe table uses the small profile, not the standard profile selected by temper-box init. Standard tasks.tree_tasks is ")?;
     let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
     out.put(Decimal::of(u64::from(standard.core.tasks.tree_tasks)).as_bytes())?;

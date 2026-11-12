@@ -7,14 +7,13 @@ use skein_lib::{Decimal, List, Overflow, Writer};
 /// The document's top level and application members, with values from init's filled document.
 pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# Configuration\n\nKind: reference\n\nThe configuration document's top level and application members, their bounds and what temper-box init --box writes.\n")?;
-    render(init, &members::SHAPES, &members::MEMBERS, false, out)?;
-    merge_command(out)?;
-    more_slots(out)
+    render(init, members::shapes().as_slice(), members::members().as_slice(), false, out)?;
+    merge_command(out)
 }
 
 /// The engine and worker members, with values from init's filled document.
 pub fn engine_configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine and worker configuration members, their bounds and what temper-box init --box writes.\n")?;
+    out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine configuration members and their bounds.\n")?;
     out.put(b"\nA seeded project's policy must be a number; inline policies are refused.\n")?;
     render(init, &config::members::SHAPES, &config::members::MEMBERS, true, out)
 }
@@ -39,12 +38,11 @@ fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
     Ok(())
 }
 
-/// Slot capacity at composition and each deployment limit (temper/docs/design/domain/worker/README.md, 5).
-fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in `workers[0].limits.overrides`.\n- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.\n")
-}
+
+
 
 fn accepted(path: &str, engine: bool) -> bool {
+    if path.starts_with("workers") || path.starts_with("application.workers[") { return false; }
     if engine {
         for stored in [
             "engine.charters",
@@ -72,7 +70,7 @@ fn render(init: &[u8], shapes: &[Shape], rows: &[Member], engine: bool, out: &mu
         .expect("reference input is init's filled document");
     out.put(b"\nEvery member is read at startup; a change to any member needs a restart.\n\nObjects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.\n")?;
     if !engine {
-        out.put(b"Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.\n")?;
+        out.put(b"Address objects use the engine page's address shape; see temper help configuration-engine. An engine alone runs no local worker.\n")?;
     }
     for shape in shapes {
         let mut heading = None;

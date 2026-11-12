@@ -401,3 +401,4 @@ pub fn limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mu
     super::worker::git_limits(&limits::worker(limits), git, problems);
     temper_engine_service::startup::checks::limits(limits, git, problems);
 }
+pub fn webhooks(members: &super::application::Members, problems: &mut Problems) { webhook_parts(&members.clients, members.webhooks.as_ref(), problems); }

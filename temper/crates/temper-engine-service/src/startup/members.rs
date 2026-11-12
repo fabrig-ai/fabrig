@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 32] = [
+pub(super) static SHAPES: [Shape; 32] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 113] = [
+pub(super) static MEMBERS: [Member; 113] = [
     Member {
         shape: "document",
         name: "engine",
@@ -925,3 +925,8 @@ pub const ADDRESS_PATHS: &[&str] = &[
     "application.machine.github.api",
     "application.demo.llm.listen",
 ];
+
+#[must_use]
+pub fn shapes() -> List<Shape> { let mut shapes = List::with_capacity(u32::try_from(SHAPES.len()).expect("bounded shapes")); for shape in &SHAPES { if shape.name != "application-worker" { shapes.push(*shape).expect("engine shapes"); } } shapes }
+#[must_use]
+pub fn members() -> List<Member> { let mut members = List::with_capacity(u32::try_from(MEMBERS.len()).expect("bounded members")); for row in &MEMBERS { if row.shape == "application-worker" { continue; } let mut row = *row; if row.name == "workers" && (row.shape == "document" || row.shape == "application") { row.kind = "empty list"; row.bound = ""; row.line = "An engine alone runs no local worker."; } members.push(row).expect("engine members"); } members }

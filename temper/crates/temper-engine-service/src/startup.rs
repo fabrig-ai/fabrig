@@ -31,12 +31,9 @@ use temper_service_core::agent::Declaration;
 use temper_service_core::startup::{CallAnswer, nearest_document};
 pub use temper_service_core::startup::{Shape, nearest};
 
-/// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
+/// Refuse a shape the engine service does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
 #[must_use]
-pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
-    if worker {
-        return None;
-    }
+pub fn unserved(shape: Shape) -> Option<Problem> {
     match shape {
         Shape::Standalone | Shape::WorkerAlone => Some(Problem {
             path: Path::root().member(b"workers"),
@@ -364,7 +361,7 @@ fn load_document(
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
-    if let Some(found) = unbuilt(shape, false) {
+    if let Some(found) = unserved(shape) {
         return Err(problem(found.path, found.what));
     }
     let mut problems = Problems::empty();
@@ -495,7 +492,6 @@ fn load_document(
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::credentials(
         engine.as_ref().expect("required engine checked"),
-        &workers,
         application.limits.forge.forges,
         &mut problems,
     );
@@ -508,15 +504,6 @@ fn load_document(
         &application.limits,
         &mut problems,
     );
-    if let Some(worker) = workers.first() {
-        checks::sockets(
-            engine.as_ref().expect("required engine checked"),
-            worker,
-            &application.limits.git_component,
-            &application,
-            &mut problems,
-        );
-    }
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -765,8 +752,7 @@ pub(crate) fn checked_start_with(
         turn = Some(agent.turn_body);
     }
     checked_store(&root, &engine.jig.limits.store, turn)?;
-    let io = checks::process_io(&engine.jig.limits.io, None)
-    .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
+    let io = checks::engine_io(&engine.jig.limits.io);
     let prepared_forges = prepare_forges(&engine, forges)?;
     Ok(CheckedStart { warnings, not_set_up, engine, io, forges: prepared_forges })
 }

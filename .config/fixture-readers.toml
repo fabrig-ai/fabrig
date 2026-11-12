@@ -676,9 +676,17 @@ paths = ["temper/crates/temper-service/src/tests/fixtures/*.rs"]
 pair = "default"
 package = "temper-service"
 filter = "kind(lib)"
+
+# The engine service's own step tests keep their private fixture copy.
+[[fixture]]
+paths = ["temper/crates/temper-engine-service/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-service"
+filter = "kind(lib)"
 [[fixture.reader]]
 pair = "fuzzy"
-package = "temper-service"
+package = "temper-engine-service"
 filter = "kind(lib)"
 
 # The worker service's own step tests keep their private fixture copy.

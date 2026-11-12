@@ -1,4 +1,4 @@
-//! Typed engine and worker settings; startup supplies the values.
+//! Typed engine settings on the core's shared settings (protocol/services.md, 4).
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 

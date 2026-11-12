@@ -14,3 +14,6 @@ pub fn worker(limits: &Limits) -> crate::worker_settings::Limits {
         },
     }
 }
+
+/// The joined document's engine and worker limits table.
+pub fn engine_reference(out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> { engine_reference_with(out, b"# Engine limits\n\nKind: reference\n\nEvery limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.\n") }

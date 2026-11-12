@@ -1,4 +1,4 @@
-//! Checks across standalone's parts before any service is made.
+//! The engine's startup envelopes and declarations (protocol/services.md, 4).
 use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
@@ -72,12 +72,7 @@ pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
         );
     }
 }
-fn in_process(address: &config::Address) -> bool {
-    match address {
-        config::Address::Addr(Addr::InProcess(name)) => name.as_bytes() == b"workers",
-        config::Address::Addr(Addr::Ip(_)) | config::Address::Host { .. } => false,
-    }
-}
+
 pub(super) fn loopback(address: &config::Address) -> bool {
     match address {
         config::Address::Addr(Addr::Ip(socket)) => socket.ip().is_loopback(),
@@ -120,27 +115,7 @@ pub fn standalone(
     problems: &mut Problems,
 ) {
     let root = Path::root();
-    let alone = match engine.hosts.listener.first() {
-        Some(config::Address::Addr(Addr::Ip(_))) => true,
-        Some(config::Address::Addr(Addr::InProcess(_)) | config::Address::Host { .. }) | None => false,
-    };
-    if alone {
-        engine_alone(engine, workers, problems);
-    } else {
-        if workers.len() != 1 {
-            problems.push(root.member(b"workers"), What::Standalone);
-        }
-        if engine.hosts.listener.len() != 1 || !in_process(engine.hosts.listener.first().expect("parsed listeners")) {
-            problems.push(root.member(b"engine").member(b"hosts").member(b"listener"), What::Standalone);
-        }
-        let hosts_match = match (engine.hosts.workers.first(), workers.first()) {
-            (Some(host), Some(worker)) => host.name == worker.name,
-            (None, _) | (_, None) => false,
-        };
-        if engine.hosts.workers.len() != 1 || !hosts_match {
-            problems.push(root.member(b"engine").member(b"hosts").member(b"workers"), What::Standalone);
-        }
-    }
+    engine_alone(engine, workers, problems);
     match clients.listener {
         config::Address::Addr(Addr::Ip(socket)) if socket.ip().is_loopback() => {}
         config::Address::Addr(Addr::Ip(_) | Addr::InProcess(_)) | config::Address::Host { .. } => {
@@ -153,57 +128,8 @@ pub fn standalone(
     if engine.connectors.as_ref() != [1] {
         problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
     }
-    if alone {
-        return;
-    }
-    for (index, worker) in workers.iter().enumerate() {
-        let path = at(index, root.member(b"workers"));
-        if worker.slots > engine.limits.core.fleet.slots {
-            problems.push(
-                path.member(b"slots"),
-                What::Against { other: b"engine.limits.overrides.fleet.slots, at least the slots" },
-            );
-        }
-        if !in_process(&worker.engine) {
-            problems.push(path.member(b"engine"), What::Standalone);
-        }
-        let command = match (worker.agent.arguments.first(), worker.agent.arguments.get(1)) {
-            (Some(first), Some(second)) => first.as_ref() == b"internal" && second.as_ref() == b"agent",
-            _ => false,
-        };
-        let old_command = match worker.agent.arguments.first() {
-            Some(first) => first.as_ref() == b"agent",
-            None => false,
-        };
-        if old_command {
-            problems.push(
-                path.member(b"agent").member(b"arguments"),
-                What::Half(crate::startup::EngineWhat::OldAgentCommand),
-            );
-        } else if command {
-            let absolute = match worker.agent.arguments.get(2) {
-                Some(value) => value.starts_with(b"/"),
-                None => false,
-            };
-            if worker.agent.arguments.len() != 3 || !absolute {
-                problems.push(path.member(b"agent").member(b"arguments"), What::Absolute);
-            }
-        } else {
-            for (index, value) in worker.agent.arguments.iter().enumerate() {
-                if !value.starts_with(b"/") {
-                    problems.push(at(index, path.member(b"agent").member(b"arguments")), What::Absolute);
-                }
-            }
-        }
-        for (name, value) in
-            [(b"program".as_slice(), &worker.agent.program), (b"configuration", &worker.agent.configuration)]
-        {
-            if !value.starts_with(b"/") {
-                problems.push(path.member(b"agent").member(name), What::Absolute);
-            }
-        }
-    }
 }
+
 /// The root has no hub child: the engine runs no slot, and every charter's
 /// runs are placed on the workers (domain/root.md, 2).
 pub fn hub(engine: &config::Engine, problems: &mut Problems) {
@@ -262,24 +188,16 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
         }
     }
 }
-/// Each git identity's number is one both the engine's and the worker's
-/// accounts tables hold.
-pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: u32, problems: &mut Problems) {
-    let mut bound = engine.limits.core.accounts.credentials;
-    for worker in workers {
-        bound = bound.min(worker.limits.core.accounts.credentials);
-    }
-    if forges > bound {
-        problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials));
-    }
-}
+/// Every forge identity number fits the engine's accounts table.
+pub fn credentials(engine: &config::Engine, forges: u32, problems: &mut Problems) { if forges > engine.limits.core.accounts.credentials { problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials)); } }
 /// Check the optional listener and the secret paths that require it.
-pub fn webhooks(members: &super::application::Members, problems: &mut Problems) {
+pub fn webhooks(members: &super::application::Members, problems: &mut Problems) { webhook_parts(&members.clients, members.webhooks.as_ref(), problems); }
+pub fn webhook_parts(clients: &super::application::Clients, webhooks: Option<&super::application::Webhooks>, problems: &mut Problems) {
     let path = Path::root().member(b"application");
-    if let Some(webhooks) = &members.webhooks {
+    if let Some(webhooks) = webhooks {
         match &webhooks.listener {
             config::Address::Addr(Addr::Ip(socket)) if socket.ip().is_loopback() => {
-                if socket.port() != 0 && webhooks.listener == members.clients.listener {
+                if socket.port() != 0 && webhooks.listener == clients.listener {
                     problems.push(path.member(b"webhooks").member(b"listener"), What::Jig(config::What::Unique));
                 }
             }
@@ -843,66 +761,9 @@ fn charter_index(engine: &config::Engine, number: u32) -> usize {
     unreachable!("canonical shortfall names a configured charter")
 }
 /// One io holds engine links, the worker's link, and four entities per child.
-pub(super) fn sockets(
-    engine: &config::Engine,
-    worker: &config::Worker,
-    git: &limits::GitComponent,
-    members: &super::application::Members,
-    problems: &mut Problems,
-) {
-    match (socket_count(engine, worker, git, members), process_io(&engine.limits.io, Some(&worker.limits.io))) {
-        (Some(bytes), Some(io)) if bytes <= u64::from(io.sockets) => {}
-        (Some(bytes), Some(io)) => problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"io").member(b"sockets"),
-            What::Past { bytes, bound: u64::from(io.sockets) },
-        ),
-        (None, _) | (_, None) => problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"io").member(b"sockets"),
-            What::Jig(config::What::Bound),
-        ),
-    }
-}
-fn socket_count(
-    engine: &config::Engine,
-    worker: &config::Worker,
-    git: &limits::GitComponent,
-    members: &super::application::Members,
-) -> Option<u64> {
-    let mut required = u64::from(limits::server(&engine.limits).connections).checked_add(1)?.checked_add(2)?;
-    if members.webhooks.is_some() {
-        required = required.checked_add(1)?.checked_add(u64::from(members.limits.forge_component.hooks))?;
-    }
-    if members.sign_in.is_some() {
-        required = required.checked_add(u64::from(members.limits.sign_in.fetches))?;
-    }
-    let mut sign_in = false;
-    for provider in &engine.llm.providers {
-        sign_in |= provider.sign_in.is_some();
-    }
-    if sign_in {
-        required = required
-            .checked_add(u64::from(engine.limits.driver.accounts))?
-            .checked_add(u64::from(engine.limits.driver.exchanges))?
-            .checked_add(u64::from(engine.limits.driver.listeners))?;
-    }
-    required
-        .checked_add(1)?
-        .checked_add(u64::from(worker.slots).checked_mul(4)?)?
-        .checked_add(u64::from(git.operations).checked_mul(4)?)
-}
-/// Compose engine and worker io exactly as jig's reference startup does.
-pub(crate) fn process_io(engine: &skein_io::Limits, worker: Option<&skein_io::Limits>) -> Option<skein_io::Limits> {
-    let mut io = *engine;
-    if let Some(worker) = worker {
-        io.names = io.names.checked_add(worker.names)?;
-        io.intake = io.intake.max(worker.intake);
-        io.receive = io.receive.max(worker.receive);
-        io.output = io.output.max(worker.output);
-        io.sends = io.sends.max(worker.sends);
-    }
-    io.sockets = limits::SOCKETS;
-    Some(io)
-}
+/// The document's engine start uses the service's socket policy.
+#[must_use]
+pub fn engine_io(engine: &skein_io::Limits) -> skein_io::Limits { let mut io = *engine; io.sockets = limits::SOCKETS; io }
 /// Compare port numbers, also across IPv4/IPv6. Absent or ephemeral listeners reserve none.
 pub fn redirect_ports(
     redirects: &[super::RedirectPort],

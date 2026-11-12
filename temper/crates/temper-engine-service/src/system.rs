@@ -1,4 +1,4 @@
-//! One process, joined through io's workers channel (protocol/README.md, 6).
+//! An engine alone on one process (temper/docs/design/protocol/services.md, 4).
 use crate::{
     AccountsRuntime, End, accounts, clients, engine, settings, store,
 

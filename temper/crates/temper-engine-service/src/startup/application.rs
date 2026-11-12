@@ -10,7 +10,6 @@ use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 pub use public::Origin;
-#[cfg(test)]
 pub use public::Scheme;
 use skein_json::{Document, document::Kind};
 use skein_lib::{List, bytes};
@@ -159,7 +158,6 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
     
-    pub git: Option<Box<[u8]>>,
 }
 fn configured_limits(
     document: &Document,
@@ -271,7 +269,6 @@ fn workers(
                         .push(Worker {
                             root,
                             
-                            git,
                         })
                         .expect("bounded workers");
                 }
@@ -393,12 +390,14 @@ pub fn parse(
 }
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
 #[must_use]
-pub fn files(members: &Members) -> Box<[config::File]> {
+pub fn files(members: &Members) -> Box<[config::File]> { named_files(members.sign_in.as_ref(), &members.limits) }
+#[must_use]
+pub fn named_files(sign_in: Option<&sign_in::SignIn>, limits: &limits::Limits) -> Box<[config::File]> {
     let mut files = List::with_capacity(
-        members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),
+        limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),
     );
-    if let Some(sign_in) = &members.sign_in {
-        sign_in::files(sign_in, members.limits.sign_in, &mut files);
+    if let Some(sign_in) = sign_in {
+        sign_in::files(sign_in, limits.sign_in, &mut files);
     }
     files.into_boxed()
 }
@@ -442,12 +441,13 @@ fn joined(
     }
 }
 
-pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
-    let sign_in = match &members.sign_in {
-        Some(sign_in) => sign_in::resolve(sign_in, members.limits.sign_in, files, problems),
+pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> { resolve_parts(members.sign_in.as_ref(), members.webhooks.as_ref(), &members.limits, files, problems) }
+pub fn resolve_parts(sign_in: Option<&sign_in::SignIn>, webhooks: Option<&Webhooks>, limits: &limits::Limits, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
+    let sign_in = match sign_in {
+        Some(sign_in) => sign_in::resolve(sign_in, limits.sign_in, files, problems),
         None => None,
     };
-    let webhooks = match &members.webhooks {
+    let webhooks = match webhooks {
         Some(value) => match value.listener {
             config::Address::Addr(listener) => Some(skein_forge_connection::hooks::Webhooks { listener }),
             config::Address::Host { .. } => None,

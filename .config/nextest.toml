@@ -101,7 +101,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+  & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-engine-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
   package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))

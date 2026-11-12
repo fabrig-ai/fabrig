@@ -1,5 +1,5 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
-pub use temper_engine_service::startup::application;
+pub mod application;
 pub mod members;
 mod reference;
 pub use crate::limits::{engine_reference, reference};
@@ -49,21 +49,6 @@ use temper_service_core::agent::Declaration;
 use temper_service_core::startup::{CallAnswer, nearest_document};
 pub use temper_service_core::startup::{Shape, nearest};
 
-/// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
-#[must_use]
-pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
-    if worker {
-        return None;
-    }
-    match shape {
-        Shape::Standalone | Shape::WorkerAlone => Some(Problem {
-            path: Path::root().member(b"workers"),
-            what: What::Half(EngineWhat::UnbuiltWorker),
-            file: None,
-        }),
-        Shape::EngineAlone => None,
-    }
-}
 fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> Option<u32> {
     read::Object::new(document, at).ok()?.member(document, name)
 }
@@ -320,9 +305,6 @@ fn load_document(
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
-    if let Some(found) = unbuilt(shape, true) {
-        return Err(problem(found.path, found.what));
-    }
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
     let root = Path::root();
