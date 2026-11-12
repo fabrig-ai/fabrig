@@ -1677,9 +1677,13 @@ fn an_open_start_takes_the_first_eligible_hosts_answer_in_either_order() {
 fn an_infrastructure_failure_rechecks_while_its_account_waits() {
     for failure in [
         tasks::End::Failed(tasks::Class::Infrastructure),
-        tasks::End::FailedWithReason { class: tasks::Class::Infrastructure, reason: Box::from(b"fetch: TimedOut".as_slice()) },
+        tasks::End::FailedWithReason {
+            class: tasks::Class::Infrastructure,
+            reason: Box::from(b"fetch: TimedOut".as_slice()),
+        },
     ] {
-        let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+        let (mut core, limits) =
+            placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
         claim_open(&mut core, &limits, OPEN_ATTEMPT);
         core.proofs.get_mut(&OPEN_TASK).unwrap().account_terminal = true;
         let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);

@@ -76,11 +76,19 @@ fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
 fn no_room_for_a_brief_pauses_past_any_allowance_and_then_runs() {
     let (mut world, task) = failing_brief(capacity(), 925);
     let retries = world.env().limits.core.tasks.retries;
-    let allowance = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid, retries.infrastructure]
-        .iter()
-        .map(|retry| retry.retries)
-        .max()
-        .expect("failure classes");
+    let allowance = [
+        retries.transient,
+        retries.permanent,
+        retries.run,
+        retries.agent,
+        retries.lost,
+        retries.invalid,
+        retries.infrastructure,
+    ]
+    .iter()
+    .map(|retry| retry.retries)
+    .max()
+    .expect("failure classes");
     for count in 1..=allowance + 2 {
         logged(&mut world, task, capacity());
         assert_eq!(

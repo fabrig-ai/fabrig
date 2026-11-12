@@ -96,8 +96,11 @@ pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
         (
             p::HoldReason::Failures { class: p::FailureClass::Infrastructure },
             w::HoldCategory::Failures(
-                w::HoldCategoryFailures::new(&limits, w::HoldCategoryFailuresParts { class: w::HoldFailure::Infrastructure })
-                    .expect("failure"),
+                w::HoldCategoryFailures::new(
+                    &limits,
+                    w::HoldCategoryFailuresParts { class: w::HoldFailure::Infrastructure },
+                )
+                .expect("failure"),
             ),
         ),
     ]

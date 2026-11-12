@@ -29,7 +29,15 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
                         by: u64::MAX,
                         reason: DocumentText { bytes: text(b"exact held rejection"), cut: true },
                     }),
-                    tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX, infrastructure: 0 },
+                    tries: FailureTries {
+                        transient: 1,
+                        permanent: 2,
+                        run: 3,
+                        agent: 4,
+                        lost: 5,
+                        invalid: u32::MAX,
+                        infrastructure: 0,
+                    },
                     hold_wait_since: wait,
                 };
                 let mut row = task_doc(&[ActKind::Release]);

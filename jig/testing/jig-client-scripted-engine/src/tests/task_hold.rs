@@ -16,7 +16,15 @@ fn scripted_hold_moves_return_exact_category_for_release_and_atomic_amend_releas
             revision: 7,
             before: PriorPhase::Waiting,
             escalation: None,
-            tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 0 },
+            tries: FailureTries {
+                transient: 1,
+                permanent: 2,
+                run: 3,
+                agent: 4,
+                lost: 5,
+                invalid: 6,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         }));
         row.acts = list(vec![Offered {

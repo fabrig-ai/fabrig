@@ -41,7 +41,8 @@ pub struct Tries {
 
 impl Tries {
     /// All failure counters zero; a `new` task and a successful park start with this value.
-    pub const NONE: Tries = Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 };
+    pub const NONE: Tries =
+        Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 };
 
     /// Pure selection of the counter or retry policy for `class`; no allocation, mutation, output
     /// or lifecycle transition.

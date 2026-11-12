@@ -636,27 +636,38 @@ fn a_failed_jobs_cause_is_carried_to_its_task() {
 #[test]
 fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
     for (detail, expected) in [
-        (b"fetch: TimedOut".as_slice(), tasks::End::FailedWithReason {
-            class: tasks::Class::Infrastructure, reason: Box::from(b"fetch: TimedOut".as_slice()),
-        }),
+        (
+            b"fetch: TimedOut".as_slice(),
+            tasks::End::FailedWithReason {
+                class: tasks::Class::Infrastructure,
+                reason: Box::from(b"fetch: TimedOut".as_slice()),
+            },
+        ),
         (b"", tasks::End::Failed(tasks::Class::Infrastructure)),
     ] {
         let ending = host::Ending::Failed {
-            failure: host::Failure::Unprepared(host::Preparation::Transient), detail: detail.into(),
+            failure: host::Failure::Unprepared(host::Preparation::Transient),
+            detail: detail.into(),
             work: host::Work { left: None, saved: None },
         };
         assert_eq!(payload::ending(&ending), expected);
     }
     let ending = host::Ending::Failed {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
-        detail: Box::from(b"fetch: Forbidden".as_slice()), work: host::Work { left: None, saved: None },
+        detail: Box::from(b"fetch: Forbidden".as_slice()),
+        work: host::Work { left: None, saved: None },
     };
     assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Permanent));
     let ending = host::JobEnding::Failed {
         failure: host::JobFailure::Unprepared(host::Preparation::Transient),
-        detail: Box::from(b"fetch: TimedOut".as_slice()), work: host::Work { left: None, saved: None },
+        detail: Box::from(b"fetch: TimedOut".as_slice()),
+        work: host::Work { left: None, saved: None },
     };
-    assert_eq!(payload::job_end(&ending), tasks::End::FailedWithReason {
-        class: tasks::Class::Infrastructure, reason: Box::from(b"fetch: TimedOut".as_slice()),
-    });
+    assert_eq!(
+        payload::job_end(&ending),
+        tasks::End::FailedWithReason {
+            class: tasks::Class::Infrastructure,
+            reason: Box::from(b"fetch: TimedOut".as_slice()),
+        }
+    );
 }

@@ -232,13 +232,15 @@ fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
     use skein_lib::Duration;
     for selected in [Profile::Small, Profile::Standard] {
         let retries = profile(selected).core.tasks.retries;
-        assert_eq!(retries.infrastructure, Retry {
-            retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000),
-        });
+        assert_eq!(
+            retries.infrastructure,
+            Retry { retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000) }
+        );
         for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
-            assert_eq!(retries.of(class), Retry {
-                retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000),
-            });
+            assert_eq!(
+                retries.of(class),
+                Retry { retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000) }
+            );
         }
     }
 }

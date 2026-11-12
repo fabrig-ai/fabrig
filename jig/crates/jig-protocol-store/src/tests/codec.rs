@@ -434,7 +434,15 @@ fn each_executor_kind_reads_back() {
 fn each_failure_class_reads_back() {
     use crate::{codec::tasks::value as translate, tasks_v11::Class};
     use jig_domain_tasks::Class as Domain;
-    for value in [Domain::Transient, Domain::Permanent, Domain::Run, Domain::Agent, Domain::Lost, Domain::Invalid, Domain::Infrastructure] {
+    for value in [
+        Domain::Transient,
+        Domain::Permanent,
+        Domain::Run,
+        Domain::Agent,
+        Domain::Lost,
+        Domain::Invalid,
+        Domain::Infrastructure,
+    ] {
         let encoded = saved_wire(translate::class(value), Class::measure, Class::encode, Class::decode);
         assert_eq!(translate::read_class(encoded), value);
     }
@@ -447,7 +455,9 @@ fn each_activation_cause_reads_back() {
         Domain::Ready,
         Domain::Message { message: u64::MAX },
         Domain::Released,
-        Domain::Retry { tries: Tries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 7 } },
+        Domain::Retry {
+            tries: Tries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 7 },
+        },
         Domain::Narrowed,
         Domain::Changed,
     ] {

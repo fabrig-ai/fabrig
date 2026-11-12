@@ -8,8 +8,15 @@ use jig_domain_tasks as tasks;
 use skein_lib::Duration;
 
 const RETRY: tasks::Retry = tasks::Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
-const RETRIES: tasks::Retries =
-    tasks::Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY, infrastructure: RETRY };
+const RETRIES: tasks::Retries = tasks::Retries {
+    transient: RETRY,
+    permanent: RETRY,
+    run: RETRY,
+    agent: RETRY,
+    lost: RETRY,
+    invalid: RETRY,
+    infrastructure: RETRY,
+};
 const SMALL_TASKS: tasks::Limits = tasks::Limits {
     charter_parts: 8,
     placed_holds: 4,

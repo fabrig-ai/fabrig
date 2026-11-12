@@ -66,7 +66,15 @@ fn hold() -> ChipHold {
         revision: u64::MAX,
         before: PriorPhase::Waiting,
         escalation: None,
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX, infrastructure: 0 },
+        tries: FailureTries {
+            transient: 1,
+            permanent: 2,
+            run: 3,
+            agent: 4,
+            lost: 5,
+            invalid: u32::MAX,
+            infrastructure: 0,
+        },
         hold_wait_since: Some(Wall::from_nanos(40)),
     }
 }

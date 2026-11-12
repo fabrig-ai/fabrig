@@ -4,8 +4,11 @@ use skein_codec::patch::{Capacity, Patcher, Step};
 fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::jig_store_tasks::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 3, patches: 2, text: skein_codec::schema::MAX_TEXT,
-        bytes: 131_072, nodes: 16_384,
+        versions: 3,
+        patches: 2,
+        text: skein_codec::schema::MAX_TEXT,
+        bytes: 131_072,
+        nodes: 16_384,
     });
     for text in texts {
         patcher.keep(text.as_bytes()).expect("kept schema");
@@ -79,7 +82,16 @@ fn a_stored_counter_before_infrastructure_decodes_with_zero_tries() {
     let bytes = patched(10, 1, b"Tries", old.finish());
     let wire = crate::tasks_v11::Tries::decode(&crate::tasks_v11::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("patched tries");
-    assert_eq!(crate::codec::tasks::value::read_tries(wire), jig_domain_tasks::Tries {
-        transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 0,
-    });
+    assert_eq!(
+        crate::codec::tasks::value::read_tries(wire),
+        jig_domain_tasks::Tries {
+            transient: 1,
+            permanent: 2,
+            run: 3,
+            agent: 4,
+            lost: 5,
+            invalid: 6,
+            infrastructure: 0,
+        }
+    );
 }

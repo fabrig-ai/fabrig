@@ -61,7 +61,15 @@ fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
                 escalation: None,
                 tries: w::FailureTries::new(
                     &w::CEILINGS,
-                    w::FailureTriesParts { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
+                    w::FailureTriesParts {
+                        transient: 0,
+                        permanent: 0,
+                        run: 0,
+                        agent: 0,
+                        lost: 0,
+                        invalid: 0,
+                        infrastructure: 0,
+                    },
                 )
                 .expect("tries"),
                 hold_wait_since: None,

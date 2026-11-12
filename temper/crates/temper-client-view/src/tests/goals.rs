@@ -487,7 +487,9 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
                     run: EMPTY,
                     agent: EMPTY,
                     lost: EMPTY,
-                    invalid: EMPTY, infrastructure: 0 },
+                    invalid: EMPTY,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             });
         }

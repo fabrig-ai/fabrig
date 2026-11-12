@@ -164,7 +164,15 @@ pub fn hold_record() -> w::ChipHold {
             escalation: None,
             tries: w::FailureTries::new(
                 &lim,
-                w::FailureTriesParts { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13, infrastructure: 17 },
+                w::FailureTriesParts {
+                    transient: 2,
+                    permanent: 3,
+                    run: 5,
+                    agent: 7,
+                    lost: 11,
+                    invalid: 13,
+                    infrastructure: 17,
+                },
             )
             .expect("literal fixture fits"),
             hold_wait_since: Some(17),

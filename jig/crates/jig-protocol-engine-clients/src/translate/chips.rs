@@ -213,7 +213,8 @@ pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::
             agent: value.agent,
             lost: value.lost,
             invalid: value.invalid,
-            infrastructure: value.infrastructure },
+            infrastructure: value.infrastructure,
+        },
     )
 }
 pub fn held(value: &d::HoldLine, limits: &w::Limits) -> Result<w::ChipHold, w::Problem> {

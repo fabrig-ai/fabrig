@@ -98,12 +98,19 @@ fn assert_parked(driver: &Driver, task: u64, expected_assignments: usize) {
 fn past_idle_and_backoff(driver: &mut Driver) {
     let idle_interval = charter().policy.waiting;
     let retries = driver.env.limits.tasks.retries;
-    let retry_backoff =
-        [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid, retries.infrastructure]
-            .into_iter()
-            .map(|retry| retry.max)
-            .max()
-            .expect("retry classes");
+    let retry_backoff = [
+        retries.transient,
+        retries.permanent,
+        retries.run,
+        retries.agent,
+        retries.lost,
+        retries.invalid,
+        retries.infrastructure,
+    ]
+    .into_iter()
+    .map(|retry| retry.max)
+    .max()
+    .expect("retry classes");
     let past_both = idle_interval.saturating_add(retry_backoff).saturating_add(Duration::from_nanos(1));
     driver.fire_at(Duration::from_nanos(driver.env.now.as_nanos()).saturating_add(past_both));
     driver.settle();

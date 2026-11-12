@@ -173,7 +173,8 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
     let jig_domain_tasks::Retry { retries: agent_retries, base: agent_base, max: agent_max } = agent;
     let jig_domain_tasks::Retry { retries: lost_retries, base: lost_base, max: lost_max } = lost;
     let jig_domain_tasks::Retry { retries: invalid_retries, base: invalid_base, max: invalid_max } = invalid;
-    let jig_domain_tasks::Retry { retries: infrastructure_retries, base: infrastructure_base, max: infrastructure_max } = infrastructure;
+    let jig_domain_tasks::Retry { retries: infrastructure_retries, base: infrastructure_base, max: infrastructure_max } =
+        infrastructure;
     match name {
         b"placed_holds" => *placed_holds = count(value)?,
         b"project_placed_holds" => *project_placed_holds = count(value)?,

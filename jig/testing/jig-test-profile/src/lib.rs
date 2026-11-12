@@ -77,7 +77,9 @@ fn profile() -> root::Limits {
             run: retry,
             agent: retry,
             lost: retry,
-            invalid: retry, infrastructure: retry },
+            invalid: retry,
+            infrastructure: retry,
+        },
         facts: 2,
         room_refusals: 2,
     };

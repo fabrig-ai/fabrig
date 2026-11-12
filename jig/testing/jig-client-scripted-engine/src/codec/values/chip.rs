@@ -133,7 +133,8 @@ pub(in crate::codec) fn wire_failure_tries(
             agent: value.agent,
             lost: value.lost,
             invalid: value.invalid,
-            infrastructure: value.infrastructure },
+            infrastructure: value.infrastructure,
+        },
     )
 }
 

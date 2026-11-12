@@ -72,7 +72,9 @@ pub(crate) fn route_answer_payload(
         };
     let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     let end = match end {
-        tasks::End::Failed(tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run)
+        tasks::End::Failed(
+            tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
+        )
         | tasks::End::FailedWithReason {
             class: tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
             ..

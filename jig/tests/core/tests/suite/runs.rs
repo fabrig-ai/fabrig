@@ -728,11 +728,15 @@ fn an_unrelated_infrastructure_try_does_not_disable_a_later_windows_resume() {
     assert_eq!(task.tries.infrastructure, 1);
     assert_eq!(task.tries.transient, 0);
     assert!(matches!(task.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
-    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Failed {
-        class: tasks::Class::Infrastructure, count: 1,
-        allowance: world.env().limits.core.tasks.retries.infrastructure.retries,
-        reason: Some(Box::from(b"fetch: TimedOut".as_slice())),
-    }));
+    assert_eq!(
+        task.retry_notice,
+        Some(tasks::RetryNotice::Failed {
+            class: tasks::Class::Infrastructure,
+            count: 1,
+            allowance: world.env().limits.core.tasks.retries.infrastructure.retries,
+            reason: Some(Box::from(b"fetch: TimedOut".as_slice())),
+        })
+    );
     world.retry_due();
     let conversation = world.attempt();
     world.window_turn(1, 1, None, b"window after preparation retry");

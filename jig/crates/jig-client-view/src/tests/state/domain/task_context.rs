@@ -149,7 +149,15 @@ fn finished(phase: Option<ChipPhase>, prior: Option<PriorPhase>) -> bool {
                 revision: u64::MAX,
                 before,
                 escalation: None,
-                tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 7 },
+                tries: FailureTries {
+                    transient: 1,
+                    permanent: 2,
+                    run: 3,
+                    agent: 4,
+                    lost: 5,
+                    invalid: 6,
+                    infrastructure: 7,
+                },
                 hold_wait_since: None,
             });
         }

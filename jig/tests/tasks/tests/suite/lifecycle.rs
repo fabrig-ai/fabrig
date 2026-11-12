@@ -446,10 +446,14 @@ fn infrastructure_owns_twelve_retries_and_does_not_spend_a_transient_try() {
         w.claim(1, 13);
         w.terminal(1, End::FailedWithReason { class: last_class, reason: reason.clone() });
         if last_class == Class::Infrastructure {
-            assert_eq!(w.record(1).phase, Phase::Held {
-                was: Was::Active(Active::Due), why: Hold::Failures(Class::Infrastructure),
-                source: Some(Box::new(HoldSource::Preparation { words: reason })),
-            });
+            assert_eq!(
+                w.record(1).phase,
+                Phase::Held {
+                    was: Was::Active(Active::Due),
+                    why: Hold::Failures(Class::Infrastructure),
+                    source: Some(Box::new(HoldSource::Preparation { words: reason })),
+                }
+            );
             assert_eq!(w.record(1).tries.infrastructure, 13);
             assert_eq!(w.record(1).tries.transient, 0);
         } else {
@@ -465,7 +469,15 @@ fn infrastructure_owns_twelve_retries_and_does_not_spend_a_transient_try() {
 
 #[test]
 fn every_failure_class_holds_after_its_retry_budget() {
-    for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid, Class::Infrastructure] {
+    for class in [
+        Class::Transient,
+        Class::Permanent,
+        Class::Run,
+        Class::Agent,
+        Class::Lost,
+        Class::Invalid,
+        Class::Infrastructure,
+    ] {
         let mut w = World::new(4, LIMITS);
         w.make(Party::Person(1), vec![task(1, &[])]);
         for attempt in 1..=3 {

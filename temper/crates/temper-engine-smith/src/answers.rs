@@ -1857,7 +1857,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
             FailureClass::Agent => b"for agent failures",
             FailureClass::Lost => b"for lost runs",
             FailureClass::Invalid => b"for invalid results",
-                FailureClass::Infrastructure => b"for infrastructure failures",
+            FailureClass::Infrastructure => b"for infrastructure failures",
         },
         HoldReason::Exceeded(_) => b"for its configured model allowance",
         HoldReason::Circle => b"for a circle of waits",

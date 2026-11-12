@@ -305,10 +305,10 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
         host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
         host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::JobEnding::Failed { failure, .. } => match failure {
-            host::JobFailure::Unprepared(host::Preparation::Transient) => tasks::End::Failed(tasks::Class::Infrastructure),
-            host::JobFailure::Undelivered(host::DeliveryOutcome::Failed) => {
-                tasks::End::Failed(tasks::Class::Transient)
+            host::JobFailure::Unprepared(host::Preparation::Transient) => {
+                tasks::End::Failed(tasks::Class::Infrastructure)
             }
+            host::JobFailure::Undelivered(host::DeliveryOutcome::Failed) => tasks::End::Failed(tasks::Class::Transient),
             host::JobFailure::Unprepared(host::Preparation::Permanent { .. })
             | host::JobFailure::Undelivered(host::DeliveryOutcome::Stale | host::DeliveryOutcome::Refused) => {
                 tasks::End::Failed(tasks::Class::Permanent)

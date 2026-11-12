@@ -730,7 +730,9 @@ fn infrastructure_retry_members_can_each_be_overridden() {
     let json = br#"{"profile":"small","overrides":{"tasks.retries.infrastructure.retries":7,"tasks.retries.infrastructure.base_ms":2000,"tasks.retries.infrastructure.max_ms":9000}}"#;
     let mut expected = small();
     expected.core.tasks.retries.infrastructure = jig_domain_tasks::Retry {
-        retries: 7, base: skein_lib::Duration::from_millis(2000), max: skein_lib::Duration::from_millis(9000),
+        retries: 7,
+        base: skein_lib::Duration::from_millis(2000),
+        max: skein_lib::Duration::from_millis(9000),
     };
     assert_eq!(parse(json), Ok(expected));
 }

@@ -58,7 +58,8 @@ fn authority(old: &Old, new: &mut Build, at: Node, executors: &[Executor]) -> Re
     let mut length = 0_usize;
     for _ in 0..count {
         let item = piece::counted(&mut reader);
-        let Ok(value) = crate::people_v16::Executor::decode(&crate::people_v16::CEILINGS, &mut Reader::new(&item)) else {
+        let Ok(value) = crate::people_v16::Executor::decode(&crate::people_v16::CEILINGS, &mut Reader::new(&item))
+        else {
             return Err(Halt::Misread(kinds));
         };
         let value = match value {
