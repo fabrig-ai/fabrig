@@ -313,6 +313,7 @@ impl Host {
             self.note = Some(Note::Until(expires));
             duties.note = self.note;
         }
+        self.tell_outcome();
         self.approval(&mut duties);
         let scheme = match self.root.pages().look().theme {
             terminal::Theme::Dark => tui::Scheme::Dark,
@@ -616,9 +617,9 @@ impl Host {
 
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
         match command {
-            tui::Own::Draft | tui::Own::Change | tui::Own::Ask => {
+            tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
                 let words = skein_lib::bytes::concat(&[command.name(), b" "]);
-                self.act(Act::ChatWords { words });
+                self.composer_words(words);
                 self.tell(Told::Cleared);
             }
             tui::Own::Brief => {
@@ -670,6 +671,47 @@ impl Host {
         }
     }
 
+    fn composer_words(&mut self, words: Box<[u8]>) {
+        if self.root.pages().chat().is_some() {
+            self.act(Act::MessageWords { words });
+        } else {
+            self.act(Act::ChatWords { words });
+        }
+    }
+
+    fn tell_outcome(&mut self) {
+        use root::pages::tell::State;
+        let Some(tell) = self.root.pages().tell() else { return };
+        if tell.serial <= self.state().tell_serial() {
+            return;
+        }
+        let serial = tell.serial;
+        let refusal = match &tell.state {
+            State::Sending => return,
+            State::Filed { number } => {
+                let number = *number;
+                let project = self
+                    .root
+                    .pages()
+                    .me(self.root.client())
+                    .and_then(|me| me.projects.iter().find(|row| row.project == tell.project))
+                    .map(|row| row.name.bytes().into())
+                    .unwrap_or_default();
+                self.notice(tui::Notice::Filed { number, project });
+                None
+            }
+            State::Refused(reason) => Some(shared::finding_refusal(self.view.words().view(), reason)),
+            State::Lost => Some(self.view.words().tell_lost()),
+            State::Long { over } => Some(self.view.words().tell_long(*over)),
+        };
+        if refusal.is_some() {
+            let tell = self.root.pages().tell().expect("outcome kept");
+            let words = skein_lib::bytes::concat(&[tui::Own::Tell.name(), b" ", &tell.words]);
+            self.composer_words(words);
+        }
+        self.tell(Told::Tell { serial, refusal });
+    }
+
     fn send(&mut self, duties: &mut Duties) {
         if self.state().front() && (self.words() == b"/quit" || self.words() == tui::EXIT) {
             self.tell(Told::Cleared);
@@ -681,6 +723,23 @@ impl Host {
             return;
         }
         self.tell(Told::NotOpened { address: None });
+        self.tell(Told::Send);
+        let project = self
+            .root
+            .pages()
+            .chat()
+            .and_then(|chat| chat.task(self.root.client()))
+            .map(|task| task.project)
+            .or(self.root.pages().project());
+        if let Some(project) = project
+            && let Some(words) = self.words().strip_prefix(b"/tell ").filter(|words| !words.is_empty())
+        {
+            let words = words.into();
+            self.act(Act::Tell { project, words });
+            self.composer_words(Box::default());
+            self.tell(Told::Cleared);
+            return;
+        }
         let words = self.words();
         let command_words = words.starts_with(b"/")
             && core::str::from_utf8(words).is_ok_and(|words| !words.chars().any(char::is_whitespace));

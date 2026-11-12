@@ -251,7 +251,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
     for command in &own {
         match command {
             Own::Draft | Own::Change | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
-            Own::Brief | Own::Needs | Own::Open | Own::Theme => {}
+            Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => {}
         }
     }
     for command in commands {
@@ -279,7 +279,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
         if command == Command::Chats {
             for command in &own {
                 match command {
-                    Own::Brief | Own::Needs | Own::Open => {
+                    Own::Brief | Own::Needs | Own::Open | Own::Tell => {
                         items.push(own_item(*command, words)).expect("own commands counted");
                     }
                     Own::Draft | Own::Change | Own::Ask | Own::Theme => {}
@@ -297,6 +297,7 @@ fn own_item(command: Own, words: &Words) -> OptionItem {
         Own::Brief => Word::BriefCommand,
         Own::Needs => Word::NeedsCommand,
         Own::Open => Word::OpenCommand,
+        Own::Tell => Word::TellCommand,
         Own::Theme => Word::ThemeCommand,
     };
     OptionItem {

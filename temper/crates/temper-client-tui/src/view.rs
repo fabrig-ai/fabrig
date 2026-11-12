@@ -622,13 +622,14 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/tui/pages/README.md).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(7);
+    let mut commands = List::with_capacity(8);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
-        commands.push(Own::Open).expect("one chat command");
+        commands.push(Own::Open).expect("chat commands counted");
+        commands.push(Own::Tell).expect("chat commands counted");
     } else if let Some(project) = root.pages().project() {
         // Only the brief is read here; its availability does not depend on the clock.
         let brief = temper_client_domain::pages::home::facts(root, project, Wall::from_nanos(0)).brief().is_some();
@@ -638,7 +639,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
         for command in Own::ALL {
             let offered = match command {
                 Own::Draft => temper_client_domain::pages::drafts_offered(root, project),
-                Own::Change | Own::Ask | Own::Open => true,
+                Own::Change | Own::Ask | Own::Open | Own::Tell => true,
                 Own::Theme => false,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),
