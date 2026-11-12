@@ -39,7 +39,6 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
-- lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - test temper-client-journeys-tool tests::the_overlay_is_empty
@@ -54,3 +53,15 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - test temper-box::suite startup::a_held_record_at_its_path_owes_the_guard_nothing
 - test temper-box::suite startup::a_lent_record_not_back_keeps_its_store_and_the_storys_panic
 - test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
+
+Inherited from main at its merge into g by the closer, 2026-11-12.
+
+- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
+- lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
+- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
+- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
