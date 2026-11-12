@@ -193,7 +193,7 @@ pub struct Domain {
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
-    pub(crate) findings: Map<(u32, u32), crate::Finding>,
+    pub(crate) findings: Option<Box<Map<(u32, u32), crate::Finding>>>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
@@ -756,7 +756,7 @@ impl Domain {
             project_facts: Map::with_capacity(l.judge_projects),
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
-            findings: Map::with_capacity(l.findings()),
+            findings: None,
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
@@ -6352,7 +6352,11 @@ fn ci_hint(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint, out
                 subscribed = true;
                 break;
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     if subscribed {
@@ -7095,7 +7099,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");
         }
         Stored::Finding(row) => {
-            d.findings.insert((row.project, row.number), row).expect("restored finding room checked");
+            d.finding_rows_mut(&env.limits)
+                .insert((row.project, row.number), row)
+                .expect("restored finding room checked");
         }
         Stored::Decided(row) => {
             d.decisions.insert((row.project, row.number), row).expect("restored decision room checked");
@@ -7164,7 +7170,11 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
             Topic::Ci { .. } if subscriber.goal_tasks.is_some() => {
                 emit(out, Request::GoalUntopic { goal: subscriber.task, topic: subscriber.topic.clone() });
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     d.rebuild_settings();
@@ -7229,7 +7239,11 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             Topic::Ci { repository, head } if !ci.as_slice().contains(&(*repository, *head)) => {
                 ci.push((*repository, *head)).expect("subscription capacity");
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     let mut changes = List::with_capacity(env.limits.changes);
@@ -7670,7 +7684,9 @@ impl Domain {
                 for (key, _) in &self.subscriptions {
                     let repository = match &key.1 {
                         Topic::Findings { .. } => {
-                            if need.task(key.0, None) { return Key::Subscription { task: key.0, topic: key.1.clone() }; }
+                            if need.task(key.0, None) {
+                                return Key::Subscription { task: key.0, topic: key.1.clone() };
+                            }
                             continue;
                         }
                         Topic::Landings { repository, .. }

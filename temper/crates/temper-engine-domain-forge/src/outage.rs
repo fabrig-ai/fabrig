@@ -360,7 +360,11 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
             Topic::Ci { repository, head } if back.contains(&repository.forge) => {
                 heads.insert((*repository, *head)).expect("one head per CI subscription");
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     for (repository, head) in &heads {

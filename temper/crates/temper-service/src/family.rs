@@ -860,9 +860,14 @@ pub fn answer(
                 w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
             }
         },
-        Some(temper_engine_domain::ApplicationAnswer::Adopt(
-            forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
-        )) => return None,
+        Some(
+            root::ApplicationAnswer::Adopt(
+                forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
+            )
+            | root::ApplicationAnswer::FileFinding(_)
+            | root::ApplicationAnswer::HandFinding(_)
+            | root::ApplicationAnswer::TriageFinding(_),
+        ) => return None,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
@@ -1479,6 +1484,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Findings(_) => None,
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -1855,6 +1861,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::Finding(_) => None,
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(
