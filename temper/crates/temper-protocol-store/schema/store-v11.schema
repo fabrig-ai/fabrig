@@ -387,7 +387,13 @@ record ClosingJobs { attempts: list 8 JobAttempt next: u32 }
 record ClosingLine { line: option bytes 256 }
 enum ClosingSelectionProgress { pull, checks, jobs: ClosingJobs, done: ClosingLine }
 record ClosingSelection { pull: u64 head: option Commit progress: ClosingSelectionProgress }
-record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool }
+record ClosingAsked { question: u64 answer: option bytes 1048576 }
+enum ClosingStands { taken, asked: ClosingAsked }
+record ClosingQuestion { asker: u64 number: u64 step: ClosingStep words: bytes 1048576 stands: ClosingStands }
+enum ClosingForm { words, question, answer: Number }
+record ClosingMessage { target: u64 form: ClosingForm words: bytes 1048576 }
+record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage }
+record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay }
 record LandedDraft { repository: Repository path: bytes 1024 project: u32 branch: bytes 1024 commit: fixed 32 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 
 record FollowCommit { id: fixed 32 message: bytes 8192 }

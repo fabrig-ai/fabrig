@@ -2170,6 +2170,7 @@ fn a_closer_row_round_trips() {
             making: None,
             close_changes: Box::new([]),
             landing_changes: Box::new([]),
+            relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
         },
         forge::CloserRow {
@@ -2186,6 +2187,7 @@ fn a_closer_row_round_trips() {
             making: Some(Step::Close),
             close_changes: Box::new([20]),
             landing_changes: Box::new([]),
+            relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
         },
         forge::CloserRow {
@@ -2202,6 +2204,7 @@ fn a_closer_row_round_trips() {
             making: Some(Step::Land),
             close_changes: Box::new([20, 22]),
             landing_changes: Box::new([21, 23]),
+            relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: true,
         },
     ];
@@ -2219,6 +2222,7 @@ fn a_closer_row_round_trips() {
         making: None,
         close_changes: Box::new([20]),
         landing_changes: Box::new([]),
+        relay: temper_engine_domain_forge_closer::relay::Relay::new(),
         done: false,
     }]) {
         let row = forge::Stored::Closer(row);
@@ -2233,6 +2237,73 @@ fn a_closer_row_round_trips() {
         assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
         assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+fn a_closers_question_round_trips_with_its_owned_bytes() {
+    use temper_engine_domain_forge_closer::{Closer, Step, relay::*};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    for stands in [
+        Stands::Taken,
+        Stands::Asked { question: 30, answer: None },
+        Stands::Asked { question: 30, answer: Some(b"Use known reds.".as_slice().into()) },
+    ] {
+        let row = forge::Stored::Closer(forge::CloserRow {
+            task: 8,
+            goal: 7,
+            closer: Closer::new(),
+            making: None,
+            close_changes: Box::new([]),
+            landing_changes: Box::new([]),
+            done: false,
+            relay: Relay {
+                open: Some(Question {
+                    asker: 20,
+                    number: 10,
+                    step: Step::Land,
+                    words: b"Which rule?".as_slice().into(),
+                    stands,
+                }),
+                replies: Box::new([Message {
+                    target: 7,
+                    form: Form::Words,
+                    words: b"Change 20: asker ended".as_slice().into(),
+                }]),
+            },
+        });
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn a_closer_stored_without_the_optional_relay_decodes_as_none() {
+    use temper_engine_domain_forge_closer::{Closer, relay::Relay};
+    let row = forge::Stored::Closer(forge::CloserRow {
+        task: 8,
+        goal: 7,
+        closer: Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        landing_changes: Box::new([]),
+        done: false,
+        relay: Relay::new(),
+    });
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let bytes = records::encode(&row);
+    assert_eq!(bytes.last(), Some(&0));
+    let legacy = &bytes[..bytes.len() - 1]; // The old record ends at `done`, before the new optional member.
+    assert_eq!(records::decode(legacy, &bounds), Ok(row));
+    assert_eq!(records::decode(&legacy[..legacy.len() - 1], &bounds), Err(crate::Undecodable::Malformed));
+    let mut truncated = skein_lib::Writer::new(legacy.len() + 1);
+    truncated.put(legacy).unwrap();
+    truncated.put(&[1]).unwrap(); // A present relay with no payload is not an old record.
+    assert_eq!(records::decode(&truncated.finish(), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -2262,6 +2333,7 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
         making: None,
         close_changes: Box::new([]),
         landing_changes: Box::new([]),
+        relay: temper_engine_domain_forge_closer::relay::Relay::new(),
         done: false,
     });
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

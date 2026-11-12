@@ -26,7 +26,9 @@ use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recover
 mod change_llm;
 mod closer_route;
 pub(crate) mod follow_route;
-pub(crate) use closer_route::{made as closer_made, refused as closer_refused, start_closer_step};
+pub(crate) use closer_route::{
+    Pending as CloserStep, made as closer_made, refused as closer_refused, start_closer_step,
+};
 pub(crate) mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;

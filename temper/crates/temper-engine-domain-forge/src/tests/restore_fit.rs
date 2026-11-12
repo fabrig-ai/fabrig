@@ -21,6 +21,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             making: None,
             close_changes: Box::new([]),
             landing_changes: Box::new([]),
+            relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
         }),
         RecordKind::Making => Stored::Making(making::row(number)),
