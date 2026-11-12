@@ -700,7 +700,8 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     assert_eq!(restored.setting, form::Setting::Rules);
                     rules.ceiling
                 }
-                form::SettingValue::Model(_)
+                form::SettingValue::Overlay
+                | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
                 | form::SettingValue::Template(_) => {

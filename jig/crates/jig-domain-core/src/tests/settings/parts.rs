@@ -145,9 +145,13 @@ fn overlay_parts_are_checked_with_the_defaults_policy_and_parts() {
     configured.defaults.charters[0].parts = repeated_parts(1);
     let base = configured.defaults.charters[0].clone();
     let current = Current::new(configured.defaults, &limits, &[]);
-    let room = usize::try_from(u64::from(limits.run_bytes)
-        - policy_owned_bytes(&base.policy).unwrap() - parts_owned_bytes(&base.parts).unwrap()
-        - parts_owned_bytes(&[part(Reasons::FIRST, 0)]).unwrap()).unwrap();
+    let room = usize::try_from(
+        u64::from(limits.run_bytes)
+            - policy_owned_bytes(&base.policy).unwrap()
+            - parts_owned_bytes(&base.parts).unwrap()
+            - parts_owned_bytes(&[part(Reasons::FIRST, 0)]).unwrap(),
+    )
+    .unwrap();
     let at_parts: Box<[CharterPart]> = Box::new([part(Reasons::FIRST, room)]);
     for (name, parts, resume, fault) in [
         ("at bytes", at_parts, false, None),
@@ -158,14 +162,29 @@ fn overlay_parts_are_checked_with_the_defaults_policy_and_parts() {
     ] {
         let overlay = Overlay { parts, resume: Some(resume), ..Overlay::empty() };
         let value = Value::Overlay(Box::new(overlay.clone()));
-        let result = crate::settings::check_change(&current,
+        let result = crate::settings::check_change(
+            &current,
             &[Item { setting: Setting::Charter(1), edit: Edit::Set(value) }],
-            &configured.settings, &configured.connectors, &limits);
-        assert_eq!(match &result { Ok(()) => None, Err(failure) => Some(failure.fault) }, fault, "{name}");
-        if let Err(failure) = result { assert_eq!(failure.setting, Setting::Charter(1), "{name}"); }
-        else {
+            &configured.settings,
+            &configured.connectors,
+            &limits,
+        );
+        assert_eq!(
+            match &result {
+                Ok(()) => None,
+                Err(failure) => Some(failure.fault),
+            },
+            fault,
+            "{name}"
+        );
+        if let Err(failure) = result {
+            assert_eq!(failure.setting, Setting::Charter(1), "{name}");
+        } else {
             let made = overlaid(&base, &overlay);
-            assert_eq!(policy_owned_bytes(&made.policy).unwrap() + parts_owned_bytes(&made.parts).unwrap(), u64::from(limits.run_bytes));
+            assert_eq!(
+                policy_owned_bytes(&made.policy).unwrap() + parts_owned_bytes(&made.parts).unwrap(),
+                u64::from(limits.run_bytes)
+            );
         }
     }
 }

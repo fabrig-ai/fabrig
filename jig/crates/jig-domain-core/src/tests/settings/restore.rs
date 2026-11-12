@@ -720,8 +720,8 @@ fn deleted_application_scopes_share_the_kinds_whole_set_bound() {
 fn restoring_an_overlaid_revision_proposes_the_overlay_not_its_charter() {
     let (mut core, limits) = fixture(2);
     let value = s::Value::Overlay(Box::new(s::Overlay { instructions: b"B".as_slice().into(), ..s::Overlay::empty() }));
-    let second = record(&core, 2,
-        Box::new([item(s::Setting::Charter(1), s::Replaced::Value(value.clone()))]), Box::new([]));
+    let second =
+        record(&core, 2, Box::new([item(s::Setting::Charter(1), s::Replaced::Value(value.clone()))]), Box::new([]));
     let output = ask(&mut core, &limits, 1, 1);
     let output = page(&mut core, &limits, &output, Box::new([second]));
     let (_, proposal) = restored(&core, &output);

@@ -284,6 +284,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     use skein_lib::{Duration, Reader, Writer};
     use temper_client_protocol_wire::v1 as w;
     match value {
+        c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
