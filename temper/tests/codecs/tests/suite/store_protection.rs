@@ -1,4 +1,4 @@
-//! Protection survives all three durable paths at `STORE_VERSION` 11 in place.
+//! Protection survives all three durable paths at `STORE_VERSION` 12.
 use skein_forge::api::Bypass;
 use temper_protocol_store::{STORE_VERSION, Undecodable, records, v12};
 
@@ -9,7 +9,7 @@ use crate::protection;
 fn protection_fields_have_v12_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(STORE_VERSION, 11);
+    assert_eq!(STORE_VERSION, 12);
     for (name, flags, bypass) in [
         ("unset", 0, Bypass::Never),
         ("queue", 1, Bypass::Never),

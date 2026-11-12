@@ -35,6 +35,8 @@ pub struct Store {
     active: Option<Vec<u8>>,
     deferred: Option<Vec<u8>>,
     pub(crate) levels: Option<codec::component::Levels>,
+    observed_through: u64,
+    observed_lengths: BTreeMap<u64, u64>,
 }
 #[derive(Debug)]
 pub enum Observed {
@@ -140,6 +142,8 @@ impl Store {
         self.files.insert(path, bytes);
     }
     pub(crate) fn recovering(&mut self) {
+        self.observed_through = self.applied;
+        self.observed_lengths = self.lengths.clone();
         self.rows.clear();
         self.generations.clear();
         self.active = None;
@@ -247,9 +251,14 @@ impl Store {
         let (frames, used) = frames(&bytes[start..], after);
         self.validated.insert(path.to_vec(), start + used);
         for (number, ops) in frames {
-            if !self.record(path, number, &ops, false) || number <= self.applied {
+            if !self.record(path, number, &ops, false) {
                 continue;
             }
+            if self.deferred.is_some() {
+                committed.extend(self.active_file(limits, names, connector));
+                continue;
+            }
+            if number <= self.applied { continue; }
             let commit = self.commit(number, ops, limits, names, connector);
             self.apply(&commit, limits);
             self.pending.retain(|pending| pending.number > number);

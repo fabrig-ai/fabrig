@@ -302,6 +302,25 @@ fn jig_behind_opens_at_its_baseline_versions_and_patches_to_current() {
 }
 
 #[test]
+fn a_fixture_set_without_tasks_uses_the_binarys_tasks_version_at_zero() {
+    assert_opened(&open(&mut store(levels(0, 0), SETS)), 1);
+    let (key, mut row) = fixture_format();
+    row.levels = levels(0, 0);
+    row.tasks = crate::baseline::BASELINE.format.tasks;
+    let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("fixture format") });
+    changed.patch_sets(SETS);
+    changed.limits.store.value = ROOM.bytes;
+    refused(
+        &mut changed,
+        OpenRefusal::Format {
+            family: Family::Tasks,
+            found: u32::from(row.tasks),
+            wanted: u32::from(format::current(row.application, row.deployment).tasks),
+        },
+    );
+}
+
+#[test]
 fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
     for (level, tasks, wanted) in [(0, 10, 9), (1, 9, 10)] {
         refused(
@@ -322,20 +341,25 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
     let changed_layout = Layouts { core: [0; 32], ..BASELINE.layouts };
     let changed_skein = Layouts { skein_oauth: [0; 32], ..BASELINE.layouts };
     let changed_version = Format { core: 5, ..baseline };
-    // All rows and the simulated binary start from the fixed baseline, not today's schemas.
+    let current = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
+    let old_tasks: Result<(), OpenRefusal> = Err(OpenRefusal::Format {
+        family: Family::Tasks, found: u32::from(baseline.tasks), wanted: u32::from(current.tasks),
+    });
+    // Recognition precedes the version check; fixture sets that omit a family
+    // still require the binary's version for it.
     for (name, row, layouts, binary_layouts, sets, expected, pending) in [
-        ("baseline to zero", baseline, Some(BASELINE.layouts), BASELINE.layouts, FOUR, Ok(()), None),
+        ("baseline to zero", baseline, Some(BASELINE.layouts), BASELINE.layouts, FOUR, old_tasks.clone(), None),
         (
             "recorded zero",
             Format { levels: ZERO, ..baseline },
             Some(BASELINE.layouts),
             BASELINE.layouts,
             FOUR,
-            Ok(()),
+            old_tasks.clone(),
             None,
         ),
-        ("baseline behind", baseline, Some(BASELINE.layouts), BASELINE.layouts, SETS, Ok(()), Some(levels(0, 0))),
-        ("no sets", baseline, Some(BASELINE.layouts), BASELINE.layouts, PatchSets::NONE, Ok(()), None),
+        ("baseline behind", baseline, Some(BASELINE.layouts), BASELINE.layouts, SETS, old_tasks.clone(), Some(levels(0, 0))),
+        ("no sets", baseline, Some(BASELINE.layouts), BASELINE.layouts, PatchSets::NONE, old_tasks.clone(), None),
         ("wrong layout", baseline, Some(changed_layout), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
         ("wrong version", changed_version, Some(BASELINE.layouts), BASELINE.layouts, FOUR, Err(UNLEVELED), None),
         ("missing layouts", baseline, None, BASELINE.layouts, FOUR, Err(UNLEVELED), None),
@@ -350,7 +374,7 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
         ),
         (
             "equal set layout differs",
-            Format { levels: ZERO, ..baseline },
+            Format { levels: ZERO, ..current },
             Some(changed_layout),
             BASELINE.layouts,
             FOUR,
@@ -359,17 +383,17 @@ fn baseline_and_unleveled_rows_compare_by_owner() {
         ),
         (
             "both none layout differs",
-            baseline,
+            current,
             Some(changed_layout),
             BASELINE.layouts,
             PatchSets::NONE,
             Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) }),
             None,
         ),
-        ("binary moved beyond baseline layout", baseline, Some(BASELINE.layouts), changed_layout, FOUR, Ok(()), None),
+        ("binary moved beyond baseline layout", baseline, Some(BASELINE.layouts), changed_layout, FOUR, old_tasks, None),
         (
             "unleveled upstream still checked",
-            Format { levels: levels(0, 0), ..baseline },
+            Format { levels: levels(0, 0), ..current },
             Some(changed_skein),
             BASELINE.layouts,
             BASE,

@@ -27,7 +27,7 @@ fn entry(queued: bool) -> Stored {
 fn queued_and_unqueued_entries_have_v12_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(STORE_VERSION, 11);
+    assert_eq!(STORE_VERSION, 12);
     for queued in [false, true] {
         let value = entry(queued);
         let bytes = records::encode(&value);
@@ -84,7 +84,7 @@ fn not_installed_call_and_application_reasons_round_trip_distinctly_at_v12() {
         },
     ] {
         let bytes = records::encode(&value);
-        assert_eq!(STORE_VERSION, 11);
+        assert_eq!(STORE_VERSION, 12);
         assert_eq!(records::decode(&bytes, &bounds), Ok(value));
     }
 }

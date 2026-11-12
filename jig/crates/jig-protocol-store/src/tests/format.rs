@@ -34,7 +34,7 @@ fn a_format_row_of_another_tasks_version_is_refused_naming_tasks() {
     let wanted = format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT);
     let mut found = wanted;
     found.tasks = 5;
-    assert_eq!(format::check(&found, &wanted), Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: 9 }));
+    assert_eq!(format::check(&found, &wanted), Err(OpenRefusal::Format { family: Family::Tasks, found: 5, wanted: u32::from(wanted.tasks) }));
 }
 #[test]
 fn a_format_row_of_another_deployment_is_refused() {
@@ -55,7 +55,7 @@ fn another_family_is_refused_naming_the_first_difference() {
         (Family::People, codec::component::Format { people: 10, notes: 2, ..wanted }, 10, 14),
         (Family::Notes, codec::component::Format { notes: 2, accounts: 2, ..wanted }, 2, 1),
         (Family::Accounts, codec::component::Format { accounts: 1, application: 2, ..wanted }, 1, 2),
-        (Family::Settings, codec::component::Format { settings: 0, ..wanted }, 0, 1),
+        (Family::Settings, codec::component::Format { settings: 0, ..wanted }, 0, u32::from(wanted.settings)),
         (Family::Application, codec::component::Format { application: 2, deployment: [9; 16], ..wanted }, 2, 1),
     ] {
         assert_eq!(

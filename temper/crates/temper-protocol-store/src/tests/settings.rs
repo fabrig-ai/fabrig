@@ -88,7 +88,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(forge::stored_bytes(&cloned), Some(held));
                 drop(cloned);
                 let bytes = records::encode(&row);
-                assert_eq!(&bytes[..3], &[0, 11, 26]); // The appended value tag leaves earlier tags unchanged.
+                assert_eq!(&bytes[..3], &[0, 12, 26]); // The appended value tag leaves earlier tags unchanged.
                 assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
                 let key = keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
                 assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
@@ -239,7 +239,7 @@ fn a_replaced_row_has_store_v12_golden_bytes() {
         edit: d::Edit::Set(d::SizedValue { value: d::Value::Charter(2), size: 4 }),
     });
     let bytes: &[u8] =
-        &[0, 11, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
+        &[0, 12, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
     assert_eq!(records::encode(&row).as_ref(), bytes);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(bytes, &bounds), Ok(row));

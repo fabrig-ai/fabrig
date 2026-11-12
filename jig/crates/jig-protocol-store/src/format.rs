@@ -110,7 +110,8 @@ pub(crate) fn at_level(
     deployment: [u8; 16],
     machines: &crate::patching::machines::Machines,
 ) -> component::Format {
-    let mut wanted = component::Format { application, deployment, ..crate::baseline::BASELINE.format };
+    // Sets that do not name one of jig's families keep this build's version for it.
+    let mut wanted = current(application, deployment);
     for (name, version) in [
         ("jig-store-component", &mut wanted.component),
         ("jig-store-core", &mut wanted.core),
@@ -121,7 +122,10 @@ pub(crate) fn at_level(
         ("jig-store-settings", &mut wanted.settings),
     ] {
         if let Some(family) = machines.named(name.as_bytes()) {
-            *version = machines.get(family).reached;
+            let machine = machines.get(family);
+            if machine.owner == Owner::Jig {
+                *version = machine.reached;
+            }
         }
     }
     wanted
