@@ -13,7 +13,16 @@ pub mod v1;
 /// (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
-    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7 || kind == 8 || kind == 9 || kind == 10 || kind == 11
+    kind == 1
+        || kind == 2
+        || kind == 3
+        || kind == 6
+        || kind == 7
+        || kind == 8
+        || kind == 9
+        || kind == 10
+        || kind == 11
+        || kind == 12
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
@@ -208,6 +217,21 @@ pub fn answer(record: &v1::Answer) -> Box<[u8]> {
 #[cfg(test)]
 mod tests;
 
+/// Encode a project's follows (temper/docs/design/domain/forge/follows.md, 7).
+#[must_use]
+pub fn follows_panel(record: &v1::FollowsPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete follows document.
+#[must_use]
+pub fn decode_follows_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FollowsPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::FollowsPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode which of the family's reads is requested.
 #[must_use]
 pub fn reading(record: &v1::Reading) -> Box<[u8]> {
@@ -351,6 +375,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::SetDraft(_)
+        | v1::Request::FollowAct(_)
         | v1::Request::TryAccount(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)

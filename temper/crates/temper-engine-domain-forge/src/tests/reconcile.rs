@@ -275,8 +275,8 @@ fn retained_reconciliation_references_fit_their_heap_ceiling() {
     assert!(meter.held() > 0, "restoration retains references");
 }
 
-// Measured peak: 9,139 bytes; 25% headroom, rounded up to two significant digits.
-const RECONCILIATION_HEAP_CEILING: u64 = 12_000;
+// Measured peak: 12,011 bytes; 25% headroom, rounded up to two significant digits.
+const RECONCILIATION_HEAP_CEILING: u64 = 16_000;
 
 #[test]
 fn populated_reconciliation_owner_fits_its_heap_ceiling() {

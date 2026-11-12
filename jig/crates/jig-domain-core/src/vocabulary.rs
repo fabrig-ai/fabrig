@@ -1245,6 +1245,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::PersonStallNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }

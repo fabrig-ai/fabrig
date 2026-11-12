@@ -65,6 +65,7 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let parts = v1::ProjectWords::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::ProjectWords(settings::ProjectWords { headline: parts.headline, lede: parts.lede })
         }
+        12 => settings::Value::Follow(settings::follow_from(v1::Follow::decode(&v1::CEILINGS, &mut reader).ok()?)),
         11 => {
             let record = v1::TemplateGoal::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Goal(settings::TemplateGoal { design: record.design(), close_out: record.close_out() })
@@ -101,6 +102,12 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
         }
         settings::Value::Classes(classes) => {
             let record = temper_protocol_reaches::classes_record(classes).expect("admitted classes fit the record");
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Follow(follow) => {
+            let record = settings::follow_record(follow).expect("admitted follow fits the record");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             writer.finish()
@@ -146,6 +153,9 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::CharterWords(line) => wire_charter_words(line).measure(),
         settings::Value::ProjectWords(words) => wire_project_words(words).measure(),
         settings::Value::Goal(goal) => wire_goal(*goal).measure(),
+        settings::Value::Follow(follow) => {
+            settings::follow_record(follow).expect("admitted follow fits the record").measure()
+        }
     }
 }
 

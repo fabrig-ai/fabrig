@@ -113,6 +113,8 @@ pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
     pub project: u32,
+    /// Other projects reading this repository (domain/forge/follows.md, 8).
+    pub contexts: Box<[u32]>,
     /// This project's selected repository for goal issue projections and chats' saved work.
     pub home: bool,
     pub provider: skein_forge::api::Repository,
@@ -130,6 +132,43 @@ pub struct Repository {
     pub settings: skein_forge::api::Settings,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
+}
+impl Repository {
+    /// This project's adoption role (domain/forge/follows.md, 8).
+    #[must_use]
+    pub fn role_for(&self, project: u32) -> Option<Role> {
+        if self.project == project {
+            Some(self.role)
+        } else if self.contexts.contains(&project) {
+            Some(Role::Context)
+        } else {
+            None
+        }
+    }
+
+    /// Project-scoped facts; context never carries a writer's home or effects.
+    #[must_use]
+    pub fn for_project(&self, project: u32) -> Option<Self> {
+        let role = self.role_for(project)?;
+        let mut row = self.clone();
+        row.project = project;
+        row.role = role;
+        if role == Role::Context {
+            row.home = false;
+            row.kinds = Kinds {
+                read: self.kinds.read,
+                push: false,
+                open: false,
+                land: false,
+                review: false,
+                status: false,
+                comment: false,
+                issue: false,
+                branch: false,
+            };
+        }
+        Some(row)
+    }
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
 /// application credential numbered by the deployment's configuration
@@ -246,6 +285,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
@@ -664,6 +704,7 @@ pub struct Adopted {
 /// The connector's outcome, kept under the people child's application token.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationOutcome {
+    Follow(Option<Box<[u8]>>),
     Adopted(AdoptedRepository),
     CoreRefused(jig_domain_people::Refusal),
     ForgeRefused(AdoptionRefusal),
@@ -903,6 +944,25 @@ pub enum Ending {
     Cancelled,
     Failed { line: Box<[u8]> },
 }
+/// The source landings a change follows (temper/docs/design/domain/forge/follows.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeFollows {
+    pub follow: u32,
+    pub commits: Box<[skein_forge::api::Commit]>,
+}
+/// The change's durable exact-head workflow progress (domain/forge/follows.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowCheck {
+    pub follow: u32,
+    pub source: skein_forge::api::Commit,
+    pub head: skein_forge::api::Commit,
+    pub definition: Box<[u8]>,
+    pub key: Option<[u8; 32]>,
+    pub flight: Option<TierFlight>,
+    pub page: u32,
+    pub faults: u32,
+    pub held: Option<Box<[u8]>>,
+}
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
@@ -960,6 +1020,8 @@ pub struct ChangeRow {
     pub questions: change::Questions,
     /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
+    pub follows: Option<ChangeFollows>,
+    pub follow_check: Option<FollowCheck>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge/change/README.md, 2).
     pub catch_up: Option<skein_forge::api::Commit>,
     /// The close request (temper/docs/design/domain/forge/change/README.md, 1).
@@ -1228,6 +1290,7 @@ pub enum Stored {
     },
     /// The playground's durable progress (temper/docs/design/protocol/setup/playground.md).
     Playground(Playground),
+    Follow(crate::FollowRow),
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
@@ -1291,6 +1354,7 @@ pub enum Key {
     Decided { project: u32, number: u32 },
     Closer(u64),
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
+    Follow { project: u32, follow: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1456,6 +1520,23 @@ pub enum Event {
     StatusHeard {
         task: u64,
         report: Option<Box<[u8]>>,
+    },
+    FollowChangeAmended {
+        task: u64,
+        follows: ChangeFollows,
+        words: Box<[u8]>,
+    },
+    FollowAct {
+        request: Token,
+        token: Token,
+        retention: skein_lib::Duration,
+        project: u32,
+        follow: u32,
+        act: crate::follows::FollowAct,
+        authorized: bool,
+    },
+    Follow {
+        row: crate::FollowRow,
     },
     TierTask {
         repository: skein_forge::api::Repository,
@@ -2029,6 +2110,14 @@ pub enum Request {
         words: Box<[u8]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
+    FollowRun {
+        project: u32,
+        follow: u32,
+    },
+    CancelFollow {
+        project: u32,
+        task: u64,
+    },
     TierRun {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,

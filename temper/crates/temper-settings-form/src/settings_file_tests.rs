@@ -327,14 +327,14 @@ fn landing_rule_members_past_the_given_limits_name_their_paths() {
     let mut kind_last = base;
     kind_last.kinds.landing_exact_value = 3;
     for (limits, expected) in [
-        (gates, b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
-        (approvals, b"settings file item 1: landing-rule.approvals: bound 0"),
-        (segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
-        (kind_segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (kind_segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (kind_last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (Box::new(gates), b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
+        (Box::new(approvals), b"settings file item 1: landing-rule.approvals: bound 0"),
+        (Box::new(segments), b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (Box::new(segment_bytes), b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (Box::new(last), b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (Box::new(kind_segments), b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (Box::new(kind_segment_bytes), b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (Box::new(kind_last), b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
     ] {
         assert_eq!(
             file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), &limits).expect_err("bound refusal").as_ref(),
@@ -860,4 +860,45 @@ fn a_templates_closer_reads_and_writes() {
     let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
     encode_policy_file(setting, &value, &mut out);
     assert_eq!(out.finish(), bytes);
+}
+
+#[test]
+fn follows_use_the_binding_json_form_and_default_optional_members() {
+    use temper_client_protocol_wire::v1 as w;
+    let selector = br#"{"kind":"follow","project":2,"number":1}"#;
+    let explicit = br#"{"source":{"forge":1,"repository":12,"branch":"main","paths":["src","include"]},"target":{"forge":1,"repository":13,"branch":""},"owner":{"person":4},"start":"owner","producer":"6;3.1;","check":{"workflow":".forgejo/workflows/vsr-tests.yml","artifact":"results","format":"junit"}}"#;
+    let defaults = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":{"person":4},"check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
+    for (json, optional) in [(explicit.as_slice(), false), (defaults.as_slice(), true)] {
+        let items = file::decode(&kind_file(selector, json), &Limits::standard()).unwrap();
+        let item = items.get(0).unwrap();
+        assert_eq!(item.setting, c::Setting::Application { kind: 12, scope: 2, number: 1 });
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
+        let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+        assert_eq!(record.source().repository().forge(), 1);
+        assert_eq!(record.source().repository().repository(), 12);
+        assert_eq!(record.target().repository().repository(), 13);
+        assert_eq!(record.start(), &w::FollowStart::Owner);
+        assert_eq!(record.source().paths().is_empty(), optional);
+        assert_eq!(record.source().branch().is_empty(), optional);
+        assert_eq!(record.producer().is_none(), optional);
+        assert!(record.target().branch().is_empty());
+        let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        }));
+        let text = shown(&document);
+        if !optional {
+            assert_eq!(text, joined(&[br#"{"setting":"#, selector, br#","revision":1,"value":"#, json, b"}"]));
+        }
+        let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 8192 });
+        crate::render::encode_setting(item.setting, &mut out);
+        out.measured().unwrap();
+    }
+    for selector in [br#"{"kind":"follow","number":1}"#.as_slice(), br#"{"kind":"follow","project":2}"#] {
+        file::decode(&kind_file(selector, explicit), &Limits::standard()).unwrap_err();
+    }
 }
