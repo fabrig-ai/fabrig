@@ -127,6 +127,7 @@ fn a_dirty_header_is_taken_once_and_never_before_the_load() {
 
 fn with_task_alarm() -> (Core, Limits) {
     let (mut core, limits) = core();
+    core.opened = true;
     make_task(&mut core, &limits, 1);
     let mut out = Queue::uncapped();
     tasks::step(
