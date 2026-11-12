@@ -242,6 +242,8 @@ pub struct Change {
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
     pub state: State,
+    /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
+    pub ended_held: Option<Hold>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
