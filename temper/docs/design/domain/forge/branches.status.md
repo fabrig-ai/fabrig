@@ -2,7 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`) [in flight: change 265].
+- **Not yet:** 1, a making waits for the outbox's room: a full outbox, an entry number in use and missing access all hold the goal alike, `goal branch making exceeds forge access or outbox bounds` (`temper-engine-domain-forge/src/goal_branch.rs`, `make`).
 
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the
@@ -99,4 +99,4 @@ a change's merge job from the engine through its worker to the fake forge
 - **Not yet:** 3: a goal with a confirmed goal branch and a modifying charter delivers to
   its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
   again. The design has its runs push Markdown straight to g as its design
-  writers, recorded as g's own, and drops the `"run"` change [in flight: changes 94, 98].
+  writers, recorded as g's own, and drops the `"run"` change.

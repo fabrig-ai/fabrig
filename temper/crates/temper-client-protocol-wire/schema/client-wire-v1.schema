@@ -48,8 +48,9 @@ enum Kind { forgejo, github }
 # A change waiting on a person's review (client/forge/records.md; domain/forge/change/questions.md, 2).
 enum ApprovalYours { counts, no_account, too_few, other_role }
 record ApprovalSet { number: u8 name: bytes 40 }
+record ApprovalPerson { person: u64 name: bytes 64 }
 record ApprovalSize { files: u32 additions: u32 deletions: u32 cut: bool }
-record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours size: option ApprovalSize }
+record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours signed: list 8 ApprovalPerson can_sign: list 8 ApprovalPerson can_sign_more: u32 size: option ApprovalSize }
 versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 
 record Looked { project: u32 }
@@ -231,7 +232,8 @@ versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64
 # A project's changes (temper/docs/design/client/forge/records.md).
 record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 }
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued }
-record ChangesLanded { task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
+record ChangesSigned { party: u64 head: fixed 32 at: u64 }
+record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
 versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 }
 # A party's project status (temper/docs/design/client/forge/records.md).
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 }

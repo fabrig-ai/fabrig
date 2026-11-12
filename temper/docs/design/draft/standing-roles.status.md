@@ -15,7 +15,7 @@ sections 7 and 8, milestone R3, but for the lags and departures below.
     not designed, so a standing role's spec words say what it covers
     (`../domain/agent/standing.md`, section 2).
   - 5: no landing rule by path holds a standing role's change that touches
-    paths a rule guards (`what-reaches-you.status.md`, 7).
+    paths a rule guards (`what-reaches-you.md`, 7).
   - 6 and 7: the pages draw no talk and no report: Team's "Talk to it", a
     session's line of what it did, read from its last `NowWritten`, and
     its weekly report, and the terminal's `/talk`, are
