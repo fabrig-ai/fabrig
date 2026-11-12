@@ -178,7 +178,7 @@ A write.
 - `references`: a list; optional. The numbers of the tasks it refers to.
 - `name`: an integer of at least 1; optional. To revise a note: its name. Leave it out for a new note.
 - `recalled`: an integer of at least 1; optional. To revise a note: the revision you read, from your brief, recall or your last write's answer.
-- `first`: an integer of at least 1; optional. To change lines, with name, recalled and remove: the 1-based first line replaced; the note's lines + 1 to append.
+- `first`: an integer of at least 1; optional. To change lines, with name, recalled and remove: the 1-based first line replaced; with remove 0, any line past the last appends.
 - `remove`: an integer of at least 0; optional. With first: how many lines go; 0 to insert.
 - `join`: true or false; optional. With first and remove: true continues the line before first without a newline, for long lines.
 

@@ -418,12 +418,12 @@ fn the_drafter_is_charter_12_and_template_6() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
-    assert_eq!(charter.policy.instructions.len(), 2_874);
+    assert_eq!(charter.policy.instructions.len(), 2_895);
     assert_eq!(
         skein_lib::sha256::digest(&charter.policy.instructions),
         [
-            0x1f, 0x44, 0x77, 0x43, 0xf6, 0x7f, 0x32, 0x1b, 0xac, 0x95, 0x16, 0xe4, 0x72, 0x17, 0x3e, 0x9f, 0x88, 0xe0,
-            0x5b, 0x40, 0x67, 0xc4, 0xe1, 0xc7, 0xbe, 0xc3, 0xd1, 0x45, 0x7c, 0x5e, 0xd9, 0x00,
+            0x47, 0xb4, 0x79, 0x1e, 0xed, 0x5f, 0x33, 0x61, 0x5f, 0xdd, 0x30, 0x31, 0xc1, 0x7b, 0x2e, 0x27, 0xd8, 0xbc,
+            0xf9, 0x12, 0x74, 0xee, 0x34, 0xce, 0xc3, 0x80, 0xb0, 0x7a, 0xe9, 0x24, 0x4f, 0xfd,
         ]
     );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
@@ -1932,7 +1932,7 @@ fn assert_document_rule(words: &str) {
         "open questions under ## Open questions",
         "Then change it by lines",
         "revision you read from your brief, recall or your last write's answer",
-        "To append, first is the note's lines + 1 and remove 0",
+        "To append, remove is 0 and first the note's lines + 1, or any line past it",
         "Never rewrite it whole past a few KB",
         "build a long document in parts",
         "A refused note says the revision or the line count to use",
