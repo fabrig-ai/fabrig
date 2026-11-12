@@ -617,6 +617,21 @@ fn task_answer_help_says_a_person_task_may_ask_for_less() {
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the answer form's words"
+)]
+fn task_answer_help_distinguishes_choices_from_words() {
+    let sentence = b"CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.";
+    let page = temper_docs::find(b"ctl-task").expect("task reference");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(skein_lib::bytes::find(text.as_bytes(), sentence).is_some());
+    let help = fixtures::help(Some(jig::rows::ANSWER_AT));
+    assert!(skein_lib::bytes::find(&help, sentence).is_some());
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
     reason = "the help test collapses whitespace to check the key rule's words"
 )]
 fn ctl_help_says_what_a_key_is() {
