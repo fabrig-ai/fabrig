@@ -624,6 +624,57 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
 }
 
 #[test]
+fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
+    use jig_domain_link::EndpointBound;
+    for (window, output, expected) in [
+        (None, 1024, "not in the agent's configuration under the same name"),
+        (Some(8191), 1024, "needs a context window of 8192 tokens; the agent offers 8191 tokens"),
+        (Some(8192), 1023, "needs 1024 output tokens; the agent offers 1023 tokens"),
+        (Some(8192), 1024, ""),
+    ] {
+        let mut engine = fixtures::engine().jig;
+        engine.llm.endpoints[0].program = Some(b"claude_code".as_slice().into());
+        engine.llm.providers[0].programs = Box::new([b"claude_code".as_slice().into()]);
+        let mut direct = engine.llm.endpoints[0].clone();
+        direct.name = b"direct".as_slice().into();
+        direct.number = 4;
+        direct.program = None;
+        engine.llm.endpoints = Box::new([engine.llm.endpoints[0].clone(), direct]);
+        engine.llm.providers[0].direct = Some(b"direct".as_slice().into());
+        let mut agent = fixtures::startup_agent();
+        if let Some(window) = window {
+            agent.bounds.endpoints =
+                Box::new([agent.bounds.endpoints[0].clone(), EndpointBound { endpoint: 4, window, output }]);
+        }
+        agent.programs = Box::new([crate::settings::Program {
+            adapter: crate::settings::Adapter::ClaudeCode,
+            path: b"/bin/claude".as_slice().into(),
+            directory: b"/programs".as_slice().into(),
+        }]);
+        let mut endpoints = skein_lib::List::with_capacity(2);
+        endpoints
+            .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 1, dialect: 3 })
+            .unwrap();
+        if window.is_some() {
+            endpoints
+                .push(smith_protocol_channel::Endpoint { name: b"direct".as_slice().into(), number: 4, dialect: 3 })
+                .unwrap();
+        }
+        agent.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
+        let mut identity = Problems::empty();
+        checks::agent(&engine, &agent, &mut identity);
+        assert_eq!(identity.is_empty(), window.is_some(), "the direct endpoint must also resolve");
+        let core = config::core(&engine, [7; 16], 7);
+        let mut problems = Problems::empty();
+        let warnings = checks::admission(&core, &engine, &agent, &mut problems);
+        assert!(problems.is_empty(), "{problems:?}");
+        let expected =
+            if expected.is_empty() { String::new() } else { format!("engine.charters[0].model: {expected}\n") };
+        assert_eq!(core::str::from_utf8(&lines(&warnings)).unwrap(), expected);
+    }
+}
+
+#[test]
 fn credential_capacity_is_checked_on_both_sides_and_against_smith() {
     let mut engine = fixtures::engine().jig;
     let mut worker = fixtures::worker_settings().jig.limits;
