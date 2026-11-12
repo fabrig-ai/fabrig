@@ -2,9 +2,11 @@
 """Run a tree's slow tier with its prerequisites (tools/tiers/design.md)."""
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import runpy
+import select
 from pathlib import Path
 import re
 import shlex
@@ -22,6 +24,53 @@ class FailedStep(Exception):
 def command_prefix(env):
     """TIERS_WRAPPER, split on spaces (tools/tiers/design.md, 3); empty when unset."""
     return env.get("TIERS_WRAPPER", "").split()
+
+
+HOLD_READY_S = 60
+HOLD_EXIT_S = 10
+
+
+@contextmanager
+def hold(prefix, name, cwd, env, *, output=None):
+    """One outermost entry point's build-directory hold (design.md, 3)."""
+    process = None
+    try:
+        if prefix:
+            try:
+                child_env = env.copy()
+                child_env.pop('TIERS_HOLD', None)
+                process = subprocess.Popen(prefix, cwd=cwd, env=child_env,
+                                           stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                deadline = time.monotonic() + HOLD_READY_S
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError('no first line within 60 seconds')
+                    readable, _, _ = select.select([process.stdout], [], [], min(remaining, 0.1))
+                    if readable:
+                        data = os.read(process.stdout.fileno(), 4096)
+                        if not data:
+                            raise OSError('stdout ended before the first line')
+                        if b'\n' in data:
+                            break
+                    elif process.poll() is not None:
+                        raise OSError(f'exit {process.returncode} before the first line')
+            except (OSError, ValueError) as error:
+                print(f'{name}: hold: {error}; going on unheld',
+                      file=output if output is not None else sys.stderr, flush=True)
+                if process is not None:
+                    process.kill()
+                    process.wait()
+        yield
+    finally:
+        if process is not None:
+            process.stdin.close()
+            try:
+                process.wait(timeout=HOLD_EXIT_S)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            process.stdout.close()
 
 
 def wait_for_disk(env):

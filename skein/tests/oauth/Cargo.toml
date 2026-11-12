@@ -22,6 +22,7 @@ skein-oauth.workspace = true
 skein-fake-oauth.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-codegen.workspace = true
 skein-codec.workspace = true
 skein-llm.workspace = true
