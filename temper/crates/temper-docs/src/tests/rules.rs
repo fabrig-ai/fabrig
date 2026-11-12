@@ -170,7 +170,7 @@ fn budget_help_sizes_a_hundred_change_goal() {
     for instruction in [
         "For a goal of up to a hundred changes",
         "100 change procedures, 100 producers, 200 reviews and 100 repairs",
-        "12 coordinator/foreman tasks including the goal",
+        "12 coordinator tasks including the goal",
         "512 tasks in the tree, 511 delegated tasks",
         "412K units",
         "five delegation levels below the goal",
