@@ -38,10 +38,17 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 
 - **Set:** internal
 - **Forms:** ``
-- Print the ledger's landings, cases, builds and sessions, oldest first.
+- Print the ledger's landings, cases, builds, sessions, passes, findings and notes, oldest first.
 
 ### `temper-qa lines`
 
 - **Set:** internal
 - **Forms:** ``
 - Print the ledger's lines, oldest first.
+
+### `temper-qa report`
+
+- **Set:** internal
+- **Forms:** `PASS`
+- Print a pass's JSON report from the ledger.
+- **Arguments:** `PASS`: The pass number.

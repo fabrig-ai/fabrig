@@ -7,7 +7,7 @@ fn home_reads_empty_then_commits_whole_and_discards_refused_operations() {
     let scratch = Scratch::new("qa-home");
     std::fs::write(
         scratch.path().join("qa.json"),
-        br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low"}}"#,
+        br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#,
     )
     .expect("config");
     let home = Home::open(scratch.path()).expect("home");

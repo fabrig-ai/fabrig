@@ -6,17 +6,26 @@ mod cli;
 mod config;
 mod document;
 pub mod faces;
+mod findings;
 mod home;
 mod ledger;
+mod pass_document;
+mod pass_end;
+mod passes;
+mod report;
 pub mod runner;
 mod text;
 pub mod watch;
 
 pub use case::{CaseInput, Step};
 pub use cli::{HOME, SESSION, TABLE, main};
-pub use config::{Agent, Bounds, Configuration, Git};
+pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
+pub use findings::{Check, Finding, FindingAnswer, FindingInput, FindingState, Note};
 pub use home::Home;
 pub use ledger::{Answer, Ask, Build, BuildState, Case, CaseAnswer, Exit, Landing, Ledger, Line, Pages, Session};
+pub use passes::{
+    Before, CaseBefore, CaseState, Outcome, OutcomeResult, Pass, PassStart, PassState, Request, SessionKind,
+};
 
 /// A command or ledger refusal. Its display is the words of ledger.md, 5,
 /// or the named configuration, document or IO failure.

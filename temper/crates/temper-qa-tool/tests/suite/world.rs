@@ -278,7 +278,7 @@ pub struct World {
 impl World {
     pub fn new() -> Self {
         let scratch = Scratch::new("qa-run");
-        fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","--effort={effort}"],"triage":"cheap"},"bounds":{"poll":60,"triage":30,"build_wait":90},"notify":["notify"]}"#).expect("config");
+        fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","--effort={effort}"],"triage":"cheap","pass":"high"},"request":{"command":["file"]},"bounds":{"poll":60,"triage":30,"build_wait":90},"notify":["notify"]}"#).expect("config");
         let home = Home::open(scratch.path()).expect("home");
         Self { scratch, home }
     }
