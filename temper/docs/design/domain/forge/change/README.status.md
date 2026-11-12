@@ -10,7 +10,6 @@
 
 - **Not yet:** 1, `reruns`, and 2, step 3, *The runner's failures run again*, with step 7's attempt in the landed result: a change's CI failed by the runner is repaired like any other, and no configuration names `forge.change_policy.reruns` (`temper-engine-domain-forge-change/src/domain.rs`, `checking`, `gating`).
 
-- **Not yet:** 7, *The root chooses*: the forge drops the root's pick only when no other settled change is droppable, even one a live goal pins, so a full table whose settled rows mix live and gone goals' changes refuses every new change; and a registration refused for room still queues the change's names, branch hold and step, so its hold reads an unnamed refusal (`temper-engine-domain-forge/src/domain/room.rs`, `drop_change`; `temper-engine-domain/src/route/forge_route.rs`, `start_change`) [in flight: change 1625].
 
 - **Not yet:** 2, a change whose pushed head its landing branch already contains: it lives on, and only a contained catch-up ends with no change; nothing reads whether the base's tip contains a change's head.
 
