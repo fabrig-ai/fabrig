@@ -24,7 +24,7 @@ and a 131,072-byte section is cut at the worker. The fake-program table
 reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/design/protocol/limits.status.md`, 11. The stock's figures stay as they are.
 
 - **Design lags:**
-  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/tools/stage-one/`), so folding this in changes their inputs.
+  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/crates/temper-stage-one-tool/`), so folding this in changes their inputs.
   - 2, 7: `../protocol/configuration/reference.md`: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell.
   - 9: `../protocol/configuration/stock.md`: stock instructions are held in `temper-service`'s source.
 - **Design departs:**

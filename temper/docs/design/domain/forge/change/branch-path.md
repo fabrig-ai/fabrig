@@ -267,7 +267,14 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      path starts a goal, whose coordinator names it
      (`../../../protocol/configuration/reference.md`);
   8. "Status agent", "When you look at Home after landings": the status
-     agent's charter (the stock's 9), on its triggers (`../attention.md`, 3).
+     agent's charter (the stock's 9), on its triggers (`../attention.md`, 3);
+  9. "Standing role", "For each standing role": the charter each of the
+     project's live standing roles runs under, its tasks labelled 3
+     (`../../agent/standing.md`, section 2), in charter number order;
+  10. "Follow's coding agent", "For each follow change": the charter each
+     of the project's follows names as its producer (kind 12's `producer`,
+     `../follows.md`, section 2), in follow number order; a follow naming
+     none runs the producer of 5, which holds its place.
   Never the deployment's model trial; a charter the settings lack is
   left out. Each role is a card: `name` its name; `who` when it runs,
   then ": " and what it does, "For each chat: talks with you and asks

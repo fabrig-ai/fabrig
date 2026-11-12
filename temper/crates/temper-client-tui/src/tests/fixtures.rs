@@ -418,6 +418,7 @@ impl GoalCase {
                             )
                         }
                         w::Watch::Change(_)
+                        | w::Watch::Follows(_)
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
                         | w::Watch::Changes(_)
@@ -426,7 +427,8 @@ impl GoalCase {
                         | w::Watch::Decided(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
-                        | w::Watch::Ways(_) => continue,
+                        | w::Watch::Ways(_)
+                        | w::Watch::Drafts(_) => continue,
                     };
                     Up::FamilyDelivered {
                         watch,

@@ -911,6 +911,7 @@ fn local_store(token: bool) -> crate::store::Store {
 fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: true,

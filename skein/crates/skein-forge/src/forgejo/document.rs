@@ -189,6 +189,9 @@ pub struct PullRequest {
     pub merge_base: Option<ObjectId>,
     pub mergeable: bool,
     pub requested_reviewers: Box<[User]>,
+    pub changed_files: Option<u64>,
+    pub additions: Option<u64>,
+    pub deletions: Option<u64>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum StatusState {

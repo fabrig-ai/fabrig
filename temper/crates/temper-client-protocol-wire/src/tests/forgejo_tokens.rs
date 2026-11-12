@@ -19,10 +19,9 @@ fn connected(host: &[u8], port: u16) -> v1::Making {
     let v1::ForgeAsk::Managed(value) = super::managed(host, port) else { unreachable!() };
     super::making_new(v1::ForgeAsk::Connected(value))
 }
-#[expect(clippy::disallowed_macros, reason = "golden fixtures are relative to the test crate")]
 fn golden(request: v1::Request, name: &str) {
     let record = v1::Requesting::new(&fixtures::limits(), v1::RequestingParts { request }).unwrap();
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden").join(name);
+    let path = skein_scratch::paths::package().join("golden").join(name);
     if temper_test_env::rewrite() {
         std::fs::write(&path, crate::requesting(&record)).unwrap();
     }

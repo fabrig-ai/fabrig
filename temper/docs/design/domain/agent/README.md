@@ -91,8 +91,12 @@ What a task hears while its run is live reaches smith as messages, as
 jig's `domain/hosts/README.md`, section 7 says: each named, with its sender's
 label, its kind and its words whole, the start carrying those waiting
 in the task's inbox. Words read `2: …`; a question reads `2 asks
-(question 4): …`, its number the one `message`'s answer form takes;
-an answer reads `1 answers question 4: …`. A person's inbox answer
+(question 4; answer with message target=2, form=answer, question=4): …`,
+its number the one `message`'s answer form takes, so that the run is told
+how to answer whatever its charter says; an answer reads `1 answers
+question 4: …`. A question read once and still open is shown again in
+every later run's brief, with its asker, its number and how to answer
+(jig's `domain/engine/briefs.md`, 1.2). A person's inbox answer
 notifies the asked task with `Person answered task 2's question 4 in their inbox; task 2 has the answer and does the work:\n…` when task 2 asked it.
 A question the receiving task asked itself keeps `Person answered question 4 in their inbox:\n…`,
 including the answer words within 256 bytes, cut at a UTF-8 boundary and

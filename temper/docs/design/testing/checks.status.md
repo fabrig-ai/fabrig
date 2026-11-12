@@ -112,7 +112,7 @@ after-landing execution (`../protocol/openid-provider.status.md`, 9).
   template 4's work there, the stock's neither, and fails both. The plan
   `ui-p3f-design` added it to keep the golden the profile's values
   (5); the check binds no kind by a template's role
-  (`temper/tools/stage-one/src/check.rs`, `subject_key`), and nothing
+  (`temper/crates/temper-stage-one-tool/src/check.rs`, `subject_key`), and nothing
   tells Ask temper to propose it (`../domain/agent/agents.status.md`, 1).
    the live scripts' scratch-path departure remains `live-tier.status.md` (Departs, the whole document).
    the managed script's machine alias remains `live-tier.status.md` (Departs, the whole document).

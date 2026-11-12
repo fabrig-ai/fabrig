@@ -93,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words/follow N; template-goal: template's; else none.""#).is_some());
         }
     }
     for (input, why) in [
@@ -1130,4 +1130,31 @@ fn settings_parts_answers_use_the_contracts_words_and_error_flag() {
         assert_eq!(body.as_ref(), expected.as_bytes());
         assert_eq!(failed, error);
     }
+}
+
+#[test]
+fn a_runs_follow_selector_and_proposal_carry_project_number_and_defaults() {
+    use temper_engine_domain_forge::settings::{FollowOwner, FollowStart, Value};
+    let read = decided(b"settings", br#"{"setting":{"kind":"follow","project":2,"number":1}}"#).unwrap();
+    assert_eq!(
+        read.tool,
+        engine::Tool::Settings {
+            read: SettingsRead::Setting {
+                setting: s::Setting::Application { kind: 12, scope: 2, number: 1 },
+                revision: 0
+            },
+            from: 0
+        }
+    );
+    let input = br#"{"against":1,"reason":"follow upstream","items":[{"setting":{"kind":"follow","project":2,"number":1},"set":{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":{"person":4},"check":{"workflow":"tests.yml","artifact":"results","format":"junit"}}}]}"#;
+    let call = decided(b"propose_settings", input).unwrap();
+    let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
+    assert_eq!(items[0].setting, s::Setting::Application { kind: 12, scope: 2, number: 1 });
+    assert_eq!(kinds.len(), 1);
+    assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (12, 2, 1));
+    let Value::Follow(value) = &kinds[0].value.value else { panic!("typed follow") };
+    assert_eq!(value.owner, FollowOwner::Person(4));
+    assert_eq!(value.start, FollowStart::Owner);
+    assert!(value.producer.is_none());
+    assert!(value.source.branch.is_empty() && value.target.branch.is_empty() && value.source.paths.is_empty());
 }

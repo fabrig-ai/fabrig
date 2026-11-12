@@ -18,6 +18,12 @@ impl Limits {
         let receiving = &domain.client.domain;
         let phrase = words.ordinary_capacity()?;
         let classes_phrase = words.classes_capacity()?;
+        // A follow box has its title, composed words, status and optional stopped line;
+        // the tiers box composes every verify stop (client/pages/settings.md, 2).
+        let follows_phrase = words.follows_capacity()?;
+        let follows_boxes = temper_client_protocol_wire::v1::CEILINGS.follows_panel_follows.checked_add(1)?;
+        let follows_nodes = follows_boxes.checked_mul(24)?.checked_add(receiving.rows.checked_mul(7)?)?;
+        let follows_text = follows_boxes.checked_mul(8)?.checked_mul(follows_phrase)?;
         // Three class lines per proposal item and card; Settings holds its summary as name and text.
         let classes_text = receiving
             .rows
@@ -136,6 +142,7 @@ impl Limits {
             .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
             .checked_add(24)?;
         let structural = cards
+            .checked_add(follows_nodes)?
             .checked_add(turns)?
             .checked_add(delegated)?
             .checked_add(goal)?
@@ -186,6 +193,8 @@ impl Limits {
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
             )?
+            // Each landed draft has its from line, title and two choices, one with a small byline.
+            .checked_add(temper_client_protocol_wire::v1::CEILINGS.drafts_panel_drafts.checked_mul(24)?)?
             // The toast holds a refusal, its Look again sentence and button (six nodes),
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
@@ -201,6 +210,13 @@ impl Limits {
             .checked_add(receiving.long_text)?
             .checked_add(text.checked_mul(24)?)?
             .checked_add(classes_text)?;
+        // Landing boxes occur on Settings, not alongside a full conversation.
+        // Price their page separately: the shared frame and path, reaches and
+        // role cards fit 4096 structural nodes, plus the watch's budget rows.
+        let settings_text = follows_text
+            .checked_add(classes_text)?
+            .checked_add(receiving.rows.checked_mul(7)?.checked_add(4096)?.checked_mul(text)?)?;
+        let text_bytes = text_bytes.max(settings_text);
         let nodes = choices
             .checked_add(structural)?
             .checked_add(request_nodes)?
@@ -210,12 +226,17 @@ impl Limits {
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(classes_phrase.checked_mul(2)?).max(turn.checked_mul(2)?).max(builder_name).max(
-                temper_client_protocol_wire::v1::CEILINGS
-                    .deployment_answer_program_login_some
-                    .checked_add(phrase)?
-                    .checked_add(1)?,
-            ),
+            text_per_node: text
+                .max(follows_phrase.checked_mul(6)?)
+                .max(classes_phrase.checked_mul(2)?)
+                .max(turn.checked_mul(2)?)
+                .max(builder_name)
+                .max(
+                    temper_client_protocol_wire::v1::CEILINGS
+                        .deployment_answer_program_login_some
+                        .checked_add(phrase)?
+                        .checked_add(1)?,
+                ),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             // Room for a flow and a 32-stop path (client/pages/chat/conversation.md, 3).

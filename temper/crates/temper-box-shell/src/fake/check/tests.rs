@@ -225,6 +225,7 @@ use temper_protocol_store::{keys as temper_keys, records};
 const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: true,

@@ -189,7 +189,7 @@ fn hook_request_failures_name_their_cause_and_end_once() {
             (
                 "a_hook_names_wrong_document: forgejo document",
                 (
-                    Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
+                    Reply::Document(Box::new(skein_forge::forgejo::document::Document::RepoSearch { ok: true })),
                     failure(SLUG, Why::Unexpected),
                 ),
             ),

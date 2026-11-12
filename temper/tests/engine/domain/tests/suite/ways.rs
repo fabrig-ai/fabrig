@@ -10,6 +10,9 @@ use temper_engine_domain::{self as engine, Delivery, Event, PartyInput, ways};
 use temper_engine_domain_forge::{self as forge, settings};
 use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, kinds, store::Store};
 
+#[path = "ways/roles.rs"]
+mod roles;
+
 const PROJECT: u32 = 1;
 const FORGE: u16 = 1;
 const WATCHER: Token = Token::new(700);

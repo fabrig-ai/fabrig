@@ -179,6 +179,15 @@ change; a value outside that text form refuses the start as a malformed
 parameter. Without it the change names no red landing to repair
 (2026-11-04).
 
+The source landings a follow change follows are bytes parameter 18,
+`N:COMMIT[,COMMIT]...`, made by a follow's task alone and checked by the
+root as it decides the delegate (`../follows.md`, section 4). The start
+keeps them with the change (`follows`); a value outside that form refuses
+the start as a malformed parameter. A change with parameter 18 takes
+question route `up` with no parameter 14, never starts early, under its
+follow's `owner` start produces only once its owner's word starts it, and
+carries its follow's check (`../follows.md`, sections 4 and 6).
+
 ## 2. Its way to landing
 
 An explicit successful no-change result from the producer ends the change
