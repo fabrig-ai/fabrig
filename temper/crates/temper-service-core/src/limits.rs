@@ -9,6 +9,8 @@ pub struct Checkout {
     /// Workspaces on the worker's disk: the cache's bound, and the most that
     /// may be held at once. A prepare that finds every one held is refused.
     pub workspaces: u32,
+    /// Preparations active at once on a worker; the rest wait in arrival order.
+    pub preparations: u32,
     /// Repositories a spec names: at least one.
     pub repositories: u32,
     /// The longest workstream key, repository name or remote, or branch.
@@ -79,6 +81,8 @@ pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 const CHECKOUT: Checkout = Checkout {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
+    // One preparation at a time per worker: redeploys.md, 6.4.
+    preparations: 1,
     // Held to the agent's two repository directories.
     repositories: 2,
     // Bytes in a checkout key, name, remote or branch.
@@ -271,6 +275,7 @@ pub const NAMES: &[&str] = &[
     "forge.issue_policy.comment_bytes",
     "forge.issue_policy.interval_ms",
     "checkout.workspaces",
+    "checkout.preparations",
     "checkout.repositories",
     "checkout.name_bytes",
     "checkout.message_bytes",
@@ -346,6 +351,7 @@ pub const SHARED_NAMES: &[&str] = &[
     "forges.installations",
     "forge_component.token_bytes",
     "checkout.workspaces",
+    "checkout.preparations",
     "checkout.repositories",
     "checkout.name_bytes",
     "checkout.message_bytes",
@@ -376,6 +382,7 @@ pub fn apply(limits: &mut Shared, name: &[u8], value: u64) -> Result<(), Refused
             limits.peer.token_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"checkout.workspaces" => limits.checkout.workspaces = u32::try_from(value).or(Err(Refused::Range))?,
+        b"checkout.preparations" => limits.checkout.preparations = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.repositories" => limits.checkout.repositories = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.name_bytes" => limits.checkout.name_bytes = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.message_bytes" => limits.checkout.message_bytes = u32::try_from(value).or(Err(Refused::Range))?,

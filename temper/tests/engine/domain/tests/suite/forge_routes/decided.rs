@@ -219,20 +219,43 @@ fn custom_classes() -> Classes {
     }
 }
 
-fn assert_answer(answer: &engine::CallAnswer, expected: Option<Reach>, reason: &str) {
+fn last_how(world: &World) -> engine::AskHow {
+    let (name, _) = world.protocol.answers.last().expect("rendered answer");
+    *world.protocol.asks.get(name).expect("root supplied HOW beside the decision")
+}
+
+fn assert_answer(world: &World, answer: &engine::CallAnswer, expected: Option<Reach>, reason: &str) {
     let took = expected.filter(Reach::decided).map(|_| Box::from(b"Small".as_slice()));
     let words = if took.is_some() {
         "Decided: carry on with Small.".to_owned()
     } else {
-        format!(
-            "Ask: {reason}. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
-        )
+        match last_how(world) {
+            engine::AskHow::Message => format!("Ask: {reason}. Ask your requester with message, as a question."),
+            engine::AskHow::Person(person) => {
+                format!("Ask: {reason}. Ask person {person} with delegate, a person task addressed to them.")
+            }
+            engine::AskHow::None => format!(
+                "Not decided: {reason}. Nothing you hold asks anyone: decide within your brief, or leave the choice and your recommendation in your result."
+            ),
+        }
     };
     assert_eq!(*answer, engine::CallAnswer::Decided { took, reach: expected });
-    let rendered =
-        temper_engine_smith::answer_for_tool(answer, b"decided", 1024, temper_engine_smith::ForgeReadBounds::STOCK);
-    assert_eq!(rendered.text(), words.as_bytes());
-    assert!(!rendered.error());
+    let event = temper_engine_service::render_for_task_page(
+        ReplyTo::new(Token::new(1)),
+        answer,
+        b"decided",
+        1024,
+        1,
+        1024,
+        temper_engine_smith::ForgeReadBounds::STOCK,
+        None,
+        None,
+        last_how(world),
+    );
+    let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else { panic!("rendered") };
+    let jig_domain_core::SettledAnswer::Host { body, error } = answer else { panic!("host text") };
+    assert_eq!(body.as_ref(), words.as_bytes());
+    assert!(!error);
 }
 
 fn assert_row(world: &World, run: &engine::Assignment, expected: Option<Reach>) {
@@ -275,7 +298,7 @@ fn narrow(world: &mut World, run: &engine::Assignment, first: &engine::CallAnswe
     world.send(event);
     world.until(Until::Ready);
     let answer = world.answers.last().expect("next call answered").clone();
-    assert_answer(&answer, Some(self::reach(Kind::Implementation, Class::Decide, false)), "");
+    assert_answer(world, &answer, Some(self::reach(Kind::Implementation, Class::Decide, false)), "");
     assert_eq!(rows(world).len(), 2);
     assert_eq!(rows(world)[1].task, run.task);
     assert_eq!(rows(world)[1].party, 1);
@@ -388,7 +411,7 @@ fn each_callers_person_and_reach_are_kept() {
                 Kind::Wording,
                 Class::Decide,
                 false,
-                "no person is asked through you: ask your requester",
+                "no person is asked through you",
             )
         },
         Case {
@@ -483,7 +506,12 @@ fn each_callers_person_and_reach_are_kept() {
         eprintln!("{}", case.name);
         let answer = world.scripted_call(&run, CALL, engine::Tool::Decided(call));
         let completion = live_task(&world, run.task).turn;
-        assert_answer(&answer, case.reach, case.reason);
+        let how = match case.caller {
+            Caller::Goal | Caller::Chat | Caller::PersonTask | Caller::Standing => engine::AskHow::Person(1),
+            Caller::ServedGoal | Caller::GoalsChild => engine::AskHow::Message,
+        };
+        assert_eq!(last_how(&world), how);
+        assert_answer(&world, &answer, case.reach, case.reason);
         assert_row(&world, &run, case.reach);
         match case.after {
             After::Nothing => {}
@@ -492,6 +520,115 @@ fn each_callers_person_and_reach_are_kept() {
         }
         world.close();
     }
+}
+
+fn asking_change_world(agent: bool) -> (World, engine::Assignment) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        if agent { 1000 } else { 0 },
+        Gate { agent, ..Gate::default() },
+        None,
+        StoryLimits { slots: Some(3), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat template") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    let requester = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    world.until(Until::Ready);
+    (world, requester)
+}
+
+#[test]
+fn a_changes_producer_and_repair_ask_their_requester() {
+    let (mut world, requester) = asking_change_world(false);
+    let change = super::questions::make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    let answer = world.scripted_call(&producer, CALL + 1, tool(Kind::Implementation));
+    assert_eq!(last_how(&world), engine::AskHow::Message);
+    assert_answer(&world, &answer, None, "no person is asked through you");
+    assert!(rows(&world).is_empty());
+    let branch = super::questions::row(&world, change).branch.clone();
+    let assigned = world.assigned.len();
+    failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
+    let repair = super::reviews::next_assignment(&mut world, assigned);
+    assert!(live_task(&world, repair.task).spec.words.starts_with(b"Repair"));
+    let answer = world.scripted_call(&repair, CALL + 2, tool(Kind::Implementation));
+    assert_eq!(last_how(&world), engine::AskHow::Message);
+    assert_answer(&world, &answer, None, "no person is asked through you");
+    assert!(rows(&world).is_empty());
+    world.close();
+}
+
+#[test]
+fn a_changes_review_is_not_told_to_ask_with_a_tool_it_lacks() {
+    let (mut world, requester) = asking_change_world(true);
+    let change = super::questions::make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    let assigned = world.assigned.len();
+    let branch = super::questions::row(&world, change).branch.clone();
+    super::reviews::produce(&mut world, &producer, &branch);
+    let review = super::reviews::next_assignment(&mut world, assigned);
+    let row = live_task(&world, review.task);
+    let revision = row.revisions.spec;
+    let read = jig_domain_core::ToolFamilies::JIG.read.0;
+    let control = jig_domain_core::ToolFamilies::JIG.control.0;
+    // The requester grants Control so the review can call decided, but no Message.
+    let mut authority = row.authority.clone();
+    authority.tools.0 |= control;
+    let amendment = temper_engine_domain_world::fixtures::task_amendment(
+        None,
+        Some(authority),
+        b"Judge this choice within the review",
+    );
+    world.scripted_call(
+        &requester,
+        CALL + 1,
+        engine::Tool::Amend { target: review.task, revision, amendment, keep_parameters: false },
+    );
+    assert_eq!(live_task(&world, review.task).authority.tools.0, read | control, "{:?}", world.answers);
+    let answer = world.scripted_call(&review, CALL + 2, tool(Kind::Implementation));
+    assert_eq!(last_how(&world), engine::AskHow::None);
+    assert_answer(&world, &answer, None, "no person is asked through you");
+    world.close();
+}
+
+#[test]
+fn a_replayed_decision_reads_how_from_the_caller_now() {
+    let (mut world, requester) = asking_change_world(false);
+    let change = super::questions::make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    let answer = world.scripted_call(&producer, CALL + 1, tool(Kind::Implementation));
+    let completion = live_task(&world, producer.task).turn;
+    assert_eq!(last_how(&world), engine::AskHow::Message);
+    world.until(Until::Ready);
+    // Restore the saved decision with a caller that no longer holds Message.
+    let mut caller = live_task(&world, producer.task).clone();
+    caller.authority.tools.0 &= !jig_domain_core::ToolFamilies::JIG.message.0;
+    world.store.seed(
+        Box::new([Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(caller))))]),
+        Box::new([]),
+    );
+    world.restart_same();
+    world.until(Until::Ready);
+    let before = world.store.rows.clone();
+    let event = world.protocol.call(
+        CHANNEL,
+        producer.task,
+        producer.attempt,
+        CALL + 3,
+        engine::Call { completion, position: 1, tool: tool(Kind::Implementation) },
+    );
+    world.send(event);
+    world.until(Until::Ready);
+    assert_eq!(world.answers.last(), Some(&answer));
+    assert_eq!(last_how(&world), engine::AskHow::None);
+    assert_answer(&world, &answer, None, "no person is asked through you");
+    assert_eq!(world.store.rows, before, "rendering HOW writes no new decision or settled record");
+    world.close();
 }
 
 #[test]

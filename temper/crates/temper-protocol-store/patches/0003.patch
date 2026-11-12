@@ -1,0 +1,11 @@
+patch 1
+owner temper 3 after jig 1
+
+family temper-store 13 to 14
+add ClosingAsked
+add ClosingStands
+add ClosingQuestion
+add ClosingForm
+add ClosingMessage
+add ClosingRelay
+add Closer.relay option ClosingRelay none
