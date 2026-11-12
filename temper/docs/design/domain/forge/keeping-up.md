@@ -116,10 +116,11 @@ Held by skein's `forge/client.md`, section 3. temper's part:
     refused task=T: WORDS` (` task=T` left out when no task is
     concerned), and holds the task it concerns `ResourceUnavailable`
     with those words (*Its capacity*, above): the change whose branch
-    or base it is, else the task the step works for (the branch's
-    holder, the outbox entry's task, the read's task). A record no task
-    concerns, of a branch only a follow or a tier watches, is logged
-    alone. A restart that replays the step refuses it again: a full
+    it is, else the task the step works for (the branch's holder, the
+    outbox entry's task, the read's task). A record no task concerns,
+    an observation of a base or a landing branch, is logged alone:
+    holding one of the many changes on a shared base would name the
+    wrong work. A restart that replays the step refuses it again: a full
     table never stops the engine. Released, the change goes on, and its
     branch's head is recorded at its next push or read.
 
