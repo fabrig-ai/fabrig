@@ -9,3 +9,4 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-playground-world::suite walk::story_a_kept_log_replays_natively
 - test temper-playground-world::suite walk::story_a_walks_from_the_welcome_to_the_csv_change_landed
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
+- test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up

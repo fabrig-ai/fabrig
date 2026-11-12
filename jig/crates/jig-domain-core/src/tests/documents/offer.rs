@@ -50,6 +50,7 @@ fn fixture() -> (Core, Limits) {
     let mut core = seeded_core(configuration, &limits).unwrap();
     core.people = base.people;
     core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
+    host(&mut core, &limits, HOST, &[b"scripted", b"same", b"other"]);
     (core, limits)
 }
 
@@ -221,7 +222,7 @@ fn program_login(core: &mut Core, limits: &Limits, state: LoginState) {
 }
 
 #[test]
-fn keys_survive_missing_hosts_but_programs_require_current_logins() {
+fn offers_require_a_host_with_current_source_facts() {
     let (mut core, limits) =
         runs::run_choice::placement_fixture(accounts::Holder::Party(PARTY), accounts::Holder::Party(PARTY), true);
     // The fixture's program account also has a later key; isolate the login.
@@ -255,13 +256,17 @@ fn keys_survive_missing_hosts_but_programs_require_current_logins() {
 
     let (mut core, limits) = fixture();
     key(&mut core, &limits, OWN, SOURCE, PROVIDER);
-    assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
+    core.fleet = runs::run_choice::placement_fleet(&core, &limits);
+    assert!(offered(&core, &limits).is_empty());
     host(&mut core, &limits, HOST, &[b"scripted", b"same", b"other"]);
+    assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
     drop(watch_outputs(
         &mut core,
         &limits,
         Event::Fleet(fleet::Event::Sources { sources: Box::new([SourceName::new(b"pending").unwrap()]) }),
     ));
+    assert!(offered(&core, &limits).is_empty());
+    inventory(&mut core, &limits, HOST, Box::new([login(b"pending", LoginState::NotSignedIn)]));
     assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
 }
 

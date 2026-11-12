@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
+- **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
+
 - **Not yet:** 2: no supplied record establishes a real-box walk of
   the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,

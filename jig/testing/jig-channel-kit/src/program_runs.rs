@@ -70,7 +70,7 @@ fn engine_configured(inherited: &Inherited, case: Case) -> Proc {
         processes::engine_document(inherited, document.as_bytes())
     }
 }
-fn declarations() -> smith_agent_service::profile::Configuration {
+pub(crate) fn declarations() -> smith_agent_service::profile::Configuration {
     let mut declarations = smith_agent_process_world::declarations(4096);
     declarations.endpoints[0].limits.window = 272_000;
     declarations
@@ -138,7 +138,13 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
     service
 }
 fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
-    let service = configuration();
+    configured_agent(inherited, configuration(), declarations())
+}
+pub(crate) fn configured_agent(
+    inherited: &Inherited,
+    service: smith_agent_service::Config,
+    declarations: smith_agent_service::profile::Configuration,
+) -> Proc {
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).expect("agent pipe").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(pipe(2));
     let agent = smith_agent_shell::Agent::new(
@@ -147,7 +153,7 @@ fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             service,
             trace: None,
             profile: smith_agent_process_world::profile(),
-            declarations: declarations(),
+            declarations,
             program: None,
             program_endpoints: std::collections::BTreeSet::new(),
         },
@@ -175,7 +181,7 @@ fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     .expect("program-capable agent");
     Proc::Agent { host: Box::new(capture.host(agent)), errors }
 }
-fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
+pub(crate) fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).map(|(_, fd)| *fd);
     Proc::Auth(Box::new(smith_agent_shell::relay::Process::new(
         &spawn.args,
@@ -188,7 +194,7 @@ fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         },
     )))
 }
-fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
+pub(crate) fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"CLAUDE_CONFIG_DIR=/private/programs/alice"));
     assert!(
         !spawn
@@ -201,7 +207,7 @@ fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
 }
 
 // The hosted fake sees the fixture's absolute path for its descriptor-relative cwd.
-fn claude_launch(spawn: &kernel::Spawn) -> kernel::Spawn {
+pub(crate) fn claude_launch(spawn: &kernel::Spawn) -> kernel::Spawn {
     kernel::Spawn {
         program: spawn.program.clone(),
         args: spawn.args.clone(),
@@ -702,7 +708,7 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     run
 }
 
-fn login_files(story: &smith_fake_claude::Story) -> Vec<Item> {
+pub(crate) fn login_files(story: &smith_fake_claude::Story) -> Vec<Item> {
     let mut items = vec![
         Item::directory(b"state"),
         Item::directory(b"private"),

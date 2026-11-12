@@ -14,6 +14,8 @@ pub struct Provider {
     pub number: u32,
     /// The endpoint its added models take (configuration.md, 3).
     pub endpoint: Option<Box<[u8]>>,
+    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
+    pub direct: Option<Box<[u8]>>,
     pub list: Option<jig_domain_accounts::ProviderList>,
     pub signed_in_plan: bool,
     pub manage_usage: Option<Box<[u8]>>,
@@ -166,6 +168,7 @@ fn provider(
     } else {
         super::optional_text(&mut object, document, b"endpoint", path, problems)
     };
+    let direct = super::optional_text(&mut object, document, b"direct", path, problems);
     let keep_at = object.member(document, b"keep");
     let drop_at = object.member(document, b"drop");
     let keep = match keep_at {
@@ -201,6 +204,7 @@ fn provider(
         name: name?,
         number: number?,
         endpoint,
+        direct,
         list,
         signed_in_plan,
         manage_usage,
