@@ -538,7 +538,7 @@ impl ChipPhrase {
 }
 #[must_use]
 pub fn shapes() -> Box<[PhraseShape]> {
-    let mut values = List::with_capacity(99);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("chip phrase count fits"));
     for phrase in ALL {
         let holes: Box<[HoleShape]> = match phrase.hole() {
             Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
@@ -550,7 +550,7 @@ pub fn shapes() -> Box<[PhraseShape]> {
 }
 #[must_use]
 pub fn language() -> Language {
-    let mut values = List::with_capacity(99);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("chip phrase count fits"));
     for phrase in ALL {
         let label = phrase.label();
         let segments: Box<[Segment]> = match phrase.hole() {
