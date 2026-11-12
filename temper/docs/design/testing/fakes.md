@@ -141,6 +141,23 @@ skein's (skein's `testing/fakes/llm.md`):
     refused, naming it, and so is a turn past the form's bounds with
     its takes. The report counts each take's uses. Whether each finds
     its value on replay, the twin's run proves, as for cues.
+  - **Where a take applies,** when its value also stands for something
+    else (a task's number `2` beside a depth of 2 or a constant in
+    written source): a take may carry `"only"`, a list of 1 to 8
+    places, and then replaces its value at those places alone; without
+    it, everywhere as above. A place is
+    `{"call", "argument", "prefix", "suffix"}`, every member optional:
+    with `call`, the arguments of the calls of that name, and with
+    `argument` too, only the value an RFC 6901 pointer names in them;
+    without `call`, the text lines, and `argument` is refused. There, a
+    JSON number whose token is `value` is replaced as above, and inside
+    a string or a text line an occurrence of `value` counts only with
+    `prefix` directly before it and `suffix` directly after, each 0 to
+    256 bytes of the decoded text and kept as they are. So
+    `{"call": "message", "argument": "/target"}` takes a message's
+    target alone, and `{"prefix": "PR #"}` a text's pull request alone.
+    A place that matches nothing is not refused itself; a take that
+    then matches nothing is.
   - **From a twin already made,** `--from FILE` in place of `--data`,
     `--base` and `--cue`: FILE a document of the twin's output form,
     whose scripts are taken as they are, `--replace` and then `--takes`
