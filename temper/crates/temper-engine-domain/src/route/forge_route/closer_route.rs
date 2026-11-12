@@ -367,7 +367,10 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         Refusal::Funding => Short::Spend { left, minimum },
         Refusal::Tree => Short::Tasks { left: room },
         Refusal::Depth => Short::Depth,
-        Refusal::Placed { .. }
+        Refusal::NotStanding
+        | Refusal::TalkOpen { .. }
+        | Refusal::NoTalk
+        | Refusal::Placed { .. }
         | Refusal::HoldOwner { .. }
         | Refusal::HoldRevision { .. }
         | Refusal::Account { .. }
