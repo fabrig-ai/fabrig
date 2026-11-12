@@ -6,7 +6,6 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
     forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
     crate::pages::decided::reconcile(root, env, out);
-    crate::pages::findings::reconcile(root, env, out);
     crate::pages::home::look(root, env, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -66,6 +65,8 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
+    // Findings subscriptions follow the event's foreground reads and acts.
+    crate::pages::findings::reconcile(root, env, out);
 }
 fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
@@ -125,7 +126,6 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         refresh_panel(root, env, subject, false, out);
     }
     crate::pages::decided::reconcile(root, env, out);
-    crate::pages::findings::reconcile(root, env, out);
     crate::pages::home::look(root, env, out);
 }
 
@@ -315,7 +315,6 @@ pub(crate) fn route_unlinked(
 pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     tell(root, env, told, out);
     crate::pages::decided::reconcile(root, env, out);
-    crate::pages::findings::reconcile(root, env, out);
     crate::pages::home::look(root, env, out);
     forge::trials::look(root, env, out);
 }
