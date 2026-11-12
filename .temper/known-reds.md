@@ -1,0 +1,1 @@
+- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
