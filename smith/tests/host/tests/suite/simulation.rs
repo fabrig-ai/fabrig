@@ -1488,3 +1488,73 @@ fn a_process_exit_preserves_the_read_fence_of_its_buffered_answer() {
     assert_eq!(world.seen.answer.as_ref().expect("buffered answer").read, Some(Token::new(1)));
     world.clean_end();
 }
+
+
+#[test]
+fn drain_is_once_without_grace_and_stop_starts_its_own_grace() {
+    let mut world = World::new(1770, limits());
+    world.live();
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    assert_eq!(world.seen.down.last(), Some(&Down::Drain));
+    world.sent();
+    world.at(4);
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    assert_eq!(world.seen.down.len(), 2, "start, then one drain");
+    world.at(6);
+    assert!(world.seen.signals.is_empty(), "no cancel grace for a drain");
+    world.event(Input::Parent(parent::Event::Stop { agent: world.agent() }));
+    assert_eq!(world.seen.down.last(), Some(&Down::Cancel));
+    world.sent();
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    assert_eq!(world.seen.down.len(), 3, "no drain after stop");
+    world.at(10);
+    assert!(world.seen.signals.is_empty());
+    world.at(11);
+    assert_eq!(world.seen.signals, [Signal::Terminate]);
+    world.at(13);
+    assert_eq!(world.seen.signals, [Signal::Terminate, Signal::Kill]);
+    world.clean_end();
+}
+
+#[test]
+fn drain_before_start_follows_the_start_send() {
+    let mut world = World::new(1771, limits());
+    world.spawn(start());
+    world.spawned();
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    assert_eq!(world.seen.down.len(), 1, "start's send is still owed");
+    world.sent();
+    assert_eq!(world.seen.down.last(), Some(&Down::Drain));
+    world.sent();
+    world.up(Up::Admitted);
+    last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
+    world.clean_end();
+}
+
+#[test]
+fn drain_keeps_watchdog_and_wall_supervision() {
+    for wall in [false, true] {
+        let mut bounds = limits();
+        if wall { bounds.wall_time = Duration::from_secs(20); }
+        let mut world = World::new(1772, bounds);
+        world.live();
+        world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+        world.sent();
+        if wall {
+            for second in [6, 12, 18] {
+                world.at(second);
+                world.up(Up::Fact { body: Box::default() });
+            }
+            world.at(20);
+            assert_eq!(world.seen.down.last(), Some(&Down::Cancel));
+            world.sent();
+            world.at(25);
+            assert_eq!(world.seen.fault, Some(Fault::WallTime));
+        } else {
+            world.at(10);
+            assert_eq!(world.seen.fault, Some(Fault::NoProgress));
+        }
+        assert_eq!(world.seen.signals, [Signal::Terminate]);
+        world.clean_end();
+    }
+}
