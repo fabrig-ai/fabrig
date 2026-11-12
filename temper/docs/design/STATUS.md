@@ -25,7 +25,13 @@ its change with the followed commit; and lag and parity in the forge's
 `follows` document. A standing role as owner waits on R1; the follow
 change's words carry no diff, and a person's follow's holds reach the
 project's escalation role, each asked of the user
-(`domain/forge/follows.status.md`; `draft/follows.status.md`).
+(`domain/forge/follows.status.md`; `draft/follows.status.md`). A
+project's dependency on another is milestone F2
+(`domain/forge/dependencies.md`): kind 13, naming another project of
+the deployment, carried in the `follows` document beside the follows
+and printed by `temper ctl follow list`, "dependency 1: fabrig depends
+on vsr-rs"; nothing acts on it, and Home's What follows what draws it
+with the follows (`draft/surfaces.status.md`, 3).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -91,6 +97,7 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/dependencies.md`](domain/forge/dependencies.status.md)
 - [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)
