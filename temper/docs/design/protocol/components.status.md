@@ -5,4 +5,5 @@
 - **Not yet:** `crates/temper-protocol-records-forge`: no such crate; the records' reading at start is `temper-protocol-records`' `forge` feature, which the engine's service switches on. [in flight: change 1048]
 - **Not yet:** `crates/temper-service-core`, `crates/temper-engine-service`, `crates/temper-worker-service` and `crates/temper-service`: one crate, `temper-service`, holds both halves and their composition, the worker's half its `worker` feature (`services.status.md`).
 - **Not yet:** `crates/temper-service-shell`, `crates/temper-engine-shell`, `crates/temper-worker-shell` and `crates/temper-box-shell`: the service shell's host formats every half's lines on the engine's forge crates, and the engine's shell starts every shape, given `serve::WorkerHalf` (`services.status.md`).
-- **Not yet:** `crates/temper-client-redaction`, `crates/temper-client-web-page` and `crates/temper-client-shell-web`'s settings: no such crates; the shared redaction is the web shell's, the shell is the bundle's `cdylib`, and its settings are features.
+- **Not yet:** `crates/temper-client-redaction`: no such crate; the shared redaction is the web shell's. [in flight: change 1100]
+- **Not yet:** `crates/temper-client-web-page` and `crates/temper-client-shell-web`'s settings: no such crate; the shell is the bundle's `cdylib`, and its settings are features.

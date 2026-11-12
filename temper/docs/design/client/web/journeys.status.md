@@ -4,7 +4,7 @@
 
 - **Not yet:** 2 and 3.1, 6 and 8.1: the `journey` module builds in the browser only with the shell's `record` feature, and the recording bundle is built apart with `scripts/bundle.sh --loopback --record`; no page setting turns the recorder on.
 
-- **Not yet:** 2: the redaction's and the scan's shared code is the shell's own `journey` module's; there is no `temper-client-redaction`.
+- **Not yet:** 2: the redaction's and the scan's shared code is the shell's own `journey` module's; there is no `temper-client-redaction`. [in flight: change 1100]
 
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
