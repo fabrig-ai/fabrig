@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
@@ -111,4 +111,5 @@ of each screen in a real terminal against its mockup follows landing
 (`../README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../../draft/surfaces.status.md`.
 
-- **Not yet:** 3: the host gives the root no `Event::Launchpad` after `Start` (*The launchpad's reads*) [in flight: change 785].
+- **Not yet:** 3: the host following `Talk { project, task }`, its events `Accept` and `Leave`, Esc and `/exit` leaving a talk, and `Own::Talk`, `/talk WORDS` and `/tell WORDS` on Send.
+- **Not yet:** 3: `Own::Tell` and `/tell WORDS` on Send.

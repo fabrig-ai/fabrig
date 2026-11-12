@@ -1,6 +1,6 @@
 # standing-roles: status
 
-2026-11-11. Where the design lags or departs from [standing-roles.md](standing-roles.md).
+2026-11-12. Where the design lags or departs from [standing-roles.md](standing-roles.md).
 
 Sections 2, 3, 5 and 9, are carried by jig's
 `domain/tasks/standing.md` and `../domain/agent/standing.md`, milestone R1
@@ -16,12 +16,13 @@ milestone R2, but for the lags and departures below.
 - **Design lags:**
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.md`, 7).
-  - 6 and 7: the pages draw no talk and no report: Team's "Talk to it", a
-    session's line of what it did, read from its last `NowWritten`, and
-    its weekly report, and the terminal's `/talk`, are
-    `surfaces.status.md`'s, 6 and 11 (`whole-story.execution.md`, P4c and
-    T3); `../domain/agent/standing.md`, sections 7 and 8 carry the engine's
-    side and `temper ctl role talk`.
+  - 6 and 7: the web's pages draw no talk and no report: Team's "Talk to
+    it", a session's line of what it did, read from its last
+    `NowWritten`, and its weekly report are `surfaces.status.md`'s, 6
+    (`whole-story.execution.md`, P4c); `../domain/agent/standing.md`,
+    sections 7 and 8 carry the engine's side and `temper ctl role talk`,
+    and `../client/pages/talk.md` and `../client/tui/pages/talk.md` the
+    terminal's `/talk` (T3).
   - 10: no page draws a project's standing roles with their areas, wakes
     and budgets on How work runs, nor "Hand an area to a role" on Team:
     `../client/pages/team.md` leaves its areas and that act to its later
