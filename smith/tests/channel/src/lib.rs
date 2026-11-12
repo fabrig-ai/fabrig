@@ -567,7 +567,7 @@ impl World {
                 calls: 8,
                 turns: 8,
                 grants: 8,
-                ..agent::fixture::small()
+                ..smith_protocol_channel_fixtures::small()
             },
             mode,
         );
@@ -1267,7 +1267,7 @@ pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transc
 pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     use smith_domain_session::{llm, record};
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
-    smith_domain::session::fixture::turn(
+    smith_domain_session_fixtures::turn(
         b"model".as_slice().into(),
         record::Kind::First(Box::new(record::Opener {
             system: None,

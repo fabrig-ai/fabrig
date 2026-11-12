@@ -4269,7 +4269,11 @@ dependencies = [
  "skein-world",
  "smith-agent-service",
  "smith-domain",
+ "smith-domain-fixtures",
+ "smith-domain-run-fixtures",
+ "smith-domain-session-fixtures",
  "smith-domain-tools",
+ "smith-domain-tools-fixtures",
  "smith-host-domain",
  "smith-host-world",
  "smith-protocol-llm",
@@ -4338,12 +4342,15 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-domain",
+ "smith-domain-fixtures",
  "smith-domain-session",
+ "smith-domain-session-fixtures",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-host-world",
  "smith-protocol-channel",
+ "smith-protocol-channel-fixtures",
  "smith-protocol-translate",
  "smith-transcript",
 ]
@@ -4381,8 +4388,22 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-run",
+ "smith-domain-run-fixtures",
  "smith-domain-session",
+ "smith-domain-session-fixtures",
  "smith-domain-tools",
+ "smith-domain-tools-fixtures",
+]
+
+[[package]]
+name = "smith-domain-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain",
+ "smith-domain-run-fixtures",
+ "smith-domain-session-fixtures",
+ "smith-domain-tools-fixtures",
 ]
 
 [[package]]
@@ -4393,11 +4414,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-domain-run-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain-run",
+]
+
+[[package]]
 name = "smith-domain-session"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-tools",
+ "smith-domain-tools-fixtures",
+]
+
+[[package]]
+name = "smith-domain-session-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-domain-tools-fixtures",
 ]
 
 [[package]]
@@ -4405,6 +4445,14 @@ name = "smith-domain-tools"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+]
+
+[[package]]
+name = "smith-domain-tools-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain-tools",
 ]
 
 [[package]]
@@ -4497,9 +4545,11 @@ dependencies = [
  "skein-world",
  "smith-agent-world",
  "smith-domain",
+ "smith-domain-session-fixtures",
  "smith-host-domain",
  "smith-host-domain-fixtures",
  "smith-inline-agent",
+ "smith-inline-agent-fixtures",
  "smith-machine-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
@@ -4545,7 +4595,17 @@ dependencies = [
  "skein-lib",
  "smith-agent-world",
  "smith-domain",
+ "smith-domain-session-fixtures",
  "smith-host-domain",
+]
+
+[[package]]
+name = "smith-inline-agent-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain",
+ "smith-inline-agent",
 ]
 
 [[package]]
@@ -4601,6 +4661,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-agent-world",
  "smith-domain",
+ "smith-domain-session-fixtures",
  "smith-events",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
@@ -4786,8 +4847,20 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-domain-session",
+ "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-protocol-translate",
+ "smith-transcript",
+]
+
+[[package]]
+name = "smith-protocol-channel-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "smith-channel",
+ "smith-charter",
+ "smith-protocol-channel",
  "smith-transcript",
 ]
 
@@ -4830,7 +4903,7 @@ dependencies = [
  "skein-llm-kit",
  "skein-tls",
  "smith-domain",
- "smith-domain-tools",
+ "smith-domain-tools-fixtures",
  "smith-events",
 ]
 
@@ -4868,6 +4941,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-domain-session",
+ "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-events",
  "smith-events-fixtures",
@@ -4970,6 +5044,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
+ "smith-domain-run-fixtures",
  "smith-machine-world",
  "smith-tools-world",
 ]
@@ -4987,7 +5062,9 @@ dependencies = [
  "skein-world",
  "smith-domain",
  "smith-domain-session",
+ "smith-domain-session-fixtures",
  "smith-domain-tools",
+ "smith-domain-tools-fixtures",
  "smith-tools-world",
 ]
 
@@ -4999,6 +5076,7 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-domain-tools",
+ "smith-domain-tools-fixtures",
 ]
 
 [[package]]

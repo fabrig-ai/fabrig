@@ -433,7 +433,7 @@ fn initial_window() -> smith_local_protocol::File {
     let endpoints = smith_local_process_world::process::lower_configuration().channel_endpoints;
     let turn = smith_domain::Turn {
         dialect: 3,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
                 system: None,

@@ -86,6 +86,13 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
   fixtures they read, and a fixture both they and other crates' tests
   read is held in each: the crate's copy for its step tests, the
   fixtures crate's for the rest.
+- **A whole `Limits` literal is a fixture's,** so a fixtures crate's
+  copies of one aren't old forms: smith's count of whole `Limits`
+  literals (`full_limits`, `smith/scripts/old_forms.py`) skips
+  `smith/testing/`, where only fixtures crates live, and counts the
+  crate's own `#[cfg(test)]` copy where the crate keeps it. A count
+  every fixtures change raised in step would only conflict on its one
+  line (the user, 2026-11-12).
 - **A test's fake program** that a package's tests run is the fake's
   package's own binary, found where the build puts it beside the
   binary under test; the package under test takes the fake's crate as
