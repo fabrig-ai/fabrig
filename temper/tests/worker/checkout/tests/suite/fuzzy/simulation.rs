@@ -23,17 +23,7 @@ fn random_worlds_settle_with_every_client_heard() {
     let (mut cached, mut races) = ([0; 4], [0; 9]);
     let mut queued = 0;
     for seed in 0..1040 {
-        let mut settings = if seed < 1000 {
-            noisy(seed)
-        } else {
-            Settings {
-                local: Span::millis(100, 100),
-                remote: Span::millis(1, 1),
-                think: Span::millis(0, 0),
-                ..Settings::calm(seed)
-            }
-        };
-        settings.checkout.preparations = u32::try_from(Rng::new(seed).between(1, u64::from(settings.checkout.workspaces))).expect("small");
+        let settings = settings(seed);
         let mut world = World::new(settings);
         if seed < 1000 {
             submit_noisily(&mut world, &settings, seed);
@@ -125,4 +115,19 @@ fn random_worlds_settle_with_every_client_heard() {
         "cancels lost and crossed, deadlines passed, stale handles, base branches created meanwhile, io failed, \
          io in doubt, pushes verified, workspaces made over something: {races:?}"
     );
+}
+
+fn settings(seed: u64) -> Settings {
+    let mut settings = if seed < 1000 {
+        noisy(seed)
+    } else {
+        Settings {
+            local: Span::millis(100, 100),
+            remote: Span::millis(1, 1),
+            think: Span::millis(0, 0),
+            ..Settings::calm(seed)
+        }
+    };
+    settings.checkout.preparations = u32::try_from(Rng::new(seed).between(1, u64::from(settings.checkout.workspaces))).expect("small");
+    settings
 }

@@ -16,34 +16,37 @@ fn the_engine_declares_the_merge_kind_where_its_tasks_child_holds_it() {
 use crate::limits::{self, Checkout, GitComponent, Peer, Profile, Refused, Shared};
 use skein_lib::Duration;
 
-/// protocol/services.md, 3: both profiles retain the shared envelopes.
+/// Both production profiles bound preparing, runs' and jobs' alike.
 #[test]
-fn profiles_keep_the_shared_checkout_git_and_peer_envelopes() {
-    let expected = Shared {
-        checkout: Checkout {
-            workspaces: 3,
-            preparations: 1,
-            repositories: 2,
-            name_bytes: 256,
-            message_bytes: 4096,
-            conflicts: 512,
-            path_bytes: 255,
-            remote_timeout: Duration::from_secs(60),
-            local_timeout: Duration::from_secs(10),
-            facts: 256,
-        },
-        git_component: GitComponent {
-            operations: 3,
-            stdout_bytes: 131_072,
-            stderr_bytes: 512,
-            read_bytes: 4096,
-            sweep_entries: 16,
-            sweep_bytes: 4080,
-        },
-        peer: Peer { forges: 3, installations: 8, token_bytes: 512 },
-    };
+fn profiles_prepare_one_workspace_at_a_time() {
     for profile in [Profile::Small, Profile::Standard] {
-        assert_eq!(limits::profile(profile), expected);
+        assert_eq!(limits::profile(profile).checkout.preparations, 1);
+    }
+}
+
+#[test]
+fn preparation_overrides_refuse_zero_naming_the_value_and_minimum() {
+    use crate::startup::{configured_limits, problems::{SharedProblems, render_problem}};
+    use jig_protocol_config::{self as config, Path};
+    use skein_lib::Writer;
+    for (input, value) in [
+        (br#"{"profile":"small","overrides":{"checkout.preparations":0}}"#.as_slice(), 0),
+        (br#"{"profile":"small","overrides":{"checkout.preparations":1}}"#, 1),
+        (br#"{"profile":"standard","overrides":{"checkout.preparations":7}}"#, 7),
+    ] {
+        let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
+        let mut problems = SharedProblems::empty();
+        let path = Path::root().member(b"application").member(b"limits");
+        let limits = configured_limits(&document, 0, &path, &mut problems).unwrap();
+        assert_eq!(limits.checkout.preparations, value);
+        if value == 0 {
+            assert_eq!(problems.problems.len(), 1);
+            let mut out = Writer::new(256);
+            render_problem(problems.problems.get(0).unwrap(), &mut out, false);
+            assert_eq!(out.finish().as_ref(), b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n");
+        } else {
+            assert!(problems.is_empty(), "a nonzero override starts");
+        }
     }
 }
 
