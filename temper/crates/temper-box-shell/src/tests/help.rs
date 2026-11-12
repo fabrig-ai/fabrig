@@ -94,6 +94,17 @@ fn server_walk_gives_the_agents_environment_as_entries() {
 }
 
 #[test]
+fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
+    let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in ["`KillMode=control-group`", "`TimeoutStopSec=240s`", "186-second stop bound", "54-second margin", "Raising the worker's bound raises this timeout too"] {
+        assert!(text.contains(required), "step 5 must explain {required}");
+    }
+}
+
+#[test]
 fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let page = help::answer(&configured(&["help", "server"])).expect("server walk");
     let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
