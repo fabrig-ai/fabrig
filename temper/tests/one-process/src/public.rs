@@ -60,11 +60,15 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     // Workflow discovery can share the fixture's four foreground logical-call slots.
     value["application"]["limits"]["overrides"]["forge.client.pending"] = 5.into();
     value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
+    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     // Merge setup and workflow discovery fit one forge rate window before visitor reads.
     value["application"]["limits"]["overrides"]["forge.client.rate"] = 1000.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
     for worker in value["workers"].as_array_mut().expect("workers") {
         worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+        worker["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
+        worker["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
     }
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
