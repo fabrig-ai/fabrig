@@ -83,7 +83,9 @@ impl Pipe {
     pub(crate) fn pending(way: Way) -> Pipe {
         match way {
             Way::In | Way::Out => {}
-            Way::Given(_) | Way::Null => unreachable!("a given or null descriptor has no io pipe entity"),
+            Way::Given(_) | Way::Null | Way::Inherit => {
+                unreachable!("a given, null or inherited descriptor has no io pipe entity")
+            }
         }
         Pipe {
             child: None,
@@ -176,7 +178,9 @@ pub(crate) fn resume(
                     demand: room,
                     finishing: Finish::More,
                 }),
-                Way::Given(_) | Way::Null => unreachable!("a given or null descriptor has no io pipe entity"),
+                Way::Given(_) | Way::Null | Way::Inherit => {
+                    unreachable!("a given, null or inherited descriptor has no io pipe entity")
+                }
             }
         }
         State::Pending
@@ -270,7 +274,9 @@ fn asked(
     match pipe.way {
         Way::In => assert!(read == Read::Nothing, "a parent write pipe has no read side"),
         Way::Out => assert!(room == 0, "a parent read pipe has no write side"),
-        Way::Given(_) | Way::Null => unreachable!("a given or null descriptor has no io pipe entity"),
+        Way::Given(_) | Way::Null | Way::Inherit => {
+            unreachable!("a given, null or inherited descriptor has no io pipe entity")
+        }
     }
     assert!(room == 0 || pipe.independent.idle(), "classic room cannot overlap independent output");
     assert!(vacant, "one demand at a time");

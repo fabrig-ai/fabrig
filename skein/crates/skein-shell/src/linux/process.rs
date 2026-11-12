@@ -140,7 +140,7 @@ fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
     let mut parents = Vec::with_capacity(command.pipes.len());
     let mut children = Vec::with_capacity(command.pipes.len());
     for pipe in &command.pipes {
-        if pipe.way == Way::Null {
+        if pipe.way == Way::Null || pipe.way == Way::Inherit {
             parents.push(None);
             children.push(None);
             continue;
@@ -167,7 +167,7 @@ fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
         let (parent, child) = match pipe.way {
             Way::In => (write, read),
             Way::Out => (read, write),
-            Way::Given(_) | Way::Null => unreachable!("given and null descriptors do not make pipes"),
+            Way::Given(_) | Way::Null | Way::Inherit => unreachable!("only In and Out make pipes"),
         };
         // Move the source above every child target: ordered dup2 actions can
         // then never overwrite the source of a later action.
@@ -201,6 +201,10 @@ fn child_actions(
 ) -> Result<(), i32> {
     for (pipe, child) in command.pipes.iter().zip(children) {
         let to = i32::try_from(pipe.child).map_err(|_| libc::EINVAL)?;
+        // closefrom starts above every requested target; standard descriptors stay open.
+        if pipe.way == Way::Inherit {
+            continue;
+        }
         match child {
             Some(child) => {
                 // SAFETY: both descriptors are valid, and actions is initialized.
@@ -676,3 +680,7 @@ pub(crate) fn wait_cgroup_change(descriptor: Fd, millis: u32) -> Result<(), Erro
 }
 
 pub(crate) fn forget(_handle: Fd) {}
+
+#[cfg(test)]
+#[path = "../process_actions_tests.rs"]
+mod tests;
