@@ -125,9 +125,9 @@ jig-domain-core/src/
 
 Each directory is one concept of this document; a route lives under the kind of route it is, whatever child it steps.
 
-`jig-domain-core-vocabulary/src/` has the same tree, holding each module's vocabulary: `vocabulary.rs`,
-`numbers.rs`, `limits.rs` and `translate.rs` whole, most of `stored.rs`, `settings/` and `public/`,
-and the parts of the other modules that cross the core's edge.
+`jig-domain-core-vocabulary/src/` has the same tree, holding each module's vocabulary: `numbers.rs`,
+`limits.rs`, `translate.rs` and `public.rs` whole, most of `vocabulary.rs`, `stored.rs` and
+`settings/`, and the parts of the other modules that cross the core's edge.
 
 The core's vocabulary is a crate of its own, below the core
 (`temper/docs/design/draft/crate-graph.md`, 5):
@@ -136,8 +136,8 @@ The core's vocabulary is a crate of its own, below the core
   events, requests, writes and limits of section 4; the records, keys and run proofs; the
   documents, reads and settings; the numbers), with every item that their definitions, their
   inherent methods and their trait impls reach. None of it names `Core`. A file goes whole where
-  the rest of it names no `Core` and reaches nothing that does. Otherwise its vocabulary goes and
-  the rest stays.
+  the rest of it reaches nothing but the vocabulary and itself. Otherwise its vocabulary goes and
+  the rest stays, so the core's own state, such as `settings::Restoring`, stays with the core.
 - **`jig-domain-core` keeps `Core`:** its state, its construction, its step, every method and
   function that reads or changes it, the helpers only they use, and the step tests that drive it.
   `Core` isn't cut, since every module adds methods to it
