@@ -543,7 +543,7 @@ preparing, held until its claim commits:
   client's admission (`Busy`) is retained and retried after the client
   reclaims, within the gather's deadline. A read sent but unanswered
   at that deadline leaves its required section late: the brief fails,
-  counting as transient, and no attempt is spent. A section whose bytes
+  counting as an infrastructure failure, and no attempt is spent. A section whose bytes
   the forge no longer has fails the brief too, counting as permanent
   (jig's `domain/engine/briefs.md`, 1.1).
 

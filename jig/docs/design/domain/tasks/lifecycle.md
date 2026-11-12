@@ -193,8 +193,13 @@ them (8).
   that fails is tried again after a jittered backoff, within a number
   of tries per class of failure:
   - *transient:* a peer unavailable, the engine's own reads missing, a
-    transcript the agent could not use (../engine/executors.md, 2), a brief's
-    required section late or its system failing for now (../engine/briefs.md, 1.1);
+    transcript the agent could not use (../engine/executors.md, 2);
+  - *infrastructure:* a preparation that failed for now because a system
+    it needs did: a workspace its host could not prepare for now
+    (../hosts/hub.md, 3), for a run or a job alike, or a brief's required
+    section whose system failed for now or that was not gathered by the
+    brief's deadline (../engine/briefs.md, 1.1). Its allowance and backoff
+    are its own (below);
   - *permanent until something on a system changes:* a resource missing,
     an identity refused, an assignment its host found invalid, a brief
     whose system answers wrongly or whose required section cannot fit
@@ -222,6 +227,25 @@ them (8).
   Every attempt, a failed one included, takes a new attempt number.
   A standing task's tries start again as each of its sessions begins
   (`standing.md`, 5.1).
+- **Infrastructure failures wait longer, within a bound of their own.**
+  A forge or a network down for minutes, or a burst of preparations
+  timing out together, holds no task, while a run's own failures keep
+  their tries. Each class counts its own tries: an infrastructure
+  failure spends none of another class's, and another class's failure
+  none of its. Its defaults, both profiles alike: 12 tries, its backoff
+  starting at 10 seconds and doubling up to 5 minutes (the same jittered
+  backoff as every class's), so a task fails for its infrastructure for
+  about half an hour, between some 20 and 40 minutes, before it is held.
+  Every other class keeps 3 tries, from 1 second up to 30. They are
+  configured as every class's are, `tasks.retries.infrastructure.retries`,
+  `.base_ms` and `.max_ms`. Past them the task is held for `Failures` of
+  the infrastructure class, as for any class, its hold's words its last
+  failure's reason, which names what failed: the host's detail, cut as a
+  failed job's is (../hosts/hub.md, 3), or the brief's section and words
+  (../engine/briefs.md, 1.1). A preparation that always fails still
+  holds, past that bound. A run whose account waits turns an
+  infrastructure failure into a recheck as it does a transient one
+  (../accounts.md, 3.5).
 - **A configured bound holds at once.** `End::Exceeded(Exceeded)` becomes
   `Hold::Exceeded(Exceeded)`, with prior lifecycle `Active(Due)` and no
   source. The tasks child's own `Exceeded { bound: Bound, value: u64 }`

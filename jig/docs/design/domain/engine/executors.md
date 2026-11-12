@@ -614,8 +614,9 @@ once, as the worker's hello is. A batch naming an undeclared job kind is
 refused as `Executor`; a job's spec or deadline beyond its declared bound is
 refused as `Spec` (2026-11-04).
 
-A job's transient preparation or failed delivery uses the transient retry
-class; permanent preparation, stale or refused delivery, and an invalid
+A job's transient preparation uses the infrastructure retry class
+(../tasks/lifecycle.md, 6), and its failed delivery the transient one;
+permanent preparation, stale or refused delivery, and an invalid
 assignment use the permanent class. Its own failure and deadline use the
 run's-own class; failure to start uses the agent's class; an oversized
 result uses invalid; lost contact and shutdown use lost. Engine cancellation

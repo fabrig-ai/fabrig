@@ -139,7 +139,11 @@ Typed, so the engine can act on them without reading prose:
 - **preparation failed:** transient (the system could not be reached,
   the worker's side failed or ran out of time, another run of the
   workstream holds its workspace), or permanent until something changes
-  on a system, naming the resource the workspace says;
+  on a system, naming the resource the workspace says. The engine counts
+  a transient one, a run's or a job's, as an infrastructure failure
+  (../tasks/lifecycle.md, 6), its detail the task's reason, cut to its
+  last `REASON_BYTES` as a failed job's is (9), so that its hold names
+  what failed; a permanent one as permanent;
 - **the run failed,** as it reports it (smith's `domain/run.md`,
   section 9), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which

@@ -378,7 +378,10 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   worker's side failed or ran out of time, another run of the workstream
   holds its checkout, or every checkout is held), or permanent until
   something changes on the forge, naming the repository: the forge does
-  not have it, a branch or a commit, or it refuses the identity.
+  not have it, a branch or a commit, or it refuses the identity. jig
+  counts a transient one as an infrastructure failure, within its own
+  longer allowance, its detail naming the step and git's fault on the
+  task's hold (jig's `domain/tasks/lifecycle.md`, 6).
 - **The run failed,** the **agent failed,** or the run was
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
