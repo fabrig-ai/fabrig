@@ -1,4 +1,5 @@
 //! Connection machinery and each forge's start.
+use skein_forge_connection::seam::{Access, ConnectionAccess};
 use skein_forge_machine_world::hand as fixtures;
 use skein_lib::{Duration, Time};
 use std::boxed::Box;

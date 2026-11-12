@@ -1,9 +1,10 @@
 //! Machine-world state access (skein/docs/design/forge/connection.md, 10).
 use super::{Component, Connection, Dialect, Event, ForgeEntry, GitHubForge, Limits, Side, Start};
+use crate::seam::{Access, ConnectionAccess};
 use skein_lib::{Env, Queue};
 
-impl Component {
-    pub fn test_github_bearer(
+impl Access for Component {
+    fn test_github_bearer(
         &mut self,
         app: u64,
         key: &skein_lib::Secret,
@@ -12,7 +13,7 @@ impl Component {
     ) -> Option<&skein_lib::Secret> {
         self.test_github_mut().jwt.bearer(app, key, wall, deadline)
     }
-    pub fn test_calls_ready(&mut self, access: crate::Access) {
+    fn test_calls_ready(&mut self, access: crate::Access) {
         self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
         self.forges.get_mut(0).expect("forge").base.forge.access = Some(access);
         let gh = self.test_github_mut();
@@ -20,14 +21,13 @@ impl Component {
         gh.identity_checked = true;
         gh.baseline = false;
     }
-    #[must_use]
-    pub fn test_github(&self) -> &crate::installations::GitHub {
+    fn test_github(&self) -> &crate::installations::GitHub {
         &self.test_github_forge().state
     }
-    pub fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
+    fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
         &mut self.test_github_forge_mut().state
     }
-    pub fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
+    fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
         let before = up.len();
         let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
         match dialect {
@@ -41,11 +41,17 @@ impl Component {
             }
         }
     }
-}
 
-impl Component {
-    #[must_use]
-    pub fn test_github_handoffs(&self) -> u32 {
+    fn test_last_connection(&mut self) -> &mut Connection {
+        let (_, id) = self.common.connections.last().expect("fixture connection");
+        self.common.connection_slab.get_mut(*id).expect("indexed connection")
+    }
+    fn test_open_call(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+        let forge = &self.forges.get(0).expect("fixture forge").base.forge;
+        self.common.open_call_origin(forge, None, env, io);
+    }
+
+    fn test_github_handoffs(&self) -> u32 {
         let mut count = 0_u32;
         for entry in &self.forges {
             match &entry.dialect {
@@ -86,23 +92,11 @@ impl Component {
     }
 }
 
-impl Component {
-    pub fn test_last_connection(&mut self) -> &mut Connection {
-        let (_, id) = self.common.connections.last().expect("fixture connection");
-        self.common.connection_slab.get_mut(*id).expect("indexed connection")
-    }
-    pub fn test_open_call(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
-        let forge = &self.forges.get(0).expect("fixture forge").base.forge;
-        self.common.open_call_origin(forge, None, env, io);
-    }
-}
-
-impl Connection {
-    #[must_use]
-    pub fn test_deadline(&self) -> Option<skein_lib::Time> {
+impl ConnectionAccess for Connection {
+    fn test_deadline(&self) -> Option<skein_lib::Time> {
         self.deadline()
     }
-    pub fn test_until(&mut self, until: Option<skein_lib::Time>) {
+    fn test_until(&mut self, until: Option<skein_lib::Time>) {
         self.until(until);
     }
 }
