@@ -611,6 +611,12 @@ without it.
   fingerprint, built again at each switch between clippy and build),
   with `CARGO_TARGET_DIR` set anew. It keeps the jobserver
   (`CARGO_MAKEFLAGS`), so that its jobs count within the outer build's.
+- **Its own selection:** both nested cargo commands run with
+  `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`, against the workspace's
+  unification of every member (`skein/docs/foundation/cli.md`, 3). The
+  module's features come from the packages it builds alone, so a union
+  resolved for `wasm32-unknown-unknown` over members that never build
+  there doesn't reach it.
   Its stdout goes to the script's stderr, since cargo reads the
   script's stdout.
 - **Rebuilt only when what it is made from changes,** each by

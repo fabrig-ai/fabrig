@@ -21,6 +21,9 @@ its check of the draft's section 7 (features, codec crates, shared test code) to
 - **The codec check** finds a package holding generated record code that depends on a workspace
   crate other than `skein-lib` and `skein-codec`, so that generated code compiles beside the domains
   (section 3.2).
+- **The features check** reads three fixed contexts with `cargo metadata` and `cargo tree`: each
+  root entry a member names there asks for every feature its crate resolves to, a platform's own
+  entry is named on its platform alone, and Cargo's unification is set (section 3.3).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -163,6 +166,80 @@ their generated record code to their codec crates (jig's `protocol/README.md`, s
 temper's `protocol/store.md`, section 4). The check reads section 2.2's classification of files as
 the size check does, so the two agree on what generated record code is.
 
+### 3.3 Features
+
+`tests/boundary/tests/features.rs`, from `temper/docs/design/draft/crate-graph.md`, 3.5 and 7.1. It
+holds the external crates' rule of `skein/docs/foundation/cli.md`, 3: one feature set for every
+build of a context. That document's check 3 (its section 9), in `tests/boundary/tests/cli.rs`, finds
+a member's dependency that neither names a path nor inherits; this check takes the rest. It has no
+exceptions: milestone G1 lands the rule whole.
+
+**The contexts,** fixed, each with the dev-dependencies, the mode landings build
+(`skein/docs/foundation/cli.md`, 3):
+
+| Context | Why |
+|---|---|
+| `x86_64-unknown-linux-gnu` | the builders' native target |
+| `aarch64-apple-darwin` | the macOS workflows' builds |
+| `wasm32-unknown-unknown` | the browser's and the playground's modules |
+
+Each context's reading lists the host's packages, for build scripts and procedural macros, beside
+the target's, so the host is read in each.
+
+**What a context reads,** building nothing, each command once per run of the test binary and shared
+by its tests:
+
+- `cargo metadata --format-version 1 --offline --locked --filter-platform TARGET`:
+  - the entries each member names on that target: its resolve node's dependencies on packages
+    outside the workspace, each by its name in code (`rustls_std` for the root's `rustls-std`) and
+    the package it resolves to;
+  - what each entry asks, from the members' dependency records of it (`features` and
+    `uses_default_features`), which inherit the root's entry;
+  - each external package's feature table.
+- `cargo tree --workspace --offline --locked --target TARGET`, with every kind of edge (normal, build
+  and dev), printing each package with its enabled features: what each package resolves to there, at
+  each of its occurrences, the host's among them.
+
+**What an entry asks:** its features, with `default` unless it sets `default-features = false`,
+closed under its package's feature table: a feature adds the features it lists; `NAME/FEATURE` adds
+`NAME` when the package has a feature of that name; `dep:NAME` and `NAME?/FEATURE` add nothing. For
+example, serde 1.0.229's entry `{ version = "1", features = ["derive"] }` asks `default`, `std`,
+`derive` and `serde_derive`, and not `alloc`, which the workspace resolves.
+
+**The platform entries,** a fixed table, as `skein/docs/foundation/cli.md`, 3, names the one pair:
+
+| Entry | Its platforms |
+|---|---|
+| `rustls` | `wasm32-unknown-unknown` |
+| `rustls-std` | `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin` |
+
+Every other entry may be named in any context.
+
+**Its findings:**
+
+- **A feature the entry doesn't ask:** in a context, an entry that a member names there, whose
+  package has an occurrence there with a feature the entry doesn't ask. The finding names the
+  context, the entry, the package and the features. Its repair is the root's entry, raised to the
+  union. An entry may ask for more than its crate resolves to: that is no finding.
+- **An entry its members ask differently:** two members' records of one entry that ask different
+  features or defaults. Only a member choosing features can make it, which check 3 also finds.
+- **A platform's entry outside its platforms:** a member that names a platform entry in a context the
+  table doesn't give it. The finding names the member, the entry and the context. The check reads
+  where Cargo resolves the entry, not the condition's text, so a narrower condition holds, as
+  `skein-fake-peers`'s `cfg(unix)` for `rustls-std`.
+- **A setting missing:** `.cargo/config.toml` at the repository's root without `feature-unification =
+  true` in its `[unstable]` table, or without `feature-unification = "workspace"` in its `[resolver]`
+  table. The file is read by lines: a table's header, then its keys until the next header, with
+  comments and blank lines skipped.
+- **A source the check can't read:** a command that fails, output it can't parse, a package its
+  metadata doesn't hold, or a missing `.cargo/config.toml`. Each fails the check and is never
+  skipped.
+
+**The bundle's nested build** sets `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
+(`temper/docs/design/client/web/README.md`, 2.6). Its own crate's step tests pin it on the nested
+commands they already read (`temper-client-bundle`'s `tests/steps.rs`), since the boundary suite
+can't call a build script's code.
+
 ## 4. The figure
 
 ### 4.1 Its commands
@@ -292,8 +369,10 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
 
 ## 5. Open questions and Later
 
-- **Later: the draft's other checks** join section 3 with their milestones: features (G1) and
-  shared test code (G8). The last reads test targets' module trees by section 2.1's rules.
+- **Later: the draft's other check** joins section 3 with its milestone: shared test code (G8). It
+  reads test targets' module trees by section 2.1's rules.
+- **Later: more contexts** for the features check (section 3.3), each a row of its table, if the
+  repository builds for another platform.
 - **Later: the codec check's exceptions** (section 3.2), each removed by its crate's codec crate in
   G3.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
