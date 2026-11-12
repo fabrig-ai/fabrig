@@ -840,7 +840,7 @@ fn world_in_layout(
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
                         }
-                        c::Subject::Chips { .. } => None,
+                        c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);

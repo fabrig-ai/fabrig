@@ -567,7 +567,8 @@ fn home_documents_with_status(
                 | c::Subject::Inbox { .. }
                 | c::Subject::Run { .. }
                 | c::Subject::Deployment
-                | c::Subject::Accounts => {}
+                | c::Subject::Terminal { .. }
+        | c::Subject::Accounts => {}
             }
         }
     }

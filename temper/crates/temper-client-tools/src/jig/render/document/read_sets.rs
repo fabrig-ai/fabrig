@@ -249,7 +249,8 @@ fn encode_documents(reading: &Reading, limits: &Limits, compound: bool, out: &mu
             | c::Delivery::Tasks(_)
             | c::Delivery::Settings(_)
             | c::Delivery::Deployment(_)
-            | c::Delivery::Accounts(_) => unreachable!("selected watch value"),
+            | c::Delivery::Terminal(_)
+        | c::Delivery::Accounts(_) => unreachable!("selected watch value"),
         }
     }
 }

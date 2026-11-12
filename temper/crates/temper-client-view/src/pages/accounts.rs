@@ -734,7 +734,10 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
                 None
             }
         }
-        c::AccountChange::CheckProgram { .. }
+        c::AccountChange::LoginProgram { .. }
+        | c::AccountChange::CancelLogin { .. }
+        | c::AccountChange::LoginEnded { .. }
+        | c::AccountChange::CheckProgram { .. }
         | c::AccountChange::AddKey { .. }
         | c::AccountChange::ReplaceKey { .. }
         | c::AccountChange::RemoveKey { .. }

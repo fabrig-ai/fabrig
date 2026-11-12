@@ -177,7 +177,8 @@ fn first_run_words(
                     | c::Subject::Inbox { .. }
                     | c::Subject::Tasks { .. }
                     | c::Subject::Run { .. }
-                    | c::Subject::Accounts => None,
+                    | c::Subject::Terminal { .. }
+        | c::Subject::Accounts => None,
                 };
                 let Some(delivery) = delivery else { continue };
                 Some(jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
