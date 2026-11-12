@@ -15,6 +15,8 @@ pub use table::TABLE;
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod again;
+pub mod drive;
+pub mod line;
 pub mod print;
 pub mod tui;
 pub mod tui_again;
