@@ -154,6 +154,8 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.templates = 3;
     engine_limits.people.initial_owners = projects + 1;
     engine_limits.people.requests = 16;
+    // Two fixture sign-ins, a member's ctl, its owner's ctl and a fresh replay.
+    engine_limits.people.sign_ins = 5;
     engine_limits.people.words = 512;
     engine_limits.tasks.message_bytes = 512;
     engine_limits.tasks.inbox_bytes = 1024;
@@ -862,6 +864,16 @@ impl Joint {
         joint.engine.delivered.clear();
         joint.engine.immediate.clear();
         joint
+    }
+
+    /// Subsequent ctl clients sign in as the asking world's seeded owner.
+    pub fn asking_owner(&mut self) {
+        self.caller = fixtures::PARTY;
+        self.sign_in_identity = Some(jig_domain_people::Identity {
+            key: temper_engine_domain_forge::user_key(1, 8),
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        });
     }
 
     /// Play a decoded run host call through the worker link. Decode and render

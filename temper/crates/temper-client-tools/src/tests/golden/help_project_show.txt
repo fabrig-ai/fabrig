@@ -4,4 +4,4 @@ Read a project, its public page, roles and spends, its open period and each part
 Prints: The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool
 --json: the record project.
 Key: none.
-Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so.
+Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.

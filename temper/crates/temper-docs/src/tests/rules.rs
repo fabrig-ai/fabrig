@@ -274,7 +274,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "select(.number == $role)",
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
-        "map(select(. != {\"charter\": 12}))",
+        "map(select(. != {\"charter\": 12} and . != {\"charter\": 6}))",
     ] {
         assert!(text.contains(command), "the reference's recipe must use: {command}");
     }

@@ -1,8 +1,14 @@
 //! A branch's path (temper/docs/design/domain/forge/change/branch-path.md).
 use alloc::boxed::Box;
+mod approvals;
 pub(crate) mod cards;
 mod derive;
+mod rows;
 mod rules;
+mod scopes;
+pub use approvals::approval_words;
+pub use rows::{PathRule, PathRules, rules_by_path};
+pub use scopes::{by_path, set_names};
 /// Who acts at a stop (domain/forge/change/branch-path.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Actor {
@@ -162,12 +168,13 @@ pub struct Repository {
     pub tiers: Box<[Tier]>,
 }
 
-/// A role of the project's policy: its name and whether the reader holds it.
+/// A role of the project's policy: its name, the reader's holding and its people count.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Role {
     pub number: u32,
     pub name: Box<[u8]>,
     pub yours: bool,
+    pub holders: u32,
 }
 
 /// What an agent's card says of a charter, gathered by the root.
@@ -186,6 +193,7 @@ pub struct Inputs {
     pub branch: Box<[u8]>, // the landing branch, as `main`
     pub repository: Option<Repository>,
     pub rules: Box<[temper_engine_domain_forge::settings::Held]>, // every rule held for the project, items laid over
+    pub sets: Box<[temper_protocol_reaches::PathSet]>,
     pub start: Start,
     pub producer: u32, // kind 3 number 1
     pub reviewer: u32, // kind 3 number 2

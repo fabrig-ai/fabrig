@@ -1244,6 +1244,7 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
  "jig-client-view",
+ "jig-core-kit",
  "jig-domain-people",
  "jig-protocol-transcript",
  "jig-test-profile",
@@ -5018,7 +5019,6 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
- "rustls",
  "serde_json",
  "skein-fail-stop",
  "skein-fake-forge-domain",
@@ -5219,6 +5219,7 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "sha2",
  "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",
@@ -5234,6 +5235,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-shell",
  "temper-version",
 ]
 
@@ -5246,6 +5248,13 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-redaction"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
 ]
 
 [[package]]
@@ -5319,8 +5328,8 @@ dependencies = [
  "smith-transcript",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-redaction",
  "temper-client-shell-terminal",
- "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
  "temper-shell",
@@ -5344,6 +5353,7 @@ dependencies = [
  "skein-world",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-redaction",
  "temper-client-view",
  "wasm-bindgen",
  "web-sys",
@@ -5390,6 +5400,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-protocol-reaches",
 ]
 
 [[package]]
@@ -5414,6 +5425,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-web-page"
+version = "0.0.0"
+dependencies = [
+ "temper-client-shell-web",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "temper-client-world"
 version = "0.0.0"
 dependencies = [
@@ -5424,6 +5443,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-domain",
  "jig-client-test-kit",
+ "jig-client-test-records",
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -5489,6 +5509,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-test-env",
@@ -6017,6 +6038,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-service",
 ]
@@ -6183,6 +6205,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-playground-page"
+version = "0.0.0"
+dependencies = [
+ "jig-client-shell-web",
+ "js-sys",
+ "skein-lib",
+ "skein-ui-web",
+ "temper-client-shell-web",
+ "temper-client-view",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "temper-playground-serve"
 version = "0.0.0"
 dependencies = [
@@ -6247,12 +6283,20 @@ dependencies = [
 name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
- "jig-protocol-config",
  "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "temper-protocol-records-forge"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
  "skein-forge",
  "skein-forge-connection",
  "skein-forge-setup",
  "skein-lib",
+ "temper-protocol-records",
 ]
 
 [[package]]
@@ -6287,6 +6331,28 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-qa"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-qa-tool",
+]
+
+[[package]]
+name = "temper-qa-tool"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "skein-scratch",
+ "skein-shell",
+ "temper-test-env",
+ "temper-version",
 ]
 
 [[package]]
@@ -6348,6 +6414,7 @@ dependencies = [
  "temper-github-app",
  "temper-playground",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-service",
  "temper-service-shell",
@@ -6443,14 +6510,28 @@ dependencies = [
  "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-service-core",
  "temper-settings-form",
  "temper-test-env",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+]
+
+[[package]]
+name = "temper-service-core"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
+ "jig-protocol-config",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-world",
 ]
 
 [[package]]

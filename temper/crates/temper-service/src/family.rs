@@ -1581,8 +1581,17 @@ fn follows_document(value: forge::FollowsView, limits: &w::Limits) -> Option<Box
             )
             .ok()?;
     }
+    let mut dependencies = List::with_capacity(limits.follows_panel_dependencies);
+    for row in value.dependencies {
+        dependencies
+            .push(
+                w::DependencyView::new(limits, w::DependencyViewParts { number: row.number, project: row.project })
+                    .ok()?,
+            )
+            .ok()?;
+    }
     Some(wire::follows_panel(
-        &w::FollowsPanel::new(limits, w::FollowsPanelParts { project: value.project, follows }).ok()?,
+        &w::FollowsPanel::new(limits, w::FollowsPanelParts { project: value.project, follows, dependencies }).ok()?,
     ))
 }
 

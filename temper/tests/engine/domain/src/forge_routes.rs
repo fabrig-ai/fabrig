@@ -2290,7 +2290,7 @@ impl World {
                     let result = match result {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
-                            if let skein_forge::api::Answer::Run(run) = &mut answer {
+                            if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .fake
                                     .inspect(&self.fake_env.limits, &repository, &raw::Read::Jobs { run: run.id })
@@ -2300,7 +2300,7 @@ impl World {
                                 };
                                 run.jobs = translate::run_jobs(jobs);
                             }
-                            Ok(answer)
+                            answer
                         }
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))

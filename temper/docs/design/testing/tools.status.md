@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-11. Where temper's code lags or departs from [tools.md](tools.md).
+2026-11-12. Where temper's code lags or departs from [tools.md](tools.md).
 
 - **Not yet:**
   - 4.4: the gallery, journeys, transcripts, stage-one and twin tools

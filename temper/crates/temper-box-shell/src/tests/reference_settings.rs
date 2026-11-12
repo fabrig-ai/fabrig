@@ -722,6 +722,7 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
         segment_bytes: 64,
         templates: 4,
         follows: 2,
+        dependencies: 4,
         follow_paths: 8,
         name_bytes: 64,
     };

@@ -75,6 +75,13 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
                 },
             },
         )?),
+        p::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks::new(
+            limits,
+            w::RefusalLiveTasksParts {
+                tasks: names(&tasks, limits.refusal_live_tasks_tasks, w::Path::RefusalLiveTasksTasks)?,
+                more,
+            },
+        )?),
         p::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle::new(
             limits,
             w::RefusalCircleParts {

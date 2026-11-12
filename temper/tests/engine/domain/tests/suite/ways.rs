@@ -10,6 +10,9 @@ use temper_engine_domain::{self as engine, Delivery, Event, PartyInput, ways};
 use temper_engine_domain_forge::{self as forge, settings};
 use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, kinds, store::Store};
 
+#[path = "ways/roles.rs"]
+mod roles;
+
 const PROJECT: u32 = 1;
 const FORGE: u16 = 1;
 const WATCHER: Token = Token::new(700);
@@ -937,4 +940,69 @@ fn ways_current_is_the_first_equal_path_and_see_ways_marks_yours() {
         assert!(text.contains("\n\nYours · now\n"), "{text}");
         assert_eq!(text.matches(" · now").count(), 1, "only Yours: {text}");
     }
+}
+
+#[test]
+fn path_sign_offs_refresh_when_another_person_becomes_an_owner() {
+    let mut driver = driver();
+    let other = member(&mut driver);
+    let mut rule = rule();
+    rule.sets = Box::new([1]);
+    rule.approvals = Box::new([settings::RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Clean }]);
+    let classes = temper_protocol_reaches::Classes {
+        items: Box::new([]),
+        sets: Box::new([temper_protocol_reaches::PathSet {
+            number: 1,
+            name: b"protocol core".as_slice().into(),
+            patterns: Box::new([b"protocol/**".as_slice().into()]),
+        }]),
+    };
+    change(
+        &mut driver,
+        20,
+        Box::new([
+            kinds::item(2, PROJECT, 1, &settings::Value::Rule(rule)),
+            kinds::item(8, PROJECT, 1, &settings::Value::Classes(classes)),
+        ]),
+    );
+    driver.settle();
+    let session = driver.session();
+    watch(&mut driver, session);
+    driver.settle();
+    let got = documents(&driver);
+    assert_eq!(got.len(), 1);
+    let stop = got[0].own.stops.iter().find(|stop| stop.step == ways::Step::Approve).unwrap();
+    assert_eq!((stop.words.as_ref(), stop.over.as_ref()), (b"you".as_slice(), b"if protocol core".as_slice()));
+    assert_eq!(
+        got[0].rules.rows.as_ref(),
+        [ways::PathRule {
+            paths: b"protocol/**".as_slice().into(),
+            review: Box::new([]),
+            sign_off: b"you".as_slice().into(),
+            lands: b"once you sign off".as_slice().into(),
+        }]
+    );
+    ack(&mut driver);
+    let mut holdings = driver
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            engine::Record::Core(jig_domain_core::Record::People(people::Stored::Roles {
+                project: PROJECT,
+                holdings,
+            })) => Some(holdings.clone()),
+            _ => None,
+        })
+        .unwrap();
+    for holding in &mut holdings {
+        holding.role = people::Role::Owner;
+    }
+    set_roles(&mut driver, 40, holdings);
+    let got = documents(&driver);
+    assert_eq!(got.len(), 2, "another person's role change marks the reader's document");
+    let stop = got[1].own.stops.iter().find(|stop| stop.step == ways::Step::Approve).unwrap();
+    assert_eq!((stop.words.as_ref(), stop.over.as_ref()), (b"one of you".as_slice(), b"if protocol core".as_slice()));
+    assert_eq!(got[1].rules.rows[0].sign_off.as_ref(), b"one of you");
+    assert_ne!(other, session);
 }

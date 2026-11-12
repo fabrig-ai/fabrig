@@ -92,7 +92,7 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
-| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
+| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red, and What follows what, vsr-rs following vsr's repository two behind with its check passing and fabrig depending on vsr-rs; the whole story's `home.html`, and `phone-home.html` at a phone's width |
 | `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
 | `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
 | `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`../pages/README.md`, *Away*, *On All projects*) |
@@ -198,6 +198,12 @@ from the engine's own answers, is where the look is tuned.
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
 | `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
+| `how-rules` | `how-reaches` with its path set named "protocol core" and a rule by path naming it, as the whole story's `how.html` draws vsr's: no stock way current, "Yours" shown, the project's words' heading "Draft first, with the protocol core asking you"; on its path, on main's segment after its check and repair, the stop "you" with "if protocol core" over it; Rules by path with "+ A rule", no "Review" column, a row of the set's patterns signed off by "you", "once you sign off", and the note |
+| `how-rules-card` | `how-rules` with the sign-off's stop pressed: its card, "Only for" the set's patterns, "Role" "owner", "Asks" "1 of them" and "Counts" |
+| `how-team` | hand-made deliveries as the whole story's `team/how.html` draws shop's, three owners, the reader one of them: "Yours" shown, its path with "review" and "one of you"; Rules by path with "Review", a row "payments/", "an agent", "two of you", "once two have signed this head", then "everything else", "an agent", "one of you", "once signed", and the note |
+| `night-how-team` | `how-team` with the night switch pressed: the table's chips by night |
+| `how-follows` | `how-draft` with a hand-made `follows` document, project document and standing roles: What follows a landing's box "cowsql/vsr-rs follows cowsql/vsr", "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat.", "Each waits for Pat's word.", its check's workflow, "2 behind · check passes at" its source commit's twelve digits, its chips "code hears the landing", "an agent ports" and "code checks"; the box "Tiers on main" from the path's tier, "code runs" and "an agent repairs"; Budgets' head "a week · renews Tuesday", a standing role's row, its title, "a standing role · 28 left" and "40", then "Goals", "80" (`../pages/settings.md`, 2) |
+| `night-how-follows` | `how-follows` with the night switch pressed: the chips' marks, code's square among them, by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |

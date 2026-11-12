@@ -2,7 +2,6 @@
 #![forbid(unsafe_code)]
 
 pub mod host;
-#[cfg(any(test, feature = "record"))]
 pub mod journey;
 pub mod limits;
 pub mod opener;

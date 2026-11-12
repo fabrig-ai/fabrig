@@ -10,7 +10,7 @@ pub const LATEST_MESSAGES: u32 = 6;
 pub const SHORT_START: &str = "A short conversation";
 pub const SHORT_END: &str = "The whole answer.";
 
-// The shell's small-window bundle holds its long_text: a thirty-second of a person's
+// The page's small-window setting holds its long_text: a thirty-second of a person's
 // document_bytes, using the same window mechanism (temper/docs/design/client/web/testing.md, 3).
 #[cfg(test)]
 const READING_WINDOW_BYTES: usize = 32_768;

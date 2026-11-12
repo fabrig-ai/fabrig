@@ -1545,6 +1545,14 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: limits.forge.follows,
                 charters: 1
             },
+            Kind {
+                number: 13,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 4,
+                per_scope: limits.forge.dependencies,
+                charters: 0
+            },
         ]
     );
     limits.authority.segment_bytes = 6;

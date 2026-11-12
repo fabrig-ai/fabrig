@@ -19,7 +19,13 @@ fn no_source_of_the_bundle_or_the_servers_pages_names_the_old_mark() {
             files.push(path);
         }
     }
-    let mut directories = vec![root.join("files"), root.join("playground"), root.join("src")];
+    let mut directories = vec![
+        root.join("files"),
+        root.join("src"),
+        root.join("../temper-client-web-page/src"),
+        root.join("../temper-playground-page/playground"),
+        root.join("../temper-playground-page/src"),
+    ];
     while let Some(directory) = directories.pop() {
         for entry in std::fs::read_dir(directory).expect("bundle source directory") {
             let path = entry.expect("bundle source entry").path();

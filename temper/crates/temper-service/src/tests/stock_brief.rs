@@ -439,14 +439,14 @@ fn measure_worker() {
         &mut problems,
     );
     assert!(problems.is_empty(), "{:?}", crate::startup::lines(&problems));
-    let roots = crate::worker_settings::root_limits(&worker, &agent, &own);
+    let roots = crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&own));
     assert!(temper_worker_domain::valid(&roots), "{:?}", temper_worker_domain::unfit(&roots));
     let meter = Meter::new();
     meter.start();
     let worker = crate::Worker::new(
         &worker,
         &agent,
-        &own,
+        &crate::limits::worker(&own),
         &files,
         crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
         7,

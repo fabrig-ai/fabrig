@@ -2,29 +2,30 @@
 demo:
   [1] temper
   [2] demo · playground/widget (pressed)
+  [3] Rename demo
   New project:
-    [3] New project: (empty) (enter sends)
-    [4] Create
-  [5] How work runs for demo
-  [6] Deployment
-  [7] Home
-  [8] Needs you
-  [9] Work
-  [10] How work runs (current)
+    [4] New project: (empty) (enter sends)
+    [5] Create
+  [6] How work runs for demo
+  [7] Deployment
+  [8] Home
+  [9] Needs you
+  [10] Work
+  [11] How work runs (current)
   New draft or change:
-    [11] Draft
+    [12] Draft
       A design session that ends in a goal, best had in the terminal.
-    [12] Change
+    [13] Change
       Ask for one change.
-  [13] Away
-  [14] Set up temper
-  [15] Deployment
+  [14] Away
+  [15] Set up temper
+  [16] Deployment
   * Pat
 demo · how work runs
 Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
 How work runs:
-  [16] How work runs (current)
-  [17] Repositories
+  [17] How work runs (current)
+  [18] Repositories
 ## The path of a change
 ## What reaches you
 on demo
@@ -46,23 +47,24 @@ Always waits for you
 Away or not.
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [18] ( ) Asked of me too
-  [19] (*) Not asked: each agent decides alone
+  [19] ( ) Asked of me too
+  [20] (*) Not asked: each agent decides alone
 Away until
 When it isn’t turned off by hand.
 Away until:
-  [20] (*) 08:00, the end of quiet hours
-  [21] ( ) I turn it off
+  [21] (*) 08:00, the end of quiet hours
+  [22] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[22] [x] Chats can write drafts
+[23] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[23] [ ] Goals
+[24] [ ] Goals
 Changes
 The landing queue, as Work's filter.
 Hidden
-[24] [ ] Changes
+[25] [ ] Changes
+[26] Delete project

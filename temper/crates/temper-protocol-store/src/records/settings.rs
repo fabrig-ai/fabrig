@@ -148,6 +148,9 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                             .expect("matching table records"),
                     )
                 }
+                d::Value::Dependency(value) => w::SettingValue::Dependency(
+                    w::Dependency::new(&w::CEILINGS, w::DependencyParts { project: value.project }).expect(FITS),
+                ),
                 d::Value::Follow(follow) => {
                     let record = d::follow_record(follow).expect(FITS);
                     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured follow length"));
@@ -248,6 +251,7 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                         .or(Err(Undecodable::Malformed))?;
                     d::Value::Follow(d::follow_from(record))
                 }
+                w::SettingValue::Dependency(value) => d::Value::Dependency(d::Dependency { project: value.project() }),
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),
                 w::SettingValue::Questions(value) => d::Value::Questions(match value.into_parts().route {
                     w::Route::None => temper_engine_domain_forge_change::Route::None,

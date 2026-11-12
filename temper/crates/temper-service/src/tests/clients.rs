@@ -540,7 +540,7 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
 #[test]
 fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();
-    service.told.push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
+    service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     super::fixtures::turn(&mut service);
     assert_eq!(
         service.end(),
@@ -581,7 +581,7 @@ fn failed_clients_bind(opened: bool, closed: bool) {
         &mut engine.accounts,
     );
     let Some(skein_io::Request::Listen { owner, .. }) = engine.clients.io.pop() else { panic!("clients listen") };
-    service.told.push(if closed {
+    service.process.told().push(if closed {
         skein_io::Event::Closed { owner }
     } else {
         skein_io::Event::Failed { owner, error: skein_io::Error::Refused }

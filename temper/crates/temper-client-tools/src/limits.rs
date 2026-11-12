@@ -44,8 +44,9 @@ pub fn client() -> client::Limits {
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.
             ask_bytes: requests.bytes / u64::from(requests.requests),
-            handles: 24, // Holds four projects' decided watches.
-            watches: 22, // Holds four projects' decided and the shared session watches.
+            // Match the native shells' room for four projects' documents and session watches.
+            handles: 28,
+            watches: 26,
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(2) },
             authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.

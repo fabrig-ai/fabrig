@@ -71,7 +71,7 @@ pub struct Author {
     pub email: Box<[u8]>,
 }
 
-pub use jig_protocol_config::Files;
+pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
 #[derive(Debug)]
@@ -123,28 +123,6 @@ pub struct Engine {
     pub limits: super::limits::Limits,
 }
 
-/// The adapters recognized by smith, separate from a program source's name.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Adapter {
-    ClaudeCode,
-}
-impl Adapter {
-    #[must_use]
-    pub fn name(self) -> &'static [u8] {
-        match self {
-            Self::ClaudeCode => b"claude_code",
-        }
-    }
-}
-/// Smith's checked bound for each program path.
-pub const PROGRAM_PATH_BYTES: usize = 4096;
-/// Secret-free declaration, retained once by the worker; never a login.
-#[derive(Clone, Debug)]
-pub struct Program {
-    pub adapter: Adapter,
-    pub path: Box<[u8]>,
-    pub directory: Box<[u8]>,
-}
 #[cfg(not(feature = "worker"))]
 pub use crate::unbuilt::Agent;
 #[cfg(feature = "worker")]

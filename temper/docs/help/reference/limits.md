@@ -82,6 +82,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
+- `forge.dependencies`: count, 4. Dependencies per project.
 - `forge.follows`: count, 2. Follows per project.
 - `forge.follow_paths`: count, 8. Path prefixes per follow.
 - `forge.follow_queue`: count, 16. Queued landings per follow.

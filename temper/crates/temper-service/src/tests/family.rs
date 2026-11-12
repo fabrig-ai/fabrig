@@ -3173,6 +3173,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
             .unwrap();
     }
     ways::WaysDocument {
+        rules: ways::PathRules::empty(),
         project: 7,
         ways: entries.into_boxed(),
         current: Some(1),
@@ -3699,7 +3700,18 @@ fn the_worst_small_ways_document_fits_its_decision() {
             })
             .unwrap();
     }
+    let row = ways::PathRule {
+        paths: repeated(b'p', w::CEILINGS.path_rule_paths),
+        review: repeated(b'r', w::CEILINGS.path_rule_review),
+        sign_off: repeated(b's', w::CEILINGS.path_rule_sign_off),
+        lands: repeated(b'l', w::CEILINGS.path_rule_lands),
+    };
+    let mut rows = List::with_capacity(w::CEILINGS.path_rules_rows);
+    for _ in 0..w::CEILINGS.path_rules_rows {
+        rows.push(row.clone()).unwrap();
+    }
     let document = ways::WaysDocument {
+        rules: ways::PathRules { rows: rows.into_boxed(), note: repeated(b'n', w::CEILINGS.path_rules_note) },
         project,
         ways: entries.into_boxed(),
         current: None,
@@ -3711,7 +3723,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
         may_change: true,
     };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
-    assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
+    let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(panel.rules().rows().len(), w::CEILINGS.path_rules_rows);
+    assert_eq!(panel.rules().note().len(), usize::try_from(w::CEILINGS.path_rules_note).unwrap());
+    assert_eq!(wire::decode_ways_panel(&bytes, &w::CEILINGS), Some(panel));
     let mut journal = root::Journal::uncapped(1, 0);
     let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
     decision
@@ -4336,6 +4351,41 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
         let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
+    }
+}
+
+#[test]
+fn ways_rows_and_note_cross_the_wire_only_within_their_bounds() {
+    let (path, _) = ways_path();
+    let mut document = ways_document(&path);
+    document.rules = ways::PathRules {
+        rows: Box::new([ways::PathRule {
+            paths: b"protocol/**".as_slice().into(),
+            review: b"an agent".as_slice().into(),
+            sign_off: b"you".as_slice().into(),
+            lands: b"once you sign off".as_slice().into(),
+        }]),
+        note: b"A sign-off is for one head.".as_slice().into(),
+    };
+    let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
+    let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
+    let rows = panel.rules().rows();
+    assert_eq!(rows.len(), 1);
+    let row = rows.as_slice().first().unwrap();
+    assert_eq!(
+        (row.paths(), row.review(), row.sign_off(), row.lands()),
+        (b"protocol/**".as_slice(), b"an agent".as_slice(), b"you".as_slice(), b"once you sign off".as_slice())
+    );
+    assert_eq!(panel.rules().note(), document.rules.note.as_ref());
+    for limits in [
+        w::Limits { path_rules_rows: 0, ..w::CEILINGS },
+        w::Limits { path_rule_paths: 10, ..w::CEILINGS },
+        w::Limits { path_rule_review: 7, ..w::CEILINGS },
+        w::Limits { path_rule_sign_off: 2, ..w::CEILINGS },
+        w::Limits { path_rule_lands: 16, ..w::CEILINGS },
+        w::Limits { path_rules_note: 25, ..w::CEILINGS },
+    ] {
+        assert!(family::ways_panel(document.clone(), &limits).is_none(), "{limits:?}");
     }
 }
 

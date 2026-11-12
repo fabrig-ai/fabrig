@@ -3,6 +3,29 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, bytes::concat};
 use temper_client_protocol_wire::v1 as w;
 
+/// A dependency's binding line, naming only projects the reader belongs to
+/// (temper/docs/design/domain/forge/dependencies.md, 4).
+#[must_use]
+pub fn dependency_line(
+    row: &w::DependencyView,
+    project: &[u8],
+    projects: &[jig_client::contract::MeProject],
+) -> Box<[u8]> {
+    let name = dependency_name(row.project(), projects);
+    concat(&[b"dependency ", Decimal::of(u64::from(row.number())).as_bytes(), b": ", project, b" depends on ", &name])
+}
+
+/// Name only a project the reader belongs to (domain/forge/dependencies.md, 4).
+#[must_use]
+pub fn dependency_name(number: u32, projects: &[jig_client::contract::MeProject]) -> Box<[u8]> {
+    for project in projects {
+        if project.project == number {
+            return project.name.bytes().into();
+        }
+    }
+    concat(&[b"project ", Decimal::of(u64::from(number)).as_bytes()])
+}
+
 #[must_use]
 pub fn watch(project: u32, limits: &super::Limits) -> Option<jig_client::Watchable> {
     let limits = super::wire_limits(limits)?;
@@ -40,14 +63,19 @@ pub fn parity(value: Option<&w::FollowParity>) -> Box<[u8]> {
     };
     concat(&[&verdict, b" at ", &after12(value.source())])
 }
+/// Shared binding lag words (domain/forge/follows.md, 7).
+#[must_use]
+pub fn lag(count: u32) -> Box<[u8]> {
+    if count == 0 {
+        Box::from(b"caught up".as_slice())
+    } else {
+        concat(&[Decimal::of(u64::from(count)).as_bytes(), b" behind"])
+    }
+}
 /// One binding line, without a trailing newline.
 #[must_use]
 pub fn line(row: &w::FollowView) -> Box<[u8]> {
-    let lag = if row.lag() == 0 {
-        Box::from(b"caught up".as_slice())
-    } else {
-        concat(&[Decimal::of(u64::from(row.lag())).as_bytes(), b" behind"])
-    };
+    let lag = lag(row.lag());
     concat(&[
         b"follow ",
         Decimal::of(u64::from(row.number())).as_bytes(),

@@ -76,6 +76,33 @@ fn dependency_refusals_use_jigs_words() {
     }
 }
 
+#[test]
+fn live_project_refusals_name_tasks_in_cards_and_send_feedback() {
+    for (more, expected) in [
+        (0, b"This project has live tasks; end them first: T12, T15".as_slice()),
+        (2, b"This project has live tasks; end them first: T12, T15, and 2 more".as_slice()),
+    ] {
+        let mut tasks = List::with_capacity(2);
+        tasks.push(12).unwrap();
+        tasks.push(15).unwrap();
+        let refusal = c::Refusal::LiveTasks { tasks, more };
+        let words = fixtures::words();
+        assert_eq!(
+            words.say_word(Word::refusal(&refusal), &[]).as_ref(),
+            b"This project has live tasks; end them first:"
+        );
+        let mut builder = Builder::new(&fixtures::tree_limits());
+        crate::cards::refusal(&mut builder, &words, &refusal);
+        assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected);
+        let outcome =
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, at: None }));
+        let feedback = crate::shared::outcome_feedback(&outcome, &words, false).unwrap();
+        assert_eq!(feedback.head.as_ref(), expected);
+        assert!(feedback.refused);
+        assert!(feedback.after.is_none());
+    }
+}
+
 pub(super) fn batch_proposal() -> c::ReadValue {
     let mut task = fixtures::task::document();
     task.authority.authority.spend = 6;

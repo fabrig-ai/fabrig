@@ -2,7 +2,7 @@
 //! (temper/docs/design/client/web/testing.md, 6, item 12; temper/docs/design/playground.md, 9).
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Why};
 use skein_fake_person_browser::harness::{Names, Output, Printed, Sent};
-use skein_fake_person_browser::{BrowserFace, Harness, Outcome, Play, Script, Setup, Step};
+use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Setup, Step};
 use skein_lib::Time;
 use skein_ui::Role;
 use std::{
@@ -151,7 +151,7 @@ fn story_a_walks_on_the_built_playground() {
         .push(Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Download the session log") }));
     let mut walk = Walk { script: Script::new(steps.into_boxed_slice()), figures: vec![], download: None, until: None };
     // Empty expected trouble means the harness rejects every CSP violation and exception.
-    assert_eq!(Harness::new(setup).run(&mut [&mut walk]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut walk]), Outcome::Done);
     let bytes = fs::read(walk.download.expect("completed session log download")).expect("downloaded log");
     let read = skein_ui_web::log::read(&bytes).expect("session log");
     assert!(matches!(read.end, skein_ui_web::log::End::At { .. }), "the complete story fits the log");

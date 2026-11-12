@@ -78,6 +78,9 @@ impl Domain {
         }
         self.rebuild_settings();
         for item in items {
+            if item.kind == 13 {
+                out.push(Request::Marked { tasks: Box::new([crate::follows_subject(item.scope)]) });
+            }
             if item.kind == 12 {
                 crate::follows::keep(self, item.scope, item.number, out);
             }
@@ -343,7 +346,13 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8 || key.kind == 10 || key.kind == 12)
+            if (key.kind == 2
+                || key.kind == 6
+                || key.kind == 7
+                || key.kind == 8
+                || key.kind == 10
+                || key.kind == 12
+                || key.kind == 13)
                 && key.scope == project
             {
                 erases.push(*key).expect("bounded project setting rows");
@@ -366,6 +375,7 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
+                    | Value::Dependency(_)
                     | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
@@ -387,7 +397,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
             Some(settings::SizedValue {
                 value:
-                    Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -410,6 +421,7 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
+                    | Value::Dependency(_)
                     | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
@@ -431,6 +443,7 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
+                    | Value::Dependency(_)
                     | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
@@ -452,7 +465,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
             Some(settings::SizedValue {
                 value:
-                    Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -464,6 +478,22 @@ impl Domain {
             })
             | None => None,
         }
+    }
+
+    /// Current dependencies in number order (temper/docs/design/domain/forge/dependencies.md, 4).
+    #[must_use]
+    pub fn dependencies(&self, project: u32) -> Box<[(u32, &settings::Dependency)]> {
+        let mut dependencies = List::uncapped();
+        for (key, edit) in &self.setting_rows {
+            if key.kind == 13
+                && key.scope == project
+                && key.slot == SettingSlot::Change
+                && let Edit::Set(settings::SizedValue { value: Value::Dependency(value), .. }) = edit
+            {
+                dependencies.push((key.number, value)).expect("one current value per dependency");
+            }
+        }
+        dependencies.into_boxed()
     }
 
     /// Current kind 12, with no stock default (temper/docs/design/domain/forge/follows.md, 2).
@@ -664,7 +694,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
             Some(settings::SizedValue {
                 value:
-                    Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -719,7 +750,8 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
         Some(settings::SizedValue {
             value:
-                Value::Rule(_)
+                Value::Dependency(_)
+                | Value::Rule(_)
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::Ways(_)

@@ -2,6 +2,9 @@
 
 2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 10: the world's story of an owner's deletion refused while a task is live [in flight: change 628].
+- **Not yet:** 10: the world's stories of a deleted project's read answered gone and an owner's deletion answered removed after it ended [in flight: change 629].
+
 Section 4's `Domain::sole_owner` is present: it reads the deployment's
 roster without allocation or mutation, including during restore, and
 answers none with no owner, several owners or an unreadable roster.
