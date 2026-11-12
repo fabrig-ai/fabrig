@@ -135,6 +135,11 @@ fn cluster_the_retained_charter_overrides_name_no_documents() {
 }
 
 #[test]
+fn ctl_a_box_call_consumes_captured_stderr_once_without_busy_waiting() {
+    support::ctl::read_condition_tests::a_box_call_consumes_captured_stderr_once_without_busy_waiting();
+}
+
+#[test]
 fn ctl_a_single_host_timeout_reports_its_pending_call() {
     support::ctl::read_condition_tests::a_single_host_timeout_reports_its_pending_call();
 }
