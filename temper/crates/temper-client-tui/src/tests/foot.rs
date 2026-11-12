@@ -2008,6 +2008,44 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     )))),
                 }
             }
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject) == d::forge::decided::watch(1, &f::limits().forge).as_ref() =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+                let reach = Reach {
+                    kind: Kind::Implementation,
+                    class: Class::Ask,
+                    reason: Reason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                };
+                let asked = w::Asked::new(
+                    &w::CEILINGS,
+                    w::AskedParts { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
+                )
+                .unwrap();
+                let document = w::Decisions::new(
+                    &w::CEILINGS,
+                    w::DecisionsParts {
+                        project: 1,
+                        rows: List::with_capacity(0),
+                        asked: List::from_boxed(Box::new([asked])),
+                        cut: false,
+                    },
+                )
+                .unwrap();
+                Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::decisions(&document),
+                    },
+                }
+            }
             jig_client::Down::Open { subject, .. }
                 if Some(&subject) == d::forge::approvals::watch(&f::limits().forge).as_ref() =>
             {
@@ -2237,28 +2275,32 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
             project: b"Hello".as_slice().into(),
             title: b"csv-export".as_slice().into(),
             kind: LeftKind::Goal,
-            at: b"07:42".as_slice().into(),
+            at: b"today 07:42".as_slice().into(),
             state: b"Working".as_slice().into(),
         })
         .unwrap();
     body.needs = if size.columns == 110 {
         Box::new([
             NeedRow {
+                since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
                 project: b"Hello".as_slice().into(),
                 words: b"csv-export: comma or semicolon?".as_slice().into(),
             },
             NeedRow {
+                since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Money,
                 project: b"Demo".as_slice().into(),
                 words: b"Porter: raise its weekly budget?".as_slice().into(),
             },
             NeedRow {
+                since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::SignOff,
                 project: b"Hello".as_slice().into(),
                 words: b"Monthly totals: ready for review".as_slice().into(),
             },
             NeedRow {
+                since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Other,
                 project: b"Demo".as_slice().into(),
                 words: b"Proposal: review the new way".as_slice().into(),
@@ -2266,11 +2308,15 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
         ])
     } else {
         Box::new([NeedRow {
+            since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
             mark: NeedMark::Question,
             project: b"Hello".as_slice().into(),
             words: b"csv-export: comma or semicolon?".as_slice().into(),
         }])
     };
+    let mut facts = d::pages::all_home::facts(&root, now);
+    facts.needs = d::pages::home::Needs::Count { count: u32::try_from(body.needs.len()).unwrap(), cut: false };
+    body.lines.get_mut(0).unwrap().words = shared::all_home_headline(words.view(), &facts, now).0;
     let root = walk_root(true);
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Walk { by_key: true });
@@ -2343,5 +2389,49 @@ fn a_theme_notice_says_the_choice_and_terminals_word() {
         assert_eq!(part.notice.as_deref(), Some(expected));
         assert!(foot::read_notes(&root, &tui, &words).lines.is_empty());
         assert!(has(draw(part).tree(), look::SIGNAL, expected));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test locates the reason among semantic nodes and theme paints")]
+fn a_walks_reason_stands_between_the_head_and_choices_but_not_on_a_sign_off() {
+    let words = f::words();
+    let mut root = walk_root(true);
+    walk_review(&mut root);
+    for review in [false, true] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Walk { by_key: true });
+        if review {
+            tui.step(Told::Walked { object: WALK_QUESTION });
+            tui.step(Told::Walked { object: WALK_HELD });
+        }
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        let list = part.list.as_ref().unwrap();
+        assert_eq!(
+            list.why.as_deref(),
+            if review {
+                None
+            } else {
+                Some(
+                    "Reached you because it is an implementation choice, which asks you unless you’re away.".as_bytes(),
+                )
+            }
+        );
+        let view = draw(part);
+        let nodes = view.tree().nodes();
+        let reason = nodes.iter().position(|node| node.styles.as_slice() == [look::WHY]);
+        assert_eq!(reason.is_none(), review);
+        if let Some(reason) = reason {
+            let head = nodes.iter().position(|node| node.styles.as_slice() == [look::LIST_HEAD]).unwrap();
+            let choices = nodes.iter().position(|node| node.role == Role::Menu).unwrap();
+            assert!(head < reason && reason < choices);
+            assert_eq!(nodes[reason].role, Role::Text);
+            for scheme in [Scheme::Dark, Scheme::Light] {
+                let theme = crate::theme(scheme, None);
+                let why = theme.styles.iter().find(|style| style.style == look::WHY).unwrap();
+                let signal = theme.styles.iter().find(|style| style.style == look::SIGNAL).unwrap();
+                assert_eq!(why.paint, signal.paint);
+            }
+        }
     }
 }

@@ -78,6 +78,34 @@ pub enum Word {
     HowBudgetLine,
     HowAmount,
     HowUpTo,
+    HowFollows,
+    HowFollowsLine,
+    HowFollowTitle,
+    HowFollowMain,
+    HowFollowBranch,
+    HowFollowTouches,
+    HowFollowOwned,
+    HowFollowYou,
+    HowFollowYourWord,
+    HowFollowOwnerWord,
+    HowFollowUnknownWord,
+    HowFollowCode,
+    HowFollowCheck,
+    HowFollowStatus,
+    HowFollowStopped,
+    HowHearsLanding,
+    HowAgentPorts,
+    HowCodeChecks,
+    HowTiersTitle,
+    HowTiersWords,
+    HowTierChecks,
+    HowCodeRuns,
+    HowAgentRepairs,
+    HowWeek,
+    HowPeriod,
+    HowRenews,
+    HowStanding,
+
     HowPath,
     HowRoles,
     HowRolesLine,
@@ -1068,6 +1096,7 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    TimeTodayClock,
     Away,
     AwayChipOff,
     AwayAcross,
@@ -1796,7 +1825,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2350;
+const PHRASES: u32 = 2378;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1823,10 +1852,10 @@ const PHRASES: u32 = 2350;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4243;
+const SEGMENTS: u32 = 4319;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56917;
-const ALL: [Word; 1665] = [
+const ENGLISH_BYTES: u32 = 57452;
+const ALL: [Word; 1693] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -1892,6 +1921,33 @@ const ALL: [Word; 1665] = [
     Word::HowBudgetLine,
     Word::HowAmount,
     Word::HowUpTo,
+    Word::HowFollows,
+    Word::HowFollowsLine,
+    Word::HowFollowTitle,
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowYou,
+    Word::HowFollowYourWord,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowUnknownWord,
+    Word::HowFollowCode,
+    Word::HowFollowCheck,
+    Word::HowFollowStatus,
+    Word::HowFollowStopped,
+    Word::HowHearsLanding,
+    Word::HowAgentPorts,
+    Word::HowCodeChecks,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+    Word::HowCodeRuns,
+    Word::HowAgentRepairs,
+    Word::HowWeek,
+    Word::HowPeriod,
+    Word::HowRenews,
+    Word::HowStanding,
     Word::HowPath,
     Word::HowRoles,
     Word::HowRolesLine,
@@ -2857,6 +2913,7 @@ const ALL: [Word; 1665] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::TimeTodayClock,
     Word::Away,
     Word::AwayChipOff,
     Word::AwayAcross,
@@ -3629,6 +3686,34 @@ impl Word {
             Self::HowBudgetLine => 4911,
             Self::HowAmount => 4912,
             Self::HowUpTo => 4913,
+            Self::HowFollows => 5680,
+            Self::HowFollowsLine => 5681,
+            Self::HowFollowTitle => 5682,
+            Self::HowFollowMain => 5683,
+            Self::HowFollowBranch => 5684,
+            Self::HowFollowTouches => 5685,
+            Self::HowFollowOwned => 5686,
+            Self::HowFollowYou => 5687,
+            Self::HowFollowYourWord => 5688,
+            Self::HowFollowOwnerWord => 5689,
+            Self::HowFollowUnknownWord => 5690,
+            Self::HowFollowCode => 5691,
+            Self::HowFollowCheck => 5692,
+            Self::HowFollowStatus => 5693,
+            Self::HowFollowStopped => 5694,
+            Self::HowHearsLanding => 5695,
+            Self::HowAgentPorts => 5696,
+            Self::HowCodeChecks => 5697,
+            Self::HowTiersTitle => 5698,
+            Self::HowTiersWords => 5699,
+            Self::HowTierChecks => 5700,
+            Self::HowCodeRuns => 5701,
+            Self::HowAgentRepairs => 5702,
+            Self::HowWeek => 5703,
+            Self::HowPeriod => 5704,
+            Self::HowRenews => 5705,
+            Self::HowStanding => 5706,
+
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
@@ -4309,7 +4394,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
-            Self::ProjectDeleted => 5680,
+            Self::ProjectDeleted => 5707,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -4577,6 +4662,7 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::TimeTodayClock => 1264,
             Self::Away => 3675,
             Self::AwayChipOff => 3676,
             Self::AwayAcross => 4347,
@@ -5229,8 +5315,49 @@ const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
 // Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
 const APPROVAL_SET_NAMES_BYTES: u32 = 253;
+const FOLLOW_WORDS: [Word; 12] = [
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowTitle,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowCheck,
+    Word::HowFollowStopped,
+    Word::HowFollowStatus,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if FOLLOW_WORDS.contains(&word) {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let paths = bounds
+            .follow_source_paths_item
+            .checked_add(4)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.follow_source_paths)
+            .ok_or(Invalid::Overflow)?;
+        let tiers = bounds
+            .card_name
+            .checked_add(bounds.fact_value)
+            .ok_or(Invalid::Overflow)?
+            .checked_add(5)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.branch_path_stops)
+            .ok_or(Invalid::Overflow)?;
+        let branch =
+            bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
+        return joined
+            .max(paths)
+            .max(tiers)
+            .max(branch)
+            .max(bounds.follow_check_workflow)
+            .max(bounds.follow_view_stopped_some)
+            .checked_add(32)
+            .ok_or(Invalid::Overflow);
+    }
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
     }
@@ -5541,6 +5668,7 @@ impl Words {
             text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(hole_bytes(Word::HowFollowMain, HoleKind::Name, false, joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(CLASSES_OBJECTS_BYTES)
@@ -5593,7 +5721,7 @@ impl Words {
     }
     #[must_use]
     pub fn capacity(&self) -> Option<u32> {
-        Some(self.ordinary_capacity()?.max(self.classes_capacity()?))
+        Some(self.ordinary_capacity()?.max(self.classes_capacity()?).max(self.follows_capacity()?))
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
@@ -5603,10 +5731,20 @@ impl Words {
         }
         Some(most)
     }
+    /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
+    pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        let mut most = 0;
+        for word in FOLLOW_WORDS {
+            most = most.max(self.book.capacity(word.id(self.connector))?);
+        }
+        Some(most)
+    }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
-            if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
+            if FOLLOW_WORDS.contains(&word)
+                || [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word)
+            {
                 continue;
             }
             most = most.max(self.book.capacity(word.id(self.connector))?);
@@ -5761,6 +5899,34 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowBudgetLine => (&[b"each given its own when it starts"], &[]),
         Word::HowAmount => (&[b"", b""], &[Number]),
         Word::HowUpTo => (&[b"up to ", b""], &[Number]),
+        Word::HowFollows => (&[b"What follows a landing"], &[]),
+        Word::HowFollowsLine => (&[b"code triggers, agents judge"], &[]),
+        Word::HowFollowTitle => (&[b"", b" follows ", b""], &[Name, Name]),
+        Word::HowFollowMain => (&[b"Each landing on ", b"", b" makes a change in ", b"", b"."], &[Name, Name, Name, Name]),
+        Word::HowFollowBranch => (&[b"", b"'s ", b""], &[Name, Name]),
+        Word::HowFollowTouches => (&[b" that touches ", b""], &[Name]),
+        Word::HowFollowOwned => (&[b", owned by ", b""], &[Name]),
+        Word::HowFollowYou => (&[b"you"], &[]),
+        Word::HowFollowYourWord => (&[b"Each waits for your word."], &[]),
+        Word::HowFollowOwnerWord => (&[b"Each waits for ", b"'s word."], &[Name]),
+        Word::HowFollowUnknownWord => (&[b"Each waits for its owner's word."], &[]),
+        Word::HowFollowCode => (&[b"Each starts once the one before it has landed."], &[]),
+        Word::HowFollowCheck => (&[b"Its check: ", b"."], &[Name]),
+        Word::HowFollowStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HowFollowStopped => (&[b"Stopped: ", b"."], &[Name]),
+        Word::HowHearsLanding => (&[b"code hears the landing"], &[]),
+        Word::HowAgentPorts => (&[b"an agent ports"], &[]),
+        Word::HowCodeChecks => (&[b"code checks"], &[]),
+        Word::HowTiersTitle => (&[b"Tiers on ", b""], &[Name]),
+        Word::HowTiersWords => (&[b"Code runs each after landings on ", b": ", b". A red reaches the goals whose changes landed in it, and their agents repair it."], &[Name, Name]),
+        Word::HowTierChecks => (&[b"", b" (", b")"], &[Name, Name]),
+        Word::HowCodeRuns => (&[b"code runs"], &[]),
+        Word::HowAgentRepairs => (&[b"an agent repairs"], &[]),
+        Word::HowWeek => (&[b"a week"], &[]),
+        Word::HowPeriod => (&[b"each period"], &[]),
+        Word::HowRenews => (&[b"", b" \xc2\xb7 renews ", b""], &[Name, Name]),
+        Word::HowStanding => (&[b"a standing role \xc2\xb7 ", b" left"], &[Number]),
+
         Word::HowRoles => (&[b"Roles"], &[]),
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
@@ -6738,6 +6904,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::TimeTodayClock => (&[b"today ", b""], &[Name]),
         Word::Away => (&[b"Away"], &[]),
         Word::AwayChipOff => (&[b"Away: off"], &[]),
         Word::AwayAcross => (&[b"Away on ", b" of ", b""], &[Number, Number]),
@@ -7399,6 +7566,7 @@ pub enum TimeForm {
     Looked,
     Span,
     Clock,
+    Dated,
     Weekday,
     Day,
 }
@@ -7440,7 +7608,12 @@ impl Times {
             TimeForm::Ago if minutes > 0 && minutes < 720 => {
                 words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
             }
-            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+            TimeForm::Ago
+            | TimeForm::Looked
+            | TimeForm::Clock
+            | TimeForm::Dated
+            | TimeForm::Weekday
+            | TimeForm::Day => text,
         }
     }
 }
@@ -7459,7 +7632,7 @@ impl Words {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
@@ -7467,7 +7640,9 @@ impl Words {
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => {
+                self.calendar_time(form, at, now)
+            }
         };
         (said, next)
     }
@@ -7511,8 +7686,9 @@ impl Words {
             TimeForm::Ago if days == Some(1) => self.say(Word::TimeYesterdayWord, &[]),
             TimeForm::Ago if days >= Some(2) && days <= Some(7) => self.time_weekday(day, false),
             TimeForm::Ago => self.time_date(at, now),
+            TimeForm::Dated if day == today => self.say(Word::TimeTodayClock, &[Hole::Name(clock)]),
             TimeForm::Clock if day == today => clock,
-            TimeForm::Clock => {
+            TimeForm::Clock | TimeForm::Dated => {
                 let date = if days >= Some(1) && days <= Some(6) {
                     self.time_weekday(day, false)
                 } else {

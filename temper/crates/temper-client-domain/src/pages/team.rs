@@ -193,6 +193,9 @@ impl Default for Team {
     }
 }
 impl Team {
+    pub(crate) fn document(&self, project: u32) -> Option<&c::Project> {
+        if self.project == Some(project) { self.document.as_deref() } else { None }
+    }
     #[expect(
         clippy::match_like_matches_macro,
         reason = "the step crate excludes matches!; its address check uses if let"

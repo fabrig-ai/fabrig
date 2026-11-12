@@ -5213,6 +5213,7 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "sha2",
  "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",
@@ -5384,6 +5385,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-protocol-reaches",
 ]
 
 [[package]]
@@ -5418,6 +5420,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-domain",
  "jig-client-test-kit",
+ "jig-client-test-records",
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",

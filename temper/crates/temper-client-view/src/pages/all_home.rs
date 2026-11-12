@@ -106,7 +106,8 @@ fn intro(b: &mut Builder, facts: &all_home::Facts, brief: bool, w: &Words, times
     }
     let landed = landed(w, &intro.landed, times);
     let needs = home::needs_sentence(w, intro.needs, b"");
-    let headline = headline_words(&landed, &needs);
+    let (headline, tick) = crate::shared::all_home_headline(w, facts, times.now);
+    times.next = [times.next, tick].into_iter().flatten().min();
     let brief = if brief { intro.brief.as_ref() } else { None };
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
@@ -185,6 +186,12 @@ fn lede(b: &mut Builder, brief: &all_home::Brief, role: Role) {
     b.close();
 }
 
+pub(crate) fn headline(w: &Words, facts: &all_home::Facts, times: &mut Times) -> Box<[u8]> {
+    let intro = all_home::intro(facts);
+    let landed = landed(w, &intro.landed, times);
+    let needs = home::needs_sentence(w, intro.needs, b"");
+    headline_words(&landed, &needs)
+}
 fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
     if landed.is_empty() {
         needs.into()

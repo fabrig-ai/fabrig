@@ -254,7 +254,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
 }
 #[test]
 fn start_goes_to_ask_and_go_on_to_the_open_chat() {
-    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let (mut root, me_watch, _) = f::root_at(Address::Accounts, &f::domain_limits());
     let template = f::chat::messaging_root();
     let offered = f::asking_me(template.pages().me(template.client()).unwrap().clone());
     let mut absent = offered.clone();
@@ -262,6 +262,9 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
     project.templates =
         List::from_boxed(project.templates.iter().filter(|template| template.number != 5).cloned().collect());
     f::deliver_me(&mut root, me_watch, absent);
+    // Keep the Settings-owned chat watch while its offered templates change.
+    let mut out =
+        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper")));
     }
@@ -284,18 +287,19 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
         }
         assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Ask temper")));
     }
-    drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
-    let mut out =
-        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     let mut task_watch = None;
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
                     down:
-                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
                 },
         } = request
+            && query.label != Some(3)
         {
             task_watch = Some(watch);
         }

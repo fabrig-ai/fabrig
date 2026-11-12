@@ -50,6 +50,7 @@ pub mod goals;
 pub mod home;
 pub mod how;
 pub mod inbox;
+pub mod launchpad;
 pub mod models;
 pub mod needs;
 pub mod only_you;
@@ -98,6 +99,8 @@ pub struct Pages {
     pub(crate) inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
     all_home: Option<all_home::AllHome>,
+    launchpad: bool,
+    left_off: Option<launchpad::LeftOff>,
     needs_decided: Option<all_home::AllHome>,
     ask_line: Box<[u8]>,
     ask_with: Option<(u32, Box<[u8]>)>,
@@ -105,6 +108,7 @@ pub struct Pages {
     drafts: Option<drafts::Drafts>,
     draft_starts: skein_lib::Set<jig_client::Key>,
     stock_ways: Option<crate::forge::stock_ways::StockWays>,
+    how: Option<how::Open>,
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
     goals: Option<goals::Goals>,
@@ -355,6 +359,14 @@ impl Default for Pages {
     }
 }
 impl Pages {
+    pub(crate) const fn enable_launchpad(&mut self) {
+        self.launchpad = true;
+    }
+    /// Left-off handles on a launchpad Home; each read is unknown until delivered.
+    #[must_use]
+    pub const fn left_off(&self) -> Option<&launchpad::LeftOff> {
+        self.left_off.as_ref()
+    }
     /// The look a person chose (client/pages/README.md, A chat's terminal).
     #[must_use]
     pub const fn look(&self) -> terminal::Look {
@@ -381,6 +393,8 @@ impl Pages {
             home: None,
             decided: decided::Store::new(),
             all_home: None,
+            launchpad: false,
+            left_off: None,
             needs_decided: None,
             ask_line: Box::default(),
             ask_with: None,
@@ -388,6 +402,7 @@ impl Pages {
             drafts: None,
             draft_starts: skein_lib::Set::with_capacity(u32::MAX),
             stock_ways: None,
+            how: None,
             chats: None,
             rail_handles: RailHandles::None,
             goals: None,
@@ -757,6 +772,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.close();
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
+            }
+            if let Some(page) = pages.how.take() {
+                page.leave(out);
             }
             if let Some(page) = pages.stock_ways.take() {
                 page.leave(out);
@@ -1249,6 +1267,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         chats.write(words, &env.limits);
     }
     let me = pages.me(client);
+    if let Some(left_off) = &mut pages.left_off {
+        left_off.configure(me, &env.limits, out);
+    }
     pages.has_goals.configure(me, pages.project, out);
     if let Address::Home { project } = pages.address
         && pages.home.is_some()
@@ -1295,7 +1316,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
-#[expect(clippy::too_many_lines, reason = "project deletion joins the page reply routes without changing their order")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "routes project deletion and launchpad replies beside their page watches without changing their order"
+)]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if delete_project::told(pages, &told, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -1314,6 +1338,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         } else {
             open.failed = Some(outcome.clone());
         }
+    }
+    if let Some(left_off) = &pages.left_off
+        && left_off.told(&told)
+    {
+        return true;
     }
     if pages.decided.told(&told, client, env.limits.forge, out) {
         return true;
@@ -1335,6 +1364,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if pages.has_goals.told(&told) {
+        return true;
+    }
+    if let Some(page) = &pages.how
+        && page.told(&told)
+    {
         return true;
     }
     if let Some(page) = &mut pages.stock_ways
@@ -1401,6 +1435,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(page) = pages.how.take() {
+        page.leave(out);
+    }
     pages.start = None;
     pages.accounts.leave(out);
     pages.builders.leave(out);
@@ -1748,6 +1785,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }
+        if let Some(page) = pages.how.take() {
+            page.leave(out);
+        }
         let keep_ways = match address_project(&address) {
             Some(project) => {
                 address_project(&pages.address) == Some(project)
@@ -1814,17 +1854,22 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.stock_ways =
                 Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
         }
+        if let Address::Settings { project } = address {
+            pages.how = Some(how::Open::new(project, &mut pages.next, &env.limits, out));
+        }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
-            pages.inbox = Some(inbox::Inbox::new(
-                crate::address::Filter { project: Some(project), kind: None, goal: None },
-                pages.next,
-                &env.limits,
-                out,
-            ));
+            let filter = if pages.launchpad {
+                pages.all_home = Some(all_home::AllHome::new(true, None));
+                pages.left_off = Some(launchpad::LeftOff::new(project, &mut pages.next));
+                crate::address::Filter::ALL
+            } else {
+                crate::address::Filter { project: Some(project), kind: None, goal: None }
+            };
+            pages.inbox = Some(inbox::Inbox::new(filter, pages.next, &env.limits, out));
         }
         if let Address::Settings { .. } | Address::Ask { .. } | Address::NewChat { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
@@ -3010,6 +3055,9 @@ fn configure_stock_ways(pages: &mut Pages, client: &Client) {
 }
 
 fn leave_across(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(reads) = pages.left_off.take() {
+        reads.leave(out);
+    }
     if let Some(reads) = pages.all_home.take() {
         reads.leave(out);
     }
@@ -3027,12 +3075,13 @@ fn configure_across(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: 
         pages.next = pages.next.max(inbox.next);
     }
     let mut next = pages.next;
-    reads.configure(pages.me(client), &mut next, env.limits.forge, out);
+    let own = if let Address::Home { project } = pages.address { Some(project) } else { None };
+    reads.configure(pages.me(client), own, &mut next, env.limits.forge, out);
     pages.next = next;
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = pages.next;
     }
-    if pages.address == Address::AllHome {
+    if pages.address == Address::AllHome || pages.home.is_some() {
         pages.all_home = Some(reads);
     } else {
         pages.needs_decided = Some(reads);
