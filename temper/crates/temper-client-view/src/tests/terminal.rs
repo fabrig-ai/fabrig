@@ -69,13 +69,15 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
                     assert!(!styled(view.tree(), look::TOP));
                 }
                 assert_eq!(styled(view.tree(), look::TABBAR), shell == Shell::Browser && !terminal, "tabs");
-                assert_eq!(styled(view.tree(), look::TO_TERMINAL), eligible && shell == Shell::Browser && !terminal);
-                if let Some(id) = f::find(view.tree(), Role::Button, b"Terminal, full screen") {
-                    assert!(view.tree().find(id).unwrap().styles.as_slice().contains(&look::TO_TERMINAL));
-                    assert_eq!(
-                        crate::act(&mut view, id, skein_ui::Act::Press),
-                        Some(Action::Pages(Act::Terminal(terminal::Act::Enter)))
-                    );
+                assert!(f::find(view.tree(), Role::Button, b"Terminal, full screen").is_none());
+                if !terminal && address == (Address::Ask { project: f::PROJECT }) {
+                    let right = view
+                        .tree()
+                        .nodes()
+                        .iter()
+                        .find(|node| node.styles.as_slice().contains(&look::SESSION_RIGHT))
+                        .unwrap();
+                    assert_eq!(right.size, 1, "Ask's bar has no right-side content");
                 }
                 if terminal && address == (Address::NewChat { draft: true }) {
                     let id = f::find(view.tree(), Role::Button, b"Draft").unwrap();

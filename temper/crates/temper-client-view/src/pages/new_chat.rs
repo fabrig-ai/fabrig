@@ -87,7 +87,6 @@ pub(crate) fn main(
         {
             super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
         }
-        super::session::to_terminal(b, w, bindings);
         b.close();
         b.close();
     }

@@ -48,21 +48,14 @@ fn disabled(node: &Node) -> bool {
 #[test]
 fn session_parts_follow_the_requested_order_in_both_shells() {
     let root = root();
-    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
         assert_eq!(skein_ui::outline::check(tree), None);
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
             (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (
-                look::SESSION_RIGHT,
-                if browser {
-                    vec![(Role::Button, vec![look::ADD_DRAFT]), (Role::Button, vec![look::TO_TERMINAL])]
-                } else {
-                    vec![(Role::Button, vec![look::ADD_DRAFT])]
-                },
-            ),
+            (look::SESSION_RIGHT, vec![(Role::Button, vec![look::ADD_DRAFT])]),
             (
                 look::CONVO,
                 vec![

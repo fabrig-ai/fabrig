@@ -55,9 +55,9 @@ On a phone, Chats and the goal page have Home, Needs you, Work and Ask
 in the tab bar; the chat layout hides the rail and tab bar.
 
 The chat's path is "Chats /", naming no project.
-The chat's bar offers Chat, Split, Draft and ">_" ("Terminal, full screen"),
-with "Start goal…" once the draft has a section (`../../../pages/README.md`,
-*A chat's terminal*).
+The chat's bar offers Chat, Split and Draft, with "Start goal…" once the
+draft has a section. It offers no terminal entrance (`../../../pages/chat/terminal.md`,
+1, *Entered*).
 
 The chat prints before starting the goal keep the call run and its rows,
 the document write's line and Show, and the end of the answer. Latest is
