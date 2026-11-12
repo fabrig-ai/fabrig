@@ -137,6 +137,7 @@ mod calls;
 mod edges;
 
 mod job_resolution;
+mod pull_files;
 
 #[test]
 fn answer_rows_past_the_limit_are_too_large() {
