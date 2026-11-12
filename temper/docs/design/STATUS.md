@@ -1,6 +1,10 @@
 # Status
 
-2026-11-11. The first milestone stands in the code. Remaining work spans
+2026-11-12. The first milestone stands in the code. The wires between
+the engine, its workers, their agents and the clients move their
+versions with their layouts, stated and checked at the channel's
+opening, each build's floor its current until bridges
+(`protocol/wires.md`; `draft/redeploys.md`, R1). Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
@@ -233,6 +237,7 @@ Design documents:
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
+- [`protocol/wires.md`](protocol/wires.status.md)
 - [`release.md`](release.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`testing/checks.md`](testing/checks.status.md)
