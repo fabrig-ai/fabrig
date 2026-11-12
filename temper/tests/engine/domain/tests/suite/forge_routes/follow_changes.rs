@@ -365,6 +365,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
                 by: engine::Way::Queue,
                 repositories: Box::new([]),
                 after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                landing_attempts: engine::LANDING_ATTEMPTS,
             },
         );
     }

@@ -204,6 +204,7 @@ fn configured(
                     .insert(
                         1,
                         engine::ProjectLanding {
+                            landing_attempts: engine::LANDING_ATTEMPTS,
                             check_timeout: None,
                             by: engine::Way::Queue,
                             close_job: None,
