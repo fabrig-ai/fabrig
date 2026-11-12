@@ -141,7 +141,8 @@ fn name(random: &mut Rng) -> top::Name {
 }
 fn topic(random: &mut Rng) -> top::Topic {
     let repository = repository(random);
-    match random.below(4) {
+    match random.below(5) {
+        4 => top::Topic::Findings { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         0 => top::Topic::Landings { repository, branch: random_bytes(random) },
         1 => top::Topic::Ci { repository, head: commit(random) },
         2 => top::Topic::Pull { repository, number: random.next_u64() },
@@ -164,7 +165,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(35) {
+    match random.below(36) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -212,6 +213,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
+        35 => top::Key::Finding { project: u32::try_from(random.below(4_294_967_296)).expect("u32"), number: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -1137,4 +1139,10 @@ pub fn tier_goals() -> Box<[top::TierGoal]> {
             .unwrap();
     }
     goals.into_boxed()
+}
+
+pub fn finding() -> top::Finding {
+    top::Finding { project: u32::MAX, number: u32::MAX, kind: top::FindingKind::Feedback, severity: top::Severity::High,
+        area: Some(vec![b'a'; 32].into()), state: top::FindingState::Dropped, title: vec![b't'; 200].into(), body: vec![b'b'; 4096].into(),
+        filer: top::Filer::Task(u64::MAX), at: skein_lib::Wall::from_nanos(u64::MAX), why: Some(vec![b'w'; 200].into()), hander: Some(top::Filer::Party(u64::MAX)), goal: Some(u64::MAX), reason: Some(vec![b'r'; 400].into()) }
 }

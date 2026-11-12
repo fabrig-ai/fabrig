@@ -18,6 +18,7 @@ mod forge_routes;
 mod hello_refused;
 mod host_calls;
 mod issue_projection;
+mod findings;
 mod loads;
 mod mark;
 mod memory;

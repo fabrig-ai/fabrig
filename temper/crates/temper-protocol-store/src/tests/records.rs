@@ -2176,3 +2176,26 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
     drop(cloned);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
+
+#[test]
+fn findings_round_trip_full_rows_options_and_topic_and_refuse_wrong_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for kind in [forge::FindingKind::Qa, forge::FindingKind::Flake, forge::FindingKind::Red, forge::FindingKind::Review, forge::FindingKind::Feedback] {
+        for (state, severity) in [(forge::FindingState::New, forge::Severity::Low), (forge::FindingState::Backlog, forge::Severity::Medium), (forge::FindingState::Routed, forge::Severity::High), (forge::FindingState::Dropped, forge::Severity::High)] {
+            for options in [false, true] {
+                let mut row = fixtures::finding(); row.kind = kind; row.state = state; row.severity = severity;
+                if !options { row.area = None; row.why = None; row.hander = None; row.goal = None; row.reason = None; row.filer = forge::Filer::Party(1); }
+                let row = forge::Stored::Finding(row);
+                let bytes = records::encode(&row);
+                let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+                assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+                let wrong = crate::keys::encode(&forge::Key::Finding { project: 1, number: 1 }, u32::MAX).unwrap();
+                assert_eq!(records::row(&wrong, &bytes, &bounds), Err(crate::Undecodable));
+            }
+        }
+    }
+    let row = forge::Stored::Subscription(forge::Subscriber { task: 1, number: 2, topic: forge::Topic::Findings { project: u32::MAX }, own_change: None, goal_tasks: None, paths: Box::default() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    let row = forge::Stored::Finding(forge::Finding { title: Box::default(), ..fixtures::finding() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable));
+}

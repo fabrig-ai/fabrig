@@ -1,4 +1,6 @@
 //! Findings are routed in the deciding decision (temper/docs/design/domain/areas.md, 3 to 7).
+#[cfg(test)]
+mod tests;
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_route, tasks};
 use alloc::boxed::Box;
 use forge::{Filer, Holder, FindingRefusal, settings::AreaOwner};
@@ -90,7 +92,7 @@ fn prepare_triage(domain: &Domain, by: Filer, call: forge::TriageFinding) -> Res
     permitted(domain, call.project, call.number, by)?;
     if let forge::Triage::Route(goal) = call.act {
         let Some(row) = domain.core.tasks.task(goal) else { return Err(FindingRefusal::NoGoal) };
-        if !live(row, call.project) || row.label != 1 { return Err(FindingRefusal::NoGoal); }
+        if !live(row, call.project) || row.label != 2 { return Err(FindingRefusal::NoGoal); }
     }
     domain.forge.prepare_triage_finding(call)
 }

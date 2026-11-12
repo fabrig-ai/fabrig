@@ -92,6 +92,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        finding_rows(&mut rng, &bounds);
         let making = making_row(&mut rng);
         row_and_key(&making, &mut rng, &bounds);
         let dismissed = forge::Stored::Dismissed { party: rng.next_u64(), what: person_fact(&mut rng) };
@@ -582,4 +583,21 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
         row_and_key(&forge::Stored::Decided(row), rng, bounds);
     }
+}
+
+fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
+    let hand = rng.below(2) == 0;
+    let row = forge::Stored::Finding(forge::Finding {
+        project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits"), number: u32::try_from(rng.below(4_294_967_295) + 1).expect("drawn field fits"),
+        kind: match rng.below(5) { 0 => forge::FindingKind::Qa, 1 => forge::FindingKind::Flake, 2 => forge::FindingKind::Red, 3 => forge::FindingKind::Review, _ => forge::FindingKind::Feedback },
+        severity: match rng.below(3) { 0 => forge::Severity::Low, 1 => forge::Severity::Medium, _ => forge::Severity::High },
+        state: match rng.below(4) { 0 => forge::FindingState::New, 1 => forge::FindingState::Routed, 2 => forge::FindingState::Backlog, _ => forge::FindingState::Dropped },
+        area: if rng.below(2) == 0 { Some(b"tests".as_slice().into()) } else { None }, title: b"drawn finding".as_slice().into(), body: vec![b'b'; usize::try_from(rng.below(4097)).expect("drawn field fits")].into(),
+        filer: if rng.below(2) == 0 { forge::Filer::Task(rng.next_u64()) } else { forge::Filer::Party(rng.next_u64()) }, at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        why: if hand { Some(b"scope".as_slice().into()) } else { None }, hander: if hand { Some(forge::Filer::Task(rng.next_u64())) } else { None },
+        goal: if rng.below(2) == 0 { Some(rng.next_u64()) } else { None }, reason: if rng.below(2) == 0 { Some(b"not needed".as_slice().into()) } else { None },
+    });
+    row_and_key(&row, rng, bounds);
+    let row = forge::Stored::Subscription(forge::Subscriber { task: rng.next_u64(), number: rng.next_u64(), topic: forge::Topic::Findings { project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits") }, own_change: None, goal_tasks: None, paths: Box::default() });
+    row_and_key(&row, rng, bounds);
 }
