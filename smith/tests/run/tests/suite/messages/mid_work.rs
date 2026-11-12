@@ -36,7 +36,11 @@ fn scripted(settings: &Settings, turns: Box<[Turn]>, children: Vec<Script>) -> W
     scripted_in(settings, turns, children, Fixture::new())
 }
 
-fn scripted_in(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>, mut fixture: Fixture) -> World {
+fn scripted_in(settings: &Settings, turns: Box<[Turn]>, children: Vec<Script>, fixture: Fixture) -> World {
+    scripted_mode(settings, turns, children, fixture, run::Mode::Finite)
+}
+
+fn scripted_mode(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>, mut fixture: Fixture, mode: run::Mode) -> World {
     fixture.checkout.program(b"cargo build", program(200, b"Finished\n", Exit::Code(0), &[]));
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -48,7 +52,8 @@ fn scripted_in(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script
             conflicts: Box::default(),
         }]),
     };
-    let charter = scripted_charter(settings);
+    let mut charter = scripted_charter(settings);
+    charter.mode = mode;
     children.push(Script { cue: charter.brief.sections[0].text.clone(), turns });
     World::with_workspace_scripts_charter(*settings, None, Some(workspace), fixture.checkout, children.into(), charter)
 }
@@ -206,21 +211,32 @@ fn terminals(world: &World) -> Vec<(Token, &'static str)> {
 
 #[test]
 fn drain_keeps_the_completion_and_tools_whole_without_reading_a_later_message() {
-    for at in [50, 150] {
-        let mut world = working(&settings());
-        world.drain_at(Time::from_nanos(at * 1_000_000));
-        message(&mut world, at + 10, 7, b"next activation");
-        world.run(10_000);
-        assert_eq!(world.prompts().len(), 1, "no next main completion");
-        assert!(matches!(world.completions()[0].terminal,
-            Some((_, smith_agent_world::CompletionTerminal::Completed(_)))));
-        assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
-        assert_eq!(fences(&world), [None]);
-        assert_eq!(terminals(&world), [(Token::new(7), "unread")]);
-        assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
-            matches!(block, smith_domain::session::llm::Block::ToolResult {
-                result: smith_domain::session::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } }, ..
-            })), "the shell result is in the told turn");
+    for mode in [run::Mode::Finite, run::Mode::Open] {
+        for at in [50, 150] {
+            let turns = Box::new([
+                smith_agent_world::fixture::calls(Box::new([
+                    Line::Call { name: b"read".as_slice().into(), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() },
+                    Line::Call { name: b"shell".as_slice().into(), arguments: br#"{"command":"cargo build"}"#.as_slice().into() },
+                ]), 1),
+                call(b"finish", br#"{"report":"Not reached.","source":"workspace"}"#),
+            ]);
+            let mut world = scripted_mode(&settings(), turns, Vec::new(), Fixture::new(), mode);
+            world.drain_at(Time::from_nanos(at * 1_000_000));
+            message(&mut world, at + 10, 7, b"next activation");
+            world.run(10_000);
+            assert_eq!(world.prompts().len(), 1, "no next main completion");
+            assert!(matches!(world.completions()[0].terminal,
+                Some((_, smith_agent_world::CompletionTerminal::Completed(_)))));
+            assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
+            assert_eq!(fences(&world), [None]);
+            assert_eq!(terminals(&world), [(Token::new(7), "unread")]);
+            let results: Vec<_> = world.turns()[0].messages.iter().flat_map(|message| &message.content).filter_map(|block|
+                if let smith_domain::session::llm::Block::ToolResult { result, .. } = block { Some(result) } else { None }).collect();
+            assert_eq!(results.len(), 2, "both calls have their results in the turn");
+            assert!(results.iter().any(|result| matches!(result,
+                smith_domain::session::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } })),
+                "the shell result is in the told turn");
+        }
     }
 }
 
