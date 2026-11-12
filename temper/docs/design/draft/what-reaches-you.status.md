@@ -23,8 +23,8 @@ milestone N2, and who can still sign a waiting sign-off by
 `../domain/forge/change/branch-path.md`'s *A rule by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
 2's *Rules by path*, milestone P3c, and the sign-offs a merge counted, kept with its landing
 for Work, Team and the brief, by `../domain/forge/change/gates.md`, 2,
-*Sign-offs kept at landing*, milestone N6. Where the code lags them is
-their status files'.
+*Sign-offs kept at landing*, milestone N6. Where the code lags them is their status
+files'.
 
 - **Design lags:**
   - 4: `../domain/forge/attention.md`, 6 judges the

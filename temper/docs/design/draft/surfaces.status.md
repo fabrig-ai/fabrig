@@ -40,9 +40,9 @@
     People's foot, "Findings with no area go to NAME.", which nothing
     draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
     gives a person's line what they can still sign and asked for, which
-    waits for a read of the sign-offs another person can still give (N5):
-    the `approvals` rows name who can still sign only the changes their
-    watcher sees (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
+    waits for a read of the sign-offs another person can still give: the
+    `approvals` rows name who can still sign only the changes their watcher
+    sees (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
     what they signed is `../client/pages/team.md`, 1, *What each signed*.
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's

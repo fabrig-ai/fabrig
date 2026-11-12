@@ -123,8 +123,8 @@
   People's foot, once the areas are drawn (R2); what a person can still
   sign and asked for, on their line, as
   `web/whole-story/team/team.html` draws it, once a read of what another
-  person can still sign gives it (N5), the `approvals` rows naming who
-  can still sign only the changes their watcher sees
+  person can still sign gives it, the `approvals` rows naming who can
+  still sign only the changes their watcher sees
   (`../../domain/forge/change/questions.md`, 2, *Who can still sign*); and what waits
   on another person on another's task or on a role they hold, once a read
   gives another party's inbox. Each joins *Its parts* with the read that
