@@ -1054,3 +1054,33 @@ fn overlay_replaces_fields_and_appends_text_and_parts() {
     overlay.instructions = Box::from(b"B".as_slice());
     assert_eq!(overlaid(&default, &overlay).policy.instructions.as_ref(), b"B");
 }
+
+#[test]
+fn overlay_requires_a_default_and_keeps_its_stored_identity() {
+    let configured = config(1);
+    let mut limits = limits();
+    limits.tasks.charters = 2;
+    let mut current = Current::new(configured.defaults, &limits, &[]);
+    let value = Value::Overlay(Box::new(Overlay::empty()));
+    let mut item = Item { setting: Setting::Charter(2), edit: Edit::Set(value.clone()) };
+    let failure = check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap_err();
+    assert_eq!((failure.setting, failure.fault), (item.setting, Fault::Reference));
+    item.setting = Setting::Charter(1);
+    check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap();
+    assert!(changes_current(&current, &[item.clone()]), "even an empty overlay follows its default");
+    drop(apply(&mut current, &[item.clone()], 2));
+    charters::rebuild(&mut current, &limits);
+    assert_eq!(current.value(item.setting), Some(&value));
+    assert!(!changes_current(&current, &[item]));
+    assert_eq!(current.replaced(Setting::Charter(1)), Replaced::Value(value));
+    let default = current.default_value(Setting::Charter(1)).unwrap().clone();
+    for edit in [Edit::Reset, Edit::Set(default.clone()), Edit::Removed] {
+        drop(apply(&mut current, &[Item { setting: Setting::Charter(1), edit: edit.clone() }], 3));
+        charters::rebuild(&mut current, &limits);
+        assert!(current.overlay(Setting::Charter(1)).is_none());
+        match edit {
+            Edit::Reset | Edit::Set(_) => assert_eq!(current.value(Setting::Charter(1)), Some(&default)),
+            Edit::Removed => assert!(current.charter(1).is_none()),
+        }
+    }
+}
