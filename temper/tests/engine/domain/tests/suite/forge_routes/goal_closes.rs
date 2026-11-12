@@ -846,12 +846,6 @@ fn a_goal_woken_by_an_escalation_that_makes_a_change_closes_after_it() {
     assert_ne!(second, first);
     let expected = format!("{{\"version\":1,\"goal\":{},\"changes\":[{{\"task\":{work},\"landed\":true}}]}}", run.task);
     assert_eq!(row(&world, second).close.as_deref(), Some(expected.as_bytes()));
-    for _ in 0..STEPS {
-        if closer_row(&world, closer).expect("closer row").close_changes.contains(&second) {
-            break;
-        }
-        world.tick();
-    }
     assert_eq!(closer_row(&world, closer).expect("closer row").close_changes.as_ref(), &[first, second]);
     finish_close(&mut world, second, &branch, &job);
     wait_ended(&mut world, second);

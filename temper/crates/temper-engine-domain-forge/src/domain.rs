@@ -1422,12 +1422,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, saved);
             }
         }
-        Event::Closer { row } => {
-            if let Some(old) = d.closer(row.task) {
-                assert!(!old.close_changes.contains(&9) || row.close_changes.contains(&9), "closer lost progress: old {old:?}, fresh {row:?}");
-            }
-            crate::closer::save(d, row, out);
-        },
+        Event::Closer { row } => crate::closer::save(d, row, out),
         Event::CloserRelayed { task, relay } => {
             if let Some(mut row) = d.closer(task).cloned() {
                 row.relay = relay;

@@ -175,7 +175,9 @@ fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut
     let (asked, more) = relay::apply(domain, env, &mut row, &mut decision);
     let relay = core::mem::replace(&mut row.relay, previous);
     // Step progress keeps its creation marker; only the relay waits for admission.
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    if domain.forge.closer(task) != Some(&row) {
+        domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    }
     domain.closer_steps.insert((task, step), Pending { relay, asked, more }).expect("one pending step per closer");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
