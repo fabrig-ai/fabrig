@@ -13,14 +13,14 @@ transcript lists its three commits newest first, as the plan reads them.
 
 - **Not yet:** 3.3, by plan `forge-polls-quiet`: Forgejo's dialect
   sends no validator, and GitHub's sends one on the delivery log's first
-  page alone [in flight: change 155].
+  page alone.
 - **Not yet:** 3.2: `Pull`'s `ci`: every `Pull` and `PullFor` reads its
-  head's CI [in flight: change 158].
+  head's CI.
 - **Not yet:** 3.2, 3.3: `skip` on `Reviews`, `Remarks` and `PullFiles`,
-  and `cut` on their answers [in flight: change 161].
+  and `cut` on their answers.
 - **Not yet:** 3.2: `Item`'s `since`, which neither dialect sends.
 - **Not yet:** 3.2: `PullFiles`' `sides`, which neither dialect reads:
-  every page reads both sides [in flight: change 436].
+  every page reads both sides.
  
 - **Not yet:** 3.7: `Branches`' names bounded by `rows`
   (`skein-forge/src/forgejo/plans/reads.rs`, and `measure.rs`'s row count).
@@ -32,7 +32,7 @@ transcript lists its three commits newest first, as the plan reads them.
   `workflow_id=` (`skein-forge/src/forgejo/client/files.rs`); `Pull`'s
   CI folds every page's rows where a short first page's `state` serves,
   and `Statuses` reads `more` from `total_count`, which is the page's
-  (`plans/actions.rs`) [in flight: change 158].
+  (`plans/actions.rs`).
 
 - **Not yet:** 3.2: `Labels`, `CreateLabel` and `UpdateRef`, and `CreateIssue`'s labels, in neither dialect (`skein-forge/src/api.rs`'s `Read` and `Write`). 3.6: `Protection`'s `pulls_required` and `pulls_bypass`. 3.7, 8: the missing GitHub routes remain `github.status.md`, 4.5. 4.3: the artifact observations remain `forgejo.status.md`, 2.   the job-log, comments-page and removed-file observations remain `forgejo.status.md`, 2.
 

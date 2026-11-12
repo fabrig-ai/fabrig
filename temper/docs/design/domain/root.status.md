@@ -116,8 +116,7 @@ LINKED`, as for every link jig's start cannot make
 
 - **Not yet:** 6.2: a goal's design writer's brief line: no brief says
   that `deliver` pushes Markdown straight to the goal branch
-  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`)
-  [in flight: change 98].
+  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`).
 - **Not yet:** 6.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
