@@ -4,7 +4,5 @@
 
 - **Not yet:**  the retention gap remains `README.status.md`, 6.1.
 
-- **Not yet:** 5: rehearsing and going back: `jig/crates/jig-protocol-store` has no `Request::Rehearse`, `Request::Back`, `Event::Back` or `BackRefusal`, and `jig/tests/store` no story of them [in flight: change 670]
-- **Not yet:** 5, every record decoded: a rehearsal decodes only what its patches change; no `Event::Decoded`, `Event::Undecodable` or `Undecoded` [in flight: change 863]
 
 - **Not yet:** the reference-binary crash and fake-store gaps remain `README.status.md`, 9.
