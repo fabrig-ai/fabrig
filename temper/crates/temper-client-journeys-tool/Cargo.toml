@@ -28,6 +28,9 @@ skein-fake-person-browser.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
+skein-http.workspace = true
+skein-json.workspace = true
+skein-forge.workspace = true
 
 [dev-dependencies]
 jig-client.workspace = true

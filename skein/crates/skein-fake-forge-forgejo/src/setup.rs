@@ -178,6 +178,7 @@ impl Store {
             | Request::DeleteToken { .. }
             | Request::Org { .. }
             | Request::CreateOrg { .. }
+            | Request::ChangeFiles { .. }
             | Request::CreateFile { .. }
             | Request::CreateRepository { .. }
             | Request::Teams { .. }
@@ -269,7 +270,7 @@ impl Store {
             Request::DeleteToken { login, id } => self.delete_token(login, *id, limits),
             Request::Org { name } => self.read_org(name, limits),
             Request::CreateOrg { person, name } => self.create_org(person, name, limits),
-            Request::CreateRepository { .. } | Request::CreateFile { .. } => full(limits),
+            Request::CreateRepository { .. } | Request::ChangeFiles { .. } | Request::CreateFile { .. } => full(limits),
             Request::Teams { org, page } => self.list_teams(org, *page, config, limits),
             Request::CreateTeam { org, spec } => self.create_team(org, spec, limits),
             Request::EditTeam { team, spec } => self.patch_team(*team, spec, limits),

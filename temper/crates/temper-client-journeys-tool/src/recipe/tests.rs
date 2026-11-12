@@ -24,6 +24,28 @@ fn shown(lines: Vec<WalkLine>) -> Vec<String> {
     lines.into_iter().map(|line| format!("{} {}", line.source, String::from_utf8_lossy(&line.line))).collect()
 }
 #[test]
+fn forge_steps_walk_before_resets_and_checks_from_fresh_or_copy() {
+    let mut files = Files::new();
+    put(&mut files, "base", "recipe", b"recipe 1\nweb see \"Base\"\n");
+    put(&mut files, "gate", "recipe", b"recipe 1\nafter \"base\"\nforge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"\nforge checks 1 playground/widget\nweb see \"Green\"\ntui see \"Green\"\n");
+    let chain = read(&files, "gate").expect("forge recipe");
+    let fresh = [
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "base:2 web see \"Base\"",
+        "gate:3 forge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"",
+        "gate:4 forge checks 1 playground/widget",
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "gate:5 web see \"Green\"",
+        "gate:6 tui see \"Green\"",
+    ];
+    assert_eq!(shown(chain.lines(None).expect("fresh")), fresh);
+    assert_eq!(shown(chain.lines(Some("base")).expect("base copy")), &fresh[2..]);
+    assert_eq!(shown(chain.lines(Some("gate")).expect("gate copy")), &fresh[7..]);
+}
+
+#[test]
 fn reads_chain_and_walks_fresh_or_from_a_copy() {
     let files = three();
     let chain = read(&files, "last").expect("chain");
