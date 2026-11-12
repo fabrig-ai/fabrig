@@ -7,6 +7,13 @@ use settings_form::{
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 
 #[test]
+fn the_page_leaves_room_for_more_fields() {
+    let page = fields::page(&temper_client_tools::limits::form());
+    let most = temper_docs::PAGE_BYTES.checked_sub(1_000).expect("reference bound leaves growth room");
+    assert!(page.len() <= most, "settings-fields is {} bytes; at most {most} leaves 1,000 bytes of room", page.len());
+}
+
+#[test]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
