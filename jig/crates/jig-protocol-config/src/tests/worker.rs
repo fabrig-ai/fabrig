@@ -21,6 +21,7 @@ fn refuses(from: &[u8], to: &[u8], path: Path, what: What) {
 fn graces() -> Graces {
     Graces {
         grace: Duration::from_secs(30),
+        drain: Duration::from_secs(10),
         agent_stop: Duration::from_secs(10),
         delivery: Duration::from_secs(20),
         save: Duration::from_secs(5),
@@ -30,6 +31,8 @@ fn graces() -> Graces {
 fn the_stop_bound_sums_ping_silence_grace_the_longer_stop_and_a_save() {
     let bound = stop_bound(&graces(), Duration::from_secs(5), Duration::from_secs(15));
     assert_eq!(bound, Some(Duration::from_secs(75)));
+    let draining = Graces { drain: Duration::from_secs(180), ..graces() };
+    assert_eq!(stop_bound(&draining, Duration::from_secs(5), Duration::from_secs(15)), Some(Duration::from_secs(205)));
 }
 #[test]
 fn the_stop_bound_uses_the_agents_grace_when_it_is_longer() {
@@ -40,6 +43,51 @@ fn the_stop_bound_uses_the_agents_grace_when_it_is_longer() {
 fn a_stop_bound_past_a_duration_is_refused() {
     let graces = Graces { save: Duration::from_nanos(u64::MAX), ..graces() };
     assert_eq!(stop_bound(&graces, Duration::from_secs(5), Duration::from_secs(15)), None);
+}
+#[test]
+fn an_absent_drain_uses_three_minutes() {
+    let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""drain_ms": 10000, "#, b"");
+    let worker = worker(&bytes).unwrap();
+    assert_eq!(worker.graces.drain, Duration::from_millis(180_000));
+    assert_eq!(worker.stop_bound, Duration::from_secs(205));
+    let member = crate::members::MEMBERS.iter().find(|row| row.shape == "graces" && row.name == "drain_ms").unwrap();
+    assert!(!member.required);
+    assert!(
+        crate::members::MEMBERS
+            .iter()
+            .filter(|row| row.shape == "graces" && row.name != "drain_ms")
+            .all(|row| row.required)
+    );
+}
+#[test]
+fn a_present_drain_accepts_unsigned_milliseconds_up_to_a_duration() {
+    for millis in [0, 180_000, 18_446_744_073_709_u64] {
+        let drain = format!("\"drain_ms\": {millis}");
+        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""drain_ms": 10000"#, drain.as_bytes());
+        // No cancellation tail: the largest drain fits the whole stop bound too.
+        let bytes = fixtures::with(&bytes, b"\"agent_stop_ms\": 10000", b"\"agent_stop_ms\": 0");
+        let bytes = fixtures::with(&bytes, b"\"delivery_ms\": 20000", b"\"delivery_ms\": 0");
+        let bytes = fixtures::with(&bytes, b"\"save_ms\": 5000", b"\"save_ms\": 0");
+        assert_eq!(worker(&bytes).unwrap().graces.drain, Duration::from_millis(millis));
+    }
+}
+#[test]
+fn invalid_drain_members_name_their_field() {
+    for (drain, what) in [
+        (br#""180000""#.as_slice(), What::Kind),
+        (b"true", What::Kind),
+        (b"-1", What::Bound),
+        (b"1.5", What::Bound),
+        (b"18446744073710", What::Bound),
+        (b"10000, \"drain_ms\": 10", What::Duplicate),
+    ] {
+        refuses(
+            b"\"drain_ms\": 10000",
+            &[b"\"drain_ms\": ".as_slice(), drain].concat(),
+            fixtures::path(&[b"graces", b"drain_ms"]),
+            what,
+        );
+    }
 }
 fn a_silence_under_three_pings_is_refused() {
     refuses(
