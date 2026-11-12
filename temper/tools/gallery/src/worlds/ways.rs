@@ -7,6 +7,9 @@ use temper_protocol_reaches::{Classes, Way, classes_record};
 
 const PROJECT: u32 = 1;
 const REVISION: u32 = 1;
+const CORE_PATHS: &str = "include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md";
+const SIGN_NOTE: &str =
+    "A sign-off is for one head. A change pushed after it needs signing again; taking main cleanly keeps it.";
 const NAMES: [&str; 3] = ["You approve", "Agents review", "Draft first"];
 const HEADLINES: [&str; 3] = [
     "You approve every change",
@@ -23,7 +26,7 @@ const REFUSED: &str =
 
 pub(super) fn world(name: &str) -> Domain {
     world_in_layout(
-        if is_draft(name) { super::Reference } else { FirstRun { step: 7 } },
+        if is_draft(name) || name == "how-team" { super::Reference } else { FirstRun { step: 7 } },
         if is_how(name) { Address::Settings { project: PROJECT } } else { Address::Ask { project: PROJECT } },
         Then::Shown,
         false,
@@ -39,10 +42,13 @@ pub(super) fn is_how(name: &str) -> bool {
 }
 
 pub(super) fn is_draft(name: &str) -> bool {
-    matches!(name, "how-draft" | "how-reaches")
+    matches!(name, "how-draft" | "how-reaches" | "how-rules" | "how-rules-card")
 }
 
 pub(super) fn frame(me: &mut c::Me, name: &str) {
+    if matches!(name, "how-rules" | "how-rules-card" | "how-team") {
+        me.projects.get_mut(0).expect("How project").name = doc(if name == "how-team" { "shop" } else { "vsr" });
+    }
     if is_draft(name) {
         let project = me.projects.get_mut(0).expect("How project");
         let template = project.templates.iter_mut().find(|template| template.number == 4).expect("draft goal template");
@@ -62,7 +68,7 @@ pub(super) fn setting(name: &str) -> Box<[u8]> {
     writer.finish()
 }
 
-pub(super) fn reaches_setting() -> Box<[u8]> {
+pub(super) fn reaches_setting(name: &str) -> Box<[u8]> {
     use temper_protocol_reaches::{Class, Item, Kind, PathSet, Subject};
     let classes = Classes {
         items: [
@@ -79,7 +85,7 @@ pub(super) fn reaches_setting() -> Box<[u8]> {
         .collect(),
         sets: Box::new([PathSet {
             number: 1,
-            name: "vsr’s protocol core".as_bytes().into(),
+            name: if name == "how-reaches" { "vsr’s protocol core" } else { "protocol core" }.as_bytes().into(),
             patterns: ["include/vsr.h", "src/protocol.*", "src/transition.*", "docs/protocol.md"]
                 .map(|pattern| pattern.as_bytes().into())
                 .into(),
@@ -110,31 +116,31 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
         )
         .expect("three ways");
     }
-    let yours = matches!(name, Some("ask-ways-yours" | "how-yours"));
+    let yours = matches!(name, Some("ask-ways-yours" | "how-yours" | "how-rules" | "how-rules-card" | "how-team"));
     let current = match name {
         Some("how-approve") => 0,
-        Some("how-draft" | "how-reaches") => 2,
+        Some("how-draft" | "how-reaches" | "how-rules" | "how-rules-card") => 2,
         _ => 1,
     };
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
-            rules: w::PathRules::new(&w::CEILINGS, w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) }).expect("empty path rules"),
-            words: if name == Some("how-yours") {
-                Some(w::ProjectWords::new(
-                    &w::CEILINGS,
-                    w::ProjectWordsParts {
-                        headline: b"Agents review everything, then one of you signs off".as_slice().into(),
-                        lede: b"shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.".as_slice().into(),
-                    },
-                ).expect("project words"))
-            } else {
-                None
-            },
+            rules: rules(name),
+            words: project_words(name),
             project,
             ways,
             current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },
-            own: if yours { own() } else { delivered_path(current, name) },
+            own: match name {
+                Some("how-rules" | "how-rules-card") => rules_path(false),
+                Some("how-team") => rules_path(true),
+                _ => {
+                    if yours {
+                        own()
+                    } else {
+                        delivered_path(current, name)
+                    }
+                }
+            },
             may_change: name != Some("ask-ways-member"),
         },
     )
@@ -154,8 +160,103 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     }
 }
 
-pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
-    let rows = [
+fn project_words(name: Option<&str>) -> Option<w::ProjectWords> {
+    let (headline, lede) = match name {
+        Some("how-yours") => (
+            "Agents review everything, then one of you signs off",
+            "shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.",
+        ),
+        Some("how-rules" | "how-rules-card") => (
+            "Draft first, with the protocol core asking you",
+            "vsr's process as temper runs it: who acts at each step, what reaches you, and what follows a landing.",
+        ),
+        Some("how-team") => (
+            "Agents review everything, then one of you signs off",
+            "shop runs a way of its own: agents review every change, and two rules of yours add sign-offs. Every change needs one of you, and anything under payments/ needs two of you.",
+        ),
+        _ => return None,
+    };
+    Some(
+        w::ProjectWords::new(
+            &w::CEILINGS,
+            w::ProjectWordsParts { headline: headline.as_bytes().into(), lede: lede.as_bytes().into() },
+        )
+        .expect("project words"),
+    )
+}
+
+fn rules(name: Option<&str>) -> w::PathRules {
+    let rows: &[(&str, &str, &str, &str)] = match name {
+        Some("how-rules" | "how-rules-card") => &[(CORE_PATHS, "", "you", "once you sign off")],
+        Some("how-team") => &[
+            ("payments/", "an agent", "two of you", "once two have signed this head"),
+            ("everything else", "an agent", "one of you", "once signed"),
+        ],
+        _ => &[],
+    };
+    let mut records = List::with_capacity(u32::try_from(rows.len()).expect("path rules"));
+    for (paths, review, sign_off, lands) in rows {
+        records
+            .push(
+                w::PathRule::new(
+                    &w::CEILINGS,
+                    w::PathRuleParts {
+                        paths: paths.as_bytes().into(),
+                        review: review.as_bytes().into(),
+                        sign_off: sign_off.as_bytes().into(),
+                        lands: lands.as_bytes().into(),
+                    },
+                )
+                .expect("path rule"),
+            )
+            .expect("path rules");
+    }
+    w::PathRules::new(
+        &w::CEILINGS,
+        w::PathRulesParts { rows: records, note: if rows.is_empty() { "" } else { SIGN_NOTE }.as_bytes().into() },
+    )
+    .expect("rules by path")
+}
+
+fn rules_path(team: bool) -> w::BranchPath {
+    let mut parts = delivered_path(if team { 1 } else { 2 }, Some("how-rules")).into_parts();
+    let mut stops = parts.stops.into_boxed().into_vec();
+    let mut sign = stop(w::PathStep::Approve).into_parts();
+    sign.words = if team { "one of you" } else { "you" }.as_bytes().into();
+    sign.over = if team { "" } else { "if protocol core" }.as_bytes().into();
+    sign.card = if team {
+        card(
+            "a person · decides whether it lands",
+            "owner",
+            &[
+                ("Role", "owner: the three of you"),
+                ("Asks", "1 of you; payments: 2"),
+                ("Counts", "code counts the sign-offs at this head; a clean update keeps them"),
+            ],
+        )
+    } else {
+        card(
+            "a person · decides whether it lands",
+            "owner",
+            &[
+                ("Only for", CORE_PATHS),
+                ("Role", "owner"),
+                ("Asks", "1 of them"),
+                ("Counts", "code counts the sign-offs at this head; a clean update keeps them"),
+            ],
+        )
+    };
+    let at = stops.iter().rposition(|value| *value.step() == w::PathStep::Conflict).expect("main conflict");
+    stops.insert(at, w::Stop::new(&w::CEILINGS, sign).expect("sign-off"));
+    if !team {
+        stops.insert(at, stop(w::PathStep::Repair));
+    }
+    parts.stops = List::from_boxed(stops.into_boxed_slice());
+    w::BranchPath::new(&w::CEILINGS, parts).expect("project's path")
+}
+
+pub(super) fn roles(root: &mut Domain, read: Token, team: bool, out: &mut Queue<Request>) {
+    let mut rows = vec![
         (
             2,
             "Chat",
@@ -206,6 +307,23 @@ pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
             "Write the few lines at the top of the project’s Home, from the facts in your task.",
         ),
     ];
+    if team {
+        rows.retain(|(charter, ..)| !matches!(charter, 12 | 5));
+        let coder = rows.get_mut(2).expect("coding agent");
+        coder.3 = "read the code and the forge; change and push its branch; start sub-agents; never merge";
+        let foreman = rows.get_mut(3).expect("foreman");
+        foreman.2 = "When a coding agent asks: answers from the change’s words, or passes it up to you";
+        rows.insert(
+            3,
+            (
+                4,
+                "Reviewer",
+                "For each change: reviews it, and holds it until it approves",
+                "read the code and the forge; never merge",
+                "Review the change at the named head, against what it was asked to do.",
+            ),
+        );
+    }
     let roles = rows
         .into_iter()
         .map(|(charter, name, who, can, asked)| {
@@ -246,7 +364,7 @@ pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Qu
     }
     let stop = match name {
         "ask-ways-card" | "how-card" => Some(w::PathStep::Review),
-        "ask-ways-card-person" => Some(w::PathStep::Approve),
+        "ask-ways-card-person" | "how-rules-card" => Some(w::PathStep::Approve),
         _ => None,
     };
     if let Some(stop) = stop {
@@ -440,7 +558,15 @@ fn stop(step: w::PathStep) -> w::Stop {
             Person,
             "you approve",
             rule,
-            card("a person · decides whether it lands", "owner", &[("Role", "owner"), ("Asks", "1 of them")]),
+            card(
+                "a person · decides whether it lands",
+                "owner",
+                &[
+                    ("Role", "owner"),
+                    ("Asks", "1 of them"),
+                    ("Counts", "code counts the sign-offs at this head; a clean update keeps them"),
+                ],
+            ),
         ),
         Conflict => (
             Code,

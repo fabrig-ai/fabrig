@@ -19,11 +19,13 @@ pub enum Read {
 
 /// What How work runs' parts are decided from.
 #[expect(clippy::struct_excessive_bools, reason = "the page gathers independent facts for its parts")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
     /// `me` lists Ask temper's template in the project.
     pub asking: bool,
     pub read: Read,
+    /// The rows of the project's shown `ways` read.
+    pub rules: List<w::PathRule>,
     /// Kind 7 read, with Goals shown.
     pub goals: bool,
     /// The page has read at least one project role.
@@ -59,6 +61,13 @@ pub enum Budget {
     UpTo(u64),
 }
 
+/// Rules by path's optional link and column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rules {
+    pub add: bool,
+    pub review: bool,
+}
+
 /// What How work runs draws (client/pages/settings.md, 2, *Its parts*).
 #[expect(clippy::struct_excessive_bools, reason = "each independent part has its own visibility rule")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,6 +76,7 @@ pub struct Parts {
     /// "Ask temper to change this".
     pub ask: bool,
     pub path: Path,
+    pub rules: Option<Rules>,
     pub roles: bool,
     /// A goal's amount or cap, while Goals is shown.
     pub budget: Option<Budget>,
@@ -93,7 +103,24 @@ pub fn parts(facts: &Facts) -> Parts {
     } else {
         None
     };
-    Parts { head, ask: facts.asking, path, roles: facts.roles, budget, reaches: facts.classes, several: facts.several }
+    let mut rules = None;
+    if path == Path::Shown && !facts.rules.is_empty() {
+        let mut review = false;
+        for row in &facts.rules {
+            review |= !row.review().is_empty();
+        }
+        rules = Some(Rules { add: facts.asking, review });
+    }
+    Parts {
+        head,
+        ask: facts.asking,
+        path,
+        rules,
+        roles: facts.roles,
+        budget,
+        reaches: facts.classes,
+        several: facts.several,
+    }
 }
 
 /// Gather from `me`, the forge's kinds 7 and 8, ways and roles held for the address.
@@ -107,13 +134,17 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
         None => false,
     };
     let mut read = Read::Reading;
+    let mut path_rules = List::with_capacity(0);
     if (pages.address() == &(Address::Ask { project }) || pages.address() == &(Address::Settings { project }))
         && let Some(ways) = pages.stock_ways()
     {
         read = match ways.state() {
             State::Loading => Read::Reading,
             State::Ended => Read::Ended,
-            State::Shown(panel) => Read::Shown { current: *panel.current() },
+            State::Shown(panel) => {
+                path_rules = panel.rules().rows().clone();
+                Read::Shown { current: *panel.current() }
+            }
         };
     }
     let mut goals = false;
@@ -152,7 +183,7 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
         Some(me) => me.projects.len() >= 2,
         None => false,
     };
-    Facts { asking, read, goals, roles, budget, classes, several }
+    Facts { asking, read, rules: path_rules, goals, roles, budget, classes, several }
 }
 
 /// A subject's line in one of What reaches you's columns.

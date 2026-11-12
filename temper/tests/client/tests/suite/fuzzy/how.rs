@@ -51,6 +51,7 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
+        rules: random_rules(rng),
         roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {
@@ -64,6 +65,27 @@ fn facts(rng: &mut Rng) -> Facts {
         classes: rng.chance(500),
         several: rng.chance(500),
     }
+}
+
+fn random_rules(rng: &mut Rng) -> List<w::PathRule> {
+    let count = u32::try_from(rng.below(10)).expect("up to nine rows");
+    let mut rows = List::with_capacity(count);
+    for _ in 0..count {
+        rows.push(
+            w::PathRule::new(
+                &w::CEILINGS,
+                w::PathRuleParts {
+                    paths: pattern(rng),
+                    review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
+                    sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
+                    lands: b"the read's words".as_slice().into(),
+                },
+            )
+            .expect("short rule words"),
+        )
+        .expect("bounded rows");
+    }
+    rows
 }
 
 // The oracle reads 5.13's rules independently: no figure means no Budgets row,
@@ -81,6 +103,12 @@ fn check_parts(facts: &Facts, seed: u64, step: u32) {
     };
     assert_eq!(shown.head, head, "seed {seed}, step {step}, {facts:?}: heading follows the read");
     assert_eq!(shown.path, path, "seed {seed}, step {step}, {facts:?}: path follows the read");
+    let rules = if path == Path::Shown && !facts.rules.is_empty() {
+        Some(how::Rules { add: shown.ask, review: facts.rules.iter().any(|row| !row.review().is_empty()) })
+    } else {
+        None
+    };
+    assert_eq!(shown.rules, rules, "seed {seed}, step {step}: rules need a shown row");
     let figure = match facts.budget {
         Some(TemplateBudget::Amount(value)) if facts.goals => Some(Budget::Amount(value)),
         Some(TemplateBudget::AsAllowed { cap: Some(value) }) if facts.goals => Some(Budget::UpTo(value)),
@@ -217,7 +245,7 @@ fn sweep(
 ) {
     let mut rng = Rng::new(seed);
     let initial = facts(&mut rng);
-    let mut settings = initial;
+    let mut settings = initial.clone();
     let mut route = path(&mut rng, limits);
     check_parts(&settings, seed, 0);
     check_drawing(&route, bounds, seed, 0);
