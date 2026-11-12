@@ -23,6 +23,7 @@ pub enum Values {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
+    SettingsFile(Box<SettingsFile>),
     Number(u64),
     Word(u8),
     Text(Box<[u8]>),
@@ -39,6 +40,13 @@ pub enum Value {
     Group(InboxGroup),
     Order(QueryOrder),
     Tool(u8),
+}
+/// External settings input retained until the tools assemble its directories.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SettingsFile {
+    pub name: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+    pub directories: skein_lib::List<settings_form::overlay::Directory>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Project {

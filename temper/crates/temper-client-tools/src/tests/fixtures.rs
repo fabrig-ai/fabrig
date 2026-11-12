@@ -101,6 +101,30 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     FOLLOW_MERGE,
     &["follow", "list", "--project", "shop"],
     &["follow", "show", "--project", "shop", "1"],
+    &["finding", "list", "--project", "shop"],
+    &["finding", "show", "shop/12"],
+    &["finding", "file", "--project", "shop", "--kind", "red", "title", "-", "--key", "file"],
+    &["finding", "hand", "3/12", "--area", "docs", "why", "--key", "hand"],
+    &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
+    &["finding", "backlog", "3/12", "--key", "backlog"],
+    &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    &[
+        "need",
+        "ask",
+        "--project",
+        "3",
+        "--choice",
+        "yes",
+        "--choice",
+        "no",
+        "--why",
+        "the deploy waits",
+        "Ship it?",
+        "--key",
+        "ask",
+    ],
+    &["party", "make", "--project", "1", "--role", "2", "--out", "service", "scout"],
+    &["sign-in", "--service", "service"],
     &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
@@ -448,7 +472,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let record =
         w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
     let limits = jig_client_protocol_link::Limits::new(
@@ -724,6 +748,9 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
+                | crate::jig::rows::FINDING_FILE_AT
+                | crate::jig::rows::FINDING_HAND_AT
+                | crate::jig::rows::FINDING_SHOW_AT
                 | crate::jig::rows::ROLE_TALK_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
@@ -883,7 +910,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 108;
+pub(super) const TOOL_FORMS: u32 = 118;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

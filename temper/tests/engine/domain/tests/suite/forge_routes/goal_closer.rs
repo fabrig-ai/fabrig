@@ -5,6 +5,9 @@ use super::*;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_closer as closer;
 
+#[path = "closer_questions.rs"]
+mod questions;
+
 const STEPS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
 

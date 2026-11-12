@@ -23,8 +23,8 @@ its check of the draft's section 7 (features, codec crates, shared test code) to
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
   the ten costliest crates (section 4).
 - **Whoever runs the builders runs the figure,** once a day and after each milestone of the draft.
-  No plan runs it. Its first run, before any other milestone lands, is the baseline every later
-  figure is read against (section 4.7).
+  No plan runs it. Its first run, after G9 lands and before a later milestone lands, is the baseline
+  every later figure is read against (section 4.7).
 - **The figures are the user's:** 60,000 and 20,000 lines, and the figure's targets, 90 s and 50 s,
   are the draft's proposals, which the user kept on 2026-11-12. A change to them is the user's.
 
@@ -228,7 +228,7 @@ Times are in whole seconds and shares in whole percent.
 - **On a builder, by whoever runs the builders,** once a day and after each milestone of
   `temper/docs/design/draft/crate-graph.execution.md` lands. It builds the workspace twice from
   scratch, so no plan runs it (`AGENTS.md`, 5), and the delivery check never does.
-- **The first figure,** of main once G7 has landed and before any other milestone has, is the
+- **The first figure,** of main once G7 and G9 have landed and before a later milestone has, is the
   baseline that every later figure is read against. Section 2's numbers in the draft came from a
   model close to this one, but not from this tool.
 - **A figure that is kept** goes to `temper/docs/development/` as `crate-graph-<date>-<commit>.md`,

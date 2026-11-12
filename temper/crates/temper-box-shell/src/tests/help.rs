@@ -354,12 +354,15 @@ fn review_recipe_changes_only_approvals() {
 
 #[test]
 fn policy_help_allows_other_settings_beside_a_set() {
-    for name in [b"configure".as_slice(), b"settings-fields"] {
+    for (name, operation, count, combined) in [
+        (b"configure".as_slice(), "only `set`", "at most once per file", "may share a file with other settings"),
+        (b"settings-fields", "`set` only", "once per file", "alongside other settings"),
+    ] {
         let page = temper_docs::find(name).expect("policy help");
         let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(text.contains("only `set`"), "{name:?}: policy edit operation");
-        assert!(text.contains("at most once per file"), "{name:?}: policy item count");
-        assert!(text.contains("may share a file with other settings"), "{name:?}: combined settings decision");
+        assert!(text.contains(operation), "{name:?}: policy edit operation");
+        assert!(text.contains(count), "{name:?}: policy item count");
+        assert!(text.contains(combined), "{name:?}: combined settings decision");
         assert!(!text.contains("set alone"), "{name:?}: ambiguous operation wording");
     }
 }

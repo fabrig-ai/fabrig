@@ -109,6 +109,7 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
 
 /// A decided call's answer rendered as smith takes it.
 #[must_use]
+#[expect(clippy::too_many_arguments, reason = "the world forwards the root's render-only HOW beside read context")]
 pub fn render(
     answer: &engine::CallAnswer,
     tool: &[u8],
@@ -117,6 +118,7 @@ pub fn render(
     receiving: u32,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
+    ask: engine::AskHow,
 ) -> core::SettledAnswer {
     let event = temper_service::render_for_task_page(
         skein_lib::ReplyTo::new(Token::new(1)),
@@ -128,6 +130,7 @@ pub fn render(
         temper_engine_smith::ForgeReadBounds::STOCK,
         job,
         page,
+        ask,
     );
     let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
         panic!("rendered host call")

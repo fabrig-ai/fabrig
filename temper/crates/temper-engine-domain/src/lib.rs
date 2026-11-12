@@ -24,6 +24,10 @@ mod restart;
 pub use temper_engine_domain_forge::{Push, PushAnswer};
 pub mod room;
 mod route;
+pub use route::findings::{
+    document as findings_document, file_finding, hand_finding, holder as finding_holder, read as finding_read,
+    stands as area_stands, triage_finding,
+};
 mod settling;
 mod stopping;
 mod store;
@@ -51,7 +55,7 @@ pub use limits::{
 };
 pub use link::{inbox_sender, inbox_words};
 pub use route::{
-    Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
+    Approval, AskHow, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
     ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal,
     SeeRead, SeeRepository, SeeSettings, SeeWords, adopt_repository_ask,
 };

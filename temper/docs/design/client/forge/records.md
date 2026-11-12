@@ -221,6 +221,31 @@
   `not_a_file`, `unreachable`, `unknown` or `full`, as the domain names
   them; or *unknown*, no longer held, which the subject `drafts`
   answers. Both outcomes are appended after the family's last.
+- **`FileFinding`:** of the project it names, from any party with a role
+  there (`../../domain/areas.md`, section 7): `project`, u32; `kind`, a
+  `FindingKind`, `qa`, `flake`, `red`, `review` or `feedback`;
+  `severity`, a `Severity`, `low`, `medium` or `high`; `area`, option,
+  an area's name, at most 32 bytes; `title`, 1 to 200 bytes; `body`, at
+  most 4,096 bytes (`../../domain/findings.md`, section 2). Its outcome:
+  *filed*, `filed`, `Filed { number }`, once the row has committed;
+  *finding refused*, `finding_refused`, a `FindingRefusal` (below); or
+  *unknown*, no longer held, which the subject `findings` answers.
+- **`HandFinding`:** of the project it names, from the finding's holder
+  or a project owner (`../../domain/areas.md`, section 7): `project`,
+  u32; `number`, u32; `area`, at most 32 bytes; `why`, 1 to 200 bytes.
+  Its outcome: *handed*, `handed`, no fields, once committed; *finding
+  refused*; or *unknown*.
+- **`TriageFinding`:** of the project it names, from the same: `project`,
+  u32; `number`, u32; `act`, a `Triage`: `route`, the goal's task (u64);
+  `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
+  (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
+  `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+- **`FindingRefusal`:** `no_area`, the project's areas' names, at most
+  16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
+  `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
+  route's task not a live goal of the project; `ended`, the finding
+  already `routed` or `dropped`; or `words`, a field past its bounds or
+  not UTF-8, naming it.
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -525,6 +550,31 @@
   project while a page that shows it is open, at most `DECIDED_PROJECTS`, 4,
   at once (`../pages/home.md`, 1, *Decided for you*), and decodes each reach by the kit's
   `reach_from`.
+- **A project's findings, the subject `findings`:** of the project's
+  scope, for a party with a role there; on the wire `Watching`'s
+  `findings`, `FindingsSubject { project, state, mine }`, `state` an
+  option of `new`, `routed`, `backlog` or `dropped`, `mine` whether only
+  the reader's (`../../domain/areas.md`, section 5). The root makes its
+  document, since holders read the core (`../../domain/areas.md`,
+  section 4). Its document, `Findings`: `project`; `rows`, at most 128,
+  newest first, each `FindingRow { number, kind, severity, area, state,
+  title, holder, at, why, hander }`, `holder` a `Holder`, `at` when it was
+  filed, `why` the last hand-off's, option, and `hander` who made that
+  hand-off, a task or a party as `filer` is, option, present with `why`
+  (`../../domain/findings.md`, 2; `../pages/needs-you.md`, 1); `areas`, at most 16, each
+  `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
+  `holder` an option of `Holder`, none where its owner does not stand;
+  `triager`, its owner, option, and its holder; and `cut`, whether rows
+  were left out. Marked at each committed decision that writes one of
+  the project's findings or saves its kind 12 or 13; a holder that
+  stops standing shows at the next mark. *Needs you watches it* with
+  `mine` and `state` `new` for each project the person is in
+  (`../pages/needs-you.md`, 1).
+- **One finding, the read `Finding`:** `FindingRead { project, number }`,
+  in the project's scope by a party with a role there. Its answer,
+  `FindingAnswer`: its `FindingRow`, its `body`, its `filer`, a task or a
+  party, its `goal`, option, the task it was routed to, and its
+  `reason`, option, a drop's; or `no_finding`.
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
@@ -699,9 +749,14 @@
   - `project`; `ways`, at most 4, the stock's in their order, each a
     `StockWay`: `name`, at most 64 bytes; `headline`, at most 120, How
     work runs' heading while the project runs it; `line`, at most 256; `path`, its
-    path over the project; `items`, at most 8, each a `ProposalItem`, what
+    path over the project; `items`, at most 10, each a `ProposalItem`, what
     "Use this" sends; `delegation`, whether the project's policy lacks the
-    delegation the way needs (13.10 there);
+    delegation the way needs (13.10 there); `roles`, at most 4, the
+    standing roles it brings (`../../protocol/configuration/settings.md`,
+    8), each a `WayRole`: `charter`, u32; `words`, at most 480 bytes;
+    `budget`, u64, a week's; and `running`, whether the project runs a
+    live standing role by that charter, which "Use this" starts where
+    not;
   - `current`, option, the index of the way the project runs; `own`, the
     project's own path; `words`, option, the project's words, kind 10, a
     `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480

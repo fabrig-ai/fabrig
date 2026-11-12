@@ -465,7 +465,7 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
-    link_answer: Option<jig_client_protocol_wire::v19::SignInAnswer>,
+    link_answer: Option<jig_client_protocol_wire::v20::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
 }
@@ -617,7 +617,7 @@ impl Engine {
     }
 
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
         if open.subject().owner() == &w::Owner::Jig
             && w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).expect("subject")
@@ -660,7 +660,7 @@ impl Engine {
     }
 }
 fn approval_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let answer = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -1097,7 +1097,7 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
 }
 
 fn sign_in_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -1116,7 +1116,7 @@ fn sign_in_response() -> Box<[u8]> {
 }
 
 fn hello_event() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use skein_lib::List;
     let limits = &w::CEILINGS;
     let mut served = List::with_capacity(1);
@@ -1140,7 +1140,7 @@ fn hello_event() -> Box<[u8]> {
     sse(&hello)
 }
 fn me_event(watch: u64) -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use skein_lib::Writer;
     let limits = &w::CEILINGS;
     let text = |bytes: &[u8]| {
@@ -1184,7 +1184,7 @@ fn me_event(watch: u64) -> Box<[u8]> {
     sse(&delivery)
 }
 
-fn sse(event: &jig_client_protocol_wire::v19::StreamEvent) -> Box<[u8]> {
+fn sse(event: &jig_client_protocol_wire::v20::StreamEvent) -> Box<[u8]> {
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -1390,7 +1390,7 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     world.files.write(file, 0, LOCAL_LINK).expect("file's link");
     world.files.close(file);
     world.files.close(root);
-    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v19::SignInAnswer::LinkUsed);
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v20::SignInAnswer::LinkUsed);
     world.horizon = Time::ZERO;
     world.settle();
     world.box_child().write(4, b"restarting forge\nlog split");

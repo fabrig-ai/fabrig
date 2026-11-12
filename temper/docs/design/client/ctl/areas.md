@@ -504,9 +504,9 @@ The table grows area by area, each with its stories (`testing.md`).
 
    | Tool | What it does | temper's | K |
    |---|---|---|---|
-   | `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH is ready to start a goal: temper reads it at the head of the repository's landing branch and keeps it, with TASK the chat it was written in; prints `ready: OWNER/NAME PATH at COMMIT on BRANCH`, COMMIT its first 12 digits, then its title where it has one, exit 0 | `SetDraft { change: ready { chat } }` | yes |
+   | `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH is ready to start a goal: temper reads it at the head of the repository's landing branch and keeps it, with TASK the chat it was written in; prints `ready: OWNER/NAME PATH at COMMIT on BRANCH`, COMMIT its first 14 digits, then its title where it has one, exit 0 | `SetDraft { change: ready { chat } }` | yes |
    | `draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH` | says it no longer is; Work stops listing it; prints `not ready: OWNER/NAME PATH`, exit 0 | `SetDraft { change: not_ready }` | yes |
-   | `draft list --project PROJECT` | the project's landed drafts, a watched read of the subject `drafts`: a line each, newest first, `OWNER/NAME PATH`, then `ready`, `not ready` or `goal G`, COMMIT's first 12 digits, BRANCH, when it was said ready in the clock form, `chat T` where it names one, and its title; "No landed drafts." with none, exit 0 | the subject `drafts` | |
+   | `draft list --project PROJECT` | the project's landed drafts, a watched read of the subject `drafts`: a line each, newest first, `OWNER/NAME PATH`, then `ready`, `not ready` or `goal G`, COMMIT's first 14 digits, BRANCH, when it was said ready in the clock form, `chat T` where it names one, and its title; "No landed drafts." with none, exit 0 | the subject `drafts` | |
 
    - **The refusals,** exit 2, each saying what to do: `no repository`,
      "no repository OWNER/NAME in PROJECT", or "PROJECT has no home

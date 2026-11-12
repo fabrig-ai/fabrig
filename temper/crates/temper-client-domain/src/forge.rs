@@ -13,6 +13,7 @@ pub mod devices;
 pub mod dismissed;
 pub mod drafts;
 pub mod family;
+pub mod findings;
 pub mod follows;
 pub mod forges;
 mod form;

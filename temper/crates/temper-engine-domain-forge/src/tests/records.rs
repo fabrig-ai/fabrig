@@ -253,6 +253,7 @@ fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
         setting::rows(&Limits {
             judge_projects: 0,
             decided_per_project: 64,
+            findings_per_project: 256,
             landing_rules: 0,
             setting_proposals: 0,
             setting_history: 0,

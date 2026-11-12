@@ -92,9 +92,23 @@ pub(crate) const ADD: Command = Command {
     notes: ADD_NOTES,
     ..REPRINT
 };
+const PREPARED: Settings = Settings {
+    tool: "temper-client-journeys again",
+    about: "Prebuilt recording inputs and the parent of fresh private scratch directories.",
+    table: &[Setting {
+        name: "prepared",
+        value: "DIR",
+        about: "Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.",
+        fallback: Fallback::Text(""),
+        set: Set::Internal,
+        twin: None,
+        notes: "An optional cache subdirectory supplies pinned downloads. When given, build nothing and create scratch here; otherwise build into a system scratch directory.",
+    }],
+};
 pub(crate) const AGAIN: Command = Command {
     reach: Reach::Words(&["again"]),
-    forms: &["NAME"],
+    forms: &["[--prepared DIR] NAME"],
+    settings: &[&PREPARED],
     line: "Record journey NAME again while its acts hold, then add it.",
     arguments: &[Argument { shown: "NAME", line: "The journey to record again." }],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],

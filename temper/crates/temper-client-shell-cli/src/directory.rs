@@ -8,11 +8,13 @@ use skein_io::{
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::net::SocketAddr;
 use temper_client_tools::jig::FileEnd;
+mod overlays;
 const OWNER: Token = Token::new(1);
 // The existing five slots plus the two amendment text parents.
 pub(crate) const FILE_SLOTS: u32 = 7;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Stage {
+    Overlay,
     Start,
     Exists,
     Checked,
@@ -21,6 +23,7 @@ enum Stage {
     Address,
     Token,
     Link,
+    RecordCheck,
     RecordCreate,
     RecordWrite,
     RecordSync,
@@ -35,6 +38,8 @@ enum Stage {
     Closing,
 }
 pub(crate) struct Directory {
+    sets: Option<overlays::Sets>,
+    pub(crate) loaded_sets: Option<skein_lib::List<settings_form::overlay::Directory>>,
     io: FileIo,
     limits: Limits,
     root: Option<Token>,
@@ -59,6 +64,8 @@ pub(crate) struct Directory {
     record_given: Option<Box<[u8]>>,
     record_bytes: Option<Box<[u8]>>,
     pub(crate) created: bool,
+    pub(crate) checked_output: Option<()>,
+    service_input: Option<()>,
     file_end: FileEnd,
     remove_only_created: Option<()>,
     pub(crate) recorded: Option<Result<(), Box<[u8]>>>,
@@ -78,7 +85,13 @@ impl Directory {
     pub(crate) fn new(startup: Startup, leaf: Box<[u8]>, class: Class, files: Vec<(u8, Fd)>, ask_bytes: u32) -> Self {
         let Startup { parent, file_parent, user, seed, .. } = startup;
         let timeout = Duration::from_secs(30);
-        let limits = Limits { files: FILE_SLOTS, read: ask_bytes, entries: 1, whole: ask_bytes, timeout };
+        let limits = Limits {
+            files: FILE_SLOTS + u32::try_from(files.len()).expect("input files"),
+            read: ask_bytes,
+            entries: 64,
+            whole: ask_bytes,
+            timeout,
+        };
         let mut io = FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
         let root = parent.map(|fd| io.adopt_root(fd).expect("parent slot"));
@@ -88,6 +101,8 @@ impl Directory {
             text_roots.push((index, io.adopt_root(fd).expect("text file parent slot")));
         }
         Self {
+            sets: None,
+            loaded_sets: None,
             io,
             limits,
             ask_bytes,
@@ -112,6 +127,8 @@ impl Directory {
             record_given: None,
             record_bytes: None,
             created: false,
+            checked_output: None,
+            service_input: None,
             file_end: FileEnd::Keep,
             remove_only_created: None,
             recorded: None,
@@ -162,21 +179,43 @@ impl Directory {
         self.retry
     }
     fn fail(&mut self, text: &[u8]) {
-        self.error = Some(text.into());
+        self.error = Some(if self.service_input.is_some() {
+            match text.strip_prefix(b"key file") {
+                Some(rest) => [b"service file".as_slice(), rest].concat().into_boxed_slice(),
+                None => text.into(),
+            }
+        } else {
+            text.into()
+        });
         self.close();
     }
     fn answer(&mut self, now: Time, event: file::Event) {
+        if self.stage == Stage::Overlay && !self.closing {
+            self.sets_answer(event);
+            return;
+        }
         if let file::Event::Opened { file, .. } = &event {
             if self.stage == Stage::RecordCreate {
                 self.record = Some(*file);
                 self.created = true;
             } else if self.stage == Stage::KeyOpen {
                 self.key = Some(*file);
-            } else if self.stage == Stage::Exists {
+            } else if matches!(self.stage, Stage::Exists | Stage::RecordCheck) {
                 self.check = Some(*file);
             } else {
                 self.private = Some(*file);
             }
+        }
+        if self.stage == Stage::RecordCheck && !self.closing {
+            if let file::Event::Failed { error: Error::NotFound, .. } = event {
+                self.checked_output = Some(());
+                self.stage = Stage::Ready;
+            } else {
+                let mut message = self.record_given.as_deref().expect("output path").to_vec();
+                message.extend_from_slice(b" exists or could not be checked");
+                self.fail(&message);
+            }
+            return;
         }
         if self.stage == Stage::RecordRemove {
             self.file_end = FileEnd::Keep;
@@ -195,11 +234,13 @@ impl Directory {
         }
         if let file::Event::Refused { found, .. } = event {
             let part = match self.stage {
+                Stage::Overlay => "overlay",
                 Stage::Address | Stage::Store => "address",
                 Stage::Token => "token",
                 Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => "key file",
                 Stage::Link => "link",
-                Stage::RecordCreate
+                Stage::RecordCheck
+                | Stage::RecordCreate
                 | Stage::RecordWrite
                 | Stage::RecordSync
                 | Stage::RecordDirectory
@@ -276,11 +317,13 @@ impl Directory {
                         let part = if self.text_root.is_some() { "text file" } else { "FILE" };
                         format!("{part} could not be read: {words}")
                     }
+                    Stage::Overlay => unreachable!("overlay event handled"),
                     Stage::Store => format!("DIRECTORY could not be written: address: {words}"),
                     Stage::Lock => format!("DIRECTORY could not be read: lock: {words}"),
                     Stage::Address => format!("DIRECTORY could not be read: address: {words}"),
                     Stage::Token => format!("DIRECTORY could not be read: token: {words}"),
-                    Stage::RecordCreate
+                    Stage::RecordCheck
+                    | Stage::RecordCreate
                     | Stage::RecordWrite
                     | Stage::RecordSync
                     | Stage::RecordDirectory
@@ -352,6 +395,7 @@ impl Directory {
             | file::Event::Cancelled { .. } => self.fail(b"key file could not be read: unexpected answer"),
         }
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive file-stage projection includes the overlay input stage")]
     pub(crate) fn progress(&mut self, now: Time) {
         if self.io.is_due(now) {
             let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
@@ -374,6 +418,10 @@ impl Directory {
             self.stage = if self.class == Class::SignIn { Stage::Private } else { Stage::Exists };
         }
         let request = match self.stage {
+            Stage::Overlay => {
+                let Some(request) = self.sets_request() else { return };
+                request
+            }
             Stage::Exists => file::Request::OpenDirectory {
                 owner: OWNER,
                 root: self.io.descriptor(root).expect("parent"),
@@ -398,6 +446,11 @@ impl Directory {
                 self.stage = Stage::Ready;
                 return;
             }
+            Stage::RecordCheck => file::Request::OpenReadNoFollow {
+                owner: OWNER,
+                root: self.io.descriptor(self.file_root.expect("output parent")).expect("output descriptor"),
+                name: self.record_path.as_ref().expect("output leaf").clone(),
+            },
             Stage::RecordCreate => file::Request::CreateNoFollow {
                 owner: OWNER,
                 root: self.io.descriptor(self.file_root.expect("record parent")).expect("record descriptor"),
@@ -470,6 +523,7 @@ impl Directory {
         if let Some(file) = self
             .record
             .take()
+            .or_else(|| self.close_set())
             .or_else(|| self.key.take())
             .or_else(|| self.check.take())
             .or_else(|| self.private.take())
@@ -506,6 +560,23 @@ impl Directory {
         self.link_max = max + 1;
         self.stage = Stage::KeyOpen;
     }
+    pub(crate) fn load_service(&mut self, path: &[u8]) {
+        self.service_input = Some(());
+        self.load_key(path, limits::ADDRESS + 40);
+    }
+    pub(crate) fn check_output(&mut self, path: &[u8]) {
+        if self.file_root.is_none() {
+            self.fail(b"service file could not be checked: file has no parent");
+            return;
+        }
+        self.record_path = Some(Self::file_leaf(path));
+        self.record_given = Some(path.into());
+        self.stage = Stage::RecordCheck;
+    }
+    pub(crate) fn store_service(&mut self, bytes: &skein_lib::Secret) {
+        self.record_bytes = Some(bytes.expose().into());
+        self.stage = Stage::RecordCreate;
+    }
     pub(crate) fn create_record(&mut self, path: &[u8]) {
         if self.file_root.is_none() {
             self.fail(b"record file could not be created: file has no parent");
@@ -534,7 +605,9 @@ impl Directory {
     }
     fn answer_record(&mut self, event: file::Event) {
         match (self.stage, event) {
-            (Stage::RecordCreate, file::Event::Opened { .. }) => self.stage = Stage::Ready,
+            (Stage::RecordCreate, file::Event::Opened { .. }) => {
+                self.stage = if self.record_bytes.is_some() { Stage::RecordWrite } else { Stage::Ready };
+            }
             (Stage::RecordCreate, file::Event::Failed { error, .. }) => {
                 let mut message = self.record_given.as_deref().expect("record path").to_vec();
                 message.extend_from_slice(if matches!(error, Error::Exists | Error::TooManyLinks) {

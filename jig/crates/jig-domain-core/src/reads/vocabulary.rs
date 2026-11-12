@@ -674,6 +674,7 @@ pub(crate) fn row_bytes(row: &Row) -> Option<u64> {
 /// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/README.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
+    pub overlay: Option<Box<crate::settings::Overlay>>,
     pub setting: crate::settings::Setting,
     pub revision: u32,
     pub value: Option<crate::settings::Value>,

@@ -142,7 +142,8 @@ fn form(call: &Call, project: u32, limits: forge::Limits) -> forge::Form {
                     }
                     Err(_) => valid = false,
                 },
-                Value::Word(_)
+                Value::SettingsFile(_)
+                | Value::Word(_)
                 | Value::Text(_)
                 | Value::Stdin
                 | Value::File(_)

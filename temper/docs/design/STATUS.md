@@ -24,8 +24,7 @@ check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
 `draft/surfaces.status.md`, 5). A person talks with a standing role through
 `role talk`, with instructions for every case becoming rules by settings
 proposals. A role reports through its Now, a line per session and a weekly
-`report` note, with its Now in Home's brief's words; areas and routing remain
-a later milestone, and Team's and the terminal's talk and report surfaces
+`report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
 Being told is the whole story's milestone N3b, goal 492, built
 against fakes alone: a person's devices, jig's need's arrival, the
@@ -120,8 +119,21 @@ agent, and 2, the implementer, assembled from five Markdown files in
 reference's charter 6 among it: a change's questions go `up` or nowhere,
 and a stored foreman is refused naming its setting
 (`domain/forge/change/questions.md`, 1; `protocol/configuration/settings.md`,
-2). Its walk on a fresh box follows landing; overlays are S2
-(`draft/stock-charters.status.md`).
+2). Its walk on a fresh box follows landing.
+
+Overlays are the stock charters' milestone S2, by goal 1386: a charter's
+overlay kept over its default, the fields it replaces and the text it
+adds, laid over each start's defaults (jig's `domain/engine/overlays.md`);
+`settings apply`'s overlay items, their directories of charter files and
+files stacked in one call, and `settings show`'s marks and literal export
+(`client/ctl/overlays.md`); the room judged on the charter an overlay
+makes, its parts counted (`domain/agent/tools.md`); the reference's
+charters 5 and 2 as overlays of its fields, its charters 7 and 8 gone
+(`protocol/configuration/reference.md`), stage one's golden keeping the
+whole charters on a profile of its own (`testing/checks.md`, 5); and
+fabrig's set, `temper/docs/charters/fabrig/`, documentation
+(`domain/agent/charter.md`, 1). The switch on dev.fabrig.ai follows
+deployment (`draft/stock-charters.execution.md`).
 
 `temper box` in a terminal runs the TUI at once and the box behind
 it, by the look request `tui-box-front`: it finds, or downloads once,
@@ -365,3 +377,9 @@ Drafts:
 Archived drafts:
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)
+
+Goal 684 carries R2: areas in words and their owners, the project triager
+(kinds 14 and 15), findings held by those owners with news or Needs you,
+ctl filing, handing and triage, outside service parties, and stock
+triager, prover and porter charters (`domain/areas.status.md`,
+`domain/findings.status.md`, `draft/standing-roles.status.md`).

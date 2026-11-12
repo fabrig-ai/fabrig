@@ -191,6 +191,7 @@ fn exchange(reply: &[u8], against: u32) -> super::Script {
     charter.policy.instructions =
         [INSTRUCTIONS, format!("\nExplain configuration revision {against}.").as_bytes()].concat().into_boxed_slice();
     let value = SettingsAnswer::Setting(SettingDocument {
+        overlay: None,
         setting: s::Setting::Charter(1),
         revision: against,
         value: Some(s::Value::Charter(Box::new(charter))),
