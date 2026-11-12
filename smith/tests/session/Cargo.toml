@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 smith-domain-tools-fixtures.workspace = true
 smith-domain-session-fixtures.workspace = true
-smith-domain.workspace = true
 skein-llm-kit.workspace = true
 skein-llm.workspace = true
 skein-lib.workspace = true

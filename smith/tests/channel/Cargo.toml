@@ -25,8 +25,10 @@ smith-protocol-translate.workspace = true
 smith-host-protocol.workspace = true
 smith-host-protocol-fixtures.workspace = true
 smith-agent-world.workspace = true
-smith-agent-process-world.workspace = true
+
+[dev-dependencies]
 smith-host-world.workspace = true
+smith-agent-process-world.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
