@@ -717,7 +717,7 @@ fn index_of(tree: &Tree, role: Role, name: &[u8]) -> usize {
             return index;
         }
     }
-    panic!("named node");
+    panic!("missing {role:?}: {}", String::from_utf8_lossy(name));
 }
 fn assert_status(tree: &Tree, name: &[u8], token: skein_ui::Style) {
     let index = index_of(tree, Role::Status, name);
@@ -2814,4 +2814,72 @@ fn invalid_run_ends_draw_their_reason() {
         );
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{reason:?}");
     }
+}
+
+// client/pages/task.md, 4: a role's talk is distinct from steering.
+fn role_talk_document() -> c::Task {
+    let mut task = f::delegate();
+    task.chip.task = 52;
+    task.activity = 0;
+    task.chip.title = f::document_words(b"Prover");
+    task.flags.ended_by = c::EndedBy::Standing;
+    task.talk = Some(c::Talk { party: 3, opened: skein_lib::Wall::EPOCH, last: skein_lib::Wall::EPOCH });
+    offers(&mut task, &[(c::ActKind::Talk, c::Admission::Allowed),
+        (c::ActKind::Message, c::Admission::Allowed), (c::ActKind::Leave, c::Admission::Allowed),
+        (c::ActKind::Stop, c::Admission::Allowed)]);
+    task
+}
+fn role_talk_root(task: c::Task) -> Domain {
+    f::agent_root_as(task, None, f::activity(false), 3)
+}
+#[test]
+fn a_roles_composer_names_talk_and_its_terminal_and_leave_precedes_pause() {
+    let root = role_talk_root(role_talk_document());
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let composer = index_of(tree, Role::TextArea, b"Talk");
+        assert_eq!(tree.nodes()[composer].placeholder.as_deref(), Some(b"Talk to Prover".as_slice()));
+        assert!(contains(tree, "Talk with Prover · it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said.".as_bytes()));
+        let command = index_of_text(tree, b"Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY").expect("terminal command");
+        assert!(command > composer);
+        assert!(tree.nodes()[command].styles.as_slice().contains(&look::HINT));
+        assert!(!contains(tree, b"Steer this task"));
+        assert!(fixtures::find(tree, Role::TextArea, b"Message").is_none());
+        let leave = index_of(tree, Role::Button, b"Leave");
+        let bar = styled(tree, look::TASKBAR);
+        assert!(named(subtree(tree, bar), Role::Button, b"Leave"));
+        assert!(leave < index_of(tree, Role::Button, b"Pause"));
+        let id = tree.nodes()[leave].id;
+        assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(Action::Pages(Act::LeaveTalk)));
+    }
+}
+#[test]
+fn leave_is_absent_without_the_readers_admitted_talk_and_other_agents_keep_message() {
+    for change in 0_u32..4 {
+        let mut task = role_talk_document();
+        match change {
+            0 => task.talk.as_mut().unwrap().party = 4,
+            1 => task.talk = None,
+            2 => task.acts.get_mut(2).unwrap().admission = c::Admission::Refused(c::Refusal::NotOffered),
+            3 => { task.flags.ended_by = c::EndedBy::Result; task.talk = None; }
+            _ => unreachable!("four changes"),
+        }
+        let view = fixtures::page_view(&role_talk_root(task));
+        assert!(fixtures::find(view.tree(), Role::Button, b"Leave").is_none());
+        if change == 3 {
+            assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_some());
+            assert!(contains(view.tree(), b"Steer this task"));
+            assert!(!contains(view.tree(), b"Or in a terminal"));
+        }
+    }
+}
+#[test]
+fn a_refused_talk_is_said_in_jigs_words_instead_of_a_message_composer() {
+    let mut task = role_talk_document();
+    task.acts.get_mut(0).unwrap().admission = c::Admission::Refused(c::Refusal::NotOffered);
+    let view = fixtures::page_view(&role_talk_root(task));
+    assert!(contains(view.tree(), b"This act is not offered"));
+    assert!(named(view.tree().nodes(), Role::Paragraph, b"Talk"));
+    assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
+    assert!(fixtures::find(view.tree(), Role::TextArea, b"Talk").is_none());
 }

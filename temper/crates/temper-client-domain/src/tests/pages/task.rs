@@ -849,17 +849,27 @@ fn an_agents_thread_reads_on_until_the_announced_tail() {
 
 use crate::pages::{self, Act, Pages, task::Sending};
 const WORDS: &[u8] = b"Keep the public interface";
-fn task_pages(mut task: c::Task) -> (Pages, jig_client::Client) {
+fn task_pages(task: c::Task) -> (Pages, jig_client::Client) {
+    task_pages_with(task, fixtures::PARTY, &fixtures::limits())
+}
+fn task_pages_with(mut task: c::Task, reader: u64, limits: &crate::Limits) -> (Pages, jig_client::Client) {
     task.label = 1234; // A task page, distinct from the chat template.
-    let fixture = f::with_delegate();
+    let mut fixture = f::with_delegate();
+    let mut me = fixtures::chats::me();
+    me.party.number = reader;
+    me.words_bytes = super::composer::BOUND;
+    fixture.client.step_unlinked(Time::ZERO, Wall::EPOCH,
+        Event::Up { up: jig_client::Up::Watched { watch: fixture.me,
+            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) } }, &mut Queue::uncapped());
+    let number = task.chip.task;
     let mut pages = Pages::new();
-    let env = fixtures::env(&fixtures::limits());
+    let env = fixtures::env(limits);
     let mut out = Queue::with_capacity(OUTPUTS);
     pages::step(
         &mut pages,
         &env,
         &fixture.client,
-        pages::Event::Went { address: crate::Address::Task { task: f::TASK } },
+        pages::Event::Went { address: crate::Address::Task { task: number } },
         &mut out,
     );
     let handle = pages.task().expect("task page").document;
@@ -1736,4 +1746,109 @@ fn a_send_the_thread_refuses_keeps_the_words_and_says_so() {
         assert!(page.thread.words.rows.is_empty());
         assert_eq!(page.outcome, Some(jig_client::Outcome::Limit));
     }
+}
+
+// client/pages/task.md, 4: Talk uses the composer's message lifecycle, not steering.
+const ROLE: u64 = 52;
+const READER: u64 = 3;
+const TALK_WORDS: &[u8] = b"From now on, reproduce a flake twice before routing it.";
+fn talk_pages(task: c::Task) -> (Pages, jig_client::Client) {
+    task_pages_with(task, READER, &super::composer::limits())
+}
+fn talk_act(pages: &mut Pages, client: &jig_client::Client, act: Act) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    pages::step(pages, &fixtures::env(&super::composer::limits()), client, pages::Event::Act { act }, &mut out);
+    out
+}
+fn talk_text() -> c::Text { c::Text::new(Box::from(TALK_WORDS), super::composer::HOLD).unwrap() }
+fn standing_task() -> c::Task {
+    let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
+    task.chip.task = ROLE;
+    task.flags.ended_by = c::EndedBy::Standing;
+    task.acts = List::from_boxed(Box::new([
+        c::Offered { act: c::ActKind::Talk, admission: c::Admission::Allowed, effect: None },
+        c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None },
+        c::Offered { act: c::ActKind::Leave, admission: c::Admission::Allowed, effect: None },
+    ]));
+    task
+}
+fn task_answer(pages: &mut Pages, client: &jig_client::Client, answer: c::Answer) {
+    let key = pages.task().unwrap().pending.as_slice()[0].0;
+    pages::step(pages, &fixtures::env(&fixtures::limits()), client,
+        pages::Event::Told { told: Told::Answered { key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(answer)) } },
+        &mut Queue::uncapped());
+}
+#[test]
+fn a_standing_roles_send_talks_and_keeps_pending_words_until_sent() {
+    let (mut pages, client) = talk_pages(standing_task());
+    talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
+    assert_eq!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).as_ref(),
+        [c::Ask::Talk { project: 1, task: ROLE, words: talk_text() }]);
+    let page = pages.task().unwrap();
+    assert!(page.words.is_empty());
+    let pending = page.thread.words.rows.as_slice().first().unwrap();
+    assert_eq!(pending.by.as_ref().unwrap().number, READER);
+    assert_eq!(pending.words.bytes(), TALK_WORDS);
+    assert_eq!(pending.state, jig_client::thread::words::Words::BeingSent);
+    talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
+    assert!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).is_empty());
+    task_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: ROLE, message: 7 })));
+    let page = pages.task().unwrap();
+    assert!(page.pending.is_empty());
+    assert!(page.outcome.is_none());
+    assert_eq!(page.thread.words.rows.as_slice()[0].state, jig_client::thread::words::Words::Sent { message: 7 });
+}
+#[test]
+fn talk_sends_nothing_for_empty_or_over_bound_words_and_other_agents_still_message() {
+    for words in [Box::from(b"".as_slice()), super::composer::words(1025)] {
+        let (mut pages, client) = talk_pages(standing_task());
+        talk_act(&mut pages, &client, Act::MessageWords { words: words.clone() });
+        assert!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).is_empty());
+        assert!(pages.task().unwrap().pending.is_empty());
+        assert_eq!(pages.task().unwrap().words, words);
+    }
+    let mut task = standing_task();
+    task.flags.ended_by = c::EndedBy::Result;
+    let (mut pages, client) = talk_pages(task);
+    talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
+    assert_eq!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).as_ref(),
+        [c::Ask::Message { project: 1, task: ROLE, words: talk_text() }]);
+}
+#[test]
+fn leave_sends_at_once_only_for_the_readers_admitted_open_talk() {
+    for (party, offered, expected) in [(Some(READER), true, true), (Some(4), true, false), (None, true, false), (Some(READER), false, false)] {
+        let mut task = standing_task();
+        task.talk = match party { Some(party) => Some(c::Talk { party, opened: Wall::EPOCH, last: Wall::EPOCH }), None => None };
+        if !offered { task.acts.truncate(2); }
+        let (mut pages, client) = talk_pages(task);
+        let sent = fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::LeaveTalk));
+        assert!(pages.confirmation().is_none());
+        if expected {
+            assert_eq!(sent.as_ref(), [c::Ask::Leave { project: 1, task: ROLE }]);
+            task_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Left { task: ROLE })));
+            assert_eq!(pages.needs().toast(), Some(&pages::needs::Toasted::LeftTalk));
+            assert!(pages.task().unwrap().outcome.is_none());
+        } else { assert!(sent.is_empty()); }
+    }
+}
+#[test]
+fn talk_and_leave_keep_jigs_refusal_and_never_fall_back_to_message() {
+    for act in [Act::Send, Act::LeaveTalk] {
+        let mut task = standing_task();
+        task.talk = Some(c::Talk { party: READER, opened: Wall::EPOCH, last: Wall::EPOCH });
+        let (mut pages, client) = talk_pages(task);
+        talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
+        assert_eq!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, act)).len(), 1);
+        let answer = c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None };
+        task_answer(&mut pages, &client, answer.clone());
+        assert_eq!(pages.task().unwrap().outcome,
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(answer))));
+        assert!(pages.task().unwrap().thread.words.rows.is_empty());
+    }
+    let mut task = standing_task();
+    task.acts.get_mut(0).unwrap().admission = c::Admission::Refused(c::Refusal::NotOffered);
+    let (mut pages, client) = talk_pages(task);
+    talk_act(&mut pages, &client, Act::MessageWords { words: Box::from(TALK_WORDS) });
+    assert!(fixtures::acts::sent(&mut talk_act(&mut pages, &client, Act::Send)).is_empty());
 }

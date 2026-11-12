@@ -1967,7 +1967,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2510;
+const PHRASES: u32 = 2516;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1994,10 +1994,10 @@ const PHRASES: u32 = 2510;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4568;
+const SEGMENTS: u32 = 4580;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 59480;
-const ALL: [Word; 1824] = [
+const ENGLISH_BYTES: u32 = 59712;
+const ALL: [Word; 1830] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3556,6 +3556,12 @@ const ALL: [Word; 1824] = [
     Word::NoRun,
     Word::RunStarted,
     Word::ItsTasks,
+    Word::Talk,
+    Word::TalkPlaceholder,
+    Word::TalkNote,
+    Word::TalkTerminal,
+    Word::LeaveTalk,
+    Word::LeftTalk,
     Word::SteerNote,
     Word::Amend,
     Word::AmendTask,
