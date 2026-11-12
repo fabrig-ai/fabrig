@@ -1,6 +1,10 @@
 use super::*;
 use crate::drive::{self, Answer, Exit};
-use std::{collections::BTreeMap, ffi::{OsStr, OsString}, path::Path};
+use std::{
+    collections::BTreeMap,
+    ffi::{OsStr, OsString},
+    path::Path,
+};
 
 type Files = BTreeMap<String, BTreeMap<OsString, Vec<u8>>>;
 fn put(files: &mut Files, name: &str, file: &str, bytes: &[u8]) {
@@ -26,15 +30,27 @@ fn reads_chain_and_walks_fresh_or_from_a_copy() {
     assert_eq!(chain.names().collect::<Vec<_>>(), ["project-landing", "middle", "last"]);
     let middle = &chain.recipes[1];
     assert_eq!(middle.after.as_deref(), Some("project-landing"));
-    assert_eq!(middle.steps.iter().map(|s| s.line.print()).collect::<Vec<_>>(), [br#"web see "Ready""#.as_slice(), b"ctl project list"]);
+    assert_eq!(
+        middle.steps.iter().map(|s| s.line.print()).collect::<Vec<_>>(),
+        [br#"web see "Ready""#.as_slice(), b"ctl project list"]
+    );
     assert_eq!(chain.recipes[0].steps[0].line.print(), br#"web press button "Start""#);
     assert_eq!(chain.recipes[0].check[0].line.print(), br#"web see "Hello""#);
     let fresh = [
         "project-landing:2 web press button \"Start\"",
-        "walk: web reload \"/\"", "walk: tui stop", "project-landing:3 web see \"Hello\"",
-        "middle:3 web see \"Ready\"", "middle:4 ctl project list",
-        "walk: web reload \"/\"", "walk: tui stop", "middle:5 web see \"Middle\"", "middle:6 tui see \"Middle\"",
-        "last:3 tui key enter", "walk: web reload \"/\"", "walk: tui stop", "last:4 web see \"Last\"",
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "project-landing:3 web see \"Hello\"",
+        "middle:3 web see \"Ready\"",
+        "middle:4 ctl project list",
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "middle:5 web see \"Middle\"",
+        "middle:6 tui see \"Middle\"",
+        "last:3 tui key enter",
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "last:4 web see \"Last\"",
     ];
     assert_eq!(shown(chain.lines(None).expect("fresh")), fresh);
     assert_eq!(shown(chain.lines(Some("middle")).expect("copy")), &fresh[8..]);
@@ -46,12 +62,21 @@ fn reads_chain_and_walks_fresh_or_from_a_copy() {
 fn refuses_forbidden_records_and_requires_a_trailing_check() {
     let mut files = Files::new();
     for (record, why) in [
-        ("web look", "not recipe acts"), ("web look 800", "not recipe acts"),
-        ("tui look", "not recipe acts"), ("end", "not recipe acts"), ("tui stop", "not recipe acts"),
-        ("", "not recipe acts"), ("web press button", "expected control name"),
+        ("web look", "not recipe acts"),
+        ("web look 800", "not recipe acts"),
+        ("tui look", "not recipe acts"),
+        ("end", "not recipe acts"),
+        ("tui stop", "not recipe acts"),
+        ("", "not recipe acts"),
+        ("web press button", "expected control name"),
         ("after \"root\"", "unknown client"),
     ] {
-        put(&mut files, "bad", "recipe", format!("recipe 1\nweb see \"Start\"\n{record}\nweb see \"Done\"\n").as_bytes());
+        put(
+            &mut files,
+            "bad",
+            "recipe",
+            format!("recipe 1\nweb see \"Start\"\n{record}\nweb see \"Done\"\n").as_bytes(),
+        );
         let refusal = read(&files, "bad").expect_err(record);
         assert_eq!((refusal.name.as_str(), refusal.line), ("bad", Some(3)), "{refusal}");
         assert!(refusal.why.contains(why), "{refusal}");
@@ -129,7 +154,12 @@ fn refuses_cycle_missing_parent_and_ninth_parent_at_the_after() {
     assert_eq!(read(&files, "a").expect_err("missing parent file").line, Some(2));
     put(&mut files, "r0", "recipe", b"recipe 1\nweb see \"Root\"\n");
     for number in 1..=9 {
-        put(&mut files, &format!("r{number}"), "recipe", format!("recipe 1\nafter \"r{}\"\nweb see \"Yes\"\n", number - 1).as_bytes());
+        put(
+            &mut files,
+            &format!("r{number}"),
+            "recipe",
+            format!("recipe 1\nafter \"r{}\"\nweb see \"Yes\"\n", number - 1).as_bytes(),
+        );
     }
     assert_eq!(read(&files, "r8").expect("eight parents").names().count(), 9);
     let refusal = read(&files, "r9").expect_err("ninth parent");
@@ -162,7 +192,9 @@ fn clean() -> Exit {
     Exit { status: 0, shown: vec!["ended".into()], error: None }
 }
 fn finished(actions: Vec<Action>) -> Exit {
-    let [Action::Finished(exit)] = <[_; 1]>::try_from(actions).expect("finished action") else { panic!("not finished") };
+    let [Action::Finished(exit)] = <[_; 1]>::try_from(actions).expect("finished action") else {
+        panic!("not finished")
+    };
     exit
 }
 #[test]
@@ -170,8 +202,11 @@ fn walk_stops_on_first_failure_and_ends_before_status_five() {
     let chain = read(&three(), "last").expect("chain");
     let (mut walk, first) = Walk::start(&chain, None).expect("walk");
     assert!(matches!(first.as_slice(), [Action::Line(bytes)] if bytes.as_ref() == br#"web press button "Start""#));
-    let actions = walk.step(Event::Answer(Answer { shown: vec!["a".into(), "b".into()], failed: Some("missing Start".into()) }));
-    let [Action::Print(a), Action::Print(b), Action::Print(failed), Action::End] = actions.as_slice() else { panic!("{actions:?}") };
+    let actions =
+        walk.step(Event::Answer(Answer { shown: vec!["a".into(), "b".into()], failed: Some("missing Start".into()) }));
+    let [Action::Print(a), Action::Print(b), Action::Print(failed), Action::End] = actions.as_slice() else {
+        panic!("{actions:?}")
+    };
     assert_eq!(a, "project-landing:2 | a");
     assert_eq!(b, "project-landing:2 | b");
     assert_eq!(failed, "project-landing:2 failed: missing Start");
@@ -182,7 +217,10 @@ fn walk_stops_on_first_failure_and_ends_before_status_five() {
     walk.step(Event::Answer(Answer { shown: vec![], failed: None }));
     let actions = walk.step(Event::Answer(Answer { shown: vec![], failed: Some("reload failed".into()) }));
     assert!(matches!(actions.as_slice(), [Action::Print(line), Action::End] if line == "walk: failed: reload failed"));
-    assert_eq!(finished(walk.step(Event::Ended(clean()))).shown.last().expect("last"), "stopped at walk: reload failed");
+    assert_eq!(
+        finished(walk.step(Event::Ended(clean()))).shown.last().expect("last"),
+        "stopped at walk: reload failed"
+    );
 }
 #[test]
 fn walk_success_and_session_failures_keep_their_statuses() {
@@ -220,23 +258,53 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     put(&mut files, "project-landing", "scripts.json", b"{}");
     put(&mut files, "last", "scripts.json", b"{}");
     let chain = read(&files, "last").expect("chain");
-    let arguments = Arguments::parse(Mode::Walk, &args(&["last", "--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch", "--from", "middle", "--strict", "--setups", "/recipes"])).expect("arguments");
+    let arguments = Arguments::parse(
+        Mode::Walk,
+        &args(&[
+            "last",
+            "--bin",
+            "/build",
+            "--bundle",
+            "/bundle",
+            "--scratch",
+            "/scratch",
+            "--from",
+            "middle",
+            "--strict",
+            "--setups",
+            "/recipes",
+        ]),
+    )
+    .expect("arguments");
     assert_eq!(arguments.name.as_deref(), Some("last"));
     assert_eq!(arguments.from.as_deref(), Some("middle"));
     let options = session_options(&chain, &arguments.setups, arguments.drive.expect("drive"));
     let plan = drive::Plan::new(options, "/chromium".into(), OsStr::new("/bin"));
     let (machine, actions) = drive::Machine::start(plan, skein_lib::Time::ZERO);
     assert!(!machine.ready());
-    let [drive::Action::Start { process: drive::Process::Box, program }] = actions.as_slice() else { panic!("{actions:?}") };
+    let [drive::Action::Start { process: drive::Process::Box, program }] = actions.as_slice() else {
+        panic!("{actions:?}")
+    };
     let script_args = program.args.iter().skip_while(|arg| *arg != "--scripts").cloned().collect::<Vec<_>>();
-    assert_eq!(script_args, ["--scripts", "/recipes/project-landing/scripts.json", "--scripts", "/recipes/last/scripts.json", "--strict"]);
+    assert_eq!(
+        script_args,
+        ["--scripts", "/recipes/project-landing/scripts.json", "--scripts", "/recipes/last/scripts.json", "--strict"]
+    );
     for (from, config, data, accepted) in [
-        (None, false, false, true), (None, true, false, false), (None, false, true, false), (None, true, true, false),
-        (Some("middle"), false, false, false), (Some("middle"), true, false, false), (Some("middle"), false, true, false), (Some("middle"), true, true, true),
+        (None, false, false, true),
+        (None, true, false, false),
+        (None, false, true, false),
+        (None, true, true, false),
+        (Some("middle"), false, false, false),
+        (Some("middle"), true, false, false),
+        (Some("middle"), false, true, false),
+        (Some("middle"), true, true, true),
     ] {
         let result = walk::check_scratch(from, config, data);
         assert_eq!(result.is_ok(), accepted, "{from:?} {config} {data}");
-        if let Err(why) = result { assert!(why.contains("config/") && why.contains("data/")); }
+        if let Err(why) = result {
+            assert!(why.contains("config/") && why.contains("data/"));
+        }
     }
     assert!(Arguments::parse(Mode::Walk, &args(&["last"])).is_err());
     assert!(Arguments::parse(Mode::Walk, &args(&["last", "--scripts", "external"])).is_err());
@@ -254,7 +322,8 @@ fn catalogue_sorts_parents_and_continues_after_a_refusal() {
     put(&mut files, "project-landing", "README.md", b"A project. Another sentence.");
     put(&mut files, "middle", "README.md", b"The middle\nstate! More.");
     put(&mut files, "last", "recipe", b"recipe 1\nweb look\n");
-    let lines = command::catalogue(&Reader::Memory(&files), vec!["project-landing".into(), "middle".into(), "last".into()]);
+    let lines =
+        command::catalogue(&Reader::Memory(&files), vec!["project-landing".into(), "middle".into(), "last".into()]);
     assert_eq!(lines.len(), 3);
     assert!(lines[0].starts_with("last: refused: last:2: "), "{lines:?}");
     assert_eq!(lines[1], "middle (after project-landing): The middle state!");

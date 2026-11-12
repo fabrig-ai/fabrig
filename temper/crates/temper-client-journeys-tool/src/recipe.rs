@@ -7,8 +7,8 @@ use temper_client_shell_web::journey::read_fields;
 mod command;
 mod reader;
 mod walk;
-use reader::Reader;
 pub(crate) use command::{Mode, run};
+use reader::Reader;
 pub use walk::{Action, Event, Walk};
 
 pub const SETUPS: &str = "temper/docs/development/qa/setups";
@@ -130,19 +130,21 @@ impl Chain {
     /// Lines from a fresh box, or from a named member's restored copy.
     pub fn lines(&self, from: Option<&str>) -> Result<Vec<WalkLine>, Refusal> {
         let start = match from {
-            Some(name) => self.recipes.iter().position(|r| r.name == name).ok_or_else(|| {
-                Refusal::file(name, "recipe", "--from is not the recipe or one of its ancestors")
-            })?,
+            Some(name) => self
+                .recipes
+                .iter()
+                .position(|r| r.name == name)
+                .ok_or_else(|| Refusal::file(name, "recipe", "--from is not the recipe or one of its ancestors"))?,
             None => 0,
         };
         let mut lines = vec![];
         for (index, recipe) in self.recipes.iter().enumerate().skip(start) {
             if from.is_none() || index != start {
                 lines.extend(recipe.steps.iter().map(|line| recipe.walk_line(line)));
-                lines.extend([br#"web reload "/""#.as_slice(), b"tui stop"].map(|line| WalkLine {
-                    source: Source::Walk,
-                    line: line.into(),
-                }));
+                lines.extend(
+                    [br#"web reload "/""#.as_slice(), b"tui stop"]
+                        .map(|line| WalkLine { source: Source::Walk, line: line.into() }),
+                );
             }
             lines.extend(recipe.check.iter().map(|line| recipe.walk_line(line)));
         }
@@ -151,7 +153,10 @@ impl Chain {
 }
 impl Recipe {
     fn walk_line(&self, line: &RecipeLine) -> WalkLine {
-        WalkLine { source: Source::Recipe { name: self.name.clone(), line: line.number }, line: line.line.print().into() }
+        WalkLine {
+            source: Source::Recipe { name: self.name.clone(), line: line.number },
+            line: line.line.print().into(),
+        }
     }
     fn read(reader: &Reader<'_>, name: &str) -> Result<Self, Refusal> {
         let files = reader.files(name).map_err(|why| Refusal::file(name, "recipe", why))?;

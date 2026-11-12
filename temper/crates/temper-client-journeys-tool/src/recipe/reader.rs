@@ -14,7 +14,9 @@ impl Reader<'_> {
                 .map(|entry| entry.map(|entry| entry.file_name()).map_err(|error| error.to_string()))
                 .collect(),
             #[cfg(test)]
-            Self::Memory(files) => files.get(name).map(|files| files.keys().cloned().collect()).ok_or("missing directory".into()),
+            Self::Memory(files) => {
+                files.get(name).map(|files| files.keys().cloned().collect()).ok_or("missing directory".into())
+            }
         }
     }
     pub(super) fn bytes(&self, name: &str, file: &str) -> Result<Vec<u8>, String> {
@@ -31,14 +33,20 @@ impl Reader<'_> {
                 Ok(bytes)
             }
             #[cfg(test)]
-            Self::Memory(files) => files.get(name).and_then(|files| files.get(std::ffi::OsStr::new(file))).cloned().ok_or("missing file".into()),
+            Self::Memory(files) => files
+                .get(name)
+                .and_then(|files| files.get(std::ffi::OsStr::new(file)))
+                .cloned()
+                .ok_or("missing file".into()),
         }
     }
     pub(super) fn missing(&self, name: &str) -> bool {
         match self {
             Self::Directory(setups) => !setups.join(name).join("recipe").exists(),
             #[cfg(test)]
-            Self::Memory(files) => !files.get(name).is_some_and(|files| files.contains_key(std::ffi::OsStr::new("recipe"))),
+            Self::Memory(files) => {
+                !files.get(name).is_some_and(|files| files.contains_key(std::ffi::OsStr::new("recipe")))
+            }
         }
     }
 }

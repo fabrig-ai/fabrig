@@ -1,7 +1,10 @@
 //! The walk's early stop and output policy, without io (client/recipe.md, 5.1).
 use super::{Chain, Refusal, Source, WalkLine, hex};
 use crate::drive::{Answer, Exit};
-use std::{collections::VecDeque, path::{Path, PathBuf}};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug)]
 pub enum Action {
@@ -37,7 +40,8 @@ impl Walk {
         match event {
             Event::Answer(answer) => {
                 let source = self.current.take().expect("one answer per walk line");
-                let mut actions: Vec<_> = answer.print().lines().map(|line| Action::Print(format!("{source} {line}"))).collect();
+                let mut actions: Vec<_> =
+                    answer.print().lines().map(|line| Action::Print(format!("{source} {line}"))).collect();
                 if let Some(why) = answer.failed {
                     let separator = if source == Source::Walk { " " } else { ": " };
                     self.stopped = Some(format!("stopped at {source}{separator}{}", why.replace(['\n', '\r'], " ")));
@@ -75,7 +79,11 @@ impl Chain {
     /// Give the whole chain's scripts to the session, even when starting from a copy.
     #[must_use]
     pub fn scripts(&self, setups: &Path) -> Vec<PathBuf> {
-        self.recipes.iter().filter(|recipe| recipe.scripts.is_some()).map(|recipe| setups.join(&recipe.name).join("scripts.json")).collect()
+        self.recipes
+            .iter()
+            .filter(|recipe| recipe.scripts.is_some())
+            .map(|recipe| setups.join(&recipe.name).join("scripts.json"))
+            .collect()
     }
 }
 /// Check both directories before the drive session can start or prepare anything.

@@ -171,7 +171,9 @@ const RECIPE_SESSION: Settings = Settings {
     tool: "temper-client-journeys recipe walk",
     about: "A given build and scratch directory, fresh or restored from an ancestor.",
     table: &[
-        SESSION.table[0], SESSION.table[1], SESSION.table[2],
+        SESSION.table[0],
+        SESSION.table[1],
+        SESSION.table[2],
         Setting {
             name: "from",
             value: "ANCESTOR",
