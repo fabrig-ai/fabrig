@@ -552,6 +552,44 @@ fn production_link_preserves_retired_forge_owners() {
 }
 
 #[test]
+fn only_a_stopped_follow_keeps_its_task_as_history() {
+    for stopped in [true, false] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let row = FollowRow {
+            project: 5,
+            follow: 1,
+            source: REPO,
+            branch: b"main".as_slice().into(),
+            heard: None,
+            task: Some(TASK),
+            stopped: stopped.then_some(b"its owner ended".as_slice().into()),
+            queue: Box::new([]),
+            skips: Box::new([]),
+            parity: None,
+            questions: Box::new([]),
+            pending: None,
+        };
+        outputs(&mut d, Event::Restore { record: Stored::Follow(row.clone()) });
+        let tasks = empty_tasks();
+        if stopped {
+            d.reconcile(&tasks);
+            assert_eq!(d.missing_link(&tasks), None);
+            assert_eq!(d.follow_row(5, 1), Some(&row), "the ended task's number stays recorded");
+        } else {
+            assert_eq!(
+                d.missing_link(&tasks),
+                Some(MissingLink {
+                    kind: RecordKind::Follow,
+                    key: Key::Follow { project: 5, follow: 1 },
+                    need: Need::Task { task: TASK, retired: Some(REPO.forge) },
+                })
+            );
+        }
+    }
+}
+
+#[test]
 fn production_link_requires_a_live_unfinished_issues_goal() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });

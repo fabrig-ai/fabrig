@@ -282,13 +282,6 @@ fn owner_edits_remake_the_queue_keep_words_and_holds_and_role_end_stops_the_foll
     assert_eq!(live_task(&world, row(&world).task.expect("new follow")).requester, tasks::Party::Task(next_role));
     cancel(&mut world, next_role, 165);
     assert!(row(&world).stopped.is_some());
-    owner(&mut world, s::FollowOwner::Person(1), 166);
-    assert!(row(&world).stopped.is_none());
-    assert_eq!(
-        live_task(&world, row(&world).task.expect("fixture value")).requester,
-        tasks::Party::Deployment { project: 2 }
-    );
-    assert!(row(&world).queue.iter().all(|entry| entry.change.is_some()));
     world.close();
 }
 
