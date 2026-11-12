@@ -13,6 +13,8 @@ pub struct ActivityLine {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Activity {
+    TalkOpened { party: u64 },
+    TalkEnded { party: u64, lapsed: bool },
     Words { message: u64, by: Requester, kind: MessageKind, words: Text },
     Heard(Word),
     Notified { recipient: Requester, word: Word },
@@ -34,6 +36,8 @@ pub enum SessionEnd {
     Fresh,
     Closed,
     Rules,
+    Talk,
+    Left,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RunWhy {

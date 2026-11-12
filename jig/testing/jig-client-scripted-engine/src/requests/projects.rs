@@ -23,6 +23,8 @@ impl<A: Application> Engine<A> {
             | Ask::Create { .. }
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }
+            | Ask::Talk { .. }
+            | Ask::Leave { .. }
             | Ask::Message { .. }
             | Ask::Compound { .. }
             | Ask::Answer { .. }

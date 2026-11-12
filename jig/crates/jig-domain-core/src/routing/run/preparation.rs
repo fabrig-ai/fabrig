@@ -176,6 +176,7 @@ pub(crate) fn workspace_prepared(
                 session_end = tasks::session_end(
                     session,
                     tasks::SessionWake {
+                        talk: tasks::talk_state(row.talk, row.session, env.wall),
                         at: env.wall,
                         span: tasks::quiet_span(model.cache_life_ms),
                         bytes: transcript.bytes,

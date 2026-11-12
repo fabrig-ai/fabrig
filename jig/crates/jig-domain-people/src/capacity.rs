@@ -82,7 +82,9 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::DecideProposal { proposer, proposal, .. } => {
             CapacityAction::Proposal { proposer: *proposer, number: *proposal }
         }
-        Ask::Say { task, .. } => CapacityAction::Words { task: *task },
+        Ask::Leave { task, .. } | Ask::Talk { task, .. } | Ask::Say { task, .. } => {
+            CapacityAction::Words { task: *task }
+        }
         Ask::AnswerQuestion { task, question, .. } => CapacityAction::Question { task: *task, question: *question },
         Ask::Amend { task, .. } => CapacityAction::Amend { task: *task },
         Ask::Move { task, .. } => CapacityAction::Move { task: *task },

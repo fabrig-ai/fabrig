@@ -1090,6 +1090,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::Created { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::PersonTaken { .. }

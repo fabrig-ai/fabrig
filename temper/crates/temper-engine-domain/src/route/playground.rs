@@ -364,6 +364,7 @@ pub(crate) fn acted(
         | people::Outcome::Adopted { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }

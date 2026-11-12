@@ -355,6 +355,8 @@ pub(crate) fn refused(
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::MakeProject(_)
+        | w::Ask::Talk(_)
+        | w::Ask::Leave(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)

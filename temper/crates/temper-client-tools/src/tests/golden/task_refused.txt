@@ -6,4 +6,4 @@ waiting on: you: question of task 42 · 1 waiting
 acts:
   task stop: This act is not offered
   task cancel 41 REASON --key KEY
-digest: task 78073792e39f33a8
+digest: task 24eca2bdcb5d069f

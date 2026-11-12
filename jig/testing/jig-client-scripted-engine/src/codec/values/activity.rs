@@ -8,6 +8,8 @@ fn session_end(value: c::SessionEnd) -> w::SessionEnd {
         c::SessionEnd::Unoffered => w::SessionEnd::Unoffered,
         c::SessionEnd::Fresh => w::SessionEnd::Fresh,
         c::SessionEnd::Closed => w::SessionEnd::Closed,
+        c::SessionEnd::Talk => w::SessionEnd::Talk,
+        c::SessionEnd::Left => w::SessionEnd::Left,
         c::SessionEnd::Rules => w::SessionEnd::Rules,
     }
 }
@@ -98,6 +100,12 @@ pub(in crate::codec) fn wire_activity(value: &c::Activity, limits: &w::Limits) -
             limits,
             w::ActivityStoodParts { attempt: *attempt, words: words.bytes().into() },
         )?),
+        c::Activity::TalkOpened { party } => {
+            w::Activity::TalkOpened(w::TalkOpened::new(limits, w::TalkOpenedParts { party: *party })?)
+        }
+        c::Activity::TalkEnded { party, lapsed } => {
+            w::Activity::TalkEnded(w::TalkEnded::new(limits, w::TalkEndedParts { party: *party, lapsed: *lapsed })?)
+        }
         c::Activity::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded::new(
             limits,
             w::ActivitySessionEndedParts { attempt: *attempt, end: session_end(*end) },

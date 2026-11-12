@@ -136,6 +136,8 @@ pub fn a_backward_wall_correction_keeps_reply_paging_whole_after_restart() {
             | tasks::Line::RunEnded { .. }
             | tasks::Line::Decided { .. }
             | tasks::Line::Stood { .. }
+            | tasks::Line::TalkOpened { .. }
+            | tasks::Line::TalkEnded { .. }
             | tasks::Line::SessionEnded { .. }
             | tasks::Line::Kept { .. }
             | tasks::Line::Milestone { .. } => None,

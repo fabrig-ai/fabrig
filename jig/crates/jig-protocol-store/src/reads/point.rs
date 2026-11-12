@@ -162,6 +162,8 @@ pub(super) fn reply(
         | tasks::Line::RunEnded { .. }
         | tasks::Line::Decided { .. }
         | tasks::Line::Stood { .. }
+        | tasks::Line::TalkOpened { .. }
+        | tasks::Line::TalkEnded { .. }
         | tasks::Line::SessionEnded { .. }
         | tasks::Line::Kept { .. }
         | tasks::Line::Milestone { .. } => {

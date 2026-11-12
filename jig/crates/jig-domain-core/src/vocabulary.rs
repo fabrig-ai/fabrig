@@ -1202,6 +1202,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Message { .. }
         | tasks::Event::PersonQuestion { .. }
         | tasks::Event::PersonQuestionAnswer { .. }
+        | tasks::Event::Talk { .. }
+        | tasks::Event::Leave { .. }
         | tasks::Event::AuthorizedMessage { .. }
         | tasks::Event::PeriodNext { .. }
         | tasks::Event::OpenPeriod { .. }
