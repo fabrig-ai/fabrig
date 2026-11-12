@@ -48,18 +48,18 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let smallest = baseline_golden("enum_value_live_smallest.bin");
     let (tag, record) = smallest.split_first().expect("live tag");
     let (_, fields) = record.split_first().expect("closer option");
-    let mut live = skein_lib::Writer::new(131_072);
+    let mut live = skein_lib::Writer::new(fields.len().checked_add(10).expect("live golden with closer"));
     live.put(&[*tag, 1]).unwrap();
     live.put(&42_u64.to_be_bytes()).unwrap();
     live.put(fields).unwrap();
     let live = live.finish();
-    let mut before = skein_lib::Writer::new(131_072);
+    let mut before = skein_lib::Writer::new(live.len().checked_add(6).expect("row golden with header and models"));
     before.put(&[0, 9]).unwrap();
     before.put(&live).unwrap();
     before.put(&[0, 0, 0, 0]).unwrap(); // No model names.
     let bytes = patched(9, 0, b"Row", before.finish());
     let (tag, fields) = live.split_first().expect("live tag");
-    let mut expected = skein_lib::Writer::new(131_072);
+    let mut expected = skein_lib::Writer::new(fields.len().checked_add(9).expect("row golden with session"));
     expected.put(&[0, 10, *tag, 0, 0]).unwrap(); // Version, same live tag, activation false, session none.
     expected.put(fields).unwrap();
     expected.put(&[0, 0, 0, 0]).unwrap();

@@ -570,11 +570,11 @@ fn role_spend_round_trips_in_a_stored_answer() {
 
 #[test]
 fn project_spend_answer_bytes_match_the_current_schema() {
-    // people-v15: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
+    // people-v16: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
     // PolicyChanged and its project, then the answer's wall time.
     let mut before = skein_lib::Writer::new(58);
     for field in [
-        [0, 15, 6].as_slice(),
+        [0, 16, 6].as_slice(),
         &2_u64.to_be_bytes(),
         &[7; 16],
         &[21, 0, 0, 0, 1, 0],

@@ -55,7 +55,7 @@ fn another_family_is_refused_naming_the_first_difference() {
     for (family, found, version, expected) in [
         (Family::Component, codec::component::Format { component: 2, core: 6, ..wanted }, 2, 3),
         (Family::Core, codec::component::Format { core: 5, tasks: 4, ..wanted }, 5, 6),
-        (Family::People, codec::component::Format { people: 10, notes: 2, ..wanted }, 10, 15),
+        (Family::People, codec::component::Format { people: 10, notes: 2, ..wanted }, 10, 16),
         (Family::Notes, codec::component::Format { notes: 2, accounts: 2, ..wanted }, 2, 1),
         (Family::Accounts, codec::component::Format { accounts: 1, application: 2, ..wanted }, 1, 2),
         (Family::Settings, codec::component::Format { settings: 0, ..wanted }, 0, u32::from(wanted.settings)),

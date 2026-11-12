@@ -103,11 +103,8 @@ fn real_jig_set_versions_match_each_level() {
         (1, codec::component::Format { tasks: 10, people: 15, settings: 2, ..fixed::BASELINE.format }),
         (2, jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)),
     ] {
-        let mut expected = codec::component::Format {
-            application: root::APPLICATION.version,
-            deployment: root::DEPLOYMENT,
-            ..format
-        };
+        let mut expected =
+            codec::component::Format { application: root::APPLICATION.version, deployment: root::DEPLOYMENT, ..format };
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
         let mut valid = source_world(expected, Vec::new(), REAL_SETS);
