@@ -1115,8 +1115,9 @@ mod worker;
 mod worker_git;
 pub(crate) mod worker_peers;
 pub use worker::{
-    AGENT_JSON, NOW, TEMPER, application_value, assignment as worker_assignment, chat_assignment, identity,
-    one_repository, repository_assignment, spawn, worker, worker_agent, worker_files, worker_limits, worker_settings,
+    AGENT_JSON, NOW, PINNED_AGENT_JSON, PINNED_TEMPER, TEMPER, application_value, assignment as worker_assignment,
+    chat_assignment, identity, one_repository, pinned_agent, repository_assignment, spawn, worker, worker_agent,
+    worker_files, worker_limits, worker_settings,
 };
 pub use worker_git::{
     IDENTITY, WorkerStand, git_place, github_assignment, github_push, github_record, github_value, started_worker,

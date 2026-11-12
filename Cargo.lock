@@ -6850,6 +6850,7 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-io",
+ "skein-lib",
  "skein-scratch",
  "skein-shell",
  "skein-tls-kit",

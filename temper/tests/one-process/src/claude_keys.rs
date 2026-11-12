@@ -88,7 +88,11 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         Some(&agent),
         &Accounts::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into(), agent: temper_playground::documents::pinned_agent() }),
+        Some(temper_service::WorkerRuntime {
+            root: worker,
+            path: b"/worker".as_slice().into(),
+            agent: temper_playground::documents::pinned_agent(),
+        }),
         temper_playground::documents::forges(),
         None,
         None,

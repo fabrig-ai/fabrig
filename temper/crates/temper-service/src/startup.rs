@@ -145,12 +145,14 @@ pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
     pub program: Box<[u8]>,
+    pub arguments: Box<[Box<[u8]>]>,
 }
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
     NamedWorker {
         root: own.root.clone(),
         agent: worker.agent.configuration.clone(),
         program: worker.agent.program.clone(),
+        arguments: worker.agent.arguments.clone(),
     }
 }
 

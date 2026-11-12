@@ -263,7 +263,11 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Some(&documents::agent()),
         &H::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into(), agent: documents::pinned_agent() }),
+        Some(temper_service::WorkerRuntime {
+            root: worker,
+            path: b"/worker".as_slice().into(),
+            agent: documents::pinned_agent(),
+        }),
         documents::forges(),
         None,
         None,

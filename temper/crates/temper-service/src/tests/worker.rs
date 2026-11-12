@@ -203,10 +203,10 @@ fn the_agent_runs_as_temper_agent_with_no_credential_in_its_environment() {
     let mut worker = fixtures::started_worker().worker;
     worker.link(fixtures::NOW, fixtures::chat_assignment());
     let (_, launched) = fixtures::spawn(&mut worker);
-    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+    assert_eq!(launched.program.as_ref(), fixtures::PINNED_TEMPER);
     assert_eq!(
         launched.args.as_ref(),
-        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::AGENT_JSON)]
+        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::PINNED_AGENT_JSON)]
     );
     assert_eq!(launched.root, io::kernel::Fd::new(9));
     assert!(launched.env.is_empty(), "no credential reaches an agent");
@@ -266,14 +266,14 @@ fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
             },
         );
         let (_, launched) = fixtures::spawn(&mut worker);
-        assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+        assert_eq!(launched.program.as_ref(), fixtures::PINNED_TEMPER);
         assert_eq!(
             launched.args.as_ref(),
             [
                 Box::from(b"--list".as_slice()),
                 Box::from(b"internal".as_slice()),
                 Box::from(b"agent-list".as_slice()),
-                Box::from(fixtures::AGENT_JSON),
+                Box::from(fixtures::PINNED_AGENT_JSON),
             ]
         );
         assert_eq!(launched.env.as_ref(), environment.as_ref());
@@ -294,7 +294,11 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
         &fixtures::worker_agent(),
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
-        crate::WorkerRuntime { root: io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+        crate::WorkerRuntime {
+            root: io::kernel::Fd::new(9),
+            path: b"/worker".as_slice().into(),
+            agent: fixtures::pinned_agent(&settings.jig.agent),
+        },
         7,
     )
     .unwrap();
@@ -313,8 +317,8 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
         grant: list_grant(jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key)),
     });
     let (_, launched) = fixtures::spawn(&mut worker);
-    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
-    assert_eq!(launched.args.as_ref(), [Box::from(b"--list".as_slice()), Box::from(fixtures::AGENT_JSON)]);
+    assert_eq!(launched.program.as_ref(), fixtures::PINNED_TEMPER);
+    assert_eq!(launched.args.as_ref(), [Box::from(b"--list".as_slice()), Box::from(fixtures::PINNED_AGENT_JSON)]);
 }
 
 #[test]
@@ -350,7 +354,11 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
             &fixtures::worker_agent(),
             &fixtures::worker_limits(),
             &fixtures::worker_files(),
-            crate::WorkerRuntime { root: io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+            crate::WorkerRuntime {
+                root: io::kernel::Fd::new(9),
+                path: b"/worker".as_slice().into(),
+                agent: fixtures::pinned_agent(&settings.jig.agent),
+            },
             7,
         )
         .unwrap();
@@ -381,10 +389,10 @@ fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
     let worker = service.worker.as_mut().expect("one worker");
     worker.link(fixtures::NOW, fixtures::chat_assignment());
     let (_, launched) = fixtures::spawn(worker);
-    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+    assert_eq!(launched.program.as_ref(), fixtures::PINNED_TEMPER);
     assert_eq!(
         launched.args.as_ref(),
-        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::AGENT_JSON)]
+        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::PINNED_AGENT_JSON)]
     );
     assert_eq!(launched.root, io::kernel::Fd::new(9));
     assert_eq!(launched.env.as_ref(), [Box::from(b"TEMPER_INTERNAL_DUMP_LLM=/request-dumps".as_slice())]);
@@ -424,7 +432,11 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
             &fixtures::worker_agent(),
             &fixtures::worker_limits(),
             &files,
-            crate::WorkerRuntime { root: io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+            crate::WorkerRuntime {
+                root: io::kernel::Fd::new(9),
+                path: b"/worker".as_slice().into(),
+                agent: fixtures::pinned_agent(&settings.jig.agent),
+            },
             7,
         )
         .unwrap_err();
