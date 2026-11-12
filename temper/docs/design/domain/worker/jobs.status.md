@@ -2,18 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
-- **Not yet:** the whole document, its paragraph of 2026-11-12 on a
-  delivering job's writable repository: a checkout with none or several
-  writable repositories fails the job with `no unique writable
-  repository` alone, naming none of the repositories it saw
-  (`temper-worker-domain/src/jobs.rs`, `up`) [in flight: change 1044].
-- **Not yet:** the whole document, its paragraph of 2026-11-12 on a
-  delivering job's writable repository: a close job released after its
-  change held on its failure is no longer named by its change, and its
-  checkout holds the project's home read-only instead of the change's
-  repository writable (`temper-engine-domain-forge/src/domain.rs`,
-  `decide_step`; `temper-engine-domain/src/route/forge_route.rs`,
-  `run_workspace`) [in flight: change 1046].
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,
 prepares the close change's checkout and delivers its staged tree with the
