@@ -1,0 +1,25 @@
+   Compiling temper-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-shell)
+   Compiling temper-fetch-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-fetch-shell)
+   Compiling temper-version v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-version)
+   Compiling skein-ui-screen v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-ui-screen)
+   Compiling temper-client-bundle v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-bundle)
+   Compiling jig-client-shell-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-shell-web)
+   Compiling temper-init v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-init)
+   Compiling skein-ui-screen-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-ui-screen-terminal)
+   Compiling temper-client-tui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-tui)
+   Compiling temper-service-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-service-shell)
+   Compiling temper-launcher v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-launcher)
+   Compiling temper-forge-setup-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-forge-setup-shell)
+   Compiling temper-client-shell-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-shell-web)
+   Compiling temper-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-agent-shell)
+   Compiling temper-engine-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-shell)
+   Compiling temper-worker-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-worker-shell)
+   Compiling temper-client-shell-tui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-shell-tui)
+   Compiling temper-box-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-box-shell)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.86s
+────────────
+ Nextest run ID d04fdcb4-43b3-4046-bced-a12cd6b11fdc with nextest profile: default
+    Starting 1 test across 1 binary (189 tests skipped)
+        PASS [   0.067s] (1/1) temper-box-shell tests::configuration::the_pages_configuration_are_what_the_tables_render
+────────────
+     Summary [   0.069s] 1 test run: 1 passed, 189 skipped

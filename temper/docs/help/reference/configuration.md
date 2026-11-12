@@ -128,6 +128,7 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `project`: integer, at most 4,294,967,295; unique; required; init leaves it out. The project number whose landing way is configured.
 - `rules`: refused: landing rules live in the store; read them with temper ctl settings show landing-rule --project
 - `by`: text, queue or turn; queue when absent; optional; init leaves it out. The project’s way of landing changes.
+- `combine`: landing-combine, stock merge for main, squash for other; optional; init leaves it out. How each train combines its member.
 - `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command’s path from the repository root; see The merge command, below.
 - `close_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The close command’s path from the repository root; see temper help configuration’s close command.
 - `gates`: list of repository-checks, at most forge.repositories; optional; init leaves it out. Each repository’s test gates and tiers.
@@ -136,6 +137,13 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `gate_timeout_ms`: integer, 60,000 to 86,400,000; 3,600,000 when absent; optional; init leaves it out. How long a landing gate may run, in milliseconds.
 - `tier_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many times a failing tier may be retried.
 - `verification_bound_ms`: integer, at most 18,446,744,073,709,551,615; 7,200,000 when absent; optional; init leaves it out. The verification time bound in milliseconds.
+
+## application.landing.projects[].combine
+
+Shape: `landing-combine`. Paths: `application.landing.projects[].combine`. How trains combine their members.
+
+- `main`: text, merge or squash; merge when absent; optional; init leaves it out. Trains into the default branch.
+- `other`: text, merge or squash; squash when absent; optional; init leaves it out. Trains into other branches.
 
 ## application.landing.projects[].gates[]
 
