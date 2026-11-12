@@ -72,6 +72,16 @@ fn every_class_the_stylesheet_selects_is_a_look_name() {
     assert!(!classes.is_empty(), "stylesheet selects look classes");
 }
 #[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn the_switchers_phone_links_hide_only_on_wide_pages() {
+    assert_eq!(NAMES.style(PROJECTS_PHONE), Some(b"temper-projects-phone".as_slice()));
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains(
+        "@media (min-width: 761px) {\n  #app > .temper-rail .temper-projects-acts > .temper-projects-phone { display: none; }\n}"
+    ));
+}
+
+#[test]
 fn model_line_styles_name_the_reason_and_acts() {
     for (style, name) in [
         (WELCOME_STATUS_WHY, b"temper-welcome-status-why".as_slice()),
