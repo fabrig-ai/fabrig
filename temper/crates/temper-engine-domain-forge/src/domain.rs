@@ -6168,6 +6168,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         }
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
+        heads::free(d, env, out);
         d.releases.remove(&task);
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });

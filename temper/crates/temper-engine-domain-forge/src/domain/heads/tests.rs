@@ -1,4 +1,5 @@
-//! Full tables refuse heads without interrupting the reporting step.
+//! Heads follow live work; full tables refuse without interrupting the reporting step.
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect emitted requests with iterator predicates")]
 use super::super::*;
 use crate::tests::{self, fixtures};
 
@@ -9,7 +10,7 @@ const TIP: skein_forge::api::Commit = [9; 32];
 
 fn resource(branch: &[u8]) -> skein_forge_client::Resource {
     skein_forge_client::Resource {
-        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        repository: tests::adopted().provider,
         what: skein_forge_client::What::Branch(branch.into()),
     }
 }
@@ -23,6 +24,8 @@ fn full() -> (Domain, Env<Limits>) {
     env.limits.client.resources = 2;
     env.limits.holds = 2;
     let mut d = tests::domain_with_limits(&env.limits);
+    d.repositories.insert(tests::adopted().provider, Box::new(tests::adopted())).unwrap();
+    d.names.insert(1, Box::new([name(b"main"), name(b"temper/1/c1")])).unwrap();
     for branch in [b"main".as_slice(), b"temper/1/c1"] {
         let name = name(branch);
         d.heads.insert(name.clone(), BranchHead { name, commit: fixtures::BASE, owned: true }).unwrap();
@@ -76,6 +79,7 @@ fn refused(out: &Queue<Request>, task: Option<u64>, branch: &[u8]) {
     assert_eq!(count, 1);
     for request in out {
         assert!(!matches!(request, Request::Save { record: Stored::BranchHead(_), .. }));
+        assert!(!matches!(request, Request::Erase { key: Key::BranchHead(_), .. }));
     }
 }
 
@@ -91,7 +95,7 @@ fn assert_saved(out: &Queue<Request>, record: Stored, read_afresh: Option<Name>)
 #[test]
 fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
     // Replay begins with the durable state before the answer.
-    for _ in 0..2_u32 {
+    for _ in 0_u8..2 {
         let (mut d, env) = full();
         d.changes.insert(TASK, change()).unwrap();
         watch(&mut d, &env);
@@ -203,5 +207,163 @@ fn lost_read_at_capacity_still_completes_the_report() {
     assert!(d.lost.is_empty());
     for request in &out {
         assert!(!matches!(request, Request::LostReadFailed { .. }));
+    }
+}
+
+#[test]
+fn stale_full_table_push_report_erases_old_heads_and_saves_the_new_head() {
+    let (mut d, env) = full();
+    d.names.remove(&1);
+    watch(&mut d, &env);
+    hold(&mut d, Some(Writer::Run { task: DELEGATE, attempt: 1 }));
+    let mut out = Queue::uncapped();
+    answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP)], &mut out);
+    assert_eq!(d.heads.len(), 1);
+    assert_eq!(d.branch_head(&name(BRANCH)), Some(TIP));
+    for branch in [b"main".as_slice(), b"temper/1/c1"] {
+        assert!(out.iter().any(|r| *r == Request::Erase { key: Key::BranchHead(name(branch)) }));
+    }
+    assert!(out.iter().any(|r| matches!(r, Request::Save { record: Stored::BranchHead(row), .. } if row.name == name(BRANCH) && row.commit == TIP)));
+    assert!(!out.iter().any(|r| matches!(r, Request::HeadRefused { .. })));
+    assert_eq!(d.hold(&name(BRANCH)).unwrap().writer, None);
+}
+
+fn subscription(d: &mut Domain, branch: &[u8]) {
+    let row = Subscriber {
+        task: 8,
+        number: 1,
+        topic: Topic::Landings { repository: tests::adopted().provider, branch: branch.into() },
+        own_change: None,
+        goal_tasks: None,
+        paths: Box::new([]),
+    };
+    d.subscriptions.insert((row.task, row.topic.clone()), row).unwrap();
+}
+
+#[test]
+fn completing_release_erases_deleted_change_head_but_keeps_a_live_base() {
+    for subscribed in [false, true] {
+        let mut d = tests::domain();
+        let env = tests::env();
+        d.repositories.insert(tests::adopted().provider, Box::new(tests::adopted())).unwrap();
+        d.changes.insert(TASK, change()).unwrap();
+        for branch in [BRANCH, b"main".as_slice()] {
+            let name = name(branch);
+            d.heads.insert(name.clone(), BranchHead { name, commit: TIP, owned: true }).unwrap();
+        }
+        hold(&mut d, None);
+        d.holds.get_mut(&name(BRANCH)).unwrap().task = TASK;
+        d.names.insert(TASK, Box::new([name(BRANCH)])).unwrap();
+        // The delete's outcome removes the hold; the completion must end the change before sweeping.
+        let mut row = release_row(TASK, TASK, ReleaseEnding::Done, None, true, true);
+        row.pending = Some((5, Some(name(BRANCH))));
+        d.releases.insert(TASK, row).unwrap();
+        if subscribed {
+            subscription(&mut d, b"main");
+        } else {
+            let mut other = change();
+            other.task = 3;
+            other.change.task = 3;
+            other.branch = b"temper/3/c3".as_slice().into();
+            d.changes.insert(3, other).unwrap();
+        }
+        let mut out = Queue::uncapped();
+        release_outcome(
+            &mut d,
+            5,
+            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
+            &mut out,
+        );
+        assert!(d.holds.get(&name(BRANCH)).is_none());
+        assert_eq!(d.branch_head(&name(BRANCH)), Some(TIP));
+        continue_release(&mut d, &env, TASK, 6, &mut out);
+        assert!(out.iter().any(|r| *r == Request::Released { task: TASK }));
+        assert!(out.iter().any(|r| *r == Request::Erase { key: Key::BranchHead(name(BRANCH)) }));
+        assert_eq!(d.branch_head(&name(BRANCH)), None);
+        assert_eq!(d.branch_head(&name(b"main")), Some(TIP));
+    }
+}
+
+#[test]
+fn a_sweep_frees_even_held_heads_of_ended_forges_and_unadopted_repositories() {
+    for ended in [false, true] {
+        let (mut d, env) = full();
+        for branch in [b"main".as_slice(), b"temper/1/c1"] {
+            let name = name(branch);
+            d.holds
+                .insert(
+                    name.clone(),
+                    Hold { name, task: TASK, writer: None, drift: None, design_writers: Box::new([]) },
+                )
+                .unwrap();
+        }
+        if ended {
+            d.configured.remove(&1);
+        } else {
+            d.repositories.remove(&tests::adopted().provider);
+        }
+        let mut out = Queue::uncapped();
+        super::free(&mut d, &env, &mut out);
+        assert!(d.heads.is_empty());
+        assert_eq!(out.len(), 2);
+        for branch in [b"main".as_slice(), b"temper/1/c1"] {
+            assert!(out.iter().any(|r| *r == Request::Erase { key: Key::BranchHead(name(branch)) }));
+        }
+    }
+}
+
+#[test]
+fn a_sweep_keeps_unsettled_branch_writes_and_pending_lost_reads() {
+    use skein_forge::api::Write;
+    for effect in [
+        skein_forge_client::Effect {
+            write: Write::CreateBranch { branch: b"main".as_slice().into(), commit: TIP },
+            condition: skein_forge_client::Condition::None,
+        },
+        skein_forge_client::Effect {
+            write: Write::DeleteBranch { branch: b"main".as_slice().into() },
+            condition: skein_forge_client::Condition::None,
+        },
+        skein_forge_client::Effect {
+            write: Write::Merge { number: 1, head: TIP, how: skein_forge::api::MergeHow::Style },
+            condition: skein_forge_client::Condition::Merge { base: b"main".as_slice().into() },
+        },
+    ] {
+        let (mut d, env) = full();
+        d.names.remove(&1);
+        let entry = skein_forge_client::Entry {
+            number: 1,
+            task: TASK,
+            repository: tests::adopted().provider,
+            effect,
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        };
+        d.entries.insert(1, Outboxed { entry, held: true, handoff: Handoff::Handed }).unwrap();
+        d.lost
+            .insert(
+                Token::new(2),
+                PendingLost {
+                    task: TASK,
+                    attempt: 1,
+                    name: name(b"temper/1/c1"),
+                    comparison: None,
+                    baseline: None,
+                    state: LostReadState::Asked,
+                    kind: LostWriterKind::Slot,
+                },
+            )
+            .unwrap();
+        let mut out = Queue::uncapped();
+        super::free(&mut d, &env, &mut out);
+        assert_eq!(d.heads.len(), 2);
+        assert!(out.is_empty());
+        d.entries.remove(&1);
+        d.lost.remove(&Token::new(2));
+        super::free(&mut d, &env, &mut out);
+        assert!(d.heads.is_empty());
+        assert_eq!(out.len(), 2);
     }
 }

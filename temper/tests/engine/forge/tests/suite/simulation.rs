@@ -443,41 +443,20 @@ fn a_repository_with_another_deployments_branch_prefix_is_refused() {
 }
 
 #[test]
-fn a_later_adoption_rechecks_the_prefix_and_accepts_only_recorded_writer_branches() {
+fn a_later_adoption_accepts_unrecorded_branches_under_its_prefix() {
     let mut world = World::new(4);
     world.adopt();
-    world.produce(b"temper/own");
+    world.produce(b"temper/unrecorded");
     let name = top::Name {
         forge: REPO.forge,
         repository: REPO.repository,
-        what: top::What::Branch(Box::new([Box::from(&b"temper"[..]), Box::from(&b"own"[..])])),
+        what: top::What::Branch(Box::new([Box::from(&b"temper"[..]), Box::from(&b"unrecorded"[..])])),
     };
-    world.event(top::Event::Names { task: 9, resources: Box::new([name.clone()]) });
-    world.event(top::Event::Hold { entry: 0, task: 9, resource: name.clone(), from: None });
-    world.event(top::Event::Claim {
-        designs: Box::new([]),
-        task: 9,
-        attempt: 1,
-        writes: Box::new([name.clone()]),
-        holders: Box::new([9]),
-    });
-    world.event(top::Event::Answered {
-        task: 9,
-        attempt: 1,
-        pushed: Box::new([(name, translate::commit(world.branch(b"temper/own")))]),
-    });
+    assert!(!world.stored().contains_key(&top::Key::BranchHead(name)));
     drop(world.take_seen());
     world.adopt();
     assert!(world.seen().iter().any(|request| matches!(request, top::Request::Adopted { result: Ok(_), .. })));
-    world.produce(b"temper/foreign");
-    drop(world.take_seen());
-    world.adopt();
-    assert!(
-        world.seen().iter().any(|request| matches!(
-            request,
-            top::Request::Adopted { result: Err(skein_forge::api::Error::Refused), .. }
-        ))
-    );
+    assert!(!world.seen().iter().any(|request| matches!(request, top::Request::Adopted { result: Err(_), .. })));
 }
 
 #[test]

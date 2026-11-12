@@ -6,7 +6,7 @@ use skein_lib::{List, Rng, Wall};
 
 #[test]
 fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
-    use crate::{BranchHead, Name, Request, What, domain::heads};
+    use crate::{BranchHead, Hold, Name, Request, What, domain::heads};
     use skein_lib::Queue;
     for seed in 0..256 {
         let mut rng = Rng::new(seed);
@@ -14,6 +14,7 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
         env.limits.client.resources = u32::try_from(rng.between(1, 8)).unwrap();
         env.limits.holds = env.limits.client.resources;
         let mut d = tests::domain_with_limits(&env.limits);
+        d.repositories.insert(tests::adopted().provider, Box::new(tests::adopted())).unwrap();
         for _ in 0..rng.between(32, 128) {
             let number = rng.below(12);
             let name = Name {
@@ -32,6 +33,12 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
             assert_eq!(heads::record(&mut d, &env, head.clone(), Some(7), &mut out), fits, "seed {seed}");
             assert!(d.heads.len() <= env.limits.client.resources, "seed {seed}");
             if fits {
+                d.holds
+                    .insert(
+                        name.clone(),
+                        Hold { name: name.clone(), task: 7, writer: None, drift: None, design_writers: Box::new([]) },
+                    )
+                    .unwrap();
                 assert_eq!(d.heads.get(&name), Some(&head), "seed {seed}");
                 assert!(out.is_empty(), "seed {seed}");
             } else {
@@ -137,5 +144,92 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
             }
             assert!(found, "seed {seed}: retained review");
         }
+    }
+}
+
+#[test]
+fn branch_heads_free_exactly_the_unneeded_subset() {
+    use crate::{BranchHead, Hold, Key, Request, Subscriber, Topic, domain::heads};
+    use skein_lib::Queue;
+    for seed in 0..256 {
+        let mut rng = Rng::new(seed);
+        let env = tests::env();
+        let mut d = tests::domain();
+        d.repositories.insert(tests::adopted().provider, Box::new(tests::adopted())).unwrap();
+        let mut needed = BTreeSet::new();
+        let mut freed = BTreeSet::new();
+        for number in 0..rng.between(1, u64::from(env.limits.client.resources)) {
+            let branch: Box<[u8]> = format!("branch-{number}").as_bytes().into();
+            let name = crate::tiers::name(tests::adopted().provider, &branch);
+            let tip = [u8::try_from(rng.below(256)).unwrap(); 32];
+            d.heads
+                .insert(name.clone(), BranchHead { name: name.clone(), commit: tip, owned: rng.chance(500) })
+                .unwrap();
+            let reason = rng.below(6);
+            if reason == 0 {
+                freed.insert(name.clone());
+                // Ended changes must not keep either branch alive.
+                let mut row = tests::fixtures::opening_row();
+                row.task = number;
+                row.change.task = number;
+                row.branch = branch.clone();
+                row.base = branch;
+                row.change.state = temper_engine_domain_forge_change::State::Ended;
+                d.changes.insert(number, row).unwrap();
+            } else {
+                needed.insert(name.clone());
+                match reason {
+                    1 => {
+                        d.holds
+                            .insert(
+                                name.clone(),
+                                Hold { name, task: number, writer: None, drift: None, design_writers: Box::new([]) },
+                            )
+                            .unwrap();
+                    }
+                    2 => {
+                        d.names.insert(number, Box::new([name])).unwrap();
+                    }
+                    3 | 4 => {
+                        let mut row = tests::fixtures::opening_row();
+                        row.task = number;
+                        row.change.task = number;
+                        if reason == 3 {
+                            row.branch = branch;
+                        } else {
+                            row.base = branch;
+                        }
+                        d.changes.insert(number, row).unwrap();
+                    }
+                    5 => {
+                        let row = Subscriber {
+                            task: number,
+                            number,
+                            topic: Topic::Landings { repository: tests::adopted().provider, branch },
+                            own_change: None,
+                            goal_tasks: None,
+                            paths: Box::new([]),
+                        };
+                        d.subscriptions.insert((number, row.topic.clone()), row).unwrap();
+                    }
+                    _ => unreachable!("six reasons"),
+                }
+            }
+        }
+        let mut out = Queue::uncapped();
+        heads::free(&mut d, &env, &mut out);
+        let mut retained = BTreeSet::new();
+        for (name, _) in &d.heads {
+            retained.insert(name.clone());
+        }
+        assert_eq!(retained, needed, "seed {seed}");
+        assert_eq!(usize::try_from(out.len()).unwrap(), freed.len(), "one erase per freed head, seed {seed}");
+        for request in &out {
+            let Request::Erase { key: Key::BranchHead(name) } = request else {
+                panic!("only head erasures, seed {seed}")
+            };
+            assert!(freed.remove(name), "erase once, seed {seed}");
+        }
+        assert!(freed.is_empty(), "all erasures, seed {seed}");
     }
 }
