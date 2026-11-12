@@ -1,0 +1,6 @@
+patch 1
+owner temper 2 after jig 1
+
+family temper-store 12 to 13
+add Device
+add Value.device

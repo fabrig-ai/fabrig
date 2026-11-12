@@ -127,6 +127,7 @@ pub fn configuration(path: &Path) -> Result<smith_agent_document::config::Config
 }
 
 /// Keep the generic start from reading the agent document again.
+#[must_use]
 pub fn without_configuration(
     files: Box<[jig_protocol_config::File]>,
     configuration: &[u8],
@@ -134,6 +135,7 @@ pub fn without_configuration(
     files.into_iter().filter(|file| file.path.as_ref() != configuration).collect()
 }
 /// Supply the already checked bytes to the service's ordinary file checks.
+#[must_use]
 pub fn with_configuration(
     files: service::settings::Files,
     configuration: &[u8],

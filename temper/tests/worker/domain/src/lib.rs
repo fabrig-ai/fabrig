@@ -75,6 +75,7 @@ pub fn limits() -> Limits {
         },
         checkout: checkout::Limits {
             workspaces: 4,
+            preparations: 4,
             repositories: 2,
             name_bytes: 32,
             message_bytes: 512,

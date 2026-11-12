@@ -7,6 +7,8 @@ use skein_io::{
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
+mod wait;
+pub use wait::{Wait, WaitLane};
 
 /// Whether a get the store can't answer yet is answered in the pass (protocol/service.md, 11.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

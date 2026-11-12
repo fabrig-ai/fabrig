@@ -20,6 +20,7 @@ mod face;
 pub mod forge;
 pub mod llm;
 pub mod oauth;
+pub mod push;
 pub mod transport;
 
 pub use face::{Error, Face, Limits};

@@ -1,6 +1,8 @@
 use super::*;
 // Admission makes the queue's group branch, whose name needs the longer bound.
-const QUEUEING: Config = Config { limits: Limits { branches: 10, name_bytes: 128, ..LIMITS }, ..CALM };
+fn queueing() -> Config {
+    Config { limits: Limits { branches: 10, name_bytes: 128, ..LIMITS }, ..calm() }
+}
 fn protected(queue: bool) -> Setup {
     let mut setup = setup();
     setup.protection = Some(Protection {
@@ -18,7 +20,7 @@ fn protected(queue: bool) -> Setup {
 #[test]
 fn bypass_skips_unmet_checks_and_approvals_but_keeps_queue_requirement() {
     for queue in [false, true] {
-        let mut h = Harness::with(QUEUEING, protected(queue));
+        let mut h = Harness::with(queueing(), protected(queue));
         let head = h.commit(FIRST, &[(b"src", b"one")]);
         h.push(ENGINE, b"alice", head).unwrap();
         h.open(b"alice").unwrap();
@@ -36,7 +38,7 @@ fn bypass_skips_unmet_checks_and_approvals_but_keeps_queue_requirement() {
 fn queue_admission_requires_approvals_before_processing() {
     let mut setup = protected(true);
     setup.protection.as_mut().unwrap().bypassing_users = Box::from([]);
-    let mut h = Harness::with(QUEUEING, setup);
+    let mut h = Harness::with(queueing(), setup);
     let head = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"alice", head).unwrap();
     h.open(b"alice").unwrap();
@@ -55,7 +57,7 @@ fn queue_admission_requires_approvals_before_processing() {
 fn protection_of_another_base_does_not_require_approvals_at_admission() {
     let mut setup = protected(true);
     setup.protection.as_mut().unwrap().branch = copy_of(b"release");
-    let mut h = Harness::with(QUEUEING, setup);
+    let mut h = Harness::with(queueing(), setup);
     let head = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"alice", head).unwrap();
     h.open(b"alice").unwrap();
@@ -66,13 +68,13 @@ fn protection_of_another_base_does_not_require_approvals_at_admission() {
 fn bypass_list_refuses_one_past_its_bound() {
     let mut setup = protected(false);
     setup.protection.as_mut().unwrap().bypassing_users = Box::from([1, 2, 3, 4, 5]);
-    Harness::with(QUEUEING, setup);
+    Harness::with(queueing(), setup);
 }
 #[test]
 fn bypass_list_at_its_bound_is_kept() {
     let mut setup = protected(false);
     setup.protection.as_mut().unwrap().bypassing_users = Box::from([1, 2, 3, 4]);
-    let h = Harness::with(QUEUEING, setup);
+    let h = Harness::with(queueing(), setup);
     let value = h.domain.inspect_protection(REPOSITORY, MAIN).unwrap();
     assert_eq!(value.bypassing_users.as_ref(), &[1, 2, 3, 4]);
     assert!(value.linear && value.code_owners);

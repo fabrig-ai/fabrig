@@ -13,7 +13,7 @@ const UNCHANGED: Time = Time::from_nanos(2);
 
 fn call(state: &State, op: api::Op) -> api::Answer {
     let mut forge = state.handle.borrow_mut();
-    let mut env = skein_shell::Clock::new().now().with(forge.config);
+    let mut env = skein_shell::Clock::new().now().with(forge.config.clone());
     let mut out = Queue::uncapped();
     domain::step(
         &mut forge.domain,

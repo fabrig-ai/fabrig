@@ -119,6 +119,7 @@ pub struct Domain {
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
+    pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
@@ -412,7 +413,7 @@ impl Domain {
         }
         let mut forge_config = core::mem::replace(
             &mut config.forge,
-            skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
+            temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
         );
         forge_config.namespace = Box::from(config.core.deployment);
         let mut forge = forge::Domain::new(
@@ -591,6 +592,7 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
+            closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
@@ -1304,7 +1306,8 @@ fn released_into(
             request_load(domain, waiter, range, after, out);
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
@@ -1460,7 +1463,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     };
     let mut forge_config = core::mem::replace(
         &mut config.forge,
-        skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
+        temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
     let Ok(mut forge) = forge::Domain::new(

@@ -1,5 +1,5 @@
 use super::*;
-mod forge;
+pub(crate) mod forge;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 fn plan() -> Plan {
@@ -11,6 +11,7 @@ fn plan() -> Plan {
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
             ports: None,
+            files: None,
         },
         "/browser/chromium".into(),
         OsStr::new("/bin"),
@@ -116,7 +117,7 @@ fn startup_orders_sign_ins_and_confines_programs() {
     let [Action::Log { .. }, Action::Start { process: Process::SignIn, program }] = actions.as_slice() else {
         panic!("{actions:?}")
     };
-    assert_eq!(program.program, Path::new("/build/bin/temper-client"));
+    assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "sign-in", "-"]);
     assert_eq!(program.input, Input::Bytes(first.as_slice().into()));
     assert!(
@@ -171,7 +172,7 @@ fn browser_and_ctl_lines_answer_their_effects() {
     step(&mut m, Event::Found(Some(NodeId(1))));
     let actions = line(&mut m, "ctl task show 3 --until ended");
     let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else { panic!("{actions:?}") };
-    assert_eq!(program.program, Path::new("/build/bin/temper-client"));
+    assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, ["ctl", "/scratch/session/ctl", "task", "show", "3", "--until", "ended"]);
     assert_eq!(program.input, Input::Null);
     assert_eq!(m.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(310))));
@@ -417,7 +418,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let s = Scratch::new("drive-preflight");
     let root = s.path();
-    for dir in ["bin", "bundle", "session", "config", "data", "cache"] {
+    for dir in ["bin", "bundle", "session", "config", "data", "cache", "files"] {
         fs::create_dir(root.join(dir)).expect("fixture directory");
     }
     fs::write(root.join("bundle/index.html"), b"index").expect("index");
@@ -432,12 +433,13 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scripts: vec![],
         strict: false,
         ports: None,
+        files: Some(root.join("files")),
     };
     let why = super::options::prepare(options.clone(), &[]).expect_err("missing binary before any process");
     assert!(why.contains("temper-box"));
     assert_eq!(Exit::own(why).status, 1);
     assert_eq!(fs::read(root.join("session/lines")).expect("old session"), b"previous");
-    for name in ["temper-box", "fake-claude", "temper-client", "chromium"] {
+    for name in ["temper-box", "fake-claude", "temper", "chromium"] {
         let file = root.join("bin").join(name);
         fs::write(&file, b"not executed").expect("fixture");
         fs::set_permissions(file, fs::Permissions::from_mode(0o700)).expect("executable");
@@ -447,6 +449,10 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         (b"DISPLAY".as_slice().into(), b":7".as_slice().into()),
     ];
     let plan = super::options::prepare(options, &environment).expect("preflight only");
+    assert_eq!(
+        plan.options.files.as_deref(),
+        Some(root.join("files").canonicalize().expect("files directory").as_path())
+    );
     let tui = plan.tui(b"http://127.0.0.1:9").expect("TUI plan");
     assert!(tui.environment.iter().any(|(name, value)| name == "DISPLAY" && value == ":7"));
     for opener in ["xdg-open", "open"] {
@@ -462,3 +468,24 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
 }
 
 mod tui;
+
+#[test]
+fn files_option_parses_and_refuses_a_non_directory_before_preparing_the_session() {
+    let scratch = skein_scratch::Scratch::new("drive-files-preflight");
+    let file = scratch.path().join("not-a-directory");
+    std::fs::write(&file, b"not a directory").expect("file");
+    std::fs::create_dir(scratch.path().join("session")).expect("session");
+    std::fs::write(scratch.path().join("session/lines"), b"kept").expect("old session");
+    let mut args: Vec<Box<[u8]>> =
+        ["--bin", "/missing/bin", "--bundle", "/missing/bundle", "--scratch"].map(|word| word.as_bytes().into()).into();
+    args.extend([
+        scratch.path().as_os_str().as_encoded_bytes().into(),
+        b"--files".as_slice().into(),
+        file.as_os_str().as_encoded_bytes().into(),
+    ]);
+    let options = Options::parse(&args).expect("files option");
+    assert_eq!(options.files.as_deref(), Some(file.as_path()));
+    let why = super::options::prepare(options, &[]).expect_err("not a directory");
+    assert!(why.contains("--files") && why.contains("not-a-directory"), "{why}");
+    assert_eq!(std::fs::read(scratch.path().join("session/lines")).expect("untouched"), b"kept");
+}

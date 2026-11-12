@@ -5,6 +5,8 @@
 
 - **Not yet:** 5: a standing role's Decided rows for its person and Overturn waking it, held by no story (`../agent/standing.md`, section 3).
 
+- **Not yet:** 7.4: mail and the digest: no `Told` row, no `application.mail`, no mail sent; left by N3b, whose push took the six changes it was given.
+
 - **Not yet:** 5: a call answered ask at the bound, with no row past
   its day, erases the project's rows older than 7 days without marking
   `decided`, so its document lists them until the next mark

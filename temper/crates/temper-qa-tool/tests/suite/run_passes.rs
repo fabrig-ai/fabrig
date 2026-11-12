@@ -42,6 +42,7 @@ fn hold(place: &Path) -> File {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one pass start pins its installed build, environment and fakes-only brief")]
 fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     let mut world = World::new();
     world.home.configuration.surfaces = vec!["web".into()];
@@ -84,16 +85,12 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert_eq!(ledger.cases[0].state, CaseState::Queued, "tui stays queued");
     assert_eq!(ledger.cases[1].state, CaseState::Assigned);
     assert_eq!(ledger.sessions[1].effort, "high");
-    for path in [
-        "bin/temper-box",
-        "bin/temper-client",
-        "bin/temper-client-journeys",
-        "bundle/index.html",
-        "bundle/assets/app.js",
-    ] {
+    for path in
+        ["bin/temper-box", "bin/temper", "bin/temper-client-journeys", "bundle/index.html", "bundle/assets/app.js"]
+    {
         assert_eq!(fs::read(place.join(path)).expect("installed"), fs::read(build.join(path)).expect("build"));
     }
-    assert_eq!(fs::metadata(place.join("bin/temper-client")).expect("mode").permissions().mode() & 0o777, 0o751);
+    assert_eq!(fs::metadata(place.join("bin/temper")).expect("mode").permissions().mode() & 0o777, 0o751);
     assert!(!place.join("bin/stale").exists());
     assert!(!place.join("bundle/stale").exists());
     assert!(!place.join("setup").exists());
@@ -134,8 +131,48 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert!(brief.contains("`pass setup`, `pass recipe` and `pass open` may take minutes"));
     assert!(brief.contains("shell's own timeout does not cut them"));
     let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
-    assert!(drive_lines.contains("`forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]...`"));
-    assert!(drive_lines.contains("`forge checks FORGE REPOSITORY`"));
+    assert!(drive_lines.contains("`forge commit forgejo REPOSITORY MESSAGE PATH...`"));
+    assert!(drive_lines.contains("`forge checks forgejo REPOSITORY`"));
+    assert!(drive_lines.contains("at its repository path before the line"));
+    assert!(brief.contains(&world.home.directory.join("passes/1/files").display().to_string()));
+    for words in [
+        "The fakes alone",
+        "the person's forge is the box's fake Forgejo",
+        "the box's own Forgejo or reach any real backend is blocked, naming it",
+        "{forgejo.api}",
+        "{forgejo.git}",
+        "{forgejo.admin}",
+        "{git}",
+        "--first work/hello",
+        "--git-program {git}",
+    ] {
+        assert!(brief.contains(words), "{words}\n{brief}");
+    }
+    assert!(!brief.contains("owned Forgejo"));
+    assert!(!drive_lines.contains("CONTENT"));
+}
+
+#[test]
+fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
+    let world = World::new();
+    let mut run = ready(&world, Agent::Fail);
+    let files = world.home.directory.join("passes/1/files");
+    assert!(files.is_dir(), "a pass starts with files/");
+    assert_eq!(fs::read_dir(&files).expect("files directory").count(), 0);
+    fs::create_dir(files.join("dir")).expect("repository directory");
+    fs::write(files.join("dir/b.txt"), b"kept across resumes").expect("commit file");
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            ledger.file_request(1, 1, Some(99), 1)?;
+            ledger.end_goal(99, 2)
+        })
+        .expect("ended goal");
+    run.processes.next.push_back(Agent::Never);
+    run.tick();
+    assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
+    assert_eq!(fs::read(files.join("dir/b.txt")).expect("kept file"), b"kept across resumes");
 }
 
 #[test]

@@ -6,7 +6,6 @@ mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
-mod tui;
 
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]

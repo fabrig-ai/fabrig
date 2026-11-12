@@ -490,6 +490,7 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 close(f, handle);
             }
             Request::Client(_)
+            | Request::Push(_)
             | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::OpenTab { .. }

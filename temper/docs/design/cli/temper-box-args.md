@@ -11,7 +11,7 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`, `--echo none|steps`
-- **Notes:** In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
+- **Notes:** Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ### `temper-box init`
 
@@ -207,13 +207,6 @@ Refused, changing nothing, when the configuration directory already holds temper
 - Run an owned forge's program, sent SIGNAL when its parent PID ends.
 - **Arguments:** `PID`: The process whose end ends the program.; `PROGRAM`: The program to run, with its ARGS.
 
-### `temper-box internal tui`
-
-- **Set:** internal
-- **Forms:** `--box ADDRESS`
-- Run the TUI in front of the box that started it, signed in by the link the box hands it.
-- **Arguments:** `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
-
 ### `temper-box fake llm`
 
 - **Set:** internal
@@ -306,10 +299,10 @@ Refused, changing nothing, when the configuration directory already holds temper
 - Fail a model turn no script answers.
 - **Notes:** Requires --fake-backends.
 
-### `--no-tui`
+### `--front`
 
 - **Set:** internal
-- Run the box with no TUI in front, as on a pipe.
+- Run as temper box's child, on its parent's pipes.
 
 ### `--box`
 

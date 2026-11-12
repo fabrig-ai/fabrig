@@ -11,7 +11,7 @@ fn opened(h: &mut Harness, head: &[u8]) -> u64 {
 fn clean_update_keeps_two_parents_reports_hooks_and_checks_the_new_head() {
     let mut configured = setup();
     configured.checks.cue = Some(Cue::File { path: copy_of(b"ci"), green: copy_of(b"green") });
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let work = h.commit(FIRST, &[(b"README", b"changed")]);
     h.push(ENGINE, b"work", work).unwrap();
     let number = opened(&mut h, b"work");
@@ -51,7 +51,7 @@ fn clean_update_keeps_two_parents_reports_hooks_and_checks_the_new_head() {
 
 #[test]
 fn conflicting_update_changes_neither_head_nor_objects() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"README", b"ours")]);
     h.push(ENGINE, b"work", work).unwrap();
     let number = opened(&mut h, b"work");
@@ -77,8 +77,8 @@ fn conflicting_update_changes_neither_head_nor_objects() {
 
 #[test]
 fn pull_file_pages_are_distinct_and_name_the_exact_head() {
-    let mut h = Harness::new(CALM);
-    let work = crate::commit(&mut h.domain, &CALM, FIRST, files(&[(b"new", b"one")]), b"").unwrap().unwrap();
+    let mut h = Harness::new(calm());
+    let work = crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"new", b"one")]), b"").unwrap().unwrap();
     h.push(ENGINE, b"work", work).unwrap();
     let number = opened(&mut h, b"work");
     let mut names = skein_lib::Set::with_capacity(3);
@@ -108,7 +108,7 @@ fn pull_file_pages_are_distinct_and_name_the_exact_head() {
 
 #[test]
 fn comparisons_ignore_paging_and_refuse_incomplete_data_explicitly() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let one = h.commit(FIRST, &[(b"one", b"one")]);
     let two = h.commit(one, &[(b"two", b"two")]);
     h.push(ENGINE, b"work", two).unwrap();
@@ -121,9 +121,10 @@ fn comparisons_ignore_paging_and_refuse_incomplete_data_explicitly() {
     assert_eq!(merge_base, Some(FIRST));
     assert_eq!(&*commits, &[one, two]);
     assert_eq!(changed.len(), 2);
-    let excessive = crate::commit(&mut h.domain, &CALM, FIRST, files(&[(b"a", b"a"), (b"b", b"b"), (b"c", b"c")]), b"")
-        .unwrap()
-        .unwrap();
+    let excessive =
+        crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"a", b"a"), (b"b", b"b"), (b"c", b"c")]), b"")
+            .unwrap()
+            .unwrap();
     h.push(ENGINE, b"other", excessive).unwrap();
     assert_eq!(
         h.call(PERSON, read(Read::Compare { base: FIRST, head: excessive, page: 1, limit: 1 })),
@@ -149,7 +150,7 @@ fn adoption_metadata_and_protection_permission_match_the_probe() {
         dismiss_stale: true,
     };
     configured.protection = Some(protection.clone());
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     assert_eq!(h.call(ENGINE, read(Read::Protection { branch: copy_of(MAIN) })), Err(Error::Forbidden));
     assert_eq!(h.call(ENGINE, read(Read::Protection { branch: copy_of(b"absent") })), Err(Error::Forbidden));
     assert_eq!(h.ok(ADMIN, read(Read::Protection { branch: copy_of(MAIN) })), Answer::Protection(Some(protection)));
@@ -182,7 +183,7 @@ fn adoption_metadata_and_protection_permission_match_the_probe() {
 
 #[test]
 fn a_manually_reported_failure_has_no_ci_job() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.call(ENGINE, status(FIRST, b"ci", Check::Failed)).unwrap();
     let Answer::Checks(checks) = h.ok(PERSON, read(Read::Checks { commit: FIRST })) else { unreachable!("checks") };
     assert_eq!(checks.len(), 1);
@@ -196,8 +197,8 @@ fn a_manually_reported_failure_has_no_ci_job() {
 
 #[test]
 fn oversized_api_branch_creation_is_refused_before_a_delayed_write_can_hold_it() {
-    let config = Config { landing: 1000, ..CALM };
-    let mut h = Harness::new(config);
+    let config = Config { landing: 1000, ..calm() };
+    let mut h = Harness::new(config.clone());
     let name = skein_lib::bytes::zeroed(usize::try_from(config.limits.name_bytes.checked_add(1).unwrap()).unwrap());
     assert_eq!(h.call(ENGINE, write(Write::CreateBranch { branch: name, commit: FIRST })), Err(Error::TooLarge));
     assert_eq!(h.domain.tally().landed, 0);
@@ -205,7 +206,7 @@ fn oversized_api_branch_creation_is_refused_before_a_delayed_write_can_hold_it()
 
 #[test]
 fn api_branch_creation_does_not_depend_on_git_transport_reachability() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     crate::set_reachable(&mut h.domain, REPOSITORY, false);
     assert_eq!(h.call(ENGINE, Op::Git(Git::Clone)), Err(Error::Unreachable));
     assert_eq!(
@@ -217,8 +218,8 @@ fn api_branch_creation_does_not_depend_on_git_transport_reachability() {
 
 #[test]
 fn oversized_update_repository_is_not_retained_for_a_delayed_write() {
-    let config = Config { landing: 1000, ..CALM };
-    let mut h = Harness::new(config);
+    let config = Config { landing: 1000, ..calm() };
+    let mut h = Harness::new(config.clone());
     let name = skein_lib::bytes::zeroed(usize::try_from(config.limits.name_bytes.checked_add(1).unwrap()).unwrap());
     assert_eq!(
         h.call_on(&name, ENGINE, write(Write::Update { number: 1, style: crate::api::UpdateStyle::Merge })),
@@ -229,7 +230,7 @@ fn oversized_update_repository_is_not_retained_for_a_delayed_write() {
 
 #[test]
 fn comparisons_carry_the_shared_base_of_divergent_and_unrelated_histories() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let left = h.commit(FIRST, &[(b"one", b"left")]);
     let left = h.commit(left, &[(b"one", b"left again")]);
     let right = h.commit(FIRST, &[(b"two", b"right")]);
@@ -247,7 +248,7 @@ fn comparisons_carry_the_shared_base_of_divergent_and_unrelated_histories() {
     let mut other = setup();
     other.name = copy_of(b"acme/unrelated");
     other.id = 3;
-    let unrelated = crate::repository(&mut h.domain, &CALM, other);
+    let unrelated = crate::repository(&mut h.domain, &calm(), other);
     h.push(ENGINE, b"unrelated", unrelated).unwrap();
     let Answer::Comparison { merge_base, contains_base, .. } =
         h.ok(PERSON, read(Read::Compare { base: left, head: unrelated, page: 1, limit: 1 }))
@@ -272,19 +273,19 @@ fn inspection_reads_protection_without_client_authorization_or_calls() {
         dismiss_stale: true,
     };
     configured.protection = Some(protection.clone());
-    let h = Harness::with(CALM, configured);
+    let h = Harness::with(calm(), configured);
     let tally = h.domain.tally();
     assert_eq!(h.domain.inspect_protection(REPOSITORY, MAIN), Some(&protection));
     assert_eq!(h.domain.inspect_protection(REPOSITORY, b"other"), None);
     assert_eq!(h.domain.inspect_protection(b"missing/repo", MAIN), None);
     assert_eq!(h.domain.tally(), tally);
-    let unprotected = Harness::new(CALM);
+    let unprotected = Harness::new(calm());
     assert_eq!(unprotected.domain.inspect_protection(REPOSITORY, MAIN), None);
 }
 
 #[test]
 fn a_fast_forward_merge_moves_the_base_to_the_head() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"new")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -300,7 +301,7 @@ fn a_fast_forward_merge_moves_the_base_to_the_head() {
 }
 #[test]
 fn a_fast_forward_merge_of_a_head_behind_its_base_is_a_conflict() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -316,13 +317,13 @@ fn a_fast_forward_merge_of_a_head_behind_its_base_is_a_conflict() {
 }
 #[test]
 fn an_update_by_rebase_replays_the_branch_onto_the_base() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let one =
-        crate::commit(&mut h.domain, &CALM, FIRST, files(&[(b"README", b"one"), (b"ci", b"green")]), b"first patch")
+        crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"README", b"one"), (b"ci", b"green")]), b"first patch")
             .unwrap()
             .unwrap();
     let two =
-        crate::commit(&mut h.domain, &CALM, one, files(&[(b"README", b"two"), (b"ci", b"green")]), b"second patch")
+        crate::commit(&mut h.domain, &calm(), one, files(&[(b"README", b"two"), (b"ci", b"green")]), b"second patch")
             .unwrap()
             .unwrap();
     h.push(ENGINE, b"work", two).unwrap();
@@ -348,7 +349,7 @@ fn an_update_by_rebase_replays_the_branch_onto_the_base() {
 }
 #[test]
 fn an_update_by_rebase_refuses_a_conflict() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let one = h.commit(FIRST, &[(b"ci", b"first")]);
     let two = h.commit(one, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", two).unwrap();
@@ -365,7 +366,7 @@ fn an_update_by_rebase_refuses_a_conflict() {
 }
 #[test]
 fn an_update_by_rebase_of_a_branch_on_the_tip_changes_nothing() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -405,7 +406,7 @@ fn judge_changes(h: &mut Harness, decision: Option<(u64, u64)>) -> crate::promis
 
 #[test]
 fn a_fast_forward_merge_is_judged_at_the_decided_head_and_its_base_move_is_exempt() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -415,7 +416,7 @@ fn a_fast_forward_merge_is_judged_at_the_decided_head_and_its_base_move_is_exemp
 
 #[test]
 fn a_callers_own_rebase_is_exempt_from_forced_and_foreign() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -426,7 +427,7 @@ fn a_callers_own_rebase_is_exempt_from_forced_and_foreign() {
 
 #[test]
 fn another_users_rebase_of_the_callers_branch_breaches_foreign() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(ENGINE, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -443,7 +444,7 @@ fn another_users_rebase_of_the_callers_branch_breaches_foreign() {
 
 #[test]
 fn a_rebase_request_does_not_grant_the_caller_another_users_branch() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let head = h.commit(FIRST, &[(b"README", b"work")]);
     h.push(MAINTAINER, b"work", head).unwrap();
     let number = opened(&mut h, b"work");
@@ -463,7 +464,7 @@ fn a_rebase_request_does_not_grant_the_caller_another_users_branch() {
 
 #[test]
 fn pull_size_counts_changed_paths_and_multiset_lines_at_the_merge_base() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"new", b"one\ntwo\nthree\n"), (b"README", b"changed")]);
     h.push(ENGINE, b"work", work).unwrap();
     let number = opened(&mut h, b"work");
@@ -475,7 +476,7 @@ fn pull_size_counts_changed_paths_and_multiset_lines_at_the_merge_base() {
     let moved = h.commit(work, &[(b"new", b"two\none\none\n"), (b"README", b"hello")]);
     h.push(ENGINE, b"work", moved).unwrap();
     assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 3, deletions: 0 });
-    let deleted = crate::commit(&mut h.domain, &CALM, moved, files(&[(b"README", b"hello")]), b"").unwrap().unwrap();
+    let deleted = crate::commit(&mut h.domain, &calm(), moved, files(&[(b"README", b"hello")]), b"").unwrap().unwrap();
     h.push(ENGINE, b"work", deleted).unwrap();
     assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 0, deletions: 1 });
 }
@@ -484,7 +485,7 @@ fn pull_size_counts_changed_paths_and_multiset_lines_at_the_merge_base() {
 fn pull_size_matches_duplicate_lines_once_and_ignores_line_order() {
     let mut configured = setup();
     configured.tree = files(&[(b"lines", b"a\na\nb\n")]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let work = h.commit(FIRST, &[(b"lines", b"b\na\na\n")]);
     h.push(ENGINE, b"work", work).unwrap();
     let number = opened(&mut h, b"work");

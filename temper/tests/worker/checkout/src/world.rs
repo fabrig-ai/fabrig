@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
@@ -40,6 +40,7 @@ const TITLE: &[u8] = b"Change the notes";
 /// The calm limits: room for a few workspaces of a few repositories.
 pub const LIMITS: Limits = Limits {
     workspaces: 3,
+    preparations: 3,
     repositories: 3,
     name_bytes: 64,
     message_bytes: 256,
@@ -138,6 +139,10 @@ impl Settings {
 pub struct Stats {
     /// Prepares sent, and how they ended.
     pub prepares: u32,
+    /// Prepares that arrived with every preparation permit taken.
+    pub queued: u32,
+    /// Peak preparation operations held by io, cancelled ones included.
+    pub most_preparing_io: u32,
     pub ready: u32,
     pub busy: u32,
     pub full: u32,
@@ -167,6 +172,8 @@ pub struct Stats {
     /// those a cancel ended; cancels that lost their race; cancels for an
     /// operation that ended in the iteration they were sent.
     pub ops: u32,
+    /// Store requests overlapping an in-flight making of the same token.
+    pub store_overlaps: u32,
     pub op_timeouts: u32,
     pub op_broken: u32,
     pub cancels: u32,
@@ -202,6 +209,7 @@ pub struct Told {
     pub looking: u32,
     pub evicted: u32,
     pub kept: u32,
+    pub queued: u32,
     pub makes: u32,
     pub clones: u32,
     pub started: u32,
@@ -316,6 +324,12 @@ pub struct World {
     /// The pushes of each hold's push or save under way, by remote.
     attempts: BTreeMap<(Token, Vec<u8>), Attempt>,
     ops: Ledger<Token, Pending>,
+    /// Independent permit model: arrivals take free permits or join FIFO.
+    preparing: BTreeSet<Token>,
+    preparations_waiting: VecDeque<Token>,
+    /// Removed only when io tells the operation's end, never on cancel.
+    preparing_io: BTreeSet<Token>,
+    making: BTreeMap<Token, Token>,
     cancel_lost: BTreeSet<Token>,
     stats: Stats,
     told: Told,
@@ -377,6 +391,10 @@ impl World {
             transfers: BTreeMap::new(),
             attempts: BTreeMap::new(),
             ops: Ledger::new("operation"),
+            preparing: BTreeSet::new(),
+            preparations_waiting: VecDeque::new(),
+            preparing_io: BTreeSet::new(),
+            making: BTreeMap::new(),
             cancel_lost: BTreeSet::new(),
             stats: Stats::default(),
             told: Told::default(),
@@ -395,7 +413,6 @@ impl World {
             self.domain.reuse_workspaces();
         } else {
             self.disk.remove(b"ws");
-            self.disk.remove(b"stores");
         }
         self.stage = Stage::uncapped(self.settings.checkout);
         self.holds.clear();
@@ -457,6 +474,12 @@ impl World {
     #[must_use]
     pub fn workstream(&self, place: u32) -> &[usize] {
         &self.workstreams[usize::try_from(place).expect("a small world")]
+    }
+
+    /// Choose the repositories, in order, for a workstream's next prepares.
+    pub fn set_repositories(&mut self, workstream: usize, places: &[usize]) {
+        assert!(places.iter().all(|place| *place < self.repositories.len()));
+        self.workstreams[workstream] = places.to_vec();
     }
 
     /// Another party advances `branch` of the repository at `place`, at `at`.
@@ -843,6 +866,12 @@ impl World {
                 assert!(client.hold.is_none(), "a prepare is held once");
                 client.hold = Some(hold);
                 assert!(self.holds.insert(hold, name).is_none(), "every hold has a name of its own");
+                if self.preparing.len() < usize::try_from(self.settings.checkout.preparations).expect("small") {
+                    self.preparing.insert(hold);
+                } else {
+                    self.preparations_waiting.push_back(hold);
+                    self.stats.queued += 1;
+                }
             }
             Request::Prepared { client, prepared } => self.prepared(client.raw(), &prepared),
             Request::Pushed { client, outcome } => self.pushed(client.raw(), outcome, false),
@@ -858,6 +887,18 @@ impl World {
         assert_eq!(client.operation.take(), Some(Operation::Prepare), "a prepare ends once");
         assert!(client.prepared.is_none(), "a client prepares once");
         client.prepared = Some(prepared.clone());
+        if let Some(hold) = client.hold {
+            assert!(!self.preparing_io.contains(&hold), "a cancelled prepare keeps its permit until io ends");
+            if self.preparing.remove(&hold) {
+                if let Some(oldest) = self.preparations_waiting.pop_front() {
+                    self.preparing.insert(oldest);
+                }
+            } else {
+                assert!(self.preparations_waiting.contains(&hold), "a held prepare is active or queued");
+                assert_eq!(*prepared, Prepared::Aborted, "only an abort ends a queued prepare");
+                self.preparations_waiting.retain(|waiting| *waiting != hold);
+            }
+        }
         let stats = &mut self.stats;
         match prepared {
             Prepared::Ready { workspace, .. } => {
@@ -1041,6 +1082,13 @@ impl World {
         assert!(client.release != Release::Done, "no operation touches a workspace after its release");
         assert!(client.operation.is_some(), "an operation runs only while its client waits for one to end");
         let limits = self.settings.checkout;
+        if client.operation == Some(Operation::Prepare) {
+            assert!(self.preparing_io.insert(owner), "one operation per prepare");
+            let count = u32::try_from(self.preparing_io.len()).expect("small");
+            assert!(count <= limits.preparations, "io never holds more prepares than preparation permits");
+            assert!(self.preparing.contains(&owner), "only prepares admitted in arrival order may ask io");
+            self.stats.most_preparing_io = self.stats.most_preparing_io.max(count);
+        }
         let timeout = if op.is_remote() { limits.remote_timeout } else { limits.local_timeout };
         assert_eq!(deadline, self.now.saturating_add(timeout), "an operation's deadline is by where it runs");
         if let Some(identity) = translate::identity(&op) {
@@ -1051,6 +1099,12 @@ impl World {
                 assert_eq!(holder, owner, "a workspace is held by one hold at a time, and evicted only when idle");
             }
             self.workspaces.insert(workspace);
+        }
+        if let Op::Store { store, .. } = &op {
+            if self.making.values().any(|making| making == store) {
+                self.stats.store_overlaps += 1;
+            }
+            assert!(self.making.insert(owner, *store).is_none());
         }
         let verifies = self.attempt(owner, client.operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
@@ -1144,6 +1198,8 @@ impl World {
     /// The operation of `owner` ends, and io tells the checkout how.
     fn ran(&mut self, owner: Token) {
         let pending = self.ops.end(owner);
+        self.preparing_io.remove(&owner);
+        self.making.remove(&owner);
         self.cancel_lost.remove(&owner);
         let done = match pending.work {
             Work::Perform(op) => self.perform(owner, op),
@@ -1203,7 +1259,7 @@ impl World {
             self.forge.set_refusing(name, refusing);
         }
         let before = match &op {
-            Op::CheckOut { at, commit, clean } => {
+            Op::CheckOut { at, commit, clean, .. } => {
                 let client = *self.holds.get(&owner).expect("a hold's client");
                 self.checkouts.entry(client).or_default().push((at.repository.to_vec(), *clean));
                 self.checked_out.insert((owner, at.repository.to_vec()), translate::fake(*commit));
@@ -1324,6 +1380,7 @@ impl World {
             Fact::Held { cached: Cached::Looking, .. } => &mut told.looking,
             Fact::Held { cached: Cached::Evicted, .. } => &mut told.evicted,
             Fact::Held { cached: Cached::Kept, .. } => &mut told.kept,
+            Fact::Queued { .. } => &mut told.queued,
             Fact::Started { op, .. } => {
                 match op {
                     Kind::Make => told.makes += 1,
@@ -1358,6 +1415,7 @@ impl World {
         let refused = stats.busy + stats.full + stats.invalid;
         let admitted = stats.prepares - refused;
         assert_eq!(told.refused, refused + stats.busy_pushes, "a fact for every refusal");
+        assert_eq!(told.queued, stats.queued, "a fact for every queued prepare");
         let held = told.reused + told.rebuilt + told.new + told.looking + told.evicted + told.kept;
         assert_eq!((held, told.prepared), (admitted, admitted), "a fact for every hold and its prepare's end");
         assert_eq!((told.started, told.ended), (stats.ops, stats.ops), "a fact for every operation and its end");
@@ -1372,6 +1430,8 @@ impl World {
         assert_eq!(self.domain.idle(), self.domain.workspaces(), "every workspace is idle");
         assert!(self.ops.is_empty() && self.cancel_lost.is_empty(), "every operation has ended, once");
         assert!(self.held_by.is_empty(), "no workspace is held");
+        assert!(self.preparing.is_empty() && self.preparations_waiting.is_empty(), "every preparation permit returned");
+        assert!(self.preparing_io.is_empty(), "every preparation operation ended");
         assert!(self.wire.is_empty() && !self.stage.has_events(), "nothing is on its way");
         for (name, client) in &self.clients {
             assert_eq!(client.release, Release::Done, "client {name} released what it held, or was refused");

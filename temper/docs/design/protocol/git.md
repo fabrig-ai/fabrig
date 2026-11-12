@@ -41,7 +41,9 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   makes each repository's remote from its forge's `git` base, its owner
   and its name (channel.md, section 4); every invocation that reaches the
   forge names that URL itself, so a repository's own configuration never
-  says where git connects.
+  says where git connects, but for the lazy fetch of a `CheckOut` or a
+  `Merge`, which git runs from `origin`, the URL `Clone` wrote from the
+  remote (4.2).
 - **Read by exit status first,** then by git's machine output: porcelain
   lines, NUL-separated paths and object ids. Standard error only
   classifies a failure, read in the C locale, and its tail is kept as the
@@ -65,6 +67,12 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   and takes the store's format; and a fetch goes into the store and then
   points the checkout's reference (4.2, 4.3, 4.11;
   `../domain/worker/checkouts.md`).
+- **Stores are blob-less.** A store's clone and every fetch into it carry
+  `--filter=blob:none`: the commits and trees whole, no file contents. A
+  `CheckOut` or `Merge` names its repository's identity and runs its
+  checkout or merge with `origin` as a promisor remote, so git fetches the
+  contents it lacks into the checkout, within the operation and under its
+  remote deadline (4.5, 4.6).
 - **A deadline or a cancel kills the invocation's process group,** and
   the operation ends only once its process has closed, so nothing of it
   touches the workspace afterwards.
@@ -86,7 +94,8 @@ io                              processes (skein's `runtime/io/processes.md`) an
 the worker's root directory     workers[].root
 ├── workspaces/<token>/         a workspace, named by the checkout's token in decimal
 │   └── <repository>/           a repository's working tree and its .git, side by side with the others
-├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11)
+├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11), kept across starts
+├── making/<m>/                 a store being made, moved into `stores` once whole (4.11)
 ├── trash/<n>/                  what Make set aside, emptied by the sweep
 ├── home/                       git's HOME: empty, private
 └── agent/                      the agent's program and configuration, pinned at start (../domain/worker/README.md, section 5)
@@ -113,10 +122,14 @@ the worker's root directory     workers[].root
 - **The worker's root directory** is opened once at start by the
   worker's service and is the root every spawn and file operation
   resolves beneath (skein's `runtime/io/files.md`). At every start the
-  component renames `workspaces`, `stores` and `home` into `trash` if they
-  exist, and makes them afresh, private (0o700), with `trash` if it is absent:
-  the worker keeps nothing durable (`../domain/worker/README.md`, section 1),
-  and git's `HOME` must be empty. It never touches `agent/`, which the
+  component renames `workspaces`, `making` and `home` into `trash` if they
+  exist, and makes them afresh, private (0o700), with `trash` and `stores`
+  if they are absent. `stores` stays: a cache whose loss costs only clones
+  made again, so a restart finds each remote's store made
+  (`../domain/worker/checkouts.md`), while what must survive is never on
+  the worker (`../domain/worker/README.md`, section 1). A store half made
+  when the worker stopped is in `making`, and goes with it; git's `HOME`
+  must be empty. It never touches `agent/`, which the
   worker's start writes before its loop and no operation of the
   component's names.
 - **What it depends on:** `skein-lib`, `skein-io` and the checkout's
@@ -129,7 +142,7 @@ Every invocation has this shape:
 ```
 program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
 argv       git -c <setting> … <command> <options> [--] <operands>
-directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `stores` for Store's clone
+directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `making` for Store's clone
 environment  given whole (section 5)
 pipes      stdin (written, then closed), stdout, stderr
 ```
@@ -151,6 +164,13 @@ pipes      stdin (written, then closed), stdout, stderr
 | `rerere.enabled=false` | no recorded resolution changes a merge |
 | `merge.conflictStyle=merge` | conflicts carry the three markers section 4.6 reads |
 | `submodule.recurse=false` | no submodule is touched |
+
+`CheckOut`'s `git checkout` and `Merge`'s `git merge` add one more, after
+these: `-c remote.origin.promisor=true`, which makes `origin` a promisor
+remote for that invocation alone, so git fetches from it the file contents
+the blob-less store lacks (4.5). No other invocation names it: one that
+finds an object missing fails, and a push's thin pack skips a delta base it
+lacks rather than fetching it.
 
 - **Command-line settings win** over the repository's own configuration
   for the keys they name. The rest is the repository's own, which `Clone`
@@ -231,9 +251,12 @@ references in each store it names gone.
 
 1. `Rename` `workspaces/<token>` to `trash/<n>`, `<n>` the component's
    next serial number in decimal, counted from a number the component
-   draws from its seed at each start, so a name an earlier start left in
-   `trash` is not taken again. A workspace that does not exist is
-   nothing to move.
+   draws from its seed at each start. Every rename into `trash` refuses
+   replacement: `Exists` takes the next serial number and tries the same
+   source again, one submission at a time, within the operation's deadline
+   where it has one. Thus a name an earlier start left in `trash` is not
+   taken again, even when the seed repeats after a power loss. A workspace
+   that does not exist is nothing to move.
 2. `MakeDirectory` `workspaces/<token>`, mode 0o700.
 3. For each store, in order, `Rename` `stores/<store>/refs/temper/<token>`
    to `trash/<n>`, the workspace's references there (4.3): a git killed
@@ -295,10 +318,11 @@ store's objects. It names no identity: nothing reaches the forge.
   exit, or a failed file operation, is `Broken`. A repository the forge
   lacks is the store's `Missing { Repository }` (4.11), or, once its store
   is made, the first fetch's (4.3).
-- **Full history, no checkout.** No `--depth` and no `--filter`: the store
-  holds the whole history of what was fetched, and a partial clone would
-  fetch missing objects later, from `CheckOut` and `Merge`, which carry no
-  identity. The working tree is made by `CheckOut`.
+- **Commits and trees, no checkout.** No `--depth`: the store holds every
+  commit and tree of what was fetched, and no file contents (4.11), which
+  `CheckOut` and `Merge` fetch into the repository as they need them, from
+  `origin`, as the remote `remote add` named (4.5, 4.6). The working tree
+  is made by `CheckOut`.
 - **Borrowed, never shared.** The repository's configuration, references,
   index and own objects are its own; only the store's objects are read
   through it. The store is written by the worker's git alone.
@@ -309,7 +333,7 @@ store's objects. It names no identity: nothing reaches the forge.
 
 1. In the store's directory, `stores/<store>`:
    ```
-   git fetch --porcelain --verbose --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +<source>:refs/temper/<token>/<name>
+   git fetch --porcelain --verbose --filter=blob:none --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +<source>:refs/temper/<token>/<name>
    ```
 2. In the repository's directory:
    ```
@@ -331,8 +355,10 @@ workspace's last fetches under its own token.
   another reference is `Broken`, and so is any other exit of the second.
 - **Only what the store lacks.** git offers the forge every reference the
   store holds, each workspace's last fetches, so the forge sends only the
-  objects none of them reaches; the second invocation transfers nothing.
-  The repository reads them through its alternates file (4.2).
+  objects none of them reaches, and of those the commits and trees alone:
+  `--filter=blob:none` keeps the store blob-less (4.11) whether or not it
+  was made so. The second invocation transfers nothing. The repository
+  reads them through its alternates file (4.2).
 - **`refs/temper/fetched`** keeps what was fetched reachable, in the store
   under the workspace's token and in the repository, and is moved freely by
   the next fetch.
@@ -378,31 +404,49 @@ on the old value. The status line of `refs/heads/<branch>` decides:
 
 ### 4.5 CheckOut
 
-`CheckOut { at, commit }`: the working tree exactly `commit`'s tree.
+`CheckOut { at, commit, clean, identity, account }`: the working tree
+exactly `commit`'s tree.
 
 ```
-git checkout --force --detach <commit>
-git clean -ffdxq
+git -c remote.origin.promisor=true checkout --force --detach <commit>     with the identity's header (section 5)
+git clean -ffdxq                                                          only with clean
 ```
 
+- **The contents it lacks.** The store is blob-less (4.11), so the
+  checkout finds the commit's trees there and not every file's contents:
+  git fetches those it lacks from `origin` in one batch before it writes
+  the tree, into the repository's own objects, where the next checkout of
+  the repository finds them. The fetch is git's own (`git fetch origin
+  --filter=blob:none --stdin`, its object ids on stdin), a child in the
+  invocation's process group, run with the invocation's settings and
+  environment, so the identity's header reaches it and nothing else does.
+  It runs under the operation's one deadline, the remote one (section 7),
+  and a failure of it fails the invocation, classified by section 6's
+  table.
 - **The first** detaches HEAD at the commit, sets the index to its tree,
   so that nothing stays staged and a file staged new goes with it,
   overwrites what is in the way, tracked or not, and clears a merge's
   state (`MERGE_HEAD` and the rest). **The second** removes every untracked and ignored file and
   directory, nested repositories included.
-- **Exit 0 from both:** `Succeeded`; any other exit is `Broken`.
+- **Exit 0 from both:** `Succeeded`; any other exit of the checkout is
+  classified by section 6's table, and of `git clean`, `Broken`.
 
 ### 4.6 Merge
 
-`Merge { at, theirs }`: merge fetched `theirs` into the checked-out
-commit, without committing, leaving conflicts and the merge's state on
-disk.
+`Merge { at, theirs, identity, account }`: merge fetched `theirs` into the
+checked-out commit, without committing, leaving conflicts and the merge's
+state on disk.
 
 ```
-git merge --no-commit --no-ff -- <theirs>
+git -c remote.origin.promisor=true merge --no-commit --no-ff -- <theirs>     with the identity's header (section 5)
 git diff-files --name-only -z --diff-filter=U          only after exit 1
 ```
 
+- **The contents it lacks:** those of the files the merge reads, theirs,
+  the base's and, for renames, the candidates', fetched as `CheckOut`'s are
+  (4.5), in batches, under the operation's remote deadline. A failure of
+  that fetch ends the merge with an exit other than 0 and 1, classified by
+  section 6's table.
 - **Exit 0:** `Merged`, a commit already contained in HEAD ("Already up
   to date") included: the next commit still records both parents
   (section 4.7). A producer's start asks first, and runs no merge of a
@@ -425,7 +469,7 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 - **`diff-files`,** the plumbing command, lists the index's unmerged
   entries whatever the repository's diff settings say.
 - **The committer** git requires even with `--no-commit` is the
-  placeholder of section 5: Merge names no identity, and makes no commit.
+  identity's author (section 5); Merge makes no commit.
 - **Who commits it** is the domain's (`../domain/worker/checkouts.md`): a
   producer's clean merge and each head of a base with heads merged in at
   once, any other merge at its run's first push or save.
@@ -630,27 +674,35 @@ git push --porcelain --force-with-lease=refs/heads/<branch>:<e> -- <url> <commit
 `Store { store, aside, remote, identity, account, git }`, `git` the
 program (section 3): `stores/<store>` a bare clone of the remote's default
 branch, unless one is there, made whole before it is moved into place, so
-that two `Store`s of one store at once leave one, each `Succeeded`, and a
-fetch that follows either finds it whole (`../domain/worker/checkouts.md`).
+that a store there is always whole, a fetch that follows finds it so, and
+two `Store`s of one store at once, which the cache never starts
+(`../domain/worker/checkouts.md`), would still leave one.
 
 1. Where `aside` names a store (one no workspace borrows, whose slot the
    cache gives another remote), `Rename` `stores/<aside>` to `trash/<n>`;
    one that does not exist is nothing to move.
-2. `MakeDirectory` `stores/new-<m>`, mode 0o700, `<m>` the component's next
-   serial number, the one `trash` names take, and in `stores`:
+2. Where `stores/<store>` is there, a directory, `Succeeded`, with no clone
+   and no invocation: a store kept from before the worker's start, or made
+   since, is whole and its remote's, since its token is its remote's
+   (`../domain/worker/checkouts.md`), and the fetches that follow bring it
+   up to date. Something there that is not a directory is `Broken`.
+3. `MakeDirectory` `making/<m>`, mode 0o700, `<m>` the component's next
+   serial number, the one `trash` names take, and in `making`:
    ```
-   git clone --bare --single-branch --no-tags --quiet -- <url> new-<m>
+   git clone --bare --filter=blob:none --single-branch --no-tags --quiet -- <url> <m>
    ```
    which git accepts into the empty directory.
-3. `Rename` `stores/new-<m>` to `stores/<store>`, never replacing: where
-   `stores/<store>` is there already, `stores/new-<m>` is renamed to
-   `trash/<m>` instead.
+4. `Rename` `making/<m>` to `stores/<store>`, never replacing: where
+   `stores/<store>` is there already, `making/<m>` is renamed to
+   `trash/<n>` instead, taking the next unused serial name (4.1).
 
 - **Exit 0 and the file operations done:** `Succeeded`, whichever rename
-  took. A failed clone is classified by section 6's table, as a fetch is (a
-  repository the forge lacks is `Missing { Repository }`, a token it
-  refused `Refused`); any other failed file operation is `Broken`; and
-  what step 2 made is renamed to `trash` if it can be.
+  took, or at step 2 with nothing made. A failed clone is classified by
+  section 6's table, as a fetch is (a repository the forge lacks is
+  `Missing { Repository }`, a token it refused `Refused`); any other
+  failed file operation is `Broken`; and what step 3 made is renamed to
+  `trash` if it can be. A worker stopped mid-clone leaves it in `making`,
+  which its next start sets aside (section 2).
 - **A clone, for the object format.** `git init` makes a SHA-1 repository,
   and git 2.47's fetch from a SHA-256 remote into it fails (`fatal:
   mismatched algorithms: client sha1; server sha256`); a clone takes the
@@ -658,6 +710,13 @@ fetch that follows either finds it whole (`../domain/worker/checkouts.md`).
   `--single-branch` brings the forge's default branch alone, the history a
   first prepare most likely fetches next, so that fetch brings nothing
   more; nothing else is fetched but what an assignment names (4.3).
+- **Blob-less.** `--filter=blob:none` brings every commit and tree of the
+  default branch and no file contents: on one deployment's forge, 2.3 s
+  and 50 MB where the whole clone took 17.4 s and 198 MB (2026-11-12). git
+  records the store as a partial clone of `origin`; nothing in the store
+  reads a file's contents, and a checkout fetches those it needs (4.5).
+  A store made whole before stores were blob-less stays so, and serves as
+  well.
 - **Its configuration is the clone's:** `remote.origin` names the remote
   and its default branch, and no fetch reads it: every fetch names its URL
   on the command line (section 3). Its `refs/heads/<default>` stays where
@@ -695,7 +754,7 @@ variable of the worker's own process reaches git.
 | `GIT_ASKPASS` | empty | every invocation: no askpass program, whatever a repository's `core.askPass` says |
 | `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` | the identity's author; or `temper` and `temper@temper.invalid` for an operation that names no identity | every invocation: the committer of a commit, or of a reference's log entry |
 | `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL` | the identity's author | `Commit` |
-| `GIT_CONFIG_COUNT` | `1` | `Store`'s clone, `Fetch`'s fetch, `Create`, `Push` |
+| `GIT_CONFIG_COUNT` | `1` | `Store`'s clone, `Fetch`'s fetch, `Create`, `Push`, `CheckOut`'s checkout, `Merge`'s merge |
 | `GIT_CONFIG_KEY_0` | `http.extraHeader` | likewise |
 | `GIT_CONFIG_VALUE_0` | `Authorization: Basic ` and the base64 of `<login>:<token>` | likewise |
 
@@ -756,7 +815,9 @@ variable of the worker's own process reaches git.
 | `fatal: the remote end hung up unexpectedly`, `fatal: early EOF`, `error: RPC failed…` | `Unreachable` |
 
 - **Only invocations that reach the forge** (`Store`'s clone, `Fetch`'s
-  fetch, `Create`, `Push`) are classified by the table. A local one that fails is `Broken`.
+  fetch, `Create`, `Push`, and `CheckOut`'s checkout and `Merge`'s merge,
+  whose lazy fetch may) are classified by the table. A local one that
+  fails is `Broken`, as is a checkout's or a merge's failure no row names.
 - **The faults** are the checkout's (`git::Fault`): `Missing` where the
   forge lacks what was asked, `Refused` where it refused the identity or
   the update, `Unreachable` where it could not be reached or failed,
@@ -847,8 +908,10 @@ checks this document's contract:
   - **the builders:** for each operation and case (each `Want`, a push
     with and without an expected head, a commit with and without a second
     parent), the exact argument vector, directory and environment of
-    sections 3 to 5, a fetch's store and repository and a store's `new-<m>`
-    among them; that no value of an identity appears in an argument; the
+    sections 3 to 5, a fetch's store and repository and a store's `<m>` in
+    `making` among them, the store's clone and fetch blob-less, and a
+    checkout's and a merge's promisor setting and header; that no value of
+    an identity appears in an argument; the
     message's bytes; the alternates file's bytes;
   - **the parsers:** fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions
@@ -903,8 +966,9 @@ checks this document's contract:
   write a repository's configuration (a URL rewrite, a proxy) before the
   next invocation, or a store's, which sits beside the workspaces. A fetch
   runs in the store, whose configuration only `Store`'s clone wrote, so a
-  checkout's own configuration reaches the forge only through a push and
-  the delivery's second-parent fetch (4.7). Default: accepted on one person's machine
+  checkout's own configuration reaches the forge only through a push, the
+  delivery's second-parent fetch (4.7), and a check out's or a merge's
+  lazy fetch, which takes `origin`'s URL from it (4.5). Default: accepted on one person's machine
   (credentials.md, section 8); the command-line settings of section 3
   and the URL on the command line cover what they name. Contained trees
   (skein's `runtime/io/processes.md`, 3), with the git directory and the

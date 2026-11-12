@@ -99,6 +99,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::Acted { .. }
                 | Held::PeopleReply { .. }
                 | Held::CallAnswer { .. }
+                | Held::NeedArrived { .. }
                 | Held::Result { .. }
                 | Held::Acknowledge { .. }
                 | Held::TaskTerminalAcknowledged { .. }

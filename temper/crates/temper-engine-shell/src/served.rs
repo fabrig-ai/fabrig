@@ -32,6 +32,12 @@ pub fn resolve(service: &mut service::Service) {
             .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
         service.resolved(forge, address);
     }
+    for (token, name, port) in service.unresolved_pushes() {
+        let address = std::str::from_utf8(&name)
+            .ok()
+            .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
+        service.resolved_push(token, address);
+    }
 }
 /// Read and remove only the handovers the engine asks for.
 pub fn handover(service: &mut service::Service) {

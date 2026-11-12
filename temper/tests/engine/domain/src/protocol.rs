@@ -161,6 +161,8 @@ pub struct Protocol {
     pub answers: Vec<(Box<[u8]>, engine::CallAnswer)>,
     pub read_pages: BTreeMap<Box<[u8]>, (u32, u32)>,
     pub read_jobs: BTreeMap<Box<[u8]>, skein_forge::api::JobAttempt>,
+    /// The root's render-only asking route, separate from each durable decision.
+    pub asks: BTreeMap<Box<[u8]>, engine::AskHow>,
     /// Let a story cut between the durable decision and its rendered answer.
     pub defer_render: bool,
     pub pending_renders: Vec<(ReplyTo, Box<[u8]>)>,
@@ -325,7 +327,10 @@ impl Protocol {
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
-                    engine::HostDelivery::Render { to, name, answer, job, page, .. } => {
+                    engine::HostDelivery::Render { to, name, answer, job, page, ask, .. } => {
+                        if let engine::CallAnswer::Decided { .. } = &answer {
+                            self.asks.insert(name.clone(), ask);
+                        }
                         if let Some(job) = job {
                             self.read_jobs.insert(name.clone(), job);
                         }

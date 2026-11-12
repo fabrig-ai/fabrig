@@ -2,7 +2,7 @@
 
 Kind: walk
 
-Run a long-lived deployment on a server: the engine behind a TLS proxy with Google sign-in, an owned Forgejo beside it, the workers on a second host, and a redeploy that keeps the model's accounts.
+Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Forgejo, workers on a second host; redeploy keeping model accounts.
 
 ## Before you start
 
@@ -11,7 +11,7 @@ Run a long-lived deployment on a server: the engine behind a TLS proxy with Goog
   `temper`, home `/var/lib/temper` (0700, no login shell): `CONFIG`,
   `DATA`, `CACHE` are its `config/`, `data/`, `cache/`.
 - **Names:** `temper.example.com` for temper, `git.example.com` for Forgejo.
-- **Google's client:** OAuth consent in Testing, members its test users,
+- **Google client:** OAuth consent in Testing, members its test users,
   scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
   `https://temper.example.com/sign-in/google/return`.
 - `COMMIT`: the build's twelve hex digits. Use one commit's set on both
@@ -32,13 +32,13 @@ for name in $binaries; do cat Linux-x86_64/"$name" | gunzip | sudo tee /usr/loca
 tar -xzf examples.tar.gz --strip-components=3
 ```
 
-Binaries are gzipped without a suffix; keep this layout for checksums. Stripping the archive's
-`temper/docs/examples/` prefix leaves `owned.json` and `owned/`.
+Binaries are suffixless gzip; keep the checksum layout. Strip
+`temper/docs/examples/` for `owned.json` and `owned/`.
 
 ## 1. Write the engine's configuration
 
-Copy the unpacked `owned.json` to `CONFIG/temper.json` and `owned/`'s
-files to `CONFIG/`; change these:
+Copy `owned.json` to `CONFIG/temper.json`, `owned/`'s files to
+`CONFIG/`; change:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
@@ -62,7 +62,7 @@ files to `CONFIG/`; change these:
 
 Every provider 3 owner is a member; edit this file and restart to add one.
 
-For Forgejo sign-in through temper, add
+For Forgejo sign-in through temper, set
 `engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
 "forgejo", "secret": "forgejo-client.secret", "redirect_uri":
 "https://git.example.com/user/oauth2/temper/callback"}], "addresses":
@@ -179,14 +179,14 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-- The worker alone: `temper-worker serve` on `worker`'s own three
-  directories, its document the example's worker part, `workers[0]`
+- The worker alone: `temper-worker serve` on `worker`'s three directories,
+  its document the example's `workers[0]`
   with `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`; omit `engine`, keep only `workers`
-  and `application`'s `workers` and `limits`. Set `agent.program` to
+  and `application`'s `workers` and `limits`. Set `agent.program`:
   `"/usr/local/bin/temper-agent"`, `agent.configuration` to the absolute
-  path of its `agent.json`, and `agent.arguments` to a one-element list
-  holding that same path. Its unit as step 3's, with
+  path of its `agent.json`, and `agent.arguments`: a one-element list
+  of that same path. Unit as step 3's, with
   `KillMode=control-group` so no agent or command outlives the worker,
   and `TimeoutStopSec=240s`: above its 186-second stop bound with a
   54-second margin. Raising the worker's bound raises this timeout too.
@@ -229,8 +229,8 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in
 
 In a browser, open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-Connect Forgejo: `forge list` is empty and `forge setup` refuses until
-it has a record. On a new store it is forge 1:
+Connect Forgejo: without a record, `forge list` is empty and `forge setup`
+refuses. On a new store it is forge 1:
 
 ```
 temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY
@@ -243,11 +243,11 @@ Expect: `party 1 · sam · ` and the party's name: the first of
 `engine.owners`. `connecting`; then the wait prints the forges, forge
 `1` `managed`, then `met`.
 The page's `temper-forge-sign-in` meta appears only once `forge connect`
-has kept the forge. If a page fetched after that still lacks the meta,
-restart the engine once: a start makes it from the kept record.
+has kept the forge. If a newly fetched page still lacks it,
+restart once: the engine makes it from the kept record.
 
-If not: `temper ctl: the sign-in link was refused`: it was spent or
-expired, and temper printed a fresh one: run the line again.
+If not: `temper ctl: the sign-in link was refused`: spent or expired.
+Temper printed a fresh one: rerun the line.
 `connected already` (exit 2): a kept store keeps its forge, and there is
 nothing to do. Other refusals: as temper help forgejo says in its step 2.
 
@@ -262,8 +262,8 @@ temper ctl DIR account list
 temper ctl DIR account export ACCOUNT FILE
 ```
 
-Then stop the units; fetch, check, install and unpack the new commit's
-set on both hosts as in Before you start; edit its documents as above; remove
+Stop units; fetch, check, install and unpack the new commit on both hosts
+as in Before you start; edit documents as above; remove
 `DATA` but `DATA/secrets/` and `DATA/forge-1/` and, with Forgejo's sign-in
 through temper, the provider's key and the client's secret, and on
 `worker` its data but `secrets/`; start Forgejo, the engine, the worker
@@ -273,8 +273,8 @@ and the runner; sign in and connect the forge again (step 6); then:
 temper ctl DIR account import FILE --key KEY
 ```
 
-Expect: `moved out: account ACCOUNT to FILE`; after the start,
-`moved in: account ACCOUNT`, and `FILE` removed.
+Expect: `moved out: account ACCOUNT to FILE`; after start,
+`moved in: account ACCOUNT`; `FILE` removed.
 
 If not: `the engine holds its N answers of the last day; room again at
 TIME` (exit 2) or `unsent` (exit 1) moved nothing: keep `DATA`, export

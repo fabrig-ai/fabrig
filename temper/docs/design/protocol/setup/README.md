@@ -587,6 +587,19 @@ Each is intended; what it needs is named with it.
 
 - The terminal after a front killed outright: `box.md`, section 7.
 
+- **A `temper box` started in the background of a terminal** (`box.md`,
+  6): `temper box &` from a shell with job control has a terminal on its
+  standard input and output, so it runs its TUI, which job control stops
+  at its first read. `temper-box` runs the box alone. Telling a
+  background start from a foreground one needs `temper` to read its
+  terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
+  not give yet.
+
+- **The terminal after `temper box` killed outright** (`box.md`, 6): its
+  TUI's modes and screen stay on the terminal, as any program's killed
+  outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
+  life pipe's end.
+
 - A start holding the engine's documents to temper's clients: `init.md`, section 4.
 - The deployment's own UX: `init.md`, section 4.
 - Flags of their own: `init.md`, section 4.

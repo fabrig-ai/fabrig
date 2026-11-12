@@ -1006,6 +1006,8 @@ pub enum Cue {
     File { path: Box<[u8]>, green: Box<[u8]> },
     /// Fails when the commit message contains `fail`, and passes otherwise.
     Message { fail: Box<[u8]> },
+    /// Judges the first rule line declared in the head's file, passing when absent.
+    Declared { path: Box<[u8]> },
 }
 
 /// A protected branch: nothing is pushed to it, creates it or deletes it,

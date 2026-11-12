@@ -54,8 +54,8 @@ live-smith = []
 live-temper = []
 process-temper = [
     { package = "smith-fake-claude", bin = "fake-claude" },
+    { package = "temper", bin = "temper" },
     { package = "temper-agent", bin = "temper-agent" },
-    { package = "temper-client", bin = "temper-client" },
     { package = "temper-engine", bin = "temper-engine" },
     { package = "temper-worker", bin = "temper-worker" },
 ]

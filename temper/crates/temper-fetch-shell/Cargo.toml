@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+flate2.workspace = true
 temper-fetch.workspace = true
 skein-io.workspace = true
 skein-http.workspace = true
