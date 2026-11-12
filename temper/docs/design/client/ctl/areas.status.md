@@ -4,10 +4,6 @@
 
 
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
-- **Not yet:** area 3: a person answer's choice refused as past its contract prints
-  jig's words alone, where the task takes words or an approval, or lacks the
-  choice; `task answer`'s notes do not say CHOICE answers only a task with
-  choices [in flight: change 2].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names
