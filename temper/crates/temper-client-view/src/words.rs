@@ -110,6 +110,13 @@ pub enum Word {
     HowRoles,
     HowRolesLine,
     HowRoleInstructions,
+    HowRules,
+    HowAddRule,
+    HowPaths,
+    HowReview,
+    HowSignOff,
+    HowLands,
+    HowEmpty,
     HowReaches,
     HowReachesOn,
     HowReachesEach,
@@ -169,6 +176,9 @@ pub enum Word {
     StartOverTitle,
     CloseGoal,
     CloseTaskTitle,
+    DeleteProject,
+    DeleteProjectTitle,
+    DeleteProjectSays,
     CloseTask,
     AcceptTitle,
     RejectTitle,
@@ -824,6 +834,7 @@ pub enum Word {
     CreateProject,
     NoProjectYet,
     ProjectNotYours,
+    ProjectDeleted,
     NoProjectLine,
     ProjectName,
     NoProjectSetUp,
@@ -1092,6 +1103,7 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    TimeTodayClock,
     Away,
     AwayChipOff,
     AwayAcross,
@@ -1820,7 +1832,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2372;
+const PHRASES: u32 = 2385;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1847,10 +1859,10 @@ const PHRASES: u32 = 2372;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4305;
+const SEGMENTS: u32 = 4326;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57233;
-const ALL: [Word; 1688] = [
+const ENGLISH_BYTES: u32 = 57500;
+const ALL: [Word; 1700] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -1947,6 +1959,13 @@ const ALL: [Word; 1688] = [
     Word::HowRoles,
     Word::HowRolesLine,
     Word::HowRoleInstructions,
+    Word::HowRules,
+    Word::HowAddRule,
+    Word::HowPaths,
+    Word::HowReview,
+    Word::HowSignOff,
+    Word::HowLands,
+    Word::HowEmpty,
     Word::HowReaches,
     Word::HowReachesOn,
     Word::HowReachesEach,
@@ -2005,6 +2024,9 @@ const ALL: [Word; 1688] = [
     Word::StartOverTitle,
     Word::CloseGoal,
     Word::CloseTaskTitle,
+    Word::DeleteProject,
+    Word::DeleteProjectTitle,
+    Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
     Word::RejectTitle,
@@ -2645,6 +2667,7 @@ const ALL: [Word; 1688] = [
     Word::CreateProject,
     Word::NoProjectYet,
     Word::ProjectNotYours,
+    Word::ProjectDeleted,
     Word::NoProjectLine,
     Word::ProjectName,
     Word::NoProjectSetUp,
@@ -2904,6 +2927,7 @@ const ALL: [Word; 1688] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::TimeTodayClock,
     Word::Away,
     Word::AwayChipOff,
     Word::AwayAcross,
@@ -3628,6 +3652,9 @@ impl Word {
             Self::StartOverTitle => 3749,
             Self::CloseGoal => 3750,
             Self::CloseTaskTitle => 3751,
+            Self::DeleteProject => 5677,
+            Self::DeleteProjectTitle => 5678,
+            Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
             Self::RejectTitle => 3756,
@@ -3704,6 +3731,13 @@ impl Word {
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
+            Self::HowRules => 5714,
+            Self::HowAddRule => 5708,
+            Self::HowPaths => 5709,
+            Self::HowReview => 5710,
+            Self::HowSignOff => 5711,
+            Self::HowLands => 5712,
+            Self::HowEmpty => 5713,
             Self::HowReaches => 5630,
             Self::HowReachesOn => 5631,
             Self::HowReachesEach => 5632,
@@ -4381,6 +4415,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
+            Self::ProjectDeleted => 5707,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -4648,6 +4683,7 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::TimeTodayClock => 1264,
             Self::Away => 3675,
             Self::AwayChipOff => 3676,
             Self::AwayAcross => 4347,
@@ -5830,6 +5866,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartOverTitle => (&[b"Start over?"], &[]),
         Word::CloseGoal => (&[b"Close goal"], &[]),
         Word::CloseTaskTitle => (&[b"Close this task?"], &[]),
+        Word::DeleteProject => (&[b"Delete project"], &[]),
+        Word::DeleteProjectTitle => (&[b"Delete ", b"?"], &[Name]),
+        Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
@@ -5913,6 +5952,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
         Word::HowPath => (&[b"The path of a change"], &[]),
+        Word::HowRules => (&[b"Rules by path"], &[]),
+        Word::HowAddRule => (&[b"+ A rule"], &[]),
+        Word::HowPaths => (&[b"Paths"], &[]),
+        Word::HowReview => (&[b"Review"], &[]),
+        Word::HowSignOff => (&[b"Sign-off"], &[]),
+        Word::HowLands => (&[b"Lands"], &[]),
+        Word::HowEmpty => (&[b"\xe2\x80\x93"], &[]),
         Word::HowReaches => (&[b"What reaches you"], &[]),
         Word::HowReachesOn => (&[b"on ", b""], &[Name]),
         Word::HowReachesEach => (&[b"on ", b"; each project has its own"], &[Name]),
@@ -6401,6 +6447,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
+        Word::ProjectDeleted => (&[b"Project ", b" was deleted."], &[Number]),
         Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
         Word::ProjectName => (&[b"Project name"], &[]),
         Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),
@@ -6885,6 +6932,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::TimeTodayClock => (&[b"today ", b""], &[Name]),
         Word::Away => (&[b"Away"], &[]),
         Word::AwayChipOff => (&[b"Away: off"], &[]),
         Word::AwayAcross => (&[b"Away on ", b" of ", b""], &[Number, Number]),
@@ -7546,6 +7594,7 @@ pub enum TimeForm {
     Looked,
     Span,
     Clock,
+    Dated,
     Weekday,
     Day,
 }
@@ -7587,7 +7636,12 @@ impl Times {
             TimeForm::Ago if minutes > 0 && minutes < 720 => {
                 words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
             }
-            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+            TimeForm::Ago
+            | TimeForm::Looked
+            | TimeForm::Clock
+            | TimeForm::Dated
+            | TimeForm::Weekday
+            | TimeForm::Day => text,
         }
     }
 }
@@ -7606,7 +7660,7 @@ impl Words {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
@@ -7614,7 +7668,9 @@ impl Words {
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => {
+                self.calendar_time(form, at, now)
+            }
         };
         (said, next)
     }
@@ -7658,8 +7714,9 @@ impl Words {
             TimeForm::Ago if days == Some(1) => self.say(Word::TimeYesterdayWord, &[]),
             TimeForm::Ago if days >= Some(2) && days <= Some(7) => self.time_weekday(day, false),
             TimeForm::Ago => self.time_date(at, now),
+            TimeForm::Dated if day == today => self.say(Word::TimeTodayClock, &[Hole::Name(clock)]),
             TimeForm::Clock if day == today => clock,
-            TimeForm::Clock => {
+            TimeForm::Clock | TimeForm::Dated => {
                 let date = if days >= Some(1) && days <= Some(6) {
                     self.time_weekday(day, false)
                 } else {

@@ -5,7 +5,9 @@
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
-    no What follows what; its Decided for you rows name the task, not who
+    no What follows what, drawing each follow and dependency from the
+    forge's `follows` document (`../domain/forge/dependencies.md`, 4),
+    which is P2's repair, a goal of its own; its Decided for you rows name the task, not who
     decided, and its cards, as a project's Home's, name no asker (4). `../domain/forge/attention.md`,
     3, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
@@ -37,9 +39,9 @@
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's
-    budget; its heading names the way without its chief departure,
-    which waits for rules by path. Rules by path waits for its milestone
-    (`whole-story.execution.md`, section 3, P3c). `../client/pages/settings.md`, section 3, also
+    budget, and Rules by path, its path's sign-offs by path and its
+    heading's chief departure, in the project's words (milestone P3c),
+    What follows a landing and a role's budget (P3d). `../client/pages/settings.md`, section 3, also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.
@@ -58,14 +60,15 @@
     brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
     routing to an area's owner is P5b's (`whole-story.execution.md`,
     section 3).
-  - 11: `../client/tui/README.md`, 3 and `../client/tui/pages/README.md`, hold the launchpad as
-    11.1 draws it but for its team lines and `/talk` in
-    Start, 11.4's commands but for `/talk` and `/tell`, and
-    11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
-    left off and Needs you are the project's, where 11.1 has them across
-    the person's projects: 3.5, *Home on All projects*, reads every
-    project and joins their briefs in `pages::all_home::brief`, which the
-    launchpad doesn't read (3). `../client/tui/pages/design-session.md`, 1, holds 11.2 and
+  - 11: `../client/tui/README.md`, 3, `../client/tui/pages/launchpad.md` and
+    `../client/tui/pages/README.md` hold the launchpad as 11.1 draws it, its
+    brief, Where you left off and Needs you across the person's projects,
+    but for its team lines and `/talk` in Start, 11.4's commands but for
+    `/talk` and `/tell`, and 11.5's printed views (the plan
+    `tui-whole-t1` and T1's repair); a walked need says why it reached
+    the person but offers no Stop asking, which stays the web's, and a
+    chat's question says no reason (`../client/tui/pages/launchpad.md`, 8).
+    `../client/tui/pages/design-session.md`, 1, holds 11.2 and
     11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
     `tui-design-session.status.md` records. No design holds 11.3's
@@ -95,8 +98,10 @@
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
     way and its own, a stop's card and night (`how` to `night-how`), and
     What reaches you on `how.html`'s classes (`how-reaches`,
-    `night-how-reaches`), and What follows a landing and Budgets
-    (`how-follows`, `night-how-follows`), with no rule by path, and the rail, Work at Pair and with drafts first, and
+    `night-how-reaches`), and rules by path as `how.html` and
+    `team/how.html` draw them (`how-rules` to `night-how-team`), and
+    What follows a landing and Budgets (`how-follows`, `night-how-follows`),
+    and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
     `night-team`), with no areas or role's card. No state holds Tell
@@ -152,21 +157,25 @@
     alone: the page is one tree at every width, and no design gives a
     short form's words for each reason. Decided by goal 367's design,
     2026-11-11.
-  - 11.1, 13 and 15: `../client/tui/pages/launchpad.md`, 1, *Where you left off*,
+  - 11.1, 13 and 15: `../client/tui/pages/launchpad.md`, 4, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
     number no row. Decided by the cut of `tui-whole-t1`, from 15's
     default, a list numbered as the launchpad numbers it; the mockups
     win (13), so a look request draws the rows as they do: T2's request
     (`tui-design-session.md`) leaves them.
-  - 11.1 and 13: `../client/tui/pages/README.md`, draws a need's row as
-    Home's line alone (*Needs you*), with no asker or age, where the Pair
-    mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
-    by the change 20 min ago"; and a left-off row's time today as the
-    view's clock, "18:40", where it has "today 18:40". Decided by the cut
-    of `tui-whole-t1`, whose list of the launchpad's departures from its
-    mockups names neither. The blank header-row code gap remains `../client/tui/pages/launchpad.status.md`, 1.
-
+  - 11.1 and 13: `../client/tui/pages/launchpad.md`, 5, draws a need's row as
+    Home's line and when it asked, "asked 20 min ago", with no asker,
+    where the Pair mockup (`../client/tui/whole-story/pair/launchpad.html`)
+    has "asked by the change 20 min ago" and the Team mockup "asked by
+    Kit": no read names who asked, as none does for the web's from line
+    (4). Decided by T1's repair's design, 2026-11-11.
+  - 3, 11.1 and 13: `../client/tui/pages/launchpad.md`, 3, heads the
+    launchpad's header with Home on All projects' headline, code's, over
+    the joined briefs, each project's name and its brief's first
+    sentence, where the at-scale mockup has one brief across projects in
+    the status agent's words: the engine keeps one brief a project (15's
+    default). Decided by T1's repair's design, 2026-11-11.
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
@@ -209,6 +218,22 @@
     the recommended choice and listed.", where `how.html` counts, "the
     last two are decided … The protocol core still asks.", since a table
     of up to 32 subjects can't be counted well in words.
+  - 7 and 13: `../domain/forge/change/branch-path.md`, step 5, words a
+    role's sign-off "one of you" wherever the reader holds the role with
+    others, on every way's tab, where `team/how.html`'s stock tabs say
+    "you approve" for owners the reader shares with two: one derivation
+    words a role alike on every path. Its *An approval's card* says
+    "Role" "owner: the three of you", where `team/how.html` has "shop's
+    owners: the three of you", since the derivation holds no project's
+    name and names a role as the policy does; and "Asks" names a rule's
+    set by its name, "1 of you; payments: 2", where it has the set's path,
+    "payments/: 2", since a set's patterns may run past a fact's bytes.
+    A stop's small words name a set where "if NAME" fits their 16 bytes,
+    and say "by path" otherwise. Rules by path draws a row a rule by path,
+    as this section says, and a last row, "everything else", only where
+    the rules covering every change ask a review or a sign-off: a path
+    set no rule names has no row, where `how.html` lists two that land
+    "on its own". Decided by P3c's design, 2026-11-11.
   - 7 and 13: `../client/pages/settings.md`, 2, *What follows a landing*,
     draws the project's own follows, its kind 12, where `how.html` draws
     vsr-rs's follow on vsr's page: a follow is its target's setting, and

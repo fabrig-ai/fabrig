@@ -1458,6 +1458,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-follow",
         b"temper-how-chips",
         b"temper-how-who-code",
+        b"temper-how-add",
+        b"temper-how-rules",
+        b"temper-how-table",
+        b"temper-how-paths",
+        b"temper-how-rules-note",
+        b"temper-how-empty",
     ],
     regions: &[b"temper-link"],
 };
@@ -1879,6 +1885,12 @@ pub const HOW_REACH: Style = Style { owner: owner(), token: 682 };
 pub const HOW_WHO_AGENT: Style = Style { owner: owner(), token: 683 };
 pub const HOW_WHO_PERSON: Style = Style { owner: owner(), token: 684 };
 pub const HOW_REACH_NOTE: Style = Style { owner: owner(), token: 685 };
+pub const HOW_ADD: Style = Style { owner: owner(), token: 736 };
+pub const HOW_RULES: Style = Style { owner: owner(), token: 737 };
+pub const HOW_TABLE: Style = Style { owner: owner(), token: 738 };
+pub const HOW_PATHS: Style = Style { owner: owner(), token: 739 };
+pub const HOW_RULES_NOTE: Style = Style { owner: owner(), token: 740 };
+pub const HOW_EMPTY: Style = Style { owner: owner(), token: 741 };
 /// Needs you's list, reply and project identity (client/pages/README.md).
 pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
 pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };

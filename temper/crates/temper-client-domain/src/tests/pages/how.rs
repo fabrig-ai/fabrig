@@ -87,7 +87,6 @@ fn me(asking: bool, tracked: bool, several: bool) -> c::Me {
     }
     me
 }
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the independent ways, classes and roles answers")]
 fn fixture(
     asking: bool,
     tracked: bool,
@@ -189,42 +188,53 @@ fn fixture(
             up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
         }
         Read::Shown { current } => {
-            let path = path();
-            let mut ways = List::with_capacity(1);
-            ways.push(
-                w::StockWay::new(
-                    &w::CEILINGS,
-                    w::StockWayParts {
-                        headline: b"".as_slice().into(),
-                        name: b"A way".as_slice().into(),
-                        line: b"Its line".as_slice().into(),
-                        path: path.clone(),
-                        items: List::with_capacity(0),
-                        delegation: false,
-                    },
-                )
-                .unwrap(),
-            )
-            .unwrap();
-            let panel = w::WaysPanel::new(
-                &w::CEILINGS,
-                w::WaysPanelParts { words: None, project: f::PROJECT, ways, current, own: path, may_change: false },
-            )
-            .unwrap();
-            up(
-                &mut root,
-                Up::FamilyDelivered {
-                    watch,
-                    record: jig_client::Family {
-                        family: wire::FORGE,
-                        version: wire::CLIENT_VERSION,
-                        bytes: wire::ways_panel(&panel),
-                    },
-                },
-            );
+            deliver_ways(&mut root, watch, current, List::with_capacity(0));
         }
     }
     root
+}
+fn deliver_ways(root: &mut Domain, watch: Token, current: Option<u32>, rows: List<w::PathRule>) {
+    let path = path();
+    let mut ways = List::with_capacity(1);
+    ways.push(
+        w::StockWay::new(
+            &w::CEILINGS,
+            w::StockWayParts {
+                headline: b"".as_slice().into(),
+                name: b"A way".as_slice().into(),
+                line: b"Its line".as_slice().into(),
+                path: path.clone(),
+                items: List::with_capacity(0),
+                delegation: false,
+            },
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let panel = w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts {
+            rules: w::PathRules::new(&w::CEILINGS, w::PathRulesParts { rows, note: Box::default() }).unwrap(),
+            words: None,
+            project: f::PROJECT,
+            ways,
+            current,
+            own: path,
+            may_change: false,
+        },
+    )
+    .unwrap();
+    up(
+        root,
+        Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::ways_panel(&panel),
+            },
+        },
+    );
 }
 fn path() -> w::BranchPath {
     let mut stops = List::with_capacity(STOPS);
@@ -315,6 +325,7 @@ fn parts_and_facts_follow_the_project_rules() {
         ]
     );
     let facts = Facts {
+        rules: List::with_capacity(0),
         period: Some(how::Period { week: true, next: Some(began) }),
         standing: rows,
         roles: false,
@@ -341,6 +352,7 @@ fn parts_and_facts_follow_the_project_rules() {
             for (classes, several) in [(false, false), (true, false), (false, true), (true, true)] {
                 assert_eq!(
                     how::parts(&Facts {
+                        rules: List::with_capacity(0),
                         period: None,
                         standing: Box::default(),
                         roles,
@@ -352,6 +364,7 @@ fn parts_and_facts_follow_the_project_rules() {
                         several
                     }),
                     Parts {
+                        rules: None,
                         period: None,
                         standing: Box::default(),
                         roles,
@@ -379,6 +392,7 @@ fn parts_and_facts_follow_the_project_rules() {
         for (goals, expected) in [(false, None), (true, shown)] {
             assert_eq!(
                 how::parts(&Facts {
+                    rules: List::with_capacity(0),
                     period: None,
                     standing: Box::default(),
                     roles: false,
@@ -390,6 +404,7 @@ fn parts_and_facts_follow_the_project_rules() {
                     several: false
                 }),
                 Parts {
+                    rules: None,
                     period: None,
                     standing: Box::default(),
                     roles: false,
@@ -411,6 +426,7 @@ fn parts_and_facts_follow_the_project_rules() {
             None,
             Read::Reading,
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -428,6 +444,7 @@ fn parts_and_facts_follow_the_project_rules() {
             Some((true, SELECTED)),
             Read::Shown { current: Some(0) },
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -445,6 +462,7 @@ fn parts_and_facts_follow_the_project_rules() {
             Some((false, SELECTED)),
             Read::Shown { current: None },
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -462,6 +480,7 @@ fn parts_and_facts_follow_the_project_rules() {
             Some((true, 0)),
             Read::Ended,
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -479,6 +498,7 @@ fn parts_and_facts_follow_the_project_rules() {
             Some((true, OTHER)),
             Read::Reading,
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -496,6 +516,7 @@ fn parts_and_facts_follow_the_project_rules() {
             Some((true, SELECTED)),
             Read::Reading,
             Facts {
+                rules: List::with_capacity(0),
                 period: None,
                 standing: Box::default(),
                 roles: false,
@@ -526,6 +547,7 @@ fn parts_and_facts_follow_the_project_rules() {
             assert_eq!(
                 how::facts(&root, OTHER),
                 Facts {
+                    rules: List::with_capacity(0),
                     period: None,
                     standing: Box::default(),
                     roles: false,
@@ -690,6 +712,7 @@ fn parts_and_facts_follow_the_project_rules() {
     assert_eq!(
         how::facts(&root, f::PROJECT),
         Facts {
+            rules: List::with_capacity(0),
             period: None,
             standing: Box::default(),
             roles: false,
@@ -701,6 +724,54 @@ fn parts_and_facts_follow_the_project_rules() {
             several: false
         }
     );
+}
+
+#[test]
+fn rules_follow_the_shown_rows_and_ask_offering() {
+    for asking in [false, true] {
+        let mut root = fixture(asking, false, None, Read::Reading, None, ClassesRead::Unread, false);
+        event(&mut root, Event::Went { place: Place::Address(Address::Repositories { project: f::PROJECT }) });
+        let out = event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+        let watch = opened(&out);
+        up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        assert_eq!(how::parts(&how::facts(&root, f::PROJECT)).rules, None, "reading");
+        for (reviews, review_column) in
+            [(&[][..], false), (&[b"".as_slice()][..], false), (&[b"".as_slice(), b"an agent"][..], true)]
+        {
+            let mut rows = List::with_capacity(u32::try_from(reviews.len()).unwrap());
+            for review in reviews {
+                rows.push(
+                    w::PathRule::new(
+                        &w::CEILINGS,
+                        w::PathRuleParts {
+                            paths: b"payments/**".as_slice().into(),
+                            review: (*review).into(),
+                            sign_off: b"two of you".as_slice().into(),
+                            lands: b"once two have signed this head".as_slice().into(),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+            deliver_ways(&mut root, watch, None, rows);
+            let facts = how::facts(&root, f::PROJECT);
+            assert_eq!(facts.rules.len(), u32::try_from(reviews.len()).unwrap());
+            let parts = how::parts(&facts);
+            let expected =
+                if reviews.is_empty() { None } else { Some(how::Rules { add: asking, review: review_column }) };
+            assert_eq!(parts.rules, expected);
+            if let Some(rules) = parts.rules {
+                assert_eq!(rules.add, parts.ask);
+            }
+            assert_eq!(how::parts(&Facts { read: Read::Reading, ..facts.clone() }).rules, None);
+            assert_eq!(how::parts(&Facts { read: Read::Ended, ..facts }).rules, None);
+        }
+        up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
+        let facts = how::facts(&root, f::PROJECT);
+        assert!(facts.rules.is_empty());
+        assert_eq!(how::parts(&facts).rules, None, "ended after rows were shown");
+    }
 }
 
 #[expect(clippy::disallowed_methods, reason = "ordinary fixture maps owned wire fields")]
@@ -846,7 +917,11 @@ fn follows_boxes_follow_only_the_read_documents() {
     let panel = |row| {
         w::FollowsPanel::new(
             &w::CEILINGS,
-            w::FollowsPanelParts { project: f::PROJECT, follows: List::from_boxed(Box::new([row])) },
+            w::FollowsPanelParts {
+                project: f::PROJECT,
+                follows: List::from_boxed(Box::new([row])),
+                dependencies: List::with_capacity(0),
+            },
         )
         .unwrap()
     };

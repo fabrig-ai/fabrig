@@ -180,7 +180,10 @@ record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
 record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
+# Rules by path (client/forge/records.md, A project's ways).
+record PathRule { paths: text 256 review: text 64 sign_off: text 64 lands: text 64 }
+record PathRules { rows: list 9 PathRule note: text 160 }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords rules: PathRules may_change: bool }
 # A view, read when shown (client/forge/records.md and client/pages/chat/conversation.md, 3).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
@@ -314,6 +317,9 @@ record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
 
 versioned record DraftsPanel { project: u32 drafts: list 64 LandedDraft }
 # A project's follows (temper/docs/design/domain/forge/follows.md, 2).
+record Dependency { project: u32 }
+record DependencyView { number: u32 project: u32 }
+
 record FollowRepository { forge: u16 repository: u32 }
 record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
 record FollowTarget { repository: FollowRepository branch: bytes 4096 }
@@ -334,4 +340,4 @@ record FollowFailing { count: u32 }
 enum FollowVerdict { passed, failing: FollowFailing, many }
 record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
 record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
-versioned record FollowsPanel { project: u32 follows: list 256 FollowView }
+versioned record FollowsPanel { project: u32 follows: list 256 FollowView dependencies: list 256 DependencyView }

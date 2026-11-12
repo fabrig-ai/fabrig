@@ -1071,7 +1071,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7, 8, 10, 12] {
+    for kind in [2, 6, 7, 8, 10, 12, 13] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1088,6 +1088,10 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     size: 1,
                 },
                 7 => ways(0),
+                13 => settings::SizedValue {
+                    value: settings::Value::Dependency(settings::Dependency { project: 2 }),
+                    size: 4,
+                },
                 12 => settings::SizedValue { value: settings::Value::Follow(follow_value()), size: 128 },
                 8 => settings::project_stock(8).expect("project classes stock"),
                 10 => settings::SizedValue {
@@ -1445,4 +1449,72 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
             );
         }
     }
+}
+
+#[test]
+fn dependency_structural_refusals_name_the_dependency_and_restore_rechecks_the_target() {
+    for (scope, number, project, reason) in [
+        (0, 1, 2, "dependency 1: a scope this kind does not have"),
+        (PROJECT, 0, 2, "dependency 0: a number this kind does not have"),
+        (PROJECT, 5, 2, "dependency 5: a number this kind does not have"),
+        (PROJECT, 1, 0, "dependency 1: a value of another kind"),
+    ] {
+        let (mut domain, env) = root();
+        domain.kinds = Box::new([KindValue {
+            kind: 13,
+            scope,
+            number,
+            value: settings::SizedValue {
+                value: settings::Value::Dependency(settings::Dependency { project }),
+                size: 4,
+            },
+        }]);
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        judge(
+            &mut domain,
+            &env,
+            &mut decision,
+            None,
+            Box::new([application::Item { kind: 13, scope, number, edit: application::Edit::Set(Box::new([])) }]),
+        );
+        assert_eq!(answer(&mut domain).as_ref(), &[connector::Judged::Refuse { why: reason.as_bytes().into() }]);
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+    let (mut domain, env) = root();
+    let mut out = Queue::uncapped();
+    let value =
+        settings::SizedValue { value: settings::Value::Dependency(settings::Dependency { project: 99 }), size: 4 };
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        2,
+        None,
+        &[settings::Asked { kind: 13, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
+        &mut out,
+    );
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        3,
+        None,
+        &[settings::Asked { kind: 13, scope: PROJECT, number: 1, edit: settings::Edit::Remove }],
+        &mut out,
+    );
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::RestoreSettings {
+            owner: RESTORE_OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([restored(13, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
+        },
+    );
+    assert_eq!(
+        restored_answer(&mut domain, RESTORE_OWNER).as_ref(),
+        &[connector::Judged::Refuse {
+            why: b"dependency 1: project 99 is not a project of this deployment".as_slice().into()
+        }]
+    );
+    assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
 }

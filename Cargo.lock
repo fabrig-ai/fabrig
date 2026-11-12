@@ -1244,6 +1244,7 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
  "jig-client-view",
+ "jig-core-kit",
  "jig-domain-people",
  "jig-protocol-transcript",
  "jig-test-profile",
@@ -5384,6 +5385,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

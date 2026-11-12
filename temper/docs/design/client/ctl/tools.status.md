@@ -1,17 +1,14 @@
 # tools: status
 
-2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-12. Where the tree's code lags or departs from [tools.md](tools.md).
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
-- **Not yet:** 2: `follow list` and `follow show` [in flight: change 112].
-
-- **Not yet:** 3: `follow start`, `follow hold`, `follow skip` and
-  `follow merge` [in flight: change 113].
 
 - **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6) [in flight: change 108].
 
-- **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].
+- **Not yet:** 3: `project delete PROJECT`: the table's tool is `project remove`, its ask built through `me` by `shapes::remove_project` with the chat template's grace, so a number `me` no longer lists sends nothing and a rerun after the deletion never reaches jig's kept answer [in flight: change 634].
+- **Not yet:** 2: `project show` of a deleted project prints `unknown` or `gone`, never `project 3 was deleted` [in flight: change 634].
 
 - **Not yet:** 3: a settings file's landing rule has no `sets`, in
   `temper-settings-form` or `temper-client-tools`' `render_rule`

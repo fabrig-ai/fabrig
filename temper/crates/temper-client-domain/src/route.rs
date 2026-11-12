@@ -14,6 +14,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
     }
     match event {
         Event::AskApproval => crate::asked::ask(root, env, out),
+        Event::Launchpad => root.pages.enable_launchpad(),
         Event::ScreenLeft => pages(
             root,
             env,

@@ -101,7 +101,11 @@ impl Drawing {
         let panel = rng.chance(700).then(|| {
             w::FollowsPanel::new(
                 limits,
-                w::FollowsPanelParts { project: 1, follows: List::from_boxed(follows.into_boxed_slice()) },
+                w::FollowsPanelParts {
+                    project: 1,
+                    follows: List::from_boxed(follows.into_boxed_slice()),
+                    dependencies: List::with_capacity(0),
+                },
             )
             .expect("panel")
         });
@@ -143,6 +147,11 @@ impl Drawing {
                                 ways: List::with_capacity(0),
                                 current: None,
                                 own: path,
+                                rules: w::PathRules::new(
+                                    limits,
+                                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::default() },
+                                )
+                                .expect("empty rules"),
                                 may_change: false,
                             },
                         )

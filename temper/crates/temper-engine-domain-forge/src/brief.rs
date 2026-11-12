@@ -332,6 +332,19 @@ pub(crate) fn brief_answer(
                 sides: true,
             })
         }
+        Err(skein_forge::api::Error::Stale) if fetch.stage == BriefStage::Files => {
+            refused(
+                fetch.owner,
+                fetch.stage,
+                "the change's head moved",
+                None,
+                Some(skein_forge::api::Error::Stale),
+                out,
+            );
+            wake_change(domain, fetch.item);
+            crate::held::ready(domain, fetch.owner, BriefRead::Failed(moved()), out);
+            return true;
+        }
         Ok(skein_forge::api::Answer::PullFiles { head, files, more, cut })
             if fetch.stage == BriefStage::Files && head == fetch.head.0 =>
         {
