@@ -641,9 +641,9 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
     assert_eq!(
         ends,
         expected,
-        "changes={changes:?}; landings={:?}; writes={:?}",
-        landing_rows(world),
-        world.repository_writes
+        "changes={changes:?}; rounds={:?}; landing tasks={:?}",
+        landing_rows(world).iter().map(|row| (&row.landing.phase, row.landing.preparation, &row.landing.round, &row.landing.members[0].gates, &row.entries)).collect::<Vec<_>>(),
+        landing_rows(world).iter().map(|row| task_row(world, row.landing.task).map(|task| &task.phase)).collect::<Vec<_>>()
     );
 }
 

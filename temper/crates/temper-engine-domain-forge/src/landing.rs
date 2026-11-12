@@ -2250,6 +2250,18 @@ pub(crate) fn outcome(
         .results
         .insert((task, item.member, item.gate, operation(item.operation)), status)
         .expect("bounded effect positions");
+    if item.operation == Operation::Delete && status == policy::Status::Passed {
+        let row = d.landing.rows.get(&task).expect("round deletion");
+        let resource = skein_forge_client::Resource {
+            repository: repository(row.landing.members.first().expect("member")),
+            what: skein_forge_client::What::Branch(row.landing.round.branch.clone()),
+        };
+        if let Some(name) = super::domain::from_client(&resource, &d.landing.limits) {
+            // The next round's new branch has no ancestry to the deleted candidate.
+            d.heads.remove(&name);
+            emit(out, Request::Erase { key: Key::BranchHead(name) });
+        }
+    }
     let mut owned_key = None;
     for (key, flight) in &d.landing.flights {
         if flight.entry == entry {
