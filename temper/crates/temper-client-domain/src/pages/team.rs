@@ -44,7 +44,8 @@ pub fn areas(root: &crate::Domain, project: u32) -> Option<Areas> {
                 Some(value) => Some(area_holder(value)),
                 None => None,
             },
-        }).expect("document's areas fit");
+        })
+        .expect("document's areas fit");
     }
     Some(Areas {
         rows: rows.into_boxed(),

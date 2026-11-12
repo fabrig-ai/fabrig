@@ -141,7 +141,6 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<
     b.close();
 }
 
-
 fn paragraph(b: &mut Builder, value: &[u8], style: Style) {
     b.open(Role::Paragraph);
     b.style(style);

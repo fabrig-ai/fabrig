@@ -366,11 +366,13 @@ fn launchpad_decided_prioritizes_root_then_distinct_open_needs_then_me_to_four()
 
 #[test]
 fn launchpad_findings_and_decided_keep_the_root_once_before_needs() {
-    for needs in [Box::<[u32]>::from([SECOND, THIRD, FOURTH, FIFTH]), Box::from([SECOND, FIRST, THIRD, FOURTH, FIFTH])] {
+    for needs in [Box::<[u32]>::from([SECOND, THIRD, FOURTH, FIFTH]), Box::from([SECOND, FIRST, THIRD, FOURTH, FIFTH])]
+    {
         let mut fixture = Across::waiting(Address::Accounts);
         fixture.event(Event::Launchpad);
         fixture.go(Address::Home { project: FIRST });
-        inbox(&mut fixture, &needs);
+        let out = inbox(&mut fixture, &needs);
+        questions(&mut fixture, &out);
         fixture.frame(&[FIFTH, FOURTH, THIRD, SECOND, FIRST]);
         for kind in ["findings", "decided"] {
             let mut projects = List::uncapped();
@@ -394,11 +396,22 @@ fn launchpad_findings_and_decided_keep_the_root_once_before_needs() {
 fn now_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
     let mut reads = List::uncapped();
     for request in out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down {
-            down: Down::Read { read, what: Readable::Jig(c::Read::Notes {
-                scope: c::NoteScope::Task { project, task }, description, after,
-            }) },
-        }} = request {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        Down::Read {
+                            read,
+                            what:
+                                Readable::Jig(c::Read::Notes {
+                                    scope: c::NoteScope::Task { project, task },
+                                    description,
+                                    after,
+                                }),
+                        },
+                },
+        } = request
+        {
             assert_eq!(*project, FIRST);
             assert_eq!(description.as_ref().expect("description").bytes(), b"now");
             assert_eq!(*after, None);
@@ -410,26 +423,46 @@ fn now_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
 fn now_answer(fixture: &mut Across, read: Token, task: u64, body: &[u8]) -> Queue<Request> {
     let text = c::DocumentText::complete(c::Text::new(body.into(), 128).expect("Now fits"));
     let note = c::Note {
-        number: 1, revision: c::Revision { value: 1 },
+        number: 1,
+        revision: c::Revision { value: 1 },
         scope: c::NoteScope::Task { project: FIRST, task },
         description: c::DocumentText::complete(c::Text::new(b"now".as_slice().into(), 3).expect("description")),
-        body: text, writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::uncapped(), changed: Some(Wall::EPOCH), acts: List::uncapped(), cut: false,
+        body: text,
+        writer: c::NoteAuthor::Task { task, attempt: 1 },
+        tasks: List::uncapped(),
+        changed: Some(Wall::EPOCH),
+        acts: List::uncapped(),
+        cut: false,
     };
-    fixture.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-        rows: List::from_boxed(Box::new([note])), cut: false, before: None, after: None,
-    })))) })
+    fixture.up(Up::ReadDone {
+        read,
+        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+            rows: List::from_boxed(Box::new([note])),
+            cut: false,
+            before: None,
+            after: None,
+        })))),
+    })
 }
 #[test]
 fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
     use pages::team;
     for enabled in [false, true] {
         let mut fixture = Across::new(&[FIRST], Address::Accounts);
-        if enabled { fixture.event(Event::Launchpad); }
+        if enabled {
+            fixture.event(Event::Launchpad);
+        }
         fixture.go(Address::Home { project: FIRST });
         let query = c::TaskQuery {
-            project: Some(FIRST), label: Some(3), order: c::QueryOrder::Number,
-            requester: None, root: None, parent: None, phase: None, executor: None, tracked: None,
+            project: Some(FIRST),
+            label: Some(3),
+            order: c::QueryOrder::Number,
+            requester: None,
+            root: None,
+            parent: None,
+            phase: None,
+            executor: None,
+            tracked: None,
         };
         let watch = fixture.watch(Watchable::Jig(c::Subject::Tasks { query, window: team::ROLES }));
         let mut first = task_line(FIRST, None);
@@ -439,7 +472,10 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
         let mut second = first.clone();
         second.chip.task = 41;
         let rows = List::from_boxed(Box::new([first, second]));
-        let out = fixture.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: false }))) });
+        let out = fixture.up(Up::Watched {
+            watch,
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows.clone(), more: false }))),
+        });
         assert_eq!(now_reads(&out).len(), usize::from(enabled));
         if enabled {
             let reads = now_reads(&out);
@@ -462,7 +498,10 @@ fn launchpad_home_reads_roles_nows_one_at_a_time_and_leaves_them() {
                     panic!("Team-only card watch stays closed");
                 }
             }
-            let out = fixture.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))) });
+            let out = fixture.up(Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+            });
             let reads = now_reads(&out);
             let (task, pending) = *reads.first().expect("refresh Now");
             fixture.go(Address::Work { project: FIRST, filter: crate::WorkFilter::All });

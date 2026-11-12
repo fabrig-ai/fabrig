@@ -97,15 +97,22 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, project: u32, words: &[u
     let Some(bounds) = forge::wire_limits(&env.limits.forge) else { return };
     let first = words.lines().next().expect("nonempty words have a line");
     let title = skein_lib::bytes::utf8_prefix(first.as_bytes(), 200).into();
-    let Ok(filing) = w::FileFinding::new(&bounds, w::FileFindingParts {
-        project,
-        kind: w::FindingKind::Feedback,
-        severity: w::Severity::Medium,
-        area: None,
-        title,
-        body: words.as_bytes().into(),
-    }) else { return };
-    let Some(request) = forge::findings::request(project, w::Request::FileFinding(filing), env.limits.forge) else { return };
+    let Ok(filing) = w::FileFinding::new(
+        &bounds,
+        w::FileFindingParts {
+            project,
+            kind: w::FindingKind::Feedback,
+            severity: w::Severity::Medium,
+            area: None,
+            title,
+            body: words.as_bytes().into(),
+        },
+    ) else {
+        return;
+    };
+    let Some(request) = forge::findings::request(project, w::Request::FileFinding(filing), env.limits.forge) else {
+        return;
+    };
     pages.serial = pages.serial.checked_add(1).expect("page keys fit");
     let key = Key { asker: Owner::Pages.asker(), number: pages.serial };
     pages.tell.pending = Some(key);
