@@ -2141,6 +2141,10 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
+    } else if kind == 12 {
+        br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
+    } else if kind == 13 {
+        br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
     } else if kind == 11 {
@@ -2212,6 +2216,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
+        (vec!["settings", "show", "project-areas", "7"], 12, 7, "project-areas 7", false),
+        (vec!["settings", "show", "project-triager", "7"], 13, 7, "project-triager 7", false),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
