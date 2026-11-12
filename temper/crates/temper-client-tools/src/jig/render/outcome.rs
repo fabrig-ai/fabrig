@@ -389,7 +389,7 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         return;
     }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project }) = done {
-        out.put(b"removed: project ");
+        out.put(b"deleted: project ");
         out.number(u64::from(*project));
         if let Some(name) = &operation.removed_project_name
             && !name.bytes().is_empty()
@@ -695,7 +695,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
-        rows::PROJECT_REMOVE_AT => &rows::PROJECT_REMOVE,
+        rows::PROJECT_DELETE_AT => &rows::PROJECT_DELETE,
         _ => unreachable!("act tool"),
     }
 }
@@ -1188,6 +1188,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::Full(_)
         | c::Refusal::AccountMove { .. }
         | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::LiveTasks { .. }
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
