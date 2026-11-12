@@ -263,7 +263,7 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     use temper_engine_domain_world::{protocol, store::Store};
     const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
     let mut bounds = engine_limits();
-    bounds.tasks.charters = 13;
+    bounds.tasks.charters = 16;
     bounds.journal.run_bytes = 16_384;
     let front = Joint::with_engine(
         fixtures::SEED,

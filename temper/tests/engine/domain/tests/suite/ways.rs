@@ -977,7 +977,7 @@ fn a_ways_watch_marks_a_live_triager_only_after_its_commit() {
     assert!(!roles[0].running);
     ack(&mut driver);
     let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"Route findings") else { panic!("create fixture") };
-    batch[0].executor = people::Executor::Agent { charter: 14 };
+    batch[0].executor = people::Executor::Charter(14);
     batch[0].label = 3;
     batch[0].flags = people::Flags { ended_by: people::EndedBy::Standing, conversation: false, listed: true, retention: people::Retention::Kept };
     driver.send(Event::Party(PartyInput::Ask { reply_to: ReplyTo::new(Token::new(99)), sign_in: session, key: [99; 16], models: Box::new([]), ask: people::Ask::Create { project, batch } }));

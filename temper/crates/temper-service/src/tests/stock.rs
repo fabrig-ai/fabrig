@@ -1666,7 +1666,7 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 14;
+    const ITEMS: usize = 17;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();

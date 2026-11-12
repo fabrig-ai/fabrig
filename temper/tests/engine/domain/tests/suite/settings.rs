@@ -287,15 +287,15 @@ fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
     // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
-    // The standing charter, closer procedure and close job are delegation targets.
-    limits.authority.executors = 18;
+    // The standing charters, closer procedure and close job are delegation targets.
+    limits.authority.executors = 21;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    // The standing charter, closer procedure and close job are delegation targets.
-    limits.documents.executors = 18;
+    // The standing charters, closer procedure and close job are delegation targets.
+    limits.documents.executors = 21;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
-    limits.tasks.charters = 10;
+    limits.tasks.charters = 13;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     // The per-row loaded payload includes charter 5's shared instructions and parts.
