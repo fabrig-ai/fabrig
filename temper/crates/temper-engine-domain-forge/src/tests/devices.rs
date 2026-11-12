@@ -19,7 +19,10 @@ fn subscription() -> AddDevice {
 }
 fn enabled() -> Domain {
     let mut d = domain();
-    d.devices = Some(Box::new(crate::devices::State::new(Some(Box::new([b"http://push.test:4000".as_slice().into()])), LIMITS.devices())));
+    d.devices = Some(Box::new(crate::devices::State::new(
+        Some(Box::new([b"http://push.test:4000".as_slice().into()])),
+        LIMITS.devices(),
+    )));
     d
 }
 fn add(d: &mut Domain, party: u64, call: AddDevice) -> Box<[Request]> {

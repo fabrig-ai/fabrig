@@ -238,7 +238,11 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
                 | w::Request::SetAway(_)
                 | w::Request::Overturn(_) => return,
             };
-            state.sent.entry(*key).or_insert(Pending { request: Ask::Family { scope: c::Scope::Own, record: record.clone() }, called: None, number });
+            state.sent.entry(*key).or_insert(Pending {
+                request: Ask::Family { scope: c::Scope::Own, record: record.clone() },
+                called: None,
+                number,
+            });
         }
         Told::Answered { key, outcome } => {
             let Some(pending) = state.sent.remove(key) else {
@@ -315,7 +319,14 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | Outcome::Lost => {
             let mut operation = render::outcome::Operation::of(request);
             operation.word = if number == 0 { b"push-add" } else { b"push-remove" };
-            return render::outcome::print(&operation, outcome, json, None, &limits.tools, crate::root::DIAGNOSTIC_PREFIX);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                json,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let Some(answer) = answer else {

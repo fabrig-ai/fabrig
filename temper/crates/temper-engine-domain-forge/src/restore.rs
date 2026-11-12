@@ -299,9 +299,14 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             let mut held = 0_u32;
             for ((_, number), _) in d.devices_of(row.party) {
                 held = held.saturating_add(1);
-                if *number == row.number { replacing = true; }
+                if *number == row.number {
+                    replacing = true;
+                }
             }
-            let total = match &d.devices { Some(state) => state.rows.len(), None => 0 };
+            let total = match &d.devices {
+                Some(state) => state.rows.len(),
+                None => 0,
+            };
             room(K::Device, Rows(K::Device), held, crate::DEVICES, replacing)?;
             room(K::Device, Rows(K::Device), total, l.devices(), replacing)
         }

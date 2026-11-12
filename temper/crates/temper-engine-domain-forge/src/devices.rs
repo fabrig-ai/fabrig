@@ -160,7 +160,12 @@ fn add_row(d: &mut Domain, wall: Wall, party: u64, call: AddDevice, out: &mut Qu
     DeviceAnswer::Added { number }
 }
 fn save(d: &mut Domain, row: Device, out: &mut Queue<Request>) {
-    d.devices.as_mut().expect("push on retains device state").rows.insert((row.party, row.number), row.clone()).expect("device room checked");
+    d.devices
+        .as_mut()
+        .expect("push on retains device state")
+        .rows
+        .insert((row.party, row.number), row.clone())
+        .expect("device room checked");
     out.push(Request::Save { record: Stored::Device(row), release: None, read_afresh: None });
     out.push(Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) });
 }

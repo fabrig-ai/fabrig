@@ -7040,7 +7040,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             if d.devices.is_none() {
                 d.devices = Some(Box::new(crate::devices::State::new(None, env.limits.devices())));
             }
-            d.devices.as_mut().expect("restoring a device retains its state").rows.insert((row.party, row.number), row).expect("restored device room checked");
+            d.devices
+                .as_mut()
+                .expect("restoring a device retains its state")
+                .rows
+                .insert((row.party, row.number), row)
+                .expect("restored device room checked");
         }
         Stored::Away(row) => {
             d.aways.insert((row.party, row.project), row).expect("restored away room checked");
