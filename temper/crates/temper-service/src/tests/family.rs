@@ -4296,6 +4296,9 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
+            signed: Box::new([root::ApprovalPerson { person: 2, name: b"Sam".as_slice().into() }]),
+            can_sign: Box::new([root::ApprovalPerson { person: 1, name: b"Ann".as_slice().into() }]),
+            can_sign_more: 3,
             size: match forge {
                 1 => Some(root::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
                 2 => Some(root::ApprovalSize { files: u32::MAX, additions: 142, deletions: 18, cut: true }),
@@ -4329,6 +4332,11 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
+        assert_eq!(actual.signed().as_slice()[0].person(), 2);
+        assert_eq!(actual.signed().as_slice()[0].name(), b"Sam");
+        assert_eq!(actual.can_sign().as_slice()[0].person(), 1);
+        assert_eq!(actual.can_sign().as_slice()[0].name(), b"Ann");
+        assert_eq!(actual.can_sign_more(), 3);
         let size = match actual.size() {
             Some(size) => Some(root::ApprovalSize {
                 files: size.files(),

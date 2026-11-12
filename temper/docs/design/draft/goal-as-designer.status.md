@@ -58,7 +58,7 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
     found no delivery had a coding agent write its design again (goal 88's
     request). `goal-as-designer.md`, section 2's extra designers stay changes, their design
     landed into g by pull request: only the goal's own runs push to g (the
-    user, 2026-11-10). The `"run"` form goes [in flight: change 98].
+    user, 2026-11-10). The `"run"` form goes.
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
   - 10: a spec past one call, what a

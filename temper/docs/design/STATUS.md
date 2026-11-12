@@ -4,7 +4,17 @@
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
-each document keeps its deferred work and open questions. Landed
+each document keeps its deferred work and open questions. Team shows from a
+project's second person or its first standing role. P4b, goal 713, draws
+the project's standing roles, a row each, and a role's card: its head
+with Pause and Resume, its Now, its rules, what wakes it and its
+sessions this week, with two gallery states; a forge topic's words, a
+charter's kept words and a session's line wait for reads. Areas, owners,
+the triager as Who routes and a card's "Talk to it" are P4c's, and a
+line's sign-offs wait on sign-offs by path and kept sign-offs
+(`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+
+Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
 each draft landed in its repositories that its writer says is ready, by
 `temper ctl draft ready`, read at the landing branch's head and kept with

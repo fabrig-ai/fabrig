@@ -295,15 +295,38 @@ its own:
     "This project's landing rule N"; then, where it asks for one person, "
     asks for one approval by ROLE.", ROLE "an owner", "a maintainer", "a
     member" or "an observer" for roles 0 to 3, "someone with role R" for
-    another; where it asks for more, " asks for P approvals by ROLES; C so
-    far.", ROLES "owners", "maintainers", "members", "observers" or "people
-    with role R", P and C in digits;
+    another; where it asks for more, " asks for P approvals by ROLES.",
+    ROLES "owners", "maintainers", "members", "observers" or "people
+    with role R", P in digits;
   - for a rule by path, the row's `sets` (`../../domain/forge/change/questions.md`,
     2): "Signs off changes to NAME.", NAME each set's name, joined "A and
     B" or "A, B and C", "path set N" for one with no name, so "Signs off
     changes to vsr's protocol core." (`../../draft/what-reaches-you.md`,
     section 7); none for a rule naming no set. Nothing waits behind such a
     change, which is out of its queue, so the card counts none;
+  - who can still sign, from the row's `signed`, `can_sign` and
+    `can_sign_more` (`../../domain/forge/change/questions.md`, 2, *Who can
+    still sign*; `../../draft/whole-story.execution.md`, N5), where C, the
+    row's `counted`, is above zero or the viewer's review wouldn't count;
+    none otherwise, as `whole-story/team/needs.html` says none on a card
+    nobody has signed whose review is the viewer's to give. P is the row's
+    `required`. A person is said by their `name`, "you" for the viewer's
+    own party, and "someone" for an empty name. Its parts:
+    - *who signed,* where C is above zero: "C of P signed: NAMES", C and P
+      in digits, NAMES the `signed` people joined "A", "A and B" or "A, B
+      and C", those counted past them closing it as "and one other" or
+      "and N others" ("Sam, Ann and 2 others");
+    - *who can,* where `can_sign` holds anyone: its people in order joined
+      "A", "A or B" or "A, B or C", `can_sign_more` closing it as "or one
+      other" or "or N others"; then " can give " and the next sign-off:
+      "it" where P is one, else "the" and C + 1 as an ordinal word, "first"
+      to "ninth", past which "the next";
+    - *the sentence:* the two parts joined "; " and closed with ".", "1 of 2
+      signed: Sam; you or Kit can give the second."; who signed alone
+      where nobody can still sign, "1 of 2 signed: Sam.", the too few
+      sentence below saying why; who can alone where nobody has signed,
+      its first letter in capitals, "Kit or Sam can give it."; neither,
+      no sentence;
   - "There are too many reviews to read them all, so one may already count.",
     where its reviews weren't read whole;
   - where the viewer's review wouldn't count, why. Too few: "Fewer people can

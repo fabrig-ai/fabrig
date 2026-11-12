@@ -1,4 +1,5 @@
 //! Team's hand-made deliveries (temper/docs/design/client/web/gallery.md, 2).
+mod sessions;
 use super::{Address, Domain, List, c, doc, started};
 use crate::driver::{answer, deliver, down, step};
 use jig_client::{Down, Readable, Up, Watchable};
@@ -21,11 +22,13 @@ const MEMBERS: u32 = 3;
 // Two questions here, one elsewhere, in the reader's standing inbox.
 const QUESTIONS: u32 = 3;
 
+#[expect(clippy::too_many_lines, reason = "one delivery loop serves Team's people and role-card reads")]
 pub(super) fn world(name: &str) -> Domain {
-    let alone = name == "team-alone";
+    let role = name == "team-role";
+    let alone = name == "team-alone" || role;
     let me = super::base_frame("Reader", "shop");
     let reader = me.party.number;
-    let (mut root, mut out) = started(Address::Team { project: PROJECT });
+    let (mut root, mut out) = started(Address::Team { project: PROJECT, role: if role { Some(52) } else { None } });
     while let Some(request) = out.pop() {
         let Some(request) = down(request) else { continue };
         match request {
@@ -53,6 +56,52 @@ pub(super) fn world(name: &str) -> Domain {
                 if query.project == Some(PROJECT) && query.requester == Some(c::Requester::Person(SAM)) =>
             {
                 deliver(&mut root, watch, c::Delivery::Tasks(Box::new(sams_tasks())), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.label == Some(3) =>
+            {
+                let rows = if role {
+                    List::from_boxed(Box::new([super::task_line(prover(reader))]))
+                } else {
+                    List::with_capacity(0)
+                };
+                deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } if role => {
+                deliver(&mut root, watch, c::Delivery::Task(Box::new(prover(reader))), &mut out);
+            }
+            Down::Read {
+                read,
+                what: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task: 52, .. }, .. }),
+            } if role => {
+                answer(&mut root, read, c::ReadValue::Notes(Box::new(provers_now())), &mut out);
+            }
+            Down::Read { read, what: Readable::Jig(c::Read::Activity { task: 52, .. }) } if role => {
+                answer(&mut root, read, c::ReadValue::Activity(Box::new(sessions::page())), &mut out);
+            }
+            Down::Read { read, what: Readable::Family { record, .. } } if role => {
+                if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
+                    && let w::Read::View(view) = reading.read()
+                    && view.address() == b"charter 13"
+                {
+                    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: charter() })
+                        .expect("charter answer");
+                    step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Family {
+                                        family: wire::FORGE,
+                                        record: Some(wire::view_answer(&answer)),
+                                    },
+                                },
+                            },
+                        },
+                        &mut out,
+                    );
+                }
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
@@ -251,6 +300,9 @@ fn approvals(alone: bool) -> w::Approvals {
                     sets: List::with_capacity(0),
                     whole: true,
                     yours: w::ApprovalYours::Counts,
+                    signed: List::with_capacity(0),
+                    can_sign: List::with_capacity(0),
+                    can_sign_more: 0,
                     size: None,
                 },
             )
@@ -259,4 +311,79 @@ fn approvals(alone: bool) -> w::Approvals {
         .expect("one review");
     }
     w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows, more: 0 }).expect("approvals")
+}
+
+const NOW: &[u8] = b"- Finding 91, from the fuzz tier at 01:50: a commit is lost when a witness rejoins during a view change. Reproduced with seed 4417 in a deterministic test, tests/sim/rejoin.c.\n- The fix is the protocol core's: count a rejoining witness only once it holds the log suffix. Asked you; I start the change at your answer.\n- Triaged three findings this week: two to you, one kept, a flaky replica timeout, repaired and landed.\n- Next: the fuzz tier's next run, then my weekly report on Monday.";
+fn prover(reader: u64) -> c::Task {
+    let mut task = super::base_task(52, "Prover");
+    task.project = PROJECT;
+    task.label = 3;
+    task.flags.ended_by = c::EndedBy::Standing;
+    task.flags.conversation = false;
+    task.chip.executor = c::ChipExecutor::Agent { charter: 13 };
+    task.requester = c::Requester::Person(reader);
+    task.made = skein_lib::Wall::from_nanos(1_793_577_600_000_000_000);
+    task.budget.numbers.spent = 21;
+    task.budget.numbers.budget = 40;
+    task.wake.timers = true;
+    task.wake.news = c::WakeRule::Paced { span: skein_lib::Duration::from_secs(1800) };
+    task.wake.notices = c::WakeRule::Immediate;
+    task.subscriptions.entries = List::from_boxed(Box::new([
+        c::Subscription { number: 1, kind: c::SubscriptionKind::Topic { connector: wire::FORGE, topic: 1 } },
+        c::Subscription {
+            number: 2,
+            kind: c::SubscriptionKind::Timer {
+                at: skein_lib::Wall::from_nanos(1_794_204_000_000_000_000),
+                period: Some(skein_lib::Duration::from_secs(604_800)),
+            },
+        },
+        c::Subscription { number: 3, kind: c::SubscriptionKind::Topic { connector: wire::FORGE, topic: 2 } },
+        c::Subscription { number: 4, kind: c::SubscriptionKind::Task { target: 61, held: false, result: true } },
+    ]));
+    task.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Stop,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
+    task
+}
+fn provers_now() -> c::NotePage {
+    c::NotePage {
+        rows: List::from_boxed(Box::new([c::Note {
+            number: 1,
+            revision: c::Revision { value: 1 },
+            scope: c::NoteScope::Task { project: PROJECT, task: 52 },
+            description: doc("now"),
+            body: c::DocumentText::complete(c::Text::new(NOW.into(), 1024).expect("Now fits")),
+            writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
+            tasks: List::with_capacity(0),
+            changed: Some(skein_lib::Wall::from_nanos(1_794_105_660_000_000_000)),
+            acts: List::with_capacity(0),
+            cut: false,
+        }])),
+        cut: false,
+        before: None,
+        after: None,
+    }
+}
+
+fn charter() -> w::View {
+    let fact = w::Fact::new(
+        &w::CEILINGS,
+        w::FactParts {
+            label: b"Asked to".as_slice().into(),
+            value: b"Reproduce before routing: a finding gets a seed or a test first.".as_slice().into(),
+        },
+    )
+    .expect("Asked to");
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            who: b"an agent".as_slice().into(),
+            name: b"Prover".as_slice().into(),
+            facts: List::from_boxed(Box::new([fact])),
+        },
+    )
+    .expect("charter card");
+    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("charter"))
 }

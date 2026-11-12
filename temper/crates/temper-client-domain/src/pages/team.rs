@@ -8,6 +8,16 @@ use skein_lib::Queue;
 use skein_lib::{Decimal, Duration, List, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
+mod rules;
+mod standing;
+pub mod wakes;
+pub use rules::{Rules, asked};
+pub use standing::{Card, Now, Role, StartedBy};
+pub(crate) mod sessions;
+pub use sessions::Session;
+/// The standing roles watch’s window.
+pub const ROLES: u32 = 16;
+
 /// Other people whose waits are read, one `tasks{query}` watch each.
 pub const OTHERS: u32 = 8;
 
@@ -71,14 +81,18 @@ pub struct Facts {
     pub cut: bool,
     /// The project's triager, as its line names it; no read gives it yet.
     pub triager: Option<Box<[u8]>>,
-    /// The project's standing roles; no read gives them yet.
-    pub standing_roles: Option<u32>,
+    pub roles: List<Role>,
+    pub roles_cut: bool,
+    /// The address’s requested role; falls back to the first listed.
+    pub selected: Option<u64>,
+    pub card: Option<Box<Card>>,
 }
 
 /// What Team draws (temper/docs/design/client/pages/team.md, 1, Its parts).
 /// The head names a shared built-in role only for two or more people in a whole
 /// document. A person's line is drawn while their `waits` is `Some`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "one flag per independently drawn Team part")]
 pub struct Parts {
     /// People: a person is listed.
     pub people: bool,
@@ -88,6 +102,39 @@ pub struct Parts {
     pub triager: bool,
     /// Positive sign-off counts, in words, by party.
     pub signed: List<(u64, Box<[u8]>)>,
+    pub standing_roles: bool,
+    pub roles_cut: bool,
+    pub card: Option<u64>,
+    pub pause: bool,
+    pub resume: bool,
+    pub now: bool,
+    pub sessions: bool,
+    pub rules: bool,
+    pub wakes: bool,
+    pub wakes_cut: bool,
+    pub right: bool,
+}
+
+impl Default for Parts {
+    fn default() -> Self {
+        Self {
+            signed: List::with_capacity(0),
+            people: false,
+            shared: None,
+            triager: false,
+            standing_roles: false,
+            roles_cut: false,
+            card: None,
+            pause: false,
+            resume: false,
+            now: false,
+            sessions: false,
+            rules: false,
+            wakes: false,
+            wakes_cut: false,
+            right: false,
+        }
+    }
 }
 
 impl Parts {
@@ -112,6 +159,18 @@ pub enum Shown {
     Read(Facts),
     /// A refused or failed read: "This project's people can't be read now."
     Unreadable,
+    /// Roles are read independently of the project's people.
+    PeopleUnread { facts: Box<Facts>, failed: bool },
+}
+impl Shown {
+    #[must_use]
+    pub fn facts(&self) -> Option<&Facts> {
+        match self {
+            Self::Read(facts) => Some(facts),
+            Self::PeopleUnread { facts, .. } => Some(facts),
+            Self::Reading | Self::Unreadable => None,
+        }
+    }
 }
 
 #[must_use]
@@ -131,7 +190,43 @@ pub fn parts(facts: &Facts) -> Parts {
                 .expect("one sentence per person");
         }
     }
-    Parts { people: !facts.people.is_empty(), shared: shared(facts), triager: facts.triager.is_some(), signed }
+    let card = selected(&facts.roles, facts.selected);
+    let detail = match &facts.card {
+        Some(detail) if Some(detail.task) == card => Some(detail),
+        Some(_) | None => None,
+    };
+    let mut parts = Parts {
+        signed,
+        people: !facts.people.is_empty(),
+        shared: shared(facts),
+        triager: facts.triager.is_some(),
+        standing_roles: !facts.roles.is_empty(),
+        roles_cut: !facts.roles.is_empty() && facts.roles_cut,
+        card,
+        pause: false,
+        resume: false,
+        now: false,
+        sessions: false,
+        rules: false,
+        wakes: false,
+        wakes_cut: false,
+        right: false,
+    };
+    if let Some(detail) = detail {
+        if let Some(rules) = &detail.rules {
+            parts.rules = !rules.asked.is_empty();
+        }
+        parts.wakes = !detail.wakes.is_empty();
+        parts.wakes_cut = parts.wakes && detail.wakes_cut;
+        parts.sessions = !detail.sessions.is_empty();
+        parts.right = parts.wakes || parts.sessions;
+        parts.pause = detail.hold.is_none() && detail.pause;
+        parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
+        if let Some(now) = &detail.now {
+            parts.now = !now.body.is_empty();
+        }
+    }
+    parts
 }
 
 fn shared(facts: &Facts) -> Option<c::HeldRole> {
@@ -209,7 +304,15 @@ pub fn gather(
                 .expect("at most one person per document member");
         }
     }
-    Facts { people, cut: project.cut, triager: None, standing_roles: None }
+    Facts {
+        people,
+        cut: project.cut,
+        triager: None,
+        roles: List::with_capacity(0),
+        roles_cut: false,
+        selected: None,
+        card: None,
+    }
 }
 
 fn signed_count(changes: Option<&w::ChangesPanel>, party: u64, wall: Wall) -> Option<Signed> {
@@ -249,6 +352,8 @@ pub struct Team {
     document: Option<Box<c::Project>>,
     reading: Reading,
     others: List<Other>,
+    standing: standing::Standing,
+    sessions: sessions::Reader,
     changes_handle: Option<Handle>,
     changes: Option<Box<w::ChangesPanel>>,
 }
@@ -274,6 +379,8 @@ impl Default for Team {
             document: None,
             reading: Reading::Idle,
             others: List::with_capacity(OTHERS),
+            standing: standing::Standing::default(),
+            sessions: sessions::Reader::default(),
             changes_handle: None,
             changes: None,
         }
@@ -291,7 +398,8 @@ impl Team {
         &mut self,
         address: &Address,
         you: u64,
-        limits: &Limits,
+        env: &skein_lib::Env<Limits>,
+        client: &Client,
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -318,7 +426,7 @@ impl Team {
         }
         let on_team = if let Address::Team { .. } = address { true } else { false };
         if on_team && self.changes_handle.is_none() {
-            if let Some(subject) = crate::forge::changes::watch(project, &limits.forge) {
+            if let Some(subject) = crate::forge::changes::watch(project, &env.limits.forge) {
                 let handle = new_handle(next);
                 self.changes_handle = Some(handle);
                 out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
@@ -329,7 +437,11 @@ impl Team {
             }
             self.changes = None;
         }
-        self.configure_others(you, on_team, limits, next, out);
+        self.configure_others(you, on_team, &env.limits, next, out);
+        self.standing.configure(project, address, next, out);
+        let wanted = if on_team { self.standing.activity(client) } else { None };
+        self.sessions.configure(wanted, env.wall, next, out);
+        self.standing.configure_rules(client, env.limits.forge, next, out);
     }
     fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
@@ -386,18 +498,35 @@ impl Team {
         for other in &self.others {
             out.push(Request::Client(jig_client::Event::Unwatch { handle: other.handle }));
         }
+        self.sessions.close(out);
+        self.standing.leave(out);
         if let Some(handle) = self.changes_handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
         *self = Self::default();
     }
-    pub(super) fn told(&mut self, client: &Client, told: &Told, limits: crate::forge::Limits) -> bool {
+    pub(super) fn told(
+        &mut self,
+        env: &skein_lib::Env<Limits>,
+        client: &Client,
+        told: &Told,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        if self.sessions.told(env.now, env.wall, told, out) {
+            return true;
+        }
+        if self.standing.rules_told(told, env.limits.forge) {
+            return true;
+        }
+        if self.standing.told(client, told, out) {
+            return true;
+        }
         match told {
             Told::Changed { handle } if Some(*handle) == self.changes_handle => {
                 let panel = match client.document(*handle) {
                     Some(document) if document.state == jig_client::State::Ended => None,
                     Some(document) => match document.latest {
-                        Some(Latest::Family(record)) => crate::forge::changes::panel(record, limits),
+                        Some(Latest::Family(record)) => crate::forge::changes::panel(record, env.limits.forge),
                         Some(Latest::Jig(_)) => None,
                         None => return true,
                     },
@@ -502,18 +631,16 @@ fn other_waits(client: &Client, handle: Handle, party: u64) -> Option<Waits> {
 }
 /// Team's page for the project, from its document and delivered waits.
 #[must_use]
-pub fn shown(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
+pub fn shown(root: &crate::Domain, project: u32) -> Shown {
+    shown_at(root, project, root.pages.team.sessions.wall())
+}
+/// Project the card's sessions at the view's wall, including week expiry between deliveries.
+#[must_use]
+pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
     let state = &root.pages.team;
     if state.project != Some(project) {
         return Shown::Reading;
     }
-    let Some(document) = &state.document else {
-        return if state.reading == Reading::Failed || state.reading == Reading::Gone {
-            Shown::Unreadable
-        } else {
-            Shown::Reading
-        };
-    };
     let you = match root.pages.me(root.client()) {
         Some(me) => me.party.number,
         None => 0,
@@ -524,7 +651,37 @@ pub fn shown(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
             others.push((other.party, waits)).expect("at most OTHERS waits");
         }
     }
-    Shown::Read(gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall))
+    let mut facts = if let Some(document) = &state.document {
+        gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall)
+    } else {
+        Facts {
+            people: List::with_capacity(0),
+            cut: false,
+            triager: None,
+            roles: List::with_capacity(0),
+            roles_cut: false,
+            selected: None,
+            card: None,
+        }
+    };
+    state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
+    if let Some(card) = &mut facts.card {
+        card.sessions = state.sessions.rows(wall);
+    }
+    if state.document.is_some() {
+        Shown::Read(facts)
+    } else if facts.roles.is_empty() {
+        if state.reading == Reading::Failed || state.reading == Reading::Gone {
+            Shown::Unreadable
+        } else {
+            Shown::Reading
+        }
+    } else {
+        Shown::PeopleUnread {
+            facts: Box::new(facts),
+            failed: state.reading == Reading::Failed || state.reading == Reading::Gone,
+        }
+    }
 }
 /// An unlisted project's read outcome (client/pages/home.md, 1, A deleted project).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -589,4 +746,45 @@ fn yours(root: &crate::Domain, project: u32) -> Option<Waits> {
         }
     }
     Some(waits)
+}
+
+/// One selected listed role, otherwise the first listed.
+fn selected(roles: &List<Role>, requested: Option<u64>) -> Option<u64> {
+    for role in roles {
+        if Some(role.task) == requested {
+            return requested;
+        }
+    }
+    if let Some(role) = roles.get(0) { Some(role.task) } else { None }
+}
+/// The live standing roles counted for the rail.
+#[must_use]
+pub fn standing_roles(root: &crate::Domain, project: u32) -> Option<u32> {
+    if root.pages.team.project != Some(project) {
+        return None;
+    }
+    root.pages.team.standing.count()
+}
+impl Team {
+    pub(super) fn send(
+        &mut self,
+        client: &Client,
+        kind: super::task::Sending,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        self.standing.send(client, kind, serial, out);
+    }
+    pub(super) fn toasted(&mut self, told: &Told) -> Option<super::needs::Toasted> {
+        self.standing.toasted(told)
+    }
+}
+
+impl Team {
+    pub(super) fn fire(&mut self, now: skein_lib::Time, out: &mut Queue<Request>) {
+        self.sessions.fire(now, out);
+    }
+    pub(super) const fn next_deadline(&self) -> Option<skein_lib::Time> {
+        self.sessions.next_deadline()
+    }
 }

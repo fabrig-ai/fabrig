@@ -29,7 +29,8 @@
   you's columns in `how` and `how-approve` and its two states,
   `how-reaches` and `night-how-reaches`, which `ui-p3b-reaches` printed in
   place of `settings-away` and `settings-away-you-approve`, with none on
-  record.
+  record, and Team's role's card's two, `team-role` and
+  `night-team-role`, which goal 713 added, with none on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and
@@ -55,9 +56,9 @@ chosen.
   domains (`crates/temper-client-gallery-tool/src/samples.rs`), not the mock's stored state.
 - **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
   drafter, and each role's `who` says when it runs alone, where
-  `whole-story/how.html` says what it does too [in flight: change 316].
+  `whole-story/how.html` says what it does too.
 - **Not yet:** 2: `sheet-from-home` and `sheet-from-chats` are not in
-  the gallery (`crates/temper-client-gallery-tool/src/samples.rs`) [in flight: change 525].
+  the gallery (`crates/temper-client-gallery-tool/src/samples.rs`).
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
