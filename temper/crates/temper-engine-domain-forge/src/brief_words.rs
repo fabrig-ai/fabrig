@@ -30,6 +30,9 @@ pub(crate) fn busy() -> BriefUnread {
 pub(crate) fn moved() -> BriefUnread {
     BriefUnread { fate: BriefFate::Capacity, words: Box::from(b"the change's head moved".as_slice()) }
 }
+pub(crate) fn moved_transient() -> BriefUnread {
+    BriefUnread { fate: BriefFate::Transient, words: Box::from(b"the change's head moved".as_slice()) }
+}
 pub(crate) fn unnamed() -> BriefUnread {
     BriefUnread {
         fate: BriefFate::Permanent,

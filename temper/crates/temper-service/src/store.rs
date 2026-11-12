@@ -19,6 +19,15 @@ pub const WIRES: [protocol::Wire; 4] = [
     protocol::Wire { name: "smith-turn", version: record_version(smith_transcript::Turn::FORMAT_VERSION) },
     protocol::Wire { name: "temper-payload", version: temper_protocol_worker_wire::PAYLOAD_VERSION },
 ];
+/// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
+pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
+    sets: &[
+        protocol::SKEIN_PATCH_SET,
+        protocol::SMITH_PATCH_SET,
+        jig_protocol_accounts::JIG_PATCH_SET,
+        temper_protocol_store::PATCH_SET,
+    ],
+};
 // These conversions are checked while the static wire table is evaluated.
 const fn channel_version(version: u16) -> u32 {
     let bytes = version.to_le_bytes();
@@ -182,6 +191,7 @@ impl Store {
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
         let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
+        host.component.patch_sets(PATCH_SETS);
         Self {
             #[cfg(test)]
             forge_loads: skein_lib::List::with_capacity(128),
@@ -201,6 +211,10 @@ impl Store {
             pending_generation: false,
             installation,
         }
+    }
+    /// Replace the binary's sets before adopting its deployment directory.
+    pub(crate) fn patch_sets(&mut self, sets: protocol::PatchSets) {
+        self.host.component.patch_sets(sets);
     }
     /// Whether the component has reported that its deployment opened.
     #[must_use]

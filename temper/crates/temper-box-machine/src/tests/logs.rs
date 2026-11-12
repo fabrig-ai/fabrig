@@ -305,7 +305,7 @@ fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
 }
 
 // Serve's older-layout diagnostic, with a fixture deployment path.
-const OLDER_REFUSAL: &[u8] = b"temper serve: /data/deployment holds a store from an older build, whose tasks family's layout differs from this build's, and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of /data/deployment together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.\n";
+const OLDER_REFUSAL: &[u8] = b"temper serve: /data/deployment holds a store from an older build, whose tasks family's layout differs from this build's, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of /data/deployment together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.\n";
 
 // temper/docs/design/protocol/setup/box.md, 2: retain every diagnostic piece
 // under each failure notice, through five restarts and the sixth exit's give up.

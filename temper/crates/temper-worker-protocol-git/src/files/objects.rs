@@ -153,13 +153,7 @@ impl Store {
                 to: name(self.token),
                 no_replace: true,
             },
-            StorePhase::Discard => Op::Rename {
-                from_dir: dirs.making.expect("layout"),
-                from: self.temporary.clone(),
-                to_dir: dirs.trash.expect("layout"),
-                to: self.temporary.clone(),
-                no_replace: false,
-            },
+            StorePhase::Discard => dirs.rename(dirs.making.expect("layout"), self.temporary.clone()),
         })
     }
     pub fn complete(&mut self, result: Result<Done, Error>, dirs: &mut Directories, stop: bool) -> Action {

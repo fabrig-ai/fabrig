@@ -264,6 +264,65 @@ is not understood, but a known recap prompt can have its own rule.
   `played` and `played_by_input` take the switch from the `Config` they
   are given, and every world that sets none keeps 2.4's answers.
 
+### 2.6 Values taken from the conversation
+
+- **A turn may take a value from the conversation** it answers, so that
+  a script made from one run replays on a deployment whose numbers and
+  ids differ: a task's number, a pull request's, a commit's id (temper's
+  `draft/landed-qa.md`, 6 and 10). A take is a line,
+  `Line::Take { name, before, after }`, that adds nothing to the reply:
+  it binds `name`, for the lines after it in its turn, to the value the
+  conversation holds between `before` and `after`.
+- **Where it looks:** the query's messages from the last to the first,
+  in each its parts from the last to the first, each text part's text
+  and each tool output's output; then the system text. Tool calls and
+  opaque blocks are not read. In each, the occurrences of `before` from
+  the last to the first: an occurrence's value is the bytes from its end
+  up to the first `after` after it, and it holds one when that value is
+  1 to 256 bytes with no line feed. The first that holds one gives the
+  value, so the newest wins. A value never spans two parts.
+- **Its uses,** in the lines after it in the same turn, replaced as the
+  reply is made:
+  - in a text line's text, `{{NAME}}` by the value as it is;
+  - in a call's arguments, first `"{{#NAME}}"`, its quotes included, by
+    the value as a JSON number, which must then be 1 to 20 ASCII digits,
+    with no leading zero but `0` alone; then `{{NAME}}` anywhere else by
+    the value escaped as a JSON string's content: `"` and `\` after a
+    backslash, and each byte below 0x20 as `\u00XX`, so that a
+    placeholder inside a JSON string leaves it one.
+
+  A `{{...}}` that names no take earlier in its turn is left as it is,
+  as are call names and every line before the take.
+- **Checked when configured,** under `script_bytes` with the rest of
+  the scripts: at most 8 takes in a turn; `name` 1 to 32 bytes of ASCII
+  letters, digits and `_`, distinct within its turn; `before` and
+  `after` each 1 to 256 bytes. A turn whose lines hold pieces (2.2)
+  holds no take, since its pieces stream from the script as written.
+- **Bounded before it is copied:** a turn's answer counts each use at
+  its replaced size, an escaped byte at six at most, against
+  `answer_bytes` with checked arithmetic, before any of it is copied, as
+  `limits::scripted_answer` counts an answer now.
+- **No value fails the turn,** whether or not strict is on (2.5): a take
+  that finds none, or a number's use whose value is no number, answers
+  in place of the turn's reply as 2.5's failure does: class `Invalid`,
+  its report's code `no_take`, the peer's own request id, no field, and
+  provider text
+  - `no value taken for NAME: "BEFORE" … "AFTER" is nowhere in the
+    conversation; last request: "TEXT"`, or
+  - `the value taken for NAME, "VALUE", is no number; last request:
+    "TEXT"`,
+
+  TEXT as 2.5 gives it. A turn that cannot play as its run did fails
+  rather than drift. No assistant message is added, so the call made
+  again fails again until the conversation holds the value.
+- **No state:** a take reads only the query, as a turn's selection does
+  (2.4): a retry takes the same values, and a deployment restored from a
+  copy takes what its own conversation holds. Turn rules (2.4) select
+  the turn; its takes then play as in any other.
+- **Who uses it:** temper's twins as QA's setups, through its document
+  form's `{"take", "before", "after"}` (temper's
+  `protocol/setup/playground.md`; `testing/fakes.md`, 1).
+
 ## 3. Byte peer
 
 `Service` owns bounded routing across connections; `Server` owns one HTTP

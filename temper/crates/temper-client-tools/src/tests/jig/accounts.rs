@@ -649,6 +649,100 @@ fn account_text_explains_each_supplied_host_login_state() {
 }
 
 #[test]
+fn account_text_names_readiness_payers_and_explains_project_work_once() {
+    for owner in [true, false] {
+        let mut accounts = f::accounts();
+        accounts.readiness = List::with_capacity(4);
+        for provider in [1, 2] {
+            for (payer, readiness) in [
+                (c::AccountUse::Party(1), c::Readiness::Usable),
+                (c::AccountUse::Project(2), c::Readiness::Unavailable),
+            ] {
+                accounts
+                    .readiness
+                    .push(c::PayerReadiness { provider, payer, readiness, settled: None })
+                    .expect("readiness room");
+            }
+        }
+        let mut deployment = f::deployment();
+        deployment.readiness = accounts.readiness.clone();
+        let mut root = f::account_root(owner);
+        let call = root.submit(&["account", "list"]);
+        f::deliver_accounts(&mut root, accounts.clone());
+        if owner {
+            f::deliver_deployment(&mut root, deployment.clone());
+        }
+        let printed = root.answer(call).expect("readiness text");
+        for row in [
+            "readiness: provider 1 · party payer 1 · usable\n",
+            "readiness: provider 1 · project payer 2 · unavailable\n",
+            "readiness: provider 2 · party payer 1 · usable\n",
+            "readiness: provider 2 · project payer 2 · unavailable\n",
+        ] {
+            assert_eq!(f::occurrences(&printed.stdout, row.as_bytes()), 1, "{printed:?}");
+        }
+        assert_eq!(f::occurrences(&printed.stdout, b"readiness payers:"), 1);
+        assert!(f::has(&printed, "readiness: provider 2 · project payer 2 · unavailable\nreadiness payers: a project payer's row is for work the project pays for itself, while a party's pool work uses the party payer's row\n".as_bytes()));
+        assert!(!f::has(&printed, b"deployment readiness:"), "identical deployment rows are skipped");
+        assert!(f::has(&printed, b"  uses: project 1\n"));
+        assert!(!f::has(&printed, b"  uses: project payer"));
+        let json = f::account_read(&mut root, accounts, if owner { Some(deployment) } else { None });
+        for row in [
+            b"{\"provider\":1,\"payer\":{\"party\":1},\"readiness\":\"usable\",\"settled\":null}".as_slice(),
+            b"{\"provider\":1,\"payer\":{\"project\":2},\"readiness\":\"unavailable\",\"settled\":null}",
+            b"{\"provider\":2,\"payer\":{\"party\":1},\"readiness\":\"usable\",\"settled\":null}",
+            b"{\"provider\":2,\"payer\":{\"project\":2},\"readiness\":\"unavailable\",\"settled\":null}",
+        ] {
+            assert!(f::has(&json, row));
+        }
+        assert!(f::has(&printed, &f::last_digest(&json.stdout)), "text keeps JSON's digest");
+    }
+}
+
+#[test]
+fn account_text_explains_the_first_list_with_a_printed_project_payer() {
+    for party_project in [false, true] {
+        let mut accounts = f::accounts();
+        accounts.readiness = f::payer_readiness();
+        if party_project {
+            accounts.readiness.get_mut(0).expect("party row").payer = c::AccountUse::Project(2);
+        }
+        accounts.accounts.get_mut(0).expect("account").uses =
+            Some(List::from_boxed(Box::new([c::AccountUse::Party(f::PARTY), c::AccountUse::Project(f::PROJECT)])));
+        let mut deployment = f::deployment();
+        deployment.readiness = List::with_capacity(2);
+        deployment.readiness.push(*accounts.readiness.get(0).expect("party row")).expect("duplicate room");
+        deployment
+            .readiness
+            .push(c::PayerReadiness {
+                provider: 1,
+                payer: c::AccountUse::Project(3),
+                readiness: c::Readiness::Unavailable,
+                settled: None,
+            })
+            .expect("deployment readiness room");
+        deployment.readiness_cut = true;
+        let mut root = f::account_root(true);
+        let call = root.submit(&["account", "list"]);
+        f::deliver_accounts(&mut root, accounts.clone());
+        f::deliver_deployment(&mut root, deployment.clone());
+        let printed = root.answer(call).expect("readiness text");
+        assert_eq!(f::occurrences(&printed.stdout, b"readiness payers:"), 1);
+        assert_eq!(f::occurrences(&printed.stdout, b"deployment readiness:"), 1, "same party row is skipped");
+        assert!(f::has(&printed, "deployment readiness: provider 1 · project payer 3 · unavailable\n".as_bytes()));
+        let explained = if party_project {
+            "readiness: provider 9 · project payer 2 · unknown\nreadiness payers: a project payer's row is for work the project pays for itself, while a party's pool work uses the party payer's row\ndeployment:\n"
+        } else {
+            "deployment readiness: provider 1 · project payer 3 · unavailable\nreadiness payers: a project payer's row is for work the project pays for itself, while a party's pool work uses the party payer's row\ndeployment readiness cut: true (jig)\n"
+        };
+        assert!(f::has(&printed, explained.as_bytes()));
+        assert!(f::has(&printed, b"  uses: party 73\n  uses: project 1\n"));
+        let json = f::account_read(&mut root, accounts, Some(deployment));
+        assert!(f::has(&printed, &f::last_digest(&json.stdout)), "text keeps JSON's digest");
+    }
+}
+
+#[test]
 fn account_text_distinguishes_deployment_readiness_and_names_jig_loss() {
     for different in [false, true] {
         let mut accounts = f::accounts();
@@ -664,7 +758,8 @@ fn account_text_distinguishes_deployment_readiness_and_names_jig_loss() {
         f::deliver_accounts(&mut root, accounts.clone());
         f::deliver_deployment(&mut root, deployment.clone());
         let printed = root.answer(call).expect("readiness text");
-        assert_eq!(f::occurrences(&printed.stdout, "readiness: provider 9 · party 73 · unknown".as_bytes()), 1);
+        assert_eq!(f::occurrences(&printed.stdout, "readiness: provider 9 · party payer 73 · unknown".as_bytes()), 1);
+        assert!(!f::has(&printed, b"readiness payers:"));
         assert_eq!(f::has(&printed, b"deployment readiness:"), different);
         assert!(f::has(&printed, b"deployment readiness cut: true (jig)\ncut: true\n"));
         let json = f::account_read(&mut root, accounts, Some(deployment));

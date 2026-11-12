@@ -267,6 +267,7 @@ fn target(request: &Request, out: &mut Target) {
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

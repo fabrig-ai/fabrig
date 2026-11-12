@@ -17,7 +17,7 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   `recipe`, `scripts.json` where it has its own, and `README.md`
   (section 2).
 - **Its format:** `recipe 1`; `after NAME`, its parent, where it has
-  one; its steps, drive lines of the browser, the TUI and ctl; last,
+  one; its steps, drive lines of the browser, the TUI, ctl and the forge; last,
   its check, `web see` and `tui see` lines (section 3).
 - **A chain of parents,** followed by `after`: at most eight, no cycle
   (3.2).
@@ -64,7 +64,7 @@ bare, bytes in double quotes.
 |---|---|---|
 | `recipe` | `1`, the format's version | the first line |
 | `after` | a recipe's name | the second line, or absent: its parent, whose state it starts from; absent, it starts from a fresh box |
-| a step | a drive line: `web`, `tui` or `ctl`, then its record (`drive.md`, 3.2 to 3.4) | after those, in order, none or more |
+| a step | a drive line: `web`, `tui`, `ctl` or `forge`, then its record (`drive.md`, 3.2 to 3.5) | after those, in order, none or more |
 | the check | `web see TEXT` or `tui see TEXT` | last: the run of `see` lines that ends the file, one at least |
 
 - **A person's acts alone:** no look, no `end` and no empty line; each
@@ -109,7 +109,7 @@ lowercase hexadecimal digits.
 ### 5.1 `recipe walk`
 
 ```text
-temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]
+temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]
 ```
 
 - **The chain read first:** a refusal of section 3 comes before
@@ -124,8 +124,9 @@ temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--
   with it, it holds them, or the walk refuses.
 - **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
-  root first, as `--scripts`, and `--strict` as given: on a pass's box
-  it is (`../draft/landed-qa.md`, 6).
+  root first, as `--scripts`, and `--strict` and `--ports` as given: on
+  a pass's box `--strict` is (`../draft/landed-qa.md`, 6), and a place
+  with ports gives them (`../testing/qa/places.md`, 2).
 - **Its lines,** given to the session in this order, with the chain's
   recipes R1 to Rk, root first:
   - from a fresh box: for each Ri, its steps, then `web reload "/"` and

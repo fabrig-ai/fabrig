@@ -102,7 +102,7 @@ stall deadline of the close (jig's `protocol/channel/README.md`, 9.2), but no
 stop test of temper's shows the whole stop within a bound, and the
 engine has no stop deadline of its own (`README.md`, section 11).
 
-- **Not yet:**  the box upgrade and versions commands remain `binaries.status.md` (Not yet, the whole document). The restored-forge link gap remains `../domain/root.status.md`, 8.1. 4: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 7: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
+- **Not yet:**  the box upgrade commands remain `binaries.status.md` (Not yet, the whole document). The restored-forge link gap remains `../domain/root.status.md`, 8.1. 4: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`).
 - **Departs:**  the group-file departure remains `forge/engine.status.md`, 2 and 8. 4, 5: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded.  the retired cluster-description departure remains `cluster.status.md`, 5 and 6.
 
 `binaries.md`, section 2's `temper-engine` is present, with `binaries.md`, 1's rules: its

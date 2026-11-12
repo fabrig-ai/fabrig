@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-oauth.workspace = true
+smith-transcript.workspace = true
 skein-lib.workspace = true
 skein-codec.workspace = true
 skein-kv.workspace = true
@@ -23,7 +25,8 @@ jig-domain-fleet.workspace = true
 jig-domain-link.workspace = true
 
 [dev-dependencies]
-skein-oauth.workspace = true
+skein-codegen.workspace = true
+skein-scratch.workspace = true
 jig-test-patches-smith.workspace = true
 jig-test-patches.workspace = true
 jig-test-patches-jig.workspace = true
@@ -31,7 +34,6 @@ skein-fake-machine.workspace = true
 skein-sim.workspace = true
 jig-domain-brief.workspace = true
 jig-domain-views.workspace = true
-smith-transcript.workspace = true
 
 [lints]
 workspace = true

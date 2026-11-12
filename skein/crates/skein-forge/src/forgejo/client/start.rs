@@ -88,6 +88,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }
@@ -207,6 +208,7 @@ fn target(request: &Request, out: &mut Writer) -> Result<(), skein_lib::Overflow
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

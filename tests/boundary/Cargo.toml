@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+skein-codegen.workspace = true
 skein-scratch.workspace = true
 skein-shell.workspace = true
 syn.workspace = true

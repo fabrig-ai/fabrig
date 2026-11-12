@@ -21,12 +21,21 @@ pub fn write(out: &mut Writer, item: &[u8]) -> Result<(), Overflow> {
 /// Refuses a partial length or an item past the end before allocating.
 /// The owner decodes each item and counts its decoded size against its sum.
 pub fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, Reason> {
+    match split_bytes(reader)? {
+        Some(bytes) => Ok(Some(Box::from(bytes))),
+        None => Ok(None),
+    }
+}
+
+// The patch walk indexes pieces in their owner's bytes without allocating a box
+// for each item (data/codec/patches.md, 4 and 7).
+pub(crate) fn split_bytes<'a>(reader: &mut Reader<'a>) -> Result<Option<&'a [u8]>, Reason> {
     if reader.is_empty() {
         return Ok(None);
     }
     let length = reader.u32().ok_or(Reason::Malformed)?;
     let bytes = reader.bytes(length).ok_or(Reason::Malformed)?;
-    Ok(Some(Box::from(bytes)))
+    Ok(Some(bytes))
 }
 
 /// Splits the next item and charges its bytes and its length to `sum`;

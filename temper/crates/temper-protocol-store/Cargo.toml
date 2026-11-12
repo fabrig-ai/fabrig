@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-protocol-records.workspace = true
 temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true
 temper-client-protocol-wire.workspace = true
@@ -27,6 +28,8 @@ temper-engine-domain-forge-issues.workspace = true
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+skein-codegen.workspace = true
+skein-scratch.workspace = true
 skein-world.workspace = true
 temper-engine-domain.workspace = true
 jig-domain-core.workspace = true

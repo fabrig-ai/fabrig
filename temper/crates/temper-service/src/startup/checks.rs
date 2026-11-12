@@ -1111,9 +1111,9 @@ pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> 
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
 }
 
-fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
-    match jig_protocol_store::tasks_v9::Value::encoded_bound(codec) {
-        Some(bytes) => jig_protocol_store::tasks_v9::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
+fn task_record_binds(codec: &jig_protocol_store::tasks_v10::Limits) -> bool {
+    match jig_protocol_store::tasks_v10::Value::encoded_bound(codec) {
+        Some(bytes) => jig_protocol_store::tasks_v10::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
         None => false,
     }
 }
@@ -1142,7 +1142,7 @@ fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
 fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
     if let Some((needs, has)) = map_value(refused)
         && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
-        && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
+        && jig_protocol_store::tasks_v10::Row::encoded_bound(&codec) == Some(u64::from(needs))
         && task_record_binds(&codec)
     {
         let mut problems = Problems::empty();

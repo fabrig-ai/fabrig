@@ -248,9 +248,12 @@ references in each store it names gone.
 
 1. `Rename` `workspaces/<token>` to `trash/<n>`, `<n>` the component's
    next serial number in decimal, counted from a number the component
-   draws from its seed at each start, so a name an earlier start left in
-   `trash` is not taken again. A workspace that does not exist is
-   nothing to move.
+   draws from its seed at each start. Every rename into `trash` refuses
+   replacement: `Exists` takes the next serial number and tries the same
+   source again, one submission at a time, within the operation's deadline
+   where it has one. Thus a name an earlier start left in `trash` is not
+   taken again, even when the seed repeats after a power loss. A workspace
+   that does not exist is nothing to move.
 2. `MakeDirectory` `workspaces/<token>`, mode 0o700.
 3. For each store, in order, `Rename` `stores/<store>/refs/temper/<token>`
    to `trash/<n>`, the workspace's references there (4.3): a git killed
@@ -688,7 +691,7 @@ two `Store`s of one store at once, which the cache never starts
    which git accepts into the empty directory.
 4. `Rename` `making/<m>` to `stores/<store>`, never replacing: where
    `stores/<store>` is there already, `making/<m>` is renamed to
-   `trash/<m>` instead.
+   `trash/<n>` instead, taking the next unused serial name (4.1).
 
 - **Exit 0 and the file operations done:** `Succeeded`, whichever rename
   took, or at step 2 with nothing made. A failed clone is classified by

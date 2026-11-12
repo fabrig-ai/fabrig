@@ -193,6 +193,14 @@ impl Build {
         }
         self.put(bytes)
     }
+    pub(super) fn write_length(&mut self, at: u32, bound: u32, path: Path) -> Result<(), Halt> {
+        let length = self.out.len().checked_sub(add(at, 4)).expect("reserved length");
+        if length > bound {
+            return Err(built(path, Reason::Bound));
+        }
+        self.out.set_u32(at, length);
+        Ok(())
+    }
     /// Copies an old content value, checking it against the new type.
     pub fn put_content_of(&mut self, old: &Old, node: Node) -> Result<(), Halt> {
         let result = self.content_of(old, node);

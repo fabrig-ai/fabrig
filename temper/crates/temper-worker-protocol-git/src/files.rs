@@ -1,4 +1,4 @@
-//! Kernel steps beneath the worker's root, with one submission per machine.
+//! Kernel steps beneath the worker's root, with one submission per machine (protocol/git.md, 4.1).
 use crate::{Limits, Settings, invocation, output::Markers, sequence::Next};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
@@ -24,7 +24,7 @@ impl Directories {
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
         self.serial = self.serial.checked_add(1).expect("trash serial lifetime");
-        Op::Rename { from_dir, from, to_dir: self.trash.expect("trash opened"), to, no_replace: false }
+        Op::Rename { from_dir, from, to_dir: self.trash.expect("trash opened"), to, no_replace: true }
     }
 }
 #[derive(Debug)]
@@ -191,6 +191,44 @@ impl Task {
         limits: &Limits,
         stop: bool,
     ) -> Action {
+        if !stop && complete.result == Err(Error::Exists) {
+            match &complete.kind {
+                Op::Rename { from_dir, from, to_dir, no_replace, .. } => {
+                    if *no_replace && Some(*to_dir) == dirs.trash {
+                        return Action::Run(dirs.rename(*from_dir, from.clone()));
+                    }
+                }
+                Op::Lock { .. }
+                | Op::Socket { .. }
+                | Op::Bind { .. }
+                | Op::Listen { .. }
+                | Op::Accept { .. }
+                | Op::Connect { .. }
+                | Op::Recv { .. }
+                | Op::Send { .. }
+                | Op::Shutdown { .. }
+                | Op::Close { .. }
+                | Op::Open { .. }
+                | Op::Read { .. }
+                | Op::Write { .. }
+                | Op::Append { .. }
+                | Op::Truncate { .. }
+                | Op::Sync { .. }
+                | Op::Stat { .. }
+                | Op::Remove { .. }
+                | Op::MakeDirectory { .. }
+                | Op::List { .. }
+                | Op::Spawn { .. }
+                | Op::Wait { .. }
+                | Op::Signal { .. }
+                | Op::Usage
+                | Op::Window { .. }
+                | Op::ReadSignal { .. }
+                | Op::PipeRead { .. }
+                | Op::PipeWrite { .. }
+                | Op::Cancel { .. } => {}
+            }
+        }
         match &mut self.phase {
             Phase::Layout(stage) => {
                 let action = layout(stage, complete.result, dirs, settings);

@@ -15,7 +15,7 @@ fn open(path: &[u8], how: OpenHow) -> Op {
     Op::Open { root: Fd::new(3), path: Box::from(path), how }
 }
 fn rename(from_dir: Fd, from: &[u8], to: &[u8]) -> Op {
-    Op::Rename { from_dir, from: Box::from(from), to_dir: fixtures::TRASH, to: Box::from(to), no_replace: false }
+    Op::Rename { from_dir, from: Box::from(from), to_dir: fixtures::TRASH, to: Box::from(to), no_replace: true }
 }
 fn remove(dir: Fd, name: &[u8], directory: bool) -> Op {
     Op::Remove { dir, name: Box::from(name), directory }
@@ -71,6 +71,20 @@ fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
         }
         assert_eq!(component.below.out.events.pop(), Some(Event::Started));
     }
+}
+
+#[test]
+fn a_start_skips_a_trash_name_left_by_an_earlier_start() {
+    let mut component = fixtures::Started::version_checked();
+    component.file_operation();
+    component.complete_err(Error::Exists);
+    component.file_operation();
+    component.complete_ok();
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1000"));
+    component.complete_err(Error::Exists);
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1001"));
+    component.complete_ok();
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"making", b"1002"));
 }
 
 #[test]

@@ -192,8 +192,8 @@ fn a_store_clone_installs_from_making_without_replacing_an_existing_store() {
                     from_dir: fixtures::MAKING,
                     from: Box::from(&b"1000"[..]),
                     to_dir: fixtures::TRASH,
-                    to: Box::from(&b"1000"[..]),
-                    no_replace: false
+                    to: Box::from(&b"1001"[..]),
+                    no_replace: true
                 }
             );
         }
@@ -220,7 +220,7 @@ fn make_sets_aside_its_references_in_each_store_and_accepts_missing_ones() {
         let expected = Box::from(path);
         assert_eq!(s.file_operation(), Op::Open { root: Fd::new(3), path: expected, how: OpenHow::DirectoryNoFollow });
         s.complete(Ok(Done::Fd(Fd::new(8))));
-        let Op::Rename { from_dir, from, to_dir, to, no_replace: false } = s.file_operation() else {
+        let Op::Rename { from_dir, from, to_dir, to, no_replace: true } = s.file_operation() else {
             panic!("references moved")
         };
         assert_eq!((from_dir, from.as_ref(), to_dir), (Fd::new(8), b"7".as_slice(), fixtures::TRASH));
@@ -249,6 +249,37 @@ fn store_op(aside: Option<Token>) -> git::Op {
         git: None,
     }
 }
+#[test]
+fn make_skips_occupied_trash_names_when_retiring_a_kept_stores_references() {
+    let mut s = Started::new();
+    request(&mut s, git::Op::Make { workspace: fixtures::WORKSPACE, stores: Box::new([Token::new(9)]) }, false);
+    s.file_operation();
+    s.complete_err(Error::NotFound);
+    s.file_operation();
+    s.complete_ok();
+    s.file_operation();
+    s.complete(Ok(Done::Fd(Fd::new(8))));
+    for name in [b"1001".as_slice(), b"1002"] {
+        assert_eq!(
+            s.file_operation(),
+            Op::Rename {
+                from_dir: Fd::new(8),
+                from: Box::from(&b"7"[..]),
+                to_dir: fixtures::TRASH,
+                to: Box::from(name),
+                no_replace: true,
+            }
+        );
+        s.complete_err(Error::Exists);
+        assert_eq!(s.done(), None);
+    }
+    let Op::Rename { to, no_replace: true, .. } = s.file_operation() else { panic!("next unused trash name") };
+    assert_eq!(to.as_ref(), b"1003");
+    s.complete_ok();
+    assert_eq!(s.file_operation(), Op::Close { fd: Fd::new(8) });
+    s.complete_ok();
+    assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
+}
 fn store_open() -> Op {
     Op::Open { root: fixtures::STORES, path: Box::from(&b"9"[..]), how: OpenHow::DirectoryNoFollow }
 }
@@ -272,7 +303,7 @@ fn a_store_already_there_is_closed_and_succeeds_without_making_or_invoking_git()
                     from: Box::from(&b"8"[..]),
                     to_dir: fixtures::TRASH,
                     to: Box::from(&b"1000"[..]),
-                    no_replace: false,
+                    no_replace: true,
                 }
             );
             s.complete_ok();
@@ -337,8 +368,8 @@ fn a_failed_store_clone_discards_making_and_keeps_its_classified_fault() {
             from_dir: fixtures::MAKING,
             from: Box::from(&b"1000"[..]),
             to_dir: fixtures::TRASH,
-            to: Box::from(&b"1000"[..]),
-            no_replace: false,
+            to: Box::from(&b"1001"[..]),
+            no_replace: true,
         }
     );
     assert_eq!(s.done(), None);
@@ -380,8 +411,8 @@ fn a_missing_store_checks_its_item_program_before_cloning_and_discards_on_a_bad_
                 from_dir: fixtures::MAKING,
                 from: Box::from(&b"1000"[..]),
                 to_dir: if usable { fixtures::STORES } else { fixtures::TRASH },
-                to: Box::from(if usable { b"9".as_slice() } else { b"1000" }),
-                no_replace: usable,
+                to: Box::from(if usable { b"9".as_slice() } else { b"1001" }),
+                no_replace: true,
             }
         );
         s.complete_ok();
