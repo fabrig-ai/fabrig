@@ -265,9 +265,7 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   the project's process (`../../draft/surfaces.md`, section 7), its look the
   whole story's `web/whole-story/how.html` and `pair/how.html`
   (`../web/look.md`, *How work runs' look*). It draws what the engine
-  holds (`../../draft/whole-story.execution.md`, section 2): rules by path
-  are a later milestone's (3, *How work runs' later parts*), and aren't
-  drawn, as an empty section, a placeholder or a made-up value. Under the frame's kicker, in
+  holds (`../../draft/whole-story.execution.md`, section 2). Under the frame's kicker, in
   order, its sections 44 apart, each a section title and its rows:
   - *Its heading and lede,* in the frame's place for them (1),
     the words saved with the settings
@@ -275,7 +273,11 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     read's `headline` of the way the project runs ("You approve every
     change"); where it runs no stock way, the project's words' `headline`
     the read carries (`../../protocol/configuration/settings.md`, 2, kind 10),
-    else "A way of its own". The lede is "PROJECT runs the stock way
+    else "A way of its own". The project's words name the way and its
+    chief departure, as a rule by path makes one, "Draft first, with the
+    protocol core asking you": Ask temper writes them with the proposal
+    that leaves the project on no stock way (`../../domain/agent/ask-temper.md`,
+    2, *Words with the settings*), and the page derives none. The lede is "PROJECT runs the stock way
     NAME." and that way's `line`; where it runs none, the project's words'
     `lede`, else "PROJECT runs settings of its own, drawn below."; then
     "Ask temper to change any of it, in words; an owner accepts its
@@ -346,6 +348,22 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     no control of kind 8: a class changes by proposal, Ask temper's from
     "Ask temper to change this", or a need's Stop asking, which an owner
     may apply (`needs-you.md`, 1).
+  - *Rules by path,* while the `ways` read gives a row of them
+    (`../../draft/surfaces.md`, section 7; `../../draft/what-reaches-you.md`,
+    section 7): a section "Rules by path", at its head's right "+ A rule",
+    a link to `Ask { project }` while "Ask temper to change this" is drawn,
+    since a rule changes by proposal as every setting does; then a table,
+    its rows the read's `rules` (`../../domain/forge/change/branch-path.md`,
+    *Rules by path*), in order, under a header row "Paths", "Review",
+    "Sign-off" and "Lands", "Review" left out where no row has one. A
+    row's paths in the code face; its review in words; its sign-off a
+    chip in a person's ring, as What reaches you's are, its words the
+    row's; an empty review or sign-off "–", muted; its lands in words.
+    Under the table the read's `note`, small and muted, where it has one.
+    The rows' words are the read's, never composed here. On a phone the
+    table keeps its columns and scrolls across within the column. Until
+    the read answers, once its watch has ended and while it gives no row,
+    the section isn't drawn.
   - *What follows a landing,* the project's follows and its tiers after
     landing (`../../draft/surfaces.md`, section 7;
     `../../domain/forge/follows.md`, sections 2 and 7;
@@ -453,12 +471,12 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   mechanism not built has no row until it is.
 - **Its parts** are one pure function, `pages::how::parts`, of the facts
   `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
-  read's state and current way, kind 7's Goals and its goal template's
+  read's state, current way and rules by path, kind 7's Goals and its goal template's
   budget, kind 8 read, `me` listing two projects or more, the project's
   open period from its document, and its live standing roles), which the
   web and the terminal share (`../../draft/surfaces.md`, section 12): the
   heading's way, "Ask temper to change this", the path section's state,
-  What reaches you's columns and its head's words, Roles' state, and
+  What reaches you's columns and its head's words, whether Rules by path is drawn and with "+ A rule" and its "Review" column, Roles' state, and
   Budgets' head and rows. What reaches you's lines are a second pure function,
   `pages::how::reaches`, of the project's table: its three columns, each
   subject placed once (*What reaches you,* above). What follows a
@@ -815,11 +833,7 @@ the document gives them; the client hides nothing of its own.
   agents follow that the mock's `.proposal-split` draws. Default: the page's parts
   and the card alone.
 - **How work runs' later parts** (`../../draft/surfaces.md`, sections 7 and 12;
-  `../../draft/whole-story.execution.md`, section 3): Rules
-  by path and the path's stops for a path set (P3c), drawn by its milestone
-  from the engine's reads;
-  the heading's chief departure, "Draft first, with the protocol core asking
-  you", once a rule by path can be one (P3c);
+  `../../draft/whole-story.execution.md`, section 3):
   "History · N changes" beside "Ask temper to change this", once a page lists
   the settings' revisions (*Later: the fuller page*); the next step suggested
   when the facts earn it; and the project's repositories at the page's foot

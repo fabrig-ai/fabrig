@@ -109,6 +109,58 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     }
     b.close();
 }
+pub(crate) fn rules(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+    let Some(parts) = how::parts(&how::facts(root, project)).rules else { return };
+    let ways = root.pages().stock_ways().expect("parts names a shown read");
+    let rules = ways.rules().expect("parts names shown rules");
+    super::settings::section_head(b, &w.say(Word::HowRules, &[]));
+    if parts.add {
+        let name = w.say(Word::HowAddRule, &[]);
+        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Ask { project } }));
+        b.style(look::HOW_ADD);
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::HOW_RULES);
+    b.open(Role::Table);
+    b.style(look::HOW_TABLE);
+    b.open(Role::Row);
+    for word in [Word::HowPaths, Word::HowReview, Word::HowSignOff, Word::HowLands] {
+        if word != Word::HowReview || parts.review {
+            crate::cards::text(b, Role::ColumnHeader, &w.say(word, &[]));
+        }
+    }
+    b.close();
+    for row in rules.rows() {
+        b.open(Role::Row);
+        text(b, Role::Cell, row.paths(), look::HOW_PATHS);
+        if parts.review {
+            rule_cell(b, w, row.review(), false);
+        }
+        rule_cell(b, w, row.sign_off(), true);
+        crate::cards::text(b, Role::Cell, row.lands());
+        b.close();
+    }
+    b.close();
+    b.close();
+    if !rules.note().is_empty() {
+        text(b, Role::Paragraph, rules.note(), look::HOW_RULES_NOTE);
+    }
+    b.close();
+}
+fn rule_cell(b: &mut Builder, w: &Words, words: &[u8], person: bool) {
+    b.open(Role::Cell);
+    if words.is_empty() {
+        text(b, Role::Text, &w.say(Word::HowEmpty, &[]), look::HOW_EMPTY);
+    } else if person {
+        text(b, Role::Text, words, look::HOW_WHO_PERSON);
+    } else {
+        b.text(Run::Plain, words);
+    }
+    b.close();
+}
 pub(crate) fn roles(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     if !how::parts(&how::facts(root, project)).roles {
         return;
