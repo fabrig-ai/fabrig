@@ -45,6 +45,7 @@ pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
+pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 
 #[cfg(test)]
@@ -2737,27 +2738,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
     } else {
-        for word in &context.inbox {
-            let tasks::Party::Task(child) = word.from else { continue };
-            let closing = domain.forge.change(task).expect("registered change").delegate
-                == Some((child, forge_change::Delegate::Close));
-            let status = if closing && close::failed(domain, child, &word.kind) {
-                Some((forge_change::Status::Failed, true, false))
-            } else {
-                change_delegate_status(&word.kind)
-            };
-            if let Some((status, failed, cancelled)) = status {
-                domain.work.push(Work::Forge(forge::Event::DelegateResult {
-                    task,
-                    child,
-                    status,
-                    no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
-                    failed,
-                    cancelled,
-                    words: word.words.clone(),
-                }));
-            }
-        }
+        change_results(domain, context);
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
@@ -2779,6 +2760,33 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
     true
+}
+
+fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
+    let task = context.task;
+    for word in &context.inbox {
+        let tasks::Party::Task(child) = word.from else { continue };
+        let closing = domain.forge.change(task).expect("registered change").delegate
+            == Some((child, forge_change::Delegate::Close));
+        let held = closing && close::failed(domain, child, &word.kind);
+        let status =
+            if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
+        if let Some((status, failed, cancelled)) = status {
+            domain.work.push(Work::Forge(forge::Event::DelegateResult {
+                task,
+                child,
+                status,
+                no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
+                failed,
+                cancelled,
+                words: if held {
+                    close::failure_words(domain, child).unwrap_or(&word.words).into()
+                } else {
+                    word.words.clone()
+                },
+            }));
+        }
+    }
 }
 
 // Both a due procedure and a CI hold read the same coherent snapshot (domain/forge/change/repairs.md).
@@ -3676,7 +3684,8 @@ fn change_delegate(
 ) -> Option<super::Delegate> {
     let row = domain.forge.change(task)?;
     let context = domain.core.tasks.delegation(task)?;
-    let mut authority = child_authority(&context)?;
+    let mut authority =
+        if kind == forge_change::Delegate::Close { close::authority(&context) } else { child_authority(&context)? };
     // domain/agent/agents.md: only producing, repairs and resolutions may ask.
     authority.tools.0 &= !domain.core.settings.tools.settings;
     let asking = match kind {

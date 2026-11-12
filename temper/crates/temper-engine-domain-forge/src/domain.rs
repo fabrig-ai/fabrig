@@ -3422,7 +3422,8 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
     }
 }
 
-// A result ends a stall held at its delegate's wait (domain/forge/change/repairs.md).
+// A result ends a stall at its delegate's wait; a close result also ends its
+// failed producing hold (domain/forge/change/repairs.md).
 fn delegate_wait(state: &change::State) -> bool {
     match state {
         change::State::Producing { requested }
