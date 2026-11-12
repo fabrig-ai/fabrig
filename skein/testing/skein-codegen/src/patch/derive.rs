@@ -22,12 +22,20 @@ pub(super) fn patches(tree: &Crate) -> Result<BTreeMap<u32, PatchText>, Error> {
         .collect()
 }
 
-pub(super) fn frozen(patches: &BTreeMap<u32, PatchText>) -> BTreeSet<(String, u16)> {
+pub(super) fn frozen(
+    patches: &BTreeMap<u32, PatchText>,
+    base: &Crate,
+    wires: &BTreeSet<String>,
+) -> BTreeSet<(String, u16)> {
+    let wire_texts = base.kept.iter().filter(|(family, _)| wires.contains(*family)).flat_map(|(family, texts)| {
+        texts.keys().map(|version| (family.clone(), *version))
+    });
     patches
         .values()
         .flat_map(|patch| {
             patch.blocks.iter().flat_map(|block| [(block.family.clone(), block.from), (block.family.clone(), block.to)])
         })
+        .chain(wire_texts)
         .collect()
 }
 
@@ -93,7 +101,7 @@ pub(super) fn refreshed_renames(kept: &Text, tree: &Crate) -> Result<Vec<Rename>
     }
     let first = compare(kept, refreshed, &[])?;
     let renames = proposals(kept, refreshed, &[], &first)?;
-    if needs(&compare(kept, refreshed, &renames)?, false) { Ok(Vec::new()) } else { Ok(renames) }
+    if needs(&compare(kept, refreshed, &renames)?, false, false) { Ok(Vec::new()) } else { Ok(renames) }
 }
 
 /// Proposals affect only later proposal rounds, never the returned diff.
@@ -112,8 +120,23 @@ pub(super) fn proposals(kept: &Text, current: &Text, confirmed: &[Rename], first
     }
 }
 
-pub(super) fn needs(diff: &Diff, frozen: bool) -> bool {
-    diff.changes.iter().any(|change| {
+/// Compares wire layouts with the current header at the kept version, including
+/// `versioned` records (data/codec/command.md, 2; data/codec/README.md, 9.1).
+/// Schema tokens contain no quoted text; comments and whitespace are not layout.
+pub(super) fn layout_changed(kept: &Text, current: &Text) -> Result<bool, Error> {
+    let tokens = current.source.lines().flat_map(|line| line.split('#').next().unwrap_or_default().split_whitespace());
+    let source = format!(
+        "family {} {}\n{}",
+        current.family,
+        kept.version,
+        tokens.skip(3).collect::<Vec<_>>().join(" ")
+    );
+    let normalized = Text { source, ..current.clone() };
+    Ok(schema(kept)?.fingerprints().family() != schema(&normalized)?.fingerprints().family())
+}
+
+pub(super) fn needs(diff: &Diff, frozen: bool, layout_changed: bool) -> bool {
+    layout_changed || diff.changes.iter().any(|change| {
         change.kind != Kind::NoneNeeded
             || (frozen
                 && match &change.op {
@@ -134,8 +157,7 @@ pub(super) fn needs(diff: &Diff, frozen: bool) -> bool {
     })
 }
 
-pub(super) fn verdict(diff: &Diff, frozen: bool) -> Version {
-    let needs = needs(diff, frozen);
+pub(super) fn verdict(diff: &Diff, needs: bool) -> Version {
     if diff.current == diff.kept {
         if needs { Version::Unmoved } else { Version::Kept }
     } else if diff.kept.checked_add(1) == Some(diff.current) {
