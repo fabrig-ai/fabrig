@@ -72,7 +72,7 @@ the deployment's engine, with the owned forge's commands.
 
 ### temper-engine serve
 
-`temper-engine serve [DIRECTORIES]`
+`temper-engine serve [DIRECTORIES] [--record]`
 
 Run an engine alone's document until stopped; temper-worker serve runs a worker alone, and temper-box serve runs an engine and its worker in one process.
 
@@ -276,7 +276,7 @@ temper on this machine, as one box.
 
 ### temper-box
 
-`temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]`
+`temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]`
 
 Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.
 
@@ -308,7 +308,7 @@ Refused, changing nothing, when the configuration directory already holds temper
 
 ### temper-box serve
 
-`temper-box serve [DIRECTORIES]`
+`temper-box serve [DIRECTORIES] [--record]`
 
 Run the deployment's services, as its configuration's shape names them, until stopped.
 
@@ -423,7 +423,7 @@ Read one endpoint's model list, on smith's agent configuration. Internal: it may
 
 ### temper-box internal serve
 
-`temper-box internal serve [DIRECTORIES] --box`
+`temper-box internal serve [DIRECTORIES] --box [--record]`
 
 Run temper-box serve as the box's step, on the listeners and the pipe the box gives it. Internal: it may change without notice.
 

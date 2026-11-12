@@ -180,7 +180,10 @@ fn spawned_commands_answer_only_under_internal() {
     for (words, error) in [
         (vec!["agent", "X"], "temper-box: no command agent; temper-box --help lists them\n"),
         (vec!["agent-list", "X"], "temper-box: no command agent-list; temper-box --help lists them\n"),
-        (vec!["serve", "--box"], "temper-box serve: invalid arguments\nusage: temper-box serve [DIRECTORIES]\n"),
+        (
+            vec!["serve", "--box"],
+            "temper-box serve: invalid arguments\nusage: temper-box serve [DIRECTORIES] [--record]\n",
+        ),
         (vec!["forge", "child"], "temper-box: no command forge child; temper-box --help lists them\n"),
     ] {
         assert_eq!(configured(&words), Err(error.into()));
