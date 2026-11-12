@@ -138,7 +138,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43644525 bytes, past its bound of 3419252 bytes\n",
+            b"engine.limits.store: the store's map value, 43644525 bytes, past its bound of 3685476 bytes\n",
         );
     }
 }
@@ -708,7 +708,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 3_421_331);
+    assert_eq!(profile.store.page.bytes, 3_687_555);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 

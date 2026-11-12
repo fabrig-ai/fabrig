@@ -280,17 +280,17 @@ fn landing_rule_members_past_the_given_limits_name_their_paths() {
     let mut kind_last = base;
     kind_last.kinds.landing_exact_value = 3;
     for (limits, expected) in [
-        (gates, b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
-        (approvals, b"settings file item 1: landing-rule.approvals: bound 0"),
-        (segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
-        (kind_segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
-        (kind_segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
-        (kind_last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (&gates, b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
+        (&approvals, b"settings file item 1: landing-rule.approvals: bound 0"),
+        (&segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (&segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (&last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (&kind_segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (&kind_segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (&kind_last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
     ] {
         assert_eq!(
-            file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), &limits).expect_err("bound refusal").as_ref(),
+            file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), limits).expect_err("bound refusal").as_ref(),
             expected
         );
     }
