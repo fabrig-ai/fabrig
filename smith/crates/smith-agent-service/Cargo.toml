@@ -29,7 +29,7 @@ smith-protocol-program.workspace = true
 
 [dev-dependencies]
 smith-events-fixtures.workspace = true
-smith-protocol-llm = { workspace = true, features = ["fixture"] }
+smith-protocol-llm-fixtures.workspace = true
 smith-agent-profile-fixtures.workspace = true
 smith-protocol-events-fixtures.workspace = true
 serde_json = "1.0"

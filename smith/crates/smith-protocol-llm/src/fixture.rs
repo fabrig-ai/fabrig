@@ -1,6 +1,7 @@
 //! Small translation and component presets (smith/docs/design/protocol/llm.md, sections 8 and 10).
-//! The caller supplies its dependency bounds and stated quantities; this crate
-//! owns the remaining admission capacities and their receiving derivation.
+//! Step-test copy (smith/docs/design/testing.md, section 7). The caller supplies
+//! its dependency bounds and stated quantities; this crate owns the remaining
+//! admission capacities and their receiving derivation.
 use crate::{ComponentLimits, Limits, Receiving, Stated};
 use alloc::boxed::Box;
 use skein_lib::Duration;
@@ -68,12 +69,6 @@ pub fn component(translation: Limits, idle_keep: Duration) -> Option<ComponentLi
     })
 }
 
-// Codec entrances are exposed only to fixture builds. Production callers route Component.
-pub use crate::completion::completion;
-pub use crate::failure::{cancelled, failed, refusal};
-pub use crate::prompt::prompt;
-pub use crate::types::Context;
-
 /// Result rules used by codec-only fixtures; root worlds supply their admitted charter.
 #[must_use]
 pub fn contract() -> smith_domain::run::outcome::OutcomeSpec {
@@ -92,31 +87,4 @@ pub fn schemas(prompt: &smith_domain::llm::Prompt, stated: &Stated) -> Box<[crat
     let delivery = smith_domain::run::outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
     crate::schemas_for_contract(prompt, stated, &contract(), Some(&delivery), u32::MAX)
         .expect("fixture contract schemas fit")
-}
-
-/// Prepare a codec fixture with production schema generation and decoding.
-/// # Errors
-/// Returns the production prompt or receiving admission refusal.
-pub fn prepare_prompt(
-    owner: skein_lib::Token,
-    prompt: smith_domain::llm::Prompt,
-    receiving: Receiving,
-    limits: &Limits,
-) -> Result<(skein_llm::Prompt, Context), crate::Error> {
-    let delivery = smith_domain::run::outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
-    crate::prompt::prepare_component(owner, prompt, contract(), Some(delivery), receiving, limits)
-}
-
-/// Prepare a codec fixture with caller-selected result rules.
-/// # Errors
-/// Returns the production prompt or receiving admission refusal.
-pub fn prepare_for_contract(
-    owner: skein_lib::Token,
-    prompt: smith_domain::llm::Prompt,
-    outcome: &smith_domain::run::outcome::OutcomeSpec,
-    deliver: Option<&smith_domain::run::outcome::ChangeSpec>,
-    receiving: Receiving,
-    limits: &Limits,
-) -> Result<(skein_llm::Prompt, Context), crate::Error> {
-    crate::prompt::prepare_component(owner, prompt, outcome.clone(), deliver.cloned(), receiving, limits)
 }

@@ -91,7 +91,7 @@ impl Protocol {
         domain: &smith_domain::Limits,
     ) -> Self {
         let mut limits =
-            smith_protocol_llm::fixture::component(translation, Duration::from_secs(60)).expect("receiving bounds");
+            smith_protocol_llm_fixtures::component(translation, Duration::from_secs(60)).expect("receiving bounds");
         limits.connection.calls = 64;
         limits.connection.connections = 64;
         limits.connection.per_endpoint = 64;

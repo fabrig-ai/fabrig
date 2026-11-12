@@ -27,7 +27,8 @@ serde = { workspace = true }
 serde_json = "1"
 
 [dev-dependencies]
-smith-protocol-program = { workspace = true, features = ["fixture"] }
+smith-protocol-program.workspace = true
+smith-protocol-program-fixtures.workspace = true
 smith-agent-shell.workspace = true
 skein-fake-machine.workspace = true
 skein-heap.workspace = true
