@@ -1348,8 +1348,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The task's closer and optional session each occupy 32 bytes in the deep row.
-                limits.journal.transcript_bytes = 8232;
+                // The task's closer, optional session and talk each occupy 32 bytes in the deep row.
+                limits.journal.transcript_bytes = 8264;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
