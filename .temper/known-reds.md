@@ -44,3 +44,4 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 Inherited from main (merge 725c605915), found by change 2116 of goal 2105 on 2026-11-12.
 
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
+- lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
