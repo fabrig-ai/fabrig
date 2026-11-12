@@ -90,7 +90,7 @@ executor kinds, including charters 5 and 12, role 0 and merge job 3; the
 reference's widening (`reference.md`) takes charter 12 out, so that its delegation
 fills the box's sixteen places. The stock
 floor measures resolved charters with their parts and catalogue models;
-charter 5 needs about 27,000 bytes at init's catalogue, within
+charter 5 needs 26,744 bytes at init's catalogue, within
 `root.journal.run_bytes` 65,536. The standard brief follows the room
 that charter leaves, by the owner's approved rule.
 `ask.txt` carries Remembering and, of Showing, its first step alone. The
