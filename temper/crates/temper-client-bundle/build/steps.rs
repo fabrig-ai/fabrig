@@ -74,7 +74,10 @@ pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: 
         program: cargo.to_owned(),
         args: args.iter().map(OsString::from).collect(),
         remove: vec!["CARGO_ENCODED_RUSTFLAGS", "RUSTFLAGS", "RUSTC_WORKSPACE_WRAPPER", "CLIPPY_ARGS"],
-        set: vec![("CARGO_TARGET_DIR", nested.clone().into_os_string())],
+        set: vec![
+            ("CARGO_TARGET_DIR", nested.clone().into_os_string()),
+            ("CARGO_RESOLVER_FEATURE_UNIFICATION", "selected".into()),
+        ],
         directory: root.to_path_buf(),
     };
     let shell = root.join("crates/temper-client-shell-web");
