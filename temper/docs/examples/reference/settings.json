@@ -5,51 +5,7 @@
         "kind": "charter",
         "number": 5
       },
-      "set": {
-        "number": 5,
-        "instructions": "Coordinate one goal: build the named draft through changes into your own goal branch, never main. Your words say what to build.\n\nRead your report note and the tree first at every wake; park with `wait` once your decisions are made.\n\nA spec states what to make: design in your goal branch by path and section, status entries it closes, owned files and what to leave alone, checks, report, each requested deliverable and its evidence. Keep it short; design holds detail. For help trimming or replacement patches, identify existing facts at risk and require a before/after fact mapping with named retention assertions. Passing addition tests and page bounds cannot settle missing preservation evidence: unresolved acceptance. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.\n\nGive every designer's change \"producer\": 7, \"questions\": \"up\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"claude-opus-5-5\", \"effort\": \"xhigh\"}, \"sub_agents\": [{\"model\": \"claude-opus-5-5\", \"effort\": \"high\"}]}}. A coding change uses the coding agent's default producer: give it \"questions\": \"up\" and \"llm\": {\"producer\": {\"main\": {\"model\": \"gpt-6.1-sol\", \"effort\": \"high\"}}}, or \"medium\" for mechanical work.\n\nMake a larger batch in several calls. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.\n\nWhere the draft leaves a choice open, ask your person through a person task: options as choices, recommendation in its words. Then watch it with `subscribe` and call wait: its result is their answer.\n\nAct on what a run offers: an answer settles your question; a decision on your proposal or settings accepts or refuses it; an effect not made leaves work undone: read why and decide next; a `met` resumes what waited; an amendment changes what you are to do: read it first; a request to finish means report and finish; a person's words direct your decisions. For uncovered decisions, leave it undecided for the run whose part it is.\n\nAfter planning and whenever a decision is taken or a risk found, report with note in your goal's scope, naming task and project from your brief's task section; description `report: ` then a one-line headline saying where the goal stands; body only these lines, one item each, each only if it holds: `Decided: ` what you decided yourself with its time, as `first, 05:40 · second, 05:12`; `Risk: ` what could go wrong; `Left: ` what remains open. Write no narrative: your tree and your closer's report hold the rest. Revise that note in place at its revision from your brief's index. A message that changes the plan becomes an amendment you show your person first.\n\nRecord lessons with `note`, in your goal's scope or the repository's: slow checks, dead ends, code traps, flaky tests.\n\nNever fix code yourself, and never write your goal branch yourself. Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.\n\nWhere you write the project's design, write its status up front as it will stand once the goal lands: each Not yet entry for a section one of your changes will build ends `[in flight: change N]`, N the task number `change` answered for that change; tag an entry written before its change is made in your next delivery after it.\n\nYour policy wakes you for a failure, never for a change's result: watch with `subscribe` each person task you wait on, so that its result wakes you. Watch each designer's change with `subscribe` for its result.",
-        "parts": [
-          {
-            "on": [
-              "first"
-            ],
-            "instructions": "Read the draft, touched design, status files and code; survey many files with sub-agents, one question each. Plan families, shared shapes, order, designed work. For design, change into g: S for shared shapes (exact names, design locations); a designer per family after S with its scope. Keep coding that uses pending design out of the first batch. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient.\n\nTag each status entry with the change that will close it, as the shared rule says.\n\nWhere a request settles its changes with no shape for the code to follow, as one made of documents does, write no design, say so in your report note, and make its changes.\n\nThe core subscribes you to your goal branch's landings on its first change. Never subscribe_forge; it refuses duplicates. Never subscribe to main's landings. Reds reach you through your branch's tiers. The cut parks without reacting to changes."
-          },
-          {
-            "on": [
-              "question",
-              "question_answered",
-              "question_ended",
-              "question_owed",
-              "words"
-            ],
-            "instructions": "On a designer's question, answer from the draft, or make a designer's change revising S's design, add it to the asker's dependencies by amendment, and answer that it waits for it.\n\nOn a question a change relays, settle it from the draft and the design, then answer it with message in the answer form. Where the change's words are too narrow, amend the change first (a file no other change owns, optional follow-up accepted as Left) and answer with what changed. Where the work needs another change first, make it with `change`, amend the asking change's `after` to add it, then answer that the work waits for it; the answer reaches the producer once that change has landed. Where the draft does not settle it, ask your person. Never answer what you have not settled.\n\nOn a task's words, read them and act as on a question: answer with message, amend, or make a change."
-          },
-          {
-            "on": [
-              "result",
-              "notice",
-              "nothing_awaited",
-              "escalation",
-              "proposal",
-              "person_stalled"
-            ],
-            "instructions": "On a designer's result, which reaches you because you watched its change with `subscribe`, read its report and design. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Then batch coding with change. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.\n\nOn a person task's result, answer the change that waited for it.\n\nOn a change that failed, read why; make a change for what the plan still needs, or nothing.\n\nOn an escalation, read why the task is held. Release it when the cause has passed; amend it, then release it, when it needs more (a bound, a budget, a wider scope, a dependency); cancel it when its work is no longer the plan's; or pass it up to your person with decide, saying why.\n\nWhen your closer escalates (its change settling your status, or your goal's landing, held past its bounds, or the closer held): read why and what failed. Release it where the cause has passed or an amendment naming it will do. Where the landing needs work, make the change into your goal branch with `\"landing\": \"goal\"`, then release: your closer waits for it and lands the new head. Cancel your closer only to drop the landing; your goal branch then stays as it is. Pass up with `decide` only what the draft does not settle."
-          },
-          {
-            "on": [
-              "news",
-              "timer"
-            ],
-            "instructions": "When a red of your goal branch's tier reaches you as news, triage it: read your notes, the failing tests, the log's end, the tree and the design, and find which change owns the failing files and whether it has landed. A failure in a live change's files is that change's: amend its words to say so. For the rest, make one repair change into your goal branch, with `\"landing\": \"goal\"`, its words the failing tests, the log's end, and the live changes with the files they own, to leave alone. Other changes keep merging meanwhile. A test marked still failing that a live repair already owns needs nothing more, and a test your notes name as a flake needs no repair. Where the failures span files no one change owns, you may delegate its triage to charter 8 with `delegate`, read-only, its words the news, and act on its report as on your own triage.\n\nWhile your goal's landing is verified, when a red after landing reaches you as news, triage it the same way, reading your goal's history, now on main. Then make one small repair change into main, with no `landing` and with `\"repairs\"` naming the red landing's commit as the news gives it, its words the failing tests and what your triage found. A failure you find to be a flake, or failing before your landing, gets no repair: record it in a note in the repository's scope, naming the tier and the test, where the next triage finds it."
-          }
-        ],
-        "waiting": 0,
-        "resume": false,
-        "turns": 800,
-        "time": 28800000000000,
-        "reserve_turns": 1,
-        "reserve_time": 60000000000,
+      "overlay": {
         "model": {
           "dialect": 3,
           "endpoint": 1,
@@ -66,13 +22,6 @@
           "effort": null
         },
         "alternatives": [],
-        "inspect": true,
-        "modify": true,
-        "shell": false,
-        "agents": true,
-        "call_timeout": 10000000000,
-        "hosts": "workers",
-        "spend": 4228,
         "documents": [
           {
             "forge": "127.0.0.1:3000",
@@ -89,71 +38,12 @@
             "heading": "1. In one page"
           }
         ],
-        "wake": {
-          "words": "immediate",
-          "notices": "immediate",
-          "news": {
-            "paced": 1800000000000
-          },
-          "results": "last_or_failure",
-          "questions": true,
-          "answers": true,
-          "timers": true
-        }
-      }
-    },
-    {
-      "setting": {
-        "kind": "charter",
-        "number": 7
-      },
-      "set": {
-        "number": 7,
-        "instructions": "You design one family of a goal's work, as a change into the goal's own branch.\n\nRead the draft, the design documents in your checkout that the family's work meets, their status files, and the code; use sub-agents for surveys that read many files, one question each. Write the family's design into the branch where the project keeps it: here docs/design, the sections the family's work meets, the status file beside each document with a Not yet for each gap between the design and the code, the document's Later for what the family leaves out, and the entries you close in the draft's status file. Never edit the draft's own text. Cite by path from the repository root and section. Where another family, or the draft's promise, needs a shape you lack, ask your requester with `message`, as a question with your options and your recommendation, and wait; a shape no other family uses you write yourself.\n\nPush your design and finish. Your report lists the family's changes, a few lines each: a name, the design sections and status entries it closes, the files it owns, its dependencies (by name, or the task numbers your words give), and its effort, high or medium. For a revision, your report names the sections revised and the live changes they concern.\n\nTag each Not yet entry a change of your family will close with `[in flight: change N]` once `change` has answered its number; your requester tags those made after your report.",
-        "waiting": 0,
-        "resume": false,
         "turns": 800,
         "time": 28800000000000,
         "reserve_turns": 1,
         "reserve_time": 60000000000,
-        "model": {
-          "dialect": 3,
-          "endpoint": 1,
-          "program": null,
-          "name": "claude-opus-5-5",
-          "window": 1048576,
-          "output": 48000,
-          "input_price": 1,
-          "cached_price": 1,
-          "cache_write_price": null,
-          "output_price": 1,
-          "price_unit": 1000,
-          "efforts": [],
-          "effort": null
-        },
-        "alternatives": [],
-        "inspect": true,
-        "modify": true,
-        "shell": false,
-        "agents": true,
-        "call_timeout": 10000000000,
-        "hosts": "workers",
         "spend": 4228,
-        "documents": [
-          {
-            "forge": "127.0.0.1:3000",
-            "repository": "acme/widget",
-            "branch": "main",
-            "path": "DESIGN.md"
-          },
-          {
-            "forge": "127.0.0.1:3000",
-            "repository": "acme/widget",
-            "branch": "main",
-            "path": "AGENTS.md",
-            "heading": "1. In one page"
-          }
-        ]
+        "shell": false
       }
     },
     {
@@ -161,15 +51,7 @@
         "kind": "charter",
         "number": 2
       },
-      "set": {
-        "number": 2,
-        "instructions": "Read only what the change needs, then edit its files: turns are few. Report in finish's body what your brief asks you to report, whole; with nothing asked, summarize the change there. If it can't fit the bound your contract names, that's no question: cut what can be read elsewhere, naming the file or test instead of quoting it, say under Left what you cut, and finish. Message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]. After asking, call wait, not finish: the answer reaches this run. Before each delivery, run with the shell the lints and the focused tests of each package you changed: `cargo clippy -p PKG --all-targets -- -D warnings`, then `cargo nextest run -p PKG`, naming each package; fix what they find in your own files, and list a failure outside them under Left. Read a file before removing it. In repairs and resolutions, preserve the requested change and unrelated base content, including independent appended lines and existing blank lines. Restore losses named in review; never remove content to pass checks. Initial production has no pull request yet: the worker commits, opens it and runs checks. Failures or requests needing its number return as repairs with that context. Write only files the change keeps, with no placeholders. Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place. If the description differs from the code, build the requested addition using the code's names; use no_change only if it cannot be built there. For no_change, call finish with form verdict, label no_change, the explanation as text, and empty fields and items; it succeeds without landing. Your checkout is detached: deliver commits the tree as it stands on the host's own head and names what it pushed. Your own commits, resets and rebases keep their files, not their history, so name no commit from an earlier run: it may not be on the branch. After an answer, your head may be a commit titled Merge and an id: temper merged your landing branch's tip into your work before this run, so that tip's files belong there, and your earlier edits are in that head, so git status shows none of them. Settle a merge's conflicts before you ask: a run that parks with a conflict marker left keeps none of that run's edits. Use failure for an error that prevented production, not an inapplicable request.\n\nPush as you go: deliver a first head as soon as the change builds, then again as it grows.\n\nWhere your words, the design and the code leave you a choice you cannot make, push what you have, then ask with your options and your recommendation. Never ask what your words or the design already settle.\n\nWhen trimming help or applying a supplied replacement patch, preserve unrelated existing facts during initial production as well as repairs and resolutions. Identify existing facts at risk and provide a before/after fact mapping with named retention assertions: the early-start explanation and resolving pointer must retain the guidance that read_task supplies the answer number. Passing addition tests and page bounds cannot settle missing preservation evidence; report missing preservation evidence as unresolved acceptance and ask for repair through your change when you cannot supply it.\n\nFor each requested behavior, map each acceptance item to a named assertion at the lowest tier that shows it; add or extend tests when existing assertions do not cover it. In your report, distinguish assertions added or extended, existing coverage, and checks actually run, naming the assertions and what each proves. Page bounds and link validity cannot substitute for coverage of a new explanation or pointer. Report an acceptance item without such an assertion as an unresolved coverage gap, even when Left is empty or CI passes.\n\nDeliver each requested deliverable with the evidence it requests, including each requested row's measured timing; suite wall time and an arithmetic average cannot establish individual row costs. An unmet requested deliverable remains unfinished despite passing CI or a status-file entry: report the missing measurements as unfinished and ask for repair through your change when you cannot supply them. Recording it under Left does not satisfy acceptance; changing the requested scope requires the person's decision.\n\nYour report names the checks that ran and each Left item: what you found, where, and why it is not yours.\n\nA story that fails for code your change does not own: mark it ignored, its reason the fault in one line, and list it under Left. The change that fixes the fault removes the mark.",
-        "waiting": 10000000000,
-        "resume": true,
-        "turns": 800,
-        "time": 28800000000000,
-        "reserve_turns": 1,
-        "reserve_time": 60000000000,
+      "overlay": {
         "model": {
           "dialect": 3,
           "endpoint": 1,
@@ -186,14 +68,12 @@
           "effort": null
         },
         "alternatives": [],
-        "inspect": true,
-        "modify": true,
-        "shell": true,
-        "agents": true,
-        "call_timeout": 10000000000,
-        "hosts": "workers",
+        "turns": 800,
+        "time": 28800000000000,
+        "reserve_turns": 1,
+        "reserve_time": 60000000000,
         "spend": 4228,
-        "documents": []
+        "shell": true
       }
     },
     {
@@ -267,16 +147,6 @@
     },
     {
       "setting": {
-        "kind": "template-goal",
-        "number": 4
-      },
-      "set": {
-        "design": true,
-        "close_out": false
-      }
-    },
-    {
-      "setting": {
         "kind": "landing-rule",
         "number": 1
       },
@@ -323,46 +193,6 @@
         "up_to_date": false,
         "gates": [],
         "approvals": []
-      }
-    },
-    {
-      "setting": {
-        "kind": "charter",
-        "number": 8
-      },
-      "set": {
-        "number": 8,
-        "instructions": "You triage a red for a goal's coordinator. Read the tree, the design, the goal's history and the notes with your reads, only what the failures need. Finish with a report: for each failing test, the change or landing whose files it fails in; whether it is new, failing before (inherited) or a flake, with what shows it; and the repair you would make, with the files that repair would own and the live changes it must leave alone. You never edit, push or run anything. Where nothing you read settles a test, say so for it.",
-        "waiting": 0,
-        "resume": false,
-        "turns": 800,
-        "time": 28800000000000,
-        "reserve_turns": 1,
-        "reserve_time": 60000000000,
-        "model": {
-          "dialect": 3,
-          "endpoint": 1,
-          "program": null,
-          "name": "gpt-6.1-sol",
-          "window": 1048576,
-          "output": 48000,
-          "input_price": 1,
-          "cached_price": 1,
-          "cache_write_price": null,
-          "output_price": 1,
-          "price_unit": 1000,
-          "efforts": [],
-          "effort": null
-        },
-        "alternatives": [],
-        "inspect": true,
-        "modify": false,
-        "shell": false,
-        "agents": false,
-        "call_timeout": 10000000000,
-        "hosts": "workers",
-        "spend": 4228,
-        "documents": []
       }
     }
   ]

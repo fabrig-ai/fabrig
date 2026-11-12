@@ -209,9 +209,16 @@
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
   `propose_settings`), temper sums each charter's offered tools, its
-  instructions and the fixed parts, and refuses one that leaves its
+  instructions with every one of its parts joined to them, the most any
+  of its runs can select, and the fixed parts, and refuses one that leaves its
   brief less than 2,048 bytes, naming the charter and both figures
-  (`../../protocol/configuration/limits.md`). A stored proposal's
+  (`../../protocol/configuration/limits.md`). An item setting an
+  overlay is judged on the charter it makes over the charter's current
+  default (jig's `domain/engine/overlays.md`, 1), and the start's check,
+  over the defaults and again once the stored settings are restored,
+  judges each overlaid charter as its runs read it, so that a release
+  whose new default leaves an overlaid charter too little room stops
+  the start, naming the charter. A stored proposal's
   acceptance, a restore and a reset carry values that passed an
   entrance or the start, and the bound does not move while the engine
   runs. The sum is a table of each host family's declaration bytes and
@@ -409,6 +416,35 @@
   target's authority kept, as `amend` takes it, and what it needs is
   read from the target's authority; `authority shape` refuses only an
   authority it names that is malformed.
+- **`finding`,** of the delegate family, declared where `goal` and
+  `change` are, so that a chat, a goal's coordinator and a standing role
+  file and triage findings in their task's project (`../findings.md`,
+  sections 4 and 6; `../areas.md`, sections 5 and 7). One tool, its
+  `act` saying which:
+  - `{"act": "file", "kind", "severity", "area", "title", "body"}`,
+    `kind` one of `qa`, `flake`, `red`, `review` and `feedback`,
+    `severity` one of `low`, `medium` and `high`, `area` optional, title
+    and body within `../findings.md`, section 2's bounds: "Filed finding
+    P/N; it is HOLDER's.";
+  - `{"act": "hand", "number", "area", "why"}`: "Handed finding P/N to
+    area NAME; it is HOLDER's.";
+  - `{"act": "route", "number", "goal"}`, `{"act": "backlog",
+    "number"}` and `{"act": "drop", "number", "reason"}`: "Routed
+    finding P/N to task G.", "Finding P/N is in the backlog.", "Dropped
+    finding P/N.";
+  - `{"act": "list", "state", "mine"}`, both optional: the project's
+    areas, a line each, `NAME (OWNER, HOLDER): WORDS`, its triager's
+    line, then its findings newest first, a line each, `P/N STATE KIND
+    SEVERITY AREA HOLDER: TITLE`, cut to the answer's bound with `and K
+    more`;
+  - `{"act": "show", "number"}`: one finding whole, as `temper ctl
+    finding show` prints it.
+
+  `HOLDER` is `task N`, `party N` or `role N`, by `../areas.md`, section
+  4. Its refusals are `../areas.md`, section 7's words, marked an error,
+  and the run goes on. The writes are named and decided once, as
+  `change`; `list` and `show` are reads.
+
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and

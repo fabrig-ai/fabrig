@@ -50,7 +50,6 @@ pub struct Limits {
     pub dismiss_making_name: u32,
     pub draft_repository_owner: u32,
     pub draft_repository_name: u32,
-    pub set_draft_path: u32,
     pub landed_draft_owner: u32,
     pub landed_draft_name: u32,
     pub landed_draft_path: u32,
@@ -60,11 +59,26 @@ pub struct Limits {
     pub follow_reason_act_reason: u32,
     pub follow_merge_act_afters: u32,
     pub follow_outcome_refusal_some: u32,
+    pub hand_finding_area: u32,
+    pub hand_finding_why: u32,
+    pub finding_drop_reason: u32,
+    pub finding_areas_areas: u32,
+    pub finding_areas_areas_item: u32,
+    pub finding_words_field: u32,
+    pub set_draft_path: u32,
     pub add_device_endpoint: u32,
     pub add_device_label: u32,
     pub device_row_label: u32,
     pub device_row_endpoint: u32,
     pub devices_rows: u32,
+    pub file_finding_area_some: u32,
+    pub file_finding_title: u32,
+    pub file_finding_body: u32,
+    pub finding_row_area_some: u32,
+    pub finding_row_title: u32,
+    pub finding_row_why_some: u32,
+    pub finding_detail_body: u32,
+    pub finding_detail_reason_some: u32,
     pub group_failed_why: u32,
     pub set_up_failed_why: u32,
     pub connected_login: u32,
@@ -106,10 +120,12 @@ pub struct Limits {
     pub charter_words_line: u32,
     pub project_words_headline: u32,
     pub project_words_lede: u32,
+    pub way_role_words: u32,
     pub stock_way_name: u32,
     pub stock_way_headline: u32,
     pub stock_way_line: u32,
     pub stock_way_items: u32,
+    pub stock_way_roles: u32,
     pub path_rule_paths: u32,
     pub path_rule_review: u32,
     pub path_rule_sign_off: u32,
@@ -200,11 +216,11 @@ pub struct Limits {
     pub follow_source_paths: u32,
     pub follow_source_paths_item: u32,
     pub follow_target_branch: u32,
+    pub follow_words_words: u32,
+    pub follow_skip_reason: u32,
     pub follow_check_workflow: u32,
     pub follow_check_artifact: u32,
     pub follow_producer_some: u32,
-    pub follow_words_words: u32,
-    pub follow_skip_reason: u32,
     pub follow_parity_run: u32,
     pub follow_view_source: u32,
     pub follow_view_source_branch: u32,
@@ -215,6 +231,13 @@ pub struct Limits {
     pub follow_view_skips: u32,
     pub follows_panel_follows: u32,
     pub follows_panel_dependencies: u32,
+    pub area_name: u32,
+    pub area_words: u32,
+    pub project_areas_areas: u32,
+    pub area_row_name: u32,
+    pub area_row_words: u32,
+    pub findings_rows: u32,
+    pub findings_areas: u32,
 }
 
 /// The schema's maximum limits.
@@ -263,7 +286,6 @@ pub const CEILINGS: Limits = Limits {
     dismiss_making_name: 1_024,
     draft_repository_owner: 1_024,
     draft_repository_name: 1_024,
-    set_draft_path: 1_024,
     landed_draft_owner: 1_024,
     landed_draft_name: 1_024,
     landed_draft_path: 1_024,
@@ -273,11 +295,26 @@ pub const CEILINGS: Limits = Limits {
     follow_reason_act_reason: 8_192,
     follow_merge_act_afters: 32,
     follow_outcome_refusal_some: 8_192,
+    hand_finding_area: 32,
+    hand_finding_why: 200,
+    finding_drop_reason: 400,
+    finding_areas_areas: 16,
+    finding_areas_areas_item: 32,
+    finding_words_field: 32,
+    set_draft_path: 1_024,
     add_device_endpoint: 1_024,
     add_device_label: 60,
     device_row_label: 60,
     device_row_endpoint: 1_024,
     devices_rows: 8,
+    file_finding_area_some: 32,
+    file_finding_title: 200,
+    file_finding_body: 4_096,
+    finding_row_area_some: 32,
+    finding_row_title: 200,
+    finding_row_why_some: 200,
+    finding_detail_body: 4_096,
+    finding_detail_reason_some: 400,
     group_failed_why: 256,
     set_up_failed_why: 256,
     connected_login: 1_024,
@@ -319,10 +356,12 @@ pub const CEILINGS: Limits = Limits {
     charter_words_line: 120,
     project_words_headline: 120,
     project_words_lede: 480,
+    way_role_words: 480,
     stock_way_name: 64,
     stock_way_headline: 120,
     stock_way_line: 256,
-    stock_way_items: 8,
+    stock_way_items: 10,
+    stock_way_roles: 4,
     path_rule_paths: 256,
     path_rule_review: 64,
     path_rule_sign_off: 64,
@@ -413,11 +452,11 @@ pub const CEILINGS: Limits = Limits {
     follow_source_paths: 256,
     follow_source_paths_item: 256,
     follow_target_branch: 4_096,
+    follow_words_words: 8_192,
+    follow_skip_reason: 8_192,
     follow_check_workflow: 256,
     follow_check_artifact: 256,
     follow_producer_some: 8_192,
-    follow_words_words: 8_192,
-    follow_skip_reason: 8_192,
     follow_parity_run: 2_048,
     follow_view_source: 2_048,
     follow_view_source_branch: 4_096,
@@ -428,6 +467,13 @@ pub const CEILINGS: Limits = Limits {
     follow_view_skips: 256,
     follows_panel_follows: 256,
     follows_panel_dependencies: 256,
+    area_name: 32,
+    area_words: 480,
+    project_areas_areas: 16,
+    area_row_name: 32,
+    area_row_words: 480,
+    findings_rows: 128,
+    findings_areas: 16,
 };
 
 /// A field or tag that caused a codec problem.
@@ -885,24 +931,6 @@ pub enum Path {
     StartedDraftGoal,
     /// Bytes after `StartedDraft`.
     StartedDraftTail,
-    /// The tag of `DraftChange`.
-    DraftChangeTag,
-    /// The `project` field of `SetDraft`.
-    SetDraftProject,
-    /// The `repository` field of `SetDraft`.
-    SetDraftRepository,
-    /// The `path` field of `SetDraft`.
-    SetDraftPath,
-    /// The `change` field of `SetDraft`.
-    SetDraftChange,
-    /// Bytes after `SetDraft`.
-    SetDraftTail,
-    /// The tag of `DraftRefusal`.
-    DraftRefusalTag,
-    /// The `reason` field of `DraftRefused`.
-    DraftRefusedReason,
-    /// Bytes after `DraftRefused`.
-    DraftRefusedTail,
     /// The `forge` field of `LandedDraft`.
     LandedDraftForge,
     /// The `owner` field of `LandedDraft`.
@@ -947,12 +975,82 @@ pub enum Path {
     FollowMergeActAfters,
     /// Bytes after `FollowMergeAct`.
     FollowMergeActTail,
-    /// The tag of `FollowAct`.
-    FollowActTag,
     /// The `refusal` field of `FollowOutcome`.
     FollowOutcomeRefusal,
     /// Bytes after `FollowOutcome`.
     FollowOutcomeTail,
+    /// The `number` field of `HolderTask`.
+    HolderTaskNumber,
+    /// Bytes after `HolderTask`.
+    HolderTaskTail,
+    /// The `number` field of `HolderParty`.
+    HolderPartyNumber,
+    /// Bytes after `HolderParty`.
+    HolderPartyTail,
+    /// The `number` field of `HolderRole`.
+    HolderRoleNumber,
+    /// Bytes after `HolderRole`.
+    HolderRoleTail,
+    /// The `project` field of `HandFinding`.
+    HandFindingProject,
+    /// The `number` field of `HandFinding`.
+    HandFindingNumber,
+    /// The `area` field of `HandFinding`.
+    HandFindingArea,
+    /// The `why` field of `HandFinding`.
+    HandFindingWhy,
+    /// Bytes after `HandFinding`.
+    HandFindingTail,
+    /// The `task` field of `FindingRoute`.
+    FindingRouteTask,
+    /// Bytes after `FindingRoute`.
+    FindingRouteTail,
+    /// The `reason` field of `FindingDrop`.
+    FindingDropReason,
+    /// Bytes after `FindingDrop`.
+    FindingDropTail,
+    /// The `number` field of `Filed`.
+    FiledNumber,
+    /// Bytes after `Filed`.
+    FiledTail,
+    /// The `areas` field of `FindingAreas`.
+    FindingAreasAreas,
+    /// Bytes after `FindingAreas`.
+    FindingAreasTail,
+    /// The `count` field of `FindingsFull`.
+    FindingsFullCount,
+    /// Bytes after `FindingsFull`.
+    FindingsFullTail,
+    /// The `field` field of `FindingWords`.
+    FindingWordsField,
+    /// Bytes after `FindingWords`.
+    FindingWordsTail,
+    /// The `project` field of `FindingRead`.
+    FindingReadProject,
+    /// The `number` field of `FindingRead`.
+    FindingReadNumber,
+    /// Bytes after `FindingRead`.
+    FindingReadTail,
+    /// The tag of `DraftChange`.
+    DraftChangeTag,
+    /// The `project` field of `SetDraft`.
+    SetDraftProject,
+    /// The `repository` field of `SetDraft`.
+    SetDraftRepository,
+    /// The `path` field of `SetDraft`.
+    SetDraftPath,
+    /// The `change` field of `SetDraft`.
+    SetDraftChange,
+    /// Bytes after `SetDraft`.
+    SetDraftTail,
+    /// The tag of `DraftRefusal`.
+    DraftRefusalTag,
+    /// The `reason` field of `DraftRefused`.
+    DraftRefusedReason,
+    /// Bytes after `DraftRefused`.
+    DraftRefusedTail,
+    /// The tag of `FollowAct`.
+    FollowActTag,
     /// The `project` field of `FollowActRequest`.
     FollowActRequestProject,
     /// The `follow` field of `FollowActRequest`.
@@ -1001,6 +1099,100 @@ pub enum Path {
     DevicesVersion,
     /// Bytes after `Devices`.
     DevicesTail,
+    /// The tag of `FindingKind`.
+    FindingKindTag,
+    /// The tag of `Severity`.
+    SeverityTag,
+    /// The `project` field of `FileFinding`.
+    FileFindingProject,
+    /// The `kind` field of `FileFinding`.
+    FileFindingKind,
+    /// The `severity` field of `FileFinding`.
+    FileFindingSeverity,
+    /// The `area` field of `FileFinding`.
+    FileFindingArea,
+    /// The `title` field of `FileFinding`.
+    FileFindingTitle,
+    /// The `body` field of `FileFinding`.
+    FileFindingBody,
+    /// Bytes after `FileFinding`.
+    FileFindingTail,
+    /// The tag of `FindingState`.
+    FindingStateTag,
+    /// The `project` field of `FindingsSubject`.
+    FindingsSubjectProject,
+    /// The `state` field of `FindingsSubject`.
+    FindingsSubjectState,
+    /// The `mine` field of `FindingsSubject`.
+    FindingsSubjectMine,
+    /// Bytes after `FindingsSubject`.
+    FindingsSubjectTail,
+    /// The tag of `Holder`.
+    HolderTag,
+    /// The `holder` field of `FindingNotYours`.
+    FindingNotYoursHolder,
+    /// Bytes after `FindingNotYours`.
+    FindingNotYoursTail,
+    /// The tag of `Filer`.
+    FilerTag,
+    /// The `number` field of `FindingRow`.
+    FindingRowNumber,
+    /// The `kind` field of `FindingRow`.
+    FindingRowKind,
+    /// The `severity` field of `FindingRow`.
+    FindingRowSeverity,
+    /// The `area` field of `FindingRow`.
+    FindingRowArea,
+    /// The `state` field of `FindingRow`.
+    FindingRowState,
+    /// The `title` field of `FindingRow`.
+    FindingRowTitle,
+    /// The `holder` field of `FindingRow`.
+    FindingRowHolder,
+    /// The `at` field of `FindingRow`.
+    FindingRowAt,
+    /// The `why` field of `FindingRow`.
+    FindingRowWhy,
+    /// The `hander` field of `FindingRow`.
+    FindingRowHander,
+    /// Bytes after `FindingRow`.
+    FindingRowTail,
+    /// The `row` field of `FindingDetail`.
+    FindingDetailRow,
+    /// The `body` field of `FindingDetail`.
+    FindingDetailBody,
+    /// The `filer` field of `FindingDetail`.
+    FindingDetailFiler,
+    /// The `goal` field of `FindingDetail`.
+    FindingDetailGoal,
+    /// The `reason` field of `FindingDetail`.
+    FindingDetailReason,
+    /// Bytes after `FindingDetail`.
+    FindingDetailTail,
+    /// The tag of `Triage`.
+    TriageTag,
+    /// The `project` field of `TriageFinding`.
+    TriageFindingProject,
+    /// The `number` field of `TriageFinding`.
+    TriageFindingNumber,
+    /// The `act` field of `TriageFinding`.
+    TriageFindingAct,
+    /// Bytes after `TriageFinding`.
+    TriageFindingTail,
+    /// The tag of `FindingRefusal`.
+    FindingRefusalTag,
+    /// The `reason` field of `FindingRefused`.
+    FindingRefusedReason,
+    /// Bytes after `FindingRefused`.
+    FindingRefusedTail,
+    /// The tag of `FindingResult`.
+    FindingResultTag,
+    /// The `result` field of `FindingAnswer`.
+    FindingAnswerResult,
+    /// The version of `FindingAnswer`.
+    FindingAnswerVersion,
+    /// Bytes after `FindingAnswer`.
+    FindingAnswerTail,
     /// The tag of `Request`.
     RequestTag,
     /// The `request` field of `Requesting`.
@@ -1357,6 +1549,16 @@ pub enum Path {
     ProjectWordsLede,
     /// Bytes after `ProjectWords`.
     ProjectWordsTail,
+    /// The `charter` field of `WayRole`.
+    WayRoleCharter,
+    /// The `words` field of `WayRole`.
+    WayRoleWords,
+    /// The `budget` field of `WayRole`.
+    WayRoleBudget,
+    /// The `running` field of `WayRole`.
+    WayRoleRunning,
+    /// Bytes after `WayRole`.
+    WayRoleTail,
     /// The `name` field of `StockWay`.
     StockWayName,
     /// The `headline` field of `StockWay`.
@@ -1369,6 +1571,8 @@ pub enum Path {
     StockWayItems,
     /// The `delegation` field of `StockWay`.
     StockWayDelegation,
+    /// The `roles` field of `StockWay`.
+    StockWayRoles,
     /// Bytes after `StockWay`.
     StockWayTail,
     /// The `project` field of `WaysSubject`.
@@ -2185,6 +2389,40 @@ pub enum Path {
     FollowPersonPerson,
     /// Bytes after `FollowPerson`.
     FollowPersonTail,
+    /// The `words` field of `FollowWords`.
+    FollowWordsWords,
+    /// Bytes after `FollowWords`.
+    FollowWordsTail,
+    /// The `change` field of `FollowWait`.
+    FollowWaitChange,
+    /// Bytes after `FollowWait`.
+    FollowWaitTail,
+    /// The `after` field of `FollowSkip`.
+    FollowSkipAfter,
+    /// The `reason` field of `FollowSkip`.
+    FollowSkipReason,
+    /// Bytes after `FollowSkip`.
+    FollowSkipTail,
+    /// The `count` field of `FollowFailing`.
+    FollowFailingCount,
+    /// Bytes after `FollowFailing`.
+    FollowFailingTail,
+    /// The `number` field of `AreaTask`.
+    AreaTaskNumber,
+    /// Bytes after `AreaTask`.
+    AreaTaskTail,
+    /// The `number` field of `AreaParty`.
+    AreaPartyNumber,
+    /// Bytes after `AreaParty`.
+    AreaPartyTail,
+    /// The `number` field of `AreaRole`.
+    AreaRoleNumber,
+    /// Bytes after `AreaRole`.
+    AreaRoleTail,
+    /// The `number` field of `AreaCharter`.
+    AreaCharterNumber,
+    /// Bytes after `AreaCharter`.
+    AreaCharterTail,
     /// The tag of `FollowOwner`.
     FollowOwnerTag,
     /// The tag of `FollowStart`.
@@ -2213,14 +2451,6 @@ pub enum Path {
     FollowVerification,
     /// Bytes after `Follow`.
     FollowTail,
-    /// The `words` field of `FollowWords`.
-    FollowWordsWords,
-    /// Bytes after `FollowWords`.
-    FollowWordsTail,
-    /// The `change` field of `FollowWait`.
-    FollowWaitChange,
-    /// Bytes after `FollowWait`.
-    FollowWaitTail,
     /// The tag of `FollowState`.
     FollowStateTag,
     /// The `after` field of `FollowEntry`.
@@ -2231,16 +2461,6 @@ pub enum Path {
     FollowEntryState,
     /// Bytes after `FollowEntry`.
     FollowEntryTail,
-    /// The `after` field of `FollowSkip`.
-    FollowSkipAfter,
-    /// The `reason` field of `FollowSkip`.
-    FollowSkipReason,
-    /// Bytes after `FollowSkip`.
-    FollowSkipTail,
-    /// The `count` field of `FollowFailing`.
-    FollowFailingCount,
-    /// Bytes after `FollowFailing`.
-    FollowFailingTail,
     /// The tag of `FollowVerdict`.
     FollowVerdictTag,
     /// The `source` field of `FollowParity`.
@@ -2289,6 +2509,50 @@ pub enum Path {
     FollowsPanelVersion,
     /// Bytes after `FollowsPanel`.
     FollowsPanelTail,
+    /// The tag of `AreaOwner`.
+    AreaOwnerTag,
+    /// The `name` field of `Area`.
+    AreaName,
+    /// The `words` field of `Area`.
+    AreaWords,
+    /// The `owner` field of `Area`.
+    AreaOwner,
+    /// Bytes after `Area`.
+    AreaTail,
+    /// The `areas` field of `ProjectAreas`.
+    ProjectAreasAreas,
+    /// Bytes after `ProjectAreas`.
+    ProjectAreasTail,
+    /// The `owner` field of `ProjectTriager`.
+    ProjectTriagerOwner,
+    /// Bytes after `ProjectTriager`.
+    ProjectTriagerTail,
+    /// The `name` field of `AreaRow`.
+    AreaRowName,
+    /// The `words` field of `AreaRow`.
+    AreaRowWords,
+    /// The `owner` field of `AreaRow`.
+    AreaRowOwner,
+    /// The `holder` field of `AreaRow`.
+    AreaRowHolder,
+    /// Bytes after `AreaRow`.
+    AreaRowTail,
+    /// The `project` field of `Findings`.
+    FindingsProject,
+    /// The `rows` field of `Findings`.
+    FindingsRows,
+    /// The `areas` field of `Findings`.
+    FindingsAreas,
+    /// The `triager` field of `Findings`.
+    FindingsTriager,
+    /// The `holder` field of `Findings`.
+    FindingsHolder,
+    /// The `cut` field of `Findings`.
+    FindingsCut,
+    /// The version of `Findings`.
+    FindingsVersion,
+    /// Bytes after `Findings`.
+    FindingsTail,
 }
 
 /// A decoding or bound failure at a schema path.
@@ -2351,7 +2615,6 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.dismiss_making_name > CEILINGS.dismiss_making_name { return Err(Problem { path: Path::DismissMakingName, reason: skein_codec::Reason::Bound }); }
     if limits.draft_repository_owner > CEILINGS.draft_repository_owner { return Err(Problem { path: Path::DraftRepositoryOwner, reason: skein_codec::Reason::Bound }); }
     if limits.draft_repository_name > CEILINGS.draft_repository_name { return Err(Problem { path: Path::DraftRepositoryName, reason: skein_codec::Reason::Bound }); }
-    if limits.set_draft_path > CEILINGS.set_draft_path { return Err(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Bound }); }
     if limits.landed_draft_owner > CEILINGS.landed_draft_owner { return Err(Problem { path: Path::LandedDraftOwner, reason: skein_codec::Reason::Bound }); }
     if limits.landed_draft_name > CEILINGS.landed_draft_name { return Err(Problem { path: Path::LandedDraftName, reason: skein_codec::Reason::Bound }); }
     if limits.landed_draft_path > CEILINGS.landed_draft_path { return Err(Problem { path: Path::LandedDraftPath, reason: skein_codec::Reason::Bound }); }
@@ -2361,11 +2624,26 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_reason_act_reason > CEILINGS.follow_reason_act_reason { return Err(Problem { path: Path::FollowReasonActReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_merge_act_afters > CEILINGS.follow_merge_act_afters { return Err(Problem { path: Path::FollowMergeActAfters, reason: skein_codec::Reason::Bound }); }
     if limits.follow_outcome_refusal_some > CEILINGS.follow_outcome_refusal_some { return Err(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Bound }); }
+    if limits.hand_finding_area > CEILINGS.hand_finding_area { return Err(Problem { path: Path::HandFindingArea, reason: skein_codec::Reason::Bound }); }
+    if limits.hand_finding_why > CEILINGS.hand_finding_why { return Err(Problem { path: Path::HandFindingWhy, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_drop_reason > CEILINGS.finding_drop_reason { return Err(Problem { path: Path::FindingDropReason, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_areas_areas > CEILINGS.finding_areas_areas { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_areas_areas_item > CEILINGS.finding_areas_areas_item { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_words_field > CEILINGS.finding_words_field { return Err(Problem { path: Path::FindingWordsField, reason: skein_codec::Reason::Bound }); }
+    if limits.set_draft_path > CEILINGS.set_draft_path { return Err(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Bound }); }
     if limits.add_device_endpoint > CEILINGS.add_device_endpoint { return Err(Problem { path: Path::AddDeviceEndpoint, reason: skein_codec::Reason::Bound }); }
     if limits.add_device_label > CEILINGS.add_device_label { return Err(Problem { path: Path::AddDeviceLabel, reason: skein_codec::Reason::Bound }); }
     if limits.device_row_label > CEILINGS.device_row_label { return Err(Problem { path: Path::DeviceRowLabel, reason: skein_codec::Reason::Bound }); }
     if limits.device_row_endpoint > CEILINGS.device_row_endpoint { return Err(Problem { path: Path::DeviceRowEndpoint, reason: skein_codec::Reason::Bound }); }
     if limits.devices_rows > CEILINGS.devices_rows { return Err(Problem { path: Path::DevicesRows, reason: skein_codec::Reason::Bound }); }
+    if limits.file_finding_area_some > CEILINGS.file_finding_area_some { return Err(Problem { path: Path::FileFindingArea, reason: skein_codec::Reason::Bound }); }
+    if limits.file_finding_title > CEILINGS.file_finding_title { return Err(Problem { path: Path::FileFindingTitle, reason: skein_codec::Reason::Bound }); }
+    if limits.file_finding_body > CEILINGS.file_finding_body { return Err(Problem { path: Path::FileFindingBody, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_row_area_some > CEILINGS.finding_row_area_some { return Err(Problem { path: Path::FindingRowArea, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_row_title > CEILINGS.finding_row_title { return Err(Problem { path: Path::FindingRowTitle, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_row_why_some > CEILINGS.finding_row_why_some { return Err(Problem { path: Path::FindingRowWhy, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_detail_body > CEILINGS.finding_detail_body { return Err(Problem { path: Path::FindingDetailBody, reason: skein_codec::Reason::Bound }); }
+    if limits.finding_detail_reason_some > CEILINGS.finding_detail_reason_some { return Err(Problem { path: Path::FindingDetailReason, reason: skein_codec::Reason::Bound }); }
     if limits.group_failed_why > CEILINGS.group_failed_why { return Err(Problem { path: Path::GroupFailedWhy, reason: skein_codec::Reason::Bound }); }
     if limits.set_up_failed_why > CEILINGS.set_up_failed_why { return Err(Problem { path: Path::SetUpFailedWhy, reason: skein_codec::Reason::Bound }); }
     if limits.connected_login > CEILINGS.connected_login { return Err(Problem { path: Path::ConnectedLogin, reason: skein_codec::Reason::Bound }); }
@@ -2383,6 +2661,10 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.making_made_branch > CEILINGS.making_made_branch { return Err(Problem { path: Path::MakingMadeBranch, reason: skein_codec::Reason::Bound }); }
     if limits.making_failed_words > CEILINGS.making_failed_words { return Err(Problem { path: Path::MakingFailedWords, reason: skein_codec::Reason::Bound }); }
     if limits.repository_making_org > CEILINGS.repository_making_org { return Err(Problem { path: Path::RepositoryMakingOrg, reason: skein_codec::Reason::Bound }); }
+    Ok(())
+}
+
+fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.repository_making_name > CEILINGS.repository_making_name { return Err(Problem { path: Path::RepositoryMakingName, reason: skein_codec::Reason::Bound }); }
     if limits.forge_row_host > CEILINGS.forge_row_host { return Err(Problem { path: Path::ForgeRowHost, reason: skein_codec::Reason::Bound }); }
     if limits.forge_row_installations > CEILINGS.forge_row_installations { return Err(Problem { path: Path::ForgeRowInstallations, reason: skein_codec::Reason::Bound }); }
@@ -2397,10 +2679,6 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.fact_label > CEILINGS.fact_label { return Err(Problem { path: Path::FactLabel, reason: skein_codec::Reason::Bound }); }
     if limits.fact_value > CEILINGS.fact_value { return Err(Problem { path: Path::FactValue, reason: skein_codec::Reason::Bound }); }
     if limits.card_who > CEILINGS.card_who { return Err(Problem { path: Path::CardWho, reason: skein_codec::Reason::Bound }); }
-    Ok(())
-}
-
-fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.card_name > CEILINGS.card_name { return Err(Problem { path: Path::CardName, reason: skein_codec::Reason::Bound }); }
     if limits.card_facts > CEILINGS.card_facts { return Err(Problem { path: Path::CardFacts, reason: skein_codec::Reason::Bound }); }
     if limits.stop_words > CEILINGS.stop_words { return Err(Problem { path: Path::StopWords, reason: skein_codec::Reason::Bound }); }
@@ -2411,10 +2689,12 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.charter_words_line > CEILINGS.charter_words_line { return Err(Problem { path: Path::CharterWordsLine, reason: skein_codec::Reason::Bound }); }
     if limits.project_words_headline > CEILINGS.project_words_headline { return Err(Problem { path: Path::ProjectWordsHeadline, reason: skein_codec::Reason::Bound }); }
     if limits.project_words_lede > CEILINGS.project_words_lede { return Err(Problem { path: Path::ProjectWordsLede, reason: skein_codec::Reason::Bound }); }
+    if limits.way_role_words > CEILINGS.way_role_words { return Err(Problem { path: Path::WayRoleWords, reason: skein_codec::Reason::Bound }); }
     if limits.stock_way_name > CEILINGS.stock_way_name { return Err(Problem { path: Path::StockWayName, reason: skein_codec::Reason::Bound }); }
     if limits.stock_way_headline > CEILINGS.stock_way_headline { return Err(Problem { path: Path::StockWayHeadline, reason: skein_codec::Reason::Bound }); }
     if limits.stock_way_line > CEILINGS.stock_way_line { return Err(Problem { path: Path::StockWayLine, reason: skein_codec::Reason::Bound }); }
     if limits.stock_way_items > CEILINGS.stock_way_items { return Err(Problem { path: Path::StockWayItems, reason: skein_codec::Reason::Bound }); }
+    if limits.stock_way_roles > CEILINGS.stock_way_roles { return Err(Problem { path: Path::StockWayRoles, reason: skein_codec::Reason::Bound }); }
     if limits.path_rule_paths > CEILINGS.path_rule_paths { return Err(Problem { path: Path::PathRulePaths, reason: skein_codec::Reason::Bound }); }
     if limits.path_rule_review > CEILINGS.path_rule_review { return Err(Problem { path: Path::PathRuleReview, reason: skein_codec::Reason::Bound }); }
     if limits.path_rule_sign_off > CEILINGS.path_rule_sign_off { return Err(Problem { path: Path::PathRuleSignOff, reason: skein_codec::Reason::Bound }); }
@@ -2475,6 +2755,10 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.change_panel_name > CEILINGS.change_panel_name { return Err(Problem { path: Path::ChangePanelName, reason: skein_codec::Reason::Bound }); }
     if limits.change_panel_branch > CEILINGS.change_panel_branch { return Err(Problem { path: Path::ChangePanelBranch, reason: skein_codec::Reason::Bound }); }
     if limits.change_panel_landing > CEILINGS.change_panel_landing { return Err(Problem { path: Path::ChangePanelLanding, reason: skein_codec::Reason::Bound }); }
+    Ok(())
+}
+
+fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.change_panel_gates > CEILINGS.change_panel_gates { return Err(Problem { path: Path::ChangePanelGates, reason: skein_codec::Reason::Bound }); }
     if limits.change_panel_approvals > CEILINGS.change_panel_approvals { return Err(Problem { path: Path::ChangePanelApprovals, reason: skein_codec::Reason::Bound }); }
     if limits.change_panel_unmapped_reviews > CEILINGS.change_panel_unmapped_reviews { return Err(Problem { path: Path::ChangePanelUnmappedReviews, reason: skein_codec::Reason::Bound }); }
@@ -2491,10 +2775,6 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.landing_open_value > CEILINGS.landing_open_value { return Err(Problem { path: Path::LandingOpenValue, reason: skein_codec::Reason::Bound }); }
     if limits.landing_pattern_segments > CEILINGS.landing_pattern_segments { return Err(Problem { path: Path::LandingPatternSegments, reason: skein_codec::Reason::Bound }); }
     if limits.landing_pattern_segments_item > CEILINGS.landing_pattern_segments_item { return Err(Problem { path: Path::LandingPatternSegments, reason: skein_codec::Reason::Bound }); }
-    Ok(())
-}
-
-fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.landing_rule_gates > CEILINGS.landing_rule_gates { return Err(Problem { path: Path::LandingRuleGates, reason: skein_codec::Reason::Bound }); }
     if limits.landing_rule_approvals > CEILINGS.landing_rule_approvals { return Err(Problem { path: Path::LandingRuleApprovals, reason: skein_codec::Reason::Bound }); }
     if limits.landing_rule_sets > CEILINGS.landing_rule_sets { return Err(Problem { path: Path::LandingRuleSets, reason: skein_codec::Reason::Bound }); }
@@ -2509,11 +2789,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_source_paths > CEILINGS.follow_source_paths { return Err(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Bound }); }
     if limits.follow_source_paths_item > CEILINGS.follow_source_paths_item { return Err(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Bound }); }
     if limits.follow_target_branch > CEILINGS.follow_target_branch { return Err(Problem { path: Path::FollowTargetBranch, reason: skein_codec::Reason::Bound }); }
+    if limits.follow_words_words > CEILINGS.follow_words_words { return Err(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Bound }); }
+    if limits.follow_skip_reason > CEILINGS.follow_skip_reason { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_check_workflow > CEILINGS.follow_check_workflow { return Err(Problem { path: Path::FollowCheckWorkflow, reason: skein_codec::Reason::Bound }); }
     if limits.follow_check_artifact > CEILINGS.follow_check_artifact { return Err(Problem { path: Path::FollowCheckArtifact, reason: skein_codec::Reason::Bound }); }
     if limits.follow_producer_some > CEILINGS.follow_producer_some { return Err(Problem { path: Path::FollowProducer, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_words_words > CEILINGS.follow_words_words { return Err(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_skip_reason > CEILINGS.follow_skip_reason { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
     if limits.follow_parity_run > CEILINGS.follow_parity_run { return Err(Problem { path: Path::FollowParityRun, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_source > CEILINGS.follow_view_source { return Err(Problem { path: Path::FollowViewSource, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_source_branch > CEILINGS.follow_view_source_branch { return Err(Problem { path: Path::FollowViewSourceBranch, reason: skein_codec::Reason::Bound }); }
@@ -2524,6 +2804,13 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_view_skips > CEILINGS.follow_view_skips { return Err(Problem { path: Path::FollowViewSkips, reason: skein_codec::Reason::Bound }); }
     if limits.follows_panel_follows > CEILINGS.follows_panel_follows { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Bound }); }
     if limits.follows_panel_dependencies > CEILINGS.follows_panel_dependencies { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Bound }); }
+    if limits.area_name > CEILINGS.area_name { return Err(Problem { path: Path::AreaName, reason: skein_codec::Reason::Bound }); }
+    if limits.area_words > CEILINGS.area_words { return Err(Problem { path: Path::AreaWords, reason: skein_codec::Reason::Bound }); }
+    if limits.project_areas_areas > CEILINGS.project_areas_areas { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Bound }); }
+    if limits.area_row_name > CEILINGS.area_row_name { return Err(Problem { path: Path::AreaRowName, reason: skein_codec::Reason::Bound }); }
+    if limits.area_row_words > CEILINGS.area_row_words { return Err(Problem { path: Path::AreaRowWords, reason: skein_codec::Reason::Bound }); }
+    if limits.findings_rows > CEILINGS.findings_rows { return Err(Problem { path: Path::FindingsRows, reason: skein_codec::Reason::Bound }); }
+    if limits.findings_areas > CEILINGS.findings_areas { return Err(Problem { path: Path::FindingsAreas, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
@@ -5419,143 +5706,6 @@ impl StartedDraft {
 
 }
 
-/// `DraftChange` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum DraftChange {
-    /// `ready` carrying `ReadyDraft`.
-    Ready(ReadyDraft),
-    /// `not_ready` without a payload.
-    NotReady,
-    /// `started` carrying `StartedDraft`.
-    Started(StartedDraft),
-}
-
-impl DraftChange {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `SetDraft`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SetDraftParts {
-    /// The `project` field.
-    pub project: u32,
-    /// The `repository` field.
-    pub repository: Option<DraftRepository>,
-    /// The `path` field.
-    pub path: Box<[u8]>,
-    /// The `change` field.
-    pub change: DraftChange,
-}
-
-/// `SetDraft` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SetDraft {
-    project: u32,
-    repository: Option<DraftRepository>,
-    path: Box<[u8]>,
-    change: DraftChange,
-}
-
-impl SetDraft {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: SetDraftParts) -> Result<Self, Problem> {
-        let SetDraftParts { project, repository, path, change } = parts;
-        let value = Self { project, repository, path, change };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `project` field.
-    #[must_use]
-    pub fn project(&self) -> u32 { self.project }
-
-    /// Reads the `repository` field.
-    #[must_use]
-    pub fn repository(&self) -> &Option<DraftRepository> { &self.repository }
-
-    /// Reads the `path` field.
-    #[must_use]
-    pub fn path(&self) -> &[u8] { &self.path }
-
-    /// Reads the `change` field.
-    #[must_use]
-    pub fn change(&self) -> &DraftChange { &self.change }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> SetDraftParts { SetDraftParts { project: self.project, repository: self.repository, path: self.path, change: self.change } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.repository.as_ref() {
-        some_0.check(limits)?;
-        }
-        if self.path.len() > usize::try_from(limits.set_draft_path.min(CEILINGS.set_draft_path)).expect("u32 fits usize") { return Err(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// `DraftRefusal` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum DraftRefusal {
-    /// `no_repository` without a payload.
-    NoRepository,
-    /// `path` without a payload.
-    Path,
-    /// `missing` without a payload.
-    Missing,
-    /// `not_a_file` without a payload.
-    NotAFile,
-    /// `unreachable` without a payload.
-    Unreachable,
-    /// `unknown` without a payload.
-    Unknown,
-    /// `full` without a payload.
-    Full,
-}
-
-impl DraftRefusal {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-/// Movable fields of `DraftRefused`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct DraftRefusedParts {
-    /// The `reason` field.
-    pub reason: DraftRefusal,
-}
-
-/// `DraftRefused` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct DraftRefused {
-    reason: DraftRefusal,
-}
-
-impl DraftRefused {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: DraftRefusedParts) -> Result<Self, Problem> {
-        let DraftRefusedParts { reason } = parts;
-        let value = Self { reason };
-        Ok(value)
-    }
-
-    /// Reads the `reason` field.
-    #[must_use]
-    pub fn reason(&self) -> &DraftRefusal { &self.reason }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> DraftRefusedParts { DraftRefusedParts { reason: self.reason } }
-
-}
-
 /// Movable fields of `LandedDraft`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandedDraftParts {
@@ -5815,36 +5965,6 @@ impl FollowMergeAct {
     }
 }
 
-/// `FollowAct` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum FollowAct {
-    /// `start` carrying `FollowAt`.
-    Start(FollowAt),
-    /// `hold` carrying `FollowReasonAct`.
-    Hold(FollowReasonAct),
-    /// `skip` carrying `FollowReasonAct`.
-    Skip(FollowReasonAct),
-    /// `merge` carrying `FollowMergeAct`.
-    Merge(FollowMergeAct),
-}
-
-impl FollowAct {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Hold(record) | Self::Skip(record) => FollowReasonAct::check(record, limits),
-            Self::Merge(record) => FollowMergeAct::check(record, limits),
-            Self::Start(_) => Ok(()),
-        }?;
-        Ok(())
-    }
-}
-
 /// Movable fields of `FollowOutcome`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FollowOutcomeParts {
@@ -5877,6 +5997,571 @@ impl FollowOutcome {
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.refusal.as_ref() && some_0.len() > usize::try_from(limits.follow_outcome_refusal_some.min(CEILINGS.follow_outcome_refusal_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `HolderTask`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderTaskParts {
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `HolderTask` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderTask {
+    number: u64,
+}
+
+impl HolderTask {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HolderTaskParts) -> Result<Self, Problem> {
+        let HolderTaskParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HolderTaskParts { HolderTaskParts { number: self.number } }
+
+}
+
+/// Movable fields of `HolderParty`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderPartyParts {
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `HolderParty` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderParty {
+    number: u64,
+}
+
+impl HolderParty {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HolderPartyParts) -> Result<Self, Problem> {
+        let HolderPartyParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HolderPartyParts { HolderPartyParts { number: self.number } }
+
+}
+
+/// Movable fields of `HolderRole`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderRoleParts {
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `HolderRole` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HolderRole {
+    number: u32,
+}
+
+impl HolderRole {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HolderRoleParts) -> Result<Self, Problem> {
+        let HolderRoleParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HolderRoleParts { HolderRoleParts { number: self.number } }
+
+}
+
+/// Movable fields of `HandFinding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HandFindingParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `area` field.
+    pub area: Box<[u8]>,
+    /// The `why` field.
+    pub why: Box<[u8]>,
+}
+
+/// `HandFinding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HandFinding {
+    project: u32,
+    number: u32,
+    area: Box<[u8]>,
+    why: Box<[u8]>,
+}
+
+impl HandFinding {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: HandFindingParts) -> Result<Self, Problem> {
+        let HandFindingParts { project, number, area, why } = parts;
+        let value = Self { project, number, area, why };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `area` field.
+    #[must_use]
+    pub fn area(&self) -> &[u8] { &self.area }
+
+    /// Reads the `why` field.
+    #[must_use]
+    pub fn why(&self) -> &[u8] { &self.why }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HandFindingParts { HandFindingParts { project: self.project, number: self.number, area: self.area, why: self.why } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.area.len() > usize::try_from(limits.hand_finding_area.min(CEILINGS.hand_finding_area)).expect("u32 fits usize") { return Err(Problem { path: Path::HandFindingArea, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.area.as_ref()) { return Err(Problem { path: Path::HandFindingArea, reason: skein_codec::Reason::Utf8 }); }
+        if self.why.len() > usize::try_from(limits.hand_finding_why.min(CEILINGS.hand_finding_why)).expect("u32 fits usize") { return Err(Problem { path: Path::HandFindingWhy, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.why.as_ref()) { return Err(Problem { path: Path::HandFindingWhy, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingRoute`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRouteParts {
+    /// The `task` field.
+    pub task: u64,
+}
+
+/// `FindingRoute` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRoute {
+    task: u64,
+}
+
+impl FindingRoute {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingRouteParts) -> Result<Self, Problem> {
+        let FindingRouteParts { task } = parts;
+        let value = Self { task };
+        Ok(value)
+    }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingRouteParts { FindingRouteParts { task: self.task } }
+
+}
+
+/// Movable fields of `FindingDrop`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingDropParts {
+    /// The `reason` field.
+    pub reason: Box<[u8]>,
+}
+
+/// `FindingDrop` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingDrop {
+    reason: Box<[u8]>,
+}
+
+impl FindingDrop {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingDropParts) -> Result<Self, Problem> {
+        let FindingDropParts { reason } = parts;
+        let value = Self { reason };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &[u8] { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingDropParts { FindingDropParts { reason: self.reason } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.reason.len() > usize::try_from(limits.finding_drop_reason.min(CEILINGS.finding_drop_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingDropReason, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.reason.as_ref()) { return Err(Problem { path: Path::FindingDropReason, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `Filed`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FiledParts {
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `Filed` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Filed {
+    number: u32,
+}
+
+impl Filed {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FiledParts) -> Result<Self, Problem> {
+        let FiledParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FiledParts { FiledParts { number: self.number } }
+
+}
+
+/// Movable fields of `FindingAreas`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingAreasParts {
+    /// The `areas` field.
+    pub areas: List<Box<[u8]>>,
+}
+
+/// `FindingAreas` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingAreas {
+    areas: List<Box<[u8]>>,
+}
+
+impl FindingAreas {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingAreasParts) -> Result<Self, Problem> {
+        let FindingAreasParts { areas } = parts;
+        let value = Self { areas };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `areas` field.
+    #[must_use]
+    pub fn areas(&self) -> &List<Box<[u8]>> { &self.areas }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingAreasParts { FindingAreasParts { areas: self.areas } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.areas.capacity() > limits.finding_areas_areas.min(CEILINGS.finding_areas_areas) { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.areas.as_slice() {
+        if item_0.len() > usize::try_from(limits.finding_areas_areas_item.min(CEILINGS.finding_areas_areas_item)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(item_0.as_ref()) { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Utf8 }); }
+        }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingsFull`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingsFullParts {
+    /// The `count` field.
+    pub count: u32,
+}
+
+/// `FindingsFull` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingsFull {
+    count: u32,
+}
+
+impl FindingsFull {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingsFullParts) -> Result<Self, Problem> {
+        let FindingsFullParts { count } = parts;
+        let value = Self { count };
+        Ok(value)
+    }
+
+    /// Reads the `count` field.
+    #[must_use]
+    pub fn count(&self) -> u32 { self.count }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingsFullParts { FindingsFullParts { count: self.count } }
+
+}
+
+/// Movable fields of `FindingWords`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingWordsParts {
+    /// The `field` field.
+    pub field: Box<[u8]>,
+}
+
+/// `FindingWords` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingWords {
+    field: Box<[u8]>,
+}
+
+impl FindingWords {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingWordsParts) -> Result<Self, Problem> {
+        let FindingWordsParts { field } = parts;
+        let value = Self { field };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `field` field.
+    #[must_use]
+    pub fn field(&self) -> &[u8] { &self.field }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingWordsParts { FindingWordsParts { field: self.field } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.field.len() > usize::try_from(limits.finding_words_field.min(CEILINGS.finding_words_field)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingWordsField, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.field.as_ref()) { return Err(Problem { path: Path::FindingWordsField, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingRead`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingReadParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `FindingRead` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRead {
+    project: u32,
+    number: u32,
+}
+
+impl FindingRead {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingReadParts) -> Result<Self, Problem> {
+        let FindingReadParts { project, number } = parts;
+        let value = Self { project, number };
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingReadParts { FindingReadParts { project: self.project, number: self.number } }
+
+}
+
+/// `DraftChange` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum DraftChange {
+    /// `ready` carrying `ReadyDraft`.
+    Ready(ReadyDraft),
+    /// `not_ready` without a payload.
+    NotReady,
+    /// `started` carrying `StartedDraft`.
+    Started(StartedDraft),
+}
+
+impl DraftChange {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `SetDraft`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SetDraftParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `repository` field.
+    pub repository: Option<DraftRepository>,
+    /// The `path` field.
+    pub path: Box<[u8]>,
+    /// The `change` field.
+    pub change: DraftChange,
+}
+
+/// `SetDraft` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SetDraft {
+    project: u32,
+    repository: Option<DraftRepository>,
+    path: Box<[u8]>,
+    change: DraftChange,
+}
+
+impl SetDraft {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: SetDraftParts) -> Result<Self, Problem> {
+        let SetDraftParts { project, repository, path, change } = parts;
+        let value = Self { project, repository, path, change };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `repository` field.
+    #[must_use]
+    pub fn repository(&self) -> &Option<DraftRepository> { &self.repository }
+
+    /// Reads the `path` field.
+    #[must_use]
+    pub fn path(&self) -> &[u8] { &self.path }
+
+    /// Reads the `change` field.
+    #[must_use]
+    pub fn change(&self) -> &DraftChange { &self.change }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SetDraftParts { SetDraftParts { project: self.project, repository: self.repository, path: self.path, change: self.change } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.repository.as_ref() {
+        some_0.check(limits)?;
+        }
+        if self.path.len() > usize::try_from(limits.set_draft_path.min(CEILINGS.set_draft_path)).expect("u32 fits usize") { return Err(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// `DraftRefusal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum DraftRefusal {
+    /// `no_repository` without a payload.
+    NoRepository,
+    /// `path` without a payload.
+    Path,
+    /// `missing` without a payload.
+    Missing,
+    /// `not_a_file` without a payload.
+    NotAFile,
+    /// `unreachable` without a payload.
+    Unreachable,
+    /// `unknown` without a payload.
+    Unknown,
+    /// `full` without a payload.
+    Full,
+}
+
+impl DraftRefusal {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `DraftRefused`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DraftRefusedParts {
+    /// The `reason` field.
+    pub reason: DraftRefusal,
+}
+
+/// `DraftRefused` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DraftRefused {
+    reason: DraftRefusal,
+}
+
+impl DraftRefused {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: DraftRefusedParts) -> Result<Self, Problem> {
+        let DraftRefusedParts { reason } = parts;
+        let value = Self { reason };
+        Ok(value)
+    }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &DraftRefusal { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> DraftRefusedParts { DraftRefusedParts { reason: self.reason } }
+
+}
+
+/// `FollowAct` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FollowAct {
+    /// `start` carrying `FollowAt`.
+    Start(FollowAt),
+    /// `hold` carrying `FollowReasonAct`.
+    Hold(FollowReasonAct),
+    /// `skip` carrying `FollowReasonAct`.
+    Skip(FollowReasonAct),
+    /// `merge` carrying `FollowMergeAct`.
+    Merge(FollowMergeAct),
+}
+
+impl FollowAct {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Hold(record) | Self::Skip(record) => FollowReasonAct::check(record, limits),
+            Self::Merge(record) => FollowMergeAct::check(record, limits),
+            Self::Start(_) => Ok(()),
+        }?;
         Ok(())
     }
 }
@@ -6204,6 +6889,647 @@ impl Devices {
     }
 }
 
+/// `FindingKind` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FindingKind {
+    /// `qa` without a payload.
+    Qa,
+    /// `flake` without a payload.
+    Flake,
+    /// `red` without a payload.
+    Red,
+    /// `review` without a payload.
+    Review,
+    /// `feedback` without a payload.
+    Feedback,
+}
+
+impl FindingKind {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// `Severity` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Severity {
+    /// `low` without a payload.
+    Low,
+    /// `medium` without a payload.
+    Medium,
+    /// `high` without a payload.
+    High,
+}
+
+impl Severity {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `FileFinding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FileFindingParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `kind` field.
+    pub kind: FindingKind,
+    /// The `severity` field.
+    pub severity: Severity,
+    /// The `area` field.
+    pub area: Option<Box<[u8]>>,
+    /// The `title` field.
+    pub title: Box<[u8]>,
+    /// The `body` field.
+    pub body: Box<[u8]>,
+}
+
+/// `FileFinding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FileFinding {
+    project: u32,
+    kind: FindingKind,
+    severity: Severity,
+    area: Option<Box<[u8]>>,
+    title: Box<[u8]>,
+    body: Box<[u8]>,
+}
+
+impl FileFinding {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FileFindingParts) -> Result<Self, Problem> {
+        let FileFindingParts { project, kind, severity, area, title, body } = parts;
+        let value = Self { project, kind, severity, area, title, body };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> &FindingKind { &self.kind }
+
+    /// Reads the `severity` field.
+    #[must_use]
+    pub fn severity(&self) -> &Severity { &self.severity }
+
+    /// Reads the `area` field.
+    #[must_use]
+    pub fn area(&self) -> &Option<Box<[u8]>> { &self.area }
+
+    /// Reads the `title` field.
+    #[must_use]
+    pub fn title(&self) -> &[u8] { &self.title }
+
+    /// Reads the `body` field.
+    #[must_use]
+    pub fn body(&self) -> &[u8] { &self.body }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FileFindingParts { FileFindingParts { project: self.project, kind: self.kind, severity: self.severity, area: self.area, title: self.title, body: self.body } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.area.as_ref() {
+        if some_0.len() > usize::try_from(limits.file_finding_area_some.min(CEILINGS.file_finding_area_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FileFindingArea, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(some_0.as_ref()) { return Err(Problem { path: Path::FileFindingArea, reason: skein_codec::Reason::Utf8 }); }
+        }
+        if self.title.len() > usize::try_from(limits.file_finding_title.min(CEILINGS.file_finding_title)).expect("u32 fits usize") { return Err(Problem { path: Path::FileFindingTitle, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.title.as_ref()) { return Err(Problem { path: Path::FileFindingTitle, reason: skein_codec::Reason::Utf8 }); }
+        if self.body.len() > usize::try_from(limits.file_finding_body.min(CEILINGS.file_finding_body)).expect("u32 fits usize") { return Err(Problem { path: Path::FileFindingBody, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.body.as_ref()) { return Err(Problem { path: Path::FileFindingBody, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// `FindingState` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FindingState {
+    /// `new` without a payload.
+    New,
+    /// `routed` without a payload.
+    Routed,
+    /// `backlog` without a payload.
+    Backlog,
+    /// `dropped` without a payload.
+    Dropped,
+}
+
+impl FindingState {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `FindingsSubject`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingsSubjectParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `state` field.
+    pub state: Option<FindingState>,
+    /// The `mine` field.
+    pub mine: bool,
+}
+
+/// `FindingsSubject` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingsSubject {
+    project: u32,
+    state: Option<FindingState>,
+    mine: bool,
+}
+
+impl FindingsSubject {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingsSubjectParts) -> Result<Self, Problem> {
+        let FindingsSubjectParts { project, state, mine } = parts;
+        let value = Self { project, state, mine };
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `state` field.
+    #[must_use]
+    pub fn state(&self) -> &Option<FindingState> { &self.state }
+
+    /// Reads the `mine` field.
+    #[must_use]
+    pub fn mine(&self) -> bool { self.mine }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingsSubjectParts { FindingsSubjectParts { project: self.project, state: self.state, mine: self.mine } }
+
+}
+
+/// `Holder` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Holder {
+    /// `task` carrying `HolderTask`.
+    Task(HolderTask),
+    /// `party` carrying `HolderParty`.
+    Party(HolderParty),
+    /// `role` carrying `HolderRole`.
+    Role(HolderRole),
+}
+
+impl Holder {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `FindingNotYours`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingNotYoursParts {
+    /// The `holder` field.
+    pub holder: Holder,
+}
+
+/// `FindingNotYours` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingNotYours {
+    holder: Holder,
+}
+
+impl FindingNotYours {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingNotYoursParts) -> Result<Self, Problem> {
+        let FindingNotYoursParts { holder } = parts;
+        let value = Self { holder };
+        Ok(value)
+    }
+
+    /// Reads the `holder` field.
+    #[must_use]
+    pub fn holder(&self) -> &Holder { &self.holder }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingNotYoursParts { FindingNotYoursParts { holder: self.holder } }
+
+}
+
+/// `Filer` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Filer {
+    /// `task` carrying `HolderTask`.
+    Task(HolderTask),
+    /// `party` carrying `HolderParty`.
+    Party(HolderParty),
+}
+
+impl Filer {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `FindingRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRowParts {
+    /// The `number` field.
+    pub number: u32,
+    /// The `kind` field.
+    pub kind: FindingKind,
+    /// The `severity` field.
+    pub severity: Severity,
+    /// The `area` field.
+    pub area: Option<Box<[u8]>>,
+    /// The `state` field.
+    pub state: FindingState,
+    /// The `title` field.
+    pub title: Box<[u8]>,
+    /// The `holder` field.
+    pub holder: Holder,
+    /// The `at` field.
+    pub at: u64,
+    /// The `why` field.
+    pub why: Option<Box<[u8]>>,
+    /// The `hander` field.
+    pub hander: Option<Filer>,
+}
+
+/// `FindingRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRow {
+    number: u32,
+    kind: FindingKind,
+    severity: Severity,
+    area: Option<Box<[u8]>>,
+    state: FindingState,
+    title: Box<[u8]>,
+    holder: Holder,
+    at: u64,
+    why: Option<Box<[u8]>>,
+    hander: Option<Filer>,
+}
+
+impl FindingRow {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingRowParts) -> Result<Self, Problem> {
+        let FindingRowParts { number, kind, severity, area, state, title, holder, at, why, hander } = parts;
+        let value = Self { number, kind, severity, area, state, title, holder, at, why, hander };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> &FindingKind { &self.kind }
+
+    /// Reads the `severity` field.
+    #[must_use]
+    pub fn severity(&self) -> &Severity { &self.severity }
+
+    /// Reads the `area` field.
+    #[must_use]
+    pub fn area(&self) -> &Option<Box<[u8]>> { &self.area }
+
+    /// Reads the `state` field.
+    #[must_use]
+    pub fn state(&self) -> &FindingState { &self.state }
+
+    /// Reads the `title` field.
+    #[must_use]
+    pub fn title(&self) -> &[u8] { &self.title }
+
+    /// Reads the `holder` field.
+    #[must_use]
+    pub fn holder(&self) -> &Holder { &self.holder }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `why` field.
+    #[must_use]
+    pub fn why(&self) -> &Option<Box<[u8]>> { &self.why }
+
+    /// Reads the `hander` field.
+    #[must_use]
+    pub fn hander(&self) -> &Option<Filer> { &self.hander }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingRowParts { FindingRowParts { number: self.number, kind: self.kind, severity: self.severity, area: self.area, state: self.state, title: self.title, holder: self.holder, at: self.at, why: self.why, hander: self.hander } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.area.as_ref() {
+        if some_0.len() > usize::try_from(limits.finding_row_area_some.min(CEILINGS.finding_row_area_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingRowArea, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(some_0.as_ref()) { return Err(Problem { path: Path::FindingRowArea, reason: skein_codec::Reason::Utf8 }); }
+        }
+        if self.title.len() > usize::try_from(limits.finding_row_title.min(CEILINGS.finding_row_title)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingRowTitle, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.title.as_ref()) { return Err(Problem { path: Path::FindingRowTitle, reason: skein_codec::Reason::Utf8 }); }
+        if let Some(some_0) = self.why.as_ref() {
+        if some_0.len() > usize::try_from(limits.finding_row_why_some.min(CEILINGS.finding_row_why_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingRowWhy, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(some_0.as_ref()) { return Err(Problem { path: Path::FindingRowWhy, reason: skein_codec::Reason::Utf8 }); }
+        }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingDetail`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingDetailParts {
+    /// The `row` field.
+    pub row: FindingRow,
+    /// The `body` field.
+    pub body: Box<[u8]>,
+    /// The `filer` field.
+    pub filer: Filer,
+    /// The `goal` field.
+    pub goal: Option<u64>,
+    /// The `reason` field.
+    pub reason: Option<Box<[u8]>>,
+}
+
+/// `FindingDetail` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingDetail {
+    row: FindingRow,
+    body: Box<[u8]>,
+    filer: Filer,
+    goal: Option<u64>,
+    reason: Option<Box<[u8]>>,
+}
+
+impl FindingDetail {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingDetailParts) -> Result<Self, Problem> {
+        let FindingDetailParts { row, body, filer, goal, reason } = parts;
+        let value = Self { row, body, filer, goal, reason };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `row` field.
+    #[must_use]
+    pub fn row(&self) -> &FindingRow { &self.row }
+
+    /// Reads the `body` field.
+    #[must_use]
+    pub fn body(&self) -> &[u8] { &self.body }
+
+    /// Reads the `filer` field.
+    #[must_use]
+    pub fn filer(&self) -> &Filer { &self.filer }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> &Option<u64> { &self.goal }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &Option<Box<[u8]>> { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingDetailParts { FindingDetailParts { row: self.row, body: self.body, filer: self.filer, goal: self.goal, reason: self.reason } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.row.check(limits)?;
+        if self.body.len() > usize::try_from(limits.finding_detail_body.min(CEILINGS.finding_detail_body)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingDetailBody, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.body.as_ref()) { return Err(Problem { path: Path::FindingDetailBody, reason: skein_codec::Reason::Utf8 }); }
+        if let Some(some_0) = self.reason.as_ref() {
+        if some_0.len() > usize::try_from(limits.finding_detail_reason_some.min(CEILINGS.finding_detail_reason_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingDetailReason, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(some_0.as_ref()) { return Err(Problem { path: Path::FindingDetailReason, reason: skein_codec::Reason::Utf8 }); }
+        }
+        Ok(())
+    }
+}
+
+/// `Triage` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Triage {
+    /// `route` carrying `FindingRoute`.
+    Route(FindingRoute),
+    /// `backlog` without a payload.
+    Backlog,
+    /// `drop` carrying `FindingDrop`.
+    Drop(FindingDrop),
+}
+
+impl Triage {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Drop(record) => FindingDrop::check(record, limits),
+            Self::Route(_) | Self::Backlog => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `TriageFinding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TriageFindingParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `number` field.
+    pub number: u32,
+    /// The `act` field.
+    pub act: Triage,
+}
+
+/// `TriageFinding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TriageFinding {
+    project: u32,
+    number: u32,
+    act: Triage,
+}
+
+impl TriageFinding {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: TriageFindingParts) -> Result<Self, Problem> {
+        let TriageFindingParts { project, number, act } = parts;
+        let value = Self { project, number, act };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `act` field.
+    #[must_use]
+    pub fn act(&self) -> &Triage { &self.act }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> TriageFindingParts { TriageFindingParts { project: self.project, number: self.number, act: self.act } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.act.check(limits)?;
+        Ok(())
+    }
+}
+
+/// `FindingRefusal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FindingRefusal {
+    /// `no_area` carrying `FindingAreas`.
+    NoArea(FindingAreas),
+    /// `full` carrying `FindingsFull`.
+    Full(FindingsFull),
+    /// `not_yours` carrying `FindingNotYours`.
+    NotYours(FindingNotYours),
+    /// `no_finding` without a payload.
+    NoFinding,
+    /// `no_goal` without a payload.
+    NoGoal,
+    /// `ended` without a payload.
+    Ended,
+    /// `words` carrying `FindingWords`.
+    Words(FindingWords),
+}
+
+impl FindingRefusal {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::NoArea(record) => FindingAreas::check(record, limits),
+            Self::Words(record) => FindingWords::check(record, limits),
+            Self::Full(_) | Self::NotYours(_) | Self::NoFinding | Self::NoGoal | Self::Ended => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingRefused`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRefusedParts {
+    /// The `reason` field.
+    pub reason: FindingRefusal,
+}
+
+/// `FindingRefused` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingRefused {
+    reason: FindingRefusal,
+}
+
+impl FindingRefused {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingRefusedParts) -> Result<Self, Problem> {
+        let FindingRefusedParts { reason } = parts;
+        let value = Self { reason };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &FindingRefusal { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingRefusedParts { FindingRefusedParts { reason: self.reason } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.reason.check(limits)?;
+        Ok(())
+    }
+}
+
+/// `FindingResult` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FindingResult {
+    /// `finding` carrying `FindingDetail`.
+    Finding(FindingDetail),
+    /// `no_finding` without a payload.
+    NoFinding,
+}
+
+impl FindingResult {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Finding(record) => FindingDetail::check(record, limits),
+            Self::NoFinding => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `FindingAnswer`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingAnswerParts {
+    /// The `result` field.
+    pub result: FindingResult,
+}
+
+/// `FindingAnswer` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingAnswer {
+    result: FindingResult,
+}
+
+impl FindingAnswer {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingAnswerParts) -> Result<Self, Problem> {
+        let FindingAnswerParts { result } = parts;
+        let value = Self { result };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `result` field.
+    #[must_use]
+    pub fn result(&self) -> &FindingResult { &self.result }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingAnswerParts { FindingAnswerParts { result: self.result } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.result.check(limits)?;
+        Ok(())
+    }
+}
+
 /// `Request` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Request {
@@ -6249,6 +7575,12 @@ pub enum Request {
     AddDevice(AddDevice),
     /// `remove_device` carrying `RemoveDevice`.
     RemoveDevice(RemoveDevice),
+    /// `file_finding` carrying `FileFinding`.
+    FileFinding(FileFinding),
+    /// `hand_finding` carrying `HandFinding`.
+    HandFinding(HandFinding),
+    /// `triage_finding` carrying `TriageFinding`.
+    TriageFinding(TriageFinding),
 }
 
 impl Request {
@@ -6269,6 +7601,9 @@ impl Request {
             Self::SetDraft(record) => SetDraft::check(record, limits),
             Self::FollowAct(record) => FollowActRequest::check(record, limits),
             Self::AddDevice(record) => AddDevice::check(record, limits),
+            Self::FileFinding(record) => FileFinding::check(record, limits),
+            Self::HandFinding(record) => HandFinding::check(record, limits),
+            Self::TriageFinding(record) => TriageFinding::check(record, limits),
             Self::Reachable(_) | Self::Accept(_) | Self::RemoveForge(_) | Self::StartPlayground | Self::EndPlayground | Self::Replace(_) | Self::Dismiss(_) | Self::Looked(_) | Self::SetAway(_) | Self::Overturn(_) | Self::TryAccount(_) | Self::RemoveDevice(_) => Ok(()),
         }?;
         Ok(())
@@ -8803,6 +10138,64 @@ impl ProjectWords {
     }
 }
 
+/// Movable fields of `WayRole`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WayRoleParts {
+    /// The `charter` field.
+    pub charter: u32,
+    /// The `words` field.
+    pub words: Box<[u8]>,
+    /// The `budget` field.
+    pub budget: u64,
+    /// The `running` field.
+    pub running: bool,
+}
+
+/// `WayRole` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WayRole {
+    charter: u32,
+    words: Box<[u8]>,
+    budget: u64,
+    running: bool,
+}
+
+impl WayRole {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: WayRoleParts) -> Result<Self, Problem> {
+        let WayRoleParts { charter, words, budget, running } = parts;
+        let value = Self { charter, words, budget, running };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `charter` field.
+    #[must_use]
+    pub fn charter(&self) -> u32 { self.charter }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Reads the `budget` field.
+    #[must_use]
+    pub fn budget(&self) -> u64 { self.budget }
+
+    /// Reads the `running` field.
+    #[must_use]
+    pub fn running(&self) -> bool { self.running }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> WayRoleParts { WayRoleParts { charter: self.charter, words: self.words, budget: self.budget, running: self.running } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.words.len() > usize::try_from(limits.way_role_words.min(CEILINGS.way_role_words)).expect("u32 fits usize") { return Err(Problem { path: Path::WayRoleWords, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.words.as_ref()) { return Err(Problem { path: Path::WayRoleWords, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `StockWay`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StockWayParts {
@@ -8818,6 +10211,8 @@ pub struct StockWayParts {
     pub items: List<ProposalItem>,
     /// The `delegation` field.
     pub delegation: bool,
+    /// The `roles` field.
+    pub roles: List<WayRole>,
 }
 
 /// `StockWay` in this codec family.
@@ -8829,13 +10224,14 @@ pub struct StockWay {
     path: BranchPath,
     items: List<ProposalItem>,
     delegation: bool,
+    roles: List<WayRole>,
 }
 
 impl StockWay {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: StockWayParts) -> Result<Self, Problem> {
-        let StockWayParts { name, headline, line, path, items, delegation } = parts;
-        let value = Self { name, headline, line, path, items, delegation };
+        let StockWayParts { name, headline, line, path, items, delegation, roles } = parts;
+        let value = Self { name, headline, line, path, items, delegation, roles };
         value.check(limits)?;
         Ok(value)
     }
@@ -8864,9 +10260,13 @@ impl StockWay {
     #[must_use]
     pub fn delegation(&self) -> bool { self.delegation }
 
+    /// Reads the `roles` field.
+    #[must_use]
+    pub fn roles(&self) -> &List<WayRole> { &self.roles }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> StockWayParts { StockWayParts { name: self.name, headline: self.headline, line: self.line, path: self.path, items: self.items, delegation: self.delegation } }
+    pub fn into_parts(self) -> StockWayParts { StockWayParts { name: self.name, headline: self.headline, line: self.line, path: self.path, items: self.items, delegation: self.delegation, roles: self.roles } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.name.len() > usize::try_from(limits.stock_way_name.min(CEILINGS.stock_way_name)).expect("u32 fits usize") { return Err(Problem { path: Path::StockWayName, reason: skein_codec::Reason::Bound }); }
@@ -8878,6 +10278,10 @@ impl StockWay {
         self.path.check(limits)?;
         if self.items.capacity() > limits.stock_way_items.min(CEILINGS.stock_way_items) { return Err(Problem { path: Path::StockWayItems, reason: skein_codec::Reason::Bound }); }
         for item_0 in self.items.as_slice() {
+        item_0.check(limits)?;
+        }
+        if self.roles.capacity() > limits.stock_way_roles.min(CEILINGS.stock_way_roles) { return Err(Problem { path: Path::StockWayRoles, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.roles.as_slice() {
         item_0.check(limits)?;
         }
         Ok(())
@@ -9524,6 +10928,8 @@ pub enum Read {
     ProgramEnvironment,
     /// `view` carrying `ViewRead`.
     View(ViewRead),
+    /// `finding` carrying `FindingRead`.
+    Finding(FindingRead),
 }
 
 impl Read {
@@ -9536,7 +10942,7 @@ impl Read {
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         match self {
             Self::View(record) => ViewRead::check(record, limits),
-            Self::Playground | Self::Setting(_) | Self::ProposalItems(_) | Self::Deployment | Self::RevisionSetting(_) | Self::ProgramEnvironment => Ok(()),
+            Self::Playground | Self::Setting(_) | Self::ProposalItems(_) | Self::Deployment | Self::RevisionSetting(_) | Self::ProgramEnvironment | Self::Finding(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -10074,6 +11480,8 @@ pub enum Watch {
     Follows(FollowsSubject),
     /// `devices` without a payload.
     Devices,
+    /// `findings` carrying `FindingsSubject`.
+    Findings(FindingsSubject),
 }
 
 impl Watch {
@@ -13171,6 +14579,14 @@ pub enum Outcome {
     DeviceRemoved,
     /// `device_refused` carrying `DeviceRefused`.
     DeviceRefused(DeviceRefused),
+    /// `filed` carrying `Filed`.
+    Filed(Filed),
+    /// `handed` without a payload.
+    Handed,
+    /// `triaged` without a payload.
+    Triaged,
+    /// `finding_refused` carrying `FindingRefused`.
+    FindingRefused(FindingRefused),
 }
 
 impl Outcome {
@@ -13189,7 +14605,8 @@ impl Outcome {
             Self::Page(record) => Page::check(record, limits),
             Self::Drafted(record) => LandedDraft::check(record, limits),
             Self::Follow(record) => FollowOutcome::check(record, limits),
-            Self::ForgeRefused(_) | Self::Unknown | Self::SettingUp | Self::SetUpRefused(_) | Self::Running | Self::StartRefused(_) | Self::Connecting | Self::ConnectRefused(_) | Self::Accepted(_) | Self::Removed | Self::RemoveRefused(_) | Self::Reset | Self::EndRefused(_) | Self::Dismissed | Self::MakeKept | Self::MakeRefused(_) | Self::Looked | Self::Away | Self::Overturned | Self::OverturnRefused(_) | Self::Tried | Self::NotTheirs | Self::DraftRefused(_) | Self::DeviceAdded(_) | Self::DeviceRemoved | Self::DeviceRefused(_) => Ok(()),
+            Self::FindingRefused(record) => FindingRefused::check(record, limits),
+            Self::ForgeRefused(_) | Self::Unknown | Self::SettingUp | Self::SetUpRefused(_) | Self::Running | Self::StartRefused(_) | Self::Connecting | Self::ConnectRefused(_) | Self::Accepted(_) | Self::Removed | Self::RemoveRefused(_) | Self::Reset | Self::EndRefused(_) | Self::Dismissed | Self::MakeKept | Self::MakeRefused(_) | Self::Looked | Self::Away | Self::Overturned | Self::OverturnRefused(_) | Self::Tried | Self::NotTheirs | Self::DraftRefused(_) | Self::DeviceAdded(_) | Self::DeviceRemoved | Self::DeviceRefused(_) | Self::Filed(_) | Self::Handed | Self::Triaged => Ok(()),
         }?;
         Ok(())
     }
@@ -14150,6 +15567,271 @@ impl FollowPerson {
 
 }
 
+/// Movable fields of `FollowWords`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowWordsParts {
+    /// The `words` field.
+    pub words: Box<[u8]>,
+}
+
+/// `FollowWords` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowWords {
+    words: Box<[u8]>,
+}
+
+impl FollowWords {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FollowWordsParts) -> Result<Self, Problem> {
+        let FollowWordsParts { words } = parts;
+        let value = Self { words };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FollowWordsParts { FollowWordsParts { words: self.words } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.words.len() > usize::try_from(limits.follow_words_words.min(CEILINGS.follow_words_words)).expect("u32 fits usize") { return Err(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FollowWait`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowWaitParts {
+    /// The `change` field.
+    pub change: u64,
+}
+
+/// `FollowWait` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowWait {
+    change: u64,
+}
+
+impl FollowWait {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FollowWaitParts) -> Result<Self, Problem> {
+        let FollowWaitParts { change } = parts;
+        let value = Self { change };
+        Ok(value)
+    }
+
+    /// Reads the `change` field.
+    #[must_use]
+    pub fn change(&self) -> u64 { self.change }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FollowWaitParts { FollowWaitParts { change: self.change } }
+
+}
+
+/// Movable fields of `FollowSkip`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowSkipParts {
+    /// The `after` field.
+    pub after: [u8; 32],
+    /// The `reason` field.
+    pub reason: Box<[u8]>,
+}
+
+/// `FollowSkip` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowSkip {
+    after: [u8; 32],
+    reason: Box<[u8]>,
+}
+
+impl FollowSkip {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FollowSkipParts) -> Result<Self, Problem> {
+        let FollowSkipParts { after, reason } = parts;
+        let value = Self { after, reason };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `after` field.
+    #[must_use]
+    pub fn after(&self) -> &[u8; 32] { &self.after }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &[u8] { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FollowSkipParts { FollowSkipParts { after: self.after, reason: self.reason } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.reason.len() > usize::try_from(limits.follow_skip_reason.min(CEILINGS.follow_skip_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `FollowFailing`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowFailingParts {
+    /// The `count` field.
+    pub count: u32,
+}
+
+/// `FollowFailing` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FollowFailing {
+    count: u32,
+}
+
+impl FollowFailing {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FollowFailingParts) -> Result<Self, Problem> {
+        let FollowFailingParts { count } = parts;
+        let value = Self { count };
+        Ok(value)
+    }
+
+    /// Reads the `count` field.
+    #[must_use]
+    pub fn count(&self) -> u32 { self.count }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FollowFailingParts { FollowFailingParts { count: self.count } }
+
+}
+
+/// Movable fields of `AreaTask`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaTaskParts {
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `AreaTask` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaTask {
+    number: u64,
+}
+
+impl AreaTask {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AreaTaskParts) -> Result<Self, Problem> {
+        let AreaTaskParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaTaskParts { AreaTaskParts { number: self.number } }
+
+}
+
+/// Movable fields of `AreaParty`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaPartyParts {
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `AreaParty` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaParty {
+    number: u64,
+}
+
+impl AreaParty {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AreaPartyParts) -> Result<Self, Problem> {
+        let AreaPartyParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaPartyParts { AreaPartyParts { number: self.number } }
+
+}
+
+/// Movable fields of `AreaRole`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaRoleParts {
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `AreaRole` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaRole {
+    number: u32,
+}
+
+impl AreaRole {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AreaRoleParts) -> Result<Self, Problem> {
+        let AreaRoleParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaRoleParts { AreaRoleParts { number: self.number } }
+
+}
+
+/// Movable fields of `AreaCharter`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaCharterParts {
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `AreaCharter` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaCharter {
+    number: u32,
+}
+
+impl AreaCharter {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: AreaCharterParts) -> Result<Self, Problem> {
+        let AreaCharterParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaCharterParts { AreaCharterParts { number: self.number } }
+
+}
+
 /// `FollowOwner` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum FollowOwner {
@@ -14324,73 +16006,6 @@ impl Follow {
     }
 }
 
-/// Movable fields of `FollowWords`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowWordsParts {
-    /// The `words` field.
-    pub words: Box<[u8]>,
-}
-
-/// `FollowWords` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowWords {
-    words: Box<[u8]>,
-}
-
-impl FollowWords {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: FollowWordsParts) -> Result<Self, Problem> {
-        let FollowWordsParts { words } = parts;
-        let value = Self { words };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `words` field.
-    #[must_use]
-    pub fn words(&self) -> &[u8] { &self.words }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> FollowWordsParts { FollowWordsParts { words: self.words } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.words.len() > usize::try_from(limits.follow_words_words.min(CEILINGS.follow_words_words)).expect("u32 fits usize") { return Err(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `FollowWait`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowWaitParts {
-    /// The `change` field.
-    pub change: u64,
-}
-
-/// `FollowWait` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowWait {
-    change: u64,
-}
-
-impl FollowWait {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: FollowWaitParts) -> Result<Self, Problem> {
-        let FollowWaitParts { change } = parts;
-        let value = Self { change };
-        Ok(value)
-    }
-
-    /// Reads the `change` field.
-    #[must_use]
-    pub fn change(&self) -> u64 { self.change }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> FollowWaitParts { FollowWaitParts { change: self.change } }
-
-}
-
 /// `FollowState` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum FollowState {
@@ -14474,80 +16089,6 @@ impl FollowEntry {
         self.state.check(limits)?;
         Ok(())
     }
-}
-
-/// Movable fields of `FollowSkip`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowSkipParts {
-    /// The `after` field.
-    pub after: [u8; 32],
-    /// The `reason` field.
-    pub reason: Box<[u8]>,
-}
-
-/// `FollowSkip` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowSkip {
-    after: [u8; 32],
-    reason: Box<[u8]>,
-}
-
-impl FollowSkip {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: FollowSkipParts) -> Result<Self, Problem> {
-        let FollowSkipParts { after, reason } = parts;
-        let value = Self { after, reason };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `after` field.
-    #[must_use]
-    pub fn after(&self) -> &[u8; 32] { &self.after }
-
-    /// Reads the `reason` field.
-    #[must_use]
-    pub fn reason(&self) -> &[u8] { &self.reason }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> FollowSkipParts { FollowSkipParts { after: self.after, reason: self.reason } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.reason.len() > usize::try_from(limits.follow_skip_reason.min(CEILINGS.follow_skip_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `FollowFailing`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowFailingParts {
-    /// The `count` field.
-    pub count: u32,
-}
-
-/// `FollowFailing` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FollowFailing {
-    count: u32,
-}
-
-impl FollowFailing {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: FollowFailingParts) -> Result<Self, Problem> {
-        let FollowFailingParts { count } = parts;
-        let value = Self { count };
-        Ok(value)
-    }
-
-    /// Reads the `count` field.
-    #[must_use]
-    pub fn count(&self) -> u32 { self.count }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> FollowFailingParts { FollowFailingParts { count: self.count } }
-
 }
 
 /// `FollowVerdict` in this codec family.
@@ -14805,6 +16346,288 @@ impl FollowsPanel {
         item_0.check(limits)?;
         }
         if self.dependencies.capacity() > limits.follows_panel_dependencies.min(CEILINGS.follows_panel_dependencies) { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// `AreaOwner` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum AreaOwner {
+    /// `task` carrying `AreaTask`.
+    Task(AreaTask),
+    /// `party` carrying `AreaParty`.
+    Party(AreaParty),
+    /// `role` carrying `AreaRole`.
+    Role(AreaRole),
+    /// `charter` carrying `AreaCharter`.
+    Charter(AreaCharter),
+}
+
+impl AreaOwner {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `Area`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `words` field.
+    pub words: Box<[u8]>,
+    /// The `owner` field.
+    pub owner: AreaOwner,
+}
+
+/// `Area` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Area {
+    name: Box<[u8]>,
+    words: Box<[u8]>,
+    owner: AreaOwner,
+}
+
+impl Area {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: AreaParts) -> Result<Self, Problem> {
+        let AreaParts { name, words, owner } = parts;
+        let value = Self { name, words, owner };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Reads the `owner` field.
+    #[must_use]
+    pub fn owner(&self) -> &AreaOwner { &self.owner }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaParts { AreaParts { name: self.name, words: self.words, owner: self.owner } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.area_name.min(CEILINGS.area_name)).expect("u32 fits usize") { return Err(Problem { path: Path::AreaName, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::AreaName, reason: skein_codec::Reason::Utf8 }); }
+        if self.words.len() > usize::try_from(limits.area_words.min(CEILINGS.area_words)).expect("u32 fits usize") { return Err(Problem { path: Path::AreaWords, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.words.as_ref()) { return Err(Problem { path: Path::AreaWords, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `ProjectAreas`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectAreasParts {
+    /// The `areas` field.
+    pub areas: List<Area>,
+}
+
+/// `ProjectAreas` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectAreas {
+    areas: List<Area>,
+}
+
+impl ProjectAreas {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ProjectAreasParts) -> Result<Self, Problem> {
+        let ProjectAreasParts { areas } = parts;
+        let value = Self { areas };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `areas` field.
+    #[must_use]
+    pub fn areas(&self) -> &List<Area> { &self.areas }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectAreasParts { ProjectAreasParts { areas: self.areas } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.areas.capacity() > limits.project_areas_areas.min(CEILINGS.project_areas_areas) { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.areas.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+/// Movable fields of `ProjectTriager`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectTriagerParts {
+    /// The `owner` field.
+    pub owner: AreaOwner,
+}
+
+/// `ProjectTriager` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectTriager {
+    owner: AreaOwner,
+}
+
+impl ProjectTriager {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ProjectTriagerParts) -> Result<Self, Problem> {
+        let ProjectTriagerParts { owner } = parts;
+        let value = Self { owner };
+        Ok(value)
+    }
+
+    /// Reads the `owner` field.
+    #[must_use]
+    pub fn owner(&self) -> &AreaOwner { &self.owner }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectTriagerParts { ProjectTriagerParts { owner: self.owner } }
+
+}
+
+/// Movable fields of `AreaRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaRowParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `words` field.
+    pub words: Box<[u8]>,
+    /// The `owner` field.
+    pub owner: AreaOwner,
+    /// The `holder` field.
+    pub holder: Option<Holder>,
+}
+
+/// `AreaRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaRow {
+    name: Box<[u8]>,
+    words: Box<[u8]>,
+    owner: AreaOwner,
+    holder: Option<Holder>,
+}
+
+impl AreaRow {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: AreaRowParts) -> Result<Self, Problem> {
+        let AreaRowParts { name, words, owner, holder } = parts;
+        let value = Self { name, words, owner, holder };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Reads the `owner` field.
+    #[must_use]
+    pub fn owner(&self) -> &AreaOwner { &self.owner }
+
+    /// Reads the `holder` field.
+    #[must_use]
+    pub fn holder(&self) -> &Option<Holder> { &self.holder }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> AreaRowParts { AreaRowParts { name: self.name, words: self.words, owner: self.owner, holder: self.holder } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.area_row_name.min(CEILINGS.area_row_name)).expect("u32 fits usize") { return Err(Problem { path: Path::AreaRowName, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::AreaRowName, reason: skein_codec::Reason::Utf8 }); }
+        if self.words.len() > usize::try_from(limits.area_row_words.min(CEILINGS.area_row_words)).expect("u32 fits usize") { return Err(Problem { path: Path::AreaRowWords, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.words.as_ref()) { return Err(Problem { path: Path::AreaRowWords, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `Findings`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingsParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `rows` field.
+    pub rows: List<FindingRow>,
+    /// The `areas` field.
+    pub areas: List<AreaRow>,
+    /// The `triager` field.
+    pub triager: Option<AreaOwner>,
+    /// The `holder` field.
+    pub holder: Holder,
+    /// The `cut` field.
+    pub cut: bool,
+}
+
+/// `Findings` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Findings {
+    project: u32,
+    rows: List<FindingRow>,
+    areas: List<AreaRow>,
+    triager: Option<AreaOwner>,
+    holder: Holder,
+    cut: bool,
+}
+
+impl Findings {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingsParts) -> Result<Self, Problem> {
+        let FindingsParts { project, rows, areas, triager, holder, cut } = parts;
+        let value = Self { project, rows, areas, triager, holder, cut };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `rows` field.
+    #[must_use]
+    pub fn rows(&self) -> &List<FindingRow> { &self.rows }
+
+    /// Reads the `areas` field.
+    #[must_use]
+    pub fn areas(&self) -> &List<AreaRow> { &self.areas }
+
+    /// Reads the `triager` field.
+    #[must_use]
+    pub fn triager(&self) -> &Option<AreaOwner> { &self.triager }
+
+    /// Reads the `holder` field.
+    #[must_use]
+    pub fn holder(&self) -> &Holder { &self.holder }
+
+    /// Reads the `cut` field.
+    #[must_use]
+    pub fn cut(&self) -> bool { self.cut }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingsParts { FindingsParts { project: self.project, rows: self.rows, areas: self.areas, triager: self.triager, holder: self.holder, cut: self.cut } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.rows.capacity() > limits.findings_rows.min(CEILINGS.findings_rows) { return Err(Problem { path: Path::FindingsRows, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.rows.as_slice() {
+        item_0.check(limits)?;
+        }
+        if self.areas.capacity() > limits.findings_areas.min(CEILINGS.findings_areas) { return Err(Problem { path: Path::FindingsAreas, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.areas.as_slice() {
+        item_0.check(limits)?;
+        }
         Ok(())
     }
 }
@@ -17831,176 +19654,6 @@ impl StartedDraft {
     }
 }
 
-impl DraftChange {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Ready(record) => 1_u32.checked_add(ReadyDraft::measure(record)).expect("schema ceilings fit u32"),
-            Self::Started(record) => 1_u32.checked_add(StartedDraft::measure(record)).expect("schema ceilings fit u32"),
-            Self::NotReady => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Ready(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
-            Self::NotReady => writer.put(&[1_u8])?,
-            Self::Started(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Ready(ReadyDraft::decode_from(limits, reader)?),
-            1 => Self::NotReady,
-            2 => Self::Started(StartedDraft::decode_from(limits, reader)?),
-            _ => return Err(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl SetDraft {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_repository {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
-        let field_path = &self.path;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_path.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_change = &self.change;
-        size = size.checked_add(field_change.measure()).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_project = &self.project;
-        writer.put(&field_project.to_be_bytes())?;
-        let field_repository = &self.repository;
-        match field_repository {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        some_0.encode(writer)?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_path = &self.path;
-        writer.put(&u32::try_from(field_path.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_path.as_ref())?;
-        let field_change = &self.change;
-        field_change.encode(writer)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::SetDraftTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_project = reader.u32().ok_or(Problem { path: Path::SetDraftProject, reason: skein_codec::Reason::Short })?;
-        let decoded_repository = match reader.u8().ok_or(Problem { path: Path::SetDraftRepository, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(DraftRepository::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::SetDraftRepository, reason: skein_codec::Reason::Tag }) };
-        let decoded_path = { let length = match skein_codec::read_len(reader, limits.set_draft_path.min(CEILINGS.set_draft_path)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SetDraftPath, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Short })?) };
-        let decoded_change = DraftChange::decode_from(limits, reader)?;
-        Ok(Self { project: decoded_project, repository: decoded_repository, path: decoded_path, change: decoded_change })
-    }
-}
-
-impl DraftRefusal {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::NoRepository | Self::Path | Self::Missing | Self::NotAFile | Self::Unreachable | Self::Unknown | Self::Full => 1,
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::NoRepository => writer.put(&[0_u8])?,
-            Self::Path => writer.put(&[1_u8])?,
-            Self::Missing => writer.put(&[2_u8])?,
-            Self::NotAFile => writer.put(&[3_u8])?,
-            Self::Unreachable => writer.put(&[4_u8])?,
-            Self::Unknown => writer.put(&[5_u8])?,
-            Self::Full => writer.put(&[6_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::NoRepository,
-            1 => Self::Path,
-            2 => Self::Missing,
-            3 => Self::NotAFile,
-            4 => Self::Unreachable,
-            5 => Self::Unknown,
-            6 => Self::Full,
-            _ => return Err(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl DraftRefused {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_reason = &self.reason;
-        field_reason.encode(writer)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::DraftRefusedTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_reason = DraftRefusal::decode_from(limits, reader)?;
-        Ok(Self { reason: decoded_reason })
-    }
-}
-
 impl LandedDraft {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -18240,6 +19893,573 @@ impl FollowMergeAct {
     }
 }
 
+impl FollowOutcome {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_refusal = &self.refusal;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_refusal {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_refusal = &self.refusal;
+        match field_refusal {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FollowOutcomeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_refusal = match reader.u8().ok_or(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.follow_outcome_refusal_some.min(CEILINGS.follow_outcome_refusal_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowOutcomeRefusal, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { refusal: decoded_refusal })
+    }
+}
+
+impl HolderTask {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HolderTaskTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::HolderTaskNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl HolderParty {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HolderPartyTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::HolderPartyNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl HolderRole {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HolderRoleTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::HolderRoleNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl HandFinding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_area = &self.area;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_area.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_why = &self.why;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_why.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_area = &self.area;
+        writer.put(&u32::try_from(field_area.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_area.as_ref())?;
+        let field_why = &self.why;
+        writer.put(&u32::try_from(field_why.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_why.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HandFindingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::HandFindingProject, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::HandFindingNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_area = match skein_codec::read_text(reader, limits.hand_finding_area.min(CEILINGS.hand_finding_area)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::HandFindingArea, reason }), };
+        let decoded_why = match skein_codec::read_text(reader, limits.hand_finding_why.min(CEILINGS.hand_finding_why)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::HandFindingWhy, reason }), };
+        Ok(Self { project: decoded_project, number: decoded_number, area: decoded_area, why: decoded_why })
+    }
+}
+
+impl FindingRoute {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingRouteTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::FindingRouteTask, reason: skein_codec::Reason::Short })?;
+        Ok(Self { task: decoded_task })
+    }
+}
+
+impl FindingDrop {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_reason = &self.reason;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_reason = &self.reason;
+        writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_reason.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingDropTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_reason = match skein_codec::read_text(reader, limits.finding_drop_reason.min(CEILINGS.finding_drop_reason)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingDropReason, reason }), };
+        Ok(Self { reason: decoded_reason })
+    }
+}
+
+impl Filed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FiledTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::FiledNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl FindingAreas {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_areas = &self.areas;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_areas.as_slice() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(item_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_areas = &self.areas;
+        writer.put(&field_areas.len().to_be_bytes())?;
+        for item_0 in field_areas.as_slice() {
+        writer.put(&u32::try_from(item_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(item_0.as_ref())?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingAreasTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_areas = { let count = match skein_codec::read_count(reader, limits.finding_areas_areas.min(CEILINGS.finding_areas_areas)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingAreasAreas, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingAreasAreas, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = match skein_codec::read_text(reader, limits.finding_areas_areas_item.min(CEILINGS.finding_areas_areas_item)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingAreasAreas, reason }), }; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { areas: decoded_areas })
+    }
+}
+
+impl FindingsFull {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_count = &self.count;
+        writer.put(&field_count.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingsFullTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_count = reader.u32().ok_or(Problem { path: Path::FindingsFullCount, reason: skein_codec::Reason::Short })?;
+        Ok(Self { count: decoded_count })
+    }
+}
+
+impl FindingWords {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_field = &self.field;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_field.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_field = &self.field;
+        writer.put(&u32::try_from(field_field.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_field.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingWordsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_field = match skein_codec::read_text(reader, limits.finding_words_field.min(CEILINGS.finding_words_field)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingWordsField, reason }), };
+        Ok(Self { field: decoded_field })
+    }
+}
+
+impl FindingRead {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingReadTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::FindingReadProject, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::FindingReadNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { project: decoded_project, number: decoded_number })
+    }
+}
+
+impl DraftChange {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Ready(record) => 1_u32.checked_add(ReadyDraft::measure(record)).expect("schema ceilings fit u32"),
+            Self::Started(record) => 1_u32.checked_add(StartedDraft::measure(record)).expect("schema ceilings fit u32"),
+            Self::NotReady => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Ready(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::NotReady => writer.put(&[1_u8])?,
+            Self::Started(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Ready(ReadyDraft::decode_from(limits, reader)?),
+            1 => Self::NotReady,
+            2 => Self::Started(StartedDraft::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::DraftChangeTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SetDraft {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_repository = &self.repository;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_repository {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_path = &self.path;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_path.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_change = &self.change;
+        size = size.checked_add(field_change.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_repository = &self.repository;
+        match field_repository {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_path = &self.path;
+        writer.put(&u32::try_from(field_path.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_path.as_ref())?;
+        let field_change = &self.change;
+        field_change.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SetDraftTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::SetDraftProject, reason: skein_codec::Reason::Short })?;
+        let decoded_repository = match reader.u8().ok_or(Problem { path: Path::SetDraftRepository, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(DraftRepository::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::SetDraftRepository, reason: skein_codec::Reason::Tag }) };
+        let decoded_path = { let length = match skein_codec::read_len(reader, limits.set_draft_path.min(CEILINGS.set_draft_path)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SetDraftPath, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SetDraftPath, reason: skein_codec::Reason::Short })?) };
+        let decoded_change = DraftChange::decode_from(limits, reader)?;
+        Ok(Self { project: decoded_project, repository: decoded_repository, path: decoded_path, change: decoded_change })
+    }
+}
+
+impl DraftRefusal {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::NoRepository | Self::Path | Self::Missing | Self::NotAFile | Self::Unreachable | Self::Unknown | Self::Full => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::NoRepository => writer.put(&[0_u8])?,
+            Self::Path => writer.put(&[1_u8])?,
+            Self::Missing => writer.put(&[2_u8])?,
+            Self::NotAFile => writer.put(&[3_u8])?,
+            Self::Unreachable => writer.put(&[4_u8])?,
+            Self::Unknown => writer.put(&[5_u8])?,
+            Self::Full => writer.put(&[6_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::NoRepository,
+            1 => Self::Path,
+            2 => Self::Missing,
+            3 => Self::NotAFile,
+            4 => Self::Unreachable,
+            5 => Self::Unknown,
+            6 => Self::Full,
+            _ => return Err(Problem { path: Path::DraftRefusalTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl DraftRefused {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_reason = &self.reason;
+        field_reason.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::DraftRefusedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_reason = DraftRefusal::decode_from(limits, reader)?;
+        Ok(Self { reason: decoded_reason })
+    }
+}
+
 impl FollowAct {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -18279,47 +20499,6 @@ impl FollowAct {
             _ => return Err(Problem { path: Path::FollowActTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
-    }
-}
-
-impl FollowOutcome {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_refusal = &self.refusal;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_refusal {
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_refusal = &self.refusal;
-        match field_refusal {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(some_0.as_ref())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FollowOutcomeTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_refusal = match reader.u8().ok_or(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.follow_outcome_refusal_some.min(CEILINGS.follow_outcome_refusal_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowOutcomeRefusal, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::FollowOutcomeRefusal, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { refusal: decoded_refusal })
     }
 }
 
@@ -18626,6 +20805,751 @@ impl Devices {
     }
 }
 
+impl FindingKind {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Qa | Self::Flake | Self::Red | Self::Review | Self::Feedback => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Qa => writer.put(&[0_u8])?,
+            Self::Flake => writer.put(&[1_u8])?,
+            Self::Red => writer.put(&[2_u8])?,
+            Self::Review => writer.put(&[3_u8])?,
+            Self::Feedback => writer.put(&[4_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingKindTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FindingKindTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Qa,
+            1 => Self::Flake,
+            2 => Self::Red,
+            3 => Self::Review,
+            4 => Self::Feedback,
+            _ => return Err(Problem { path: Path::FindingKindTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl Severity {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Low | Self::Medium | Self::High => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Low => writer.put(&[0_u8])?,
+            Self::Medium => writer.put(&[1_u8])?,
+            Self::High => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SeverityTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SeverityTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Low,
+            1 => Self::Medium,
+            2 => Self::High,
+            _ => return Err(Problem { path: Path::SeverityTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FileFinding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_area = &self.area;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_area {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        let field_title = &self.title;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_body = &self.body;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_body.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_kind = &self.kind;
+        field_kind.encode(writer)?;
+        let field_severity = &self.severity;
+        field_severity.encode(writer)?;
+        let field_area = &self.area;
+        match field_area {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_title = &self.title;
+        writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_title.as_ref())?;
+        let field_body = &self.body;
+        writer.put(&u32::try_from(field_body.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_body.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FileFindingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::FileFindingProject, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = FindingKind::decode_from(limits, reader)?;
+        let decoded_severity = Severity::decode_from(limits, reader)?;
+        let decoded_area = match reader.u8().ok_or(Problem { path: Path::FileFindingArea, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.file_finding_area_some.min(CEILINGS.file_finding_area_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FileFindingArea, reason }), }), _ => return Err(Problem { path: Path::FileFindingArea, reason: skein_codec::Reason::Tag }) };
+        let decoded_title = match skein_codec::read_text(reader, limits.file_finding_title.min(CEILINGS.file_finding_title)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FileFindingTitle, reason }), };
+        let decoded_body = match skein_codec::read_text(reader, limits.file_finding_body.min(CEILINGS.file_finding_body)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FileFindingBody, reason }), };
+        Ok(Self { project: decoded_project, kind: decoded_kind, severity: decoded_severity, area: decoded_area, title: decoded_title, body: decoded_body })
+    }
+}
+
+impl FindingState {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::New | Self::Routed | Self::Backlog | Self::Dropped => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::New => writer.put(&[0_u8])?,
+            Self::Routed => writer.put(&[1_u8])?,
+            Self::Backlog => writer.put(&[2_u8])?,
+            Self::Dropped => writer.put(&[3_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingStateTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FindingStateTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::New,
+            1 => Self::Routed,
+            2 => Self::Backlog,
+            3 => Self::Dropped,
+            _ => return Err(Problem { path: Path::FindingStateTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FindingsSubject {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_state = &self.state;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_state.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_state = &self.state;
+        match field_state {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_mine = &self.mine;
+        writer.put(&[u8::from(*field_mine)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingsSubjectTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::FindingsSubjectProject, reason: skein_codec::Reason::Short })?;
+        let decoded_state = match reader.u8().ok_or(Problem { path: Path::FindingsSubjectState, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FindingState::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingsSubjectState, reason: skein_codec::Reason::Tag }) };
+        let decoded_mine = match reader.u8().ok_or(Problem { path: Path::FindingsSubjectMine, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::FindingsSubjectMine, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { project: decoded_project, state: decoded_state, mine: decoded_mine })
+    }
+}
+
+impl Holder {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Task(record) => 1_u32.checked_add(HolderTask::measure(record)).expect("schema ceilings fit u32"),
+            Self::Party(record) => 1_u32.checked_add(HolderParty::measure(record)).expect("schema ceilings fit u32"),
+            Self::Role(record) => 1_u32.checked_add(HolderRole::measure(record)).expect("schema ceilings fit u32"),
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Task(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Party(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Role(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HolderTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::HolderTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Task(HolderTask::decode_from(limits, reader)?),
+            1 => Self::Party(HolderParty::decode_from(limits, reader)?),
+            2 => Self::Role(HolderRole::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::HolderTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FindingNotYours {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_holder = &self.holder;
+        size = size.checked_add(field_holder.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_holder = &self.holder;
+        field_holder.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingNotYoursTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_holder = Holder::decode_from(limits, reader)?;
+        Ok(Self { holder: decoded_holder })
+    }
+}
+
+impl Filer {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Task(record) => 1_u32.checked_add(HolderTask::measure(record)).expect("schema ceilings fit u32"),
+            Self::Party(record) => 1_u32.checked_add(HolderParty::measure(record)).expect("schema ceilings fit u32"),
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Task(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Party(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FilerTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FilerTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Task(HolderTask::decode_from(limits, reader)?),
+            1 => Self::Party(HolderParty::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::FilerTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FindingRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_area = &self.area;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_area {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_title = &self.title;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_holder = &self.holder;
+        size = size.checked_add(field_holder.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_why = &self.why;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_why {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        let field_hander = &self.hander;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_hander {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_kind = &self.kind;
+        field_kind.encode(writer)?;
+        let field_severity = &self.severity;
+        field_severity.encode(writer)?;
+        let field_area = &self.area;
+        match field_area {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_state = &self.state;
+        field_state.encode(writer)?;
+        let field_title = &self.title;
+        writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_title.as_ref())?;
+        let field_holder = &self.holder;
+        field_holder.encode(writer)?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_why = &self.why;
+        match field_why {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_hander = &self.hander;
+        match field_hander {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::FindingRowNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_kind = FindingKind::decode_from(limits, reader)?;
+        let decoded_severity = Severity::decode_from(limits, reader)?;
+        let decoded_area = match reader.u8().ok_or(Problem { path: Path::FindingRowArea, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.finding_row_area_some.min(CEILINGS.finding_row_area_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingRowArea, reason }), }), _ => return Err(Problem { path: Path::FindingRowArea, reason: skein_codec::Reason::Tag }) };
+        let decoded_state = FindingState::decode_from(limits, reader)?;
+        let decoded_title = match skein_codec::read_text(reader, limits.finding_row_title.min(CEILINGS.finding_row_title)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingRowTitle, reason }), };
+        let decoded_holder = Holder::decode_from(limits, reader)?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::FindingRowAt, reason: skein_codec::Reason::Short })?;
+        let decoded_why = match reader.u8().ok_or(Problem { path: Path::FindingRowWhy, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.finding_row_why_some.min(CEILINGS.finding_row_why_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingRowWhy, reason }), }), _ => return Err(Problem { path: Path::FindingRowWhy, reason: skein_codec::Reason::Tag }) };
+        let decoded_hander = match reader.u8().ok_or(Problem { path: Path::FindingRowHander, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Filer::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingRowHander, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { number: decoded_number, kind: decoded_kind, severity: decoded_severity, area: decoded_area, state: decoded_state, title: decoded_title, holder: decoded_holder, at: decoded_at, why: decoded_why, hander: decoded_hander })
+    }
+}
+
+impl FindingDetail {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_row = &self.row;
+        size = size.checked_add(field_row.measure()).expect("schema ceilings fit u32");
+        let field_body = &self.body;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_body.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_filer = &self.filer;
+        size = size.checked_add(field_filer.measure()).expect("schema ceilings fit u32");
+        let field_goal = &self.goal;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_goal.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_reason = &self.reason;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_reason {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_row = &self.row;
+        field_row.encode(writer)?;
+        let field_body = &self.body;
+        writer.put(&u32::try_from(field_body.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_body.as_ref())?;
+        let field_filer = &self.filer;
+        field_filer.encode(writer)?;
+        let field_goal = &self.goal;
+        match field_goal {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_reason = &self.reason;
+        match field_reason {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingDetailTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_row = FindingRow::decode_from(limits, reader)?;
+        let decoded_body = match skein_codec::read_text(reader, limits.finding_detail_body.min(CEILINGS.finding_detail_body)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingDetailBody, reason }), };
+        let decoded_filer = Filer::decode_from(limits, reader)?;
+        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::FindingDetailGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::FindingDetailGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::FindingDetailGoal, reason: skein_codec::Reason::Tag }) };
+        let decoded_reason = match reader.u8().ok_or(Problem { path: Path::FindingDetailReason, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.finding_detail_reason_some.min(CEILINGS.finding_detail_reason_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FindingDetailReason, reason }), }), _ => return Err(Problem { path: Path::FindingDetailReason, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { row: decoded_row, body: decoded_body, filer: decoded_filer, goal: decoded_goal, reason: decoded_reason })
+    }
+}
+
+impl Triage {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Route(record) => 1_u32.checked_add(FindingRoute::measure(record)).expect("schema ceilings fit u32"),
+            Self::Drop(record) => 1_u32.checked_add(FindingDrop::measure(record)).expect("schema ceilings fit u32"),
+            Self::Backlog => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Route(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Backlog => writer.put(&[1_u8])?,
+            Self::Drop(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::TriageTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::TriageTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Route(FindingRoute::decode_from(limits, reader)?),
+            1 => Self::Backlog,
+            2 => Self::Drop(FindingDrop::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::TriageTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl TriageFinding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_act = &self.act;
+        size = size.checked_add(field_act.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_act = &self.act;
+        field_act.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::TriageFindingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::TriageFindingProject, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::TriageFindingNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_act = Triage::decode_from(limits, reader)?;
+        Ok(Self { project: decoded_project, number: decoded_number, act: decoded_act })
+    }
+}
+
+impl FindingRefusal {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::NoArea(record) => 1_u32.checked_add(FindingAreas::measure(record)).expect("schema ceilings fit u32"),
+            Self::Full(record) => 1_u32.checked_add(FindingsFull::measure(record)).expect("schema ceilings fit u32"),
+            Self::NotYours(record) => 1_u32.checked_add(FindingNotYours::measure(record)).expect("schema ceilings fit u32"),
+            Self::Words(record) => 1_u32.checked_add(FindingWords::measure(record)).expect("schema ceilings fit u32"),
+            Self::NoFinding | Self::NoGoal | Self::Ended => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::NoArea(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Full(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::NotYours(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::NoFinding => writer.put(&[3_u8])?,
+            Self::NoGoal => writer.put(&[4_u8])?,
+            Self::Ended => writer.put(&[5_u8])?,
+            Self::Words(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingRefusalTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FindingRefusalTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::NoArea(FindingAreas::decode_from(limits, reader)?),
+            1 => Self::Full(FindingsFull::decode_from(limits, reader)?),
+            2 => Self::NotYours(FindingNotYours::decode_from(limits, reader)?),
+            3 => Self::NoFinding,
+            4 => Self::NoGoal,
+            5 => Self::Ended,
+            6 => Self::Words(FindingWords::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::FindingRefusalTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FindingRefused {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_reason = &self.reason;
+        size = size.checked_add(field_reason.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_reason = &self.reason;
+        field_reason.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingRefusedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_reason = FindingRefusal::decode_from(limits, reader)?;
+        Ok(Self { reason: decoded_reason })
+    }
+}
+
+impl FindingResult {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Finding(record) => 1_u32.checked_add(FindingDetail::measure(record)).expect("schema ceilings fit u32"),
+            Self::NoFinding => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Finding(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::NoFinding => writer.put(&[1_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingResultTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FindingResultTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Finding(FindingDetail::decode_from(limits, reader)?),
+            1 => Self::NoFinding,
+            _ => return Err(Problem { path: Path::FindingResultTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl FindingAnswer {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_result = &self.result;
+        size = size.checked_add(field_result.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&16_u16.to_be_bytes())?;
+        let field_result = &self.result;
+        field_result.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingAnswerTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::FindingAnswerVersion, reason: skein_codec::Reason::Short })?;
+        if version != 16 { return Err(Problem { path: Path::FindingAnswerVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_result = FindingResult::decode_from(limits, reader)?;
+        Ok(Self { result: decoded_result })
+    }
+}
+
 impl Request {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -18650,6 +21574,9 @@ impl Request {
             Self::FollowAct(record) => 1_u32.checked_add(FollowActRequest::measure(record)).expect("schema ceilings fit u32"),
             Self::AddDevice(record) => 1_u32.checked_add(AddDevice::measure(record)).expect("schema ceilings fit u32"),
             Self::RemoveDevice(record) => 1_u32.checked_add(RemoveDevice::measure(record)).expect("schema ceilings fit u32"),
+            Self::FileFinding(record) => 1_u32.checked_add(FileFinding::measure(record)).expect("schema ceilings fit u32"),
+            Self::HandFinding(record) => 1_u32.checked_add(HandFinding::measure(record)).expect("schema ceilings fit u32"),
+            Self::TriageFinding(record) => 1_u32.checked_add(TriageFinding::measure(record)).expect("schema ceilings fit u32"),
             Self::StartPlayground | Self::EndPlayground => 1,
         }
     }
@@ -18678,6 +21605,9 @@ impl Request {
             Self::FollowAct(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
             Self::AddDevice(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
             Self::RemoveDevice(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
+            Self::FileFinding(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
+            Self::HandFinding(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::TriageFinding(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -18713,6 +21643,9 @@ impl Request {
             18 => Self::FollowAct(FollowActRequest::decode_from(limits, reader)?),
             19 => Self::AddDevice(AddDevice::decode_from(limits, reader)?),
             20 => Self::RemoveDevice(RemoveDevice::decode_from(limits, reader)?),
+            21 => Self::FileFinding(FileFinding::decode_from(limits, reader)?),
+            22 => Self::HandFinding(HandFinding::decode_from(limits, reader)?),
+            23 => Self::TriageFinding(TriageFinding::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::RequestTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -21466,6 +24399,50 @@ impl ProjectWords {
     }
 }
 
+impl WayRole {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_charter = &self.charter;
+        writer.put(&field_charter.to_be_bytes())?;
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        let field_budget = &self.budget;
+        writer.put(&field_budget.to_be_bytes())?;
+        let field_running = &self.running;
+        writer.put(&[u8::from(*field_running)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::WayRoleTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_charter = reader.u32().ok_or(Problem { path: Path::WayRoleCharter, reason: skein_codec::Reason::Short })?;
+        let decoded_words = match skein_codec::read_text(reader, limits.way_role_words.min(CEILINGS.way_role_words)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::WayRoleWords, reason }), };
+        let decoded_budget = reader.u64().ok_or(Problem { path: Path::WayRoleBudget, reason: skein_codec::Reason::Short })?;
+        let decoded_running = match reader.u8().ok_or(Problem { path: Path::WayRoleRunning, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::WayRoleRunning, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { charter: decoded_charter, words: decoded_words, budget: decoded_budget, running: decoded_running })
+    }
+}
+
 impl StockWay {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -21488,6 +24465,11 @@ impl StockWay {
         size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
         }
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_roles = &self.roles;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_roles.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -21511,6 +24493,11 @@ impl StockWay {
         }
         let field_delegation = &self.delegation;
         writer.put(&[u8::from(*field_delegation)])?;
+        let field_roles = &self.roles;
+        writer.put(&field_roles.len().to_be_bytes())?;
+        for item_0 in field_roles.as_slice() {
+        item_0.encode(writer)?;
+        }
         Ok(())
     }
 
@@ -21528,7 +24515,8 @@ impl StockWay {
         let decoded_path = BranchPath::decode_from(limits, reader)?;
         let decoded_items = { let count = match skein_codec::read_count(reader, limits.stock_way_items.min(CEILINGS.stock_way_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::StockWayItems, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::StockWayItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ProposalItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_delegation = match reader.u8().ok_or(Problem { path: Path::StockWayDelegation, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::StockWayDelegation, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { name: decoded_name, headline: decoded_headline, line: decoded_line, path: decoded_path, items: decoded_items, delegation: decoded_delegation })
+        let decoded_roles = { let count = match skein_codec::read_count(reader, limits.stock_way_roles.min(CEILINGS.stock_way_roles)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::StockWayRoles, reason }), }; if count > reader.remaining() / 17 { return Err(Problem { path: Path::StockWayRoles, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = WayRole::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { name: decoded_name, headline: decoded_headline, line: decoded_line, path: decoded_path, items: decoded_items, delegation: decoded_delegation, roles: decoded_roles })
     }
 }
 
@@ -21733,7 +24721,7 @@ impl WaysPanel {
         let version = reader.u16().ok_or(Problem { path: Path::WaysPanelVersion, reason: skein_codec::Reason::Short })?;
         if version != 16 { return Err(Problem { path: Path::WaysPanelVersion, reason: skein_codec::Reason::Version }); }
         let decoded_project = reader.u32().ok_or(Problem { path: Path::WaysPanelProject, reason: skein_codec::Reason::Short })?;
-        let decoded_ways = { let count = match skein_codec::read_count(reader, limits.ways_panel_ways.min(CEILINGS.ways_panel_ways)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::WaysPanelWays, reason }), }; if count > reader.remaining() / 26 { return Err(Problem { path: Path::WaysPanelWays, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = StockWay::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_ways = { let count = match skein_codec::read_count(reader, limits.ways_panel_ways.min(CEILINGS.ways_panel_ways)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::WaysPanelWays, reason }), }; if count > reader.remaining() / 30 { return Err(Problem { path: Path::WaysPanelWays, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = StockWay::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_current = match reader.u8().ok_or(Problem { path: Path::WaysPanelCurrent, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::WaysPanelCurrent, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::WaysPanelCurrent, reason: skein_codec::Reason::Tag }) };
         let decoded_own = BranchPath::decode_from(limits, reader)?;
         let decoded_words = match reader.u8().ok_or(Problem { path: Path::WaysPanelWords, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ProjectWords::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::WaysPanelWords, reason: skein_codec::Reason::Tag }) };
@@ -22097,6 +25085,7 @@ impl Read {
             Self::ProposalItems(record) => 1_u32.checked_add(ProposalItemsRead::measure(record)).expect("schema ceilings fit u32"),
             Self::RevisionSetting(record) => 1_u32.checked_add(RevisionSettingRead::measure(record)).expect("schema ceilings fit u32"),
             Self::View(record) => 1_u32.checked_add(ViewRead::measure(record)).expect("schema ceilings fit u32"),
+            Self::Finding(record) => 1_u32.checked_add(FindingRead::measure(record)).expect("schema ceilings fit u32"),
             Self::Playground | Self::Deployment | Self::ProgramEnvironment => 1,
         }
     }
@@ -22111,6 +25100,7 @@ impl Read {
             Self::RevisionSetting(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::ProgramEnvironment => writer.put(&[5_u8])?,
             Self::View(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Finding(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -22132,6 +25122,7 @@ impl Read {
             4 => Self::RevisionSetting(RevisionSettingRead::decode_from(limits, reader)?),
             5 => Self::ProgramEnvironment,
             6 => Self::View(ViewRead::decode_from(limits, reader)?),
+            7 => Self::Finding(FindingRead::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ReadTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -22652,6 +25643,7 @@ impl Watch {
             Self::Ways(record) => 1_u32.checked_add(WaysSubject::measure(record)).expect("schema ceilings fit u32"),
             Self::Drafts(record) => 1_u32.checked_add(DraftsSubject::measure(record)).expect("schema ceilings fit u32"),
             Self::Follows(record) => 1_u32.checked_add(FollowsSubject::measure(record)).expect("schema ceilings fit u32"),
+            Self::Findings(record) => 1_u32.checked_add(FindingsSubject::measure(record)).expect("schema ceilings fit u32"),
             Self::Forges | Self::Dismissed | Self::Away | Self::Trials | Self::Approvals | Self::Devices => 1,
         }
     }
@@ -22674,6 +25666,7 @@ impl Watch {
             Self::Drafts(record) => { writer.put(&[12_u8])?; record.encode(writer)?; }
             Self::Follows(record) => { writer.put(&[13_u8])?; record.encode(writer)?; }
             Self::Devices => writer.put(&[14_u8])?,
+            Self::Findings(record) => { writer.put(&[15_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -22703,6 +25696,7 @@ impl Watch {
             12 => Self::Drafts(DraftsSubject::decode_from(limits, reader)?),
             13 => Self::Follows(FollowsSubject::decode_from(limits, reader)?),
             14 => Self::Devices,
+            15 => Self::Findings(FindingsSubject::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::WatchTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -25872,7 +28866,9 @@ impl Outcome {
             Self::Follow(record) => 1_u32.checked_add(FollowOutcome::measure(record)).expect("schema ceilings fit u32"),
             Self::DeviceAdded(record) => 1_u32.checked_add(DeviceAdded::measure(record)).expect("schema ceilings fit u32"),
             Self::DeviceRefused(record) => 1_u32.checked_add(DeviceRefused::measure(record)).expect("schema ceilings fit u32"),
-            Self::Unknown | Self::SettingUp | Self::Running | Self::Connecting | Self::Removed | Self::Reset | Self::Dismissed | Self::MakeKept | Self::Looked | Self::Away | Self::Overturned | Self::Tried | Self::NotTheirs | Self::DeviceRemoved => 1,
+            Self::Filed(record) => 1_u32.checked_add(Filed::measure(record)).expect("schema ceilings fit u32"),
+            Self::FindingRefused(record) => 1_u32.checked_add(FindingRefused::measure(record)).expect("schema ceilings fit u32"),
+            Self::Unknown | Self::SettingUp | Self::Running | Self::Connecting | Self::Removed | Self::Reset | Self::Dismissed | Self::MakeKept | Self::Looked | Self::Away | Self::Overturned | Self::Tried | Self::NotTheirs | Self::DeviceRemoved | Self::Handed | Self::Triaged => 1,
         }
     }
 
@@ -25912,6 +28908,10 @@ impl Outcome {
             Self::DeviceAdded(record) => { writer.put(&[30_u8])?; record.encode(writer)?; }
             Self::DeviceRemoved => writer.put(&[31_u8])?,
             Self::DeviceRefused(record) => { writer.put(&[32_u8])?; record.encode(writer)?; }
+            Self::Filed(record) => { writer.put(&[33_u8])?; record.encode(writer)?; }
+            Self::Handed => writer.put(&[34_u8])?,
+            Self::Triaged => writer.put(&[35_u8])?,
+            Self::FindingRefused(record) => { writer.put(&[36_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -25959,6 +28959,10 @@ impl Outcome {
             30 => Self::DeviceAdded(DeviceAdded::decode_from(limits, reader)?),
             31 => Self::DeviceRemoved,
             32 => Self::DeviceRefused(DeviceRefused::decode_from(limits, reader)?),
+            33 => Self::Filed(Filed::decode_from(limits, reader)?),
+            34 => Self::Handed,
+            35 => Self::Triaged,
+            36 => Self::FindingRefused(FindingRefused::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::OutcomeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -26844,6 +29848,248 @@ impl FollowPerson {
     }
 }
 
+impl FollowWords {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FollowWordsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_words = { let length = match skein_codec::read_len(reader, limits.follow_words_words.min(CEILINGS.follow_words_words)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowWordsWords, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { words: decoded_words })
+    }
+}
+
+impl FollowWait {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_change = &self.change;
+        writer.put(&field_change.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FollowWaitTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_change = reader.u64().ok_or(Problem { path: Path::FollowWaitChange, reason: skein_codec::Reason::Short })?;
+        Ok(Self { change: decoded_change })
+    }
+}
+
+impl FollowSkip {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_reason = &self.reason;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_after = &self.after;
+        writer.put(field_after)?;
+        let field_reason = &self.reason;
+        writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_reason.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FollowSkipTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_after = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowSkipAfter, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_reason = { let length = match skein_codec::read_len(reader, limits.follow_skip_reason.min(CEILINGS.follow_skip_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowSkipReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { after: decoded_after, reason: decoded_reason })
+    }
+}
+
+impl FollowFailing {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_count = &self.count;
+        writer.put(&field_count.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FollowFailingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_count = reader.u32().ok_or(Problem { path: Path::FollowFailingCount, reason: skein_codec::Reason::Short })?;
+        Ok(Self { count: decoded_count })
+    }
+}
+
+impl AreaTask {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaTaskTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::AreaTaskNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl AreaParty {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaPartyTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::AreaPartyNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl AreaRole {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaRoleTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::AreaRoleNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl AreaCharter {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaCharterTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::AreaCharterNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
 impl FollowOwner {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -27058,67 +30304,6 @@ impl Follow {
     }
 }
 
-impl FollowWords {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_words = &self.words;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_words = &self.words;
-        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_words.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FollowWordsTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_words = { let length = match skein_codec::read_len(reader, limits.follow_words_words.min(CEILINGS.follow_words_words)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowWordsWords, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowWordsWords, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { words: decoded_words })
-    }
-}
-
-impl FollowWait {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_change = &self.change;
-        writer.put(&field_change.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FollowWaitTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_change = reader.u64().ok_or(Problem { path: Path::FollowWaitChange, reason: skein_codec::Reason::Short })?;
-        Ok(Self { change: decoded_change })
-    }
-}
-
 impl FollowState {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -27212,71 +30397,6 @@ impl FollowEntry {
         let decoded_change = match reader.u8().ok_or(Problem { path: Path::FollowEntryChange, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::FollowEntryChange, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::FollowEntryChange, reason: skein_codec::Reason::Tag }) };
         let decoded_state = FollowState::decode_from(limits, reader)?;
         Ok(Self { after: decoded_after, change: decoded_change, state: decoded_state })
-    }
-}
-
-impl FollowSkip {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_reason = &self.reason;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_after = &self.after;
-        writer.put(field_after)?;
-        let field_reason = &self.reason;
-        writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_reason.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FollowSkipTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_after = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowSkipAfter, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_reason = { let length = match skein_codec::read_len(reader, limits.follow_skip_reason.min(CEILINGS.follow_skip_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowSkipReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowSkipReason, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { after: decoded_after, reason: decoded_reason })
-    }
-}
-
-impl FollowFailing {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_count = &self.count;
-        writer.put(&field_count.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FollowFailingTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_count = reader.u32().ok_or(Problem { path: Path::FollowFailingCount, reason: skein_codec::Reason::Short })?;
-        Ok(Self { count: decoded_count })
     }
 }
 
@@ -27546,6 +30666,295 @@ impl FollowsPanel {
         let decoded_follows = { let count = match skein_codec::read_count(reader, limits.follows_panel_follows.min(CEILINGS.follows_panel_follows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowsPanelFollows, reason }), }; if count > reader.remaining() / 79 { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowView::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_dependencies = { let count = match skein_codec::read_count(reader, limits.follows_panel_dependencies.min(CEILINGS.follows_panel_dependencies)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowsPanelDependencies, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = DependencyView::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { project: decoded_project, follows: decoded_follows, dependencies: decoded_dependencies })
+    }
+}
+
+impl AreaOwner {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Task(record) => 1_u32.checked_add(AreaTask::measure(record)).expect("schema ceilings fit u32"),
+            Self::Party(record) => 1_u32.checked_add(AreaParty::measure(record)).expect("schema ceilings fit u32"),
+            Self::Role(record) => 1_u32.checked_add(AreaRole::measure(record)).expect("schema ceilings fit u32"),
+            Self::Charter(record) => 1_u32.checked_add(AreaCharter::measure(record)).expect("schema ceilings fit u32"),
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Task(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Party(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Role(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::Charter(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaOwnerTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::AreaOwnerTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Task(AreaTask::decode_from(limits, reader)?),
+            1 => Self::Party(AreaParty::decode_from(limits, reader)?),
+            2 => Self::Role(AreaRole::decode_from(limits, reader)?),
+            3 => Self::Charter(AreaCharter::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::AreaOwnerTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl Area {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_owner = &self.owner;
+        size = size.checked_add(field_owner.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        let field_owner = &self.owner;
+        field_owner.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = match skein_codec::read_text(reader, limits.area_name.min(CEILINGS.area_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AreaName, reason }), };
+        let decoded_words = match skein_codec::read_text(reader, limits.area_words.min(CEILINGS.area_words)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AreaWords, reason }), };
+        let decoded_owner = AreaOwner::decode_from(limits, reader)?;
+        Ok(Self { name: decoded_name, words: decoded_words, owner: decoded_owner })
+    }
+}
+
+impl ProjectAreas {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_areas = &self.areas;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_areas.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_areas = &self.areas;
+        writer.put(&field_areas.len().to_be_bytes())?;
+        for item_0 in field_areas.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectAreasTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_areas = { let count = match skein_codec::read_count(reader, limits.project_areas_areas.min(CEILINGS.project_areas_areas)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectAreasAreas, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Area::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { areas: decoded_areas })
+    }
+}
+
+impl ProjectTriager {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_owner = &self.owner;
+        size = size.checked_add(field_owner.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_owner = &self.owner;
+        field_owner.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectTriagerTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_owner = AreaOwner::decode_from(limits, reader)?;
+        Ok(Self { owner: decoded_owner })
+    }
+}
+
+impl AreaRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_owner = &self.owner;
+        size = size.checked_add(field_owner.measure()).expect("schema ceilings fit u32");
+        let field_holder = &self.holder;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_holder {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        let field_owner = &self.owner;
+        field_owner.encode(writer)?;
+        let field_holder = &self.holder;
+        match field_holder {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::AreaRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = match skein_codec::read_text(reader, limits.area_row_name.min(CEILINGS.area_row_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AreaRowName, reason }), };
+        let decoded_words = match skein_codec::read_text(reader, limits.area_row_words.min(CEILINGS.area_row_words)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::AreaRowWords, reason }), };
+        let decoded_owner = AreaOwner::decode_from(limits, reader)?;
+        let decoded_holder = match reader.u8().ok_or(Problem { path: Path::AreaRowHolder, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Holder::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::AreaRowHolder, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { name: decoded_name, words: decoded_words, owner: decoded_owner, holder: decoded_holder })
+    }
+}
+
+impl Findings {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_rows = &self.rows;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_rows.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_areas = &self.areas;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_areas.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_triager = &self.triager;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_triager {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_holder = &self.holder;
+        size = size.checked_add(field_holder.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&16_u16.to_be_bytes())?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_rows = &self.rows;
+        writer.put(&field_rows.len().to_be_bytes())?;
+        for item_0 in field_rows.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_areas = &self.areas;
+        writer.put(&field_areas.len().to_be_bytes())?;
+        for item_0 in field_areas.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_triager = &self.triager;
+        match field_triager {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_holder = &self.holder;
+        field_holder.encode(writer)?;
+        let field_cut = &self.cut;
+        writer.put(&[u8::from(*field_cut)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let version = reader.u16().ok_or(Problem { path: Path::FindingsVersion, reason: skein_codec::Reason::Short })?;
+        if version != 16 { return Err(Problem { path: Path::FindingsVersion, reason: skein_codec::Reason::Version }); }
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::FindingsProject, reason: skein_codec::Reason::Short })?;
+        let decoded_rows = { let count = match skein_codec::read_count(reader, limits.findings_rows.min(CEILINGS.findings_rows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingsRows, reason }), }; if count > reader.remaining() / 27 { return Err(Problem { path: Path::FindingsRows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FindingRow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_areas = { let count = match skein_codec::read_count(reader, limits.findings_areas.min(CEILINGS.findings_areas)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingsAreas, reason }), }; if count > reader.remaining() / 14 { return Err(Problem { path: Path::FindingsAreas, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AreaRow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_triager = match reader.u8().ok_or(Problem { path: Path::FindingsTriager, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(AreaOwner::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingsTriager, reason: skein_codec::Reason::Tag }) };
+        let decoded_holder = Holder::decode_from(limits, reader)?;
+        let decoded_cut = match reader.u8().ok_or(Problem { path: Path::FindingsCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::FindingsCut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { project: decoded_project, rows: decoded_rows, areas: decoded_areas, triager: decoded_triager, holder: decoded_holder, cut: decoded_cut })
     }
 }
 
@@ -29601,118 +33010,6 @@ impl StartedDraft {
     }
 }
 
-impl DraftChange {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(ReadyDraft::encoded_bound_within(limits)?).max(StartedDraft::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(ReadyDraft::decoded_bound_within(limits)?).max(StartedDraft::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-impl SetDraft {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(DraftRepository::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.set_draft_path))?)?.checked_add(DraftChange::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(DraftRepository::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.set_draft_path))?.checked_add(DraftChange::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl DraftRefusal {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-impl DraftRefused {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(DraftRefusal::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(DraftRefusal::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
 impl LandedDraft {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -29863,6 +33160,456 @@ impl FollowMergeAct {
     }
 }
 
+impl FollowOutcome {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.follow_outcome_refusal_some))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.follow_outcome_refusal_some))?;
+        heap.checked_add(0)
+    }
+}
+
+impl HolderTask {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl HolderParty {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl HolderRole {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl HandFinding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.hand_finding_area))?)?.checked_add(4_u64.checked_add(u64::from(limits.hand_finding_why))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.hand_finding_area))?.checked_add(u64::from(limits.hand_finding_why))?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingRoute {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingDrop {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.finding_drop_reason))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.finding_drop_reason))?;
+        heap.checked_add(0)
+    }
+}
+
+impl Filed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingAreas {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.finding_areas_areas).checked_mul(4_u64.checked_add(u64::from(limits.finding_areas_areas_item))?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.finding_areas_areas)?.checked_add(u64::from(limits.finding_areas_areas).checked_mul(u64::from(limits.finding_areas_areas_item))?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingsFull {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingWords {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.finding_words_field))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.finding_words_field))?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingRead {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl DraftChange {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ReadyDraft::encoded_bound_within(limits)?).max(StartedDraft::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ReadyDraft::decoded_bound_within(limits)?).max(StartedDraft::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl SetDraft {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(DraftRepository::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.set_draft_path))?)?.checked_add(DraftChange::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(DraftRepository::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.set_draft_path))?.checked_add(DraftChange::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl DraftRefusal {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl DraftRefused {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(DraftRefusal::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(DraftRefusal::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl FollowAct {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -29890,34 +33637,6 @@ impl FollowAct {
         biggest = biggest.max(FollowAt::decoded_bound_within(limits)?).max(FollowReasonAct::decoded_bound_within(limits)?);
         biggest = biggest.max(FollowReasonAct::decoded_bound_within(limits)?).max(FollowMergeAct::decoded_bound_within(limits)?);
         biggest.checked_add(0)
-    }
-}
-
-impl FollowOutcome {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.follow_outcome_refusal_some))?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.follow_outcome_refusal_some))?;
-        heap.checked_add(0)
     }
 }
 
@@ -30149,6 +33868,472 @@ impl Devices {
     }
 }
 
+impl FindingKind {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl Severity {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl FileFinding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(FindingKind::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Severity::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.file_finding_area_some))?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.file_finding_title))?)?.checked_add(4_u64.checked_add(u64::from(limits.file_finding_body))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(FindingKind::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Severity::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.file_finding_area_some))?;
+        heap = heap.checked_add(u64::from(limits.file_finding_title))?.checked_add(u64::from(limits.file_finding_body))?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingState {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl FindingsSubject {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(FindingState::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(FindingState::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl Holder {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HolderTask::encoded_bound_within(limits)?).max(HolderParty::encoded_bound_within(limits)?);
+        biggest = biggest.max(HolderRole::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HolderTask::decoded_bound_within(limits)?).max(HolderParty::decoded_bound_within(limits)?);
+        biggest = biggest.max(HolderRole::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl FindingNotYours {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(Holder::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Holder::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl Filer {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HolderTask::encoded_bound_within(limits)?).max(HolderParty::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(HolderTask::decoded_bound_within(limits)?).max(HolderParty::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl FindingRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(FindingKind::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Severity::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.finding_row_area_some))?)?)?;
+        size = size.checked_add(FindingState::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.finding_row_title))?)?;
+        size = size.checked_add(Holder::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.finding_row_why_some))?)?)?.checked_add(1_u64.checked_add(Filer::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(FindingKind::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Severity::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.finding_row_area_some))?;
+        heap = heap.checked_add(FindingState::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.finding_row_title))?;
+        heap = heap.checked_add(Holder::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.finding_row_why_some))?.checked_add(Filer::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingDetail {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(FindingRow::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.finding_detail_body))?)?;
+        size = size.checked_add(Filer::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.finding_detail_reason_some))?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(FindingRow::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.finding_detail_body))?;
+        heap = heap.checked_add(Filer::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.finding_detail_reason_some))?;
+        heap.checked_add(0)
+    }
+}
+
+impl Triage {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingRoute::encoded_bound_within(limits)?).max(FindingDrop::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingRoute::decoded_bound_within(limits)?).max(FindingDrop::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl TriageFinding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(Triage::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Triage::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingRefusal {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingAreas::encoded_bound_within(limits)?).max(FindingsFull::encoded_bound_within(limits)?);
+        biggest = biggest.max(FindingNotYours::encoded_bound_within(limits)?).max(FindingWords::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingAreas::decoded_bound_within(limits)?).max(FindingsFull::decoded_bound_within(limits)?);
+        biggest = biggest.max(FindingNotYours::decoded_bound_within(limits)?).max(FindingWords::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl FindingRefused {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(FindingRefusal::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(FindingRefusal::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FindingResult {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingDetail::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(FindingDetail::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl FindingAnswer {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 2_u64;
+        size = size.checked_add(FindingResult::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(FindingResult::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Request {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -30168,7 +34353,8 @@ impl Request {
         biggest = biggest.max(SetAway::encoded_bound_within(limits)?).max(Overturn::encoded_bound_within(limits)?);
         biggest = biggest.max(TryAccount::encoded_bound_within(limits)?).max(SetDraft::encoded_bound_within(limits)?);
         biggest = biggest.max(FollowActRequest::encoded_bound_within(limits)?).max(AddDevice::encoded_bound_within(limits)?);
-        biggest = biggest.max(RemoveDevice::encoded_bound_within(limits)?);
+        biggest = biggest.max(RemoveDevice::encoded_bound_within(limits)?).max(FileFinding::encoded_bound_within(limits)?);
+        biggest = biggest.max(HandFinding::encoded_bound_within(limits)?).max(TriageFinding::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -30190,7 +34376,8 @@ impl Request {
         biggest = biggest.max(SetAway::decoded_bound_within(limits)?).max(Overturn::decoded_bound_within(limits)?);
         biggest = biggest.max(TryAccount::decoded_bound_within(limits)?).max(SetDraft::decoded_bound_within(limits)?);
         biggest = biggest.max(FollowActRequest::decoded_bound_within(limits)?).max(AddDevice::decoded_bound_within(limits)?);
-        biggest = biggest.max(RemoveDevice::decoded_bound_within(limits)?);
+        biggest = biggest.max(RemoveDevice::decoded_bound_within(limits)?).max(FileFinding::decoded_bound_within(limits)?);
+        biggest = biggest.max(HandFinding::decoded_bound_within(limits)?).max(TriageFinding::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -32019,6 +36206,36 @@ impl ProjectWords {
     }
 }
 
+impl WayRole {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.way_role_words))?)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.way_role_words))?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl StockWay {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -32032,6 +36249,7 @@ impl StockWay {
         size = size.checked_add(4_u64.checked_add(u64::from(limits.stock_way_name))?)?.checked_add(4_u64.checked_add(u64::from(limits.stock_way_headline))?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.stock_way_line))?)?.checked_add(BranchPath::encoded_bound_within(limits)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.stock_way_items).checked_mul(ProposalItem::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.stock_way_roles).checked_mul(WayRole::encoded_bound_within(limits)?)?)?)?;
         size.checked_add(0)
     }
 
@@ -32047,6 +36265,7 @@ impl StockWay {
         heap = heap.checked_add(u64::from(limits.stock_way_name))?.checked_add(u64::from(limits.stock_way_headline))?;
         heap = heap.checked_add(u64::from(limits.stock_way_line))?.checked_add(BranchPath::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(List::<ProposalItem>::price(limits.stock_way_items)?.checked_add(u64::from(limits.stock_way_items).checked_mul(ProposalItem::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<WayRole>::price(limits.stock_way_roles)?.checked_add(u64::from(limits.stock_way_roles).checked_mul(WayRole::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
 }
@@ -32445,6 +36664,7 @@ impl Read {
         let mut biggest = 0_u64;
         biggest = biggest.max(SettingRead::encoded_bound_within(limits)?).max(ProposalItemsRead::encoded_bound_within(limits)?);
         biggest = biggest.max(RevisionSettingRead::encoded_bound_within(limits)?).max(ViewRead::encoded_bound_within(limits)?);
+        biggest = biggest.max(FindingRead::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -32459,6 +36679,7 @@ impl Read {
         let mut biggest = 0_u64;
         biggest = biggest.max(SettingRead::decoded_bound_within(limits)?).max(ProposalItemsRead::decoded_bound_within(limits)?);
         biggest = biggest.max(RevisionSettingRead::decoded_bound_within(limits)?).max(ViewRead::decoded_bound_within(limits)?);
+        biggest = biggest.max(FindingRead::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -32847,7 +37068,7 @@ impl Watch {
         biggest = biggest.max(LandingsSubject::encoded_bound_within(limits)?).max(ChangesSubject::encoded_bound_within(limits)?);
         biggest = biggest.max(StatusSubject::encoded_bound_within(limits)?).max(DecidedSubject::encoded_bound_within(limits)?);
         biggest = biggest.max(WaysSubject::encoded_bound_within(limits)?).max(DraftsSubject::encoded_bound_within(limits)?);
-        biggest = biggest.max(FollowsSubject::encoded_bound_within(limits)?);
+        biggest = biggest.max(FollowsSubject::encoded_bound_within(limits)?).max(FindingsSubject::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -32864,7 +37085,7 @@ impl Watch {
         biggest = biggest.max(LandingsSubject::decoded_bound_within(limits)?).max(ChangesSubject::decoded_bound_within(limits)?);
         biggest = biggest.max(StatusSubject::decoded_bound_within(limits)?).max(DecidedSubject::decoded_bound_within(limits)?);
         biggest = biggest.max(WaysSubject::decoded_bound_within(limits)?).max(DraftsSubject::decoded_bound_within(limits)?);
-        biggest = biggest.max(FollowsSubject::decoded_bound_within(limits)?);
+        biggest = biggest.max(FollowsSubject::decoded_bound_within(limits)?).max(FindingsSubject::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -34800,7 +39021,8 @@ impl Outcome {
         biggest = biggest.max(MakeRefused::encoded_bound_within(limits)?).max(OverturnRefused::encoded_bound_within(limits)?);
         biggest = biggest.max(LandedDraft::encoded_bound_within(limits)?).max(DraftRefused::encoded_bound_within(limits)?);
         biggest = biggest.max(FollowOutcome::encoded_bound_within(limits)?).max(DeviceAdded::encoded_bound_within(limits)?);
-        biggest = biggest.max(DeviceRefused::encoded_bound_within(limits)?);
+        biggest = biggest.max(DeviceRefused::encoded_bound_within(limits)?).max(Filed::encoded_bound_within(limits)?);
+        biggest = biggest.max(FindingRefused::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -34822,7 +39044,8 @@ impl Outcome {
         biggest = biggest.max(MakeRefused::decoded_bound_within(limits)?).max(OverturnRefused::decoded_bound_within(limits)?);
         biggest = biggest.max(LandedDraft::decoded_bound_within(limits)?).max(DraftRefused::decoded_bound_within(limits)?);
         biggest = biggest.max(FollowOutcome::decoded_bound_within(limits)?).max(DeviceAdded::decoded_bound_within(limits)?);
-        biggest = biggest.max(DeviceRefused::decoded_bound_within(limits)?);
+        biggest = biggest.max(DeviceRefused::decoded_bound_within(limits)?).max(Filed::decoded_bound_within(limits)?);
+        biggest = biggest.max(FindingRefused::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -35487,6 +39710,230 @@ impl FollowPerson {
     }
 }
 
+impl FollowWords {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.follow_words_words))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.follow_words_words))?;
+        heap.checked_add(0)
+    }
+}
+
+impl FollowWait {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FollowSkip {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(4_u64.checked_add(u64::from(limits.follow_skip_reason))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.follow_skip_reason))?;
+        heap.checked_add(0)
+    }
+}
+
+impl FollowFailing {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AreaTask {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AreaParty {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AreaRole {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AreaCharter {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl FollowOwner {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -35629,62 +40076,6 @@ impl Follow {
     }
 }
 
-impl FollowWords {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.follow_words_words))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.follow_words_words))?;
-        heap.checked_add(0)
-    }
-}
-
-impl FollowWait {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
 impl FollowState {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -35741,62 +40132,6 @@ impl FollowEntry {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(FollowState::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl FollowSkip {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(4_u64.checked_add(u64::from(limits.follow_skip_reason))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.follow_skip_reason))?;
-        heap.checked_add(0)
-    }
-}
-
-impl FollowFailing {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -35927,6 +40262,184 @@ impl FollowsPanel {
     }
 }
 
+impl AreaOwner {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(AreaTask::encoded_bound_within(limits)?).max(AreaParty::encoded_bound_within(limits)?);
+        biggest = biggest.max(AreaRole::encoded_bound_within(limits)?).max(AreaCharter::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(AreaTask::decoded_bound_within(limits)?).max(AreaParty::decoded_bound_within(limits)?);
+        biggest = biggest.max(AreaRole::decoded_bound_within(limits)?).max(AreaCharter::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl Area {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.area_name))?)?.checked_add(4_u64.checked_add(u64::from(limits.area_words))?)?;
+        size = size.checked_add(AreaOwner::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.area_name))?.checked_add(u64::from(limits.area_words))?;
+        heap = heap.checked_add(AreaOwner::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ProjectAreas {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.project_areas_areas).checked_mul(Area::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Area>::price(limits.project_areas_areas)?.checked_add(u64::from(limits.project_areas_areas).checked_mul(Area::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ProjectTriager {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(AreaOwner::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(AreaOwner::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl AreaRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.area_row_name))?)?.checked_add(4_u64.checked_add(u64::from(limits.area_row_words))?)?;
+        size = size.checked_add(AreaOwner::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(Holder::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.area_row_name))?.checked_add(u64::from(limits.area_row_words))?;
+        heap = heap.checked_add(AreaOwner::decoded_bound_within(limits)?)?.checked_add(Holder::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl Findings {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 2_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.findings_rows).checked_mul(FindingRow::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.findings_areas).checked_mul(AreaRow::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(AreaOwner::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(Holder::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<FindingRow>::price(limits.findings_rows)?.checked_add(u64::from(limits.findings_rows).checked_mul(FindingRow::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(List::<AreaRow>::price(limits.findings_areas)?.checked_add(u64::from(limits.findings_areas).checked_mul(AreaRow::decoded_bound_within(limits)?)?)?)?.checked_add(AreaOwner::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Holder::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 /// Maximum wire bytes among this family's top-level types.
 #[must_use]
 pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -36011,17 +40524,32 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DraftRepository::encoded_bound_within(limits)?);
     biggest = biggest.max(ReadyDraft::encoded_bound_within(limits)?);
     biggest = biggest.max(StartedDraft::encoded_bound_within(limits)?);
-    biggest = biggest.max(DraftChange::encoded_bound_within(limits)?);
-    biggest = biggest.max(SetDraft::encoded_bound_within(limits)?);
-    biggest = biggest.max(DraftRefusal::encoded_bound_within(limits)?);
-    biggest = biggest.max(DraftRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(LandedDraft::encoded_bound_within(limits)?);
     biggest = biggest.max(DraftsSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowAt::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowReasonAct::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowMergeAct::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowAct::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowOutcome::encoded_bound_within(limits)?);
+    biggest = biggest.max(HolderTask::encoded_bound_within(limits)?);
+    biggest = biggest.max(HolderParty::encoded_bound_within(limits)?);
+    biggest = biggest.max(HolderRole::encoded_bound_within(limits)?);
+    biggest = biggest.max(HandFinding::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRoute::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingDrop::encoded_bound_within(limits)?);
+    biggest = biggest.max(Filed::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingAreas::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingsFull::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingWords::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRead::encoded_bound_within(limits)?);
+    biggest = biggest.max(DraftChange::encoded_bound_within(limits)?);
+    biggest = biggest.max(SetDraft::encoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(DraftRefusal::encoded_bound_within(limits)?);
+    biggest = biggest.max(DraftRefused::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowAct::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowActRequest::encoded_bound_within(limits)?);
     biggest = biggest.max(AddDevice::encoded_bound_within(limits)?);
     biggest = biggest.max(RemoveDevice::encoded_bound_within(limits)?);
@@ -36030,10 +40558,22 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DeviceRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(DeviceRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Devices::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(FindingKind::encoded_bound_within(limits)?);
+    biggest = biggest.max(Severity::encoded_bound_within(limits)?);
+    biggest = biggest.max(FileFinding::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingState::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingsSubject::encoded_bound_within(limits)?);
+    biggest = biggest.max(Holder::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingNotYours::encoded_bound_within(limits)?);
+    biggest = biggest.max(Filer::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRow::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingDetail::encoded_bound_within(limits)?);
+    biggest = biggest.max(Triage::encoded_bound_within(limits)?);
+    biggest = biggest.max(TriageFinding::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRefusal::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRefused::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingResult::encoded_bound_within(limits)?);
+    biggest = biggest.max(FindingAnswer::encoded_bound_within(limits)?);
     biggest = biggest.max(Request::encoded_bound_within(limits)?);
     biggest = biggest.max(Requesting::encoded_bound_within(limits)?);
     biggest = biggest.max(SetUpRefusal::encoded_bound_within(limits)?);
@@ -36097,8 +40637,13 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Card::encoded_bound_within(limits)?);
     biggest = biggest.max(Stop::encoded_bound_within(limits)?);
     biggest = biggest.max(BranchPath::encoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CharterWords::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectWords::encoded_bound_within(limits)?);
+    biggest = biggest.max(WayRole::encoded_bound_within(limits)?);
     biggest = biggest.max(StockWay::encoded_bound_within(limits)?);
     biggest = biggest.max(WaysSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(PathRule::encoded_bound_within(limits)?);
@@ -36124,10 +40669,6 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingsSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangesSubject::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(StatusSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(DecidedSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowsSubject::encoded_bound_within(limits)?);
@@ -36190,6 +40731,10 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ConnectRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(Link::encoded_bound_within(limits)?);
     biggest = biggest.max(Reached::encoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Page::encoded_bound_within(limits)?);
     biggest = biggest.max(AcceptedInstallation::encoded_bound_within(limits)?);
     biggest = biggest.max(EndRefusal::encoded_bound_within(limits)?);
@@ -36218,28 +40763,34 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dependency::encoded_bound_within(limits)?);
     biggest = biggest.max(DependencyView::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(FollowSource::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowTarget::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowPerson::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowWords::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowWait::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowSkip::encoded_bound_within(limits)?);
+    biggest = biggest.max(FollowFailing::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaTask::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaParty::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaRole::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaCharter::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowOwner::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowStart::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowFormat::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowCheck::encoded_bound_within(limits)?);
     biggest = biggest.max(Follow::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowWords::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowWait::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowState::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowEntry::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowSkip::encoded_bound_within(limits)?);
-    biggest = biggest.max(FollowFailing::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowVerdict::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowParity::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowView::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowsPanel::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaOwner::encoded_bound_within(limits)?);
+    biggest = biggest.max(Area::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectTriager::encoded_bound_within(limits)?);
+    biggest = biggest.max(AreaRow::encoded_bound_within(limits)?);
+    biggest = biggest.max(Findings::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
@@ -36327,17 +40878,32 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DraftRepository::decoded_bound_within(limits)?);
     biggest = biggest.max(ReadyDraft::decoded_bound_within(limits)?);
     biggest = biggest.max(StartedDraft::decoded_bound_within(limits)?);
-    biggest = biggest.max(DraftChange::decoded_bound_within(limits)?);
-    biggest = biggest.max(SetDraft::decoded_bound_within(limits)?);
-    biggest = biggest.max(DraftRefusal::decoded_bound_within(limits)?);
-    biggest = biggest.max(DraftRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(LandedDraft::decoded_bound_within(limits)?);
     biggest = biggest.max(DraftsSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowAt::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowReasonAct::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowMergeAct::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowAct::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowOutcome::decoded_bound_within(limits)?);
+    biggest = biggest.max(HolderTask::decoded_bound_within(limits)?);
+    biggest = biggest.max(HolderParty::decoded_bound_within(limits)?);
+    biggest = biggest.max(HolderRole::decoded_bound_within(limits)?);
+    biggest = biggest.max(HandFinding::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRoute::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingDrop::decoded_bound_within(limits)?);
+    biggest = biggest.max(Filed::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingAreas::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingsFull::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingWords::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRead::decoded_bound_within(limits)?);
+    biggest = biggest.max(DraftChange::decoded_bound_within(limits)?);
+    biggest = biggest.max(SetDraft::decoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(DraftRefusal::decoded_bound_within(limits)?);
+    biggest = biggest.max(DraftRefused::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowAct::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowActRequest::decoded_bound_within(limits)?);
     biggest = biggest.max(AddDevice::decoded_bound_within(limits)?);
     biggest = biggest.max(RemoveDevice::decoded_bound_within(limits)?);
@@ -36346,10 +40912,22 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(DeviceRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(DeviceRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Devices::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(FindingKind::decoded_bound_within(limits)?);
+    biggest = biggest.max(Severity::decoded_bound_within(limits)?);
+    biggest = biggest.max(FileFinding::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingState::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingsSubject::decoded_bound_within(limits)?);
+    biggest = biggest.max(Holder::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingNotYours::decoded_bound_within(limits)?);
+    biggest = biggest.max(Filer::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRow::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingDetail::decoded_bound_within(limits)?);
+    biggest = biggest.max(Triage::decoded_bound_within(limits)?);
+    biggest = biggest.max(TriageFinding::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRefusal::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingRefused::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingResult::decoded_bound_within(limits)?);
+    biggest = biggest.max(FindingAnswer::decoded_bound_within(limits)?);
     biggest = biggest.max(Request::decoded_bound_within(limits)?);
     biggest = biggest.max(Requesting::decoded_bound_within(limits)?);
     biggest = biggest.max(SetUpRefusal::decoded_bound_within(limits)?);
@@ -36413,8 +40991,13 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Card::decoded_bound_within(limits)?);
     biggest = biggest.max(Stop::decoded_bound_within(limits)?);
     biggest = biggest.max(BranchPath::decoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(CharterWords::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectWords::decoded_bound_within(limits)?);
+    biggest = biggest.max(WayRole::decoded_bound_within(limits)?);
     biggest = biggest.max(StockWay::decoded_bound_within(limits)?);
     biggest = biggest.max(WaysSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(PathRule::decoded_bound_within(limits)?);
@@ -36440,10 +41023,6 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingsSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangesSubject::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(StatusSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(DecidedSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowsSubject::decoded_bound_within(limits)?);
@@ -36506,6 +41085,10 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ConnectRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(Link::decoded_bound_within(limits)?);
     biggest = biggest.max(Reached::decoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Page::decoded_bound_within(limits)?);
     biggest = biggest.max(AcceptedInstallation::decoded_bound_within(limits)?);
     biggest = biggest.max(EndRefusal::decoded_bound_within(limits)?);
@@ -36534,34 +41117,40 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dependency::decoded_bound_within(limits)?);
     biggest = biggest.max(DependencyView::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowRepository::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(FollowSource::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowTarget::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowPerson::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowWords::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowWait::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowSkip::decoded_bound_within(limits)?);
+    biggest = biggest.max(FollowFailing::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaTask::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaParty::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaRole::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaCharter::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowOwner::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowStart::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowFormat::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowCheck::decoded_bound_within(limits)?);
     biggest = biggest.max(Follow::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowWords::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowWait::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowState::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowEntry::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowSkip::decoded_bound_within(limits)?);
-    biggest = biggest.max(FollowFailing::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowVerdict::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowParity::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowView::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowsPanel::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaOwner::decoded_bound_within(limits)?);
+    biggest = biggest.max(Area::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectTriager::decoded_bound_within(limits)?);
+    biggest = biggest.max(AreaRow::decoded_bound_within(limits)?);
+    biggest = biggest.max(Findings::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalSet, ApprovalSetParts, ApprovalPerson, ApprovalPersonParts, ApprovalSize, ApprovalSizeParts, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachKindOf, ReachKindOfParts, ClassSubject, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, ReachReason, Reach, ReachParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Asked, AskedParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, DraftRepository, DraftRepositoryParts, ReadyDraft, ReadyDraftParts, StartedDraft, StartedDraftParts, DraftChange, SetDraft, SetDraftParts, DraftRefusal, DraftRefused, DraftRefusedParts, LandedDraft, LandedDraftParts, DraftsSubject, DraftsSubjectParts, FollowAt, FollowAtParts, FollowReasonAct, FollowReasonActParts, FollowMergeAct, FollowMergeActParts, FollowAct, FollowOutcome, FollowOutcomeParts, FollowActRequest, FollowActRequestParts, AddDevice, AddDeviceParts, RemoveDevice, RemoveDeviceParts, DeviceAdded, DeviceAddedParts, DeviceRefusal, DeviceRefused, DeviceRefusedParts, DeviceRow, DeviceRowParts, Devices, DevicesParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, PathRule, PathRuleParts, PathRules, PathRulesParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, FollowsSubject, FollowsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesSigned, ChangesSignedParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, TemplateGoal, TemplateGoalParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, DraftsPanel, DraftsPanelParts, Dependency, DependencyParts, DependencyView, DependencyViewParts, FollowRepository, FollowRepositoryParts, FollowSource, FollowSourceParts, FollowTarget, FollowTargetParts, FollowPerson, FollowPersonParts, FollowOwner, FollowStart, FollowFormat, FollowCheck, FollowCheckParts, Follow, FollowParts, FollowWords, FollowWordsParts, FollowWait, FollowWaitParts, FollowState, FollowEntry, FollowEntryParts, FollowSkip, FollowSkipParts, FollowFailing, FollowFailingParts, FollowVerdict, FollowParity, FollowParityParts, FollowView, FollowViewParts, FollowsPanel, FollowsPanelParts, Path};
+    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalSet, ApprovalSetParts, ApprovalPerson, ApprovalPersonParts, ApprovalSize, ApprovalSizeParts, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, ReachKind, ReachClass, ReachSet, ReachSetParts, ReachKindOf, ReachKindOfParts, ClassSubject, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, KeepAsking, KeepAskingParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, ReachReason, Reach, ReachParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Asked, AskedParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, DraftRepository, DraftRepositoryParts, ReadyDraft, ReadyDraftParts, StartedDraft, StartedDraftParts, LandedDraft, LandedDraftParts, DraftsSubject, DraftsSubjectParts, FollowAt, FollowAtParts, FollowReasonAct, FollowReasonActParts, FollowMergeAct, FollowMergeActParts, FollowOutcome, FollowOutcomeParts, HolderTask, HolderTaskParts, HolderParty, HolderPartyParts, HolderRole, HolderRoleParts, HandFinding, HandFindingParts, FindingRoute, FindingRouteParts, FindingDrop, FindingDropParts, Filed, FiledParts, FindingAreas, FindingAreasParts, FindingsFull, FindingsFullParts, FindingWords, FindingWordsParts, FindingRead, FindingReadParts, DraftChange, SetDraft, SetDraftParts, DraftRefusal, DraftRefused, DraftRefusedParts, FollowAct, FollowActRequest, FollowActRequestParts, AddDevice, AddDeviceParts, RemoveDevice, RemoveDeviceParts, DeviceAdded, DeviceAddedParts, DeviceRefusal, DeviceRefused, DeviceRefusedParts, DeviceRow, DeviceRowParts, Devices, DevicesParts, FindingKind, Severity, FileFinding, FileFindingParts, FindingState, FindingsSubject, FindingsSubjectParts, Holder, FindingNotYours, FindingNotYoursParts, Filer, FindingRow, FindingRowParts, FindingDetail, FindingDetailParts, Triage, TriageFinding, TriageFindingParts, FindingRefusal, FindingRefused, FindingRefusedParts, FindingResult, FindingAnswer, FindingAnswerParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, CharterWords, CharterWordsParts, ProjectWords, ProjectWordsParts, WayRole, WayRoleParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, PathRule, PathRuleParts, PathRules, PathRulesParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, FollowsSubject, FollowsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesSigned, ChangesSignedParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, TemplateGoal, TemplateGoalParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, ClassItem, ClassItemParts, PathSet, PathSetParts, ProjectClasses, ProjectClassesParts, DraftsPanel, DraftsPanelParts, Dependency, DependencyParts, DependencyView, DependencyViewParts, FollowRepository, FollowRepositoryParts, FollowSource, FollowSourceParts, FollowTarget, FollowTargetParts, FollowPerson, FollowPersonParts, FollowWords, FollowWordsParts, FollowWait, FollowWaitParts, FollowSkip, FollowSkipParts, FollowFailing, FollowFailingParts, AreaTask, AreaTaskParts, AreaParty, AreaPartyParts, AreaRole, AreaRoleParts, AreaCharter, AreaCharterParts, FollowOwner, FollowStart, FollowFormat, FollowCheck, FollowCheckParts, Follow, FollowParts, FollowState, FollowEntry, FollowEntryParts, FollowVerdict, FollowParity, FollowParityParts, FollowView, FollowViewParts, FollowsPanel, FollowsPanelParts, AreaOwner, Area, AreaParts, ProjectAreas, ProjectAreasParts, ProjectTriager, ProjectTriagerParts, AreaRow, AreaRowParts, Findings, FindingsParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -36849,6 +41438,40 @@ mod golden_tests {
         ("record_ready_draft_full", || { let value = ReadyDraft::new(&CEILINGS, ReadyDraftParts { chat: Some(u64::MAX) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadyDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_started_draft_smallest", || { let value = StartedDraft::new(&CEILINGS, StartedDraftParts { goal: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StartedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_started_draft_full", || { let value = StartedDraft::new(&CEILINGS, StartedDraftParts { goal: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StartedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_landed_draft_smallest", || { let value = LandedDraft::new(&CEILINGS, LandedDraftParts { forge: 0_u16, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), path: Box::from([].as_slice()), branch: Box::from([].as_slice()), commit: Box::from([].as_slice()), title: Box::from([].as_slice()), writer: 0_u64, at: 0_u64, chat: None, goal: None, ready: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_landed_draft_full", || { let value = LandedDraft::new(&CEILINGS, LandedDraftParts { forge: u16::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), path: Box::from([0_u8, 127_u8, 255_u8].as_slice()), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), commit: Box::from([0_u8, 127_u8, 255_u8].as_slice()), title: Box::from([0_u8, 127_u8, 255_u8].as_slice()), writer: u64::MAX, at: u64::MAX, chat: Some(u64::MAX), goal: Some(u64::MAX), ready: true }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_drafts_subject_smallest", || { let value = DraftsSubject::new(&CEILINGS, DraftsSubjectParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_drafts_subject_full", || { let value = DraftsSubject::new(&CEILINGS, DraftsSubjectParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_at_smallest", || { let value = FollowAt::new(&CEILINGS, FollowAtParts { after: [0_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_at_full", || { let value = FollowAt::new(&CEILINGS, FollowAtParts { after: [165_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_reason_act_smallest", || { let value = FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [0_u8; 32], reason: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowReasonAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_reason_act_full", || { let value = FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowReasonAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_merge_act_smallest", || { let value = FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowMergeAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_merge_act_full", || { let value = FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowMergeAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_outcome_smallest", || { let value = FollowOutcome::new(&CEILINGS, FollowOutcomeParts { refusal: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOutcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_outcome_full", || { let value = FollowOutcome::new(&CEILINGS, FollowOutcomeParts { refusal: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOutcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_task_smallest", || { let value = HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderTask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_task_full", || { let value = HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderTask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_party_smallest", || { let value = HolderParty::new(&CEILINGS, HolderPartyParts { number: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_party_full", || { let value = HolderParty::new(&CEILINGS, HolderPartyParts { number: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_role_smallest", || { let value = HolderRole::new(&CEILINGS, HolderRoleParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_holder_role_full", || { let value = HolderRole::new(&CEILINGS, HolderRoleParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HolderRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_hand_finding_smallest", || { let value = HandFinding::new(&CEILINGS, HandFindingParts { project: 0_u32, number: 0_u32, area: Box::from([].as_slice()), why: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HandFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_hand_finding_full", || { let value = HandFinding::new(&CEILINGS, HandFindingParts { project: u32::MAX, number: u32::MAX, area: Box::from([97_u8, 98_u8, 99_u8].as_slice()), why: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, HandFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_route_smallest", || { let value = FindingRoute::new(&CEILINGS, FindingRouteParts { task: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_route_full", || { let value = FindingRoute::new(&CEILINGS, FindingRouteParts { task: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_drop_smallest", || { let value = FindingDrop::new(&CEILINGS, FindingDropParts { reason: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingDrop::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_drop_full", || { let value = FindingDrop::new(&CEILINGS, FindingDropParts { reason: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingDrop::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_filed_smallest", || { let value = Filed::new(&CEILINGS, FiledParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_filed_full", || { let value = Filed::new(&CEILINGS, FiledParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_areas_smallest", || { let value = FindingAreas::new(&CEILINGS, FindingAreasParts { areas: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingAreas::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_areas_full", || { let value = FindingAreas::new(&CEILINGS, FindingAreasParts { areas: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([97_u8, 98_u8, 99_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingAreas::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_full_smallest", || { let value = FindingsFull::new(&CEILINGS, FindingsFullParts { count: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingsFull::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_full_full", || { let value = FindingsFull::new(&CEILINGS, FindingsFullParts { count: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingsFull::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_words_smallest", || { let value = FindingWords::new(&CEILINGS, FindingWordsParts { field: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_words_full", || { let value = FindingWords::new(&CEILINGS, FindingWordsParts { field: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_read_smallest", || { let value = FindingRead::new(&CEILINGS, FindingReadParts { project: 0_u32, number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_read_full", || { let value = FindingRead::new(&CEILINGS, FindingReadParts { project: u32::MAX, number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_draft_change_ready_smallest", || { let value = DraftChange::Ready(ReadyDraft::new(&CEILINGS, ReadyDraftParts { chat: None }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftChange::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_draft_change_ready_full", || { let value = DraftChange::Ready(ReadyDraft::new(&CEILINGS, ReadyDraftParts { chat: Some(u64::MAX) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftChange::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_draft_change_not_ready_smallest", || { let value = DraftChange::NotReady; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftChange::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36873,16 +41496,6 @@ mod golden_tests {
         ("enum_draft_refusal_full_full", || { let value = DraftRefusal::Full; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_draft_refused_smallest", || { let value = DraftRefused::new(&CEILINGS, DraftRefusedParts { reason: DraftRefusal::NoRepository }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_draft_refused_full", || { let value = DraftRefused::new(&CEILINGS, DraftRefusedParts { reason: DraftRefusal::NoRepository }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_landed_draft_smallest", || { let value = LandedDraft::new(&CEILINGS, LandedDraftParts { forge: 0_u16, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), path: Box::from([].as_slice()), branch: Box::from([].as_slice()), commit: Box::from([].as_slice()), title: Box::from([].as_slice()), writer: 0_u64, at: 0_u64, chat: None, goal: None, ready: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_landed_draft_full", || { let value = LandedDraft::new(&CEILINGS, LandedDraftParts { forge: u16::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), path: Box::from([0_u8, 127_u8, 255_u8].as_slice()), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), commit: Box::from([0_u8, 127_u8, 255_u8].as_slice()), title: Box::from([0_u8, 127_u8, 255_u8].as_slice()), writer: u64::MAX, at: u64::MAX, chat: Some(u64::MAX), goal: Some(u64::MAX), ready: true }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandedDraft::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_drafts_subject_smallest", || { let value = DraftsSubject::new(&CEILINGS, DraftsSubjectParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_drafts_subject_full", || { let value = DraftsSubject::new(&CEILINGS, DraftsSubjectParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DraftsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_at_smallest", || { let value = FollowAt::new(&CEILINGS, FollowAtParts { after: [0_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_at_full", || { let value = FollowAt::new(&CEILINGS, FollowAtParts { after: [165_u8; 32] }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_reason_act_smallest", || { let value = FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [0_u8; 32], reason: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowReasonAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_reason_act_full", || { let value = FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowReasonAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_merge_act_smallest", || { let value = FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowMergeAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_merge_act_full", || { let value = FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowMergeAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_act_start_smallest", || { let value = FollowAct::Start(FollowAt::new(&CEILINGS, FollowAtParts { after: [0_u8; 32] }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_act_start_full", || { let value = FollowAct::Start(FollowAt::new(&CEILINGS, FollowAtParts { after: [165_u8; 32] }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_act_hold_smallest", || { let value = FollowAct::Hold(FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [0_u8; 32], reason: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36891,8 +41504,6 @@ mod golden_tests {
         ("enum_follow_act_skip_full", || { let value = FollowAct::Skip(FollowReasonAct::new(&CEILINGS, FollowReasonActParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_act_merge_smallest", || { let value = FollowAct::Merge(FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_act_merge_full", || { let value = FollowAct::Merge(FollowMergeAct::new(&CEILINGS, FollowMergeActParts { afters: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowAct::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_outcome_smallest", || { let value = FollowOutcome::new(&CEILINGS, FollowOutcomeParts { refusal: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOutcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_outcome_full", || { let value = FollowOutcome::new(&CEILINGS, FollowOutcomeParts { refusal: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOutcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_act_request_smallest", || { let value = FollowActRequest::new(&CEILINGS, FollowActRequestParts { project: 0_u32, follow: 0_u32, act: FollowAct::Start(FollowAt::new(&CEILINGS, FollowAtParts { after: [0_u8; 32] }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowActRequest::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_act_request_full", || { let value = FollowActRequest::new(&CEILINGS, FollowActRequestParts { project: u32::MAX, follow: u32::MAX, act: FollowAct::Start(FollowAt::new(&CEILINGS, FollowAtParts { after: [165_u8; 32] }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowActRequest::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_add_device_smallest", || { let value = AddDevice::new(&CEILINGS, AddDeviceParts { endpoint: Box::from([].as_slice()), p256dh: [0_u8; 65], auth: [0_u8; 16], label: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AddDevice::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36919,6 +41530,80 @@ mod golden_tests {
         ("record_device_row_full", || { let value = DeviceRow::new(&CEILINGS, DeviceRowParts { number: u32::MAX, label: Box::from([0_u8, 127_u8, 255_u8].as_slice()), at: u64::MAX, endpoint: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeviceRow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_devices_smallest", || { let value = Devices::new(&CEILINGS, DevicesParts { rows: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Devices::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_devices_full", || { let value = Devices::new(&CEILINGS, DevicesParts { rows: { let mut items = skein_lib::List::with_capacity(1); items.push(DeviceRow::new(&CEILINGS, DeviceRowParts { number: u32::MAX, label: Box::from([0_u8, 127_u8, 255_u8].as_slice()), at: u64::MAX, endpoint: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 1, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Devices::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_qa_smallest", || { let value = FindingKind::Qa; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_qa_full", || { let value = FindingKind::Qa; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_flake_smallest", || { let value = FindingKind::Flake; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_flake_full", || { let value = FindingKind::Flake; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_red_smallest", || { let value = FindingKind::Red; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_red_full", || { let value = FindingKind::Red; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_review_smallest", || { let value = FindingKind::Review; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_review_full", || { let value = FindingKind::Review; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_feedback_smallest", || { let value = FindingKind::Feedback; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_kind_feedback_full", || { let value = FindingKind::Feedback; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_low_smallest", || { let value = Severity::Low; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_low_full", || { let value = Severity::Low; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_medium_smallest", || { let value = Severity::Medium; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_medium_full", || { let value = Severity::Medium; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_high_smallest", || { let value = Severity::High; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_severity_high_full", || { let value = Severity::High; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Severity::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_file_finding_smallest", || { let value = FileFinding::new(&CEILINGS, FileFindingParts { project: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, title: Box::from([].as_slice()), body: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FileFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_file_finding_full", || { let value = FileFinding::new(&CEILINGS, FileFindingParts { project: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), body: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FileFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_new_smallest", || { let value = FindingState::New; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_new_full", || { let value = FindingState::New; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_routed_smallest", || { let value = FindingState::Routed; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_routed_full", || { let value = FindingState::Routed; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_backlog_smallest", || { let value = FindingState::Backlog; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_backlog_full", || { let value = FindingState::Backlog; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_dropped_smallest", || { let value = FindingState::Dropped; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_state_dropped_full", || { let value = FindingState::Dropped; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_subject_smallest", || { let value = FindingsSubject::new(&CEILINGS, FindingsSubjectParts { project: 0_u32, state: None, mine: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_subject_full", || { let value = FindingsSubject::new(&CEILINGS, FindingsSubjectParts { project: u32::MAX, state: Some(FindingState::New), mine: true }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 1, 0, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingsSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_task_smallest", || { let value = Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_task_full", || { let value = Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_party_smallest", || { let value = Holder::Party(HolderParty::new(&CEILINGS, HolderPartyParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_party_full", || { let value = Holder::Party(HolderParty::new(&CEILINGS, HolderPartyParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_role_smallest", || { let value = Holder::Role(HolderRole::new(&CEILINGS, HolderRoleParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_holder_role_full", || { let value = Holder::Role(HolderRole::new(&CEILINGS, HolderRoleParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Holder::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_not_yours_smallest", || { let value = FindingNotYours::new(&CEILINGS, FindingNotYoursParts { holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingNotYours::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_not_yours_full", || { let value = FindingNotYours::new(&CEILINGS, FindingNotYoursParts { holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingNotYours::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_filer_task_smallest", || { let value = Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_filer_task_full", || { let value = Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_filer_party_smallest", || { let value = Filer::Party(HolderParty::new(&CEILINGS, HolderPartyParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_filer_party_full", || { let value = Filer::Party(HolderParty::new(&CEILINGS, HolderPartyParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Filer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_row_smallest", || { let value = FindingRow::new(&CEILINGS, FindingRowParts { number: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, state: FindingState::New, title: Box::from([].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), at: 0_u64, why: None, hander: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_row_full", || { let value = FindingRow::new(&CEILINGS, FindingRowParts { number: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), state: FindingState::New, title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), at: u64::MAX, why: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), hander: Some(Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_detail_smallest", || { let value = FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, state: FindingState::New, title: Box::from([].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), at: 0_u64, why: None, hander: None }).expect("golden within ceilings"), body: Box::from([].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), goal: None, reason: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingDetail::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_detail_full", || { let value = FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), state: FindingState::New, title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), at: u64::MAX, why: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), hander: Some(Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings"), body: Box::from([97_u8, 98_u8, 99_u8].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), goal: Some(u64::MAX), reason: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingDetail::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_route_smallest", || { let value = Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_route_full", || { let value = Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_backlog_smallest", || { let value = Triage::Backlog; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_backlog_full", || { let value = Triage::Backlog; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_drop_smallest", || { let value = Triage::Drop(FindingDrop::new(&CEILINGS, FindingDropParts { reason: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_triage_drop_full", || { let value = Triage::Drop(FindingDrop::new(&CEILINGS, FindingDropParts { reason: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Triage::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_triage_finding_smallest", || { let value = TriageFinding::new(&CEILINGS, TriageFindingParts { project: 0_u32, number: 0_u32, act: Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TriageFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_triage_finding_full", || { let value = TriageFinding::new(&CEILINGS, TriageFindingParts { project: u32::MAX, number: u32::MAX, act: Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TriageFinding::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_area_smallest", || { let value = FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_area_full", || { let value = FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([97_u8, 98_u8, 99_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_full_smallest", || { let value = FindingRefusal::Full(FindingsFull::new(&CEILINGS, FindingsFullParts { count: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_full_full", || { let value = FindingRefusal::Full(FindingsFull::new(&CEILINGS, FindingsFullParts { count: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_not_yours_smallest", || { let value = FindingRefusal::NotYours(FindingNotYours::new(&CEILINGS, FindingNotYoursParts { holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_not_yours_full", || { let value = FindingRefusal::NotYours(FindingNotYours::new(&CEILINGS, FindingNotYoursParts { holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_finding_smallest", || { let value = FindingRefusal::NoFinding; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_finding_full", || { let value = FindingRefusal::NoFinding; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_goal_smallest", || { let value = FindingRefusal::NoGoal; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_no_goal_full", || { let value = FindingRefusal::NoGoal; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_ended_smallest", || { let value = FindingRefusal::Ended; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_ended_full", || { let value = FindingRefusal::Ended; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_words_smallest", || { let value = FindingRefusal::Words(FindingWords::new(&CEILINGS, FindingWordsParts { field: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_refusal_words_full", || { let value = FindingRefusal::Words(FindingWords::new(&CEILINGS, FindingWordsParts { field: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_refused_smallest", || { let value = FindingRefused::new(&CEILINGS, FindingRefusedParts { reason: FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_refused_full", || { let value = FindingRefused::new(&CEILINGS, FindingRefusedParts { reason: FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([97_u8, 98_u8, 99_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_result_finding_smallest", || { let value = FindingResult::Finding(FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, state: FindingState::New, title: Box::from([].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), at: 0_u64, why: None, hander: None }).expect("golden within ceilings"), body: Box::from([].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), goal: None, reason: None }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_result_finding_full", || { let value = FindingResult::Finding(FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), state: FindingState::New, title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), at: u64::MAX, why: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), hander: Some(Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings"), body: Box::from([97_u8, 98_u8, 99_u8].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), goal: Some(u64::MAX), reason: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_result_no_finding_smallest", || { let value = FindingResult::NoFinding; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_finding_result_no_finding_full", || { let value = FindingResult::NoFinding; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_answer_smallest", || { let value = FindingAnswer::new(&CEILINGS, FindingAnswerParts { result: FindingResult::Finding(FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, state: FindingState::New, title: Box::from([].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), at: 0_u64, why: None, hander: None }).expect("golden within ceilings"), body: Box::from([].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), goal: None, reason: None }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_finding_answer_full", || { let value = FindingAnswer::new(&CEILINGS, FindingAnswerParts { result: FindingResult::Finding(FindingDetail::new(&CEILINGS, FindingDetailParts { row: FindingRow::new(&CEILINGS, FindingRowParts { number: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), state: FindingState::New, title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), at: u64::MAX, why: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), hander: Some(Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings"), body: Box::from([97_u8, 98_u8, 99_u8].as_slice()), filer: Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), goal: Some(u64::MAX), reason: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FindingAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_request_adopt_smallest", || { let value = Request::Adopt(Adopt::new(&CEILINGS, AdoptParts { project: 0_u32, home: false, forge: 0_u16, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), prefix: Box::from([].as_slice()), role: Role::Owned, landing: Box::from([].as_slice()), ci: false, checks: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_request_adopt_full", || { let value = Request::Adopt(Adopt::new(&CEILINGS, AdoptParts { project: u32::MAX, home: true, forge: u16::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), prefix: Box::from([0_u8, 127_u8, 255_u8].as_slice()), role: Role::Owned, landing: Box::from([0_u8, 127_u8, 255_u8].as_slice()), ci: true, checks: { let mut items = skein_lib::List::with_capacity(1); items.push(u32::MAX).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 1, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_request_set_up_smallest", || { let value = Request::SetUp(SetUp::new(&CEILINGS, SetUpParts { forge: Making::Kept(Kept::new(&CEILINGS, KeptParts { forge: 0_u16 }).expect("golden within ceilings")), first: SetUpFirst::Empty(FirstEmpty::new(&CEILINGS, FirstEmptyParts { org: Box::from([].as_slice()), repository: Box::from([].as_slice()), playground: false }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -36961,6 +41646,12 @@ mod golden_tests {
         ("enum_request_add_device_full", || { let value = Request::AddDevice(AddDevice::new(&CEILINGS, AddDeviceParts { endpoint: Box::from([0_u8, 127_u8, 255_u8].as_slice()), p256dh: [165_u8; 65], auth: [165_u8; 16], label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[19, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_request_remove_device_smallest", || { let value = Request::RemoveDevice(RemoveDevice::new(&CEILINGS, RemoveDeviceParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_request_remove_device_full", || { let value = Request::RemoveDevice(RemoveDevice::new(&CEILINGS, RemoveDeviceParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_file_finding_smallest", || { let value = Request::FileFinding(FileFinding::new(&CEILINGS, FileFindingParts { project: 0_u32, kind: FindingKind::Qa, severity: Severity::Low, area: None, title: Box::from([].as_slice()), body: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_file_finding_full", || { let value = Request::FileFinding(FileFinding::new(&CEILINGS, FileFindingParts { project: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), body: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_hand_finding_smallest", || { let value = Request::HandFinding(HandFinding::new(&CEILINGS, HandFindingParts { project: 0_u32, number: 0_u32, area: Box::from([].as_slice()), why: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_hand_finding_full", || { let value = Request::HandFinding(HandFinding::new(&CEILINGS, HandFindingParts { project: u32::MAX, number: u32::MAX, area: Box::from([97_u8, 98_u8, 99_u8].as_slice()), why: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_triage_finding_smallest", || { let value = Request::TriageFinding(TriageFinding::new(&CEILINGS, TriageFindingParts { project: 0_u32, number: 0_u32, act: Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_request_triage_finding_full", || { let value = Request::TriageFinding(TriageFinding::new(&CEILINGS, TriageFindingParts { project: u32::MAX, number: u32::MAX, act: Triage::Route(FindingRoute::new(&CEILINGS, FindingRouteParts { task: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[23, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Request::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_requesting_smallest", || { let value = Requesting::new(&CEILINGS, RequestingParts { request: Request::Adopt(Adopt::new(&CEILINGS, AdoptParts { project: 0_u32, home: false, forge: 0_u16, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), prefix: Box::from([].as_slice()), role: Role::Owned, landing: Box::from([].as_slice()), ci: false, checks: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Requesting::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_requesting_full", || { let value = Requesting::new(&CEILINGS, RequestingParts { request: Request::Adopt(Adopt::new(&CEILINGS, AdoptParts { project: u32::MAX, home: true, forge: u16::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), prefix: Box::from([0_u8, 127_u8, 255_u8].as_slice()), role: Role::Owned, landing: Box::from([0_u8, 127_u8, 255_u8].as_slice()), ci: true, checks: { let mut items = skein_lib::List::with_capacity(1); items.push(u32::MAX).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 255, 255, 255, 255, 1, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Requesting::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_set_up_refusal_not_offered_smallest", || { let value = SetUpRefusal::NotOffered; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37261,8 +41952,10 @@ mod golden_tests {
         ("record_charter_words_full", || { let value = CharterWords::new(&CEILINGS, CharterWordsParts { line: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CharterWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_project_words_smallest", || { let value = ProjectWords::new(&CEILINGS, ProjectWordsParts { headline: Box::from([].as_slice()), lede: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_project_words_full", || { let value = ProjectWords::new(&CEILINGS, ProjectWordsParts { headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lede: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_stock_way_smallest", || { let value = StockWay::new(&CEILINGS, StockWayParts { name: Box::from([].as_slice()), headline: Box::from([].as_slice()), line: Box::from([].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: None, branch: Box::from([].as_slice()), stops: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), items: skein_lib::List::with_capacity(0), delegation: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StockWay::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_stock_way_full", || { let value = StockWay::new(&CEILINGS, StockWayParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), line: Box::from([97_u8, 98_u8, 99_u8].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), items: { let mut items = skein_lib::List::with_capacity(1); items.push(ProposalItem::new(&CEILINGS, ProposalItemParts { kind: u32::MAX, scope: u32::MAX, number: u32::MAX, edit: SettingEdit::Set(SettingValue::new(&CEILINGS, SettingValueParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, delegation: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StockWay::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_way_role_smallest", || { let value = WayRole::new(&CEILINGS, WayRoleParts { charter: 0_u32, words: Box::from([].as_slice()), budget: 0_u64, running: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WayRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_way_role_full", || { let value = WayRole::new(&CEILINGS, WayRoleParts { charter: u32::MAX, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), budget: u64::MAX, running: true }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WayRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_stock_way_smallest", || { let value = StockWay::new(&CEILINGS, StockWayParts { name: Box::from([].as_slice()), headline: Box::from([].as_slice()), line: Box::from([].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: None, branch: Box::from([].as_slice()), stops: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), items: skein_lib::List::with_capacity(0), delegation: false, roles: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StockWay::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_stock_way_full", || { let value = StockWay::new(&CEILINGS, StockWayParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), line: Box::from([97_u8, 98_u8, 99_u8].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), items: { let mut items = skein_lib::List::with_capacity(1); items.push(ProposalItem::new(&CEILINGS, ProposalItemParts { kind: u32::MAX, scope: u32::MAX, number: u32::MAX, edit: SettingEdit::Set(SettingValue::new(&CEILINGS, SettingValueParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, delegation: true, roles: { let mut items = skein_lib::List::with_capacity(1); items.push(WayRole::new(&CEILINGS, WayRoleParts { charter: u32::MAX, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), budget: u64::MAX, running: true }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 1, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StockWay::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ways_subject_smallest", || { let value = WaysSubject::new(&CEILINGS, WaysSubjectParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WaysSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ways_subject_full", || { let value = WaysSubject::new(&CEILINGS, WaysSubjectParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WaysSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_path_rule_smallest", || { let value = PathRule::new(&CEILINGS, PathRuleParts { paths: Box::from([].as_slice()), review: Box::from([].as_slice()), sign_off: Box::from([].as_slice()), lands: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37270,7 +41963,7 @@ mod golden_tests {
         ("record_path_rules_smallest", || { let value = PathRules::new(&CEILINGS, PathRulesParts { rows: skein_lib::List::with_capacity(0), note: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathRules::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_path_rules_full", || { let value = PathRules::new(&CEILINGS, PathRulesParts { rows: { let mut items = skein_lib::List::with_capacity(1); items.push(PathRule::new(&CEILINGS, PathRuleParts { paths: Box::from([97_u8, 98_u8, 99_u8].as_slice()), review: Box::from([97_u8, 98_u8, 99_u8].as_slice()), sign_off: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lands: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, note: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathRules::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ways_panel_smallest", || { let value = WaysPanel::new(&CEILINGS, WaysPanelParts { project: 0_u32, ways: skein_lib::List::with_capacity(0), current: None, own: BranchPath::new(&CEILINGS, BranchPathParts { repository: None, branch: Box::from([].as_slice()), stops: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), words: None, rules: PathRules::new(&CEILINGS, PathRulesParts { rows: skein_lib::List::with_capacity(0), note: Box::from([].as_slice()) }).expect("golden within ceilings"), may_change: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WaysPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_ways_panel_full", || { let value = WaysPanel::new(&CEILINGS, WaysPanelParts { project: u32::MAX, ways: { let mut items = skein_lib::List::with_capacity(1); items.push(StockWay::new(&CEILINGS, StockWayParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), line: Box::from([97_u8, 98_u8, 99_u8].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), items: { let mut items = skein_lib::List::with_capacity(1); items.push(ProposalItem::new(&CEILINGS, ProposalItemParts { kind: u32::MAX, scope: u32::MAX, number: u32::MAX, edit: SettingEdit::Set(SettingValue::new(&CEILINGS, SettingValueParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, delegation: true }).expect("golden within ceilings")).expect("one slot"); items }, current: Some(u32::MAX), own: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), words: Some(ProjectWords::new(&CEILINGS, ProjectWordsParts { headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lede: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")), rules: PathRules::new(&CEILINGS, PathRulesParts { rows: { let mut items = skein_lib::List::with_capacity(1); items.push(PathRule::new(&CEILINGS, PathRuleParts { paths: Box::from([97_u8, 98_u8, 99_u8].as_slice()), review: Box::from([97_u8, 98_u8, 99_u8].as_slice()), sign_off: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lands: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, note: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"), may_change: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 1, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WaysPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_ways_panel_full", || { let value = WaysPanel::new(&CEILINGS, WaysPanelParts { project: u32::MAX, ways: { let mut items = skein_lib::List::with_capacity(1); items.push(StockWay::new(&CEILINGS, StockWayParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), line: Box::from([97_u8, 98_u8, 99_u8].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), items: { let mut items = skein_lib::List::with_capacity(1); items.push(ProposalItem::new(&CEILINGS, ProposalItemParts { kind: u32::MAX, scope: u32::MAX, number: u32::MAX, edit: SettingEdit::Set(SettingValue::new(&CEILINGS, SettingValueParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, delegation: true, roles: { let mut items = skein_lib::List::with_capacity(1); items.push(WayRole::new(&CEILINGS, WayRoleParts { charter: u32::MAX, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), budget: u64::MAX, running: true }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")).expect("one slot"); items }, current: Some(u32::MAX), own: BranchPath::new(&CEILINGS, BranchPathParts { repository: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), stops: { let mut items = skein_lib::List::with_capacity(1); items.push(Stop::new(&CEILINGS, StopParts { actor: Actor::Person, step: PathStep::Ask, words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), needed: true, over: Box::from([97_u8, 98_u8, 99_u8].as_slice()), opens: Opens::Nothing, card: Card::new(&CEILINGS, CardParts { who: Box::from([97_u8, 98_u8, 99_u8].as_slice()), name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), facts: { let mut items = skein_lib::List::with_capacity(1); items.push(Fact::new(&CEILINGS, FactParts { label: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings") }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"), words: Some(ProjectWords::new(&CEILINGS, ProjectWordsParts { headline: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lede: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")), rules: PathRules::new(&CEILINGS, PathRulesParts { rows: { let mut items = skein_lib::List::with_capacity(1); items.push(PathRule::new(&CEILINGS, PathRuleParts { paths: Box::from([97_u8, 98_u8, 99_u8].as_slice()), review: Box::from([97_u8, 98_u8, 99_u8].as_slice()), sign_off: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lands: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, note: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"), may_change: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 1, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255, 255, 255, 255, 255, 1, 1, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WaysPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_view_read_smallest", || { let value = ViewRead::new(&CEILINGS, ViewReadParts { project: 0_u32, address: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ViewRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_view_read_full", || { let value = ViewRead::new(&CEILINGS, ViewReadParts { project: u32::MAX, address: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ViewRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_way_view_smallest", || { let value = WayView::new(&CEILINGS, WayViewParts { name: Box::from([].as_slice()), line: Box::from([].as_slice()), path: BranchPath::new(&CEILINGS, BranchPathParts { repository: None, branch: Box::from([].as_slice()), stops: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), current: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WayView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37315,6 +42008,8 @@ mod golden_tests {
         ("enum_read_program_environment_full", || { let value = Read::ProgramEnvironment; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Read::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_read_view_smallest", || { let value = Read::View(ViewRead::new(&CEILINGS, ViewReadParts { project: 0_u32, address: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Read::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_read_view_full", || { let value = Read::View(ViewRead::new(&CEILINGS, ViewReadParts { project: u32::MAX, address: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Read::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_read_finding_smallest", || { let value = Read::Finding(FindingRead::new(&CEILINGS, FindingReadParts { project: 0_u32, number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Read::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_read_finding_full", || { let value = Read::Finding(FindingRead::new(&CEILINGS, FindingReadParts { project: u32::MAX, number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Read::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_reading_smallest", || { let value = Reading::new(&CEILINGS, ReadingParts { read: Read::Playground }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Reading::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_reading_full", || { let value = Reading::new(&CEILINGS, ReadingParts { read: Read::Playground }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Reading::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_playground_state_starting_smallest", || { let value = PlaygroundState::Starting; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PlaygroundState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37375,6 +42070,8 @@ mod golden_tests {
         ("enum_watch_follows_full", || { let value = Watch::Follows(FollowsSubject::new(&CEILINGS, FollowsSubjectParts { project: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[13, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Watch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_devices_smallest", || { let value = Watch::Devices; let bytes: &[u8] = &[14]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Watch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_devices_full", || { let value = Watch::Devices; let bytes: &[u8] = &[14]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Watch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_watch_findings_smallest", || { let value = Watch::Findings(FindingsSubject::new(&CEILINGS, FindingsSubjectParts { project: 0_u32, state: None, mine: false }).expect("golden within ceilings")); let bytes: &[u8] = &[15, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Watch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_watch_findings_full", || { let value = Watch::Findings(FindingsSubject::new(&CEILINGS, FindingsSubjectParts { project: u32::MAX, state: Some(FindingState::New), mine: true }).expect("golden within ceilings")); let bytes: &[u8] = &[15, 255, 255, 255, 255, 1, 0, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Watch::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_landing_phase_waiting_smallest", || { let value = LandingPhase::Waiting; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingPhase::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_landing_phase_waiting_full", || { let value = LandingPhase::Waiting; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingPhase::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_landing_phase_preparing_smallest", || { let value = LandingPhase::Preparing; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingPhase::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37531,6 +42228,14 @@ mod golden_tests {
         ("enum_ci_pending_full", || { let value = Ci::Pending; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ci::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ci_passed_smallest", || { let value = Ci::Passed; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ci::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ci_passed_full", || { let value = Ci::Passed; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ci::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+    ];
+
+    #[test]
+    fn golden_0() {
+        table(&GOLDEN_0);
+    }
+
+    static GOLDEN_1: [Case; 342] = [
         ("enum_ci_failed_smallest", || { let value = Ci::Failed; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ci::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ci_failed_full", || { let value = Ci::Failed; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ci::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_gate_kind_review_smallest", || { let value = GateKind::Review; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, GateKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37639,14 +42344,6 @@ mod golden_tests {
         ("enum_forge_refusal_busy_full", || { let value = ForgeRefusal::Busy; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_refusal_no_key_smallest", || { let value = ForgeRefusal::NoKey; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_refusal_no_key_full", || { let value = ForgeRefusal::NoKey; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-    ];
-
-    #[test]
-    fn golden_0() {
-        table(&GOLDEN_0);
-    }
-
-    static GOLDEN_1: [Case; 200] = [
         ("enum_forge_refusal_first_is_bot_smallest", || { let value = ForgeRefusal::FirstIsBot; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_refusal_first_is_bot_full", || { let value = ForgeRefusal::FirstIsBot; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_connect_refused_smallest", || { let value = ConnectRefused::new(&CEILINGS, ConnectRefusedParts { why: ForgeRefusal::Role }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ConnectRefused::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37747,6 +42444,14 @@ mod golden_tests {
         ("enum_outcome_device_removed_full", || { let value = Outcome::DeviceRemoved; let bytes: &[u8] = &[31]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_outcome_device_refused_smallest", || { let value = Outcome::DeviceRefused(DeviceRefused::new(&CEILINGS, DeviceRefusedParts { reason: DeviceRefusal::Person }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_outcome_device_refused_full", || { let value = Outcome::DeviceRefused(DeviceRefused::new(&CEILINGS, DeviceRefusedParts { reason: DeviceRefusal::Person }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_filed_smallest", || { let value = Outcome::Filed(Filed::new(&CEILINGS, FiledParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[33, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_filed_full", || { let value = Outcome::Filed(Filed::new(&CEILINGS, FiledParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[33, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_handed_smallest", || { let value = Outcome::Handed; let bytes: &[u8] = &[34]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_handed_full", || { let value = Outcome::Handed; let bytes: &[u8] = &[34]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_triaged_smallest", || { let value = Outcome::Triaged; let bytes: &[u8] = &[35]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_triaged_full", || { let value = Outcome::Triaged; let bytes: &[u8] = &[35]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_finding_refused_smallest", || { let value = Outcome::FindingRefused(FindingRefused::new(&CEILINGS, FindingRefusedParts { reason: FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[36, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_outcome_finding_refused_full", || { let value = Outcome::FindingRefused(FindingRefused::new(&CEILINGS, FindingRefusedParts { reason: FindingRefusal::NoArea(FindingAreas::new(&CEILINGS, FindingAreasParts { areas: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([97_u8, 98_u8, 99_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[36, 0, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Outcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_answer_smallest", || { let value = Answer::new(&CEILINGS, AnswerParts { outcome: Outcome::Adopted(Adopted::new(&CEILINGS, AdoptedParts { forge: 0_u16, repository: 0_u32, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), role: Role::Owned, home: false, kinds: Kinds::new(&CEILINGS, KindsParts { skein_bools: [false, false, false, false, false, false, false, false, false] }).expect("golden within ceilings"), protection: Protection::Unknown }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_answer_full", || { let value = Answer::new(&CEILINGS, AnswerParts { outcome: Outcome::Adopted(Adopted::new(&CEILINGS, AdoptedParts { forge: u16::MAX, repository: u32::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), role: Role::Owned, home: true, kinds: Kinds::new(&CEILINGS, KindsParts { skein_bools: [true, true, true, true, true, true, true, true, true] }).expect("golden within ceilings"), protection: Protection::Unknown }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_landing_exact_smallest", || { let value = LandingExact::new(&CEILINGS, LandingExactParts { value: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingExact::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37797,6 +42502,22 @@ mod golden_tests {
         ("record_follow_target_full", || { let value = FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowTarget::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_person_smallest", || { let value = FollowPerson::new(&CEILINGS, FollowPersonParts { person: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowPerson::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_person_full", || { let value = FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowPerson::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_words_smallest", || { let value = FollowWords::new(&CEILINGS, FollowWordsParts { words: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_words_full", || { let value = FollowWords::new(&CEILINGS, FollowWordsParts { words: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_wait_smallest", || { let value = FollowWait::new(&CEILINGS, FollowWaitParts { change: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWait::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_wait_full", || { let value = FollowWait::new(&CEILINGS, FollowWaitParts { change: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWait::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_skip_smallest", || { let value = FollowSkip::new(&CEILINGS, FollowSkipParts { after: [0_u8; 32], reason: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowSkip::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_skip_full", || { let value = FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowSkip::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_failing_smallest", || { let value = FollowFailing::new(&CEILINGS, FollowFailingParts { count: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowFailing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_follow_failing_full", || { let value = FollowFailing::new(&CEILINGS, FollowFailingParts { count: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowFailing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_task_smallest", || { let value = AreaTask::new(&CEILINGS, AreaTaskParts { number: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaTask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_task_full", || { let value = AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaTask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_party_smallest", || { let value = AreaParty::new(&CEILINGS, AreaPartyParts { number: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_party_full", || { let value = AreaParty::new(&CEILINGS, AreaPartyParts { number: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_role_smallest", || { let value = AreaRole::new(&CEILINGS, AreaRoleParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_role_full", || { let value = AreaRole::new(&CEILINGS, AreaRoleParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_charter_smallest", || { let value = AreaCharter::new(&CEILINGS, AreaCharterParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_charter_full", || { let value = AreaCharter::new(&CEILINGS, AreaCharterParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_owner_person_smallest", || { let value = FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_owner_person_full", || { let value = FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_start_owner_smallest", || { let value = FollowStart::Owner; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowStart::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37811,10 +42532,6 @@ mod golden_tests {
         ("record_follow_check_full", || { let value = FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowCheck::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_smallest", || { let value = Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), branch: Box::from([].as_slice()), paths: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), branch: Box::from([].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: 0_u64 }).expect("golden within ceilings")), start: FollowStart::Owner, producer: None, verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([].as_slice()), artifact: Box::from([].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Follow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_full", || { let value = Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Follow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_words_smallest", || { let value = FollowWords::new(&CEILINGS, FollowWordsParts { words: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_words_full", || { let value = FollowWords::new(&CEILINGS, FollowWordsParts { words: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWords::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_wait_smallest", || { let value = FollowWait::new(&CEILINGS, FollowWaitParts { change: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWait::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_wait_full", || { let value = FollowWait::new(&CEILINGS, FollowWaitParts { change: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowWait::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_state_not_made_smallest", || { let value = FollowState::NotMade; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_state_not_made_full", || { let value = FollowState::NotMade; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_state_waits_word_smallest", || { let value = FollowState::WaitsWord; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37831,10 +42548,6 @@ mod golden_tests {
         ("enum_follow_state_ended_full", || { let value = FollowState::Ended(FollowWords::new(&CEILINGS, FollowWordsParts { words: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_entry_smallest", || { let value = FollowEntry::new(&CEILINGS, FollowEntryParts { after: [0_u8; 32], change: None, state: FollowState::NotMade }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowEntry::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follow_entry_full", || { let value = FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowEntry::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_skip_smallest", || { let value = FollowSkip::new(&CEILINGS, FollowSkipParts { after: [0_u8; 32], reason: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowSkip::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_skip_full", || { let value = FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowSkip::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_failing_smallest", || { let value = FollowFailing::new(&CEILINGS, FollowFailingParts { count: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowFailing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_follow_failing_full", || { let value = FollowFailing::new(&CEILINGS, FollowFailingParts { count: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowFailing::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_verdict_passed_smallest", || { let value = FollowVerdict::Passed; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowVerdict::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_verdict_passed_full", || { let value = FollowVerdict::Passed; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowVerdict::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_follow_verdict_failing_smallest", || { let value = FollowVerdict::Failing(FollowFailing::new(&CEILINGS, FollowFailingParts { count: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowVerdict::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37847,6 +42560,24 @@ mod golden_tests {
         ("record_follow_view_full", || { let value = FollowView::new(&CEILINGS, FollowViewParts { number: u32::MAX, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([0_u8, 127_u8, 255_u8].as_slice()), source_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), task: Some(u64::MAX), stopped: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), lag: u32::MAX, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings")).expect("one slot"); items }, skips: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, parity: Some(FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowView::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follows_panel_smallest", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: 0_u32, follows: skein_lib::List::with_capacity(0), dependencies: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_follows_panel_full", || { let value = FollowsPanel::new(&CEILINGS, FollowsPanelParts { project: u32::MAX, follows: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowView::new(&CEILINGS, FollowViewParts { number: u32::MAX, setting: Follow::new(&CEILINGS, FollowParts { source: FollowSource::new(&CEILINGS, FollowSourceParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), paths: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"), target: FollowTarget::new(&CEILINGS, FollowTargetParts { repository: FollowRepository::new(&CEILINGS, FollowRepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), owner: FollowOwner::Person(FollowPerson::new(&CEILINGS, FollowPersonParts { person: u64::MAX }).expect("golden within ceilings")), start: FollowStart::Owner, producer: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), verification: FollowCheck::new(&CEILINGS, FollowCheckParts { workflow: Box::from([0_u8, 127_u8, 255_u8].as_slice()), artifact: Box::from([0_u8, 127_u8, 255_u8].as_slice()), format: FollowFormat::Junit }).expect("golden within ceilings") }).expect("golden within ceilings"), source: Box::from([0_u8, 127_u8, 255_u8].as_slice()), source_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target: Box::from([0_u8, 127_u8, 255_u8].as_slice()), target_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), task: Some(u64::MAX), stopped: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), lag: u32::MAX, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowEntry::new(&CEILINGS, FollowEntryParts { after: [165_u8; 32], change: Some(u64::MAX), state: FollowState::NotMade }).expect("golden within ceilings")).expect("one slot"); items }, skips: { let mut items = skein_lib::List::with_capacity(1); items.push(FollowSkip::new(&CEILINGS, FollowSkipParts { after: [165_u8; 32], reason: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items }, parity: Some(FollowParity::new(&CEILINGS, FollowParityParts { source: [165_u8; 32], head: [165_u8; 32], verdict: FollowVerdict::Passed, run: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items }, dependencies: { let mut items = skein_lib::List::with_capacity(1); items.push(DependencyView::new(&CEILINGS, DependencyViewParts { number: u32::MAX, project: u32::MAX }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 3, 0, 127, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FollowsPanel::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_task_smallest", || { let value = AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_task_full", || { let value = AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_party_smallest", || { let value = AreaOwner::Party(AreaParty::new(&CEILINGS, AreaPartyParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_party_full", || { let value = AreaOwner::Party(AreaParty::new(&CEILINGS, AreaPartyParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_role_smallest", || { let value = AreaOwner::Role(AreaRole::new(&CEILINGS, AreaRoleParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_role_full", || { let value = AreaOwner::Role(AreaRole::new(&CEILINGS, AreaRoleParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_charter_smallest", || { let value = AreaOwner::Charter(AreaCharter::new(&CEILINGS, AreaCharterParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_area_owner_charter_full", || { let value = AreaOwner::Charter(AreaCharter::new(&CEILINGS, AreaCharterParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaOwner::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_smallest", || { let value = Area::new(&CEILINGS, AreaParts { name: Box::from([].as_slice()), words: Box::from([].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Area::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_full", || { let value = Area::new(&CEILINGS, AreaParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Area::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_areas_smallest", || { let value = ProjectAreas::new(&CEILINGS, ProjectAreasParts { areas: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectAreas::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_areas_full", || { let value = ProjectAreas::new(&CEILINGS, ProjectAreasParts { areas: { let mut items = skein_lib::List::with_capacity(1); items.push(Area::new(&CEILINGS, AreaParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectAreas::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_triager_smallest", || { let value = ProjectTriager::new(&CEILINGS, ProjectTriagerParts { owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: 0_u64 }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectTriager::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_triager_full", || { let value = ProjectTriager::new(&CEILINGS, ProjectTriagerParts { owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectTriager::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_row_smallest", || { let value = AreaRow::new(&CEILINGS, AreaRowParts { name: Box::from([].as_slice()), words: Box::from([].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: 0_u64 }).expect("golden within ceilings")), holder: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaRow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_area_row_full", || { let value = AreaRow::new(&CEILINGS, AreaRowParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")), holder: Some(Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AreaRow::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_smallest", || { let value = Findings::new(&CEILINGS, FindingsParts { project: 0_u32, rows: skein_lib::List::with_capacity(0), areas: skein_lib::List::with_capacity(0), triager: None, holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: 0_u64 }).expect("golden within ceilings")), cut: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Findings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_findings_full", || { let value = Findings::new(&CEILINGS, FindingsParts { project: u32::MAX, rows: { let mut items = skein_lib::List::with_capacity(1); items.push(FindingRow::new(&CEILINGS, FindingRowParts { number: u32::MAX, kind: FindingKind::Qa, severity: Severity::Low, area: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), state: FindingState::New, title: Box::from([97_u8, 98_u8, 99_u8].as_slice()), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), at: u64::MAX, why: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())), hander: Some(Filer::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings")).expect("one slot"); items }, areas: { let mut items = skein_lib::List::with_capacity(1); items.push(AreaRow::new(&CEILINGS, AreaRowParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), words: Box::from([97_u8, 98_u8, 99_u8].as_slice()), owner: AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings")), holder: Some(Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings"))) }).expect("golden within ceilings")).expect("one slot"); items }, triager: Some(AreaOwner::Task(AreaTask::new(&CEILINGS, AreaTaskParts { number: u64::MAX }).expect("golden within ceilings"))), holder: Holder::Task(HolderTask::new(&CEILINGS, HolderTaskParts { number: u64::MAX }).expect("golden within ceilings")), cut: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 16, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 0, 0, 3, 97, 98, 99, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 97, 98, 99, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Findings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -37899,7 +42630,6 @@ mod golden_tests {
         ("bound_dismiss_making_name", || bound((Path::DismissMakingName, skein_codec::Reason::Bound), &Limits { dismiss_making_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match DismissMaking::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_draft_repository_owner", || bound((Path::DraftRepositoryOwner, skein_codec::Reason::Bound), &Limits { draft_repository_owner: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match DraftRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_draft_repository_name", || bound((Path::DraftRepositoryName, skein_codec::Reason::Bound), &Limits { draft_repository_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match DraftRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_set_draft_path", || bound((Path::SetDraftPath, skein_codec::Reason::Bound), &Limits { set_draft_path: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0], |limits, bytes| match SetDraft::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landed_draft_owner", || bound((Path::LandedDraftOwner, skein_codec::Reason::Bound), &Limits { landed_draft_owner: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandedDraft::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landed_draft_name", || bound((Path::LandedDraftName, skein_codec::Reason::Bound), &Limits { landed_draft_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandedDraft::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landed_draft_path", || bound((Path::LandedDraftPath, skein_codec::Reason::Bound), &Limits { landed_draft_path: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandedDraft::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -37909,16 +42639,17 @@ mod golden_tests {
         ("bound_follow_reason_act_reason", || bound((Path::FollowReasonActReason, skein_codec::Reason::Bound), &Limits { follow_reason_act_reason: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowReasonAct::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_merge_act_afters", || bound((Path::FollowMergeActAfters, skein_codec::Reason::Bound), &Limits { follow_merge_act_afters: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowMergeAct::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_outcome_refusal_some", || bound((Path::FollowOutcomeRefusal, skein_codec::Reason::Bound), &Limits { follow_outcome_refusal_some: 3, ..CEILINGS }, &[1, 0, 0, 0, 3, 0, 0, 0], &[1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowOutcome::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_hand_finding_area", || bound((Path::HandFindingArea, skein_codec::Reason::Bound), &Limits { hand_finding_area: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match HandFinding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_hand_finding_why", || bound((Path::HandFindingWhy, skein_codec::Reason::Bound), &Limits { hand_finding_why: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match HandFinding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_drop_reason", || bound((Path::FindingDropReason, skein_codec::Reason::Bound), &Limits { finding_drop_reason: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FindingDrop::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_areas_areas", || bound((Path::FindingAreasAreas, skein_codec::Reason::Bound), &Limits { finding_areas_areas: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FindingAreas::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_areas_areas_item", || bound((Path::FindingAreasAreas, skein_codec::Reason::Bound), &Limits { finding_areas_areas_item: 3, ..CEILINGS }, &[0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FindingAreas::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_words_field", || bound((Path::FindingWordsField, skein_codec::Reason::Bound), &Limits { finding_words_field: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FindingWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_set_draft_path", || bound((Path::SetDraftPath, skein_codec::Reason::Bound), &Limits { set_draft_path: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0], |limits, bytes| match SetDraft::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_add_device_endpoint", || bound((Path::AddDeviceEndpoint, skein_codec::Reason::Bound), &Limits { add_device_endpoint: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match AddDevice::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_add_device_label", || bound((Path::AddDeviceLabel, skein_codec::Reason::Bound), &Limits { add_device_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match AddDevice::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_device_row_label", || bound((Path::DeviceRowLabel, skein_codec::Reason::Bound), &Limits { device_row_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match DeviceRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_device_row_endpoint", || bound((Path::DeviceRowEndpoint, skein_codec::Reason::Bound), &Limits { device_row_endpoint: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match DeviceRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_devices_rows", || bound((Path::DevicesRows, skein_codec::Reason::Bound), &Limits { devices_rows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Devices::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_group_failed_why", || bound((Path::GroupFailedWhy, skein_codec::Reason::Bound), &Limits { group_failed_why: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match GroupFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_set_up_failed_why", || bound((Path::SetUpFailedWhy, skein_codec::Reason::Bound), &Limits { set_up_failed_why: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match SetUpFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_connected_login", || bound((Path::ConnectedLogin, skein_codec::Reason::Bound), &Limits { connected_login: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Connected::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_stopped_reason", || bound((Path::StoppedReason, skein_codec::Reason::Bound), &Limits { stopped_reason: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Stopped::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_first_repository_org", || bound((Path::FirstRepositoryOrg, skein_codec::Reason::Bound), &Limits { first_repository_org: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]
@@ -37927,6 +42658,20 @@ mod golden_tests {
     }
 
     static BOUNDS_1: [Case; 64] = [
+        ("bound_devices_rows", || bound((Path::DevicesRows, skein_codec::Reason::Bound), &Limits { devices_rows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Devices::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_file_finding_area_some", || bound((Path::FileFindingArea, skein_codec::Reason::Bound), &Limits { file_finding_area_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FileFinding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_file_finding_title", || bound((Path::FileFindingTitle, skein_codec::Reason::Bound), &Limits { file_finding_title: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FileFinding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_file_finding_body", || bound((Path::FileFindingBody, skein_codec::Reason::Bound), &Limits { file_finding_body: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FileFinding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_row_area_some", || bound((Path::FindingRowArea, skein_codec::Reason::Bound), &Limits { finding_row_area_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FindingRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_row_title", || bound((Path::FindingRowTitle, skein_codec::Reason::Bound), &Limits { finding_row_title: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FindingRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_row_why_some", || bound((Path::FindingRowWhy, skein_codec::Reason::Bound), &Limits { finding_row_why_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match FindingRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_detail_body", || bound((Path::FindingDetailBody, skein_codec::Reason::Bound), &Limits { finding_detail_body: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FindingDetail::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_finding_detail_reason_some", || bound((Path::FindingDetailReason, skein_codec::Reason::Bound), &Limits { finding_detail_reason_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FindingDetail::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_group_failed_why", || bound((Path::GroupFailedWhy, skein_codec::Reason::Bound), &Limits { group_failed_why: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match GroupFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_set_up_failed_why", || bound((Path::SetUpFailedWhy, skein_codec::Reason::Bound), &Limits { set_up_failed_why: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match SetUpFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_connected_login", || bound((Path::ConnectedLogin, skein_codec::Reason::Bound), &Limits { connected_login: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Connected::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stopped_reason", || bound((Path::StoppedReason, skein_codec::Reason::Bound), &Limits { stopped_reason: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Stopped::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_first_repository_org", || bound((Path::FirstRepositoryOrg, skein_codec::Reason::Bound), &Limits { first_repository_org: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_first_repository_repository", || bound((Path::FirstRepositoryRepository, skein_codec::Reason::Bound), &Limits { first_repository_repository: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_first_repository_label", || bound((Path::FirstRepositoryLabel, skein_codec::Reason::Bound), &Limits { first_repository_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match FirstRepository::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_account_login", || bound((Path::AccountLogin, skein_codec::Reason::Bound), &Limits { account_login: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Account::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -37963,18 +42708,28 @@ mod golden_tests {
         ("bound_charter_words_line", || bound((Path::CharterWordsLine, skein_codec::Reason::Bound), &Limits { charter_words_line: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match CharterWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_project_words_headline", || bound((Path::ProjectWordsHeadline, skein_codec::Reason::Bound), &Limits { project_words_headline: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match ProjectWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_project_words_lede", || bound((Path::ProjectWordsLede, skein_codec::Reason::Bound), &Limits { project_words_lede: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match ProjectWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_stock_way_name", || bound((Path::StockWayName, skein_codec::Reason::Bound), &Limits { stock_way_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_stock_way_headline", || bound((Path::StockWayHeadline, skein_codec::Reason::Bound), &Limits { stock_way_headline: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_stock_way_line", || bound((Path::StockWayLine, skein_codec::Reason::Bound), &Limits { stock_way_line: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_stock_way_items", || bound((Path::StockWayItems, skein_codec::Reason::Bound), &Limits { stock_way_items: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_way_role_words", || bound((Path::WayRoleWords, skein_codec::Reason::Bound), &Limits { way_role_words: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WayRole::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stock_way_name", || bound((Path::StockWayName, skein_codec::Reason::Bound), &Limits { stock_way_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stock_way_headline", || bound((Path::StockWayHeadline, skein_codec::Reason::Bound), &Limits { stock_way_headline: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stock_way_line", || bound((Path::StockWayLine, skein_codec::Reason::Bound), &Limits { stock_way_line: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stock_way_items", || bound((Path::StockWayItems, skein_codec::Reason::Bound), &Limits { stock_way_items: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_stock_way_roles", || bound((Path::StockWayRoles, skein_codec::Reason::Bound), &Limits { stock_way_roles: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match StockWay::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rule_paths", || bound((Path::PathRulePaths, skein_codec::Reason::Bound), &Limits { path_rule_paths: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match PathRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rule_review", || bound((Path::PathRuleReview, skein_codec::Reason::Bound), &Limits { path_rule_review: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match PathRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rule_sign_off", || bound((Path::PathRuleSignOff, skein_codec::Reason::Bound), &Limits { path_rule_sign_off: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match PathRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rule_lands", || bound((Path::PathRuleLands, skein_codec::Reason::Bound), &Limits { path_rule_lands: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match PathRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rules_rows", || bound((Path::PathRulesRows, skein_codec::Reason::Bound), &Limits { path_rules_rows: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match PathRules::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_path_rules_note", || bound((Path::PathRulesNote, skein_codec::Reason::Bound), &Limits { path_rules_note: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match PathRules::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_ways_panel_ways", || bound((Path::WaysPanelWays, skein_codec::Reason::Bound), &Limits { ways_panel_ways: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WaysPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_ways_panel_ways", || bound((Path::WaysPanelWays, skein_codec::Reason::Bound), &Limits { ways_panel_ways: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WaysPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_view_read_address", || bound((Path::ViewReadAddress, skein_codec::Reason::Bound), &Limits { view_read_address: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match ViewRead::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+    ];
+
+    #[test]
+    fn bounds_1() {
+        table(&BOUNDS_1);
+    }
+
+    static BOUNDS_2: [Case; 64] = [
         ("bound_way_view_name", || bound((Path::WayViewName, skein_codec::Reason::Bound), &Limits { way_view_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WayView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_way_view_line", || bound((Path::WayViewLine, skein_codec::Reason::Bound), &Limits { way_view_line: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WayView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_roles_view_roles", || bound((Path::RolesViewRoles, skein_codec::Reason::Bound), &Limits { roles_view_roles: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match RolesView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -37991,14 +42746,6 @@ mod golden_tests {
         ("bound_member_owner", || bound((Path::MemberOwner, skein_codec::Reason::Bound), &Limits { member_owner: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Member::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_member_name", || bound((Path::MemberName, skein_codec::Reason::Bound), &Limits { member_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Member::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_member_branch", || bound((Path::MemberBranch, skein_codec::Reason::Bound), &Limits { member_branch: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Member::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-    ];
-
-    #[test]
-    fn bounds_1() {
-        table(&BOUNDS_1);
-    }
-
-    static BOUNDS_2: [Case; 64] = [
         ("bound_member_landing", || bound((Path::MemberLanding, skein_codec::Reason::Bound), &Limits { member_landing: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Member::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_member_gates", || bound((Path::MemberGates, skein_codec::Reason::Bound), &Limits { member_gates: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Member::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_panel_members", || bound((Path::LandingPanelMembers, skein_codec::Reason::Bound), &Limits { landing_panel_members: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -38047,6 +42794,14 @@ mod golden_tests {
         ("bound_link_address", || bound((Path::LinkAddress, skein_codec::Reason::Bound), &Limits { link_address: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Link::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_reached_name", || bound((Path::ReachedName, skein_codec::Reason::Bound), &Limits { reached_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match Reached::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_page_rows", || bound((Path::PageRows, skein_codec::Reason::Bound), &Limits { page_rows: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Page::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+    ];
+
+    #[test]
+    fn bounds_2() {
+        table(&BOUNDS_2);
+    }
+
+    static BOUNDS_3: [Case; 40] = [
         ("bound_landing_exact_value", || bound((Path::LandingExactValue, skein_codec::Reason::Bound), &Limits { landing_exact_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match LandingExact::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_open_value", || bound((Path::LandingOpenValue, skein_codec::Reason::Bound), &Limits { landing_open_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match LandingOpen::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_pattern_segments", || bound((Path::LandingPatternSegments, skein_codec::Reason::Bound), &Limits { landing_pattern_segments: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingPattern::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -38063,21 +42818,13 @@ mod golden_tests {
         ("bound_drafts_panel_drafts", || bound((Path::DraftsPanelDrafts, skein_codec::Reason::Bound), &Limits { drafts_panel_drafts: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match DraftsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_source_branch", || bound((Path::FollowSourceBranch, skein_codec::Reason::Bound), &Limits { follow_source_branch: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowSource::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_source_paths", || bound((Path::FollowSourcePaths, skein_codec::Reason::Bound), &Limits { follow_source_paths: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowSource::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-    ];
-
-    #[test]
-    fn bounds_2() {
-        table(&BOUNDS_2);
-    }
-
-    static BOUNDS_3: [Case; 17] = [
         ("bound_follow_source_paths_item", || bound((Path::FollowSourcePaths, skein_codec::Reason::Bound), &Limits { follow_source_paths_item: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowSource::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_target_branch", || bound((Path::FollowTargetBranch, skein_codec::Reason::Bound), &Limits { follow_target_branch: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowTarget::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_follow_words_words", || bound((Path::FollowWordsWords, skein_codec::Reason::Bound), &Limits { follow_words_words: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_follow_skip_reason", || bound((Path::FollowSkipReason, skein_codec::Reason::Bound), &Limits { follow_skip_reason: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowSkip::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_check_workflow", || bound((Path::FollowCheckWorkflow, skein_codec::Reason::Bound), &Limits { follow_check_workflow: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowCheck::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_check_artifact", || bound((Path::FollowCheckArtifact, skein_codec::Reason::Bound), &Limits { follow_check_artifact: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match FollowCheck::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_producer_some", || bound((Path::FollowProducer, skein_codec::Reason::Bound), &Limits { follow_producer_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Follow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_follow_words_words", || bound((Path::FollowWordsWords, skein_codec::Reason::Bound), &Limits { follow_words_words: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowWords::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_follow_skip_reason", || bound((Path::FollowSkipReason, skein_codec::Reason::Bound), &Limits { follow_skip_reason: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowSkip::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_parity_run", || bound((Path::FollowParityRun, skein_codec::Reason::Bound), &Limits { follow_parity_run: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FollowParity::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_view_source", || bound((Path::FollowViewSource, skein_codec::Reason::Bound), &Limits { follow_view_source: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follow_view_source_branch", || bound((Path::FollowViewSourceBranch, skein_codec::Reason::Bound), &Limits { follow_view_source_branch: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -38088,6 +42835,13 @@ mod golden_tests {
         ("bound_follow_view_skips", || bound((Path::FollowViewSkips, skein_codec::Reason::Bound), &Limits { follow_view_skips: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowView::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follows_panel_follows", || bound((Path::FollowsPanelFollows, skein_codec::Reason::Bound), &Limits { follows_panel_follows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_follows_panel_dependencies", || bound((Path::FollowsPanelDependencies, skein_codec::Reason::Bound), &Limits { follows_panel_dependencies: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FollowsPanel::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_area_name", || bound((Path::AreaName, skein_codec::Reason::Bound), &Limits { area_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Area::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_area_words", || bound((Path::AreaWords, skein_codec::Reason::Bound), &Limits { area_words: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Area::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_project_areas_areas", || bound((Path::ProjectAreasAreas, skein_codec::Reason::Bound), &Limits { project_areas_areas: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match ProjectAreas::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_area_row_name", || bound((Path::AreaRowName, skein_codec::Reason::Bound), &Limits { area_row_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match AreaRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_area_row_words", || bound((Path::AreaRowWords, skein_codec::Reason::Bound), &Limits { area_row_words: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match AreaRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_findings_rows", || bound((Path::FindingsRows, skein_codec::Reason::Bound), &Limits { findings_rows: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Findings::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_findings_areas", || bound((Path::FindingsAreas, skein_codec::Reason::Bound), &Limits { findings_areas: 3, ..CEILINGS }, &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Findings::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]

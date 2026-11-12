@@ -127,8 +127,9 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock)
+    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false)
 }
+#[expect(clippy::too_many_arguments, reason = "startup carries the command recording switch beside process facts")]
 fn prepare_given(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -137,6 +138,7 @@ fn prepare_given(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     given: &service::stock::Given,
+    record: bool,
 ) -> Result<(service::Service, Box<[u8]>), String> {
     if matches!(
         service::startup::nearest(bytes),
@@ -153,7 +155,7 @@ fn prepare_given(
     let engine = settings(bytes, directories, given);
     let Runtimes { roots, github } = runtimes(binary, &named)?;
     let user = skein_shell::effective_user();
-    let Inputs { files, google, bundle } = before_root(&mut named, user)?;
+    let Inputs { files, google, bundle } = before_root(&mut named, user, record)?;
     let accounts = accounts(&engine)?;
     let seeds = seeds(None, None)?;
     let mut service = service::startup::with_setup_given(
@@ -211,8 +213,8 @@ pub fn prepare_in_with(
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result =
-        prepare_given(binary, environment, working, directories, &bytes, &mut owned, given).map(|(service, _)| service);
+    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false)
+        .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -229,7 +231,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given)
+    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false)
         .map(|(service, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
@@ -239,6 +241,7 @@ pub fn run(
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
+    record: bool,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -247,8 +250,17 @@ pub fn run(
         crate::served::SERVED,
         |_| Ok(()),
         |bytes, owned, ()| {
-            prepare_with_store(binary, environment, working, directories, bytes, owned)
-                .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
+            prepare_given(
+                binary,
+                environment,
+                working,
+                directories,
+                bytes,
+                owned,
+                &service::stock::Given::Stock,
+                record,
+            )
+            .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
         },
         |_, _, ()| Ok(()),
     )
@@ -284,7 +296,7 @@ pub struct Inputs {
     pub google: service::clients::fetch::Runtime,
     pub bundle: Option<service::clients::bundle::Bundle>,
 }
-pub fn before_root(named: &mut service::startup::Named, user: u32) -> Result<Inputs, String> {
+pub fn before_root(named: &mut service::startup::Named, user: u32, record: bool) -> Result<Inputs, String> {
     let required = core::mem::take(&mut named.files);
     let asked = core::mem::take(&mut named.asked_files);
     let files = read_files_with_asked(required, asked, user)?;
@@ -300,6 +312,14 @@ pub fn before_root(named: &mut service::startup::Named, user: u32) -> Result<Inp
                 named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
             )
         })?;
+        if record {
+            bundle.fill_record().ok_or_else(|| {
+                format!(
+                    "application.clients.bundle: {}: the page has no </head> for its recording metadata",
+                    named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
+                )
+            })?;
+        }
     }
     Ok(Inputs { files, google, bundle })
 }

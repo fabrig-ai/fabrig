@@ -967,7 +967,7 @@ fn world_in_layout(
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Finding(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -1080,6 +1080,7 @@ fn world_in_layout(
                         | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
+                        | w::Watch::Findings(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -2301,7 +2302,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     }
     line
 }
-fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
+pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
     let mut rows = List::with_capacity(window);
     let mut more = false;
     for f in goal_facts(w) {
@@ -4744,7 +4745,7 @@ fn sample_answer(root: &mut Domain, attempt: Token, answer: jig_client::Answered
         out,
     );
 }
-fn sample_forge_answer(
+pub(super) fn sample_forge_answer(
     root: &mut Domain,
     attempt: Token,
     outcome: temper_client_protocol_wire::v1::Outcome,

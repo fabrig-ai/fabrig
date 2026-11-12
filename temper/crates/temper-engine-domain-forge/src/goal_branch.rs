@@ -265,7 +265,8 @@ fn read_result(
                 return;
             }
             let head = BranchHead { name: pending.name.clone(), commit, owned: true };
-            if d.heads.insert(pending.name.clone(), head.clone()).is_ok() {
+            let concerning = super::heads::concerning(d, &pending.name, Some(pending.task));
+            if super::heads::record(d, env, head.clone(), concerning, out) {
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
             }
             if let Some(resource) = to_client(&pending.name, &env.limits) {

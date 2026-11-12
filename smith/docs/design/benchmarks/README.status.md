@@ -1,6 +1,6 @@
 # benchmarks: status
 
-2026-11-11. Where smith's code lags or departs from [README.md](README.md).
+2026-11-12. Where smith's code lags or departs from [README.md](README.md).
 
 - **Not yet:**
   - 3.1, 5.2: calibrations remain `catalogue.status.md`, 5.

@@ -112,8 +112,10 @@ mod stall_hold;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+mod red_findings;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+mod triager_prover;
 
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;

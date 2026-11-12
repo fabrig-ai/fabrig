@@ -346,19 +346,16 @@ fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed(
                     adoption.home = false;
                 }
                 fixtures::begin_adoption(&mut d, Token::new(4), adoption);
-                let mut answers = vec![Answer::Permission(api::UserPermission {
-                    user: 1,
-                    login: Box::new([]),
-                    permission: if context { api::Permission::Read } else { api::Permission::Admin },
-                })];
-                if !context {
-                    answers.push(Answer::Branches(Box::new([])));
-                }
-                answers.extend([
+                let answers = [
+                    Answer::Permission(api::UserPermission {
+                        user: 1,
+                        login: Box::new([]),
+                        permission: if context { api::Permission::Read } else { api::Permission::Admin },
+                    }),
                     Answer::Settings(adopted().settings),
                     Answer::Protection(None),
                     Answer::Collaborators { collaborators: Box::new([]), more: false },
-                ]);
+                ];
                 let mut requests: Box<[Request]> = Box::new([]);
                 for answer in answers {
                     requests = fixtures::answer_next(&mut d, Ok(answer));

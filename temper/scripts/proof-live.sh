@@ -15,10 +15,39 @@ case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;
     forge-land) test_name=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge ;;
     rung-b0) test_name=rung_b0_a_person_agrees_a_plan_before_the_change_lands ;;
+    forge-land-claude-key) test_name=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge ;;
     forge-land-claude) test_name=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge ;;
-    *) printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|rung-b0]' >&2; exit 2 ;;
+    *) printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|forge-land-claude-key|rung-b0]' >&2; exit 2 ;;
 esac
-[ "$#" -le 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|rung-b0]' >&2; exit 2; }
+[ "$#" -le 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh [forge-land|forge-land-claude|forge-land-claude-key|rung-b0]' >&2; exit 2; }
+# The key is admitted by stat alone, never opened, read or printed.
+if [ "${1-}" = forge-land-claude-key ]; then
+    [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is for forge-land' >&2; exit 2; }
+    [ -z "${TEMPER_TEST_LIVE_CLAUDE-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_CLAUDE is for forge-land-claude' >&2; exit 2; }
+    [ -n "${TEMPER_TEST_LIVE_ANTHROPIC_KEY-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ANTHROPIC_KEY is required for forge-land-claude-key' >&2; exit 2; }
+    python3 -I - "$TEMPER_TEST_LIVE_ANTHROPIC_KEY" <<'PYTHON'
+import os
+import stat
+import sys
+
+def refuse(message):
+    print("TEMPER_TEST_LIVE_ANTHROPIC_KEY " + message, file=sys.stderr)
+    sys.exit(2)
+
+try:
+    metadata = os.stat(sys.argv[1], follow_symlinks=False)
+except OSError:
+    refuse("names no file")
+if not stat.S_ISREG(metadata.st_mode):
+    refuse("is not a regular file or is a link")
+if stat.S_IMODE(metadata.st_mode) != 0o600:
+    refuse("is not 0600")
+if metadata.st_uid != os.geteuid():
+    refuse("is not owned by this user")
+if metadata.st_size == 0:
+    refuse("is empty")
+PYTHON
+fi
 # The held directory is opened without following a link and listed once.
 # Only its metadata and entry names are inspected; no entry is opened.
 claude_identity=
@@ -76,7 +105,7 @@ store=
 held_landing=false
 rung=false
 rerun=false
-if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = rung-b0 ]; then
+if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = forge-land-claude-key ] || [ "${1-}" = rung-b0 ]; then
     if [ "${1-}" = rung-b0 ]; then
         rung=true
         [ -n "${TEMPER_TEST_LIVE_ACCOUNT-}" ] || { printf '%s\n' 'TEMPER_TEST_LIVE_ACCOUNT is required for rung-b0' >&2; exit 2; }
@@ -276,7 +305,7 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 # A build failure or a signal also returns through finish, after stopping the box.
 ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
-if [ "$rerun" = false ] && [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ]; then
+if [ "$rerun" = false ] && [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ] && [ "${1-}" != forge-land-claude-key ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \
         'For a remote browser: ssh -L 1455:127.0.0.1:1455 -L <client port>:127.0.0.1:<client port> HOST'
 fi

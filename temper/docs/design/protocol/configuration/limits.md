@@ -26,7 +26,8 @@
   across the agent and its carriers. `standard` is `small` with the
   forge's work at that scale: `forge.tasks`, `forge.holds` and
   `forge.changes` 128, the forge client's `resources` 128 (at least the
-  holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
+  holds; it bounds the branch heads too, `../../domain/forge/keeping-up.md`,
+  1), `forge.landings` 32, a change's policy's `questions`, `tasks`,
   `repairs`, `resolutions` and `updates` 80 (its `reruns`, the times a
   job the runner failed is run again at one head, is 1 in both,
   `forge.change_policy.reruns`: `../../domain/forge/change/README.md`, 2,
@@ -70,6 +71,11 @@
   `small` and 16 in `standard`, kind 13's numbers and the most the
   `follows` document carries (`../../domain/forge/dependencies.md`,
   section 2).
+- **A project's findings:** `forge.findings_per_project`, the findings
+  the forge keeps for a project (`../../domain/findings.md`, section 9):
+  256 in both profiles, room for weeks of reds, words and outside
+  parties' filings between triages. The forge's family holds it times
+  `forge.judge_projects`.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -404,14 +410,14 @@
   `client/domain/contract/README.md`, 5.2; jig's `protocol/client/README.md`, section
   10). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 26 (`../../domain/root.md`, section 9): the web's
-  and the terminal's `watches`, 26, and `handles`, 28, so that Home on
-  All projects holds four projects' statuses, `decided` and `follows`
-  documents with the session's own watches, 25 at most
+  clients hold at most 31 (`../../domain/root.md`, section 9): the web's
+  and the terminal's `watches`, 31, and `handles`, 33, so that Home on
+  All projects holds four projects' statuses, `decided`, `follows` and findings
+  documents with the session's own watches, 30 at most
   (`../../client/pages/home.md`, 1, *Home on All projects*). So:
-  - *a stream's room* is 26, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 208 at
-    `temper-box init`'s 8 streams (`stock.md`), 52 at the small profile's 2;
+  - *a stream's room* is 31, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 248 at
+    `temper-box init`'s 8 streams (`stock.md`), 62 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:
@@ -423,7 +429,7 @@
   stream's room to temper's client's watches, and a test of the limits
   holds the other two to `clients.streams`.
 - **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 26 is the shipped clients' bound. An
+  `clients.streams`, and the 31 is the shipped clients' bound. An
   `engine.limits.overrides` naming `views.watchers` or
   `views.watchers_per_party` is refused at the start, naming
   `clients.streams`, and `temper help limits-engine` lists neither: the

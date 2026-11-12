@@ -1,6 +1,7 @@
 # journeys: status
 
-2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
+
 
 
 
@@ -16,6 +17,8 @@ in this drawing route. Temper/ui's rendered comparison of all
 three requests remains `journeys.md`, section 10's after-landing work; replayed prints
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.
+
+Section 8.1 also accepts prebuilt recording inputs through `again --prepared DIR NAME`; its fresh private scratch directory stays beneath DIR and no child build runs.
 
 Section 8.1 has no known gap in a save's control found outside a menu:
 `temper-client-shell-web`'s `journey.rs`, `control`, skips a node under

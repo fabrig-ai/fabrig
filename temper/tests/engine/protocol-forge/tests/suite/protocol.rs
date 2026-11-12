@@ -567,6 +567,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
+                | top::Request::HeadRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -605,6 +606,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
+                | top::Request::FileRedFinding { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }

@@ -137,6 +137,15 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   each with its task, pull request and title (at most 256 bytes) and its
   sign-offs, `signed`, at most 8, as the `Change` row keeps them, its
   trailers and its verdicts, erased with its repository; 31 `Finding`, 32
+  each with its task, pull request and title (at most 256 bytes), its
+  trailers and its verdicts, erased with its repository; 31 `Finding`,
+  keyed `Finding { project, number }`, a finding's record
+  (`../domain/findings.md`, section 2): its kind, severity, area, state,
+  title, body, filer, when, the last hand-off's why and hander, its goal,
+  a drop's reason, and the fields its issue and matching add, each an
+  option appended after these; written by the forge's finding requests
+  and the root's filing of a red, erased with its project, bounded by
+  `forge.findings_per_project` times `forge.judge_projects`; 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,
@@ -184,7 +193,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   |---|---|---|---|---|
   | 43 | `Device` | `Device { party, number }`: the party, then the device's number | a browser's push subscription that the person turned push on with: `endpoint`, 1 to 1,024 bytes; `p256dh`, 65 bytes; `auth`, 16 bytes; `label`, 1 to 60 bytes; `at` (`../domain/forge/attention.md`, 7.1). Written by the party's `AddDevice`; erased by their `RemoveDevice`, by another party's `AddDevice` of the same endpoint, and by a push its service answers gone (`../domain/forge/attention.md`, 7.2); never with a project. A family of the forge connector's though it is people's, as `Binding` is | 8 times `bindings` |
 
-  Its record, `Device`, is the schema's `Value`'s last variant, after
+  Its record, `Device`, is the schema's `Value` variant after
   `follow`. It moves `temper-store` and `STORE_VERSION` from 12 to 13
   in temper patch 2 (`baseline.md`, 7). The patch adds the declaration
   and variant without inventing a device for an older store; its
@@ -217,7 +226,9 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     number, 3 and an issue's;
   - `Topic` is its variant (0 `Landings`, 1 `Ci`, 2 `Pull`, 3
     `Participation`), then the repository, then the branch, the commit
-    or the number;
+    or the number; or 4 `Findings`, then the project
+    (`../domain/forge/README.md`, 5.1);
+  - `Finding` is the project, then the number;
   - `Making` is the forge, then the org and the name, each one byte
     string;
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its
@@ -260,8 +271,11 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   stored layout moves its version and brings its patch in that landing
   (`baseline.md`, 7). U1's patch 1 moves 11 to 12; the devices' patch 2
   moves 12 to 13; the closer question relay's patch 3 moves 13 to 14,
-  adding `Closer.relay` as none for every existing closer. Kept schemas
-  and landed patches stay unchanged.
+  adding `Closer.relay` as none for every existing closer. R2's patch 4
+  moves 14 to 15 with areas, the triager, findings and their retained
+  answers and subscription topic added. Kept schemas and landed patches
+  stay unchanged.
+
   The routing gives it to jig's component, whose format row records it;
   opening patches an older supported store in a copy before restoring
   it (jig's `protocol/store/opening.md`).

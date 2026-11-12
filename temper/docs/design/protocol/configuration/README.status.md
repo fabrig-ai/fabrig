@@ -135,7 +135,8 @@ longer ignored (`../../testing/process-tier.md`; `../setup/init.md`, 3).
 
 `reference.md`'s `project.json` sets its project's rule 1 to main alone,
 with no gate or approval, over the stock's every-branch rule; its two
-deployment rules and its own charter and template editions remain.
+deployment rules, its overlays of charters 5 and 2 and its template 4
+remain.
 The stage-one description and application gaps below remain separate.
 
 `settings.md`, section 7 has no known gap in the sub-agent answer's payload-derived
@@ -147,52 +148,16 @@ narrower brief; temper adds no setting. The 3,000-byte delegated-answer
 story uses the simulated process world, with no real-provider result
 established here. Continuation remains deferred in `README.md`, section 9.
 
-`reference.md` has the reference's charter 5 as shared instructions and
-four ordered parts, including the cut's no-design rule, and template 4
-at Opus 5.5 xhigh first and high later with the same sub-agents.
-Charter 5's shared, first and result instructions require confirmed design
-landing into g before dispatching dependent coding, and Ask temper's
-stock design-first proposal guidance carries that rule. The focused
-domain story `design_first_waits_for_confirmed_landing_before_coding`
-checks the shipped instructions with the fake-forge scenario: a live
-pushed design permits an early producer start, an ended dependency is
-refused without new work, and coding without that ended dependency starts
-from g containing the design. It establishes no real-model compliance.
-Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
-reports through coordinator handoff to close-out, keeping uncovered items
-unresolved despite empty Left lists or passing CI. The domain story
-checks delivered rules and retained evidence, not real-model compliance.
-Charter 5's specifications identify facts at risk in help trimming and
-replacement patches; charters 2, 5 and 7 require a before/after fact mapping
-and named retention assertions. Missing preservation evidence remains
-unresolved acceptance through production, report reads and close-out,
-despite passing addition checks and page bounds. The focused domain story
-covers scripted deletion and retention of the answer-number hint alongside
-the early-start explanation and resolving pointer; it establishes no
-recovered patch, walk transcript or real-model compliance.
-Their deliverable-to-evidence mapping includes each requested row's
-measured timing, rejecting suite totals and arithmetic averages as
-substitutes. Missing measurements remain unfinished and go for repair;
-accepted Left, passing CI and status entries cannot waive acceptance.
-The coordinator requires evidence for every requested deliverable before
-close-out; only the person can change the requested scope. The focused
-domain story retains both missing and complete per-row evidence through
-bounded report reads and checks the assigned rules at all three roles;
-it establishes no real-model compliance.
-Charter 5's result part also requires acceptance evidence before finishing,
-recovering an absent CI-selection header from a cut job log with a larger
-read. The engine domain story checks the applied result-wake instructions,
-job 50's 6,000-byte tail and enlarged read, and the full/docs labels for
-main pulls #6 and #7; real-model compliance remains unobserved.
-Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
-tests check rule placement and hold all five supplied charters to a
-stock worker's bounds and the stored-policy run bound, including parts.
-The cut names the core's subscription to its changes' landing branches
-and asks for no duplicate `subscribe_forge`; the paths bound stays 4.
-The combined cut, withheld-question and later-answer domain story is
-unignored. Its store keeps the latest configured catalogue for both
-crash reopening and forks, so the restart oracle reads the same model
-names.
+`reference.md` has the reference's charters 5 and 2 as overlays over
+the stock's, carrying its fields alone, so that its runs read the
+stock's words, and template 4 at Opus 5.5 xhigh first and high later
+with the same sub-agents. The reference settings tests hold the
+charters its overlays make over the stock to a stock worker's bounds
+and the stored-policy run bound, parts included, reading the charter a
+run receives. The engine domain world's reference stories run on that
+charter; they establish no real-model compliance. Its store keeps the
+latest configured catalogue for both crash reopening and forks, so the
+restart oracle reads the same model names.
 
 `settings.md`, section 2 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its

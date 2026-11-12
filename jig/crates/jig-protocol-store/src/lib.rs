@@ -309,7 +309,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
         .checked_add(people_v15::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
-        .checked_add(settings_v2::Revision::decoded_bound(&codec.settings)?)?
+        .checked_add(settings_v3::Revision::decoded_bound(&codec.settings)?)?
         .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
@@ -440,8 +440,8 @@ pub use boundary::{
 mod tests;
 
 #[rustfmt::skip]
-#[path = "generated/settings_v2.rs"]
-pub mod settings_v2;
+#[path = "generated/settings_v3.rs"]
+pub mod settings_v3;
 #[rustfmt::skip]
 #[path = "generated/component_v3.rs"]
 pub mod component_v3;

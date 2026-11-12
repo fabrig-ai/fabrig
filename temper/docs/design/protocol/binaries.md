@@ -9,15 +9,15 @@ process (1). Its table, its sets, its help and its exits are
 `../client/ctl/README.md` designs them:
 
 ```
-public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]
+public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]
                temper-box init [DIRECTORIES]
-               temper-box serve [DIRECTORIES]
+               temper-box serve [DIRECTORIES] [--record]
                temper-box program-login [DIRECTORIES] NAME
                temper-box help [NAME | pages | --search WORDS...]
                temper-box versions
                temper-box upgrade --check DIRECTORY | --back
-internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR]
-               temper-box [DIRECTORIES] [--fake-backends [--bundle DIR]] --front
+internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--record]
+               temper-box [DIRECTORIES] [--fake-backends [--bundle DIR]] [--record] --front
                temper-box init [DIRECTORIES] --box
                temper-box forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
                temper-box forge run [DIRECTORIES] FORGE forgejo|runner
@@ -26,7 +26,7 @@ internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR]
                temper-box ctl help [GROUP [VERB]]
                temper-box open DIRECTORY LINK_OR_ADDRESS
 spawned        temper-box internal agent AGENT.json
-               temper-box internal serve [DIRECTORIES] --box
+               temper-box internal serve [DIRECTORIES] --box [--record]
                temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
 test doubles   temper-box fake llm|forge|oauth|git ...
 ```
@@ -105,6 +105,19 @@ default; the document is `temper.json` in the configuration directory
     notes, the lines of `cluster.md`, 3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
+  - `--record`, off by default, a public switch its help names: the
+    page it serves records in every person's browser from its load,
+    with nothing added to its address, by the page's `temper-record`
+    meta (`sign-in.md`, 7; `../client/web/README.md`, 2.1 and 2.2), so
+    that a person can record a journey on the deployment and save it
+    with Alt+Shift+S (`../client/web/journeys.md`, 3.1). Its help line:
+    "Have every page served record a journey in its browser, saved by
+    Alt+Shift+S." A worker alone serves no page, and takes it
+    as it is, changing nothing. `temper-box` takes it on each of its
+    forms, the fake backends' and `--front` among them (so `temper box
+    --record` passes it), and gives it to its `internal serve --box`
+    step; the engine's `temper-engine serve` takes it as the box's
+    `serve` does (2).
   - `--box`, given by `temper-box` alone, as `temper-box internal serve
     --box`, adopts the box's pipe, the two fds after the listeners the
     box gives it (setup/box.md, 1). Given listeners, `LISTEN_FDS` of them
@@ -344,7 +357,7 @@ client, with the owned forge's commands. Its table and sets are
 
 ```
 documentation  temper-engine help [NAME | pages | --search WORDS...]
-deployment     temper-engine serve [DIRECTORIES]
+deployment     temper-engine serve [DIRECTORIES] [--record]
                temper-engine versions
                temper-engine upgrade --check DIRECTORY | --back
                temper-engine forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
@@ -576,11 +589,15 @@ hold, and its exceptions, each with its reason.
 
 | Package | Rules | Exceptions |
 |---|---|---|
-| `temper` | temper only `temper`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs`, `temper-version`, `temper-fetch` and `temper-fetch-shell`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
+| `temper` | temper only `temper`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-charter-set`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs`, `temper-version`, `temper-fetch` and `temper-fetch-shell`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
 | `temper-engine` | temper not `temper-worker-` and `temper-service`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
 | `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-protocol-records-forge`, `temper-agent-shell` and `temper-service`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | none (5) |
 | `temper-agent` | temper only `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell` and `temper-version`; jig only none | none |
 
+- **The client assembles charter overlays** (`../client/ctl/overlays.md`, 2)
+  through `temper-charter-set`, the sans-io file assembly shared with
+  startup. It depends on skein-lib alone, and carries no engine or
+  worker code into the client.
 - **The client's exceptions:** `temper-settings-form`, the settings
   form and its words, `no_std` and neither the client's nor the
   engine's, which ctl's tools (`temper-client-tools`) render and the

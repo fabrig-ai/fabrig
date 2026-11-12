@@ -267,6 +267,10 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::Reset
         | w::Outcome::Dismissed
         | w::Outcome::Tried
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)

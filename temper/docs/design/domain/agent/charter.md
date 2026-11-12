@@ -73,6 +73,18 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
     - `Refusal`, one variant for each refusal above, carrying the file,
       the line (counted from 1) and the name where it has them, and
       saying them in its words.
+- **An overlay's sets:** a settings file's overlay item names sets by
+  directory, each assembled by the rule above for its charter, its text
+  following the default's (`../../client/ctl/overlays.md`, 2; jig's
+  `domain/engine/overlays.md`, 1). fabrig's, for the deployment that
+  develops this repository, is `temper/docs/charters/fabrig/`: the five
+  files of `../../draft/stock-charters.md`, 10, and beside them
+  `settings.json`, the overlays of charters 5 and 2 naming that
+  directory with that draft's section 5's fields, and template 4 whole
+  with that section's models. It is documentation, not code: no test
+  reads it, it lands by hand, and `settings apply`'s check is its gate;
+  the deployment's own lines for its machines are a set kept with the
+  deployment, applied with fabrig's in one call.
 - **The brief:** the sections jig's core gathers (jig's
   `domain/engine/briefs.md`, section 1) and the forge's (../forge/README.md, section 2),
   each rendered as one of smith's titled sections, titled by its kind:

@@ -233,7 +233,9 @@ fn form_values(
                     found = Some(id);
                     break;
                 }
-            } else if argument.place == Place::Positional && values.get(u32::from(id)) == Some(&None) {
+            } else if argument.place == Place::Positional
+                && (values.get(u32::from(id)) == Some(&None) || repeated(argument.occurs))
+            {
                 found = Some(id);
                 break;
             }
@@ -267,7 +269,7 @@ fn form_values(
         let index = u32::try_from(index).or(Err(Usage::Tool))?;
         let slot = values.get_mut(index).ok_or(Usage::Tool)?;
         if slot.is_none() {
-            if argument.occurs == Occurs::Required {
+            if super::table::required(argument) {
                 return Err(Usage::Missing { tool: 0, form: 0, argument: u8::try_from(index).or(Err(Usage::Tool))? });
             }
             if argument.kind == Kind::Order {
@@ -468,7 +470,7 @@ fn check_values(table: &[&Tool], args: &[Argument], values: &[Option<Values>], l
     for (index, (argument, values)) in args.iter().zip(values).enumerate() {
         let id = u8::try_from(index).or(Err(Usage::Tool))?;
         match values {
-            None if argument.occurs == Occurs::Required => {
+            None if super::table::required(argument) => {
                 return Err(Usage::Missing { tool: 0, form: 0, argument: id });
             }
             None => {}
@@ -555,7 +557,11 @@ pub fn back(table: &[&Tool], call: &Call, out: &mut List<Box<[u8]>>) -> Result<(
             match slot {
                 Some(Values::One(value)) => push(out, &encode(table, argument.kind, value)?)?,
                 None => {}
-                Some(Values::Many(_)) => return Err(Unwritten::NoForm),
+                Some(Values::Many(values)) => {
+                    for value in values {
+                        push(out, &encode(table, argument.kind, value)?)?;
+                    }
+                }
             }
         }
     }
@@ -569,11 +575,14 @@ fn escaped_position(args: &[Argument], values: &[Option<Values>], table: &[&Tool
         let Some(values) = slot else {
             continue;
         };
-        let Values::One(value) = values else {
-            return Err(Unwritten::NoForm);
+        let values = match values {
+            Values::One(value) => core::slice::from_ref(value),
+            Values::Many(values) => values,
         };
-        if encode(table, argument.kind, value)?.starts_with(b"--") {
-            return Ok(index);
+        for value in values {
+            if encode(table, argument.kind, value)?.starts_with(b"--") {
+                return Ok(index);
+            }
         }
     }
     Ok(args.len())

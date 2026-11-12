@@ -238,6 +238,9 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
                 | w::Request::SetAway(_)
                 | w::Request::SetDraft(_)
                 | w::Request::FollowAct(_)
+                | w::Request::FileFinding(_)
+                | w::Request::HandFinding(_)
+                | w::Request::TriageFinding(_)
                 | w::Request::Overturn(_) => return,
             };
             state.sent.entry(*key).or_insert(Pending {
@@ -384,6 +387,10 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::NotTheirs => return render::failure(b"unknown push outcome", json, 1),
     };
     let bytes = if json {

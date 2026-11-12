@@ -152,7 +152,8 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                         Some(Some(super::Value::Model(value)))
                     }
                     Some(
-                        super::Value::Charter(_)
+                        super::Value::Overlay(_)
+                        | super::Value::Charter(_)
                         | super::Value::Template(_)
                         | super::Value::Policy(_)
                         | super::Value::Rules(_)
