@@ -3,7 +3,11 @@ use crate::line::{Line, Record, Web};
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
-use std::{os::unix::ffi::OsStrExt, path::{Path, PathBuf}};
+use std::{
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+};
+mod forge;
 mod io;
 mod options;
 mod tui;
@@ -62,8 +66,27 @@ pub enum Output {
 }
 #[derive(Debug)]
 pub enum Action {
-    Start { process: Process, program: Program },
-    StartTui { program: Program, rows: u16, columns: u16 },
+    ReadForgeLog {
+        path: PathBuf,
+    },
+    ForgeRequest {
+        api: Box<[u8]>,
+        header: PathBuf,
+        method: skein_http::Method,
+        path: Box<[u8]>,
+        body: Box<[u8]>,
+        until: Time,
+    },
+    CancelForge,
+    Start {
+        process: Process,
+        program: Program,
+    },
+    StartTui {
+        program: Program,
+        rows: u16,
+        columns: u16,
+    },
     WriteTui(Vec<u8>),
     SaveTui,
     StopTui,
@@ -72,11 +95,19 @@ pub enum Action {
     Find(Find),
     Perform(Doing<Box<[u8]>>),
     Snapshot,
-    Screenshot { width: u32, path: PathBuf },
-    Describe { role: Option<Role> },
+    Screenshot {
+        width: u32,
+        path: PathBuf,
+    },
+    Describe {
+        role: Option<Role>,
+    },
     CancelFace,
     StopCtl,
-    Log { output: Output, line: Box<[u8]> },
+    Log {
+        output: Output,
+        line: Box<[u8]>,
+    },
     Keep(Box<[u8]>),
     Answer(Answer),
     Ready,
@@ -88,6 +119,9 @@ pub enum Action {
 }
 #[derive(Debug)]
 pub enum Event {
+    ForgeLog(Result<Box<[u8]>, String>),
+    ForgeResponse { status: u16, body: Box<[u8]> },
+    ForgeFailure(String),
     TuiReady,
     TuiSaved(Box<[u8]>),
     TuiWritten,
@@ -125,6 +159,7 @@ enum Phase {
     Snapshot,
     Diagnosing,
     Ctl,
+    Forge,
     TuiStarting,
     TuiBrowse,
     TuiAddress,
@@ -157,6 +192,7 @@ pub struct Machine {
     box_failed: Option<String>,
     diagnostic: String,
     shown: Vec<String>,
+    forge: Option<forge::Pending>,
     tui_running: bool,
     save_until: Option<Time>,
     frame: Box<[u8]>,
@@ -182,6 +218,7 @@ impl Machine {
                 box_failed: None,
                 diagnostic: String::new(),
                 shown: vec![],
+                forge: None,
                 tui_running: false,
                 save_until: None,
                 frame: Box::new([]),
@@ -202,6 +239,9 @@ impl Machine {
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
         match event {
+            Event::ForgeLog(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
+                self.forge_event(event, now, &mut out)
+            }
             Event::TuiReady
             | Event::TuiSaved(_)
             | Event::TuiWritten
@@ -233,6 +273,9 @@ impl Machine {
                 self.until = None;
                 self.poll = None;
                 self.save_until = None;
+                if self.forge.take().is_some() {
+                    out.push(Action::CancelForge);
+                }
                 out.extend([
                     Action::StopTui,
                     Action::CancelFace,
@@ -277,6 +320,7 @@ impl Machine {
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
+            Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {
                 if let Err(why) = self.plan.check_ctl_writes(args) {
@@ -325,6 +369,7 @@ impl Machine {
         self.until = None;
         self.poll = None;
         self.save_until = None;
+        self.forge = None;
     }
     fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
         out.push(Action::Log { output, line: line.into() });
@@ -386,6 +431,9 @@ impl Machine {
                     self.box_failed.get_or_insert_with(|| format!("box exited {code}"));
                 } else if !matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingBrowser) {
                     if self.current.is_some() {
+                        if self.forge.take().is_some() {
+                            out.push(Action::CancelForge);
+                        }
                         out.extend([Action::CancelFace, Action::StopCtl]);
                         self.answer(Some("the box exited".into()), out);
                         self.box_failed = Some(format!("box exited {code}"));
@@ -502,6 +550,9 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.forge_deadline(now, out) {
+            return;
+        }
         if self.tui_deadline(now, out) {
             return;
         }
@@ -563,6 +614,9 @@ impl Machine {
             return;
         }
         self.current = None;
+        if self.forge.take().is_some() {
+            out.push(Action::CancelForge);
+        }
         self.save_until = None;
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
@@ -595,8 +649,7 @@ impl Machine {
         let scratch = self.plan.options.scratch.as_os_str().as_encoded_bytes();
         let refusal = serve.iter().find_map(|line| {
             let line = strip_log_time(line);
-            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch)
-                || forge_state_refused(line, scratch)
+            if line.starts_with(b"temper serve: ") && names_scratch(line, scratch) || forge_state_refused(line, scratch)
             {
                 Some(String::from_utf8_lossy(line).into_owned())
             } else {

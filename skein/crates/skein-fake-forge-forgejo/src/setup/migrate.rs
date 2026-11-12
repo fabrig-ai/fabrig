@@ -243,6 +243,7 @@ fn parts(request: &Request) -> Option<(&skein_forge::forgejo::request::Repo, Opt
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateRepository { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

@@ -1,4 +1,5 @@
 use super::*;
+mod forge;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 fn plan() -> Plan {

@@ -165,7 +165,7 @@ pub(crate) const DRIVE: Command = Command {
         notes: "",
     }],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui or ctl line with shown lines prefixed | and ok or failed. end or stdin's end stops the box. TUI lines parse and are kept but are not driven yet. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]... makes one commit; forge checks FORGE REPOSITORY waits on its checks. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
