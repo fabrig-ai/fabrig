@@ -136,7 +136,7 @@ fn flow(
     let head = w.say(
         if *inbox.cut.first().expect("needs cut")
             || root.forge().approvals().more() != 0
-            || root.pages().needs().findings().cut(inbox.filter.project)
+            || root.pages().needs().findings().cut_for(inbox.filter)
         {
             Word::NeedsProgressCut
         } else {
@@ -159,7 +159,7 @@ fn flow(
     b.style(look::NEEDS_HEAD);
     let cut = *inbox.cut.first().expect("needs cut")
         || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut(inbox.filter.project);
+        || root.pages().needs().findings().cut_for(inbox.filter);
     let heading = w.say(
         if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount },
         &[Hole::Number(u64::try_from(open.len()).expect("bounded needs"))],
@@ -424,7 +424,7 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib
     };
     let cut = *inbox.cut.first().expect("needs cut")
         || root.forge().approvals().more() != 0
-        || root.pages().needs().findings().cut(inbox.filter.project);
+        || root.pages().needs().findings().cut_for(inbox.filter);
     let sentence = super::home::needs_sentence(
         w,
         temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },

@@ -36,7 +36,10 @@ fn setup(projects: u32) -> (Domain, Token, Box<[(u32, Token)]>) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
     let mut out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me(projects))));
-    out.extend(event(&mut root, Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) }));
+    let mut opening = event(&mut root, Event::Went { place: Place::Address(Address::Inbox { filter: Filter::ALL }) });
+    while let Some(request) = opening.pop() {
+        out.push(request);
+    }
     let mut watches = List::with_capacity(4);
     let mut inbox = None;
     for request in &out {

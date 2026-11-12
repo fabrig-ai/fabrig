@@ -146,6 +146,13 @@ impl Store {
         false
     }
     #[must_use]
+    pub fn cut_for(&self, filter: Filter) -> bool {
+        if filter.goal.is_some() || (filter.kind.is_some() && filter.kind != Some(Kind::Finding)) {
+            return false;
+        }
+        self.cut(filter.project)
+    }
+    #[must_use]
     pub fn count(&self, project: Option<u32>) -> u32 {
         let mut count = 0_u32;
         for held in &self.projects {
