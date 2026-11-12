@@ -680,6 +680,9 @@ fn step_made(
         if let Some(kind) = pending.delegate
             && let Some(child) = child
         {
+            if kind == super::forge_change::Delegate::Close {
+                forge_route::close_made(domain, task, child);
+            }
             // Jobs prepare at activation, after their parent row names them.
             super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
         }

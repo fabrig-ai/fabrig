@@ -312,6 +312,8 @@ members = [
     "temper/crates/temper-git-transcripts-tool",
     "temper/crates/temper-twin-tool",
     "temper/bin/temper-twin",
+    "temper/crates/temper-qa-tool",
+    "temper/bin/temper-qa",
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
@@ -612,6 +614,7 @@ temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-too
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
+temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }

@@ -1,8 +1,9 @@
 # temper's tools and fixtures
 
 Provisional, 2026-11-11, from `../draft/cli-c8-tools.md`, milestone C8
-of `../draft/cli.execution.md`. The six binaries temper's development
-and tests run beside its products: each an internal binary in a package
+of `../draft/cli.execution.md`, with landed QA's tool from milestone Q1
+of `../draft/landed-qa.execution.md`. The binaries temper's development,
+tests and QA run beside its products: each an internal binary in a package
 of its own under `temper/bin/`, built as the repository's command line
 says (`skein/docs/foundation/cli.md`). What each one does is designed
 with its subject (section 2); this document says how each is laid out,
@@ -10,7 +11,7 @@ named, answered and tested.
 
 ## 1. In one page
 
-- **Six binaries,** each a package `temper/bin/<binary>/` whose
+- **Seven binaries,** each a package `temper/bin/<binary>/` whose
   `main.rs` installs fail-stop and calls its crate's `main`. The crate,
   `<binary>-tool` under `temper/crates/`, holds its table and everything
   it does (sections 2 and 3).
@@ -47,6 +48,7 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 | `temper-playground-serve` | binary `playground-serve` of `temper-client-browser-world`, `temper/tests/client-browser/src/bin/` | the browser tier's static host for the playground's bundle. | `../playground.md`, 7 |
 | `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks.md`, 5 |
 | `temper-twin` | `temper/tools/twin`, package `temper-twin`, binary `twin` | a live run's twin: a fake LLM document that replays its agents. | `fakes.md`, 1; `real-loop.md` |
+| `temper-qa` | new, landed QA's | QA after landing: main's landings triaged into cases, and builds kept for them. | `qa/README.md` |
 
 Their forms are today's:
 
@@ -59,7 +61,10 @@ Their forms are today's:
   flags and `EVIDENCE`, `check EVIDENCE [--json]`, `judge EVIDENCE` and
   `verdict EVIDENCE [--json]`;
 - `temper-twin --data DIR --base FILE --out FILE [--cue
-  TASK=PHRASE]... [--replace OLD=NEW]...`.
+  TASK=PHRASE]... [--replace OLD=NEW]...`;
+- `temper-qa run`, `temper-qa build keep COMMIT DIR`, `temper-qa triage
+  none WHY`, `temper-qa triage case FILE`, `temper-qa show` and
+  `temper-qa lines` (`qa/README.md`, 2), new, its arguments its own.
 
 ## 3. A binary and its crate
 
@@ -216,8 +221,8 @@ it byte for byte in its crate's tests.
   names a moved manifest follows it, its path changed alone.
   `temper-forge-setup-shell`'s scan of process and lock operations
   (`tests/suite/boundary.rs`, which reads every crate under
-  `temper/crates/`) skips the six tools' crates by name, as it never read
-  `temper/tools/`: the tools spawn builds, browsers and git by design,
+  `temper/crates/`) skips the tools' crates by name, as it never read
+  `temper/tools/`: the tools spawn builds, browsers, git and agents by design,
   outside the setup's process boundary (`../protocol/setup/README.md`,
   7). Every other crate stays scanned as before, and the twin's per-file
   `ExitCode` exemption goes with the skip.
