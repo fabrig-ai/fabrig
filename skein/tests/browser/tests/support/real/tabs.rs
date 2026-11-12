@@ -1,5 +1,5 @@
 //! The browser's own facts about a press's tab and its opener.
-use super::{Event, FIND, PAGE, PRESS, Request, Rig, Stage, query};
+use super::{Duration, Event, FIND, PAGE, PRESS, Request, Rig, Stage, query};
 impl Rig {
     pub fn tab_script(&mut self) {
         self.pages.pages.push(skein_fake_person_browser::origins::Page {
@@ -46,20 +46,37 @@ impl Rig {
             }
             Event::Done { op } => {
                 assert_eq!(op, PRESS);
+                self.tabs_until = Some(self.browser_env.now.saturating_add(Duration::from_secs(3)));
                 self.ask(Request::Tabs { page: PAGE, op: FIND });
             }
             Event::Tabs { op, tabs, more } => {
-                assert_eq!((op, tabs.len(), more), (FIND, 1, 0));
-                let tab = tabs.get(0).expect("press's tab");
-                assert_eq!(tab.title.as_ref(), b"Opening");
-                assert_eq!(tab.url.as_ref(), b"about:blank");
                 let expected = self.stage == Stage::Pressing;
+                let settled = tabs.len() == 1
+                    && more == 0
+                    && tabs.get(0).is_some_and(|tab| tab.title.as_ref() == b"Opening" && tab.opener == expected);
+                if !settled && self.browser_env.now < self.tabs_until.expect("press's tab deadline") {
+                    self.tab_due = Some(self.browser_env.now.saturating_add(self.browser_env.limits.poll));
+                    return Ok(());
+                }
+                self.tabs_until = None;
+                let observed = format!(
+                    "stage {:?}: {} tabs, more {more}, title {:?}, url {:?}, opener {:?}",
+                    self.stage,
+                    tabs.len(),
+                    tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.title)),
+                    tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.url)),
+                    tabs.get(0).map(|tab| tab.opener)
+                );
+                assert_eq!((op, tabs.len(), more), (FIND, 1, 0), "{observed}");
+                let tab = tabs.get(0).expect("press's tab");
                 eprintln!(
                     "{}: Target.getTargets canAccessOpener={}, expected={expected}",
                     String::from_utf8_lossy(&self.version),
                     tab.opener
                 );
-                assert_eq!(tab.opener, expected, "browser's word on opener");
+                assert_eq!(tab.title.as_ref(), b"Opening", "{observed}");
+                assert_eq!(tab.url.as_ref(), b"about:blank", "{observed}");
+                assert_eq!(tab.opener, expected, "browser's word on opener; {observed}");
                 if expected {
                     self.stage = Stage::Keying;
                     self.ask(Request::Press {
