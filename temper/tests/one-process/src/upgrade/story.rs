@@ -84,6 +84,9 @@ impl Observe for Observer {
         Self { inner, cuts: cuts::Capture::new(root) }
     }
     fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
+        if STATE.with(|s|s.borrow().upgrade) && matches!((&complete.kind,&complete.result),(skein_io::kernel::Op::Rename {to,..},Ok(skein_io::kernel::Done::Nothing)) if to.as_ref() == b"active") {
+            assert_eq!(service.wait_state().engine.expect("engine").restart,Some(jig_domain_core::start::Phase::Switch),"all restores finish before the switch");
+        }
         STATE.with(|s| self.cuts.complete(&complete,self.inner.submitted,&mut s.borrow_mut().points));
         self.inner.complete(complete, service)
     }
@@ -102,7 +105,10 @@ impl Observe for Observer {
                 }
                 if wires.is_some_and(|n| n > state.epoch_floor.unwrap_or(u64::MAX)) {
                     let after = Maps::read(&mut state.disk.as_ref().expect("disk").borrow_mut());
-                    history(state.before.as_ref().expect("stop snapshot"), &after);
+                    let before=state.before.as_ref().expect("stop snapshot");
+                    let source=Maps::generation(&mut state.disk.as_ref().expect("disk").borrow_mut(),before.active);
+                    assert_eq!(&source,before,"patching the copy leaves its source generation untouched");
+                    history(before, &after);
                     state.points.wires.get_or_insert(self.inner.submitted);
                     state.checked = true;
                 }
@@ -128,8 +134,8 @@ fn history(before: &Maps, after: &Maps) {
     for key in keys {
         let old = before.store.get(key);
         let new = after.store.get(key);
-        if old == new { continue; }
         let named = jig_protocol_store::keys::decode(key);
+        if old == new && !matches!(named,Some(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(_)))) { continue; }
         match named {
             Some(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(_))) => {
                 let decode = |value: &Vec<u8>| jig_protocol_store::codec::decode(named.as_ref().expect("key"), value, &stories::playground::codec(), fixtures::store_names()).expect("proof");
