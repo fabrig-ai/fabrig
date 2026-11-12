@@ -328,6 +328,13 @@ No store; starting, ending and smith's payloads are jig's (jig's
   agent pinned in it (`../domain/worker/README.md`, section 5), the
   components, then the link dialled at once (jig's
   `protocol/service.md`, section 6).
+- **Ending:** the first termination signal drains the worker, and its
+  stop bound ends it (`../domain/worker/README.md`, section 2); the git
+  component refuses new preparations once the worker stops, and runs
+  every save and push the runs' ends ask for, so a drained run's work is
+  saved; at the stop bound, the root's abandon has the service abort, as
+  a second signal does: every agent's io and every git invocation closed,
+  their groups killed.
 - **Under a service manager,** as a deployment runs its workers
   (`temper help server`), the worker's unit kills its whole control
   group when it stops or its process dies, systemd's
@@ -368,7 +375,8 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
 - **Starting and ending together:** configuration for both, then the
   engine's start, then the worker's. A signal drains the engine; once it
   has drained, the service stops the worker, with no grace for its turns
-  and answers: its runs are cancelled, each agent process ending its
+  and answers and no drain of its own (`../domain/worker/README.md`,
+  section 2): its runs are cancelled at once, each agent process ending its
   program before it exits, within smith's cancel, then kill, and the
   service closes the worker once no agent process is left, its git
   invocations' groups killed as io closes them (jig's

@@ -73,17 +73,51 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   `AGENTS.md`) is for the run to find (../agent/README.md, section 2).
 - **The stop bound** the hello states is jig's (jig's `domain/hosts/hub.md`,
   6), with temper's push as the delivery and temper's save as the save:
-  the time the link takes to notice the loss, then the grace, then the
-  longer of the time smith's agent may take to be gone after a stop and a
-  push's deadline, then a save's commit and push. The worker's
-  configuration derives it (`../../protocol/configuration/README.md`, section 3);
-  the domain takes it whole.
+  the longer of the time the link takes to notice the loss with the
+  grace after it, and the drain's bound; then the longer of the time
+  smith's agent may take to be gone after a stop and a push's deadline,
+  then a save's commit and push. The worker's configuration derives it
+  (`../../protocol/configuration/README.md`, section 3); the domain takes
+  it whole, with the drain's bound beside it, and keeps it as a deadline.
 - **Losing contact and shutting down** are the hub's (jig's
   `domain/hosts/hub.md`, 6 and 7). Past the grace the worker cancels its
   runs itself, saving their work first. Shutting down, it still says its
   slots and refuses every assignment as busy; it gives up the turns and
-  answers it keeps, counted, only once no run is left and the engine is
-  still out of reach past the grace.
+  answers it keeps, counted, once no run is left and the engine is still
+  out of reach past the grace, or at its stop bound.
+- **Told to stop, the worker drains** (`../../draft/redeploys.md`, 6.1),
+  a worker alone or a cluster's at its first termination signal. At
+  once it asks its hub to drain (jig's `domain/hosts/hub.md`, 7): each
+  agent stops at the end of its current turn, once the LLM has answered
+  and the turn's calls have their answers, and a run not yet live is
+  cancelled. From that moment it keeps two deadlines. At the drain's
+  bound, it cancels what is left for shutdown, a run still in its turn
+  among them, a check in flight cut, which its next attempt runs again.
+  At its stop bound, it abandons what its stop still runs: every agent's
+  process group killed and every git operation in flight cut, so nothing
+  of an attempt writes after it, then gives up what it keeps, counted,
+  and exits, as at a second signal. Between, its runs end as cancels end
+  them: each agent gone, its relays and deliveries settled, its work
+  saved to its saved-work branch, the answer `Cancelled(Shutdown)`, so
+  each attempt ends interrupted with no try spent and its window open,
+  and every turn and answer acknowledged before it exits. Its git
+  component takes every save and push a run's end asks for until then,
+  and no new preparation. A job runs on through the drain; cancelled
+  after it before its push began, it ends interrupted too (jig's
+  `domain/hosts/hub.md`, 9).
+- **Past the grace,** lost contact keeps the rest of the stop bound as a
+  deadline from the grace's end, the longer of the agent's stop and a
+  push's deadline, then a save: at it, each run still stopping or
+  saving has its agent's group killed and its git operations cut, and
+  is answered as its save or push ended (jig's `domain/hosts/hub.md`, 6).
+- **A run loses at most a turn's tail** that the drain's bound cut, and
+  what its saved work leaves out, ignored files and build outputs: its
+  conversation, its committed calls and its saved work go on in its next
+  attempt, on any worker (jig's `domain/engine/executors.md`, 2;
+  `../../draft/redeploys.md`, 6.2).
+- **In one process,** the worker is stopped after the engine has drained
+  and settled its claims, so it does not drain: it cancels at once
+  (`../../protocol/README.md`, section 6).
 - **An engine's restart costs a run nothing.** The grace is the
   engine-away bound, `graces.grace_ms` in the worker's configuration
   (`../../protocol/configuration/README.md`, section 3), sized to outlast an
