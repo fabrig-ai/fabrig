@@ -54,6 +54,7 @@ fn toast_at(tree: &skein_ui::Tree) -> Option<usize> {
 fn act(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, Event::Act { action: d::Action::Pages(act) });
 }
+#[expect(clippy::too_many_lines, reason = "the fixture delivers and answers a way act")]
 fn way_answer(kept: bool) -> d::Domain {
     use jig_client::{Down, UnlinkedRequest, Up};
     use temper_client_protocol_wire::{self as wire, v1 as w};

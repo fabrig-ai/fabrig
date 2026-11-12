@@ -175,10 +175,10 @@ Where the client does otherwise:
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../look.md`, The welcome's look; the user, 2026-11-04): the
-  frame holds temper box's line and the steps, then, signed in, the
-  person's name and "Sign out", as every page outside a project has
-  them (the look request `outside-pages`; `look-round-22`), where the
-  mock draws no end; "Set up temper" is the first card and the default;
+  frame holds temper's mark, the steps and the link region alone, no
+  person or "Sign out" (`welcome-top`); temper box's line is a paragraph
+  under the Welcome step's cards' note, not in the bar, and Forge, Model
+  and Ready draw none. "Set up temper" is the first card and the default;
   Forge's Forgejo card comes first with "Run on this machine" alone,
   no "Or connect your deployment", which opens Forgejo's sheet, what
   it starts with, an empty repository by default, as the user's

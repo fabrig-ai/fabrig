@@ -16,5 +16,7 @@ Hand-made pages for `../../../draft/claude-sign-in.md`, section 2, and
   a placeholder; `04-signed-in.html`, the plan ticked;
   `05-no-terminal.html`, the cards with none.
 - **Not the draft's:** the top bar, with no person, no Sign out and no
-  temper box line, and "Open Forgejo ↗" under the Forge line, set by a
-  style in each page's head, are the looks of separate requests.
+  temper box line, is the shared welcome frame (`welcome-top`); the box
+  paragraph belongs to the Welcome step's main alone. "Open Forgejo ↗"
+  under the Forge line, set by a style in each page's head, is the
+  separate `forgejo-link` request.

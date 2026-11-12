@@ -149,7 +149,7 @@ command.
 - **The link's state** is the first line's (4). Its change changes
   the tree, so the page is printed again.
 - **Signing out** is `Settings`' "Sign out" (`pages/README.md`), or the top bar's on
-  a page that is no project's (`view.md`, 1): the domain asks it, and
+  a page that is no project's, except the welcome (`view.md`, 1): the domain asks it, and
   the host gives `jig-client` `SignOut`, which sends jig's sign-out.
   Signed out: the host has the native shell keep none, which leaves
   DIRECTORY's token a zero-byte file, read as none; the main says
@@ -161,7 +161,11 @@ command.
   signed in (jig's
   `client/domain/client/README.md`, section 9): the rail or the top bar says
   "Sign out did not reach the engine.", and "Sign out" is offered
-  again.
+  again, except on the welcome: its bar has the link region alone, no person,
+  sign-out alert or Sign out, at every step and before the deployment's read.
+  The Welcome step prints temper box's paragraph after the cards' note, or
+  after the cards without a note; Forge, Model and Ready print none
+  (`pages/welcome.md`, 1).
 - **Another party's kept work:** while the small store holds requests
   of a party other than the one `me` confirms, temper prints `temper:
   work of another party is kept in DIRECTORY, and waits for them` once.
