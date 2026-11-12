@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-26. A journey is a walk through the
 browser's client (`README.md`) recorded on a fresh `temper box
---fake-backends`, or on a real box and redacted (3.5), then replayed
+--fake-backends`, or on any deployment with real accounts and redacted (3.5), then replayed
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
 pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
@@ -55,7 +55,8 @@ journeys, 10 what is open.
   landing that carries a request's name moves it into the shell's
   stylesheets and the view, and reprints (section 7).
 - **Fake, or real and redacted.** A recording keeps what the page was
-  given as it was. On a real box `add` first takes out what must not be
+  given as it was, but the sign-in, which no saved file holds (3.1). On
+  a real deployment `add` first takes out what must not be
   committed, proves the rest, and writes nothing until a last scan has
   passed; the scan knows what it knows, and the person reads the pages
   for the rest (3.5 to 3.8).
@@ -105,11 +106,15 @@ journeys, 10 what is open.
 
 ### 3.1 The recorder
 
-- **On by the page's setting:** the page loaded with
-  `internal-record=1` and `internal-loopback-navigation=1` on a loopback
-  origin runs the recorder (`README.md`, 2.1); without them, or elsewhere,
-  the same bundle records nothing and installs no key. The recorder
-  adds nothing to the page: no node, no style, no request.
+- **On by the page's setting or its meta:** the page loaded with
+  `internal-record=1` in its address, on any origin, or made with the
+  `temper-record` meta, which `--record` asks of the deployment, runs
+  the recorder (`README.md`, 2.1 and 2.2); without either, the same
+  bundle records nothing and installs no key. The recorder needs no
+  other setting: the journeys tool gives `internal-loopback-navigation=1`
+  beside it, as its fake box's sign-in's tab needs (8.1). The recorder
+  adds nothing to the page: no node, no style, no request. The public
+  pages (`public.md`) start no shell, and record nothing.
 - **What it hears:** in `Shell::turn`, beside the host, the start's
   facts once, then each turn's clocks, each report given to
   `Host::report` with the duties it returned, and the turn's deadline.
@@ -139,7 +144,37 @@ journeys, 10 what is open.
   recorder keeps them, marks the end as the page is drawn then, and
   saves, before the shell carries the departure out; the rest of that
   turn is not kept, and the recorder keeps nothing more. A reload starts
-  a new recording.
+  a new recording, and so does the page's load on a return from a
+  departure, when the page records again (`README.md`, 2.1).
+- **No sign-in in the file.** Each save, Alt+Shift+S's and the one
+  before a departure, writes the recording with two of 3.6's originals
+  replaced as `add` replaces them, an `x` a byte, in every field and in
+  a stream's joined records alike: the *link*, the `secret` record's
+  value, and the *stored*, each `stored` record's value and each `save`
+  of the stream's record, a `Kept`'s head standing. So a saved
+  recording is never a sign-in. Nothing else is replaced: a typed
+  value, such as a key pasted into the page, and what agents wrote stay
+  for `add`, whose redaction and last scan are unchanged (3.6, 3.7); on
+  a real deployment, as on a real box, the person types no key (3.5). A
+  recording whose streams don't decode (3.6) is written with those two
+  replaced in every field and every `heard piece` all `x`s, its size
+  kept: no such recording can be added, and none is a sign-in. The
+  memory keeps the originals, so the recording goes on as it is, and
+  the replacement is `journey::saved(recording: &[u8]) -> Box<[u8]>`, a
+  pure function of the recording's bytes, which the shell's save calls
+  on `Recorder::save`'s or `Recorder::end`'s file before the download,
+  and the host's tests call alike; those two still give the recording
+  as kept.
+- **Bounded:** the recording in memory keeps at most
+  `limits::RECORDING_BYTES` (`README.md`, 2.1, `limits`). The start's
+  facts are kept whole. A report, act or mark whose lines would take
+  the recording past the bound is not kept: the recorder ends as at a
+  departure, keeping the end mark of the page as drawn then, the one
+  line kept past the bound, and keeps nothing more, while the host goes
+  on as before. A save then gives what it kept, Alt+Shift+S's and a
+  departure's alike. A tab that records for as long as it is open, as
+  every tab of a deployment serving `--record` does, keeps its first
+  64 MiB; a reload starts a new recording.
 
 ### 3.2 The file
 
@@ -229,19 +264,27 @@ the page was given as it was: the printed link's secret, the box's printed comma
 typed value, the fakes' loopback addresses, all of them the fake box's
 dummies, spent or gone with the box.
 
-Or by hand on a fresh box with real accounts, where a few things are
-hard to show without real models (section 9 names such a journey real).
-The box serves the recording bundle with `application.clients.bundle`
-set in its configuration; it takes no flag and says nothing more. The
-person uses public repositories and writes nothing private into the
-chats: the model's words are kept as they were given. `add` redacts
-every recording alike, fake or real (3.6).
+Or by hand on any deployment with real accounts, a fresh box or one
+that lives on, where a few things are hard to show without real models
+(section 9 names such a journey real). It serves its own bundle, which
+records by the page's setting or meta (3.1): no recording bundle is
+built, since the internal settings replaced the bundle's features
+(`../../draft/cli.md`, 6). The page is opened with
+`internal-record=1` added to its address, or the deployment serves
+with `--record` (`README.md`, 2.2). The person uses public
+repositories and writes nothing private into the chats: the model's
+words are kept as they were given, and what agents wrote may stay in a
+recording. A saved file holds no sign-in (3.1); `add` redacts every
+recording alike, fake or real (3.6).
 
 ### 3.6 Redaction
 
 `add` redacts before its first replay's proof (4.3). It reads the
 recording as its lines (3.2), and every byte field of each. It writes
-nothing and prints no original.
+nothing and prints no original. A browser's saved file already holds
+the *link* and the *stored* replaced (3.1): their values are `x`s
+alone, which are no original, so `add` counts none of either, and its
+redaction of the rest is unchanged.
 
 - **The originals:**
   - *link:* the `secret` record's value;
@@ -298,8 +341,8 @@ nothing and prints no original.
 - **What `add` prints:** the count of each kind of original, and of the
   places replaced.
 - **Not done, the user's word, 2026-11-05:** `temper box --bundle` on
-  real backends and its line under the sign-in block, since a real box
-  already serves the recording bundle; email addresses, neither replaced
+  real backends and its line under the sign-in block, since a real box's
+  own bundle records (3.5); email addresses, neither replaced
   nor refused, since the account's email may stand in a committed
   journey.
 
@@ -364,7 +407,8 @@ before they record:
 - **A `stored` request:** a request's `Kept` record, in flight at a
   reload, doesn't read as `x`s, so the replay goes stale and the
   recording is refused: reload a settled page.
-- **What the person holds:** the saved FILE keeps every original, so it
+- **What the person holds:** the saved FILE keeps every original but
+  the browser's link and stored (3.1), a typed value among them, so it
   stays out of the repository and goes once it is added; a `--redact
   TEXT` stands in the shell's history.
 

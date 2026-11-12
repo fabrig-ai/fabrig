@@ -124,15 +124,18 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`journeys.md`, section 2);
   - `journey`: a recording's records and file, its recorder and its
     replay (`journeys.md`, sections 3 and 4), on every target; the
-    recorder's keys and save are in `lib`, installed only when the page's
-    `internal-record` is on;
+    recorder's keys and save are in `lib`, installed only when the page
+    records, by its `internal-record` or its `temper-record` meta (below);
   - `records`: the small store's records, `jig-client`'s and a sign-in's
     address (`../README.md`, section 4); from the
     adoption form, a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
     (`../forge/records.md`);
   - `limits`: the client's limits in a browser, derived as the
-    terminal's are (`../README.md`, section 2), and their sum.
+    terminal's are (`../README.md`, section 2), and their sum; and
+    `RECORDING_BYTES`, 67,108,864, a recording's bound in memory
+    (`journeys.md`, 3.1): two of `BODY_BYTES`, so that a recording
+    holds a whole body's answer beside what came before it.
 - **A page is an entry crate on the shell:** the library holds no wasm
   start, since a module has one and a page's crate links the library.
   `temper-client-web-page`, a `cdylib`, is the shipped page: its start
@@ -149,7 +152,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   then, with the history's replace the sign-in part uses, so that no
   route, recording or link sees them. Each is on when its value is `1`,
   and off when absent or anything else:
-  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1);
+  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1),
+    on any origin, `http` or `https`;
   - `internal-small-window`: the client's limits name a conversation's
     window of 32,768 bytes, with `long_text` and `turn_text` 32,768
     (`testing.md`, 3, The tier's window), where they name none and
@@ -157,11 +161,28 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   - `internal-loopback-navigation`: skein's platform follows a
     navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
 
-  They're honoured only on a loopback origin, the page's host
-  `127.0.0.1` or `[::1]`, as the browser tier and the journeys tool
-  serve it, and ignored elsewhere. A reload is a load without them. The
-  shell's limits are given at its host's start, which the replay gives
-  the ordinary ones.
+  `internal-small-window` and `internal-loopback-navigation` are
+  honoured only on a loopback origin, the page's host `127.0.0.1` or
+  `[::1]`, as the browser tier and the journeys tool serve it, and
+  ignored elsewhere: loopback navigation elsewhere would let a page
+  send a person's browser to plaintext services on their own machine,
+  and the small window is the browser tier's. `internal-record` is
+  honoured everywhere: the recorder adds no node, no style and no
+  request, and a recording leaves the browser only by the person's own
+  Alt+Shift+S, or the save before a departure, into their own downloads
+  (`journeys.md`, 3.1), so a link that sets it on someone else's page
+  takes nothing from them. Each of the three is taken out of the
+  address wherever it is given, honoured or not. A reload is a load
+  without them. The shell's limits are given at its host's start, which
+  the replay gives the ordinary ones.
+- **The page's `temper-record` meta:** a page made with `<meta
+  name="temper-record" content="on">` (2.2) records as if its address
+  had `internal-record=1`, on any origin, at every load: a reload, or a
+  return from a departure, starts a new recording (`journeys.md`, 3.1).
+  The shell reads it at start, beside `temper-sign-in`; a meta of any
+  other content, or none, turns nothing on. The address's setting and
+  the meta are read once each and joined: either turns the recorder on,
+  and neither turns it off.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
   platform's work (jig's `protocol/browser/README.md`, 3.1).
@@ -224,6 +245,17 @@ replay says the same clocks (`../view.md`, 6).
   7. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
+- **The page's metas,** made into the bundle's page at start, before
+  its `</head>` and before its ETag is taken: `temper-sign-in`
+  (`../../protocol/sign-in.md`, 7); then, when the command that serves
+  was given `--record` (`../../protocol/binaries.md`), `<meta
+  name="temper-record" content="on">`, so that every page the
+  deployment serves records from its load (2.1), in each person's own
+  browser, signed in or not; and the forges' `temper-forge-sign-in`
+  metas, made once their records load
+  (`../../protocol/openid-provider.md`, 7). Without `--record` the page
+  has no `temper-record` meta. Nothing of a recording reaches the
+  deployment.
 - **The page's policy,** on every answer temper gives: jig's reference
   policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
