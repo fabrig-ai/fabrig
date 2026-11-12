@@ -509,7 +509,6 @@ impl World {
         clippy::too_many_arguments,
         reason = "the public world adds repository room to the shared scenario switches"
     )]
-    #[expect(clippy::too_many_lines, reason = "the fixture configures the peer and connector as one scenario")]
     fn configured_repositories(
         seed: u64,
         facts: u32,

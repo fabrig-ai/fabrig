@@ -637,7 +637,7 @@ fn brings_commands_read_the_shared_graph_and_list_only_commits_outside_the_base(
         let (answer, _, _net) = run(&command, script);
         assert_eq!(answer.exit, 0, "{command:?}: {answer:?}");
         assert_eq!(answer.stdout, expected, "{command:?}");
-        assert!(answer.stderr.is_empty());
+        assert_eq!(answer.stderr, Vec::<u8>::new());
     }
 }
 

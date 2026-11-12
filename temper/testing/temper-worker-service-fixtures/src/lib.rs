@@ -145,6 +145,7 @@ pub const AGENT_JSON: &[u8] = b"/opt/temper/agent.json";
 pub const PINNED_TEMPER: &[u8] = b"/worker/agent/temper";
 pub const PINNED_AGENT_JSON: &[u8] = b"/worker/agent/agent.json";
 #[expect(clippy::disallowed_methods, reason = "ordinary fixture code copies the agent's argument list")]
+#[must_use]
 pub fn pinned_agent(agent: &jig_protocol_config::Agent) -> jig_protocol_config::Agent {
     jig_protocol_config::Agent {
         program: PINNED_TEMPER.into(),

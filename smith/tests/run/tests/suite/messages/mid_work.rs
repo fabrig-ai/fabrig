@@ -333,7 +333,7 @@ fn cancel_after_drain_cuts_the_completion() {
     world.drain_at(Time::from_nanos(50_000_000));
     world.run(10_000);
     assert!(matches!(world.completions()[0].terminal, Some((_, smith_agent_world::CompletionTerminal::Cancelled))));
-    assert!(world.turns().is_empty());
+    assert_eq!(world.turns(), []);
     assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 0, .. }));
 }
 

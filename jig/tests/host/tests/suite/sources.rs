@@ -278,10 +278,11 @@ fn sign_out_after_shutdown_answers_closed_without_starting_work() {
 
 #[test]
 fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
+    let empty: [host::Request; 0] = [];
     for ending in [host::Event::Drain, host::Event::CancelAll { reason: host::Reason::Shutdown }] {
         let mut world = World::new();
         let check = command(&world.sources(&[b"a"]), b"a", Operation::Check);
-        assert!(world.step(host::Event::Down(host::LinkDown::SignOut { name: name_of(b"a") })).is_empty());
+        assert_eq!(world.step(host::Event::Down(host::LinkDown::SignOut { name: name_of(b"a") })), empty);
         assert_eq!(
             world.step(ending),
             vec![
@@ -292,7 +293,7 @@ fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
                 })
             ]
         );
-        assert!(world.checked(check, LoginState::Usable).is_empty());
+        assert_eq!(world.checked(check, LoginState::Usable), empty);
         assert!(world.host.sources_settled());
     }
 }

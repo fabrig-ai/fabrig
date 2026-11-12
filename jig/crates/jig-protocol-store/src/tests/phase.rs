@@ -363,18 +363,7 @@ impl Harness {
                 if let Event::Site { owner, of, key, site, at, mut patcher } = event {
                     self.sites.push((of, key.clone()));
                     if self.site_pages {
-                        let range = || skein_kv::Range {
-                            start: Box::from(b"l".as_slice()),
-                            end: Some(Box::from(b"m".as_slice())),
-                        };
-                        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
-                        assert_eq!(page.rows.len(), 1);
-                        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
-                        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
-                        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
-                        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
-                        assert_eq!(page.rows[0].value, label(2));
-                        assert!(page.next.is_none());
+                        Self::check_site_pages(store);
                     }
                     if let Some(limit) = self.site_commit_limit {
                         store.limits.store.commit = limit;
@@ -447,6 +436,17 @@ impl Harness {
             crate::up(store, &env, io, &mut above, &mut below);
         }
         panic!("phase did not settle");
+    }
+    fn check_site_pages(store: &mut Store) {
+        let range = || skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) };
+        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
+        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
+        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
+        assert_eq!(page.rows[0].value, label(2));
+        assert!(page.next.is_none());
     }
     fn file(&mut self, driver: usize, request: file::Request, stage: Stage) -> Option<Arrived> {
         let mut events = Queue::with_capacity(128);
