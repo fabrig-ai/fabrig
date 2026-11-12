@@ -88,7 +88,7 @@ constant built from its crate's generated module, naming no other owner:
 ```rust
 // jig_protocol_store: skein's and smith's records live in jig's maps, so
 // jig builds their sets from their crates' constants
-pub const SKEIN_PATCH_SET: PatchSet; // skein-oauth's `SavedToken`, map Secrets, the sources' range
+pub const SKEIN_PATCH_SET: PatchSet; // skein-oauth's `SavedToken`, map Secrets, no keys: held in jig's `Source`
 pub const SMITH_PATCH_SET: PatchSet; // smith-transcript's `Turn`, frames "Turn", no keys, fresh FRESH_WINDOWS
 pub const JIG_PATCH_SET: PatchSet;   // jig's eight store families and jig-accounts
 // temper_protocol_store
@@ -101,6 +101,12 @@ pub const PATCH_SETS: PatchSets;     // the four, upstream first
   (jig's `protocol/store/README.md`, 4.4), leaving out what lies among
   them but is another's; each range's root its records' declaration;
   the core's frames' root `TurnRecord` (jig's `protocol/store/opening.md`, 3).
+- **Held families have no keys:** a family whose every record is held
+  inside another family's record has empty `keys`, like smith's, and is
+  patched at `Step::Held` (jig's `protocol/store/opening.md`, 5).
+  skein-oauth's `SavedToken` is held in jig-store-secrets' `Source`, which
+  owns the sources' range `[3, 0]` to `[3, 1]`. jig-accounts' `Moved` is
+  held in `Carried`.
 - **temper's set:** `temper-store`'s ranges, relative to temper's tag,
   one per tag of temper's keys (`store.md`, section 3) with its root, and its
   `flights` the `Flight` tag's range, `[21]` to `[22]`; `temper-secrets`
@@ -120,7 +126,11 @@ pub const PATCH_SETS: PatchSets;     // the four, upstream first
   `protocol/store/opening.md`, 3), so a first start under them is the
   plan's proof. That every record of a map lies in exactly one family's
   range takes a walk: a focused test walks the golden store's two maps
-  (6) and finds each key in one range of `PATCH_SETS`.
+  (6) and finds each key in one range of `PATCH_SETS`. The component's
+  own rows (the format row, the layouts, the wires, the installation's
+  identifier) are in no range (jig's `protocol/store/opening.md`, 3).
+  The walk lists them on their own and finds each one exactly where the
+  component writes it.
 
 ## 5. A store at the baseline
 
