@@ -226,7 +226,10 @@ pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> 
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
-            overlay: match &value.overlay { Some(item) => Some(wire_overlay(item, limits)?), None => None },
+            overlay: match &value.overlay {
+                Some(item) => Some(wire_overlay(item, limits)?),
+                None => None,
+            },
             setting: wire_setting(&value.setting, limits)?,
             revision: value.revision,
             value: match &value.value {

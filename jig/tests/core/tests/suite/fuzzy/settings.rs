@@ -55,18 +55,26 @@ fn agree(world: &jig_core_world::world::World) {
             let settings::Setting::Charter(number) = setting else { panic!("overlay setting") };
             let settings::Value::Charter(default) = &defaults[&setting] else { panic!("overlay default") };
             let made = settings::overlaid(default, overlay);
-            let catalogue: Vec<_> = current.offered().iter().filter_map(|setting| match current.value(*setting) {
-                Some(settings::Value::Model(model)) => Some(*model.clone()), _ => None,
-            }).collect();
-            let resolved = settings::charters::resolved(&made, &catalogue, &world.env().limits.core).unwrap();
+            let catalogue: Vec<_> = current
+                .offered()
+                .iter()
+                .filter_map(|setting| match current.value(*setting) {
+                    Some(settings::Value::Model(model)) => Some(*model.clone()),
+                    _ => None,
+                })
+                .collect();
+            let resolved = settings::charters::resolved(&made, &catalogue, &world.env().limits.core)
+                .expect("offered overlay resolves");
             assert_eq!(current.charter(number), Some(&resolved), "default with stored overlay");
         }
     }
     if let Some(assigned) = &world.assigned
         && let Some(row) = world.domain.core().tasks.task(assigned.task)
-        && row.settings.run == Some(assigned.run.revision) {
+        && row.settings.run == Some(assigned.run.revision)
+    {
         let tasks::Executor::Agent { charter } = row.executor else { panic!("agent assignment") };
-        let version = world.domain.core().charter_at(charter, assigned.run.revision).unwrap();
+        let version =
+            world.domain.core().charter_at(charter, assigned.run.revision).expect("assigned revision is held");
         assert_eq!(assigned.run.policy.instructions, version.policy.instructions, "run reads its revision's version");
     }
     assert_eq!(revision(world, current.newest(), false).head, *current.newest_head());
@@ -103,13 +111,19 @@ fn agree(world: &jig_core_world::world::World) {
     }
 }
 fn overlay_item(words: &[u8]) -> settings::Item {
-    settings::Item { setting: settings::Setting::Charter(1), edit: settings::Edit::Set(settings::Value::Overlay(Box::new(settings::Overlay {
-        instructions: words.into(), shell: Some(false), ..settings::Overlay::empty()
-    }))) }
+    settings::Item {
+        setting: settings::Setting::Charter(1),
+        edit: settings::Edit::Set(settings::Value::Overlay(Box::new(settings::Overlay {
+            instructions: words.into(),
+            shell: Some(false),
+            ..settings::Overlay::empty()
+        }))),
+    }
 }
 fn restart_default(world: &mut jig_core_world::world::World, rng: &mut Rng) {
     let mut config = configuration().0;
-    config.core.defaults.charters[0].policy.instructions = format!("Release {}", rng.below(1_000_000)).into_bytes().into_boxed_slice();
+    config.core.defaults.charters[0].policy.instructions =
+        format!("Release {}", rng.below(1_000_000)).into_bytes().into_boxed_slice();
     restart(world, config);
 }
 
@@ -357,7 +371,10 @@ fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
             let made;
             let expected = match &item.edit {
                 settings::Edit::Set(settings::Value::Overlay(overlay)) => {
-                    let Some(settings::Value::Charter(default)) = world.domain.settings().default_value(item.setting) else { panic!("default") };
+                    let Some(settings::Value::Charter(default)) = world.domain.settings().default_value(item.setting)
+                    else {
+                        panic!("default")
+                    };
                     made = settings::Value::Charter(Box::new(settings::overlaid(default, overlay)));
                     Some(&made)
                 }
@@ -392,7 +409,11 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                 let key = 20 + step;
                 match operation {
                     0 => {
-                        let item = if rng.below(2) == 0 { overlay_item(format!("proposed overlay {seed} {step}").as_bytes()) } else { template_edit(&world, 6 + rng.below(10)) };
+                        let item = if rng.below(2) == 0 {
+                            overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
+                        } else {
+                            template_edit(&world, 6 + rng.below(10))
+                        };
                         let against = world.domain.settings().newest();
                         propose(&mut world, signed, key, against, Box::new([item]));
                     }
@@ -437,7 +458,9 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                         let against = world.domain.settings().newest();
                         change(&mut world, signed, key, against, Box::new([item]));
                     }
-                    5 => { restart_default(&mut world, &mut rng); }
+                    5 => {
+                        restart_default(&mut world, &mut rng);
+                    }
                     _ => unreachable!(),
                 }
                 agree(&world);

@@ -232,7 +232,8 @@ fn value_details_text(value: &c::SettingValue, out: &mut Text) {
                 out.put(b"\n");
             }
         }
-        c::SettingValue::Overlay | c::SettingValue::Model(_)
+        c::SettingValue::Overlay
+        | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
         | c::SettingValue::Rules(_) => {}

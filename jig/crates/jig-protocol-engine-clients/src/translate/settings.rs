@@ -371,7 +371,10 @@ pub fn setting_document(
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
-            overlay: match &v.overlay { Some(item) => Some(overlay(item, limits)?), None => None },
+            overlay: match &v.overlay {
+                Some(item) => Some(overlay(item, limits)?),
+                None => None,
+            },
             setting: name(v.setting, limits)?,
             revision: v.revision,
             value: match &v.value {
@@ -680,34 +683,40 @@ pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
 }
 
 fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
-    let alternatives = match &value.alternatives { Some(items) => {
-    let mut alternatives = List::with_capacity(super::count(items.len())?);
-    for row in items {
-        alternatives.push(model(row, limits)?).expect("model count");
-    }
- Some(alternatives)
- }, None => None };
-    let documents = match &value.documents { Some(items) => {
-    let mut documents = List::with_capacity(super::count(items.len())?);
-    for item in items {
-        let mut name = List::with_capacity(super::count(item.name.segments.len())?);
-        for segment in &item.name.segments {
-            name.push(segment.clone()).expect("segment count");
+    let alternatives = match &value.alternatives {
+        Some(items) => {
+            let mut alternatives = List::with_capacity(super::count(items.len())?);
+            for row in items {
+                alternatives.push(model(row, limits)?).expect("model count");
+            }
+            Some(alternatives)
         }
-        documents
-            .push(w::CharterDocument::new(
-                limits,
-                w::CharterDocumentParts {
-                    connector: item.connector,
-                    name,
-                    path: item.path.clone(),
-                    heading: item.heading.clone(),
-                },
-            )?)
-            .expect("document count");
-    }
- Some(documents)
- }, None => None };
+        None => None,
+    };
+    let documents = match &value.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(super::count(items.len())?);
+            for item in items {
+                let mut name = List::with_capacity(super::count(item.name.segments.len())?);
+                for segment in &item.name.segments {
+                    name.push(segment.clone()).expect("segment count");
+                }
+                documents
+                    .push(w::CharterDocument::new(
+                        limits,
+                        w::CharterDocumentParts {
+                            connector: item.connector,
+                            name,
+                            path: item.path.clone(),
+                            heading: item.heading.clone(),
+                        },
+                    )?)
+                    .expect("document count");
+            }
+            Some(documents)
+        }
+        None => None,
+    };
     let mut parts = List::with_capacity(super::count(value.parts.len())?);
     for item in &value.parts {
         parts
@@ -717,27 +726,40 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
             )?)
             .expect("part count");
     }
-    w::Overlay::new(limits, w::OverlayParts {
-        rest: value.rest,
-        inspect: value.inspect,
-        modify: value.modify,
-        shell: value.shell,
-        agents: value.agents,
-        waiting: value.waiting,
-        resume: value.resume,
-        turns: value.turns,
-        time: value.time,
-        reserve_turns: value.reserve_turns,
-        reserve_time: value.reserve_time,
-        call_timeout: value.call_timeout,
-        spend: value.spend,
-        model: match &value.model { Some(item) => Some(model(item, limits)?), None => None },
-        alternatives, documents, parts, instructions: value.instructions.clone(),
-        tools: match value.tools { Some(item) => Some(item.0), None => None },
-        hosts: match value.hosts {
-            Some(jig_domain_fleet::Kinds::Workers) => Some(w::SettingHosts::Workers),
-            Some(jig_domain_fleet::Kinds::Engine) => Some(w::SettingHosts::Engine),
-            Some(jig_domain_fleet::Kinds::Both) => Some(w::SettingHosts::Both), None => None,
+    w::Overlay::new(
+        limits,
+        w::OverlayParts {
+            rest: value.rest,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            model: match &value.model {
+                Some(item) => Some(model(item, limits)?),
+                None => None,
+            },
+            alternatives,
+            documents,
+            parts,
+            instructions: value.instructions.clone(),
+            tools: match value.tools {
+                Some(item) => Some(item.0),
+                None => None,
+            },
+            hosts: match value.hosts {
+                Some(jig_domain_fleet::Kinds::Workers) => Some(w::SettingHosts::Workers),
+                Some(jig_domain_fleet::Kinds::Engine) => Some(w::SettingHosts::Engine),
+                Some(jig_domain_fleet::Kinds::Both) => Some(w::SettingHosts::Both),
+                None => None,
+            },
         },
-    })
+    )
 }

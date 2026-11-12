@@ -2363,15 +2363,30 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     config.core.defaults.rules.maximum_run_spend = 20;
     limits.core.settings.history = 64;
     limits.core.tasks.inbox_bytes += limits.core.tasks.message_bytes;
-    let mut world = World::new(Setup { configuration: Some(config), limits,
-        boot: jig_core_world::world::Boot::Empty, ..Setup::default() });
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
-    let overlay = settings::Overlay { instructions: b"Deployment words".as_slice().into(), ..settings::Overlay::empty() };
+    let overlay =
+        settings::Overlay { instructions: b"Deployment words".as_slice().into(), ..settings::Overlay::empty() };
     let value = settings::Value::Overlay(Box::new(overlay.clone()));
-    changed(&change(&mut world, signed, 1, 1, Box::new([settings::Item {
-        setting: settings::Setting::Charter(1), edit: settings::Edit::Set(value.clone()),
-    }])), 2);
+    changed(
+        &change(
+            &mut world,
+            signed,
+            1,
+            1,
+            Box::new([settings::Item {
+                setting: settings::Setting::Charter(1),
+                edit: settings::Edit::Set(value.clone()),
+            }]),
+        ),
+        2,
+    );
     assert_eq!(revision(&world, 2, false).items[0].edit, settings::Edit::Set(value.clone()));
     seed_restart_accounts(&mut world);
     restart(&mut world, held_restart_configuration());
@@ -2394,20 +2409,31 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     assert_eq!(release.items[0].edit, settings::Edit::Set(value.clone()));
     assert_eq!(release.items[0].replaced, settings::Replaced::Value(value));
     let signed = sign_in(&mut world);
-    let reads::Answer::Setting(document) = client_read(&mut world, signed, reads::Read::Setting {
-        setting: settings::Setting::Charter(1), revision: 2, proposal: None,
-    }) else { panic!("held setting read") };
+    let reads::Answer::Setting(document) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+    ) else {
+        panic!("held setting read")
+    };
     assert_eq!(document.overlay.as_deref(), Some(&overlay));
     let Some(settings::Value::Charter(charter)) = document.value else { panic!("charter read") };
     assert_eq!(charter.policy.instructions.as_ref(), words);
-    let reads::Answer::Setting(current) = client_read(&mut world, signed, reads::Read::Setting {
-        setting: settings::Setting::Charter(1), revision: 3, proposal: None,
-    }) else { panic!("current setting read") };
+    let reads::Answer::Setting(current) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 3, proposal: None },
+    ) else {
+        panic!("current setting read")
+    };
     assert_eq!(current.overlay.as_deref(), Some(&overlay));
     let Some(settings::Value::Charter(charter)) = current.value else { panic!("current charter") };
     assert_eq!(charter.policy.instructions.as_ref(), b"New default\n\nDeployment words");
     let newest = inventory(&mut world, signed);
-    assert_eq!(newest.settings.iter().find(|line| line.setting == settings::Setting::Charter(1)).unwrap().follows, documents::Follows::Overlay);
+    assert_eq!(
+        newest.settings.iter().find(|line| line.setting == settings::Setting::Charter(1)).unwrap().follows,
+        documents::Follows::Overlay
+    );
     world.assigned = None;
     resume_host_after_restart(&mut world);
     ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });

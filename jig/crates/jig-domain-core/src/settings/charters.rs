@@ -141,7 +141,13 @@ pub(crate) fn rebuild(current: &mut Current, limits: &Limits) {
     let models = super::catalogue::entries(current);
     current.resolved = skein_lib::Map::with_capacity(limits.tasks.charters);
     for number in current.offered_charters() {
-        if let Some(charter) = resolved(&current.made_charter(Setting::Charter(number), current.value(Setting::Charter(number)).expect("offered value")).expect("offered charter"), &models, limits) {
+        if let Some(charter) = resolved(
+            &current
+                .made_charter(Setting::Charter(number), current.value(Setting::Charter(number)).expect("offered value"))
+                .expect("offered charter"),
+            &models,
+            limits,
+        ) {
             current.resolved.insert(number, charter).expect("checked charter count");
         }
     }
@@ -168,9 +174,7 @@ pub(crate) fn version_items(current: &Current, items: &[Item], limits: &Limits) 
         let charter = current.made_charter(setting, value).expect("offered charter");
         let after = resolved(&charter, &models, limits);
         if after.as_ref() != Some(current.resolved_charter(number).expect("offered resolution")) {
-            result
-                .push(Item { setting, edit: Edit::Set(value.clone()) })
-                .expect("implicit charter items");
+            result.push(Item { setting, edit: Edit::Set(value.clone()) }).expect("implicit charter items");
         }
     }
     result.into_boxed()

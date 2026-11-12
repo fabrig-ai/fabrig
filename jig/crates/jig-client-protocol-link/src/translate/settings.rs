@@ -561,7 +561,10 @@ pub fn restore_settings_document(
 }
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
-        overlay: match value.overlay() { Some(item) => Some(Box::new(restore_overlay(item)?)), None => None },
+        overlay: match value.overlay() {
+            Some(item) => Some(Box::new(restore_overlay(item)?)),
+            None => None,
+        },
         setting: restore_setting(value.setting())?,
         revision: value.revision(),
         value: match value.value() {
@@ -1046,30 +1049,36 @@ pub fn restore_change_model(value: &w::ChangeModel, limits: &Limits) -> Result<c
 }
 
 pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
-    let alternatives = match &value.alternatives { Some(items) => {
-    let mut alternatives = List::with_capacity(items.len());
-    for item in items {
-        alternatives.push(wire_setting_model(item, limits)?).expect("same capacity");
-    }
- Some(alternatives)
- }, None => None };
-    let documents = match &value.documents { Some(items) => {
-    let mut documents = List::with_capacity(items.len());
-    for item in items {
-        documents
-            .push(w::CharterDocument::new(
-                limits,
-                w::CharterDocumentParts {
-                    connector: item.connector,
-                    name: item.name.clone(),
-                    path: item.path.clone(),
-                    heading: item.heading.clone(),
-                },
-            )?)
-            .expect("same capacity");
-    }
- Some(documents)
- }, None => None };
+    let alternatives = match &value.alternatives {
+        Some(items) => {
+            let mut alternatives = List::with_capacity(items.len());
+            for item in items {
+                alternatives.push(wire_setting_model(item, limits)?).expect("same capacity");
+            }
+            Some(alternatives)
+        }
+        None => None,
+    };
+    let documents = match &value.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(items.len());
+            for item in items {
+                documents
+                    .push(w::CharterDocument::new(
+                        limits,
+                        w::CharterDocumentParts {
+                            connector: item.connector,
+                            name: item.name.clone(),
+                            path: item.path.clone(),
+                            heading: item.heading.clone(),
+                        },
+                    )?)
+                    .expect("same capacity");
+            }
+            Some(documents)
+        }
+        None => None,
+    };
     let mut parts = List::with_capacity(value.parts.len());
     for item in &value.parts {
         parts
@@ -1079,49 +1088,67 @@ pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay
             )?)
             .expect("same capacity");
     }
-    w::Overlay::new(limits, w::OverlayParts {
-        rest: value.rest,
-        inspect: value.inspect,
-        modify: value.modify,
-        shell: value.shell,
-        agents: value.agents,
-        waiting: value.waiting,
-        resume: value.resume,
-        turns: value.turns,
-        time: value.time,
-        reserve_turns: value.reserve_turns,
-        reserve_time: value.reserve_time,
-        call_timeout: value.call_timeout,
-        spend: value.spend,
-        model: match &value.model { Some(item) => Some(wire_setting_model(item, limits)?), None => None },
-        alternatives, documents, parts, tools: value.tools,
-        hosts: match &value.hosts { Some(item) => Some(wire_setting_hosts(item)?), None => None },
-        instructions: bytes::copy_of(value.instructions.bytes()),
-    })
+    w::Overlay::new(
+        limits,
+        w::OverlayParts {
+            rest: value.rest,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            model: match &value.model {
+                Some(item) => Some(wire_setting_model(item, limits)?),
+                None => None,
+            },
+            alternatives,
+            documents,
+            parts,
+            tools: value.tools,
+            hosts: match &value.hosts {
+                Some(item) => Some(wire_setting_hosts(item)?),
+                None => None,
+            },
+            instructions: bytes::copy_of(value.instructions.bytes()),
+        },
+    )
 }
 
 pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
-    let alternatives = match value.alternatives() { Some(items) => {
-    let mut alternatives = List::with_capacity(items.len());
-    for item in items {
-        alternatives.push(restore_setting_model(item)?).expect("same capacity");
-    }
- Some(alternatives)
- }, None => None };
-    let documents = match value.documents() { Some(items) => {
-    let mut documents = List::with_capacity(items.len());
-    for item in items {
-        documents
-            .push(c::CharterDocument {
-                connector: item.connector(),
-                name: item.name().clone(),
-                path: bytes::copy_of(item.path()),
-                heading: item.heading().clone(),
-            })
-            .expect("same capacity");
-    }
- Some(documents)
- }, None => None };
+    let alternatives = match value.alternatives() {
+        Some(items) => {
+            let mut alternatives = List::with_capacity(items.len());
+            for item in items {
+                alternatives.push(restore_setting_model(item)?).expect("same capacity");
+            }
+            Some(alternatives)
+        }
+        None => None,
+    };
+    let documents = match value.documents() {
+        Some(items) => {
+            let mut documents = List::with_capacity(items.len());
+            for item in items {
+                documents
+                    .push(c::CharterDocument {
+                        connector: item.connector(),
+                        name: item.name().clone(),
+                        path: bytes::copy_of(item.path()),
+                        heading: item.heading().clone(),
+                    })
+                    .expect("same capacity");
+            }
+            Some(documents)
+        }
+        None => None,
+    };
     let mut parts = List::with_capacity(value.parts().len());
     for item in value.parts() {
         parts
@@ -1145,9 +1172,18 @@ pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
         reserve_time: *value.reserve_time(),
         call_timeout: *value.call_timeout(),
         spend: *value.spend(),
-        model: match value.model() { Some(item) => Some(restore_setting_model(item)?), None => None },
-        alternatives, documents, parts, tools: *value.tools(),
-        hosts: match value.hosts() { Some(item) => Some(restore_setting_hosts(item)?), None => None },
+        model: match value.model() {
+            Some(item) => Some(restore_setting_model(item)?),
+            None => None,
+        },
+        alternatives,
+        documents,
+        parts,
+        tools: *value.tools(),
+        hosts: match value.hosts() {
+            Some(item) => Some(restore_setting_hosts(item)?),
+            None => None,
+        },
         instructions: text(value.instructions(), w::CEILINGS.overlay_instructions)?,
     })
 }

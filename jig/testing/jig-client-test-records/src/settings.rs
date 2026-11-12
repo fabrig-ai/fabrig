@@ -1,7 +1,7 @@
 //! Independent whole settings fixtures (client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use jig_client_domain::contract::{
     Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, CharterPart, Delegation, DocumentText,
-    Overlay, EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Pattern, PatternEnd,
+    EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Overlay, Pattern, PatternEnd,
     PolicyEditRole, PolicyGuard, PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention,
     RevisionDecider, RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead,
     RevisionParty, RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows,
@@ -303,7 +303,8 @@ pub fn settings_page() -> RevisionsPage {
 /// Every named field, text and parts for overlay boundary round trips.
 #[must_use]
 pub fn overlay() -> Overlay {
-    let SettingValue::Charter(charter) = settings_values().into_boxed().into_iter().next().expect("charter fixture") else {
+    let SettingValue::Charter(charter) = settings_values().into_boxed().into_iter().next().expect("charter fixture")
+    else {
         unreachable!("first fixture is a charter")
     };
     Overlay {
@@ -325,6 +326,7 @@ pub fn overlay() -> Overlay {
         call_timeout: Some(charter.call_timeout),
         spend: Some(charter.spend),
         documents: Some(charter.documents),
-        instructions: charter.instructions, parts: charter.parts,
+        instructions: charter.instructions,
+        parts: charter.parts,
     }
 }

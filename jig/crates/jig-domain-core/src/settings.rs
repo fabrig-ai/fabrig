@@ -26,8 +26,8 @@ pub use catalogue::{CatalogueModel, ModelSource};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
-pub use overlays::{Overlay, overlaid};
 pub use models::{model_bit, moves, remap};
+pub use overlays::{Overlay, overlaid};
 pub use restart::revision_writes;
 pub use revisions::history_copy;
 
@@ -47,31 +47,56 @@ impl Value {
     pub(crate) fn as_model(&self) -> Option<&CatalogueModel> {
         match self {
             Self::Model(value) => Some(value),
-            Self::Charter(_) | Self::Overlay(_) | Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_charter(&self) -> Option<&Charter> {
         match self {
             Self::Charter(value) => Some(value),
-            Self::Overlay(_) | Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
+            Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_template(&self) -> Option<&Template> {
         match self {
             Self::Template(value) => Some(value),
-            Self::Overlay(_) | Self::Charter(_) | Self::Policy(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
+            Self::Overlay(_)
+            | Self::Charter(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_policy(&self) -> Option<&ConfiguredPolicy> {
         match self {
             Self::Policy(value) => Some(value),
-            Self::Charter(_) | Self::Overlay(_) | Self::Template(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_rules(&self) -> Option<&authority::Rules> {
         match self {
             Self::Rules(value) => Some(value),
-            Self::Charter(_) | Self::Overlay(_) | Self::Template(_) | Self::Policy(_) | Self::Model(_) | Self::Application(_) => None,
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Model(_)
+            | Self::Application(_) => None,
         }
     }
 }
@@ -382,7 +407,15 @@ impl Current {
     pub fn overlay(&self, setting: Setting) -> Option<&Overlay> {
         match self.value(setting) {
             Some(Value::Overlay(overlay)) => Some(overlay),
-            Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_)) | None => None,
+            Some(
+                Value::Charter(_)
+                | Value::Template(_)
+                | Value::Policy(_)
+                | Value::Rules(_)
+                | Value::Model(_)
+                | Value::Application(_),
+            )
+            | None => None,
         }
     }
     pub(crate) fn resolved_charter(&self, number: u32) -> Option<&Charter> {
@@ -404,7 +437,12 @@ impl Current {
         match self.value(Setting::Rules) {
             Some(Value::Rules(value)) => value,
             Some(
-                Value::Charter(_) | Value::Overlay(_) | Value::Template(_) | Value::Policy(_) | Value::Model(_) | Value::Application(_),
+                Value::Charter(_)
+                | Value::Overlay(_)
+                | Value::Template(_)
+                | Value::Policy(_)
+                | Value::Model(_)
+                | Value::Application(_),
             )
             | None => {
                 unreachable!("checked settings always offer rules")
@@ -598,7 +636,12 @@ impl Current {
         drop(self.resolved.remove(&number));
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
-            Value::Overlay(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
+            Value::Overlay(_)
+            | Value::Template(_)
+            | Value::Policy(_)
+            | Value::Rules(_)
+            | Value::Model(_)
+            | Value::Application(_) => {
                 panic!("fixture charter value")
             }
         }

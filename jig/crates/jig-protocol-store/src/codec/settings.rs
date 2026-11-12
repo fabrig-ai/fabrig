@@ -2188,11 +2188,9 @@ pub fn decode(
             let wire::ExtentParts { oldest, keys } = wire::Extent::decode(limits, &mut reader)?.into_parts();
             settings::Record::Extent { oldest, keys }
         }
-        settings::Key::Charter { charter, revision } => settings::Record::Charter {
-            charter: *charter,
-            revision: *revision,
-            value: decode_version(bytes, limits)?,
-        },
+        settings::Key::Charter { charter, revision } => {
+            settings::Record::Charter { charter: *charter, revision: *revision, value: decode_version(bytes, limits)? }
+        }
         settings::Key::Proposal { proposer, proposal } => settings::Record::Proposal {
             proposer: *proposer,
             proposal: *proposal,
@@ -2343,33 +2341,36 @@ fn decode_catalogue(value: wire::CatalogueModel) -> settings::CatalogueModel {
 }
 
 fn encode_overlay(value: &settings::Overlay, limits: &wire::Limits) -> Result<wire::Overlay, wire::Problem> {
-    let documents = match &value.documents { Some(items) => {
-    let mut documents = List::with_capacity(limits.overlay_documents_some);
-    // Hold paths share Segment, but document names follow the authority's byte bound.
-    let name_limits = wire::Limits { segment_bytes: limits.last_exact_bytes, ..*limits };
-    for document in items {
-        let mut name = List::with_capacity(limits.document_name);
-        for segment in &document.name.segments {
-            let segment = encode_segment(segment, &name_limits)?;
-            if name.push(segment).is_err() {
-                return Err(bound());
+    let documents = match &value.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(limits.overlay_documents_some);
+            // Hold paths share Segment, but document names follow the authority's byte bound.
+            let name_limits = wire::Limits { segment_bytes: limits.last_exact_bytes, ..*limits };
+            for document in items {
+                let mut name = List::with_capacity(limits.document_name);
+                for segment in &document.name.segments {
+                    let segment = encode_segment(segment, &name_limits)?;
+                    if name.push(segment).is_err() {
+                        return Err(bound());
+                    }
+                }
+                let document = wire::Document::new(
+                    limits,
+                    wire::DocumentParts {
+                        connector: document.connector,
+                        name,
+                        path: document.path.clone(),
+                        heading: document.heading.clone(),
+                    },
+                )?;
+                if documents.push(document).is_err() {
+                    return Err(bound());
+                }
             }
+            Some(documents)
         }
-        let document = wire::Document::new(
-            limits,
-            wire::DocumentParts {
-                connector: document.connector,
-                name,
-                path: document.path.clone(),
-                heading: document.heading.clone(),
-            },
-        )?;
-        if documents.push(document).is_err() {
-            return Err(bound());
-        }
-    }
- Some(documents)
- }, None => None };
+        None => None,
+    };
     let mut parts = List::with_capacity(limits.overlay_parts);
     for part in &value.parts {
         let part = wire::CharterPart::new(
@@ -2380,58 +2381,104 @@ fn encode_overlay(value: &settings::Overlay, limits: &wire::Limits) -> Result<wi
             return Err(bound());
         }
     }
-    let alternatives = match &value.alternatives { Some(items) => {
-        let mut values = List::with_capacity(limits.overlay_alternatives_some);
-        for item in items { let item = encode_model(item, limits)?; if values.push(item).is_err() { return Err(bound()); } }
-        Some(values)
-    }, None => None };
-    wire::Overlay::new(limits, wire::OverlayParts {
-        rest: value.rest,
-        inspect: value.inspect,
-        modify: value.modify,
-        shell: value.shell,
-        agents: value.agents,
-        waiting: value.waiting,
-        resume: value.resume,
-        turns: value.turns,
-        time: value.time,
-        reserve_turns: value.reserve_turns,
-        reserve_time: value.reserve_time,
-        call_timeout: value.call_timeout,
-        spend: value.spend,
-        model: match &value.model { Some(item) => Some(encode_model(item, limits)?), None => None },
-        alternatives, documents, parts,
-        tools: match value.tools { Some(item) => Some(item.0), None => None },
-        hosts: match &value.hosts { Some(item) => Some(encode_kinds(item)), None => None },
-        instructions: value.instructions.clone(),
-    })
+    let alternatives = match &value.alternatives {
+        Some(items) => {
+            let mut values = List::with_capacity(limits.overlay_alternatives_some);
+            for item in items {
+                let item = encode_model(item, limits)?;
+                if values.push(item).is_err() {
+                    return Err(bound());
+                }
+            }
+            Some(values)
+        }
+        None => None,
+    };
+    wire::Overlay::new(
+        limits,
+        wire::OverlayParts {
+            rest: value.rest,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            model: match &value.model {
+                Some(item) => Some(encode_model(item, limits)?),
+                None => None,
+            },
+            alternatives,
+            documents,
+            parts,
+            tools: match value.tools {
+                Some(item) => Some(item.0),
+                None => None,
+            },
+            hosts: match &value.hosts {
+                Some(item) => Some(encode_kinds(item)),
+                None => None,
+            },
+            instructions: value.instructions.clone(),
+        },
+    )
 }
 
 fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<settings::Overlay, wire::Problem> {
-    let wire::OverlayParts { rest, model, alternatives, inspect, modify, shell, agents, tools, hosts, waiting, resume, turns, time, reserve_turns, reserve_time, call_timeout, spend, documents, instructions, parts } = value.into_parts();
-    let decoded = match documents { Some(items) => {
-    let mut decoded = List::with_capacity(items.len());
-    for document in items.into_boxed() {
-        let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
-        let mut segments = List::with_capacity(name.len());
-        for segment in name.into_boxed() {
-            let bytes = decode_segment(segment);
-            if bytes.len() > skein_lib::length::usize_of(limits.last_exact_bytes) {
-                return Err(bound());
+    let wire::OverlayParts {
+        rest,
+        model,
+        alternatives,
+        inspect,
+        modify,
+        shell,
+        agents,
+        tools,
+        hosts,
+        waiting,
+        resume,
+        turns,
+        time,
+        reserve_turns,
+        reserve_time,
+        call_timeout,
+        spend,
+        documents,
+        instructions,
+        parts,
+    } = value.into_parts();
+    let decoded = match documents {
+        Some(items) => {
+            let mut decoded = List::with_capacity(items.len());
+            for document in items.into_boxed() {
+                let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
+                let mut segments = List::with_capacity(name.len());
+                for segment in name.into_boxed() {
+                    let bytes = decode_segment(segment);
+                    if bytes.len() > skein_lib::length::usize_of(limits.last_exact_bytes) {
+                        return Err(bound());
+                    }
+                    segments.push(bytes).expect("decoded document name bound");
+                }
+                decoded
+                    .push(core::Document {
+                        connector,
+                        name: authority::Name { segments: segments.into_boxed() },
+                        path,
+                        heading,
+                    })
+                    .expect("decoded documents bound");
             }
-            segments.push(bytes).expect("decoded document name bound");
+            Some(decoded.into_boxed())
         }
-        decoded
-            .push(core::Document {
-                connector,
-                name: authority::Name { segments: segments.into_boxed() },
-                path,
-                heading,
-            })
-            .expect("decoded documents bound");
-    }
- Some(decoded.into_boxed())
- }, None => None };
+        None => None,
+    };
     let mut decoded_parts = List::with_capacity(parts.len());
     for part in parts.into_boxed() {
         let wire::CharterPartParts { on, instructions } = part.into_parts();
@@ -2441,11 +2488,16 @@ fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<setting
         }
         decoded_parts.push(core::CharterPart { on, instructions }).expect("decoded parts bound");
     }
-    let alternatives = match alternatives { Some(items) => {
-        let mut values = List::with_capacity(items.len());
-        for item in items.into_boxed() { values.push(decode_model(item)).expect("decoded alternatives"); }
-        Some(values.into_boxed())
-    }, None => None };
+    let alternatives = match alternatives {
+        Some(items) => {
+            let mut values = List::with_capacity(items.len());
+            for item in items.into_boxed() {
+                values.push(decode_model(item)).expect("decoded alternatives");
+            }
+            Some(values.into_boxed())
+        }
+        None => None,
+    };
     Ok(settings::Overlay {
         rest,
         inspect,
@@ -2460,10 +2512,22 @@ fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<setting
         reserve_time,
         call_timeout,
         spend,
-        model: match model { Some(item) => Some(decode_model(item)), None => None },
-        alternatives, documents: decoded, parts: decoded_parts.into_boxed(),
-        tools: match tools { Some(item) => Some(tasks::Tools(item)), None => None },
-        hosts: match hosts { Some(item) => Some(decode_kinds(item)), None => None }, instructions,
+        model: match model {
+            Some(item) => Some(decode_model(item)),
+            None => None,
+        },
+        alternatives,
+        documents: decoded,
+        parts: decoded_parts.into_boxed(),
+        tools: match tools {
+            Some(item) => Some(tasks::Tools(item)),
+            None => None,
+        },
+        hosts: match hosts {
+            Some(item) => Some(decode_kinds(item)),
+            None => None,
+        },
+        instructions,
     })
 }
 
@@ -2471,10 +2535,14 @@ fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<setting
 fn encode_version(value: &settings::CharterVersion, limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
     match &value.overlay {
         Some(overlay) => {
-            let charter = match &value.charter { Some(charter) => Some(encode_charter(charter, limits)?), None => None };
-            let value = wire::OverlaidCharterVersion::new(limits, wire::OverlaidCharterVersionParts {
-                charter, overlay: encode_overlay(overlay, limits)?,
-            })?;
+            let charter = match &value.charter {
+                Some(charter) => Some(encode_charter(charter, limits)?),
+                None => None,
+            };
+            let value = wire::OverlaidCharterVersion::new(
+                limits,
+                wire::OverlaidCharterVersionParts { charter, overlay: encode_overlay(overlay, limits)? },
+            )?;
             let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured version");
             Ok(writer.finish())
@@ -2491,9 +2559,13 @@ fn decode_version(bytes: &[u8], limits: &wire::Limits) -> Result<settings::Chart
     if let Ok(value) = wire::CharterVersion::decode(limits, &mut Reader::new(bytes)) {
         return decode_charter_version(value, limits);
     }
-    let wire::OverlaidCharterVersionParts { charter, overlay } = wire::OverlaidCharterVersion::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let wire::OverlaidCharterVersionParts { charter, overlay } =
+        wire::OverlaidCharterVersion::decode(limits, &mut Reader::new(bytes))?.into_parts();
     Ok(settings::CharterVersion {
-        charter: match charter { Some(charter) => Some(Box::new(decode_charter(charter, limits)?)), None => None },
+        charter: match charter {
+            Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
+            None => None,
+        },
         overlay: Some(Box::new(decode_overlay(overlay, limits)?)),
     })
 }

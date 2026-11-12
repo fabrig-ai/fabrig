@@ -727,15 +727,26 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
                 0 => (&mut wire_limits.overlay_parts, overlay.parts.len()),
                 1 => (&mut wire_limits.overlay_documents_some, overlay.documents.as_ref().unwrap().len()),
                 2 => (&mut wire_limits.overlay_alternatives_some, overlay.alternatives.as_ref().unwrap().len()),
-                _ => (&mut wire_limits.overlay_instructions, u32::try_from(overlay.instructions.bytes().len()).unwrap()),
+                _ => {
+                    (&mut wire_limits.overlay_instructions, u32::try_from(overlay.instructions.bytes().len()).unwrap())
+                }
             };
             *bound.0 = bound.1 - u32::from(past);
             assert_eq!(t::wire_overlay(&overlay, &wire_limits).is_ok(), !past, "encode field {field}");
-            assert_eq!(w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(), !past, "decode field {field}");
+            assert_eq!(
+                w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(),
+                !past,
+                "decode field {field}"
+            );
         }
     }
-    let document = c::SettingDocument { overlay: Some(Box::new(overlay)),
-        setting: c::Setting::Charter(c::SettingNumber { number: 2 }), revision: 3, value: None, application: None, proposed: None,
+    let document = c::SettingDocument {
+        overlay: Some(Box::new(overlay)),
+        setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
+        revision: 3,
+        value: None,
+        application: None,
+        proposed: None,
     };
     let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
