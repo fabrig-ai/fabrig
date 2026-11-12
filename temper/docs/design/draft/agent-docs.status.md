@@ -9,4 +9,4 @@
   - 5: `../protocol/documentation.md`, 2.1 states the small placeholder set for written pages, but reference pages print their tables' argument names. `../client/ctl/tools.md`, 1 keeps ctl's larger vocabulary of `shown` names, rather than renaming it to the index's set, to preserve the design's explicit vocabulary (the requester, 2026-11-11).
   - 7.1: `../protocol/binaries.md` sorts each binary's commands by reach, across the deployment's binaries, where this draft has one binary in documentation, deployment, clients, spawned and test-doubles groups. Its table-row and internal-command rules are already stated there; the reach labels and several binaries stay as designed (the requester, 2026-11-11).
 
-The missing help pages remain `../protocol/documentation.status.md`, 2.2.
+The help lags the design too: of the map's pages (section 4), the concepts `finding` and `qa` and the walk `upgrade` are not written, since what they describe is not built (`../protocol/documentation.status.md`).
