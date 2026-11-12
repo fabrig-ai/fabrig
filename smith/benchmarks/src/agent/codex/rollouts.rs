@@ -1,13 +1,12 @@
 //! Named-thread collection retains immutable response ids and bounded raw files.
-//! It opens Codex's state database read-only and follows only this root's edges;
-//! unrelated sessions and credentials are never read. A missing parent remains
+//! It walks the attempt's rollouts to find named threads and their descendants
+//! (smith/docs/design/benchmarks/README.md, 6.3), without reading credentials. A missing parent remains
 //! an unavailable child scope (../../../../docs/design/benchmarks/README.md, sections 6, 8.2, 10 and 13).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use serde::Deserialize;
 
 use crate::{Convention, Fault, ScopeKind, TokenLedger, TokenRecord, Usage, mismatch};
@@ -15,6 +14,7 @@ use crate::{Convention, Fault, ScopeKind, TokenLedger, TokenRecord, Usage, misma
 use super::ParseError;
 
 mod cache;
+mod discovery;
 mod time;
 
 const MAX_THREADS: usize = 4096;
@@ -101,6 +101,10 @@ fn required_string<'a>(value: &'a serde_json::Value, name: &str) -> Result<&'a s
         .ok_or_else(|| bad("rollout", name, "expected a nonempty string"))
 }
 
+fn parent_value(payload: &serde_json::Value) -> Option<&serde_json::Value> {
+    payload.pointer("/source/subagent/thread_spawn/parent_thread_id").or_else(|| payload.get("parent_thread_id"))
+}
+
 fn metadata(
     payload: &serde_json::Value,
     thread: &str,
@@ -111,10 +115,7 @@ fn metadata(
     if id != thread && !ancestors.contains(id) {
         return Err(bad("session_meta", "payload.id", "rollout metadata is neither its owner nor a declared ancestor"));
     }
-    let parent = match payload
-        .pointer("/source/subagent/thread_spawn/parent_thread_id")
-        .or_else(|| payload.get("parent_thread_id"))
-    {
+    let parent = match parent_value(payload) {
         Some(serde_json::Value::String(id)) if !id.is_empty() => Some(id.clone()),
         Some(serde_json::Value::Null) | None => None,
         Some(_) => return Err(bad("session_meta", "payload.parent_thread_id", "invalid parent id")),
@@ -218,7 +219,7 @@ fn read_file(home: &Path, file: &Path, remaining: &mut usize) -> Result<Vec<u8>,
     Ok(bytes)
 }
 
-/// Read only the named root and descendants from the pinned Codex state store.
+/// Read only the named root and descendants from the attempt's rollout tree.
 pub fn collect_rollouts(home: &Path, thread: &str) -> Result<Rollouts, ParseError> {
     let mut result = Rollouts { responses: Vec::new(), children: Vec::new(), files: Vec::new() };
     collect_named(home, thread, &[], &mut result)?;
@@ -234,53 +235,31 @@ pub(super) fn collect_named(
     if thread.is_empty() {
         return Err(bad("rollout", "thread", "root id is empty"));
     }
-    let database = home.join("state_5.sqlite");
     let mut ids = BTreeSet::from([thread.to_owned()]);
     ids.extend(known_children.iter().cloned());
     if ids.len() > MAX_THREADS {
         return Err(bad("rollout", "children", "thread bound exceeded"));
     }
-    if !database.exists() {
-        for child in ids.iter().filter(|id| id.as_str() != thread) {
-            result.children.push(ChildThread { thread: child.clone(), link: Link::Unlinked, responses: Vec::new() });
-        }
-        return Ok(());
-    }
-    let connection =
-        Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX)
-            .map_err(|error| bad("state", "open", error.to_string()))?;
-    let mut edges = connection
-        .prepare("SELECT child_thread_id FROM thread_spawn_edges WHERE parent_thread_id=?1 ORDER BY child_thread_id")
-        .map_err(|error| bad("state", "thread_spawn_edges", error.to_string()))?;
-    let mut pending: Vec<_> = ids.iter().cloned().collect();
-    let mut offset = 0;
-    while offset < pending.len() {
-        let rows = edges
-            .query_map([&pending[offset]], |row| row.get::<_, String>(0))
-            .map_err(|error| bad("state", "children", error.to_string()))?;
-        for child in rows {
-            let child = child.map_err(|error| bad("state", "child_thread_id", error.to_string()))?;
-            if child.is_empty() {
-                return Err(bad("state", "child_thread_id", "empty child id"));
-            }
-            if ids.insert(child.clone()) {
+    let candidates = discovery::discover(home, discovery::BOUNDS)?;
+    loop {
+        let previous = ids.len();
+        for (id, candidate) in &candidates {
+            if candidate.parent.as_ref().is_some_and(|parent| ids.contains(parent)) {
+                ids.insert(id.clone());
                 if ids.len() > MAX_THREADS {
-                    return Err(bad("state", "children", "thread bound exceeded"));
+                    return Err(bad("rollout", "children", "thread bound exceeded"));
                 }
-                pending.push(child);
             }
         }
-        offset += 1;
+        if ids.len() == previous {
+            break;
+        }
     }
     let mut remaining = MAX_BYTES;
     for id in &ids {
-        let file: Option<Option<String>> = connection
-            .query_row("SELECT rollout_path FROM threads WHERE id=?1", [id], |row| row.get(0))
-            .optional()
-            .map_err(|error| bad("state", "threads.rollout_path", error.to_string()))?;
-        let (mut link, responses) = match file.flatten() {
-            Some(file) => {
-                let bytes = read_file(home, &PathBuf::from(file), &mut remaining)?;
+        let (mut link, responses) = match candidates.get(id) {
+            Some(candidate) => {
+                let bytes = read_file(home, &candidate.path, &mut remaining)?;
                 result.files.push(RolloutFile { thread: id.clone(), bytes });
                 parse_rollout(&result.files.last().expect("raw file retained").bytes, id)
                     .map_err(|error| bad("rollout", "file", format!("thread {id}: {error}")))?
