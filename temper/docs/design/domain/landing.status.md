@@ -15,7 +15,8 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   has no supplied passing result at three threads after update recovery.
   The forge world covers a lost prepare found or made again and landed,
   and a late copy's drift hold; that is not the real-Forgejo restart
-  proof. The process trial is reserved for after landing.
+  proof. The process trial is reserved for after landing
+  [in flight: change 1708].
 
 - **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
