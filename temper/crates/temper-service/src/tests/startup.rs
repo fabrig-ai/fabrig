@@ -961,11 +961,9 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
         service.engine.as_ref().unwrap().store.opening_limits().core,
         temper_engine_domain::core_limits(&service.engine.as_ref().unwrap().env.limits),
     );
-    let refused = core::str::from_utf8(&document).unwrap().replacen(
-        "\"overrides\":{\"checkout.name_bytes\"",
-        "\"overrides\":{\"root.loads.rows\":0,\"checkout.name_bytes\"",
-        1,
-    );
+    let mut refused: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    refused["application"]["limits"]["overrides"]["root.loads.rows"] = 0_u32.into();
+    let refused = serde_json::to_vec(&refused).unwrap();
     for (name, input, expected) in [
         (
             "serve",
@@ -975,7 +973,7 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
                 service.engine.as_ref().expect("engine").env.limits.forge,
             )),
         ),
-        ("limits", refused.as_bytes(), Err(b"engine.limits: past its bound\n".as_slice())),
+        ("limits", refused.as_slice(), Err(b"engine.limits: past its bound\n".as_slice())),
     ] {
         let found = crate::store_limits(input, &directories, Some(&fixtures::startup_agent()));
         let found = found.map(|limits| (limits.store, limits.forge)).map_err(|problems| lines(&problems));

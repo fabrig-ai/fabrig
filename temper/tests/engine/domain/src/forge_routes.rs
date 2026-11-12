@@ -41,9 +41,8 @@ const STEPS: u32 = 200;
 // Writes for the stock forge world before deployment limits are applied.
 const STOCK_FORGE_WRITES: u32 = 9_754;
 
-// Stock charter 1's 8,571-byte assignment bound plus 25% headroom,
-// rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
-const STOCK_RUN_BYTES: u32 = 11_000;
+// Holds the stock goal agent's instructions, four parts and resolved model.
+const STOCK_RUN_BYTES: u32 = 32_768;
 
 /// The settings family's tools run on a world's charter (temper/docs/design/testing/checks.md, 4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
@@ -442,10 +441,7 @@ impl World {
                 reviewer.number = 4;
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
-                let mut foreman = reviewer.clone();
-                foreman.number = 6;
-                foreman.policy.shell = false;
-                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
+                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
                 limits.tasks.authority_grants = 11;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
@@ -578,7 +574,6 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
-                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
@@ -635,7 +630,6 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
-                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
@@ -865,6 +859,9 @@ impl World {
                 // The larger resource route needs its full declared journal-write burst.
                 limits.journal.writes = STOCK_FORGE_WRITES;
                 limits.journal.run_bytes = limits.journal.run_bytes.max(STOCK_RUN_BYTES);
+                limits.loads.bytes = limits.loads.bytes.max(STOCK_RUN_BYTES);
+                limits.loads.reply_bytes = limits.loads.reply_bytes.max(STOCK_RUN_BYTES);
+                limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(STOCK_RUN_BYTES);
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
@@ -2117,22 +2114,6 @@ impl World {
             panic!("producer's question sent")
         };
         message
-    }
-
-    /// A foreman settles its contract through the worker's result.
-    pub fn foreman_verdict(&mut self, foreman: &engine::Assignment, code: u32, words: &[u8]) {
-        let event = self.protocol.answer(
-            Token::new(7),
-            foreman.task,
-            foreman.attempt,
-            5,
-            tasks::End::Finished {
-                result: tasks::TaskResult::Verdict { code, fields: Box::new([]), words: words.into() },
-                cancel_delegates: false,
-            },
-            engine::Parts::none(),
-        );
-        self.send(event);
     }
 
     /// The goal answers the change's own question through its message call.

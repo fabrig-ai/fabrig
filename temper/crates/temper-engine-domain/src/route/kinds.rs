@@ -75,6 +75,14 @@ fn restore(
     let mut refused = false;
     for (item, answer) in items.iter().zip(answers.iter()) {
         let mut answer = match *answer {
+            settings::Judged::Refuse(settings::Refusal::Retired) => connector::Judged::Refuse {
+                why: settings::retired_words(settings::SettingKey {
+                    kind: item.kind,
+                    scope: item.scope,
+                    number: item.number,
+                    slot: settings::SettingSlot::Change,
+                }),
+            },
             settings::Judged::Refuse(why) if item.kind == 13 => {
                 connector::Judged::Refuse { why: dependencies::words(item.number, &[why.words()]) }
             }

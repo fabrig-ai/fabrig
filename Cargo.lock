@@ -5078,6 +5078,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-charter-set"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-client"
 version = "0.0.0"
 dependencies = [
@@ -6492,6 +6499,7 @@ dependencies = [
  "smith-protocol-translate",
  "smith-transcript",
  "temper-box-machine",
+ "temper-charter-set",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",

@@ -18,7 +18,7 @@ cargo nextest run -p temper-one-process-world --test memory --run-ignored only -
 
 The playground measurement passes. The first step is one world step, including
 one turn of every admitted process. Start is the first idle boundary with
-nothing due now: 147 world steps. The two snapshots use separate identical
+nothing due now: 150 world steps in the current table. The two snapshots use separate identical
 worlds, so each disk can be destroyed and its retained heap measured separately.
 The service process contains both engine and worker; they are not separate
 process measurements. The visitor is admitted at both snapshots; no agent
@@ -44,7 +44,7 @@ the composition still captures the sign-in line as its normal `step` does.
 
 Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
 `79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. This historical table is retained
-for comparison; the test binds the 2026-11-08 table below.
+for comparison; the test binds the 2026-11-12 table below.
 
 | Process | First step held | First step peak | Start held | Start peak | Story A high water |
 |---|---:|---:|---:|---:|---|
@@ -59,9 +59,8 @@ for comparison; the test binds the 2026-11-08 table below.
 | Shared forge before start | 6,981 | not separately measured at start |
 
 Measured 2026-11-08 (`date -u +%F`), on a builder, at trunk commit
-`2c7e0d079e92266a03d667dba08dca3fd52ca062`. The focused playground test
-binds each figure in this table to `figure + figure / 4`. Start still takes
-147 world steps. The visitor is process 3, so four processes are measured at
+`2c7e0d079e92266a03d667dba08dca3fd52ca062`. This historical table is retained for comparison; the test binds the
+2026-11-12 table below. Start took 147 world steps. The visitor is process 3, so four processes are measured at
 the first step and five at start, with hosted git now process 4. The bounds
 are keyed by the test's process names, including `visitor` and `git`.
 
@@ -78,7 +77,36 @@ are keyed by the test's process names, including `visitor` and `git`.
 | Fake disk | 9,393 | 124,117 |
 | Shared forge before start | 6,981 | not separately measured at start |
 
-The one-process binary takes the same entry as
+Measured 2026-11-12 (`date -u +%F`), on a builder, from the stock-charter
+source at commit `a983a9a0aff2d8d51333bd917164fedeefe61e35`. The focused
+`story_as_world_at_its_first_step_and_start` test binds every figure in this
+table to `figure + figure / 4`, with the same set of figures and margin.
+All figures came from one run of that test, with its regression comparisons
+suspended for measurement and then restored against this table. Start takes
+150 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 206,908 | 340,891 | 341,137 | 450,031 |
+| 1: fake LLM | 27,449 | 27,449 | 28,185 | 28,185 |
+| 2: fake forge HTTP | 30,130 | 30,130 | 30,871 | 30,915 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,989 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 216,638 |
+| Shared forge before start | 7,061 | not separately measured at start |
+
+The stock's five files contain 31,630 bytes. Their assembled instructions,
+including the parts' joining blank lines, hold 33,185 bytes across the goal
+and implementer charters, up from 11,451 bytes. Service held growth is
+62,191 bytes at the first step and 101,991 bytes at start, much more than the
+21,734-byte text growth: this points to multiple owned copies of the text,
+not one copy. These snapshots do not attribute each allocation to a copy.
+
+The following one-process observation is the unbound 2026-11-08 measurement;
+its ignored test has no active figures to repin. The one-process binary takes the same entry as
 `temper/tests/one-process/tests/suite/story_a.rs`:
 `world::run(fixtures::calm(fixtures::SEED), world::Story::PlaygroundA)`, with
 `Memory::Checked` and trace off. The story walks all three requests in

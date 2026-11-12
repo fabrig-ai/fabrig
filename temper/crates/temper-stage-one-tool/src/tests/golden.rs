@@ -13,7 +13,7 @@ fn refused(value: &Value, path: &str) {
 #[test]
 fn the_reference_golden_decodes() {
     let golden = golden::reference().expect("reference");
-    assert_eq!(golden.roles.len(), 9);
+    assert_eq!(golden.roles.len(), 8);
     let mut counts = [0; 3];
     let mut ids = BTreeSet::new();
     for obligation in &golden.obligations {
@@ -24,9 +24,9 @@ fn the_reference_golden_decodes() {
             ObligationKind::Gap(_) => 2,
         }] += 1;
     }
-    assert_eq!(counts, [70, 13, 0]);
+    assert_eq!(counts, [64, 13, 0]);
     assert_eq!(golden.free, ["project-questions", "policy"]);
-    assert_eq!(golden.rules.len(), 16);
+    assert_eq!(golden.rules.len(), 15);
     for rule in &golden.rules {
         assert!(ids.insert(&rule.id));
     }
@@ -82,7 +82,7 @@ fn every_profile_value_is_found() {
         assert!(golden::member(value, &setting.member).is_some(), "{}", obligation.id);
         count += 1;
     }
-    assert_eq!(count, 19);
+    assert_eq!(count, 18);
 }
 #[test]
 fn a_golden_is_refused_naming_the_path() {
@@ -129,7 +129,7 @@ fn role_and_anchor_failures_name_the_path() {
 #[test]
 fn the_profile_decodes_as_a_settings_file() {
     let profile = golden::profile().expect("profile");
-    assert_eq!(profile.items.len(), 9);
+    assert_eq!(profile.items.len(), 8);
     assert!(profile.items.iter().all(|item| matches!(item.edit, Edit::Set(_))));
 }
 #[test]

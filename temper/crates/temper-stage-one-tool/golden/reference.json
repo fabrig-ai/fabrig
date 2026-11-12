@@ -28,14 +28,6 @@
       }
     },
     {
-      "role": "foreman",
-      "kind": "charter",
-      "profile": 6,
-      "anchor": {
-        "number": 6
-      }
-    },
-    {
       "role": "triage",
       "kind": "charter",
       "profile": 8,
@@ -446,60 +438,6 @@
       "value": 28800000000000
     },
     {
-      "id": "foreman.instructions",
-      "row": "the foreman's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
-      },
-      "member": "instructions",
-      "test": "judged"
-    },
-    {
-      "id": "foreman.inspect",
-      "row": "the foreman's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
-      },
-      "member": "inspect",
-      "test": "equal",
-      "value": true
-    },
-    {
-      "id": "foreman.modify",
-      "row": "the foreman's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
-      },
-      "member": "modify",
-      "test": "equal",
-      "value": false
-    },
-    {
-      "id": "foreman.shell",
-      "row": "the foreman's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
-      },
-      "member": "shell",
-      "test": "equal",
-      "value": false
-    },
-    {
-      "id": "foreman.agents",
-      "row": "the foreman's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
-      },
-      "member": "agents",
-      "test": "equal",
-      "value": false
-    },
-    {
       "id": "forge-charter.reviews",
       "row": "the forge's charters (kind 3)",
       "kind": "setting",
@@ -518,16 +456,6 @@
       "kind": "setting",
       "subject": {
         "role": "coding"
-      },
-      "member": "model.name",
-      "test": "equal"
-    },
-    {
-      "id": "foreman.model",
-      "row": "each change's LLM choices",
-      "kind": "setting",
-      "subject": {
-        "role": "foreman"
       },
       "member": "model.name",
       "test": "equal"
@@ -651,11 +579,6 @@
         },
         {
           "charter": {
-            "role": "foreman"
-          }
-        },
-        {
-          "charter": {
             "role": "triage"
           }
         },
@@ -770,11 +693,6 @@
         {
           "charter": {
             "role": "coding"
-          }
-        },
-        {
-          "charter": {
-            "role": "foreman"
           }
         },
         {
@@ -1104,12 +1022,6 @@
       "source": "reference-code-production.md, 8"
     },
     {
-      "id": "foreman.verdicts",
-      "role": "foreman",
-      "words": "Read only; settle a question from the change's words and the design with a verdict of answer, finish or escalate",
-      "source": "reference-code-production.md, 8 and 14"
-    },
-    {
       "id": "coordinator.cut",
       "role": "coordinator",
       "words": "The cut: read the draft and the designs, survey where worth it, shape the plan, then the shared design, a designer's change per family and its own changes, all into the goal's own branch",
@@ -1124,8 +1036,8 @@
     {
       "id": "coordinator.questions",
       "role": "coordinator",
-      "words": "Coding changes relay questions through a foreman; a designer's change's questions come straight up; each relayed question is answered, amended, met by a new change or asked of the person",
-      "source": "reference-code-production.md, 8"
+      "words": "Every change names questions up; each relayed question is answered, amended, met by a new change or asked of the person",
+      "source": "stock-charters.md, 3; reference-code-production.md, 8"
     },
     {
       "id": "coordinator.holds",

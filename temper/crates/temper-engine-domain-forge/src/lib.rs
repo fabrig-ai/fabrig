@@ -336,6 +336,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
+        Stored::RefusedSetting(key) => Key::Setting(*key),
         Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::Making(row) => Key::Making(row.key.clone()),
@@ -635,7 +636,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
-        Stored::Away(_)
+        Stored::RefusedSetting(_)
+        | Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }

@@ -265,6 +265,7 @@ impl Reconciliation {
             | Stored::ForgeNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
+            | Stored::RefusedSetting(_)
             | Stored::Setting(_)
             | Stored::Binding { .. }
             | Stored::Making(_)

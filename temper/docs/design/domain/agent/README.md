@@ -276,7 +276,6 @@ host:
 - Who may name a plan's members of `change`: `tools.md`, section 3.
 - A goal's question kept with its chat: `agents.md`, section 5.
 - Who else writes a question's line form: `agents.md`, section 5.
-- A change's foremen's LLM choice: `tools.md`, section 3.
 - **A larger whole compare** (`tools.md`). Nine files, nine commits or one line
   changed in a long file can exceed the stock's forge bounds. Raising the
   row bound alone cannot fit both whole sides of a long file; a paths-only

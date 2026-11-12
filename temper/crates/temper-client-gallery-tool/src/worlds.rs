@@ -5034,7 +5034,7 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         writer.finish()
     } else {
         assert_eq!(kind, 6);
-        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Foreman };
+        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
         let questions =
             v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
         let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));

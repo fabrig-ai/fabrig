@@ -311,8 +311,8 @@ const ROOT: Root = Root {
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
-        // The stock's largest run policy, charter 11's, needs 20,795 bytes.
-        run_bytes: 24_576,
+        // Holds the stock goal agent's charter and room for an overlay.
+        run_bytes: 65_536,
     },
     loads: engine::loads::Limits {
         // Concurrent loads, from the root world.
@@ -378,9 +378,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 5's room (356,450) less 1,472
-    // bytes for 64 titles and framing and 1,906 margin; below 395,520.
-    brief_bytes: 353_072,
+    // tests/stock_brief.rs derives charter 5's room (340,129) less 1,472
+    // bytes for 64 titles and framing and 1,944 margin; below 395,520.
+    brief_bytes: 336_713,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {

@@ -262,16 +262,12 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   5. "Coding agent", "For each change": the producer, kind 3's number 1;
   6. "Reviewer", "For each change": the reviews' charter, kind 3's
      number 2, while the project's path draws a "review";
-  7. "Foreman", "When a coding agent asks": the foreman's charter (the
-     stock's 6), while kind 6 routes questions to it or the project's
-     path starts a goal, whose coordinator names it
-     (`../../../protocol/configuration/reference.md`);
-  8. "Status agent", "When you look at Home after landings": the status
+  7. "Status agent", "When you look at Home after landings": the status
      agent's charter (the stock's 9), on its triggers (`../attention.md`, 3);
-  9. "Standing role", "For each standing role": the charter each of the
+  8. "Standing role", "For each standing role": the charter each of the
      project's live standing roles runs under, its tasks labelled 3
      (`../../agent/standing.md`, section 2), in charter number order;
-  10. "Follow's coding agent", "For each follow change": the charter each
+  9. "Follow's coding agent", "For each follow change": the charter each
      of the project's follows names as its producer (kind 12's `producer`,
      `../follows.md`, section 2), in follow number order; a follow naming
      none runs the producer of 5, which holds its place.
