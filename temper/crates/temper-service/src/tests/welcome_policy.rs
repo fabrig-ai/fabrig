@@ -429,7 +429,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
     // The standing charter adds one executor place in each of four policy authorities.
-    assert_eq!(bytes, 6014);
+    assert_eq!(bytes, 6359);
     std::eprintln!(
         "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes

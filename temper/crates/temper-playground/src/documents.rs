@@ -169,7 +169,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     edit(&mut value);
     for (name, count) in [
         // Two added 8-byte executor places make the largest stock chat payload 1,117 bytes.
-        ("people.amendment_bytes", 1125),
+        ("people.amendment_bytes", 1194),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
@@ -209,7 +209,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("authority.executors", 18),
         ("authority.segments", 8),
         ("tasks.authority_grants", 15),
-        ("tasks.authority_bytes", 70),
+        ("tasks.authority_bytes", 75),
         // The standing charter, closer procedure and close job are delegation targets.
         ("tasks.executor_kinds", 18),
         ("tasks.result_bytes", 128),

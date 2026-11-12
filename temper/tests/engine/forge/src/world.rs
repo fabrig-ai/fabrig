@@ -166,7 +166,7 @@ impl World {
             Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
             None,
             false,
-            4,
+            8,
             true,
             None,
         )
@@ -1152,8 +1152,10 @@ impl World {
             message.as_bytes(),
         )
         .expect("prepare commit");
-        let answer =
-            self.external(raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }), 1);
+        let provider = skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+        let adopted = self.top.repository(provider).expect("train repository");
+        let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
+        let answer = self.external_repository(&repository, raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }), 1);
         assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
         candidate
     }

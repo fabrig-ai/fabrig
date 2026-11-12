@@ -1454,8 +1454,10 @@ fn round_read(
         }
         RoundRead::Head => {
             if let Some(tip) = candidate {
-                if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                    fact.candidate = Some((tip, policy::Combine::Merge));
+                match crate::domain::ancestry_status(answer) {
+                    change::Status::Passed => fact.candidate = Some((tip, policy::Combine::Merge)),
+                    change::Status::Failed => {},
+                    change::Status::Unknown | change::Status::Pending => { wait(d, p.task, env, p.repository, out); return; }
                 }
                 api::Read::Commits { before: base, after: tip, page: 1 }
             } else {
@@ -2282,8 +2284,9 @@ pub(crate) fn outcome(
         };
         if let Some(name) = super::domain::from_client(&resource, &d.landing.limits) {
             // The next round's new branch has no ancestry to the deleted candidate.
-            d.heads.remove(&name);
-            emit(out, Request::Erase { key: Key::BranchHead(name) });
+            if d.heads.remove(&name).is_some() {
+                emit(out, Request::Erase { key: Key::BranchHead(name) });
+            }
         }
     }
     let mut owned_key = None;

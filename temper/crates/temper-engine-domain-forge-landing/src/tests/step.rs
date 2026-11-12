@@ -252,7 +252,7 @@ fn a_repaired_head_does_not_erase_the_old_candidates_unposted_failure() {
     let posted = decide(&pending.landing, &f);
     assert_eq!(posted.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: false } });
     assert_eq!(posted.landing.members[0].candidate, Some(HEAD));
-    assert_eq!(decide(&posted.landing, &f).landing.phase, Phase::Preparing);
+    assert_eq!(decide(&posted.landing, &f).landing.round.ending, Some(crate::RoundEnd::Leave));
 }
 #[test]
 fn a_member_back_to_repairing_takes_the_landing_back_to_waiting() {
@@ -269,8 +269,8 @@ fn a_member_back_to_repairing_takes_the_landing_back_to_waiting() {
         let ready = decide(&next.landing, &f);
         assert_eq!(ready.landing.phase, Phase::Preparing);
         let prepared = decide(&ready.landing, &f);
-        assert_eq!(prepared.landing.members[0].candidate, Some(NEW));
-        assert_eq!(prepared.landing.members[0].gates[0].proof, Proof::Unkeyed);
+        assert_eq!(prepared.landing.round.ending, Some(crate::RoundEnd::Leave));
+        assert_eq!(prepared.landing.members[0].candidate, Some(HEAD));
     }
 }
 #[test]
