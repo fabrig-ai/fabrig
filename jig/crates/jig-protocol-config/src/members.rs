@@ -2796,6 +2796,15 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "graces",
+        name: "drain_ms",
+        kind: "integer",
+        bound: "0 to 18446744073709 milliseconds; 180000 when absent",
+        required: false,
+        line: "Bounds the drain before cancelling runs on shutdown.",
+        gone: None,
+    },
+    Member {
+        shape: "graces",
         name: "agent_stop_ms",
         kind: "integer",
         bound: "0 to 18446744073709 milliseconds",

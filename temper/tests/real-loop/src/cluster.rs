@@ -133,7 +133,18 @@ impl Shape {
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
         let [agent_stop_ms, delivery_ms, save_ms] = [5_u64, 5, 5];
-        let stop_bound_ms = ping_ms + silence_ms + grace_ms + agent_stop_ms.max(delivery_ms) + save_ms;
+        let graces = jig_protocol_config::Graces {
+            grace: *grace,
+            drain: *grace,
+            agent_stop: skein_lib::Duration::from_millis(agent_stop_ms),
+            delivery: skein_lib::Duration::from_millis(delivery_ms),
+            save: skein_lib::Duration::from_millis(save_ms),
+        };
+        let stop_bound_ms = jig_protocol_config::stop_bound(
+            &graces,
+            skein_lib::Duration::from_millis(ping_ms),
+            skein_lib::Duration::from_millis(silence_ms),
+        ).expect("cluster stop bound fits a duration").as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);
@@ -174,7 +185,7 @@ impl Shape {
                 worker["name"] = (*name).into();
                 worker["secret"] = format!("secrets/{name}.secret").into();
                 worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
-                worker["graces"] = json!({"grace_ms":grace_ms,"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
+                worker["graces"] = json!({"grace_ms":grace_ms,"drain_ms":graces.drain.as_millis(),"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
                 worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
                 if grace_ms >= 1_000 {

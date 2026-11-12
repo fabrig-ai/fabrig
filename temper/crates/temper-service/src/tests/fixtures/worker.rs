@@ -179,6 +179,7 @@ pub fn worker_settings() -> crate::settings::Worker {
             slots: 1,
             graces: config::Graces {
                 grace: skein_lib::Duration::from_secs(10),
+                drain: skein_lib::Duration::from_secs(10),
                 agent_stop: skein_lib::Duration::from_secs(10),
                 delivery: skein_lib::Duration::from_secs(10),
                 save: skein_lib::Duration::from_secs(10),

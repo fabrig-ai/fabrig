@@ -186,7 +186,10 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `application`'s `workers` and `limits`. Set `agent.program` to
   `"/usr/local/bin/temper-agent"`, `agent.configuration` to the absolute
   path of its `agent.json`, and `agent.arguments` to a one-element list
-  holding that same path. Its unit as step 3's,
+  holding that same path. Its unit as step 3's, with
+  `KillMode=control-group` so no agent or command outlives the worker,
+  and `TimeoutStopSec=240s`: above its 186-second stop bound with a
+  54-second margin. Raising the worker's bound raises this timeout too.
   `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
   run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
   `agent.json`'s `environment` is a list of entries,
