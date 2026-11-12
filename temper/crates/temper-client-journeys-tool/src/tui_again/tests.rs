@@ -184,6 +184,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("XDG_RUNTIME_DIR", "/tmp/journey-environment/runtime"),
             ("COLORFGBG", "0;15"),
             ("TERM", "dumb"),
+            ("TEMPER_INTERNAL_RECORD", ""),
             ("SSH_CONNECTION", "remote"),
             ("SSH_TTY", "tty"),
             ("SSH_AUTH_SOCK", "agent"),
@@ -203,6 +204,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("XDG_STATE_HOME", "/tmp/journey-environment/state"),
             ("XDG_RUNTIME_DIR", "/tmp/journey-environment/tui-runtime"),
             ("TERM", "xterm-256color"),
+            ("TEMPER_INTERNAL_RECORD", "1"),
             ("DISPLAY", display.unwrap_or(":0")),
             ("LANG", "C.UTF-8"),
         ] {

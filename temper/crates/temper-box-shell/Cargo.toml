@@ -7,9 +7,6 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-record = ["temper-client-shell-tui/record"]
-
 [dependencies]
 temper-version.workspace = true
 temper-service-shell.workspace = true

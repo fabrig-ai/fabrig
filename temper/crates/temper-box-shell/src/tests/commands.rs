@@ -308,6 +308,22 @@ fn bundle_build_variable_is_internal_in_both_tables() {
 }
 
 #[test]
+fn tui_recording_variable_is_internal_and_read() {
+    let tui = TABLE
+        .commands
+        .iter()
+        .find(|command| command.reach == Reach::Words(&["internal", "tui"]))
+        .expect("the box's TUI command");
+    let record = tui
+        .variables
+        .iter()
+        .find(|variable| variable.name == "TEMPER_INTERNAL_RECORD")
+        .expect("internal tui must declare the recording variable");
+    assert_eq!(record.set, Set::Internal, "recording variable is internal");
+    assert_eq!(record.way, skein_shell::Way::Reads, "recording variable is read");
+}
+
+#[test]
 fn arguments_and_environment_documents_are_the_tables() {
     let documents = [
         ("temper-box-args.md", TABLE.arguments_document()),

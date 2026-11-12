@@ -87,6 +87,14 @@ Section 2 is the crates, 3 to 6 each one, 7 the shells that drive them,
     `token_credential_bytes`), and the peer envelope, the three scalars
     a worker needs of its engine's limits: the forges' count, the
     installations' and a forge token's bytes;
+  - the grammar of a document's `limits` member that both halves read
+    (`configuration/limits.md`): `Profile`, the shared parts' values in
+    each profile (the checkout's, the git component's and the peer
+    envelope's, which the engine's profile takes from here), their
+    override names and how each is applied, and the name of every
+    override a document may carry, so that a worker alone refuses an
+    unknown name as an engine does; a test in `temper-service` holds
+    that list equal to the engine's table of names;
   - the shared settings: `Files`, `Program`, `Adapter` and
     `PROGRAM_PATH_BYTES`;
   - the agent's declaration: what the engine's half and the paired
@@ -160,8 +168,14 @@ and their tests.
   `JobDiagnosticEnding` today; the line printed for it is unchanged.
 - **Its settings and limits:** `settings::Worker` and `Agent`, smith's
   host profile, which gives the agent's declaration (3); the worker's
-  aggregate on the core's shared parts, read from its own defaults and
-  the peer envelope, never from the engine's profile; `job_kinds`, on
+  aggregate on the core's shared parts and the peer envelope, never
+  the engine's profile. A worker alone reads them from its document's
+  `limits` with the core's grammar (3): the profile's shared parts and
+  the overrides of the names it holds; another known name's value it
+  takes unread, since a worker alone checks only its side
+  (`configuration/limits.md`, *In the cluster's shapes*), and that
+  name's checks are an engine's. In the composition, the engine's
+  aggregate gives the worker's parts. `job_kinds`, on
   its mirror of the close job's kind (2). A conversion from the core's
   limits to the worker's domain's is a function of this crate.
 

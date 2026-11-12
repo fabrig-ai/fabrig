@@ -11,7 +11,8 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
-temper-client-shell-tui = { workspace = true, features = ["record"] }
+temper-client-shell-tui.workspace = true
+temper-shell.workspace = true
 temper-client-tui.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-screen-terminal.workspace = true
