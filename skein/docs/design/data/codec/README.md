@@ -723,11 +723,12 @@ impl Fingerprints {
   `usize::try_from(..).expect(..)` for a bound's `u32`, where step code writes
   `usize_of` (../../runtime/lib.md, 6). Printing `usize_of` regenerates every tree's codecs,
   with no reader's gain yet.
-- **Pieces of a converted type:** a patch whose conversion of a
-  `pieces` field's items is not a copy, or an identity plan whose
-  pieces reach a held field, is refused when planned (`patches.md`, 3). jig,
-  which patches values nested across families, opens them:
-  each piece converted as its type, its length back-patched.
+- **Pieces whose items stop:** pieces whose items' conversion reaches a
+  site or a held field, or an identity plan whose pieces reach a held
+  field, are refused when planned (`patches.md`, 3); pieces whose items
+  convert without stopping are opened by the walk (`patches.md`, 4).
+  Stopping inside a piece would lift it: the stop's `at` a node of the
+  decoded piece, the piece's length written once its value is whole.
 - **Carried parts that stop:** a written function's `carry` converts in
   place, so a part with a site or a held field in reach is refused
   (`patches.md`, 5). Drafts would lift it behind the same calls: the function
