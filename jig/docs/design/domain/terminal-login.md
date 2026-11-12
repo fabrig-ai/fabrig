@@ -147,7 +147,7 @@ pub enum LoginEnd {
     Refused { refusal: AccountRefusal },
 }
 pub enum LoginExit { Exited { code: u8 }, Killed { signal: u8 }, NotStarted }
-// AccountRefusal gains:
+// refusals.rs, a request's refusal, Refusal gains, as NameTaken and NotWaiting are:
 NoTerminal, LoginUnderWay, NotLending,
 
 // asks.rs, AccountChange gains:
@@ -155,10 +155,14 @@ LoginProgram { provider: u32, name: Box<[u8]> },
 CancelLogin { number: u32 },
 LoginEnded { number: u32, exit: LoginExit },
 
-// outcome.rs, Outcome's account answers gain:
+// outcome.rs, DocumentOutcome gains, beside AccountProgramDeclared:
 AccountLoginAsked { number: u32 },
 ```
 
+A request's refusals are `Refusal`'s, as the account requests' others
+are; an end's `Refused` carries the declaration's refusal as the
+`AccountRefusal` nearest it, as a sign-in's end does (`ProgramNameReserved`
+for a name taken or reserved, `Limit` for the lifetime names spent).
 `LoginExit::NotStarted` is a client that could not start the command:
 a name it refused, a spawn that failed. The wire carries each new form
 as the client wire's other forms are carried, its schema changed in
