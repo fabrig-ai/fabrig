@@ -267,8 +267,18 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
             commit: fixtures::HEAD,
         }),
     );
+    assert!(d.project_landing(
+        5,
+        change::Way::Turn,
+        Box::new([]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings { retries: 2, suspects: temper_engine_domain_forge_tiers::Suspects::Bisect },
+            bound: Duration::from_millis(7_200_000),
+        },
+    ));
     let mut row = landing_row();
     row.branch = branch;
+    row.pull = Some(1);
     row.change.way = change::Way::Turn;
     row.change.state =
         change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall };
@@ -278,6 +288,38 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
     entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: LANDING_TIP };
     outputs(&mut d, Event::Enqueue { entry });
     (d, resource)
+}
+
+fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
+    let base = Name { forge: REPO.forge, repository: REPO.repository, what: What::Branch(Box::new([b"main".as_slice().into()])) };
+    d.heads.insert(base.clone(), BranchHead { name: base, commit: LANDING_TIP, owned: false }).unwrap();
+    let mut requests = Vec::new();
+    requests.extend(outputs(d, fixtures::change_step()));
+    for _ in 0..12 {
+        if d.steps.is_empty() {
+            return requests.into_boxed_slice();
+        }
+        let (call, op) = fixtures::next_call(d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => Answer::Commit(if branch.as_ref() == b"main" { LANDING_TIP } else { head }),
+            Op::Read(Read::Pull { .. } | Read::PullFor { .. }) => {
+                let mut pull = fixtures::open_pull();
+                pull.head = d.change(fixtures::CHANGE).unwrap().branch.clone();
+                pull.base_commit = Some(LANDING_TIP);
+                pull.commit = head;
+                Answer::Pull(pull)
+            }
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(Read::Commits { before, after, .. }) => {
+                assert_eq!((before, after), (head, LANDING_TIP));
+                Answer::Commits { commits: Box::new([]), more: false }
+            }
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            _ => panic!("prepare read: {op:?}"),
+        };
+        requests.extend(fixtures::answer(d, call, Ok(answer)));
+    }
+    panic!("prepare read did not settle")
 }
 
 #[test]
@@ -293,10 +335,22 @@ fn prepares_rebase_answer_is_its_candidate_not_drift() {
             &mut out,
         );
         assert_eq!(d.branch_head(&resource), Some(fixtures::BASE));
-        if goal_branch {
-            moved(&mut d, Some(fixtures::BASE));
+        // A keep's queued observation can follow the outcome that confirmed this head.
+        domain::drift(
+            &mut d,
+            &env(),
+            skein_forge_client::Resource {
+                repository: REPO,
+                what: skein_forge_client::What::Branch(if goal_branch { GOAL_BRANCH.into() } else { b"temper/51".as_slice().into() }),
+            },
+            DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) },
+            &mut out,
+        );
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, None);
+        for request in &out {
+            assert!(!matches!(request, Request::Drift { .. }), "{request:?}");
         }
-        let requests = step_at_head(&mut d, fixtures::BASE);
+        let requests = prepare_at_head(&mut d, fixtures::BASE);
         assert_eq!(d.hold(&resource).unwrap().drift, None);
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.drift, None);

@@ -5613,7 +5613,9 @@ fn settled_update_drift(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = d.changes.get(&task) else { return };
-    let change::State::Updating { from, .. } = row.change.state else { return };
+    let (change::State::Updating { from, .. } | change::State::Preparing { from, .. }) = row.change.state else {
+        return;
+    };
     if row.pending.is_some() || row.effect != change::EffectResult::Made || observed == from {
         return;
     }
@@ -5636,7 +5638,7 @@ fn matches_updating(state: &change::State) -> bool {
 
 fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
-        change::State::Updating { base, .. } => Some(*base),
+        change::State::Updating { base, .. } | change::State::Preparing { main: base, .. } => Some(*base),
         change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -5647,7 +5649,6 @@ fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
         | change::State::Ready { .. }
         | change::State::Queued { .. }
         | change::State::First { .. }
-        | change::State::Preparing { .. }
         | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
@@ -7602,7 +7603,7 @@ fn settled_update_observation(
             && crate::items::branch_matches(&name, &row.branch)
             && row.pending.is_none()
             && row.effect == change::EffectResult::Made
-            && let change::State::Updating { from, .. } = row.change.state
+            && let change::State::Updating { from, .. } | change::State::Preparing { from, .. } = row.change.state
             && from == *expected
         {
             return true;
@@ -7611,7 +7612,7 @@ fn settled_update_observation(
     false
 }
 
-fn drift(
+pub(crate) fn drift(
     d: &mut Domain,
     env: &Env<Limits>,
     resource: skein_forge_client::Resource,
