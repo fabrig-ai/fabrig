@@ -200,6 +200,10 @@ pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     let Some(page) = root.pages().connect_model() else { return };
     match state {
         ModelStep::Usable => usable(b, root, w, bindings),
+        ModelStep::TerminalLogin => {
+            text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
+            super::claude_login::note(b, root, w, bindings);
+        }
         ModelStep::Choose => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             b.open(Role::Paragraph);

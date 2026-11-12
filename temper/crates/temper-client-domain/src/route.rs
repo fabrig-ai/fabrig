@@ -662,7 +662,7 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
 }
 
 /// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
-fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
     if accounts.program_hosts.is_empty() {
         return true;
     }
