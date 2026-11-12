@@ -334,7 +334,9 @@ fn card(
             }
             b.close();
         }
-        if parts.right && let Some(facts) = facts {
+        if parts.right
+            && let Some(facts) = facts
+        {
             b.open(Role::Slot);
             b.style(look::TEAM_RIGHT);
             if parts.wakes {
@@ -350,7 +352,11 @@ fn card(
     b.close();
 }
 fn follow_line(b: &mut Builder, w: &Words, follow: &team::follows::Follow) {
-    paragraph(b, &w.say(Word::TeamFollow, &[Hole::Name(follow.source.clone()), Hole::Name(follow.status.clone())]), look::TEAM_ROLE);
+    paragraph(
+        b,
+        &w.say(Word::TeamFollow, &[Hole::Name(follow.source.clone()), Hole::Name(follow.status.clone())]),
+        look::TEAM_ROLE,
+    );
 }
 fn owner_follows(b: &mut Builder, w: &Words, parts: &team::Parts, owner: team::follows::Owner) {
     for follow in &parts.follows {
@@ -368,12 +374,18 @@ fn card_follows(b: &mut Builder, w: &Words, follows: &skein_lib::List<team::foll
     for follow in follows {
         follow_line(b, w, follow);
         for entry in &follow.entries {
-            let name = w.say(Word::TeamFollowEntry, &[Hole::Name(entry.after.as_slice().into()), Hole::Name(entry.state.clone())]);
+            let name = w.say(
+                Word::TeamFollowEntry,
+                &[Hole::Name(entry.after.as_slice().into()), Hole::Name(entry.state.clone())],
+            );
             b.open(Role::Paragraph);
             b.style(look::TEAM_ROLE);
             b.name(&name);
             b.text(Run::Code, &entry.after);
-            b.text(Run::Plain, &w.say(Word::TeamFollowEntry, &[Hole::Name(Box::default()), Hole::Name(entry.state.clone())]));
+            b.text(
+                Run::Plain,
+                &w.say(Word::TeamFollowEntry, &[Hole::Name(Box::default()), Hole::Name(entry.state.clone())]),
+            );
             b.close();
         }
         if follow.more > 0 {

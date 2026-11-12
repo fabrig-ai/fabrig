@@ -521,7 +521,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Pause" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
             Part::Named { role: Role::Paragraph, name: "Follows" },
-            Part::Named { role: Role::Paragraph, name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3",
+            },
             Part::Named { role: Role::Paragraph, name: "9c04d7e1a2b3 · held by its owner: waits for the handoff fix" },
             Part::Named { role: Role::Paragraph, name: "abababababab · waits for change 812" },
             Part::Named { role: Role::Paragraph, name: "Follows acme/tools · caught up · no check yet" },
@@ -561,7 +564,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Pause" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
             Part::Named { role: Role::Paragraph, name: "Follows" },
-            Part::Named { role: Role::Paragraph, name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3",
+            },
             Part::Named { role: Role::Paragraph, name: "9c04d7e1a2b3 · held by its owner: waits for the handoff fix" },
             Part::Named { role: Role::Paragraph, name: "abababababab · waits for change 812" },
             Part::Named { role: Role::Paragraph, name: "Follows acme/tools · caught up · no check yet" },

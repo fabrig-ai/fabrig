@@ -642,7 +642,12 @@ impl Team {
         }
     }
 }
-fn follows_panel(client: &Client, handle: Handle, limits: crate::forge::Limits, project: Option<u32>) -> Option<w::FollowsPanel> {
+fn follows_panel(
+    client: &Client,
+    handle: Handle,
+    limits: crate::forge::Limits,
+    project: Option<u32>,
+) -> Option<w::FollowsPanel> {
     let document = client.document(handle)?;
     if document.state == jig_client::State::Ended {
         return None;
@@ -708,7 +713,7 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
             cut: false,
             triager: None,
             follows: List::with_capacity(0),
-        roles: List::with_capacity(0),
+            roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
             card: None,

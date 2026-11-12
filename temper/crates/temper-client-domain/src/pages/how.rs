@@ -433,7 +433,12 @@ pub fn follows(
     };
     Landed { follows: follows.into_boxed(), tiers }
 }
-fn follow_owner(owner: &w::FollowOwner, members: Option<&[c::ProjectMember]>, reader: u64, roles: &[Standing]) -> Owner {
+fn follow_owner(
+    owner: &w::FollowOwner,
+    members: Option<&[c::ProjectMember]>,
+    reader: u64,
+    roles: &[Standing],
+) -> Owner {
     let owner = match owner {
         w::FollowOwner::Person(person) => person.person(),
         w::FollowOwner::Task(task) => {

@@ -147,14 +147,26 @@ pub(super) fn world(name: &str) -> Domain {
                 );
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
-                if role && wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Follows(_))) =>
+                if role
+                    && wire::decode_watching(&record.bytes, &w::CEILINGS)
+                        .is_some_and(|watching| matches!(watching.watch(), w::Watch::Follows(_))) =>
             {
-                step(&mut root, Event::Client { event: jig_client::Event::Up { up: Up::FamilyDelivered {
-                    watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION,
-                        bytes: wire::follows_panel(&follows::panel(reader)),
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::follows_panel(&follows::panel(reader)),
+                                },
+                            },
+                        },
                     },
-                }}}, &mut out);
+                    &mut out,
+                );
             }
             Down::Read { .. }
             | Down::Open { .. }

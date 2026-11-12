@@ -36,23 +36,31 @@ pub fn gather(panel: Option<&w::FollowsPanel>) -> List<Follow> {
             let status = if row.stopped().is_some() {
                 Box::from(b"stopped".as_slice())
             } else {
-                concat(&[&crate::forge::follows::lag(row.lag()), b" \xc2\xb7 ", &crate::forge::follows::parity(row.parity().as_ref())])
+                concat(&[
+                    &crate::forge::follows::lag(row.lag()),
+                    b" \xc2\xb7 ",
+                    &crate::forge::follows::parity(row.parity().as_ref()),
+                ])
             };
             let mut entries = List::uncapped();
             for entry in row.entries() {
-                entries.push(Entry {
-                    after: crate::forge::follows::after12(entry.after()),
-                    state: crate::forge::follows::state(entry),
-                }).expect("entries grow");
+                entries
+                    .push(Entry {
+                        after: crate::forge::follows::after12(entry.after()),
+                        state: crate::forge::follows::state(entry),
+                    })
+                    .expect("entries grow");
             }
-            follows.push(Follow {
-                owner,
-                source: row.source().into(),
-                line: concat(&[b"Follows ", row.source(), b" \xc2\xb7 ", &status]),
-                status,
-                entries,
-                more: 0,
-            }).expect("follows grow");
+            follows
+                .push(Follow {
+                    owner,
+                    source: row.source().into(),
+                    line: concat(&[b"Follows ", row.source(), b" \xc2\xb7 ", &status]),
+                    status,
+                    entries,
+                    more: 0,
+                })
+                .expect("follows grow");
         }
     }
     follows
@@ -75,7 +83,7 @@ pub(super) fn parts(facts: &super::Facts, selected: Option<u64>) -> (List<Follow
                     listed |= role.task == task;
                 }
                 if listed && selected == Some(task) {
-                    let mut shown = follow.clone();
+                    let mut shown = without_entries(follow);
                     shown.entries = List::uncapped();
                     for entry in &follow.entries {
                         if shown.entries.len() < 8 {
@@ -88,10 +96,18 @@ pub(super) fn parts(facts: &super::Facts, selected: Option<u64>) -> (List<Follow
             }
         }
         if listed {
-            let mut line = follow.clone();
-            line.entries = List::with_capacity(0);
-            rows.push(line).expect("owner lines grow");
+            rows.push(without_entries(follow)).expect("owner lines grow");
         }
     }
     (rows, card)
+}
+fn without_entries(follow: &Follow) -> Follow {
+    Follow {
+        owner: follow.owner,
+        source: follow.source.clone(),
+        status: follow.status.clone(),
+        line: follow.line.clone(),
+        entries: List::with_capacity(0),
+        more: 0,
+    }
 }
