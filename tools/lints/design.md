@@ -55,7 +55,8 @@ denied, so that the ring adapter can expect it in place; a crate here with no `u
   step crates' lints (a fake that runs as a step machine, `skein/docs/design/testing/README.md`, 6). A crate
   already on `step` stays there.
 - **`harness`:** the worlds under `tests/`, the kits under `testing/`, the fakes under `crates/`, and
-  the development tools under `tools/`.
+  the development tools: their crates under `crates/` and their binaries' packages under `bin/`
+  (`temper/docs/design/testing/tools.md`, 3).
 - **`binary`:** the crates that ship, are ordinary Rust, and hold no ring of their own: an
   application's binary and its client shells, its bundler, the browser parts, a playground it ships.
 - **`ring`:** `skein-shell`, the binaries built directly on it that hold to its rules, and hearth's
@@ -70,7 +71,7 @@ Clippy reads the nearest `clippy.toml` above a crate's manifest and nothing beyo
 applies to a directory's crates through one copy, or to a crate through its own.
 
 - **`step`:** the tree's `clippy.toml`, the subset's bans.
-- **`ordinary`:** a tree's `tests/clippy.toml`, `temper/tools/clippy.toml`, and a copy in any other
+- **`ordinary`:** a tree's `tests/clippy.toml`, and a copy in any other
   crate on `harness` or `binary` that `ring` doesn't take, and in a crate on `step` that is ordinary
   Rust, as `skein-world` and `skein-fail-stop` are. A run is one thread and one loop, and a seed
   replays. A step crate on `testing/` sits beside the harness kits there, so `testing/` has no

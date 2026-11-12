@@ -2208,3 +2208,16 @@ fn sign_offs_round_trip_on_changes_and_landing_logs() {
         }
     }
 }
+
+#[test]
+fn pull_size_is_omitted_without_changing_the_stored_pull() {
+    use skein_forge::api::{Answer, Size};
+    let mut pull = fixtures::pull();
+    let expected = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(Answer::Pull(pull.clone())))));
+    pull.size = Some(Size { files: 19, additions: u64::MAX, deletions: 12 });
+    let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(Answer::Pull(pull)))));
+    let encoded = records::encode(&row);
+    assert_eq!(encoded, records::encode(&expected), "size changes no stored byte");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&encoded, &bounds), Ok(expected));
+}
