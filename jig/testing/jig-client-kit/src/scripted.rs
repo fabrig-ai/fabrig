@@ -500,6 +500,7 @@ impl Front<Test> for Scripted {
                 | Subject::Tasks { .. }
                 | Subject::Settings
                 | Subject::Deployment
+                | Subject::Terminal { .. }
                 | Subject::Accounts => unreachable!("only runs continue"),
             },
             Down::Close { watch } => self.engine.close(now, watch),

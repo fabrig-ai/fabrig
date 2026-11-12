@@ -323,7 +323,9 @@ fn accounts(ended: bool) -> w::DeliveryValue {
         w::Accounts::new(
             &w::CEILINGS,
             w::AccountsParts {
-                skein_bools: [false; 4],
+                skein_bools: [false; 5],
+                lending: None,
+                lent_end: None,
                 program_hosts: Box::default(),
                 accounts: Box::default(),
                 signing,

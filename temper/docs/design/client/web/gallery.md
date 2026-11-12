@@ -381,7 +381,12 @@ from the engine's own answers, is where the look is tuned.
 | `github-install` | GitHub's connected App, installed nowhere yet |
 | `github-picker` | the installation's reached repositories, ready to adopt |
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
-| `welcome-model-choose` | the welcome's Model choices, ChatGPT and Claude |
+| `welcome-model-choose` | the welcome's Model choices, Claude first and the default, then ChatGPT, with no terminal to lend |
+| `welcome-model-claude-terminal` | Model at first run step 7, Forgejo connected, a terminal to lend: Claude's card first, "Signs in from the terminal where temper runs" and the primary "Sign in to Claude Code", then ChatGPT's (`claude-sign-in/`, 01) |
+| `welcome-model-claude-signing-in` | the same, pressed: "Claude Code is signing in, in the terminal where temper runs", its muted line, Cancel and the folded "No tab opened, or a code to paste?" (02) |
+| `welcome-model-claude-signed-in` | the same, signed in: ticked "Claude subscription", "through Claude Code, signed in", Continue, and the pane's Model line in the same words (04) |
+| `welcome-model-claude-no-terminal` | the same with no terminal to lend: Claude's card first, "One command in a terminal, on this machine" and the primary "Use your Claude subscription" (05) |
+| `welcome-model-claude-not-finished` | the cards with a terminal to lend again, and "Claude Code’s sign-in didn’t finish." under the lead |
 | `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
 | `welcome-model-forge-fetching` | Model at first run step 6, Forgejo fetching at 42%, its bar filled and the figure at its end |
 | `welcome-model-forge-fetching-bytes` | Model at first run step 6, Forgejo fetching with no size, its moving bar and 41 MB at its end |

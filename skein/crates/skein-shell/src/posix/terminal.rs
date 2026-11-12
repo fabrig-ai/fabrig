@@ -81,7 +81,7 @@ fn read(fd: Fd) -> Result<libc::termios, Error> {
     // SAFETY: successful tcgetattr initialized every termios field.
     Ok(unsafe { modes.assume_init() })
 }
-fn set(fd: Fd, modes: &libc::termios) -> Result<(), Error> {
+pub(crate) fn set(fd: Fd, modes: &libc::termios) -> Result<(), Error> {
     // SAFETY: modes is an initialized termios, borrowed for this synchronous call.
     if unsafe { libc::tcsetattr(fd.raw(), libc::TCSANOW, ptr::from_ref(modes)) } == 0 {
         Ok(())
@@ -111,8 +111,16 @@ pub(crate) fn raw_input(fd: Fd, keys: Keys) -> Result<Input, Error> {
     if saved < 0 {
         return Err(Error::Other(crate::system::last_errno()));
     }
-    let kept = Kept { fd: Fd::new(saved), modes };
-    let mut raw = kept.modes;
+    let kept = Kept { fd: Fd::new(saved), modes, keys };
+    if let Err(error) = set_raw(fd, &modes, keys) {
+        // SAFETY: saved is the descriptor just opened above, uniquely owned here.
+        unsafe { libc::close(saved) };
+        return Err(error);
+    }
+    Ok(Input::Terminal { kept, size })
+}
+pub(crate) fn set_raw(fd: Fd, modes: &libc::termios, keys: Keys) -> Result<(), Error> {
+    let mut raw = *modes;
     raw.c_lflag &= !(libc::ECHO | libc::ECHONL | libc::ICANON);
     match keys {
         Keys::Signal => raw.c_lflag |= libc::ISIG,
@@ -120,12 +128,7 @@ pub(crate) fn raw_input(fd: Fd, keys: Keys) -> Result<Input, Error> {
     }
     *raw.c_cc.get_mut(libc::VMIN).expect("termios has VMIN") = 1;
     *raw.c_cc.get_mut(libc::VTIME).expect("termios has VTIME") = 0;
-    if let Err(error) = set(fd, &raw) {
-        // SAFETY: saved is the descriptor just opened above, uniquely owned here.
-        unsafe { libc::close(saved) };
-        return Err(error);
-    }
-    Ok(Input::Terminal { kept, size })
+    set(fd, &raw)
 }
 pub(crate) fn restore(fd: Fd, modes: &libc::termios) -> Result<(), Error> {
     let result = set(fd, modes);

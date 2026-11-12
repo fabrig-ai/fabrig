@@ -317,6 +317,7 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
         | c::Delivery::Chips(_)
         | c::Delivery::Deployment(_)
         | c::Delivery::Run(_)
+        | c::Delivery::Terminal(_)
         | c::Delivery::Accounts(_) => panic!("fixture subject"),
     }
     delivery

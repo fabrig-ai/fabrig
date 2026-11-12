@@ -338,13 +338,14 @@ impl Walker {
             }
             Phase::Start => {
                 let mark = self.mark + 1;
-                if matches!(self.steps[self.at], Step::Mark)
+                if matches!(self.steps[self.at], Step::Mark | Step::End)
                     && self.waited_mark != Some(mark)
                     && let Some(wait) = self
                         .setup
                         .as_ref()
                         .and_then(|prepared| prepared.setup.marks.iter().find(|wait| wait.mark == mark))
                 {
+                    note_mark_wait(&self.name, mark, &self.steps[self.at]);
                     self.since = None;
                     self.phase = Phase::MarkWait { mark, text: wait.text.clone() };
                     return Ok(Next::Wait { until: Some(now.saturating_add(POLL)) });
@@ -459,6 +460,14 @@ impl Play for Walker {
         }
     }
 }
+#[expect(
+    clippy::print_stderr,
+    reason = "generation names a declared setup wait and whether its save is a key mark or the end"
+)]
+fn note_mark_wait(name: &str, mark: u32, step: &Step) {
+    let saving = if matches!(step, Step::End) { "end" } else { "mark" };
+    eprintln!("{name}: setup mark {mark} wait at {saving}");
+}
 pub(crate) fn copy_act(act: &Act) -> Act {
     match act {
         Act::Near { edge } => Act::Near { edge: *edge },
@@ -509,6 +518,22 @@ mod tests {
         assert!(
             matches!(walker.deadline(Time::from_nanos(30_000_000_000)), Err(Refusal::MarkTimeout { name, mark: 1, text }) if name == "child" && text.as_ref() == b"Settled")
         );
+    }
+    #[test]
+    fn an_end_save_waits_for_its_declared_next_mark() {
+        let mut walker = walker();
+        walker.steps = vec![Step::End];
+        walker.phase = Phase::Start;
+        let mut face = BrowserFace::new(Token::new(1), "127.0.0.1:1");
+        assert_eq!(
+            walker.progress(&mut face, Time::ZERO).expect("end waits"),
+            Next::Wait { until: Some(Time::from_nanos(50_000_000)) }
+        );
+        assert!(matches!(&walker.phase, Phase::MarkWait { mark: 1, text } if text.as_ref() == b"Settled"));
+        walker.waited_mark = Some(1);
+        walker.phase = Phase::Start;
+        walker.progress(&mut face, Time::ZERO).expect("settled end saves");
+        assert!(matches!(walker.phase, Phase::Download { .. }));
     }
     #[test]
     fn setup_and_mark_queries_poll_and_reload_opens_the_new_client() {

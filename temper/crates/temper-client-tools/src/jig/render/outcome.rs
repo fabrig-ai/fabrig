@@ -149,7 +149,11 @@ impl Operation {
                         c::AccountChange::Resume { .. } => b"retry",
                         c::AccountChange::MoveAccount { .. } | c::AccountChange::MoveSource { .. } => b"rank",
                         c::AccountChange::Remove { .. } | c::AccountChange::RemoveKey { .. } => b"forget",
-                        c::AccountChange::SetUses { .. } | c::AccountChange::FinishSignIn { .. } => b"account-change",
+                        c::AccountChange::LoginProgram { .. }
+                        | c::AccountChange::CancelLogin { .. }
+                        | c::AccountChange::LoginEnded { .. }
+                        | c::AccountChange::SetUses { .. }
+                        | c::AccountChange::FinishSignIn { .. } => b"account-change",
                     },
                     None,
                 ),
@@ -1312,6 +1316,9 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::Moved { .. }
         | c::Refusal::NameTaken
         | c::Refusal::ProgramNameReserved
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::Llm { .. } => false,

@@ -1,9 +1,11 @@
 //! Terminal program login without deployment resources (protocol/credentials.md, 3; protocol/binaries.md, 5).
 //! The caller prefixes a pre-exec failure with its program-login command. Smith's checked
 //! configuration reader may first emit its own secret-free `smith:` diagnostics.
+use skein_io::kernel::{Error, Fd};
 use skein_shell::{Argument, Command, Reach, Set};
 use std::{
     ffi::OsStr,
+    io::IsTerminal,
     os::unix::{ffi::OsStrExt, process::CommandExt},
 };
 use temper_service_shell::jig_directories;
@@ -73,12 +75,20 @@ pub fn command(
     Ok(smith_agent_document::program::sign_in(super::path(&program.path), &source, environment))
 }
 
+fn take_terminal(terminal: bool, take: impl FnOnce(Fd) -> Result<(), Error>) -> Result<(), String> {
+    if terminal {
+        take(Fd::new(0)).map_err(|why| format!("cannot take the terminal: {why:?}"))?;
+    }
+    Ok(())
+}
+
 pub fn run(
     directories: &directories::Directories,
     name: &OsStr,
     environment: &[EnvironmentEntry],
     deployment: Option<Deployment>,
 ) -> Result<u8, String> {
+    take_terminal(std::io::stdin().is_terminal(), skein_shell::take_foreground)?;
     let environment = environment
         .iter()
         .map(|(name, value)| (OsStr::from_bytes(name).to_os_string(), OsStr::from_bytes(value).to_os_string()));
