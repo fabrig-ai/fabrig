@@ -23,6 +23,7 @@ const DRAFTER_CHARTER: u32 = 12;
 const DRAFTING_TEMPLATE: u32 = 6;
 const PROJECT: u32 = 1;
 const CHANNEL: Token = Token::new(7);
+const PROGRAM_SOURCE: &[u8] = b"ask-bound";
 // The stock agent profile's declared payload and endpoint output (temper-init/template/agent.json).
 const TOOL_PAYLOAD: u32 = 10_662;
 const OUTPUT_TOKENS: u32 = 8192;
@@ -80,7 +81,8 @@ fn first_assignment(charter: u32, template: u32) -> engine::Assignment {
         .expect("stock chat template")
         .clone();
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
-    let accounts = temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers);
+    let accounts = shape_accounts(&config.core.settings);
+    let endpoints = config.core.settings.endpoints.clone();
     let mut bootstrap = Driver::cold(Store::with_limits(&limits), config, &limits);
     bootstrap.period_sent = true;
     bootstrap.settle();
@@ -90,7 +92,7 @@ fn first_assignment(charter: u32, template: u32) -> engine::Assignment {
     driver.period_sent = true;
     driver.settle();
     driver.send(engine::Event::Party(engine::PartyInput::Period { project: PROJECT, period: 1, budget, next: None }));
-    connect(&mut driver, &parsed.llm.models);
+    connect(&mut driver, &parsed.llm.models, &endpoints);
     driver.sign_in();
     driver.settle();
     let mut ask = driver.chat_ask(PROJECT, FIRST_WORDS);
@@ -124,7 +126,46 @@ fn first_assignment(charter: u32, template: u32) -> engine::Assignment {
     assignment
 }
 
-fn connect(driver: &mut Driver, models: &[core::settings::CatalogueModel]) {
+// Keep the Claude Code shape on its program source (jig/docs/design/domain/accounts.md, 3.4).
+// Other worlds keep the shared fixture's key sources.
+fn shape_accounts(settings: &core::Settings) -> Box<[engine::Record]> {
+    use jig_domain_accounts::{Holder, Kind, Stored};
+    let mut rows = temper_engine_domain_world::fixtures::account_rows(&settings.llm_providers).into_vec();
+    let provider = settings.models.iter().find(|model| model.program.is_some()).expect("stock program model").provider;
+    let account = rows.iter().find_map(|row| {
+        if let engine::Record::Core(core::Record::Accounts(Stored::Account { number, provider: candidate, .. })) = row
+            && *candidate == provider
+        {
+            Some(*number)
+        } else {
+            None
+        }
+    }).expect("stock program account");
+    let source = rows.iter_mut().find_map(|row| {
+        if let engine::Record::Core(core::Record::Accounts(Stored::Source { account: candidate, number, kind, name, .. })) = row
+            && *candidate == account
+        {
+            *kind = Kind::Program;
+            *name = PROGRAM_SOURCE.into();
+            Some(*number)
+        } else {
+            None
+        }
+    }).expect("stock program source");
+    rows.push(engine::Record::Core(core::Record::Accounts(Stored::Issued {
+        number: source,
+        holder: Holder::Deployment,
+        name: PROGRAM_SOURCE.into(),
+        signed_out: false,
+    })));
+    rows.into_boxed_slice()
+}
+
+fn connect(
+    driver: &mut Driver,
+    models: &[core::settings::CatalogueModel],
+    endpoints: &[core::EndpointFacts],
+) {
     let limits = driver.env.limits;
     let sources: Box<[_]> = driver
         .store
@@ -132,7 +173,7 @@ fn connect(driver: &mut Driver, models: &[core::settings::CatalogueModel]) {
         .values()
         .filter_map(|row| {
             if let engine::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
-                number, ..
+                number, kind: jig_domain_accounts::Kind::Key, ..
             })) = row
             {
                 Some(*number)
@@ -154,13 +195,26 @@ fn connect(driver: &mut Driver, models: &[core::settings::CatalogueModel]) {
     else {
         panic!("worker greeting")
     };
+    let mut programs = Vec::new();
+    for endpoint in endpoints {
+        if endpoint.program.is_some() {
+            programs.push(endpoint.number);
+        }
+    }
     hello.bounds = jig_domain_link::Bounds {
+        program_endpoints: programs.into_boxed_slice(),
         endpoints: models
             .iter()
-            .map(|model| jig_domain_link::EndpointBound {
-                endpoint: model.model.endpoint,
-                window: model.model.window,
-                output: model.model.output,
+            .flat_map(|model| {
+                let bound = jig_domain_link::EndpointBound {
+                    endpoint: model.model.endpoint,
+                    window: model.model.window,
+                    output: model.model.output,
+                };
+                let direct = endpoints.iter().find(|endpoint| endpoint.direct.contains(&model.model.provider)).map(|endpoint| {
+                    jig_domain_link::EndpointBound { endpoint: endpoint.number, ..bound }
+                });
+                [Some(bound), direct].into_iter().flatten()
             })
             .collect(),
         turns: 800,
@@ -172,6 +226,22 @@ fn connect(driver: &mut Driver, models: &[core::settings::CatalogueModel]) {
         ..protocol::bounds()
     };
     driver.send(greeting);
+    // The shared protocol answers with no logins. This worker serves the
+    // fixture's program source, so replace each queued whole inventory.
+    for _ in 0..200 {
+        for event in &mut driver.events {
+            if let engine::Event::Worker(engine::WorkerInput::Link {
+                link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins }, .. }, ..
+            }) = event {
+                *logins = Box::new([jig_domain_link::Login {
+                    name: jig_domain_link::SourceName::new(PROGRAM_SOURCE).expect("fixture program source name"),
+                    state: jig_domain_link::LoginState::Usable,
+                    email: None,
+                }]);
+            }
+        }
+        driver.advance(true);
+    }
     driver.settle();
 }
 
