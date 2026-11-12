@@ -1,0 +1,1 @@
+Widget is adopted as a project beside Hello, with playground/widget on the box’s owned Forgejo and its starter CI. It serves widget’s Home, repository and Work pages before any rung starts; the recipe waits for adoption and reads the project, and its root-page check is the empty Needs you state.

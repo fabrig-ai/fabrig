@@ -186,6 +186,14 @@ in the lower world that owns it, never here.
     story (`live-tier.md`), and its twin made again from that run's transcripts.
     Fixtures are re-recorded with `temper-twin`; its `--replace` covers
     assistant text as well as call arguments.
+  - **Its takes,** for QA's twin setups (`qa/setups.md`, 4): B0's and
+    B1's fixtures name the tasks, pull requests and heads of their
+    walk's box as takes (skein's `testing/fakes/llm.md`, 2.6), from a
+    `takes.json` beside each, applied by `temper-twin --takes`
+    (`fakes.md`, 1), and their `regenerate.sh` passes it. The story
+    replays the fixture with its takes: here each take finds the value
+    the walk recorded, so the story reaches the same end, and that
+    proves each take's pattern is in the conversation smith writes.
   - It runs where the story it replaces runs, in the fuzzy suite, past
     the 2 s guide by the landing path, as `suite::fuzzy::green_light` is.
 - **An account first,** with area 5's tools (../client/ctl/areas.md):

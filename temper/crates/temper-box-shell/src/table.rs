@@ -261,8 +261,8 @@ Refused, changing nothing, when the configuration directory already holds temper
         reach: Reach::Words(&["fake", "forge"]),
         set: Set::Internal,
         forms: &[
-            "[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]",
-            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE]",
+            "[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]",
+            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]",
         ],
         line: "Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.",
         arguments: &[DIRECTORIES, FORGE],

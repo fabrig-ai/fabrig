@@ -1,4 +1,5 @@
 use super::*;
+mod forge;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 fn plan() -> Plan {
@@ -9,11 +10,44 @@ fn plan() -> Plan {
             scratch: "/scratch".into(),
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
+            ports: None,
         },
         "/browser/chromium".into(),
         OsStr::new("/bin"),
     )
 }
+#[test]
+fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
+    let parse = |ports: &str| {
+        let args =
+            ["--bin", "/missing/bin", "--bundle", "/missing/bundle", "--scratch", "/missing/scratch", "--ports", ports]
+                .iter()
+                .map(|word| word.as_bytes().into())
+                .collect::<Vec<Box<[u8]>>>();
+        Options::parse(&args)
+    };
+    assert_eq!(parse("1,2,3,4,5,6,7,8,9").expect("ports").ports.as_deref(), Some("1,2,3,4,5,6,7,8,9"));
+    for bad in
+        ["1,2,3,4,5,6,7,8", "0,2,3,4,5,6,7,8,9", "1,2,3,4,5,6,7,8,8", "1,2,3,4,5,6,7,8,no", "1,2,3,4,5,6,7,8,65536"]
+    {
+        let why = parse(bad).expect_err("invalid list");
+        assert!(why.contains("--ports") && why.contains(bad), "{why}");
+    }
+}
+
+#[test]
+fn only_the_box_receives_explicit_ports() {
+    let mut plan = plan();
+    let key = OsStr::new("TEMPER_INTERNAL_FAKE_BOX_PORTS");
+    assert!(!plan.box_program().environment.iter().any(|(name, _)| name == key));
+    let ports = "1,2,3,4,5,6,7,8,9";
+    plan.options.ports = Some(ports.into());
+    let box_program = plan.box_program();
+    assert!(box_program.environment.iter().any(|(name, value)| name == key && value == ports));
+    assert!(!plan.ctl(&[], Input::Null).environment.iter().any(|(name, _)| name == key));
+    assert!(!plan.tui(b"http://127.0.0.1:9").expect("tui plan").environment.iter().any(|(name, _)| name == key));
+}
+
 fn step(m: &mut Machine, event: Event) -> Vec<Action> {
     m.step(event, Time::ZERO)
 }
@@ -275,7 +309,7 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
         assert!(step(&mut m, exited(Process::Box, 1)).iter().any(|a| matches!(a, Action::CloseBrowser)));
         assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Classify]));
         let box_tail = (0..30).map(|n| format!("box {n}").into_bytes().into()).collect();
-        let actions = step(&mut m, Event::Logs { serve, box_tail });
+        let actions = step(&mut m, Event::Logs { serve, forges: vec![], box_tail });
         let exit = finish(&actions);
         assert_eq!(exit.status, expected);
         if expected == 3 {
@@ -298,7 +332,7 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
     assert_eq!(answer(&line(&mut m, "web look")).print(), "failed: line 1: the box exited\n");
     step(&mut m, Event::End);
     step(&mut m, Event::FaceDone(Ok(())));
-    assert_eq!(finish(&step(&mut m, Event::Logs { serve: vec![], box_tail: vec![] })).status, 4);
+    assert_eq!(finish(&step(&mut m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] })).status, 4);
     let mut m = ready();
     step(&mut m, Event::End);
     step(&mut m, Event::FaceDone(Ok(())));
@@ -306,6 +340,49 @@ fn exits_classify_store_refusal_tails_and_clean_sigterm_stop() {
         m.step(Event::Deadline, Time::ZERO.saturating_add(STEP)).as_slice(),
         [Action::KillBox, Action::Classify]
     ));
+}
+#[test]
+fn fake_forge_state_refusal_names_only_a_file_under_scratch() {
+    for (line, expected) in [
+        ("temper-box fake forge: state /scratch/data/github-forge.state refused: Domain(Malformed(\"format\"))", 3),
+        (
+            "2026-11-12T01:00:00Z temper-box fake forge: state /scratch/data/forgejo-forge.state refused: image length",
+            3,
+        ),
+        ("temper-box fake forge: state /scratch-other/data/forge.state refused: format", 4),
+        ("temper-box fake forge: state /elsewhere/state refused: /scratch/data", 4),
+        ("temper-box fake forge: state /scratch/data/state: cannot write", 4),
+    ] {
+        let (mut m, _) = Machine::start(plan(), Time::ZERO);
+        step(&mut m, exited(Process::Box, 1));
+        step(&mut m, Event::FaceDone(Ok(())));
+        let actions =
+            step(&mut m, Event::Logs { serve: vec![], forges: vec![line.as_bytes().into()], box_tail: vec![] });
+        let exit = finish(&actions);
+        assert_eq!(exit.status, expected, "{line}");
+        if expected == 3 {
+            assert_eq!(exit.shown, [format!("refused: {}", String::from_utf8_lossy(strip_log_time(line.as_bytes())))]);
+        }
+    }
+    let scratch = skein_scratch::Scratch::new("drive-forge-refused");
+    let logs = scratch.path().join("data/box/logs");
+    std::fs::create_dir_all(&logs).expect("box logs");
+    for name in ["fake-github.log", "fake-forgejo.log"] {
+        let line =
+            format!("temper-box fake forge: state {}/data/forge.state refused: format", scratch.path().display());
+        std::fs::write(logs.join(name), &line).expect("forge log");
+        let (serve, forges, box_tail) = super::io::logs(scratch.path()).expect("read box logs");
+        let mut p = plan();
+        p.options.scratch = scratch.path().into();
+        let (mut m, _) = Machine::start(p, Time::ZERO);
+        step(&mut m, exited(Process::Box, 1));
+        step(&mut m, Event::FaceDone(Ok(())));
+        let actions = step(&mut m, Event::Logs { serve, forges, box_tail });
+        let exit = finish(&actions);
+        assert_eq!(exit.status, 3);
+        assert_eq!(exit.shown, [format!("refused: {line}")]);
+        std::fs::remove_file(logs.join(name)).expect("remove log");
+    }
 }
 #[test]
 fn ctl_destinations_cannot_escape_scratch() {
@@ -354,6 +431,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scratch: root.into(),
         scripts: vec![],
         strict: false,
+        ports: None,
     };
     let why = super::options::prepare(options.clone(), &[]).expect_err("missing binary before any process");
     assert!(why.contains("temper-box"));

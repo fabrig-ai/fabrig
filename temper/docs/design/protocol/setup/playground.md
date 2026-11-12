@@ -450,6 +450,19 @@ them as it does any Forgejo.
   line falls in its turn and whose calls it fails are skein's (its
   2.3): a refused document is refused at the start, naming the turn.
 
+  A turn's lines may also hold a take, `{"take", "before", "after"}`,
+  here and in `--scripts` alone and never in a deployment's document:
+  skein's `Line::Take` (skein's `testing/fakes/llm.md`, 2.6), `take` its
+  name and `before` and `after` non-empty text. A later line of its turn
+  takes its value where its text, or its call's arguments, hold
+  `{{NAME}}`, or where an argument's whole value is the string
+  `"{{#NAME}}"`, a JSON number then; so a twin's call names the task,
+  pull request or head of the deployment it plays on
+  (`../../testing/qa/setups.md`, 4). A take counts among its turn's
+  lines; its bounds, and what a turn with no value answers, are
+  skein's: a document past them is refused at the start, naming the
+  turn.
+
   The forge's:
 
   | Member | Type | Bounds |

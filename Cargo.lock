@@ -5222,11 +5222,15 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "serde_json",
  "sha2",
  "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",
+ "skein-forge",
+ "skein-http",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
@@ -6702,6 +6706,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-core",
  "jig-protocol-store",
+ "serde",
  "serde_json",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",

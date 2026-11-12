@@ -1,4 +1,5 @@
 //! Installations and their tokens (testing/fakes/github.md, 1.1).
+pub(crate) mod image;
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Queue, Rng, Secret, Wall, Writer, bytes};
 
