@@ -1,0 +1,15 @@
+[package]
+name = "smith-protocol-program-fixtures"
+description = "Small program protocol presets for smith tests"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+smith-protocol-program.workspace = true
+skein-lib.workspace = true
+
+[lints]
+workspace = true

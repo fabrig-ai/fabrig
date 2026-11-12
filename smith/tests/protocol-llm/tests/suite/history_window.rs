@@ -129,7 +129,7 @@ fn history_edge(provider: skein_llm::Provider) {
         let translation_limits = codec::Limits {
             tool_bytes: 1024,
             rendered_result: 1024,
-            ..smith_protocol_llm::fixture::small(
+            ..smith_protocol_llm_fixtures::small(
                 client,
                 codec::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
             )

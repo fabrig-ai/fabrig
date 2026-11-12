@@ -4219,6 +4219,7 @@ dependencies = [
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
@@ -4275,6 +4276,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-world",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-session-world",
  "smith-tools-world",
 ]
@@ -4483,6 +4485,7 @@ dependencies = [
  "skein-world",
  "smith-agent-shell",
  "smith-protocol-program",
+ "smith-protocol-program-fixtures",
 ]
 
 [[package]]
@@ -4845,6 +4848,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-protocol-llm-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-tls",
+ "smith-domain",
+ "smith-protocol-llm",
+]
+
+[[package]]
 name = "smith-protocol-llm-world"
 version = "0.0.0"
 dependencies = [
@@ -4872,6 +4888,7 @@ dependencies = [
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-protocol-translate",
  "smith-session-world",
  "smith-tools-world",
@@ -4904,6 +4921,15 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
+]
+
+[[package]]
+name = "smith-protocol-program-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-protocol-program",
 ]
 
 [[package]]
@@ -5949,6 +5975,8 @@ dependencies = [
  "jig-channel-kit",
  "jig-domain-core",
  "jig-domain-host",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
@@ -5968,6 +5996,8 @@ dependencies = [
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
  "temper-fake",
  "temper-forge-setup",
  "temper-forge-setup-shell",
@@ -6698,24 +6728,12 @@ dependencies = [
 name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
- "jig-domain-host",
- "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-config",
- "jig-protocol-engine-workers",
- "jig-protocol-store",
- "jig-protocol-worker-wire",
- "skein-channel",
- "skein-forge",
- "skein-forge-connection",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
- "temper-engine-domain",
- "temper-engine-domain-forge",
- "temper-service",
+ "temper-service-core",
  "temper-shell",
 ]
 
@@ -6963,6 +6981,7 @@ name = "temper-worker-shell"
 version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
+ "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-config",
  "serde_json",
@@ -6976,6 +6995,7 @@ dependencies = [
  "temper-launcher",
  "temper-playground",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-worker-domain",

@@ -12,7 +12,8 @@ smith-domain-tools-fixtures.workspace = true
 smith-domain-session-fixtures.workspace = true
 smith-domain-run-fixtures.workspace = true
 smith-domain-fixtures.workspace = true
-smith-protocol-llm = { workspace = true, features = ["fixture"] }
+smith-protocol-llm.workspace = true
+smith-protocol-llm-fixtures.workspace = true
 skein-llm-kit.workspace = true
 skein-lib.workspace = true
 smith-domain.workspace = true

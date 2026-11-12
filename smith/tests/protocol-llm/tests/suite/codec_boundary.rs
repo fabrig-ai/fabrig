@@ -17,7 +17,7 @@ const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalPrope
 fn limits() -> Limits {
     Limits {
         rendered_result: 2048,
-        ..smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated())
+        ..smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated())
     }
 }
 
@@ -63,7 +63,7 @@ fn input(configuration: &Configuration) -> Input {
             skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
             skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
         },
-        receiving: smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes)
+        receiving: smith_protocol_llm_fixtures::receiving(&bounds.client, decoded_call_bytes)
             .expect("fixture receiving bound"),
     }
 }
@@ -341,7 +341,7 @@ fn a_prompt_takes_its_sessions_effort_and_none_for_the_provider_default() {
     for effort in [None, Some(b"high".as_slice())] {
         let mut requested = prompt();
         requested.effort = effort.map(Into::into);
-        let translated = smith_protocol_llm::fixture::prompt(requested, core::slice::from_ref(&application), &bounds)
+        let translated = smith_protocol_llm_fixtures::prompt(requested, core::slice::from_ref(&application), &bounds)
             .expect("admitted prompt");
         assert_eq!(translated.reasoning_effort.as_deref(), effort);
     }

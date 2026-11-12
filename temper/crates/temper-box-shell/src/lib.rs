@@ -44,7 +44,7 @@ pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use temper_service_shell::host;
+pub(crate) use temper_engine_shell::lines as host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -373,7 +373,6 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
-pub use temper_service_shell::host::ending as service_ending;
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
@@ -483,3 +482,18 @@ mod box_tests {
         }
     }
 }
+
+/// The box's ending, preserving its public call path.
+#[must_use]
+pub fn service_ending(
+    end: Option<&temper_service::End>,
+    output_failed: bool,
+    directories: &Directories,
+    store: &[u8],
+    unsettled: &[temper_service::Unsettled],
+) -> (String, u8) {
+    temper_engine_shell::lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+}
+
+#[cfg(test)]
+mod worker_lines_tests;

@@ -16,7 +16,7 @@ jig-client-view.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true
-web-sys = { workspace = true, features = ["Window", "Document", "Location", "History", "HtmlDialogElement", "HtmlTextAreaElement", "HtmlElement", "Element", "Node", "Event", "EventTarget"] }
+web-sys = { workspace = true }
 
 [dev-dependencies]
 jig-client-protocol-link.workspace = true

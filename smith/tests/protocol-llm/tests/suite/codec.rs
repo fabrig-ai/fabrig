@@ -16,7 +16,7 @@ const FEEDBACK: &[u8] = b"exact host receipt\nsecond line";
 
 fn receiving(bounds: &Limits) -> Receiving {
     let decoded_call_bytes = 4096;
-    smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
+    smith_protocol_llm_fixtures::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
 }
 
 fn prompt() -> llm::Prompt {
@@ -270,7 +270,7 @@ fn invalid_limits_are_refused() {
     let bounds = limits();
     let accepted = receiving(&bounds);
     assert!(codec::valid(&bounds, &accepted));
-    smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
+    smith_protocol_llm_fixtures::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
         .expect("valid limits prepare a prompt");
     let mut cases = Vec::new();
     let mut invalid = bounds;
@@ -298,7 +298,7 @@ fn invalid_limits_are_refused() {
         assert!(!codec::valid(&bounds, &receiving), "{check}");
         assert!(
             matches!(
-                smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
+                smith_protocol_llm_fixtures::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
                 Err(codec::Error::Limit)
             ),
             "{check}"
@@ -470,7 +470,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
         max_completion_blocks: 2,
-        ..smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
+        ..smith_protocol_llm_fixtures::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
     let (_owner, observed_completion) = owned_completion(&mut peer);
@@ -535,7 +535,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         let floor = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("fixed fallback cell");
         let secured = Receiving {
             max_completion_blocks: 1,
-            ..smith_protocol_llm::fixture::receiving(&bounds.client, floor).expect("fixture receiving bound")
+            ..smith_protocol_llm_fixtures::receiving(&bounds.client, floor).expect("fixture receiving bound")
         };
         let script = Box::new([Script {
             cue: b"@client-host".as_slice().into(),

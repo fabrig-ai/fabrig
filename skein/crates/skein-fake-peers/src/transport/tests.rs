@@ -4,8 +4,8 @@
 use std::io::{Read as _, Write as _};
 use std::sync::Arc;
 
-use rustls::pki_types::{CertificateDer, ServerName};
-use rustls::{ClientConfig, ClientConnection, RootCertStore};
+use rustls_std::pki_types::{CertificateDer, ServerName};
+use rustls_std::{ClientConfig, ClientConnection, RootCertStore};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Queue, Token};
 
@@ -51,7 +51,7 @@ impl Pair {
             .with_root_certificates(roots)
             .with_no_client_auth();
         let mut wire = Wire::new(Token::new(1), Transport::Tls, limits());
-        let mut connection = rustls::ServerConnection::new(Arc::new(server)).expect("fixed server");
+        let mut connection = rustls_std::ServerConnection::new(Arc::new(server)).expect("fixed server");
         connection.set_buffer_limit(Some(usize::try_from(limits().ciphertext).expect("fixed cap")));
         wire.tls = Some(connection);
         let mut pair = Self {

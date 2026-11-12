@@ -165,8 +165,8 @@ patch and drift tests check the generated `encoded_bound` and
   fake's crate as a dev-dependency, for its stories and observations,
   and has no binary of its own for it (skein/docs/foundation/cli.md, 3).
   A run that hasn't built it fails, naming
-  `cargo build -p smith-fake-claude --bin fake-claude`; the gate's runs
-  build every package's binaries.
+  `cargo build -p smith-fake-claude --bin fake-claude`; the delivery check
+  builds it first whenever it runs `smith`'s tests (tools/pre-pr/design.md, 4).
 - **The referee reads what shows from outside:**
   - the terminal's transcript;
   - what the fakes saw;

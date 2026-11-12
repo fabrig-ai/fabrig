@@ -11,7 +11,7 @@ fn limits() -> protocol::ComponentLimits {
         tool_bytes: 4096,
         history_bytes: 4096,
         rendered_result: 4096,
-        ..smith_protocol_llm::fixture::small(
+        ..smith_protocol_llm_fixtures::small(
             client,
             protocol::Stated {
                 host_part: 4096,
@@ -62,7 +62,7 @@ fn limits() -> protocol::ComponentLimits {
             decoded_call_bytes: 4096,
             max_failure_bytes: 256,
         },
-        ..smith_protocol_llm::fixture::component(adapter, Duration::from_secs(1)).expect("fixture component bounds")
+        ..smith_protocol_llm_fixtures::component(adapter, Duration::from_secs(1)).expect("fixture component bounds")
     }
 }
 pub(super) fn backend() -> Backend {
