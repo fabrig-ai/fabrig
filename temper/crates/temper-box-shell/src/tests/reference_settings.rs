@@ -8,12 +8,11 @@ use skein_lib::{Duration, List, bytes};
 const COORDINATOR: u32 = 5;
 const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
-const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
 const STATUS: u32 = 9;
 const GOAL: u32 = 4;
-// The reference supplies five charters, one template, its work and two landing rules.
-const ITEMS: u32 = 9;
+// The reference supplies four charters, one template, its work and two landing rules.
+const ITEMS: u32 = 8;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -51,7 +50,6 @@ fn the_reference_settings_file_decodes() {
         (COORDINATOR, b"claude-opus-5-5".as_slice()),
         (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
-        (FOREMAN, b"gpt-6.1-sol".as_slice()),
         (TRIAGE, b"gpt-6.1-sol".as_slice()),
     ] {
         let SettingValue::Charter(charter) = value(&items, Setting::Charter(SettingNumber { number })) else {
@@ -63,7 +61,7 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
         assert_eq!(charter.turns, 800);
         assert_eq!(charter.time, Duration::from_secs(28_800));
-        if number != CODER && number != FOREMAN {
+        if number != CODER {
             assert!(!charter.resume());
             assert_eq!(charter.waiting, Duration::ZERO);
         }
@@ -128,14 +126,6 @@ fn the_reference_settings_file_decodes() {
     let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
     assert!(coder_instructions.contains("in the question form"));
     assert!(coder_instructions.contains("After asking, call wait, not finish: the answer reaches this run."));
-    let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
-        panic!("foreman charter")
-    };
-    assert!(foreman.inspect());
-    assert!(!foreman.modify());
-    assert!(!foreman.shell());
-    assert!(!foreman.agents());
-    assert!(foreman.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/foreman.txt")));
     let SettingValue::Charter(triage) = value(&items, Setting::Charter(SettingNumber { number: TRIAGE })) else {
         panic!("triage charter")
     };
@@ -143,11 +133,11 @@ fn the_reference_settings_file_decodes() {
     assert!(!triage.modify());
     assert!(!triage.shell());
     assert!(!triage.agents());
-    assert_eq!(triage.model, foreman.model);
-    assert_eq!(triage.reserve_turns, foreman.reserve_turns);
-    assert_eq!(triage.reserve_time, foreman.reserve_time);
-    assert_eq!(triage.call_timeout, foreman.call_timeout);
-    assert_eq!(triage.spend, foreman.spend);
+    assert_eq!(triage.model, coder.model);
+    assert_eq!(triage.reserve_turns, coder.reserve_turns);
+    assert_eq!(triage.reserve_time, coder.reserve_time);
+    assert_eq!(triage.call_timeout, coder.call_timeout);
+    assert_eq!(triage.spend, coder.spend);
     assert_eq!(triage.wake, WakePolicy::DEFAULT);
     assert!(triage.documents.is_empty());
     assert!(bytes::find(triage.instructions.bytes(), b"You never edit, push or run anything.").is_some());
@@ -234,7 +224,7 @@ fn coordinator_shared_rules(texts: &[(String, &str)]) {
     let shared = "shared";
     for (phrase, place) in [
         (r#""producer": 7"#, shared),
-        (r#""questions": "foreman""#, shared),
+        (r#""questions": "up""#, shared),
         (r#""questions": "up""#, shared),
         ("Make a larger batch in several calls", shared),
         ("report: ", shared),
@@ -404,7 +394,7 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
         &temper_client_tools::limits::tools(),
     )
     .expect("reference settings");
-    for number in [CODER, COORDINATOR, FOREMAN, DESIGNER, TRIAGE] {
+    for number in [CODER, COORDINATOR, DESIGNER, TRIAGE] {
         let item = reference
             .iter()
             .find(|item| {
@@ -597,12 +587,11 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let eighteen = vec![
+    let seventeen = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(4),
         Executor::Charter(COORDINATOR),
-        Executor::Charter(FOREMAN),
         Executor::Charter(DESIGNER),
         Executor::Charter(TRIAGE),
         Executor::Charter(STATUS),
@@ -617,7 +606,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] 
         Executor::Role(1),
         Executor::Role(2),
     ];
-    [eighteen]
+    [seventeen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
@@ -627,7 +616,7 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;
-    // The whole reference delegation occupies eighteen executor places.
+    // The whole reference delegation occupies seventeen executor places.
     assert_eq!(limits.tasks.executor_kinds, 18);
     assert_eq!(limits.authority.executors, 18);
     let current = settings::Current::new(config.defaults, limits, &[]);
@@ -637,7 +626,7 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     let mut rules = reference_rules(&current);
     for kinds in reference_delegations() {
         let count = u32::try_from(kinds.len()).expect("reference kind count");
-        assert_eq!(count, 18);
+        assert_eq!(count, 17);
         rules.ceiling.delegation.kinds = List::with_capacity(count);
         for kind in kinds {
             rules.ceiling.delegation.kinds.push(kind).expect("delegation count");
@@ -764,7 +753,7 @@ fn the_stock_settings_document_decodes_in_every_client() {
     use jig_domain_core::{reads, settings};
     let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{}}));
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 18);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 17);
     let source = reads::SettingDocument {
         setting: settings::Setting::Rules,
         revision: 1,
@@ -789,11 +778,19 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
             .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
         let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
-        assert_eq!(rules.ceiling.delegation.kinds.len(), 18, "{name}");
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 17, "{name}");
         for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
             let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
             let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
-            assert_eq!(rules.ceiling.delegation.kinds.len(), 18);
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 17);
         }
     }
+}
+
+#[test]
+fn the_reference_has_no_foreman() {
+    let source = include_bytes!("../../../../docs/examples/reference/settings.json");
+    assert!(bytes::find(source, b"foreman").is_none());
+    let items = settings_form::file::decode(source, &temper_client_tools::limits::form()).expect("reference settings");
+    assert!(!items.iter().any(|item| item.setting == Setting::Charter(SettingNumber { number: 6 })));
 }

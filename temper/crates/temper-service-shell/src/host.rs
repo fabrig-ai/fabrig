@@ -230,12 +230,8 @@ pub fn ending_with_binary(
                 )
             }
             Stop::Setting(key) => {
-                let setting = match key.kind {
-                    3 => format!("forge-charter {}", key.number),
-                    6 => format!("project-questions {}", key.scope),
-                    _ => format!("application kind {}, {}, {}", key.kind, key.scope, key.number),
-                };
-                format!("{binary} serve: restart refused: {setting}: retired stored setting\n")
+                let words = temper_engine_domain_forge::settings::retired_words(*key);
+                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&words))
             }
             Stop::Binding => format!("{binary} serve: deployment namespace binding refused\n"),
             Stop::StoreOpen { why } => {
@@ -1971,4 +1967,19 @@ pub fn ending(
     unsettled: &[temper_service::Unsettled],
 ) -> (String, u8) {
     ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+}
+
+#[test]
+fn retired_settings_name_the_ctl_setting_at_start() {
+    use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
+    let arguments = [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+    for (kind, scope, number, words) in [
+        (6, 2, 1, "project-questions 2"),
+        (3, 0, 3, "forge-charter 3"),
+    ] {
+        let end = End::Stopped(Stop::Setting(SettingKey { kind, scope, number, slot: SettingSlot::Change }));
+        assert_eq!(ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
+            (format!("temper serve: restart refused: {words}: retired stored setting\n"), 1));
+    }
 }

@@ -576,7 +576,6 @@ Project display and how goals start. Absent: drafts true, other switches false, 
 The route a project's change takes when its maker names none.
 
 - `"none"`: No question route; the stock's value.
-- `"foreman"`: A change's questions go to its foreman.
 - `"up"`: A change's questions go up to its parent.
 
 ## project-classes

@@ -781,3 +781,26 @@ fn a_project_member_reads_its_kinds_at_their_revisions() {
         }
     }
 }
+
+#[test]
+fn the_retired_forge_charter_number_is_refused_for_changes_and_proposals() {
+    for proposal in [false, true] {
+        for number in [3, 4] {
+            let mut driver = kinds::driver();
+            let before = kinds::revision(&driver.store.rows);
+            let items = Box::new([kinds::item(3, 0, number, &settings::Value::Charter(2))]);
+            let event = if proposal {
+                kinds::proposal(driver.session(), before, 90, items)
+            } else {
+                kinds::change(driver.session(), before, 90, items)
+            };
+            driver.send(event);
+            driver.settle();
+            assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+                Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Refused(_)), .. }
+            )), "unknown forge-charter {number}: {:?}", driver.delivered);
+            assert_eq!(kinds::revision(&driver.store.rows), before);
+            assert_eq!(kept(&driver, 3, 0, number, settings::SettingSlot::Change), None);
+        }
+    }
+}

@@ -903,3 +903,10 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         file::decode(&kind_file(selector, explicit), &Limits::standard()).unwrap_err();
     }
 }
+
+#[test]
+fn settings_files_refuse_the_retired_questions_route_by_name() {
+    let why = file::decode(&kind_file(br#"{"kind":"project-questions","project":2}"#, br#""foreman""#), &Limits::standard())
+        .expect_err("retired route");
+    assert_eq!(why.as_ref(), b"settings file item 1: project-questions: none or up required");
+}

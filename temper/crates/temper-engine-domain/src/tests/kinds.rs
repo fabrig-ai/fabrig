@@ -1446,3 +1446,37 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
         }
     }
 }
+
+#[test]
+fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
+    for (kind, scope, number, words) in [
+        (6, 2, 1, b"project-questions 2: retired stored setting".as_slice()),
+        (3, 0, 3, b"forge-charter 3: retired stored setting".as_slice()),
+    ] {
+        let (mut domain, env) = root();
+        domain.forge.restore_begin(env.wall);
+        let key = settings::SettingKey { kind, scope, number, slot: settings::SettingSlot::Replaced(2) };
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::restart::restore_page_row(&mut domain, &env, Record::Forge {
+            row: Box::new(forge::Stored::RefusedSetting(key)),
+        });
+        crate::route::route_into(&mut domain, &env, &mut decision);
+        let before = domain.forge.setting(3, 0, 1).cloned();
+        let current = domain.core.current.newest();
+        ask(&mut domain, &env, &mut decision, connector::Ask::RestoreSettings {
+            owner: RESTORE_OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([application::Restored {
+                kind, scope, number, edit: application::RestoredEdit::Set { revision: 2 },
+            }]),
+        });
+        let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) = domain.work.pop() else {
+            panic!("restore judgement")
+        };
+        assert_eq!(owner, RESTORE_OWNER);
+        assert_eq!(judged.as_ref(), &[connector::Judged::Refuse { why: words.into() }]);
+        assert_eq!(domain.forge.setting(3, 0, 1).cloned(), before);
+        assert_eq!(domain.core.current.newest(), current);
+        assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
+    }
+}

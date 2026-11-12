@@ -14,7 +14,7 @@ const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
 // The reference has 70 settings and 13 box obligations.
-const OBLIGATIONS: usize = 83;
+const OBLIGATIONS: usize = 77;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -174,7 +174,6 @@ fn the_profile_as_proposed_passes() {
             ("coordinator", Some(5), BoundBy::Anchor),
             ("designer", Some(7), BoundBy::Assignment),
             ("coding", Some(2), BoundBy::Anchor),
-            ("foreman", Some(6), BoundBy::Anchor),
             ("triage", Some(8), BoundBy::Assignment),
             ("goal-template", Some(4), BoundBy::Anchor),
             ("small-goal-template", Some(2), BoundBy::Anchor),
@@ -494,7 +493,7 @@ fn a_projects_questions_are_free_and_a_project_with_no_ways_is_missing() {
         items.retain(|item| item.setting.kind != "project-ways");
         let setting = golden::decode_settings(
             &serde_json::to_vec(
-                &json!({"items":[{"setting":{"kind":"project-questions","project":PROJECT},"set":"foreman"}]}),
+                &json!({"items":[{"setting":{"kind":"project-questions","project":PROJECT},"set":"up"}]}),
             )
             .expect("JSON"),
         )

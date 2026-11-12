@@ -1889,3 +1889,14 @@ fn assert_role_page(root: &d::Domain, address: &Address, value: Option<&w::View>
         }
     }
 }
+
+#[test]
+fn the_questions_select_has_only_two_routes() {
+    let root = how(Some(SHOWN));
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let row = setting_row(view.tree(), b"Questions a goal can answer from its plan");
+        let options: Vec<_> = row.iter().filter(|node| node.role == Role::Option).map(|node| node.name.as_deref()).collect();
+        assert_eq!(options, [Some(b"Asked of me too".as_slice()), Some(b"Not asked: each agent decides alone".as_slice())]);
+    }
+}

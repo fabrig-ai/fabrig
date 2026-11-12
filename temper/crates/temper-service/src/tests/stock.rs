@@ -1650,8 +1650,7 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
         (1, b"talks with you and asks for the changes".as_slice()),
         (2, b"makes each change, repairs it and resolves its conflicts".as_slice()),
         (4, b"reviews each change at its head, and holds it until it approves".as_slice()),
-        (5, b"cuts a goal's draft into changes and lands the goal whole".as_slice()),
-        (6, b"answers a coding agent's question from the goal's design, or passes it up".as_slice()),
+        (5, b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice()),
         (9, b"writes the few lines at the top of Home, from what landed and what waits".as_slice()),
         (10, b"answers one word, so that a new model is known to run".as_slice()),
         (11, b"explains how work runs here, and proposes changes to it".as_slice()),
@@ -1699,7 +1698,6 @@ fn every_stock_role_keeps_its_whole_line_in_who() {
         (5, b"For each goal"),
         (2, b"For each change"),
         (4, b"For each change"),
-        (6, b"When a coding agent asks"),
         (9, b"When you look at Home after landings"),
     ] {
         let item = stock.iter().find(|item| item.kind == 9 && item.number == number).expect("role's stock words");
@@ -2166,4 +2164,20 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
         crate::startup::lines(&warnings).as_ref(),
         b"engine.charters[0].alternatives[6]: needs 8192 output tokens; the agent offers 8191 tokens\n"
     );
+}
+
+#[test]
+fn the_stock_has_no_foreman() {
+    use temper_engine_domain_forge::settings::Value;
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let defaults = crate::stock::defaults(&engine.jig.llm, engine.jig.limits.core.tasks.result_bytes);
+    assert!(!defaults.charters.iter().any(|charter| charter.number == 6));
+    assert!(!defaults.rules.ceiling.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
+    let stock = crate::stock::forge(&limits);
+    assert_eq!(stock.iter().filter(|item| item.kind == 3).map(|item| item.number).collect::<Box<[_]>>().as_ref(), [1, 2]);
+    assert!(!stock.iter().any(|item| item.kind == 9 && item.number == 6));
+    let goal = stock.iter().find(|item| item.kind == 9 && item.number == 5).expect("goal's words");
+    assert_eq!(goal.value.value, Value::CharterWords(b"designs a goal's draft, cuts it into changes, and answers what they ask".as_slice().into()));
+    assert!(!include_str!("../stock/ask.txt").contains("answer change questions"));
 }

@@ -54,7 +54,6 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (3, d::Value::Charter(u32::MAX)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
-        (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
         (9, d::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
         (
@@ -292,6 +291,46 @@ fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
             assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
             let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
             assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        }
+    }
+}
+
+#[test]
+fn retired_setting_tags_refuse_with_the_setting_identity() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Retired.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[1], "the retired route retains the old tag");
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Up.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[2], "up is never read as the retired route");
+    for (kind, scope, number, value) in [
+        (6, 2, 1, w::SettingValue::Questions(w::ProjectQuestions::new(
+            &w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired },
+        ).unwrap())),
+        (3, 0, 3, w::SettingValue::Charter(w::CharterValue::new(
+            &w::CEILINGS, w::CharterValueParts { number: 6 },
+        ).unwrap())),
+    ] {
+        for slot in [d::SettingSlot::Change, d::SettingSlot::Replaced(2)] {
+            let key = d::SettingKey { kind, scope, number, slot };
+            let stored_slot = match slot {
+                d::SettingSlot::Change => w::SettingSlot::Change,
+                d::SettingSlot::Replaced(number) => w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap()),
+                d::SettingSlot::Default | d::SettingSlot::Proposal(_) => unreachable!("the test exercises current and replaced rows"),
+            };
+            let row = w::SettingRow::new(&w::CEILINGS, w::SettingRowParts {
+                kind, scope, number, slot: stored_slot,
+                edit: w::SettingEdit::Set(w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value: value.clone(), size: 1 }).unwrap()),
+            }).unwrap();
+            let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
+            let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+            row.encode(&mut bytes).unwrap();
+            let bytes = bytes.finish();
+            assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable::Setting(key)));
+            let encoded_key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+            assert_eq!(records::row(&encoded_key, &bytes, &bounds), Err(Undecodable::Setting(key)));
+            assert_eq!(records::row(b"wrong key", &bytes, &bounds), Err(Undecodable::Malformed));
         }
     }
 }

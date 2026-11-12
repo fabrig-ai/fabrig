@@ -210,12 +210,12 @@ fn a_projects_questions_set_on_the_tab_reach_its_next_change() {
         .iter()
         .find(|node| {
             node.role == Role::Option
-                && node.name.as_deref() == Some(b"Answered by the goal, kept in its decisions".as_slice())
+                && node.name.as_deref() == Some(b"Asked of me too".as_slice())
         })
-        .expect("foreman option")
+        .expect("up option")
         .id;
     world.act(person, option, skein_ui::Act::Press);
-    run(&mut world, person, vec![see(Find::named(Role::Option, b"Answered by the goal, kept in its decisions"))]);
+    run(&mut world, person, vec![see(Find::named(Role::Option, b"Asked of me too"))]);
     assert_eq!(
         world.root(person).person().forge().questions(PROJECT),
         Some(temper_client_domain::forge::ways::Route::Up)

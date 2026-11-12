@@ -2257,3 +2257,30 @@ fn pull_size_is_omitted_without_changing_the_stored_pull() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(&encoded, &bounds), Ok(expected));
 }
+
+#[test]
+fn a_change_holding_a_retired_route_or_state_never_decodes() {
+    use temper_engine_domain_forge_change::State;
+    use crate::v11 as w;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Producing { requested: true })));
+    let encoded = records::encode(&row);
+    for route in [true, false] {
+        let row = w::Row::decode(bounds.limits(), &mut skein_lib::Reader::new(&encoded)).unwrap();
+        let w::Value::Change(change) = row.into_parts().value else { panic!("stored change") };
+        let mut parts = change.into_parts();
+        let mut open = skein_lib::List::with_capacity(1);
+        if !route {
+            open.push(w::Open::new(&w::CEILINGS, w::OpenParts {
+                asker: 7, number: 1, line: Box::new([]), words: Box::new([]), stands: w::Stands::Retired,
+            }).unwrap()).unwrap();
+        }
+        parts.questions = w::Questions::new(&w::CEILINGS, w::QuestionsParts {
+            route: if route { w::Route::Retired } else { w::Route::Up }, taken: 1, open,
+        }).unwrap();
+        let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Change(Box::new(w::ChangeRow::new(&w::CEILINGS, parts).unwrap())) }).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+        row.encode(&mut bytes).unwrap();
+        assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));
+    }
+}

@@ -54,7 +54,6 @@ fn values() -> [(u32, settings::Value); 14] {
         (3, settings::Value::Charter(23)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
-        (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (
             8,
             settings::Value::Classes(temper_protocol_reaches::Classes::stock(

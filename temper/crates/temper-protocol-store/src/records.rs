@@ -191,7 +191,14 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
 /// Restore a decoded record only when its durable key agrees with the row.
 pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = decode(value, bounds)?;
+    let row = match decode(value, bounds) {
+        Ok(row) => row,
+        Err(Undecodable::Setting(setting)) => {
+            let encoded = crate::keys::encode(&d::Key::Setting(setting), u32::MAX).ok_or(Undecodable::Malformed)?;
+            return if encoded.as_ref() == key { Err(Undecodable::Setting(setting)) } else { Err(Undecodable::Malformed) };
+        }
+        Err(Undecodable::Malformed) => return Err(Undecodable::Malformed),
+    };
     let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable::Malformed)?;
     if encoded.as_ref() != key {
         return Err(Undecodable::Malformed);

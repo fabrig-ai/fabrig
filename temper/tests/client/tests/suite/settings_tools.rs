@@ -705,7 +705,7 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
     })
 }
 
-const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"up"}]}"#;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks ways, questions and words through the joined ctl path")]
@@ -729,7 +729,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
     for (kind, value) in [
         (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"way":0}"#),
-        (b"project-questions", "\"foreman\""),
+        (b"project-questions", "\"up\""),
     ] {
         for selector in [b"1".as_slice(), project.as_ref()] {
             let shown = call(&mut world, agent, &[b"settings", b"show", kind, selector]);
@@ -744,7 +744,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let revision = call(&mut world, agent, &[b"revision", b"show", b"2"]);
     assert!(revision.contains("project-ways 1") && revision.contains("project-questions 1"), "{revision}");
     assert!(!revision.contains("application kind"), "{revision}");
-    let changed = PROJECT_WAYS_FILE.replace("foreman", "up").replace("\"changes\":false", "\"changes\":true");
+    let changed = PROJECT_WAYS_FILE.replace("up", "none").replace("\"changes\":false", "\"changes\":true");
     let number = fixtures::give_with_file(
         &mut world,
         agent,
@@ -757,7 +757,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     assert!(shown.contains("\"up\""), "{shown}");
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
-    assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+    assert!(historical.contains("\"value\":\"up\""), "{historical}");
     for (kind, selector, value, owners, name, initial) in [
         (
             b"charter-words".as_slice(),
