@@ -4,5 +4,5 @@
 
 - **Not yet:**
   - 2: no deployment builds for landed QA yet; its person sets it up once `temper-qa build keep` lands.
-  - 3, 4: `temper-qa build keep` and its manifest.
-  - 5: the loop's deletion of builds.
+  - 3, 4: `temper-qa build keep` and its manifest. [in flight: change 1025]
+  - 5: the loop's deletion of builds. [in flight: change 1028]
