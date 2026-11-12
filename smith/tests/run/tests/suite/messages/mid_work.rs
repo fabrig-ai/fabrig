@@ -32,8 +32,11 @@ fn working(settings: &Settings) -> World {
     )
 }
 
-fn scripted(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>) -> World {
-    let mut fixture = Fixture::new();
+fn scripted(settings: &Settings, turns: Box<[Turn]>, children: Vec<Script>) -> World {
+    scripted_in(settings, turns, children, Fixture::new())
+}
+
+fn scripted_in(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>, mut fixture: Fixture) -> World {
     fixture.checkout.program(b"cargo build", program(200, b"Finished\n", Exit::Code(0), &[]));
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -249,13 +252,22 @@ fn drain_waits_for_the_sub_agents_whole_conversation() {
 
 #[test]
 fn drain_preserves_an_accepted_finish_and_its_checks() {
-    let mut world = scripted(&settings(), Box::new([
-        call(b"finish", br#"{"report":"Work settled.","source":"workspace"}"#),
-    ]), Vec::new());
-    world.drain_at(Time::from_nanos(50_000_000));
-    world.run(10_000);
-    assert_eq!(world.prompts().len(), 1);
-    assert!(matches!(world.answer(), run::Answer::Accepted { turns: 1, .. }));
+    for at in [50, 150] {
+        let mut settings = settings();
+        settings.job = Job::Coding;
+        settings.check = Span::millis(200, 200);
+        let mut fixture = Fixture::new();
+        fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
+        fixture.checkout.write(b"work/temper/.temper/pre-pr", b"#!checks\n");
+        let mut world = scripted_in(&settings, Box::new([
+            call(b"finish", br#"{"title":"Whole checked turn","body":"Work settled."}"#),
+        ]), Vec::new(), fixture);
+        world.drain_at(Time::from_nanos(at * 1_000_000));
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), 1);
+        assert_eq!(world.checked(), [true]);
+        assert!(matches!(world.answer(), run::Answer::Accepted { turns: 1, .. }));
+    }
 }
 
 #[test]
