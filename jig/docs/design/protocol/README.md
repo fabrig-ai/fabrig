@@ -282,9 +282,9 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
     not served*, naming the owner and the ranges served, never a bare
     failure of the transport (`client/README.md`, section 6).
   - *One jig pin:* an application takes `jig-client` and the engine's
-    components from one revision of jig. Before the first release,
-    changes to jig's operations change its wire schema in place, keeping
-    its version, and every served range is one version.
+    components from one revision of jig. Every served range is one
+    version, and a change to jig's operations moves its wire's version
+    with its layout (`client/README.md`, section 6).
   - *How jig itself is released and pinned* is open (`../README.md`,
     section 14).
 - **Configuration** has no version: unknown fields refuse the start
