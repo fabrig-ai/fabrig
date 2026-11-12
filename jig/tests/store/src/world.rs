@@ -35,6 +35,8 @@ impl Restored {
 pub struct World {
     observer: Option<fn(Step)>,
     sets: PatchSets,
+    scratch: Option<Root>,
+    scratch_disk: Option<u32>,
     patched: Vec<(Owner, u32, Counts)>,
     refusal: Option<OpenRefusal>,
     kernel_cuts: bool,
@@ -199,6 +201,8 @@ impl World {
         World {
             observer,
             sets: PatchSets::NONE,
+            scratch: None,
+            scratch_disk: None,
             patched: Vec::new(),
             refusal: None,
             kernel_cuts: false,
@@ -339,6 +343,7 @@ impl World {
         let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.root = Root { token: Token::new(1), fd };
         self.starts += 1;
+        self.scratch = None;
         (self.io, self.file_limits) = drivers(fd, &self.env.limits);
         let [store, secrets, transcripts] = &mut self.io;
         let seeded = jig_protocol_store::seed(
@@ -582,7 +587,11 @@ impl World {
                         self.refusal = Some(why);
                         return None;
                     }
-                    other @ (Event::Switched { .. }
+                    other @ (Event::Rehearsing { .. }
+                    | Event::Back { .. }
+                    | Event::BackRefused { .. }
+                    | Event::Closed { .. }
+                    | Event::Switched { .. }
                     | Event::Committed { .. }
                     | Event::Failed { .. }
                     | Event::FrameTooLarge { .. }
@@ -619,12 +628,113 @@ impl World {
         panic!("open did not settle");
     }
 
+    /// A caller-owned root beside the deployment, adopted on all three lanes.
+    pub fn scratch_root(&mut self) -> Root {
+        if let Some(root) = self.scratch {
+            return root;
+        }
+        let handle = if let Some(index) = self.scratch_disk {
+            self.machine.reopen_root(index)
+        } else {
+            self.scratch_disk = Some(1);
+            self.machine.lay(&[])
+        };
+        let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        let mut token = None;
+        for io in &mut self.io {
+            let found = io.adopt_root(fd).expect("scratch adoption fits");
+            if let Some(token) = token {
+                assert_eq!(found, token);
+            }
+            token = Some(found);
+        }
+        let root = Root { token: token.expect("three drivers"), fd };
+        self.scratch = Some(root);
+        root
+    }
+
+    pub fn rehearsal_request(&mut self) -> Request {
+        Request::Rehearse { owner: OWNER, directory: self.root, scratch: self.scratch_root(), installation: self.drawn }
+    }
+
+    /// Answer the fixture's written sites, retaining the rehearsal's ordered events.
+    pub fn rehearse(&mut self) -> Vec<Event> {
+        let request = self.rehearsal_request();
+        let mut events = self.request(request);
+        let mut contexts = Contexts::default();
+        let mut result = Vec::new();
+        for _ in 0..10_000 {
+            let mut answer = None;
+            let mut terminal = false;
+            for event in events {
+                if let Event::Site { owner, of, key, site, at, patcher } = event {
+                    answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
+                } else {
+                    if let Event::Opened { last, pending, .. } = &event {
+                        self.next = last + 1;
+                        self.pending = *pending;
+                        terminal = true;
+                    }
+                    if matches!(event, Event::OpenRefused { .. } | Event::Corrupt { .. }) {
+                        terminal = true;
+                    }
+                    result.push(event);
+                }
+            }
+            if terminal || self.halted || self.reached_cut() {
+                return result;
+            }
+            events = if let Some(request) = answer { self.request(request) } else { self.settle() };
+        }
+        panic!("rehearsal did not settle");
+    }
+
+    pub fn back(&mut self) -> Vec<Event> {
+        self.request(Request::Back { owner: OWNER, root: self.root })
+    }
+
+    /// A second process asks Back while this world's first process keeps its lock.
+    pub fn competing_back(&mut self) -> Vec<Event> {
+        let handle = self.machine.reopen_root(0);
+        let pid = self.sim.spawn_process();
+        let fd = self.sim.root(pid, Handle::new(handle.raw()));
+        let (mut io, limits) = drivers(fd, &self.env.limits);
+        let [public, private, transcripts] = &mut io;
+        let seeded = jig_protocol_store::seed([public, private, transcripts], 5);
+        let component = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
+        let old_store = std::mem::replace(&mut self.store, component);
+        let old_io = std::mem::replace(&mut self.io, io);
+        let old_limits = std::mem::replace(&mut self.file_limits, limits);
+        let old_root = std::mem::replace(&mut self.root, Root { token: Token::new(1), fd });
+        let old_pid = std::mem::replace(&mut self.pid, pid);
+        let answer = self.back();
+        self.store = old_store;
+        self.io = old_io;
+        self.file_limits = old_limits;
+        self.root = old_root;
+        self.pid = old_pid;
+        answer
+    }
+
+    #[must_use]
+    pub fn scratch_contents(&mut self) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
+        let Some(index) = self.scratch_disk else {
+            return BTreeMap::new();
+        };
+        self.contents_at(index)
+    }
+
     /// All paths, with file bytes, for byte-for-byte refusal checks.
     #[must_use]
     pub fn contents(&mut self) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
+        self.contents_at(0)
+    }
+    fn contents_at(&mut self, number: u32) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
         use skein_fake_machine::{How, Is};
-        let paths = self.paths();
-        let root = self.machine.reopen_root(0);
+        let root = self.machine.reopen_root(number);
+        let mut paths = Vec::new();
+        tree(&mut self.machine, root, b"", &mut paths);
+        paths.sort();
         let mut result = BTreeMap::new();
         for path in paths {
             let file = self.machine.open(root, &path, How::ReadNoFollow).expect("listed path");
