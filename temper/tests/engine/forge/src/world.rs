@@ -369,7 +369,8 @@ impl World {
     pub fn comparison_fits(&self, base: u64, head: u64) -> bool {
         let read = skein_forge::api::Read::Compare { before: translate::commit(base), after: translate::commit(head) };
         let answer = self.inspect(&raw::Read::Compare { base, head, page: 1, limit: 40 });
-        let answer = translate::answer_as(&skein_forge::api::Op::Read(read), answer, &self.env.limits.client, 1, false);
+        let answer = translate::answer_as(&skein_forge::api::Op::Read(read), answer, &self.env.limits.client, 1, false)
+            .expect("comparison projection");
         skein_forge_client::measure::answer_rows(&answer, self.env.limits.client.rows)
             && skein_forge::measure::answer(&answer).expect("bounded comparison")
                 <= u64::from(self.env.limits.client.answer_bytes)
@@ -912,6 +913,18 @@ impl World {
         panic!("post did not settle at the forge");
     }
 
+    /// Stop before the fake processes the named read, after the connector submits it.
+    pub fn run_until_read(&mut self, read: &skein_forge::api::Read) {
+        let end = self.env.now.saturating_add(Duration::from_secs(5));
+        for _ in 0..20_000 {
+            if self.call_ops.contains(&skein_forge::api::Op::Read(read.clone())) {
+                return;
+            }
+            assert!(self.iterate(end), "read must be submitted before the horizon");
+        }
+        panic!("read was not submitted");
+    }
+
     pub fn observations(&mut self) -> Vec<forge::Observation> {
         let mut records = Vec::new();
         while let Some(record) = self.forge.pop_observation() {
@@ -1069,7 +1082,7 @@ impl World {
         let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number, ci: false });
         let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
         let skein_forge::api::Answer::Pull(snapshot) =
-            translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)
+            translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures).expect("pull projection")
         else {
             panic!("fixture pull read")
         };
@@ -1413,7 +1426,7 @@ impl World {
                         Ok(answer) => {
                             let mut answer =
                                 translate::answer_as(&pending.op, answer, &self.env.limits.client, 1, self.signatures);
-                            if let skein_forge::api::Answer::Run(run) = &mut answer {
+                            if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .forge
                                     .inspect(
@@ -1432,12 +1445,12 @@ impl World {
                                 skein_forge::api::Op::Read(
                                     skein_forge::api::Read::PullFor { .. } | skein_forge::api::Read::Pull { .. }
                                 )
-                            ) && let skein_forge::api::Answer::Pull(pull) = &mut answer
+                            ) && let Ok(skein_forge::api::Answer::Pull(pull)) = &mut answer
                                 && let Some(snapshot) = self.pull_snapshot.take()
                             {
                                 *pull = snapshot;
                             }
-                            Ok(answer)
+                            answer
                         }
                         Err(raw::Error::TooLarge)
                             if matches!(
