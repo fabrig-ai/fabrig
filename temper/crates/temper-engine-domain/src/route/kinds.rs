@@ -6,10 +6,10 @@ use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::{Decimal, Env, List, Queue};
 use temper_engine_domain_forge::settings;
 
-use crate::{Domain, Limits, Work};
+use crate::{Decision, Domain, Limits, Work};
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
-pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask) {
+pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {
     if number != domain.config.forge_connector {
         return;
     }
@@ -29,7 +29,9 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
         }
         connector::Ask::KeepSettings { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
+            let holders = super::findings::settings_holders(domain, &asked);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            super::findings::settings_saved(domain, env, decision, holders.as_slice());
             for item in &asked {
                 if item.kind == 12 || item.kind == 13 {
                     temper_engine_domain_forge::findings::mark_findings(item.scope, &mut out);
@@ -406,7 +408,7 @@ fn save_defaults(domain: &mut Domain, revision: Option<u64>, out: &mut Queue<tem
 pub(super) fn read(
     domain: &mut Domain,
     env: &Env<Limits>,
-    decision: &mut crate::Decision,
+    decision: &mut Decision,
     reply: skein_lib::ReplyTo,
     sign_in: u64,
     scope: jig_domain_people::ApplicationScope,
@@ -514,7 +516,7 @@ fn read_refusal(
 fn revision_begin(
     domain: &mut Domain,
     env: &Env<Limits>,
-    decision: &mut crate::Decision,
+    decision: &mut Decision,
     reply: skein_lib::ReplyTo,
     sign_in: u64,
     scope: jig_domain_people::ApplicationScope,
@@ -559,7 +561,7 @@ fn revision_begin(
 pub(super) fn revision_answer(
     domain: &mut Domain,
     env: &Env<Limits>,
-    decision: &mut crate::Decision,
+    decision: &mut Decision,
     reply: skein_lib::ReplyTo,
     answer: jig_domain_core::reads::Answer,
 ) {
