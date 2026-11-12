@@ -25,6 +25,7 @@ pub const SEVEN: git::Commit =
 pub fn checkout() -> checkout::Limits {
     checkout::Limits {
         workspaces: 2,
+        preparations: 2,
         repositories: 2,
         name_bytes: 64,
         message_bytes: 256,

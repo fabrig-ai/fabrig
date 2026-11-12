@@ -1083,7 +1083,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
 
 fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Box<[u8]>, Box<[u8]>) {
     use temper_engine_domain_forge::{Key, settings::SettingSlot};
-    use temper_protocol_store::v13 as w;
+    use temper_protocol_store::v14 as w;
     let slot = match key.slot {
         SettingSlot::Default => w::SettingSlot::Default,
         SettingSlot::Change => w::SettingSlot::Change,

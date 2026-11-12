@@ -455,7 +455,7 @@ impl World {
         branches: u32,
         turn: bool,
         tier: Option<raw::Workflow>,
-        mut config: forge::Config,
+        config: forge::Config,
         passes: Option<u32>,
     ) -> World {
         let tiered = tier.is_some();
@@ -465,23 +465,7 @@ impl World {
             client: skein_forge_client::Limits { facts, ..CLIENT },
             ..LIMITS
         };
-        config.limits.branches = branches;
-        if tiered {
-            config.limits.statuses = 16;
-            config.limits.content_bytes = 512;
-            config.limits.commits = 32;
-        }
-        config.limits.workflows = u32::from(turn || tiered);
-        config.limits.workflow_runs = if tiered {
-            16
-        } else if turn {
-            4
-        } else {
-            0
-        };
-        config.limits.bypassing_users = protection
-            .as_ref()
-            .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+        let config = scenario_config(config, branches, turn, tiered, protection.as_ref());
         let mut fake = forge::Domain::new(&config, seed);
         forge::repository(
             &mut fake,
@@ -1611,6 +1595,32 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
+}
+
+fn scenario_config(
+    mut config: forge::Config,
+    branches: u32,
+    turn: bool,
+    tiered: bool,
+    protection: Option<&raw::Protection>,
+) -> forge::Config {
+    config.limits.branches = branches;
+    if tiered {
+        config.limits.statuses = 16;
+        config.limits.content_bytes = 512;
+        config.limits.commits = 32;
+    }
+    config.limits.workflows = u32::from(turn || tiered);
+    config.limits.workflow_runs = if tiered {
+        16
+    } else if turn {
+        4
+    } else {
+        0
+    };
+    config.limits.bypassing_users =
+        protection.map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
+    config
 }
 
 fn repository_config(repositories: u32) -> forge::Config {
