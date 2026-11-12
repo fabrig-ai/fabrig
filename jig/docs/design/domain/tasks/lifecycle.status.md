@@ -4,6 +4,7 @@
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2) [in flight: change 103].
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1) [in flight: change 106].
+- **Not yet:** 11, *Its funds follow its task's runs*: the closer's budget grows as written, but nothing makes an idle closer due as it does (`jig-domain-tasks/src/closer.rs`, `take_available`) [in flight: change 921].
 
 - **Not yet:** 10: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
