@@ -29,8 +29,8 @@ fn serve(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<R
         let (socket, _) = listener.accept().expect("fetch fixture");
         let mut deadline = Deadline::arm("the fetch command peer's request", skein_lib::Duration::from_secs(4));
         deadline.watch_process(std::process::id());
-        let mut tls = rustls::StreamOwned::new(
-            rustls::ServerConnection::new(pki::Server::plain().config()).expect("fetch fixture"),
+        let mut tls = rustls_std::StreamOwned::new(
+            rustls_std::ServerConnection::new(pki::Server::plain().config()).expect("fetch fixture"),
             socket,
         );
         let mut head = Vec::new();

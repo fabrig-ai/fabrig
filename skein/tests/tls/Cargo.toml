@@ -15,8 +15,6 @@ skein-tls.workspace = true
 # Native ciphertext-output composition uses IO on the simulator.
 skein-io.workspace = true
 skein-sim.workspace = true
-# The server: rustls's buffered connection, over std's readers and writers.
-rustls-std = { workspace = true }
 
 [dev-dependencies]
 # The counting allocator, shared by the memory worlds.
@@ -31,6 +29,10 @@ skein-llm-kit.workspace = true
 skein-http.workspace = true
 skein-shell.workspace = true
 skein-scratch.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+# The server: rustls's buffered connection, over std's readers and writers.
+rustls-std = { workspace = true }
 
 # tests/clippy.toml bans what would make a run unrepeatable; what rustls draws
 # from the kernel makes it so anyway (net/tls.md, 5).

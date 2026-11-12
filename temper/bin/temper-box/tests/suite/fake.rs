@@ -868,24 +868,24 @@ fn llm_run() {
                     fs::metadata(dir.join("root.der")).expect("valid fixture").permissions().mode() & 0o777,
                     0o600
                 );
-                let mut roots = rustls::RootCertStore::empty();
+                let mut roots = rustls_std::RootCertStore::empty();
                 roots
-                    .add(rustls::pki_types::CertificateDer::from(
+                    .add(rustls_std::pki_types::CertificateDer::from(
                         fs::read(dir.join("root.der")).expect("valid fixture"),
                     ))
                     .expect("valid fixture");
                 let config =
-                    rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+                    rustls_std::ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
                         .with_safe_default_protocol_versions()
                         .expect("valid fixture")
                         .with_root_certificates(roots)
                         .with_no_client_auth();
-                let connection = rustls::ClientConnection::new(
+                let connection = rustls_std::ClientConnection::new(
                     Arc::new(config),
-                    rustls::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
+                    rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
                 )
                 .expect("valid fixture");
-                let mut stream = rustls::StreamOwned::new(connection, stream(&run, run.address));
+                let mut stream = rustls_std::StreamOwned::new(connection, stream(&run, run.address));
                 stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
                 let mut response = Vec::new();
                 stream.sock.reset("the fake TLS socket's reply");
