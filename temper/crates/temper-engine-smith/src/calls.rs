@@ -289,7 +289,11 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools, delegate: bool, ful
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
         if (!full && (spec.name == b"see" || spec.name == b"document" || spec.name == b"remember"))
             || (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
-            || (!delegate && (spec.name == b"goal" || spec.name == b"change" || spec.name == b"delegate" || spec.name == b"finding"))
+            || (!delegate
+                && (spec.name == b"goal"
+                    || spec.name == b"change"
+                    || spec.name == b"delegate"
+                    || spec.name == b"finding"))
             || (!message && spec.name == b"message")
             || (!read && spec.name == b"read_task")
         {

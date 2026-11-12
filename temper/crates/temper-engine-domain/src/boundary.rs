@@ -275,11 +275,29 @@ pub enum Tool {
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FindingCall {
-    File { kind: forge::FindingKind, severity: forge::Severity, area: Option<Box<[u8]>>, title: Box<[u8]>, body: Box<[u8]> },
-    Hand { number: u32, area: Box<[u8]>, why: Box<[u8]> },
-    Triage { number: u32, act: forge::Triage },
-    List { state: Option<forge::FindingState>, mine: bool },
-    Show { number: u32 },
+    File {
+        kind: forge::FindingKind,
+        severity: forge::Severity,
+        area: Option<Box<[u8]>>,
+        title: Box<[u8]>,
+        body: Box<[u8]>,
+    },
+    Hand {
+        number: u32,
+        area: Box<[u8]>,
+        why: Box<[u8]>,
+    },
+    Triage {
+        number: u32,
+        act: forge::Triage,
+    },
+    List {
+        state: Option<forge::FindingState>,
+        mine: bool,
+    },
+    Show {
+        number: u32,
+    },
 }
 
 /// A snapshot for text rendering; writes retain this result under their call name.

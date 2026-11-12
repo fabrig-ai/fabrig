@@ -13,7 +13,7 @@ fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
     use temper_engine_domain_forge::{self as forge, settings::AreaOwner};
     let mut bounds = fixture::limits();
     bounds.call_records = 16;
-    let (mut driver, run) = fixture::driver_with_limits(bounds);
+    let (mut driver, run) = fixture::driver_with_limits(&bounds);
     assert_eq!(driver.root.tasks().task(run.task).unwrap().label, 3);
     fixture::settings(&mut driver, Some(fixture::area(AreaOwner::Party(1))), Some(AreaOwner::Task(run.task)));
     let file = br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"reproduce"}"#;
@@ -23,14 +23,24 @@ fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
     assert_eq!(fixture::row(&driver, 1).filer, forge::Filer::Task(run.task));
     let writes = driver.transactions[before..].iter().find(|writes| writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Finding(_))))).expect("finding decision");
     assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Finding(_), .. }))), "answer shares the finding's decision");
-    assert!(writes.iter().any(|write| matches!(write, engine::Write::Save(engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(_)))))), "core named call shares the decision");
+    assert!(
+        writes.iter().any(|write| matches!(
+            write,
+            engine::Write::Save(engine::Record::Core(jig_domain_core::Record::Core(
+                jig_domain_core::CoreRecord::Call(_)
+            )))
+        )),
+        "core named call shares the decision"
+    );
     driver.protocol.defer_render = false;
     driver.protocol.pending_renders.clear();
     fixture::restart(&mut driver, &run);
     let replay = decoded_task_call(&mut driver, &run, 31, b"finding", file);
     assert_eq!(replay, first, "unsettled answer survives restart under its name");
     let second = decoded_task_call(&mut driver, &run, 32, b"finding", file);
-    assert!(matches!(second, engine::CallAnswer::Finding(ref answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge::FindingReply { number: 2, .. }))));
+    assert!(
+        matches!(second, engine::CallAnswer::Finding(ref answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge::FindingReply { number: 2, .. })))
+    );
     let applied = driver.store.applied;
     let listed = decoded_task_call(&mut driver, &run, 33, b"finding", br#"{"act":"list","mine":true}"#);
     assert_eq!(driver.store.applied, applied, "list is a read");
@@ -38,10 +48,17 @@ fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
     let engine::FindingToolAnswer::List(list) = *list else { panic!("list snapshot") };
     assert_eq!(list.rows.iter().map(|row| row.number).collect::<Vec<_>>(), [2, 1]);
     assert_eq!(list.rows[0].holder, forge::Holder::Task(run.task));
-    decoded_task_call(&mut driver, &run, 34, b"finding", br#"{"act":"hand","number":1,"area":"tests","why":"test scope"}"#);
+    decoded_task_call(
+        &mut driver,
+        &run,
+        34,
+        b"finding",
+        br#"{"act":"hand","number":1,"area":"tests","why":"test scope"}"#,
+    );
     assert_eq!(fixture::row(&driver, 1).area.as_deref(), Some(b"tests".as_slice()));
     assert_eq!(fixture::row(&driver, 1).hander, Some(forge::Filer::Task(run.task)));
-    let denied = decoded_task_call(&mut driver, &run, 35, b"finding", br#"{"act":"drop","number":1,"reason":"not mine"}"#);
+    let denied =
+        decoded_task_call(&mut driver, &run, 35, b"finding", br#"{"act":"drop","number":1,"reason":"not mine"}"#);
     assert!(temper_engine_smith::answer(&denied).error(), "a task cannot triage the party's finding");
     decoded_task_call(&mut driver, &run, 36, b"finding", br#"{"act":"backlog","number":2}"#);
     assert_eq!(fixture::row(&driver, 2).state, forge::FindingState::Backlog);
@@ -54,6 +71,25 @@ fn a_standing_run_files_reads_hands_on_and_triages_named_findings_once() {
     let settled = driver.store.rows.clone();
     assert_eq!(decoded_task_call(&mut driver, &run, 31, b"finding", file), first);
     assert_eq!(driver.store.rows, settled, "settled replay files no second finding");
+    decoded_task_call(&mut driver, &run, 39, b"finding", file);
+    let ask = temper_engine_domain_world::walking::goal_from(
+        driver.chat_ask(1, b"fix finding"),
+        jig_domain_people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 1, deadline: None, priority: 1 },
+    );
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::default(),
+        reply_to: skein_lib::ReplyTo::new(Token::new(800)),
+        sign_in: driver.session(),
+        key: [80; 16],
+        ask,
+    }));
+    driver.settle();
+    let goal = driver.root.tasks().view_tasks().iter().find(|task| task.number != run.task).expect("live goal").number;
+    let input = format!(r#"{{"act":"route","number":3,"goal":{goal}}}"#);
+    decoded_task_call(&mut driver, &run, 40, b"finding", input.as_bytes());
+    assert_eq!(fixture::row(&driver, 3).goal, Some(goal));
+    assert_eq!(fixture::row(&driver, 3).state, forge::FindingState::Routed);
 }
 
 #[test]
@@ -181,7 +217,10 @@ fn decoded_task_call(
     } else {
         driver.settle();
     }
-    driver.answered(call).unwrap_or_else(|| panic!("task call {call} not answered: {:?}", driver.delivered.last())).clone()
+    driver
+        .answered(call)
+        .unwrap_or_else(|| panic!("task call {call} not answered: {:?}", driver.delivered.last()))
+        .clone()
 }
 
 fn coordinator() -> (Driver, engine::Assignment) {

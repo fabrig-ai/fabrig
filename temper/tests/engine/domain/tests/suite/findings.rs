@@ -32,11 +32,11 @@ pub(super) fn configuration() -> engine::Config {
     config
 }
 pub(crate) fn driver() -> (Driver, engine::Assignment) {
-    driver_with_limits(limits())
+    driver_with_limits(&limits())
 }
-pub(crate) fn driver_with_limits(limits: engine::Limits) -> (Driver, engine::Assignment) {
+pub(crate) fn driver_with_limits(limits: &engine::Limits) -> (Driver, engine::Assignment) {
     let mut driver =
-        Driver::cold(temper_engine_domain_world::store::Store::with_limits(&limits), configuration(), &limits);
+        Driver::cold(temper_engine_domain_world::store::Store::with_limits(limits), configuration(), limits);
     driver.settle();
     driver.store.seed(
         temper_engine_domain_world::fixtures::account_rows(&configuration().core.settings.llm_providers),

@@ -2182,13 +2182,30 @@ fn named_finding_answers_keep_the_deciding_snapshot_and_its_owned_bytes() {
     use forge::{FindingDone as Done, FindingRefusal as Refused, Holder};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let outcomes = [
-        Ok(Done::Filed(Holder::Task(40))), Ok(Done::Filed(Holder::Party(7))), Ok(Done::Handed(Holder::Role(0))),
-        Ok(Done::Routed(99)), Ok(Done::Backlog), Ok(Done::Dropped),
+        Ok(Done::Filed(Holder::Task(40))),
+        Ok(Done::Filed(Holder::Party(7))),
+        Ok(Done::Handed(Holder::Role(0))),
+        Ok(Done::Routed(99)),
+        Ok(Done::Backlog),
+        Ok(Done::Dropped),
         Err(Refused::NoArea(Box::new([b"tests".as_slice().into(), b"ui".as_slice().into()]))),
-        Err(Refused::NotYours(Holder::Task(42))), Err(Refused::Full(256)), Err(Refused::NoFinding), Err(Refused::NoGoal), Err(Refused::Ended), Err(Refused::Words(b"title".as_slice().into())),
+        Err(Refused::NotYours(Holder::Task(42))),
+        Err(Refused::Full(256)),
+        Err(Refused::NoFinding),
+        Err(Refused::NoGoal),
+        Err(Refused::Ended),
+        Err(Refused::Words(b"title".as_slice().into())),
     ];
     for result in outcomes {
-        let row = forge::Stored::Call { key: forge::NamedCall { task: 40, attempt: 1, completion: 2, position: 3 }, answer: forge::CallPayload::Finding(Box::new(forge::FindingReply { project: 3, number: 12, area: Some(b"tests".as_slice().into()), result })) };
+        let row = forge::Stored::Call {
+            key: forge::NamedCall { task: 40, attempt: 1, completion: 2, position: 3 },
+            answer: forge::CallPayload::Finding(Box::new(forge::FindingReply {
+                project: 3,
+                number: 12,
+                area: Some(b"tests".as_slice().into()),
+                result,
+            })),
+        };
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let cloned = row.clone();
