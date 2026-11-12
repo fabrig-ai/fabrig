@@ -13,3 +13,5 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-real-loop-world world::diagnostics::tests::forced_overdue_observes_real_tasks_operations_and_dispatch
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
+- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
+- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
