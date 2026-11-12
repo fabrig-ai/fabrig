@@ -2,12 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [tooling.md](tooling.md).
 
-- **Not yet:** 4.2: a released close job's checkout holds the project's
-  home read-only, not the close change's repository writable
-  (`../domain/forge/change/repairs.status.md`) [in flight: change 1046].
-- **Not yet:** 4.2: a checkout with none or several writable
-  repositories fails the job naming none of them
-  (`../domain/worker/jobs.status.md`) [in flight: change 1044].
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract, since neither kind is built (`../domain/worker/jobs.md`): no
