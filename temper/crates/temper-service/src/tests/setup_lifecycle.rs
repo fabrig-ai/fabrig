@@ -155,7 +155,7 @@ pub(super) fn app(service: &mut crate::Service) {
     ] {
         row(service, item, &value);
     }
-    let origin = records::origin(
+    let origin = forge_records::origin(
         connection::settings::Kind::GitHub,
         &service.engine.as_ref().expect("engine").workers.forges.get(1).expect("fixture forge").api,
     )
@@ -679,12 +679,12 @@ fn the_components_first_listing_routes_gone_suspended_and_stray_installations() 
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
     accepted(&mut service, &[11, 22]);
-    let expected = records::origin(
+    let expected = forge_records::origin(
         connection::settings::Kind::GitHub,
         &service.engine.as_ref().expect("engine").workers.forges.get(1).expect("fixture forge").api,
     );
     let engine = service.engine.as_mut().expect("engine");
-    let start = records::access(
+    let start = forge_records::access(
         connection::settings::Kind::GitHub,
         &expected,
         engine.forge_records.rows.forge(1).unwrap(),
@@ -1808,7 +1808,7 @@ fn uninstalled_store() -> crate::store::Store {
         kept_record(&mut store, 1, item, &value);
     }
     let config = github_config(8, Duration::from_secs(3600), None);
-    let origin = records::origin(connection::settings::Kind::GitHub, &config.forges[0].api).encode();
+    let origin = forge_records::origin(connection::settings::Kind::GitHub, &config.forges[0].api).encode();
     kept_record(&mut store, 1, Item::Origin, &origin);
     store
 }
