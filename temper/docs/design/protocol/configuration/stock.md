@@ -7,7 +7,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | Setting | Its value |
 |---|---|
 | charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, which send a chat to the forge's reads, `read_branch` naming the repository, before it says a repository not in its checkout isn't there; a goal's part among them asking for its report (`../../domain/agent/agents.md`, 3), and its goal's part and its chat's calling `decided` before they ask the person anything, a goal whose words hold the line `Asks: always` too, every answer then being Ask (`../../domain/agent/tools.md`); this table holds the structure alone; models: the stock's order (below); hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
-| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt`, which puts what a brief asks it to report in `finish`'s `body` and has a report past that bound cut and said under Left, never asked about (`../../domain/agent/charter.md`, 3), and the modify family, but a run of 800 turns and 28,800 s (8 hours), a reserve of 1 turn and 60 s: five times the longest run fabrig's development has had, 156 turns and 76 minutes; K is unmoved, its floor of 4 units a run turn counting the chat's 64, so a coding agent's run is held by its spend, a run's own, its person funding more (`../../domain/forge/change/repairs.md`), long before its turns |
+| charter 2, the implementer's | as charter 1, its instructions assembled from the stock's set of charter files, `temper/docs/charters/stock/`, `common` then `implementer`, with no parts (`../../domain/agent/charter.md`, 1; `../../draft/stock-charters.md`, 2 and 9.5), which put what a brief asks it to report in `finish`'s `body` and have a report past that bound cut and said under Left, never asked about (`../../domain/agent/charter.md`, 3), and say what a run does with a shell and without one, the charter naming none, and the modify family, but a run of 800 turns and 28,800 s (8 hours), a reserve of 1 turn and 60 s: five times the longest run fabrig's development has had, 156 turns and 76 minutes; K is unmoved, its floor of 4 units a run turn counting the chat's 64, so a coding agent's run is held by its spend, a run's own, its person funding more (`../../domain/forge/change/repairs.md`), long before its turns |
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 800 turns and 8 hours; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../../domain/forge/change/gates.md`, 1) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, naming only the form `change`, the report in its `body`, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../../domain/forge/change/questions.md`, 1) |
 | charter 9, the status agent's | the instructions in the `stock` module's `status.txt`: the few lines at the top of a project's Home, from the facts in its task (`../../domain/forge/attention.md`, 3); charter 1's models and hosts; a run of at most 4 turns and 300 s, a reserve of 1 turn and 60 s; no inspect, modify, shell or agents, and no host family. The forge's procedure delegates it, its authority holding no tools, grants, notes or delegation, and its run no workspace, so what it can do is finish; the constant `STATUS_CHARTER` names it, as `FOREMAN_CHARTER` does, no setting of kind 3. Numbered past the reference's charters 5, 7 and 8 (`reference.md`) |
@@ -15,7 +15,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | charter 11, Ask temper's | as charter 1, with the `stock` module's `ask.txt` (`../../draft/ask-temper.md`, section 8, but its Showing part's later steps; `../../domain/agent/agents.md`, 1 and `../../domain/agent/ask-temper.md`), and no inspect, modify, shell or agents; its models Ask temper's order (below); its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document`, `remember` and `propose_settings` in its asking form alone, and have no workspace (`../../domain/agent/charter.md`, 2 and `../../domain/agent/tools.md`); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
-| charter 5, the coordinator's | its first edition (`../../draft/stock-ways.md`, 3.3): the `stock` module's `../../../../crates/temper-service/src/stock/coordinator.md`, its `## shared` section the instructions and each `## part, on: …` section one part, its `on` set the reasons the heading names and its instructions the text to the next heading (jig's `domain/tasks/messages.md`, 6), every byte as written but the blank lines that open and close a section; its `## shared` section says, in one sentence, that a question a change relays is answered before anything else, since an open question is shown to every run whatever woke it (jig's `domain/engine/briefs.md`, 1.2); it cuts a draft into changes it specifies itself, each into its goal's branch with questions `foreman`, writing its design's status up front, each entry a change will close tagged with it (fabrig's `DESIGN.md`, section 2), and triages a red on its goal's tier, as `reference.md`'s charter 5 does, while its goal's closer lands the goal whole (template 4; `../../domain/forge/branches.md`, 2), with no catch-ups and no designers, no command or path of one project and no model named, so that its runs take the stock's order; models: the stock's order; hosts `workers`; its runs starting fresh, as a charter in parts' must (jig's `domain/tasks/messages.md`, 6), and waiting 0, parking without retaining a worker slot or program session; the root admits zero waiting; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; inspect, modify and agents, no shell; charter 1's host families; no documents; the coordinator's wake policy (`reference.md`): questions, failures, the last delegate's result or a failure (`last_or_failure`), its delegates' and its person's words at once, news at most once in 30 minutes, its parts covering every kind that policy wakes it for, `words` among them (jig's `domain/tasks/messages.md`, 6). Numbered as the reference's, whose settings file sets its second edition over it (`reference.md`) |
+| charter 5, the goal's agent's | its instructions and parts assembled from the stock's set of charter files, `temper/docs/charters/stock/` (`../../domain/agent/charter.md`, 1; `../../draft/stock-charters.md`, 2 and 9): its instructions `common` then `goal`; its parts `designer`, on `first`, then `coordinator`'s three sections in order, on a change's questions, on results, escalations and words, and on news and timers, the first two naming `first` too; so its first run, the designer, reads `common`, `goal`, `designer` and the parts on questions and on results, and each later wake, the coordinator, a new session for one reason, reads `common`, `goal` and the parts its reasons meet, each once, in order (jig's `domain/tasks/messages.md`, 6); it designs its goal's draft and delivers the design straight to its goal's branch, cuts it into changes it specifies itself, each into its goal's branch with questions `up`, writing its design's status up front, each entry a change will close tagged with it (fabrig's `DESIGN.md`, section 2), answers what they ask, and triages a red on its goal's tier, while its goal's closer lands the goal whole (template 4; `../../domain/forge/branches.md`, 2), with no catch-ups, no command or path of one project and no model named, so that its runs take the stock's order; models: the stock's order; hosts `workers`; its runs starting fresh, as a charter in parts' must (jig's `domain/tasks/messages.md`, 6), and waiting 0, parking without retaining a worker slot or program session; the root admits zero waiting; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; inspect, modify and agents, no shell; charter 1's host families; no documents; the coordinator's wake policy (`reference.md`): questions, failures, the last delegate's result or a failure (`last_or_failure`), its delegates' and its person's words at once, news at most once in 30 minutes, its parts covering every kind that policy wakes it for, `words` among them (jig's `domain/tasks/messages.md`, 6). Numbered as the reference's, whose settings file sets its second edition over it (`reference.md`) |
 | template 4, a goal for a draft | `reference.md`'s: named `goal for a draft`, run by charter 5; ended by temper's goal closer, `ended_by` `{"closer": {"connector": 1, "code": 6}}` (jig's `protocol/configuration.md`, 3.2; `../../domain/forge/branches.md`, 2); no LLM choice, so that its runs take the stock's order; tracked at priority 1; its report template 1's; the creator's budget and deadline; labelled as template 2; *its own goal branch* among its resources (jig's `protocol/configuration.md`, 3.3; `../../client/ctl/tools.md`, 3) |
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (`reference.md`) |
 | charter 12, the drafter's | the instructions in the `stock` module's `drafter.txt`, every byte as written (`../../draft/surfaces.md`, 11.2): a design session with its person, the draft written as the chat's document (`../../domain/agent/agents.md`, 3), one question at a time as numbered choices, its open points under `## Open questions`, a session taken up again from its draft and first open point, and nothing started or built; charter 1's models, hosts, waiting, resume, run, reserve, spend and call timeout; agents, so that its model's sub-agents survey where it has them, but no inspect, modify or shell, so that its runs are given no repository (`../../domain/agent/charter.md`, 2) and read the project's code through the forge's reads alone; its `tools` every family but delegate, settings and asking, 1,022, so that its runs are declared no `goal`, `change` or `delegate` (`../../domain/agent/tools.md`; 8.5). Numbered past Ask temper's |
@@ -73,10 +73,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine/executors.md`, 1): charter 1, a chat's, names every host
-  family but settings; charter 5, the coordinator's, names the same
+  family but settings; charter 5, the goal's agent's, names the same
   families; charter 2, a
   coding agent's (a change's producer, repairs and resolutions, and the
-  implementers a coordinator delegates), names the read and message
+  implementers a goal's agent delegates), names the read and message
   families alone, since it reads the change and CI, asks its requester,
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
@@ -100,7 +100,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   models the host part's bound is that of their smallest window, which
   init's scripted model sets at `gpt-6-luna`'s (`../setup/init.md`, 3): it
   holds the largest stock charter's non-brief host part, charter 5
-  with its Report contract, shared instructions and all four parts,
+  with its Report contract, instructions and all four parts,
   and the control family's plan form of `change`
   (`../../domain/agent/tools.md`, 1), with the authorised brief, whose task
   section holds a whole spec of jig's `standard` (`limits.md`), and its 64
@@ -136,15 +136,22 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   one, since jig's `settings` family proposes and an owner accepts
   (jig's `domain/engine/settings.md`, 6).
 - **Template 4's work,** kind 11 (`settings.md`, 2), at scope 0 and number 4: no
-  design and no close-out, since the stock's charter 5 cuts the draft
-  into changes it specifies itself, with no designers, and its last
-  change, which brings the status files current, lands into the goal's
-  branch as one of the goal's changes (`../../draft/stock-ways.md`, 3.3, and
+  design and no close-out, since the stock's charter 5 designs the
+  draft itself, delivering its design and status straight to the goal's
+  branch, and cuts it into changes it specifies itself, with no
+  designers delegated, while its closer settles the status's tags as it
+  lands the goal (`../../draft/stock-ways.md`, 3.3, and
   section 4, "plan" in the stock's). So Draft first's path over the stock
   draws "plan" and no close-out, as the look request's does. No other
   stock template has a value of kind 11.
 - **Built at each start** by `temper-service`'s `stock` module, as
-  typed values, the instructions held in the binary; `Service` passes
+  typed values, the instructions held in the binary, charters 5 and
+  2's compiled in from `temper/docs/charters/stock/` and assembled by
+  `temper-charter-set` (`../../domain/agent/charter.md`, 1). Those
+  files are code to every gate: compiled in and read by tests, a change
+  to them lands through a goal like code, never by hand as
+  documentation, Markdown though they are, and they name no model, no
+  program and no project's paths (`../../draft/stock-charters.md`, 3); `Service` passes
   jig's kinds' defaults, with the three kinds' declarations (number,
   scope, the forge's connector, the bounds above), to jig's builder in
   place of the document's members, and temper's kinds' defaults (kind 3,
@@ -282,7 +289,15 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   `authority.grants` is below the rules' grants, is refused at the
   start, naming the limit and the stock setting. The `core.run_bytes`
   floor measures the resolved charter, including its parts and catalogue
-  models; charter 5 at init's catalogue needs 13,123 bytes. A start's
+  models; charter 5 at init's catalogue needs about 27,000 bytes, its
+  four files' 24 KB and its models', which `temper-service`'s floor test
+  holds exactly. The root holds a run's charter within
+  `root.journal.run_bytes`, 65,536 in both of temper's profiles, the
+  reference room's (`reference.md`), so that a fresh box admits the
+  stock and an overlay of a few KB over it
+  (`../../draft/stock-charters.md`, 3); the larger charter 5 leaves its
+  brief less of the host part, and `standard`'s
+  `root.brief.brief_bytes` follows that room by the rule above. A start's
   problem about a stock setting names it as ctl does, `charter 1.hosts`.
 - **The stock charters' models are their first choices and the rest:** a
   stock charter names its first choices, those among the defaults, then
