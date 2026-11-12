@@ -135,7 +135,7 @@ fn skip_on_home_hides_to_begin_on_every_device() {
     hidden(&world, first);
     hidden(&world, second);
     // End the first two sessions before a third Home: settings is session-long,
-    // and the engine admits 22 watches across devices.
+    // and the engine admits 26 watches across devices.
     for who in [first, second] {
         world.event(who, Event::Act { action: Action::Pages(Act::SignOut) }.into());
     }

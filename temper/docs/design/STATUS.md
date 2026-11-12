@@ -43,8 +43,10 @@ project's dependency on another is milestone F2
 (`domain/forge/dependencies.md`): kind 13, naming another project of
 the deployment, carried in the `follows` document beside the follows
 and printed by `temper ctl follow list`, "dependency 1: fabrig depends
-on vsr-rs"; nothing acts on it, and Home's What follows what draws it
-with the follows (`draft/surfaces.status.md`, 3).
+on vsr-rs"; nothing acts on it, and Home on All projects' What follows
+what draws it beside the follows, from the first four projects'
+`follows` documents (`client/pages/home.md`, 1), within a shipped
+client's 26 watches (`protocol/configuration/limits.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need

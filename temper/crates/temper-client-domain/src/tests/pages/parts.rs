@@ -12,19 +12,22 @@ fn home_parts_each_follow_their_own_facts() {
         ("brief", HomeFacts { brief: true, ..empty }, HomeParts { brief: true, ..ask }),
         ("needs", HomeFacts { open: 1, ..empty }, HomeParts { needs: true, ..ask }),
         ("decided", HomeFacts { showing: 1, ..empty }, HomeParts { decided: true, ..ask }),
+        ("follows on project home", HomeFacts { follows: 1, ..empty }, ask),
+        ("follows across", HomeFacts { across: true, follows: 1, ..empty }, HomeParts { follows: true, ..ask }),
+        ("no follows across", HomeFacts { across: true, follows: 0, ..empty }, ask),
         ("projects on project home", HomeFacts { projects: 2, ..empty }, ask),
         ("one across", HomeFacts { across: true, projects: 1, ..empty }, ask),
         ("two across", HomeFacts { across: true, projects: 2, ..empty }, HomeParts { projects: true, ..ask }),
         ("to begin", HomeFacts { to_begin: true, brief: true, open: 1, showing: 1, ..empty }, HomeParts::default()),
         (
             "to begin keeps projects",
-            HomeFacts { to_begin: true, across: true, projects: 2, brief: true, open: 1, showing: 1 },
+            HomeFacts { to_begin: true, across: true, projects: 2, brief: true, open: 1, showing: 1, ..empty },
             HomeParts { projects: true, ..HomeParts::default() },
         ),
         (
             "all",
             HomeFacts { across: true, projects: 2, brief: true, open: 1, showing: 1, ..empty },
-            HomeParts { brief: true, needs: true, decided: true, projects: true, ask: true },
+            HomeParts { brief: true, needs: true, decided: true, projects: true, ask: true, follows: false },
         ),
     ] {
         assert_eq!(parts::home(&facts), expected, "{case}");
