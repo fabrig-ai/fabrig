@@ -84,7 +84,7 @@ or the nearest thing, and says so in that draft's status.
 | N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | landed, R1 a standing role's case; its repair's web part landed, its render check and walk following (section 5) |
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | landed; its walk follows (section 5) |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | landed but for what waits on a login and Only you's other kinds, which wait on reads (section 5) |
-| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
+| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | landed for a push; a mail and the digest left, designed and not built, and a sign-off's push is not built (section 5) |
 | N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge/change/gates.md`, 1; its entry below | | temper/migration | should | done |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | landed; its render check and walk follow (`../client/README.md`, 5) |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | landed; its render check and walk follow (section 5) |
@@ -314,7 +314,9 @@ T1's that day, as goal 761, its repair, landed, and
 P3d's on 2026-11-12, as goal 1016 landed, and
 F2's on 2026-11-12, as goal 1015 landed, and
 P2's and F2's that day, as goal 1243, P2's repair for What follows
-what, landed. Plans
+what, landed, and
+N3b's that day, as goal 492, its push, landed. Plans
+
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -339,7 +341,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N1 | landed; its render check and walk follow | `ui-reaches` built `what-reaches-you.md`, 2 to 6, in the engine and the web client, and R1 a standing role's case; judging the paths an asker's change touches at its head, read since N2, is N1's repair's (`what-reaches-you.status.md`, 4); its repair, goal 367, draws Needs you's Decided head with "Limits" on a filtered page, a words offer's sentence over its field and Home's Away spell with no row showing, and the why line on the signal ground, over the choices, with "Keep asking" and the narrower rule on it, as `needs.html` does, saying "agents" where it says "goals" (`surfaces.status.md`, 4); the TUI's walk says a need's reason since T1's repair, goal 761 (`../client/tui/pages/launchpad.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
 | N2 | landed; its walk follows | goal 187 built `what-reaches-you.md`, 7, in the engine and the web client: a landing rule's `sets` of the project's path sets, through settings files and ctl; what a change touches, from its merge base to its head, judged at that exact head by every reader of the rules and by the turn's merge; a change whose sign-off waits out of its branch's queue, so the rest of the branch lands; and Needs you's card saying the path sets it signs off, with "Sign off on Forgejo ↗"; the domain world's story holds a path rule's change for its sign-off while another lands. The path's stop for a path set is P3c's (`../domain/forge/change/branch-path.md`, *Rules by path*); its walk follows landing |
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
-| N3b | starts | |
+| N3b | landed for a push; its walk follows | goal 492 built `what-reaches-you.md`, 9's push against fakes alone: a person's devices, jig's need's arrival, the root's pushes and the service's Web Push (`../domain/forge/attention.md`, section 7), `temper ctl push add`, and Telling you in the browser (`../client/pages/told.md`); mail and the digest are designed and not built (`../domain/forge/attention.md`, 7.4), left as nice when push took the six changes it was given; a sign-off's wait pushes nothing yet; a real push needs a deployment at a name over HTTPS and its VAPID key, which a person sets (`../protocol/configuration/engine.md`, `push`); its walk needs a fake push service a box runs, which no design has yet (`what-reaches-you.status.md`, 9) |
 | N4 | done | goal 147, PR #41 |
 | N5 | landed; its render check and walk follow | goal 836 built who can still sign (`../domain/forge/change/questions.md`, 2, *Who can still sign*): each `approvals` row names the people counted at its head and those who can still give the next sign-off, the watcher first, and the card's context says so, "1 of 2 signed: Sam; you or Kit can give the second." (`../client/forge/README.md`, 4.1), on Needs you and Home's first card; the card's why line and question as `team/needs.html` and `team/home.html` word it, the phone's from line, Work's table of changes to sign and Team's "Can sign" stay `surfaces.status.md`'s, 4 and 6; its render check and walk follow landing (`../client/README.md`, 5) |
 | N6 | landed; its render check and walk follow | goal 837 keeps the sign-offs a merge's judgement counted, each person, head and time, with the change from its admission and in its landing log entry (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*); the changes' landed rows carry them, Work's landed rows say "signed by", Team's people "Signed four last week." and the status agent's words who signed each landing (`../client/pages/work.md`, 1; `../client/pages/team.md`, 1; `../domain/forge/attention.md`, 3); their render check and walk follow landing (`../client/README.md`, 5) |
@@ -356,4 +358,4 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** N3b, must.
+- **Next to start:** not selected; N3b’s push, N5 and N6 have landed.

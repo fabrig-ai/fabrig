@@ -4,8 +4,8 @@ use skein_codec::patch::{Capacity, Patcher, Step};
 fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 3,
-        patches: 2,
+        versions: 4,
+        patches: 3,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072,
         nodes: 16_384,
@@ -14,7 +14,9 @@ fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
         patcher.keep(text.as_bytes()).expect("kept schema");
     }
     let mut bytes = bytes;
-    for (version, patch) in [(11, crate::patches::PATCHES[0]), (12, crate::patches::PATCHES[1])] {
+    for (version, patch) in
+        [(11, crate::patches::PATCHES[0]), (12, crate::patches::PATCHES[1]), (13, crate::patches::PATCHES[2])]
+    {
         let root = patcher.schema(version).expect("baseline schema").find(root).expect("old record");
         let plan = patcher.plan(patch.as_bytes()).expect("valid plan").expect("family moves");
         patcher.start(plan, root, bytes).expect("baseline record");
@@ -48,8 +50,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
     let mut before = vec![0, 11, 2]; // Row version, repository variant.
     before.extend_from_slice(&adopted);
     let bytes = patched(b"Row", before.into_boxed_slice());
-    let row = crate::v13::Row::decode(&crate::v13::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
-    let crate::v13::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
+    let row = crate::v14::Row::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
+    let crate::v14::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
     assert!(record.home());
@@ -60,6 +62,6 @@ fn a_foreman_with_a_task_becomes_retired() {
     let before = baseline_golden("enum_stands_foreman_full.bin");
     let bytes = patched(b"Stands", before.into_boxed_slice());
     let value =
-        crate::v13::Stands::decode(&crate::v13::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
-    assert_eq!(value, crate::v13::Stands::Retired);
+        crate::v14::Stands::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
+    assert_eq!(value, crate::v14::Stands::Retired);
 }

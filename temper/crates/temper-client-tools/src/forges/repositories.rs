@@ -233,6 +233,9 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::DeviceAdded(_)
+        | w::Outcome::DeviceRemoved
+        | w::Outcome::DeviceRefused(_)
         | w::Outcome::Away
         | w::Outcome::Tried
         | w::Outcome::Filed(_)

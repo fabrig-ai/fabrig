@@ -52,6 +52,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[40], to: &[41], root: "Row" },
                 Keys { from: &[41], to: &[42], root: "Row" },
                 Keys { from: &[42], to: &[43], root: "Row" },
+                Keys { from: &[crate::keys::DEVICE], to: &[44], root: "Row" },
             ],
             frames: None,
             flights: &[Keys { from: &[crate::keys::FLIGHT], to: &[22], root: "Row" }],

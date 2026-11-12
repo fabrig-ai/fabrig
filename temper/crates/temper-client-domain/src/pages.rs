@@ -19,6 +19,7 @@ pub mod drafts;
 pub mod members;
 pub mod remembered;
 pub mod roles;
+pub mod told;
 /// Whether the project's settings offer writing drafts (client/pages/settings.md, 2).
 #[must_use]
 pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
@@ -122,6 +123,9 @@ pub struct Pages {
     builders: builders::Builders,
     members: Option<members::Members>,
     remembered: Option<remembered::Remembered>,
+    told: told::Told,
+    told_open: bool,
+    pub(crate) push: Option<[u8; 65]>,
     roles: roles::Roles,
     team: team::Team,
     models: models::Models,
@@ -223,6 +227,7 @@ pub enum Act {
     Away(away::Act),
     Models(models::Act),
     Remembered(remembered::Act),
+    Told(told::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -337,6 +342,7 @@ pub enum Act {
 }
 #[derive(Debug)]
 pub enum Event {
+    Push(told::Report),
     Started,
     Left,
     AccountKey { value: skein_lib::Secret },
@@ -349,6 +355,7 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    Push(told::Duty),
     Screen { on: bool },
     KeepLook { look: terminal::Look },
     OpenTab { provider: u32 },
@@ -420,6 +427,9 @@ impl Pages {
             builders: builders::Builders::default(),
             members: None,
             remembered: None,
+            told: told::Told::new(),
+            told_open: false,
+            push: None,
             roles: roles::Roles::default(),
             team: team::Team::default(),
             models: models::Models::new(),
@@ -460,6 +470,10 @@ impl Pages {
     #[must_use]
     pub fn choice(&self) -> &choice::Draft {
         &self.choice
+    }
+    #[must_use]
+    pub fn told(&self) -> Option<&told::Told> {
+        if self.told_open { Some(&self.told) } else { None }
     }
     #[must_use]
     pub fn remembered(&self) -> Option<&remembered::Remembered> {
@@ -707,6 +721,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 start.send(env, me, &mut pages.serial, out);
             }
         }
+        Event::Push(report) => pages.told.report(report, &mut pages.serial, env.limits.forge, out),
         Event::Started => started(pages, out),
         Event::Went { address } => {
             went(pages, env, address, out);
@@ -756,6 +771,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::StopAsking(_) } => unreachable!("Stop asking acts resolve at the root"),
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
+        Event::Act { act: Act::Told(act) } => {
+            if pages.told_open {
+                pages.told.act(act, pages.push, &mut pages.serial, env.limits.forge, out);
+            }
+        }
         Event::Act { act: Act::Remembered(act) } => {
             if let Some(page) = &mut pages.remembered {
                 page.act(act, &mut pages.serial, out);
@@ -809,6 +829,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
+            pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -852,6 +874,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     | Address::NewChat { .. }
                     | Address::Chats { .. }
                     | Address::Work { .. }
+                    | Address::Told
                     | Address::Remembered
                     | Address::Members
                     | Address::Limits
@@ -1128,6 +1151,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits
@@ -1205,6 +1229,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
+    pages.told.configure(pages.told_open, pages.party, &mut pages.next, env.limits.forge, out);
     if let Some(page) = &mut pages.remembered {
         page.configure(accounts::current_me(client), &mut pages.next, out);
     }
@@ -1256,6 +1281,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::NewChat { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -1382,6 +1408,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     {
         return true;
     }
+    if pages.told.told(client, &told, env.limits.forge, out) {
+        return true;
+    }
     if pages.has_goals.told(&told) {
         return true;
     }
@@ -1462,6 +1491,8 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.builders.leave(out);
     pages.members = None;
     pages.remembered = None;
+    pages.told_open = false;
+    pages.told.close(out);
     pages.roles.leave(out);
     pages.team.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
@@ -1602,6 +1633,7 @@ fn rail_chats(address: &Address) -> bool {
         | Address::Welcome { .. } => false,
         Address::AllHome
         | Address::Inbox { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -1654,6 +1686,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
     } else {
         pages.remembered = None;
+    }
+    pages.told_open = address == Address::Told;
+    if !pages.told_open {
+        pages.told.close(out);
     }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
@@ -1738,6 +1774,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Accounts
@@ -1765,6 +1802,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -1927,6 +1965,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits
@@ -2373,6 +2412,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Switcher(_)
         | Act::Away(_)
         | Act::Terminal(_)
+        | Act::Told(_)
         | Act::Remembered(_)
         | Act::Models(_)
         | Act::StopAsking(_)
@@ -2468,6 +2508,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -2540,6 +2581,8 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
+            pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -2620,6 +2663,8 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.builders.leave(out);
             pages.members = None;
             pages.remembered = None;
+            pages.told_open = false;
+            pages.told.close(out);
             pages.roles.leave(out);
             pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -2683,6 +2728,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

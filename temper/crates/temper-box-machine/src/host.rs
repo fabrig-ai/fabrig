@@ -13,7 +13,7 @@ use crate::{
     sink::{Sink, Terminal},
     terminal::{self, Fact, Formatter, Item, Place, Tail, Target},
 };
-mod front_child;
+mod front_pipes;
 use alloc::boxed::Box;
 use skein_io::{
     self as io, Event, Io, Request,
@@ -41,14 +41,16 @@ impl core::fmt::Debug for FirstLink {
         f.debug_struct("FirstLink").finish_non_exhaustive()
     }
 }
-/// The box's TUI child (temper/docs/design/protocol/setup/box.md, 6).
+/// The parent's pipes (temper/docs/design/protocol/setup/box.md, 6).
 pub struct Front {
-    pub arguments: Box<[Box<[u8]>]>,
+    pub input: Fd,
+    pub link_output: Fd,
+    pub lines: Fd,
     pub link: Secret,
 }
 impl core::fmt::Debug for Front {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Front").field("arguments", &self.arguments).finish_non_exhaustive()
+        f.debug_struct("Front").field("input", &self.input).finish_non_exhaustive()
     }
 }
 /// The descriptors and command inherited from the binary.
@@ -229,7 +231,7 @@ pub struct Service {
     reply_entries: u32,
     settings: Settings,
     children: Box<[Child]>,
-    front: Option<front_child::Child>,
+    front: Option<front_pipes::Pipes>,
     terminal: Terminal,
     formatter: Formatter,
     terminate_pending: bool,
@@ -256,7 +258,7 @@ impl Service {
         clippy::too_many_lines,
         reason = "Adopt the box's descriptors and account for its front alongside the step slots."
     )]
-    pub fn new(limits: &Limits, steps: Steps, settings: Settings) -> Result<Self, Unfit> {
+    pub fn new(limits: &Limits, steps: Steps, mut settings: Settings) -> Result<Self, Unfit> {
         if settings.front.is_some() {
             let local = match &settings.first_link {
                 Some(link) => link.local.is_some(),
@@ -264,11 +266,6 @@ impl Service {
             };
             assert!(local, "a front has a first local link");
         }
-        let front = if settings.front.is_some() {
-            Some(front_child::Child::new(limits.grace, limits.tail_lines))
-        } else {
-            None
-        };
         let reply_entries = reply_entries(&steps);
         let mut steps = layout::flatten(steps);
         let templates = steps.clone();
@@ -284,15 +281,15 @@ impl Service {
         }
         let machine = Machine::new(limits, &steps)?;
         let records = Records::new(&steps, limits.groups);
-        let logs = Logs::new(&steps, &settings.data, limits.log_bytes, front.is_some());
+        let logs = Logs::new(&steps, &settings.data, limits.log_bytes);
         let count = u32::try_from(steps.len()).expect("steps fit u32");
         let mut bounds = io_limits(count);
         bounds.sockets = bounds
             .sockets
             .checked_add(u32::try_from(settings.listeners.len()).expect("bounded listeners"))
             .expect("listener slots");
-        if front.is_some() {
-            bounds.sockets = bounds.sockets.checked_add(5).expect("front process and pipes");
+        if settings.front.is_some() {
+            bounds.sockets = bounds.sockets.checked_add(3).expect("parent pipes");
         }
         bounds.intake = bounds.intake.max(limits.line_bytes);
         bounds.output = bounds
@@ -321,13 +318,16 @@ impl Service {
         let signals = io.adopt_signals(settings.signals).expect("three adopted slots");
         let stdout = io.adopt_write_pipe(settings.stdout, None).expect("stdout slot");
         let stderr = io.adopt_write_pipe(settings.stderr, None).expect("stderr slot");
+        let front = match settings.front.take() {
+            Some(front) => Some(front_pipes::Pipes::new(&mut io, front)),
+            None => None,
+        };
         let listeners = adopt_listeners(&mut io, &settings.listeners);
         let capacity =
             io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
         let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(4);
         let formatter = Formatter::new(settings.link_form, settings.word.clone());
-        // A failed front's pipes drain before its report; their fallback lines wait behind it.
-        let deferred = if front.is_some() { Queue::uncapped() } else { Queue::with_capacity(entries) };
+        let deferred = Queue::with_capacity(entries);
         Ok(Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },
@@ -496,12 +496,6 @@ impl Service {
                 self.spawned(owner, child, &pipes);
             }
             Event::Exited { owner, exit } => {
-                if let Some(front) = &self.front
-                    && front.owner == Some(owner)
-                {
-                    self.front_end(Some(exit));
-                    return;
-                }
                 for (step, state) in self.children.iter_mut().enumerate() {
                     if state.owner == Some(owner) {
                         state.source_ending = Some(SourceEnd::Exited(exit));
@@ -521,11 +515,7 @@ impl Service {
             }
             Event::Closed { owner } => {
                 if let Some(front) = &mut self.front {
-                    let not_started = front.owner == Some(owner) && front.process.is_none() && !front.ended;
-                    front.closed(owner, self.env.wall);
-                    if not_started {
-                        self.front_end(None);
-                    }
+                    front.closed(owner);
                 }
                 for token in &mut self.closing_control {
                     if *token == Some(owner) {
@@ -613,14 +603,6 @@ impl Service {
         self.closing_control = [read, reply];
     }
     fn spawned(&mut self, owner: Token, child: Token, pipes: &[Token]) {
-        if let Some(front) = &mut self.front
-            && front.owner == Some(owner)
-        {
-            front.spawned(child, pipes, self.env.now, &mut self.requests);
-            let url = self.settings.first_link.as_ref().expect("front's first link").url.clone();
-            self.front_line(crate::front::Line::Link { url });
-            return;
-        }
         let mut running = None;
         for (step, state) in self.children.iter_mut().enumerate() {
             if state.owner == Some(owner) {
@@ -673,7 +655,9 @@ impl Service {
         if let Some(front) = &mut self.front
             && front.owns_stream(owner)
         {
-            front.stream(owner, up, self.env.wall, &mut self.requests);
+            if front.stream(owner, up, &mut self.requests) {
+                self.input(Input::Terminate);
+            }
             return;
         }
         if let Some(control) = &mut self.control {
@@ -796,9 +780,6 @@ impl Service {
         if self.settings.echo == Echo::None && !self.logs.failed(step) { Some(step) } else { None }
     }
     fn failure_ready(&self) -> bool {
-        if self.front_reporting() {
-            return false;
-        }
         let Some((fact, _)) = self.failure else {
             return false;
         };
@@ -818,8 +799,7 @@ impl Service {
         true
     }
     fn failure_work(&mut self) {
-        self.front_failure_work();
-        if self.front_reporting() || !self.failure_ready() {
+        if !self.failure_ready() {
             return;
         }
         let (fact, wall) = self.failure.take().expect("ready failure");
@@ -837,9 +817,6 @@ impl Service {
     fn terminal_available(&self, step: usize, plain: bool) -> bool {
         if self.front_running() {
             return true;
-        }
-        if self.front_reporting() {
-            return false;
         }
         match self.failure {
             None => self.deferred.is_empty(),
@@ -1140,7 +1117,6 @@ impl Service {
         let bindings_pending = self.bindings_pending();
         let deferred = !self.deferred.is_empty();
         let front_running = self.front_running();
-        let front_reporting = self.front_reporting();
         for step in 0..self.children.len() {
             if self.requests.room() < 8 {
                 break;
@@ -1160,11 +1136,10 @@ impl Service {
                 let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 let terminal_available = front_running
-                    || !front_reporting
-                        && match failure {
-                            None => !deferred,
-                            Some((fact, _)) => plain && terminal::tail_step(fact) == Some(step),
-                        };
+                    || match failure {
+                        None => !deferred,
+                        Some((fact, _)) => plain && terminal::tail_step(fact) == Some(step),
+                    };
                 let quiet = !plain && self.settings.echo == Echo::None && !self.logs.failed(step);
                 let diagnostic_ready = (plain || self.logs.takes()) && (fd != 0 || fetch.is_none() || notice_room);
                 if diagnostic_ready
@@ -1206,10 +1181,8 @@ impl Service {
                         }
                         Output::Line { bytes, .. } if plain && front_running => {
                             let url = skein_lib::bytes::copy_of(bytes.strip_suffix(b"\n").expect("link's LF"));
-                            if let Some(front) = &mut self.front
-                                && let Some(sink) = &mut front.lines
-                            {
-                                drop(sink.push(crate::front::Line::Link { url }.bytes()));
+                            if let Some(front) = &mut self.front {
+                                drop(front.lines.push(crate::front::Line::Link { url }.bytes()));
                             }
                         }
                         Output::Line { bytes, .. } if plain && !self.terminal.failed() => {
@@ -1341,7 +1314,7 @@ impl Service {
         for group in self.records.groups() {
             self.machine.restore(group.forge, group.kind, group.started);
         }
-        if let Some(front) = self.settings.front.take() {
+        if self.front.is_some() {
             let link = self.settings.first_link.as_ref().expect("front's first link");
             let words = crate::front::block_words(&self.formatter, &link.url);
             self.box_lines.push(self.formatter.notice(&words, wall));
@@ -1349,7 +1322,9 @@ impl Service {
                 self.box_lines.push(self.formatter.notice(&self.settings.after_block, wall));
             }
             self.formatter.admitted_block();
-            self.spawn_front(front);
+            let url = self.settings.first_link.as_ref().expect("first link").url.clone();
+            self.front_line(crate::front::Line::Link { url });
+            self.front.as_mut().expect("parent pipes").start();
         } else if !self.terminal.failed()
             && let Some(link) = &self.settings.first_link
         {
@@ -1367,7 +1342,7 @@ impl Service {
     fn block_ready(&self) -> bool {
         self.phase == Phase::Block
             && match &self.front {
-                Some(front) => front.process.is_some() || front.ended,
+                Some(front) => front.link_closed(),
                 None => true,
             }
             && (self.settings.first_link.is_none() || self.terminal.drained() || self.terminal.failed())
@@ -1376,7 +1351,7 @@ impl Service {
         self.phase == Phase::New && self.settings.first_link.is_some()
     }
     fn say_room(&self, entries: u32) -> bool {
-        self.front_running() || !self.front_reporting() && self.terminal.takes(entries) || self.terminal.failed()
+        self.front_running() || self.terminal.takes(entries) || self.terminal.failed()
     }
     fn say(&mut self, item: Item) {
         if self.front_running() {
@@ -1388,11 +1363,7 @@ impl Service {
     fn notice_room(&self) -> bool {
         self.front_running()
             || self.terminal.failed()
-            || if self.holding_start_notices()
-                || self.front_reporting()
-                || self.failure.is_some()
-                || !self.deferred.is_empty()
-            {
+            || if self.holding_start_notices() || self.failure.is_some() || !self.deferred.is_empty() {
                 self.deferred.room() > 0
             } else {
                 self.terminal.takes(1)
@@ -1406,15 +1377,14 @@ impl Service {
         if self.terminal.failed() {
             return;
         }
-        if self.holding_start_notices() || self.front_reporting() || self.failure.is_some() || !self.deferred.is_empty()
-        {
+        if self.holding_start_notices() || self.failure.is_some() || !self.deferred.is_empty() {
             self.deferred.push(item);
         } else {
             self.say(item);
         }
     }
     fn deferred_work(&mut self) {
-        if self.holding_start_notices() || self.front_reporting() || self.failure.is_some() && !self.front_running() {
+        if self.holding_start_notices() || self.failure.is_some() && !self.front_running() {
             return;
         }
         for _ in 0..self.deferred.len() {
@@ -1443,11 +1413,7 @@ impl Service {
                         self.notice(Item { target: Target::Stderr, bytes: piece.bytes });
                     }
                 } else {
-                    let name = if self.logs.front_step() == Some(piece.step) {
-                        b"tui"
-                    } else {
-                        self.steps.get(piece.step).expect("log step").step.name()
-                    };
+                    let name = self.steps.get(piece.step).expect("log step").step.name();
                     if echo {
                         let words = piece.echo(name);
                         let item = if self.front_running() {
@@ -1457,11 +1423,7 @@ impl Service {
                         };
                         self.notice(item);
                     } else if !piece.log_only && !self.logs.failed(piece.step) {
-                        if self.logs.front_step() == Some(piece.step) {
-                            self.front.as_mut().expect("front's log").tail.push(piece.echo(name));
-                        } else {
-                            self.children.get_mut(piece.step).expect("log step").tail.push(piece.echo(name));
-                        }
+                        self.children.get_mut(piece.step).expect("log step").tail.push(piece.echo(name));
                     }
                 }
             }
@@ -1592,16 +1554,7 @@ impl Service {
             control.sink.flush(self.env.limits.output, &mut self.requests);
         }
     }
-    fn front_settled(&self) -> bool {
-        match &self.front {
-            Some(front) => front.settled(),
-            None => true,
-        }
-    }
     fn finish(&mut self) {
-        if !self.front_settled() {
-            return;
-        }
         if !self.machine.is_idle()
             || self.machine.outcome().is_none()
             || !self.records.ready()
@@ -1630,8 +1583,11 @@ impl Service {
             return;
         }
         if self.phase != Phase::Closing {
-            if self.requests.room() == 0 {
+            if self.requests.room() < 4 {
                 return;
+            }
+            if let Some(front) = &mut self.front {
+                front.close(&mut self.requests);
             }
             self.requests.push(Request::Close { entity: self.signals });
             self.phase = Phase::Closing;
@@ -1863,12 +1819,6 @@ impl skein_shell::Host for Service {
             self.machine.fire(now, &mut self.orders);
             stamp_orders(&self.orders, &mut self.order_walls, wall);
         }
-        if self.policy_timers_ready()
-            && self.requests.room() >= 8
-            && let Some(front) = &mut self.front
-        {
-            front.fire(now, &mut self.requests);
-        }
         self.failure_work();
         self.deferred_work();
         self.order_work();
@@ -1923,13 +1873,11 @@ impl skein_shell::Host for Service {
             || !self.started_notices.is_empty() && self.logs.takes()
             || !self.box_lines.is_empty() && self.box_log_ready()
             || self.failure_ready()
-            || self.front_failure_ready()
             || self.logs.pending()
             || self.logs.has_notice() && self.notice_room()
             || !self.holding_start_notices()
                 && !self.deferred.is_empty()
                 && (self.failure.is_none() || self.front_running())
-                && !self.front_reporting()
                 && self.say_room(1)
             || self.logs.completed() && (!self.log_echo() || self.notice_room())
         {
@@ -1953,7 +1901,7 @@ impl skein_shell::Host for Service {
         }
         if self.requests.room() >= 8
             && let Some(front) = &self.front
-            && front.pending(self.logs.takes())
+            && front.pending()
         {
             return true;
         }
@@ -2029,12 +1977,6 @@ impl skein_shell::Host for Service {
             return None;
         }
         let mut deadline = self.machine.next_deadline();
-        if self.requests.room() >= 8
-            && let Some(front) = &self.front
-            && let Some(at) = front.deadline()
-        {
-            deadline = Some(deadline.unwrap_or(at).min(at));
-        }
         for state in &self.children {
             if self.requests.room() >= 8
                 && let Some(ready) = &state.ready
@@ -2047,7 +1989,6 @@ impl skein_shell::Host for Service {
     }
     fn is_empty(&self) -> bool {
         self.phase == Phase::Closing
-            && self.front_settled()
             && self.root == Root::Closed
             && self.logs.closed()
             && self.failure.is_none()
@@ -2206,10 +2147,7 @@ pub(crate) mod pressure {
     }
     pub fn front_held(service: &Service) -> u32 {
         match &service.front {
-            Some(front) => match &front.lines {
-                Some(sink) => sink.held(),
-                None => 0,
-            },
+            Some(front) => front.lines.held(),
             None => 0,
         }
     }

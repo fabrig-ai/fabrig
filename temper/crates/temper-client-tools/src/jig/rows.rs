@@ -1159,7 +1159,7 @@ pub const HAND_BACK: Tool = Tool {
 };
 
 /// Appended position for creating a project without setting up a forge.
-pub const PARTY_MAKE_AT: u8 = 85;
+pub const PARTY_MAKE_AT: u8 = 88;
 pub const PARTY_MAKE: Tool = Tool {
     name: b"party make",
     line: b"Make a service party in a project with a role",
@@ -1189,14 +1189,14 @@ pub const PROJECT_MAKE: Tool = Tool {
 };
 
 // Findings and needs (client/ctl/tools.md, 2 and 3).
-pub const FINDING_LIST_AT: u8 = 86;
-pub const FINDING_SHOW_AT: u8 = 87;
-pub const FINDING_FILE_AT: u8 = 88;
-pub const FINDING_HAND_AT: u8 = 89;
-pub const FINDING_ROUTE_AT: u8 = 90;
-pub const FINDING_BACKLOG_AT: u8 = 91;
-pub const FINDING_DROP_AT: u8 = 92;
-pub const NEED_ASK_AT: u8 = 93;
+pub const FINDING_LIST_AT: u8 = 89;
+pub const FINDING_SHOW_AT: u8 = 90;
+pub const FINDING_FILE_AT: u8 = 91;
+pub const FINDING_HAND_AT: u8 = 92;
+pub const FINDING_ROUTE_AT: u8 = 93;
+pub const FINDING_BACKLOG_AT: u8 = 94;
+pub const FINDING_DROP_AT: u8 = 95;
+pub const NEED_ASK_AT: u8 = 96;
 const FINDING: super::table::Argument = positional(
     b"finding",
     b"FINDING",

@@ -300,6 +300,7 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    Device(crate::DeviceAnswer),
     FileFinding(crate::FileFindingAnswer),
     HandFinding(crate::HandFindingAnswer),
     TriageFinding(crate::TriageFindingAnswer),
@@ -1324,6 +1325,7 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    Device(crate::Device),
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
 }
@@ -1375,6 +1377,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
 }
@@ -1471,6 +1474,13 @@ pub enum Event {
     Signed {
         task: u64,
         signed: Box<[SignOff]>,
+    },
+    /// The service's terminal for a push (attention.md, 7.2).
+    Pushed {
+        party: u64,
+        device: u32,
+        endpoint: Box<[u8]>,
+        answer: crate::PushAnswer,
     },
     SetDraft {
         request: Token,
@@ -2093,6 +2103,19 @@ pub enum Event {
     PersonOf {
         forge: u16,
         answer: PersonAnswer,
+    },
+    AddDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        person: bool,
+        call: crate::AddDevice,
+    },
+    RemoveDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        number: u32,
     },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five

@@ -121,11 +121,6 @@ fn a_live_goal_pins_the_oldest_panel_by_row_or_tracked_ancestor() {
         let (mut domain, env, context) = kept(KEPT);
         pin_goal(&mut domain, &env, &context, FIRST, explicit);
         assert!(start_change(&mut domain, &env, &context));
-        // The root's first two queued events decide the drop and registration, before any reads.
-        for _ in 0_u8..2 {
-            let Some(crate::Work::Forge(event)) = domain.work.pop() else { panic!("drop then change") };
-            forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut Queue::uncapped());
-        }
         assert!(domain.forge.change(FIRST).is_some(), "live goal, explicit {explicit}");
         assert!(domain.forge.change(FIRST + 1).is_none(), "next oldest, explicit {explicit}");
         assert!(domain.forge.change(context.task).is_some());
@@ -138,10 +133,6 @@ fn a_live_goal_pins_a_dropped_last_panel_by_row_or_tracked_ancestor() {
         let (mut domain, env, context) = verifying_table(false);
         pin_goal(&mut domain, &env, &context, 5, explicit);
         assert!(start_change(&mut domain, &env, &context));
-        for _ in 0_u8..2 {
-            let Some(crate::Work::Forge(event)) = domain.work.pop() else { panic!("drop then change") };
-            forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut Queue::uncapped());
-        }
         assert!(domain.forge.change(5).is_some(), "live goal, explicit {explicit}");
         assert!(domain.forge.change(9).is_none(), "next oldest, explicit {explicit}");
         assert!(domain.forge.change(context.task).is_some());
@@ -157,6 +148,48 @@ fn a_settled_panel_goes_before_an_older_ended_verifying_panel() {
     assert!(domain.forge.change(5).is_some(), "the older Uncleared panel stays");
     assert!(domain.forge.change(9).is_some(), "the Red panel stays");
     assert_eq!(domain.forge.change_tasks().len(), 128);
+}
+
+#[test]
+fn a_gone_goals_verifying_panel_gives_room_beside_live_goals_settled_panels() {
+    let (mut domain, env, context) = kept(KEPT);
+    for number in domain.forge.change_tasks() {
+        keep(&mut domain, &env, number, change::State::Ended, context.task);
+    }
+    keep(&mut domain, &env, FIRST + 1, change::State::Uncleared { merge: [1; 32] }, 999);
+    run_start(&mut domain, &env, &context);
+    assert!(domain.forge.change(context.task).is_some(), "the new change registers");
+    assert!(domain.forge.change(FIRST + 1).is_none(), "the root's selected row goes");
+    assert!(domain.forge.change(FIRST).is_some(), "the live goal's settled panel stays");
+    assert_eq!(domain.forge.change_tasks().len(), skein_lib::usize_of(KEPT));
+}
+
+#[test]
+fn failed_registration_queues_only_the_named_refusal_without_a_hold_or_step() {
+    let (mut domain, env, context) = kept(KEPT);
+    for number in domain.forge.change_tasks() {
+        keep(&mut domain, &env, number, change::State::Ended, context.task);
+    }
+    assert!(start_change(&mut domain, &env, &context));
+    let Some(crate::Work::ForgeSettings(mut out)) = domain.work.pop() else {
+        panic!("registration is answered before any hold or step is queued")
+    };
+    assert_eq!(
+        out.pop(),
+        Some(forge::Request::ResourceRefused {
+            task: context.task,
+            operation: b"register change",
+            resource: Some(forge::Name { forge: 1, repository: 1, what: forge::What::Repository }),
+            cause: forge::RefusalCause::Limit {
+                member: "forge.changes",
+                configured: u64::from(KEPT),
+                needed: u64::from(KEPT) + 1,
+            },
+        })
+    );
+    assert!(out.is_empty());
+    assert!(domain.work.is_empty(), "a refused registration queues no names, hold or step");
+    assert!(domain.forge.change(context.task).is_none());
 }
 
 #[test]

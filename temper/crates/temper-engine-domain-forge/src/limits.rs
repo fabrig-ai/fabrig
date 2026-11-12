@@ -96,6 +96,11 @@ pub struct Limits {
 }
 
 impl Limits {
+    /// A person's devices (temper/docs/design/domain/forge/attention.md, 7.1).
+    #[must_use]
+    pub const fn devices(&self) -> u32 {
+        self.bindings.saturating_mul(crate::DEVICES)
+    }
     /// Retained decided and asked rows in the family (temper/docs/design/domain/forge/attention.md, 5).
     #[must_use]
     pub const fn findings(&self) -> u32 {

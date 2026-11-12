@@ -2348,7 +2348,8 @@ fn latest_and_sending_go_to_the_end_and_read_it_where_it_went() {
                         read_count += 1;
                     }
                     Request::Client(Event::Send { .. }) => send_count += 1,
-                    other @ (Request::Screen { .. }
+                    other @ (Request::Push(_)
+                    | Request::Screen { .. }
                     | Request::KeepLook { .. }
                     | Request::Client(_)
                     | Request::Show { .. }

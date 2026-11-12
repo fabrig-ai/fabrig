@@ -412,7 +412,7 @@ impl Domain {
         }
         let mut forge_config = core::mem::replace(
             &mut config.forge,
-            skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
+            temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
         );
         forge_config.namespace = Box::from(config.core.deployment);
         let mut forge = forge::Domain::new(
@@ -1307,7 +1307,8 @@ fn released_into(
             request_load(domain, waiter, range, after, out);
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
@@ -1463,7 +1464,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     };
     let mut forge_config = core::mem::replace(
         &mut config.forge,
-        skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
+        temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
     let Ok(mut forge) = forge::Domain::new(

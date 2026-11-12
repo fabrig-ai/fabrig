@@ -1,4 +1,12 @@
-use crate::{Command, TABLE, TREE, configure_with, fake};
+use crate::{Command, TABLE, configure_with, fake};
+
+const TREE: [&skein_shell::Table; 5] = [
+    &TABLE,
+    &temper_engine_shell::ENGINE,
+    &temper_worker_shell::WORKER,
+    &temper_agent_shell::AGENT,
+    &temper_client_shell::CLIENT,
+];
 use skein_shell::{Reach, Set};
 
 fn bytes(words: &[&str]) -> Vec<Box<[u8]>> {
@@ -26,7 +34,6 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
-        Command::TuiFront { .. } => vec!["internal", "tui"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Overview | Command::Help { .. } => vec!["help"],
@@ -58,8 +65,8 @@ fn every_row_parses_from_an_example() {
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),
-        (&[], &["--echo", "steps", "--no-tui"]),
-        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps", "--no-tui"]),
+        (&[], &["--echo", "steps"]),
+        (&[], &["--fake-backends", "--bundle", "/bundle", "--echo", "steps"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -77,7 +84,6 @@ fn every_row_parses_from_an_example() {
         (&["internal", "agent-list"], &["--list", "internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
-        (&["internal", "tui"], &["internal", "tui", "--box", "http://127.0.0.1:8367"]),
         (&["fake", "llm"], &["fake", "llm"]),
         (&["fake", "llm"], &["fake", "llm", "--document", "llm.json"]),
         (&["fake", "forge"], &["fake", "forge", "1"]),
@@ -102,16 +108,42 @@ fn every_row_parses_from_an_example() {
         assert_eq!(passed.as_ref(), arguments, "all delegated arguments are preserved");
     }
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
-    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    assert!(matches!(configured(&["--front"]).expect("front"), Command::Box { front: true, .. }));
+    assert!(matches!(configured(&[]).expect("bare box"), Command::Box { front: false, .. }));
     for words in [
-        vec!["--no-tui", "--no-tui"],
+        vec!["--no-tui"],
+        vec!["--front", "--front"],
+        vec!["--front", "--echo", "steps"],
         vec!["--bundle", "/bundle"],
         vec!["internal", "tui"],
         vec!["internal", "tui", "--box"],
     ] {
         assert!(configured(&words).is_err(), "refused {words:?}");
     }
+}
+
+#[test]
+fn front_parses_in_both_box_forms_and_refuses_echo_steps_and_the_removed_tui() {
+    for words in [
+        vec!["--front"],
+        vec!["--front", "--echo", "none"],
+        vec!["--fake-backends", "--front"],
+        vec!["--fake-backends", "--bundle", "/bundle", "--front"],
+    ] {
+        assert!(matches!(
+            configured(&words).expect("front form"),
+            Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. }
+        ));
+    }
+    for words in [
+        vec!["--front", "--echo", "steps"],
+        vec!["--fake-backends", "--front", "--echo", "steps"],
+        vec!["--no-tui"],
+        vec!["internal", "tui", "--box", "http://127.0.0.1:8367"],
+    ] {
+        assert!(configured(&words).is_err(), "refuse {words:?}");
+    }
+    assert!(matches!(configured(&[]).expect("bare"), Command::Box { front: false, .. }));
 }
 
 #[test]
@@ -200,6 +232,7 @@ fn rows_are_within_bounds() {
 #[test]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = temper_shell::table::commands_reference(&[
+        &temper_client_shell::CLIENT,
         &temper_engine_shell::ENGINE,
         &temper_worker_shell::WORKER,
         &temper_agent_shell::AGENT,
@@ -334,22 +367,6 @@ fn bundle_build_variable_is_internal_in_both_tables() {
 }
 
 #[test]
-fn tui_recording_variable_is_internal_and_read() {
-    let tui = TABLE
-        .commands
-        .iter()
-        .find(|command| command.reach == Reach::Words(&["internal", "tui"]))
-        .expect("the box's TUI command");
-    let record = tui
-        .variables
-        .iter()
-        .find(|variable| variable.name == "TEMPER_INTERNAL_RECORD")
-        .expect("internal tui must declare the recording variable");
-    assert_eq!(record.set, Set::Internal, "recording variable is internal");
-    assert_eq!(record.way, skein_shell::Way::Reads, "recording variable is read");
-}
-
-#[test]
 fn arguments_and_environment_documents_are_the_tables() {
     let documents = [
         ("temper-box-args.md", TABLE.arguments_document()),
@@ -359,6 +376,7 @@ fn arguments_and_environment_documents_are_the_tables() {
         ("temper-worker-env.md", temper_worker_shell::WORKER.environment_document(&TREE)),
         ("temper-agent-args.md", temper_agent_shell::AGENT.arguments_document()),
         ("temper-agent-env.md", temper_agent_shell::AGENT.environment_document(&TREE)),
+        ("temper-env.md", temper_client_shell::CLIENT.environment_document(&TREE)),
         ("common-env.md", skein_shell::Table::common_document("temper", &TREE)),
     ];
     let write = temper_test_env::rewrite();

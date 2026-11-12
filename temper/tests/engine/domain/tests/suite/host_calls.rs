@@ -690,6 +690,55 @@ fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> 
 
 // temper/docs/design/protocol/configuration/reference.md: delivered rules and retained
 // evidence stay in producer reports; scripted choices do not prove model compliance.
+pub(super) fn scripted_task_read(
+    world: &mut PersonWorld,
+    run: &engine::Assignment,
+    number: u32,
+    task: u64,
+    result: bool,
+) -> String {
+    let input = if result { format!(r#"{{"task":{task},"field":"result"}}"#) } else { format!(r#"{{"task":{task}}}"#) };
+    let call = person_tool(run, number, b"read_task", input.as_bytes());
+    let answer = world.scripted_call(run, u64::from(number), call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, 4096);
+    String::from_utf8(rendered.text().to_vec()).expect("rendered task read")
+}
+
+#[test]
+fn a_goal_reads_its_live_changes_result_as_its_specification() {
+    let (mut world, goal) = reference_person_world("none");
+    let spec = "Explain live result reads.";
+    let (change, _) = implementation_change(&mut world, &goal, 5, spec, 2);
+    let input = format!(r#"{{"task":{change},"field":"result"}}"#);
+    let call = person_tool(&goal, 6, b"read_task", input.as_bytes());
+    let answer = world.scripted_call(&goal, 6, call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, 4096);
+    let text = String::from_utf8_lossy(rendered.text());
+    assert!(!rendered.error(), "{text}");
+    assert!(text.starts_with(&format!("Task {change}, spec revision ")), "{text}");
+    assert!(text.contains("\nState: active\n"), "{text}");
+    assert!(text.contains("\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.\nWords from 0:\n"), "{text}");
+    assert!(text.contains(spec), "{text}");
+    world.close();
+}
+
+#[test]
+fn a_goal_reads_its_changes_running_and_retained_coding_agent() {
+    let (mut world, goal) = reference_person_world("none");
+    let spec = "Add the descendant task read explanation.";
+    let (change, producer) = implementation_change(&mut world, &goal, 5, spec, 2);
+    let text = scripted_task_read(&mut world, &goal, 6, producer.task, false);
+    assert!(text.contains(spec), "{text}");
+    assert!(text.contains("active"), "{text}");
+    let report = "Done: descendant read covered.\n## Left\n- no further work\n";
+    implementation_land(&mut world, change, &producer, report.as_bytes());
+    assert!(world.root.tasks().task(producer.task).is_none(), "producer retained outside the core");
+    let (read, _) = implementation_report(&mut world, &goal, producer.task);
+    assert_eq!(read, report);
+    settle_implementation(&mut world);
+    world.close();
+}
+
 #[test]
 fn producers_keep_unresolved_acceptance_evidence_in_left() {
     for covered in [false, true] {

@@ -131,7 +131,7 @@ fn nibble(byte: u8) -> u8 {
     }
 }
 
-fn verify(post: &delivery::Post, secret: &[u8]) {
+fn verify(post: &delivery::Post, secret: &[u8]) -> bool {
     let signature = field(&post.head, b"X-Forgejo-Signature: ");
     let mut signed = [0; 32];
     assert_eq!(signature.len(), 64);
@@ -141,7 +141,34 @@ fn verify(post: &delivery::Post, secret: &[u8]) {
     }
     let mut hmac = Hmac::new(secret);
     hmac.update(&post.body);
-    assert_eq!(signed, hmac.finish());
+    signed == hmac.finish()
+}
+#[test]
+fn a_patched_hook_still_signs_deliveries_with_its_created_secret() {
+    let mut h = fixtures::setup_harness();
+    let row = one("patched hook");
+    h.send(&Request::CreateRepoHook { at: fixtures::at(), hook: spec(FIRST, FIRST_SECRET, &row) });
+    assert_eq!(h.status(), 201);
+    let id = h.service.setup().repository_hooks(2).next().unwrap().id;
+    h.send(&Request::EditRepoHook { at: fixtures::at(), id, hook: spec(SECOND, SECOND_SECRET, &row) });
+    assert_eq!(h.status(), 200);
+    let hook = domain::Request::Hook {
+        queue: None,
+        repository: boxed(b"org/repo"),
+        change: Change::Issue,
+        number: Some(3),
+        branch: None,
+        commit: None,
+        by: Some(2),
+        body: Some(boxed(b"fixture body")),
+        ended: None,
+    };
+    let posts = h.service.deliveries(&hook, &h.env.limits);
+    assert_eq!(posts.len(), 1);
+    let routed = posts.get(0).unwrap();
+    assert!(routed.post.head.starts_with(b"POST /second HTTP/1.1\r\n"));
+    assert!(verify(&routed.post, FIRST_SECRET));
+    assert!(!verify(&routed.post, SECOND_SECRET));
 }
 #[test]
 fn deliveries_follow_only_the_repository_hooks_that_take_the_row() {
@@ -183,7 +210,7 @@ fn deliveries_follow_only_the_repository_hooks_that_take_the_row() {
                 fixtures::deliver(fixtures::delivery_event(&routed.post), &routed.post.body, &h.env.limits.documents),
                 Ok(Delivery::Issue { repository: 2, number: 3, body: Body::Kept(boxed(b"fixture body")) })
             );
-            verify(&routed.post, secret);
+            assert!(verify(&routed.post, secret));
         }
     }
 }

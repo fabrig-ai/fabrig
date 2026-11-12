@@ -108,9 +108,20 @@
 - **A coordinator's task reads.** `read_task {task, field?, from?}` returns a
   related task's specification by default, state, dependencies and spec revision,
   and its hold revision, reason and connector-supplied account. Retained ended
-  direct delegates remain readable. `field=result` reads kept terminal reports,
-  including descendants reached through a proven same-project requester chain
-  of live or retained intermediate tasks (jig's `domain/engine/executors.md`, 3).
+  direct delegates remain readable, and so is every task below the run's task,
+  at any depth, reached through a proven same-project requester chain of live
+  or retained intermediate tasks, its specification and its result alike: a
+  goal reads the coding agent under one of its changes, or a task under its
+  closer, by the number its messages name. The dependencies of the run's
+  task's requester, live or retained, are read too, read only: a change's
+  coding agent, and a repair or resolution under that change, read the changes
+  its `after` names (1) (jig's `domain/engine/executors.md`, 3).
+  `field=result` reads kept terminal reports. A live task's `field=result`
+  read answers as its specification read does: its header, with its state,
+  hold and questions, then the line `Result: none yet; it comes when the task
+  ends. Its specification follows; continue it with field left out.` and the
+  specification's first page. At an offset past 0 it is unknown, as an ended
+  task's missing report is.
   One answer holds as much of the words as the run's reply takes, whatever a
   client's `documents.text_bytes`, so a spec within that room comes back in one
   call: the reply bound its worker names in its hello, else the local agent's.
@@ -553,7 +564,10 @@ delegate from what it knows:
   the `name` of an earlier change in the same call. The change waits on
   them as any task does, so it starts once each has ended done; a name
   the call does not give before it, or a task jig refuses, refuses the
-  call, naming it.
+  call, naming it. Its producer, and every other task it delegates to, may
+  read each of them with `read_task`, live or retained, read only (jig's
+  `domain/engine/executors.md`, 3): a dependency is no reference, and
+  carries no message.
 - **`merge`:** a catch-up (../forge/README.md, section 6): the commit to take, as
   40 or 64 hexadecimal digits, which the merge job merges into a branch
   made at the landing branch's tip, as the change's producer in place of

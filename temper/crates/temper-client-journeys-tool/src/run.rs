@@ -211,7 +211,7 @@ fn scratch(base: &Path) -> io::Result<PathBuf> {
 
 fn prepared_paths(directory: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
     let directory = fs::canonicalize(directory).map_err(|error| format!("cannot open prepared directory: {error}"))?;
-    for name in ["temper-box", "fake-claude"].into_iter().chain(is_tui.then_some("temper-client")) {
+    for name in ["temper-box", "fake-claude"].into_iter().chain(is_tui.then_some("temper")) {
         fs::copy(directory.join(name), scratch.join(name))
             .map_err(|error| format!("cannot copy prepared {name}: {error}"))?;
     }
@@ -241,7 +241,7 @@ fn build(
         "smith-fake-claude",
     ]);
     if is_tui {
-        cargo.args(["-p", "temper-client"]);
+        cargo.args(["-p", "temper"]);
     }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
@@ -266,8 +266,8 @@ fn build(
             .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
     }
     if is_tui {
-        fs::copy(target.join("debug/temper-client"), scratch.join("temper-client"))
-            .map_err(|error| format!("cannot copy temper-client into {}: {error}", scratch.display()))?;
+        fs::copy(target.join("debug/temper"), scratch.join("temper"))
+            .map_err(|error| format!("cannot copy temper into {}: {error}", scratch.display()))?;
     }
     Ok(Paths { temper: scratch.join("temper-box"), bundle, cache: None, chromium, scratch: scratch.to_owned() })
 }

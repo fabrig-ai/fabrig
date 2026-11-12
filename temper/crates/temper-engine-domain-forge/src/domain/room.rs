@@ -83,15 +83,8 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     if d.changes.len() != env.limits.changes {
         return;
     }
-    if !d.droppable(task) {
-        if !d.droppable_last(task) {
-            return;
-        }
-        for (number, _) in &d.changes {
-            if d.droppable(*number) {
-                return;
-            }
-        }
+    if !d.droppable(task) && !d.droppable_last(task) {
+        return;
     }
     let row = d.changes.remove(&task).expect("droppable row exists");
     emit(out, Request::Erase { key: Key::Change(task) });

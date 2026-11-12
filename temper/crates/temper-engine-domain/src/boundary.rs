@@ -650,6 +650,8 @@ pub enum Application {
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
+    AddDevice(forge::AddDevice),
+    RemoveDevice { number: u32 },
     FileFinding(forge::FileFinding),
     HandFinding(forge::HandFinding),
     TriageFinding(forge::TriageFinding),
@@ -674,6 +676,7 @@ pub enum ApplicationAnswer {
     SetAway(forge::SetAwayAnswer),
     SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
+    Device(forge::DeviceAnswer),
     FileFinding(forge::FileFindingAnswer),
     HandFinding(forge::HandFindingAnswer),
     TriageFinding(forge::TriageFindingAnswer),
@@ -1225,7 +1228,8 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }

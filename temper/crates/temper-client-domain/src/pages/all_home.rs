@@ -303,6 +303,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Work { .. }
+        | crate::Address::Told
         | crate::Address::Remembered
         | crate::Address::Members
         | crate::Address::Limits
@@ -458,7 +459,8 @@ pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     for _index in 0..requests.len() {
         match requests.pop().expect("bounded project requests") {
             Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Screen { .. }
+            Request::Push(_)
+            | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::Show { .. }
             | Request::Replace { .. }

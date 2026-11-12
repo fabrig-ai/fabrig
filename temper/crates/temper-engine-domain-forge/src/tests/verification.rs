@@ -129,7 +129,8 @@ fn domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },

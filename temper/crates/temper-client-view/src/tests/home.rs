@@ -1177,6 +1177,7 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
                 | d::Request::KeepSignIn { .. }
                 | d::Request::Tab { .. }
                 | d::Request::Copy { .. }
+                | d::Request::Push(_)
                 | d::Request::Fact { .. } => None,
             })
             .expect("adoption request");
@@ -1951,6 +1952,7 @@ fn home_skip_hides_the_card_and_refusal_offers_retry() {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("Skip request");

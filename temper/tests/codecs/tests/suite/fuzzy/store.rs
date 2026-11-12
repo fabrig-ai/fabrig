@@ -86,12 +86,22 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v13");
+    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v14");
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        let device = forge::Stored::Device(forge::Device {
+            party: rng.next_u64(),
+            number: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            endpoint: vec![b'e'; usize::try_from(rng.below(1024)).unwrap() + 1].into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: vec![b'l'; usize::try_from(rng.below(60)).unwrap() + 1].into_boxed_slice(),
+            at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        });
+        row_and_key(&device, &mut rng, &bounds);
         finding_rows(&mut rng, &bounds);
         let making = making_row(&mut rng);
         row_and_key(&making, &mut rng, &bounds);

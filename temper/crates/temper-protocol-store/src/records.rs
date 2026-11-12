@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v13 as w};
+use crate::{Bounds, Undecodable, v14 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -36,6 +36,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
+        d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
         d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
@@ -119,6 +120,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
+        w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
         w::Value::LandedDraft(row) => d::Stored::LandedDraft(drafts::decode(row)?),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
         w::Value::Finding(row) => d::Stored::Finding(findings::decode(row)?),

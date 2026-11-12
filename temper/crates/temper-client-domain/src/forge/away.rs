@@ -279,6 +279,9 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
+        | w::Outcome::DeviceAdded(_)
+        | w::Outcome::DeviceRemoved
+        | w::Outcome::DeviceRefused(_)
         | w::Outcome::MakeRefused(_) => Answer::Refused,
     })
 }

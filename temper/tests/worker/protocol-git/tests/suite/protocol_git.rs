@@ -120,7 +120,7 @@ fn memory_stays_within_its_heap_ceiling_at_its_limits() {
 }
 
 #[test]
-fn a_store_made_first_is_kept_and_its_competitors_whole_clone_is_discarded() {
+fn a_store_already_there_is_kept_without_a_clone_after_setting_aside() {
     for aside in [None, Some(skein_lib::Token::new(8))] {
         let mut scenario =
             fixtures::operations().into_iter().find(|(name, _)| *name == "store").expect("store sequence").1;
@@ -137,11 +137,33 @@ fn a_store_made_first_is_kept_and_its_competitors_whole_clone_is_discarded() {
             panic!("first clone remains")
         };
         assert_eq!(kept.as_ref(), b"first clone");
-        let discarded = if aside.is_some() { b"trash/1004".as_slice() } else { b"trash/1003" };
-        assert!(matches!(outcome.tree.get(discarded), Some(Node::Directory)));
-        assert!(!outcome.tree.keys().any(|path| path.starts_with(b"stores/new-")));
+        assert_eq!(outcome.verdict, Verdict::Passed);
+        assert_eq!(outcome.spawns, 0, "existing store needs no clone");
+        assert!(!outcome.tree.keys().any(|path| path.starts_with(b"making/")));
         if aside.is_some() {
             assert!(outcome.tree.contains_key(b"trash/1003/old".as_slice()));
         }
     }
+}
+
+#[test]
+fn a_restart_keeps_a_completed_store_and_runs_no_second_clone() {
+    let mut scenario = fixtures::operations().into_iter().find(|(name, _)| *name == "store").expect("store sequence").1;
+    let first = world::run(&scenario, fixtures::SEED);
+    assert_eq!(first.verdict, Verdict::Passed);
+    assert_eq!(first.spawns, 1);
+    assert!(matches!(first.tree.get(b"stores/9".as_slice()), Some(Node::Directory)));
+    assert!(!first.tree.keys().any(|path| path.starts_with(b"making/")));
+    let mut root = first.tree;
+    root.insert(b"stores/9/objects".to_vec(), Node::File(b"completed store".as_slice().into()));
+    root.insert(b"making/interrupted".to_vec(), Node::Directory);
+    scenario.script.invocations.clear();
+    let restarted = world::run_on_tree(&scenario, fixtures::SEED, root);
+    assert_eq!(restarted.verdict, Verdict::Passed);
+    assert_eq!(restarted.spawns, 0);
+    let Some(Node::File(objects)) = restarted.tree.get(b"stores/9/objects".as_slice()) else {
+        panic!("restart keeps the store's contents")
+    };
+    assert_eq!(objects.as_ref(), b"completed store");
+    assert!(!restarted.tree.keys().any(|path| path.starts_with(b"making/")));
 }

@@ -9,6 +9,7 @@ pub mod changes;
 pub mod connect;
 pub mod decided;
 pub mod deployment;
+pub mod devices;
 pub mod dismissed;
 pub mod drafts;
 pub mod family;

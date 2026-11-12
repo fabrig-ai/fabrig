@@ -55,6 +55,8 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
         | w::Request::FollowAct(_)
+        | w::Request::AddDevice(_)
+        | w::Request::RemoveDevice(_)
         | w::Request::TryAccount(_) => None,
     }
 }

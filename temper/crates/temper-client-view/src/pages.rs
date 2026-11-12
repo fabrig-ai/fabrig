@@ -38,6 +38,7 @@ pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod team;
 pub(crate) mod terminal;
+pub(crate) mod told;
 pub(crate) mod ways;
 pub(crate) mod welcome;
 mod welcome_copy;

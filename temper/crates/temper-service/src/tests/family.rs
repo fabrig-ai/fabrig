@@ -55,7 +55,7 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -134,7 +134,7 @@ fn forge_list_encodes_the_repository_resource_host() {
     let domain = forge::Domain::new(
         &limits.forge,
         4,
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        temper_engine_domain_forge::Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
         &[],
         &[configured],
         false,
@@ -154,7 +154,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&forges),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -188,7 +188,7 @@ fn an_adopt_naming_no_configured_forge_reaches_the_root_with_no_host() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -211,7 +211,7 @@ fn an_adopt_of_another_version_is_answered_undecodable() {
             exchange(family, version, record),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         ) else {
@@ -265,7 +265,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             input,
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         ) else {
@@ -308,7 +308,7 @@ fn a_forge_family_watch_is_refused_unknown() {
             input,
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         ) else {
@@ -465,7 +465,7 @@ fn a_request_under_an_owner_without_records_is_answered_undecodable() {
             exchange(number, wire::CLIENT_VERSION, wire::requesting(&requesting())),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         ) else {
@@ -518,7 +518,7 @@ fn a_family_request_keeps_its_supplied_admission_scope() {
         input,
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -567,7 +567,7 @@ fn a_change_watch_reaches_the_root_with_its_scope_subject_and_window() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, watching(CHANGE_TASK)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -604,7 +604,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
             watch_exchange(family, version, record),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         ) else {
@@ -966,7 +966,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -1002,7 +1002,7 @@ fn forges_watches_name_the_deployment_subject() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -1325,7 +1325,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -1515,7 +1515,7 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                     exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
                     &fixtures::forge_table(&[]),
                     None,
-                    &family::Deployment { welcome: false, owned: false, program_login: None },
+                    &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
                     None,
                     &w::CEILINGS,
                 );
@@ -1529,6 +1529,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
+                        | root::Application::AddDevice(_)
+                        | root::Application::RemoveDevice { .. }
                         | root::Application::Overturn { .. }
                         | root::Application::FileFinding(_)
                         | root::Application::HandFinding(_)
@@ -1576,7 +1578,7 @@ fn install_without_a_back_is_admitted() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -1738,7 +1740,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         );
@@ -1909,7 +1911,7 @@ fn the_landings_subject_names_no_task() {
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
                 &fixtures::forge_table(&[]),
                 None,
-                &family::Deployment { welcome: false, owned: false, program_login: None },
+                &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
                 None,
                 &w::CEILINGS,
             )
@@ -1941,7 +1943,7 @@ fn the_landings_subject_names_no_task() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -1971,7 +1973,7 @@ fn the_landings_subject_names_no_task() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     ) else {
@@ -2041,7 +2043,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2154,7 +2156,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
                 &fixtures::forge_table(&[]),
                 None,
-                &family::Deployment { welcome: false, owned: false, program_login: None },
+                &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
                 None,
                 &w::CEILINGS,
             )
@@ -2210,7 +2212,7 @@ fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::setting
         input,
         &fixtures::forge_table(&[]),
         demo,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         row,
         &w::CEILINGS,
     ) else {
@@ -2333,7 +2335,7 @@ fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
             },
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2421,7 +2423,7 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
             exchange,
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2515,10 +2517,10 @@ fn the_deployment_read_stays_answered_before_any_party() {
     let row =
         forge::Playground { state: forge::PlaygroundState::Running, forge: 1, project: Some(1), account: Some(1) };
     for deployment in [
-        &family::Deployment { welcome: false, owned: false, program_login: None },
-        &family::Deployment { welcome: false, owned: true, program_login: None },
-        &family::Deployment { welcome: true, owned: false, program_login: None },
-        &family::Deployment { welcome: true, owned: true, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
+        &family::Deployment { welcome: false, owned: true, program_login: None, push: None },
+        &family::Deployment { welcome: true, owned: false, program_login: None, push: None },
+        &family::Deployment { welcome: true, owned: true, program_login: None, push: Some([4; 65]) },
     ] {
         for (demo, playground) in [(None, None), (Some(demo), None), (None, Some(&row)), (Some(demo), Some(&row))] {
             let mut input = read_input(people::ApplicationScope::Deployment);
@@ -2546,6 +2548,7 @@ fn the_deployment_read_stays_answered_before_any_party() {
             let answer = wire::decode_deployment_answer(&record.expect("every deployment answers"), &w::CEILINGS)
                 .expect("deployment record");
             assert_eq!((answer.welcome(), answer.owned()), (deployment.welcome, deployment.owned));
+            assert_eq!(*answer.push(), deployment.push);
         }
     }
 }
@@ -2623,7 +2626,7 @@ fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&make_request(from, into))),
             &fixtures::forge_table(&forges),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2661,7 +2664,7 @@ fn make_repository_without_a_configured_forge_has_no_host() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&make_request(w::MakeFrom::Empty, true))),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -2687,7 +2690,7 @@ fn make_repository_refuses_a_source_the_parser_rejects() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2821,7 +2824,7 @@ fn dismissed_and_trials_watches_name_the_partys_own_subjects() {
             watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -2918,7 +2921,7 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -3395,7 +3398,7 @@ fn view_reads_refuse_scopes_other_than_the_named_project() {
             exchange,
             &fixtures::forge_table(&[]),
             None,
-            &family::Deployment { welcome: false, owned: false, program_login: None },
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
             None,
             &w::CEILINGS,
         )
@@ -3428,7 +3431,7 @@ fn the_changes_watch_names_its_project_subject() {
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
                 &fixtures::forge_table(&[]),
                 None,
-                &family::Deployment { welcome: false, owned: false, program_login: None },
+                &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
                 None,
                 &w::CEILINGS,
             )
@@ -3477,7 +3480,7 @@ fn looked_and_status_translate_both_ways() {
         carried_request,
         &forges,
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -3506,7 +3509,7 @@ fn looked_and_status_translate_both_ways() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
         &forges,
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -3793,7 +3796,7 @@ fn away_family(exchange: kit::ToApplication) -> root::Event {
         exchange,
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -4113,7 +4116,7 @@ fn the_program_environment_read_goes_to_the_party() {
         input,
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -4768,7 +4771,7 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
         },
         &fixtures::forge_table(&[]),
         None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     );

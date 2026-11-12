@@ -140,7 +140,7 @@ fn script() -> Script {
     results.push(format!("Note 1 revision 5 written · +3 −2 · line 40 · {} lines", lines.len()));
     turns.push(call("note", &range("This stale edit must not be saved.", 1, 2, 0)));
     results.push("Note refused: revision moved, now 5".into());
-    turns.push(call("note", &range("This out-of-range edit must not be saved.", 5, lines.len() + 2, 0)));
+    turns.push(call("note", &range("This out-of-range removal must not be saved.", 5, lines.len() + 2, 1)));
     results.push(format!("Note refused: range past the end, {} lines", lines.len()));
     turns.push(sentence(BUILT));
     assert_eq!(turns.len(), 8);

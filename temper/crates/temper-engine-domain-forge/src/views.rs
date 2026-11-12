@@ -43,6 +43,7 @@ pub enum Document {
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
     Dismissals(Box<[PersonFact]>),
+    Devices(crate::DevicesView),
     Drafts(crate::DraftsView),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
@@ -116,6 +117,8 @@ impl Domain {
             ApplicationScope::Own => {
                 return if subject == DISMISSED_SUBJECT {
                     Some(Document::Dismissals(self.dismissals(party)))
+                } else if subject == crate::DEVICES_SUBJECT {
+                    Some(Document::Devices(self.devices_view(party)))
                 } else if subject == crate::AWAY_SUBJECT {
                     Some(Document::Aways(self.aways_view(party)))
                 } else {
@@ -386,6 +389,12 @@ impl Document {
                 for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
                     size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
+                }
+            }
+            Self::Devices(view) => {
+                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                for row in &view.rows {
+                    size = size.saturating_add(row.label.len()).saturating_add(row.endpoint.len());
                 }
             }
             Self::Aways(view) => {

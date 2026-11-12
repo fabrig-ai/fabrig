@@ -95,7 +95,16 @@ pub fn again(
     if let Some(step) = journey::differs(&walker.steps, &new) {
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
-    crate::add(journeys, name, &recording, &[]).map(|_| ())
+    crate::add(journeys, name, &recording, &private_paths(paths)).map(|_| ())
+}
+
+/// Local capture paths are given originals for the shared redactor (client/web/journeys.md, 3.6).
+pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
+    [&paths.temper, &paths.bundle, &paths.scratch]
+        .into_iter()
+        .chain(paths.cache.iter())
+        .map(|path| path.as_os_str().as_bytes().into())
+        .collect()
 }
 
 /// Check the old walk before building or starting anything.

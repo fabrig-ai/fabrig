@@ -230,13 +230,13 @@ fn the_policy_keeps_a_field_the_answer_already_holds() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test inspects the fixed CSP directives as UTF-8")]
-fn the_playground_policy_adds_only_its_worker_source() {
+fn the_playground_and_service_share_the_push_page_policy() {
     use crate::clients::policy::{FIELDS, playground_fields};
 
     for ((name, value), (service_name, service_value)) in playground_fields().into_iter().zip(FIELDS) {
         assert_eq!(name, service_name);
         if name == b"Content-Security-Policy" {
-            assert_eq!(value.strip_suffix(b"; worker-src 'self'"), Some(service_value));
+            assert_eq!(value, service_value);
             for policy in [service_value, value] {
                 let mut connections = 0_u32;
                 for directive in core::str::from_utf8(policy).unwrap().split("; ") {
@@ -261,7 +261,7 @@ fn the_playgrounds_headers_file_is_the_policys() {
     assert_eq!(template.as_slice(), &*crate::clients::policy::headers(b"{bundle}"));
     assert_eq!(
         &*crate::clients::policy::headers(b"/bundle/0123"),
-        b"/*: Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'\n\
+        b"/*: Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'\n\
 /*: X-Content-Type-Options: nosniff\n\
 /*: Cross-Origin-Opener-Policy: same-origin\n\
 /*: Cross-Origin-Resource-Policy: same-origin\n\

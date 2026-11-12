@@ -801,6 +801,7 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::AllHome
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
+        | crate::Address::Told
         | crate::Address::Remembered
         | crate::Address::Members
         | crate::Address::Limits

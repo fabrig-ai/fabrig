@@ -2633,7 +2633,7 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
 
 #[test]
 fn a_change_made_with_parameter_14_keeps_its_route() {
-    use super::{Work, forge, forge_change, tasks};
+    use super::{forge, forge_change, tasks};
     // forge, host, owner, repository, branch, main.
     const BASE_AUTHORITY_SEGMENTS: u32 = 6;
     for (parameter, requester, expected) in [
@@ -2668,12 +2668,10 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
         context.requester = requester;
         context.spec.parameters = parameters.into_boxed();
         assert_eq!(super::start_change(&mut domain, &env, &context), expected.is_some());
-        let mut made = None;
-        while let Some(work) = domain.work.pop() {
-            if let Work::Forge(forge::Event::Change { row }) = work {
-                made = Some(row.questions);
-            }
-        }
+        let made = match domain.forge.change(task) {
+            Some(row) => Some(row.questions.clone()),
+            None => None,
+        };
         let expected = match expected {
             Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]) }),
             None => None,
@@ -2844,7 +2842,7 @@ fn repairs_naming_no_live_landing_is_refused() {
     );
 }
 
-fn start_repairs(digits: Option<&[u8]>) -> (bool, skein_lib::Queue<super::Work>) {
+fn start_repairs(digits: Option<&[u8]>) -> (bool, skein_lib::Queue<super::Work>, Option<super::forge::ChangeRow>) {
     use super::tasks;
     let (mut domain, mut env) = two_forges();
     // forge, host, owner, repository, branch marker, main.
@@ -2864,31 +2862,33 @@ fn start_repairs(digits: Option<&[u8]>) -> (bool, skein_lib::Queue<super::Work>)
     }
     context.spec.parameters = parameters.into_boxed();
     let accepted = super::start_change(&mut domain, &env, &context);
-    (accepted, domain.work)
+    let row = domain.forge.change(task).cloned();
+    (accepted, domain.work, row)
 }
 
 #[test]
 fn a_started_change_keeps_repairs_at_each_commit_width() {
     for (commit, digits) in COMMITS {
-        let (accepted, mut work) = start_repairs(Some(digits));
+        let (accepted, _, row) = start_repairs(Some(digits));
         assert!(accepted, "commit {digits:?}");
-        let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        let row = row.unwrap();
         assert_eq!(row.repairs, Some(*commit));
     }
 }
 
 #[test]
 fn a_started_change_without_repairs_keeps_none() {
-    let (accepted, mut work) = start_repairs(None);
+    let (accepted, _, row) = start_repairs(None);
     assert!(accepted);
-    let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+    let row = row.unwrap();
     assert_eq!(row.repairs, None);
 }
 
 #[test]
 fn malformed_repairs_refuses_a_change_start() {
     for digits in [[b'A'; 40].as_slice(), [b'a'; 39].as_slice(), [b'g'; 64].as_slice()] {
-        let (accepted, work) = start_repairs(Some(digits));
+        let (accepted, work, row) = start_repairs(Some(digits));
+        assert!(row.is_none());
         assert!(!accepted, "commit {digits:?}");
         assert!(work.is_empty(), "no change or step queued for malformed repairs");
     }
@@ -3417,7 +3417,10 @@ fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<
     (domain, env, context)
 }
 
-fn follows_start(text: &[u8], route: Option<u64>) -> (bool, skein_lib::Queue<super::Work>) {
+fn follows_start(
+    text: &[u8],
+    route: Option<u64>,
+) -> (bool, skein_lib::Queue<super::Work>, Option<super::forge::ChangeRow>) {
     use super::tasks;
     let (mut domain, mut env, mut context) = change_start_fixture();
     env.limits.forge.follow_merge = 2;
@@ -3434,13 +3437,15 @@ fn follows_start(text: &[u8], route: Option<u64>) -> (bool, skein_lib::Queue<sup
     if let Some(follows) = super::change_follows(text, env.limits.forge.follow_merge) {
         follow_fixture(&mut domain, &env, context.project, &follows.commits);
     }
-    (super::start_change(&mut domain, &env, &context), domain.work)
+    let accepted = super::start_change(&mut domain, &env, &context);
+    let row = domain.forge.change(context.task).cloned();
+    (accepted, domain.work, row)
 }
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "parameter fixtures join text fragments at both commit widths")]
 fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
-    use super::{Work, forge, forge_change};
+    use super::{forge, forge_change};
     let mut first = [0_u8; 32];
     first[..20].fill(0xaa);
     let mut second = [0_u8; 32];
@@ -3454,9 +3459,9 @@ fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
         ),
         ([b"3:".as_slice(), &[b'c'; 64]].concat(), Box::<[_]>::from([[0xcc; 32]]), Some(2), forge_change::Route::Up),
     ] {
-        let (accepted, mut work) = follows_start(&text, route);
+        let (accepted, _, row) = follows_start(&text, route);
         assert!(accepted, "{text:?}");
-        let Some(Work::Forge(forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        let row = row.unwrap();
         assert_eq!(row.follows, Some(forge::ChangeFollows { follow: 3, commits: expected }));
         assert_eq!(row.questions.route, questions);
     }
@@ -3476,7 +3481,8 @@ fn malformed_follows_refuses_the_change_start_without_queuing_work() {
         [b"4294967296:".as_slice(), &commit].concat(),
         [b"3:".as_slice(), &commit, b","].concat(),
     ] {
-        let (accepted, work) = follows_start(&text, None);
+        let (accepted, work, row) = follows_start(&text, None);
+        assert!(row.is_none());
         assert!(!accepted, "malformed follows: {text:?}");
         assert!(work.is_empty(), "no row or step for malformed parameter 18");
     }
@@ -3484,7 +3490,7 @@ fn malformed_follows_refuses_the_change_start_without_queuing_work() {
 
 #[test]
 fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
-    use super::{Work, forge, tasks};
+    use super::tasks;
     for (text, producer, llm) in [
         (None, 1, crate::ChangeLlm::default()),
         (
@@ -3514,10 +3520,6 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
             context.spec.parameters = parameters.into_boxed();
         }
         assert!(super::start_change(&mut domain, &env, &context));
-        let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else {
-            panic!("new change row")
-        };
-        forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
         let row = domain.forge.change(context.task).unwrap();
         assert_eq!(row.producing_charter, producer);
         assert_eq!(row.review_charter, 4);
@@ -3571,7 +3573,7 @@ fn a_requesters_branch_and_role_choices_reach_start_together() {
     context.requester = tasks::Party::Task(1);
     context.spec = delegate.spec;
     assert!(super::start_change(&mut domain, &env, &context));
-    let Some(Work::Forge(forge::Event::Change { row })) = domain.work.pop() else { panic!("new change row") };
+    let row = domain.forge.change(context.task).unwrap();
     assert_eq!(row.branch.as_ref(), branch);
     assert_eq!(row.title.as_ref(), b"Land the goal");
     assert_eq!(row.questions.route, temper_engine_domain_forge_change::Route::Up);
@@ -4145,13 +4147,10 @@ fn questions_delegate(
 }
 
 fn kept_route(delegate: super::super::Delegate) -> temper_engine_domain_forge_change::Route {
-    use super::{Work, forge};
     let (mut domain, env, mut context) = change_start_fixture();
     context.requester = super::tasks::Party::Task(1);
     context.spec = delegate.spec;
     assert!(super::start_change(&mut domain, &env, &context));
-    let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else { panic!("new change row") };
-    forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
     domain.forge.change(context.task).unwrap().questions.route
 }
 
@@ -4179,7 +4178,6 @@ fn a_named_route_wins_over_the_projects() {
 
 #[test]
 fn a_later_change_of_the_questions_reaches_only_later_changes() {
-    use super::{Work, forge};
     use temper_engine_domain_forge_change::Route;
     let (mut domain, env, mut context) = change_start_fixture();
     let (mut chooser, chooser_env, delegation) = change_choice_world();
@@ -4187,8 +4185,6 @@ fn a_later_change_of_the_questions_reaches_only_later_changes() {
     context.requester = super::tasks::Party::Task(1);
     context.spec = questions_delegate(&chooser, &chooser_env, &delegation, None).spec;
     assert!(super::start_change(&mut domain, &env, &context));
-    let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else { panic!("new change row") };
-    forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
     set_project_questions(&mut domain, &env, Route::Up);
     set_project_questions(&mut chooser, &chooser_env, Route::Up);
     assert_eq!(domain.forge.change(context.task).unwrap().questions.route, Route::Up);

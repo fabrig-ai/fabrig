@@ -140,6 +140,12 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.admission = None;
             }
             let event = match request {
+                root::PartyRequest::Deliver(root::Delivery::Push(push)) => {
+                    if engine.drain.is_none() {
+                        engine.clients.pushes.send(push, engine.env.now, engine.env.wall, &mut engine.clients.io);
+                    }
+                    None
+                }
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
                     engine.notes.push(crate::Note::Playground { line });
                     None
@@ -344,7 +350,8 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 engine.workers.down(engine.env.now, event, &mut engine.events);
             }
             root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
-            root::Delivery::PlaygroundNote { .. }
+            root::Delivery::Push(_)
+            | root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::Forges { .. }

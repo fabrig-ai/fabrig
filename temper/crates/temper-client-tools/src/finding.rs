@@ -481,6 +481,9 @@ fn answered(
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::DeviceAdded(_)
+        | w::Outcome::DeviceRemoved
+        | w::Outcome::DeviceRefused(_)
         | w::Outcome::NotTheirs => {
             let printed = jig::render::failure(b"unexpected finding outcome", pending.json, 1);
             finish(pending, printed, out);
@@ -535,6 +538,8 @@ fn restored(ask: &Ask, json: bool) -> Option<Pending> {
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
         | w::Request::FollowAct(_)
+        | w::Request::AddDevice(_)
+        | w::Request::RemoveDevice(_)
         | w::Request::TryAccount(_) => return None,
     };
     Some(Pending { called: None, json, project, number, area, act })

@@ -40,6 +40,7 @@ pub enum RecordKind {
     Looked,
     Away,
     Decided,
+    Device,
     Finding,
     LandedDraft,
 }
@@ -272,6 +273,7 @@ impl Reconciliation {
             | Stored::Binding { .. }
             | Stored::Making(_)
             | Stored::ProjectFacts(_)
+            | Stored::Device(_)
             | Stored::LandedDraft(_)
             | Stored::Away(_)
             | Stored::Decided(_)
@@ -388,6 +390,7 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Binding
             | RecordKind::ProjectFacts
+            | RecordKind::Device
             | RecordKind::LandedDraft
             | RecordKind::Away
             | RecordKind::Decided

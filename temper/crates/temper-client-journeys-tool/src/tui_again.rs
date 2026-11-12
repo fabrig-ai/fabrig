@@ -125,7 +125,6 @@ fn record(
                 "XDG_DATA_HOME",
                 "XDG_CACHE_HOME",
                 "XDG_RUNTIME_DIR",
-                temper_shell::environment::INTERNAL_RECORD.name,
             ]
             .iter()
             .any(|forward| name == forward)
@@ -184,7 +183,7 @@ fn record(
     if let Some(step) = journey::follows(&walker.steps, &lines) {
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
-    crate::add_to(journeys, tui_journeys, name, &recording, &[]).map(|_| ())
+    crate::add_to(journeys, tui_journeys, name, &recording, &crate::again::private_paths(paths)).map(|_| ())
 }
 
 fn program(name: &str, given: &[crate::EnvironmentEntry]) -> Option<std::path::PathBuf> {
@@ -354,7 +353,7 @@ impl<'a> Walker<'a> {
                 self.terminal = Some(
                     Terminal::start(
                         &self.paths.scratch,
-                        &self.paths.temper.with_file_name("temper-client"),
+                        &self.paths.temper.with_file_name("temper"),
                         &address,
                         &self.environment,
                     )

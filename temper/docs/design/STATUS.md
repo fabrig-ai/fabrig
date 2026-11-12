@@ -26,6 +26,14 @@ check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
 proposals. A role reports through its Now, a line per session and a weekly
 `report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
+Being told is the whole story's milestone N3b, goal 492, built
+against fakes alone: a person's devices, jig's need's arrival, the
+root's pushes and the service's Web Push, `temper ctl push add`, and
+Telling you in the browser, its service worker and manifest; mail and
+the digest are designed and not built, and a real push needs a deployment
+at a name over HTTPS and its VAPID key (`domain/forge/attention.status.md`,
+7.4; `draft/what-reaches-you.status.md`, 9).
+
 
 QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a
@@ -111,10 +119,53 @@ and a stored foreman is refused naming its setting
 2). Its walk on a fresh box follows landing; overlays are S2
 (`draft/stock-charters.status.md`).
 
+`temper box` in a terminal runs the TUI at once and the box behind
+it, by the look request `tui-box-front`: it finds, or downloads once,
+`temper-box` of its own build and runs `temper-box --front` as its
+child, signed in by the link the box hands it on a pipe, the welcome
+following the box's start and then the browser's steps, "Signed in as
+the owner" from the forges document's `linked`, the playground's header
+and quiet line, a quit that asks while work runs and stops the box,
+showing it stopping, and the box's state and `/log`; `temper-box` alone
+runs the box with no TUI (`client/tui/box.md`; `client/box-binary.md`;
+`protocol/setup/box.md`, 6). Its journey waits
+for `again` to start the box in the pseudo-terminal
+(`client/tui/journeys.status.md`, 8.3), and its real-terminal check
+follows landing (`client/README.md`, section 5).
+
+The deployment's client is `temper`, at `bin/temper`, with its capture,
+`skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
+are `[ADDRESS]` and `help`; `ctl` is internal. It runs the TUI and ctl from
+shared shells, and `--version` reads `temper-version`. Its ctl story signs
+in to a `temper-engine` and runs after landing. Its closure is held by the
+boundary test's row, with five shared vocabulary crates as named
+exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
+The compiled `commands` page renders the client's table first
+(`protocol/documentation.status.md`).
+
+temper's command lines, `draft/cli.execution.md`'s C2, C3, C4 and C6: the box's
+binary is `temper-box`, a package under `bin/` whose crate is
+`temper-box-shell`, and the engine's, the worker's and the agent's,
+`temper-engine`, `temper-worker` and `temper-agent`, are too, their crates
+`temper-engine-shell`, `temper-worker-shell` and `temper-agent-shell`;
+each holds a table on skein's, reached by `Table::reach`, with its help,
+`--version`, exit 2 for refused arguments, its pre-table modes as rows,
+and its reference documents generated beside `cli/README.md`. The
+internal variables are renamed `TEMPER_INTERNAL_*` and the twins
+dropped. The test set is `temper-test-env`'s table, its variables
+`TEMPER_TEST_*`, through which temper's tests read the environment, with
+its `test-env` generated beside the others. The client is `temper`, a
+package under `bin/` whose crate is `temper-client-shell`, with its
+table; `temper box` runs its TUI in front of a `temper-box --front`
+child, which it finds beside it, in its cache or downloads once
+(`client/box-binary.md`), and the box runs no TUI of its own
+(`cli/README.status.md`; `draft/cli.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
 - [`client/README.md`](client/README.status.md)
+- [`client/box-binary.md`](client/box-binary.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 - [`client/ctl/areas.md`](client/ctl/areas.status.md)
 - [`client/ctl/results.md`](client/ctl/results.status.md)

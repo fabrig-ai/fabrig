@@ -410,6 +410,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Making(_)
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
+        | forge::Key::Device { .. }
         | forge::Key::LandedDraft { .. }
         | forge::Key::Away { .. }
         | forge::Key::Finding { .. }

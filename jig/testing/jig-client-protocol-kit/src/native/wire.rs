@@ -136,6 +136,7 @@ impl Wire {
                             attempt: *exchange,
                             final_answer: true,
                             unconfigured_model: false,
+                            closed_project: false,
                             words: None,
                         }]
                     }
@@ -146,6 +147,7 @@ impl Wire {
                             attempt: *exchange,
                             final_answer: false,
                             unconfigured_model: false,
+                            closed_project: false,
                             words: None,
                         }]
                     }

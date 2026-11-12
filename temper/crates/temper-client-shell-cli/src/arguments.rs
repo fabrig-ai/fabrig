@@ -86,7 +86,7 @@ pub fn class(call: &Call) -> Class {
 /// Key files have a separate purpose and never feed the ordinary text input.
 pub(crate) fn key_file(call: &Call) -> Option<&[u8]> {
     let name = TOOLS.get(usize::from(call.tool))?.name;
-    let index = if name == rows::IMPORT.name {
+    let index = if name == rows::IMPORT.name || name == b"push add" {
         0
     } else if name == b"forge connect" && call.form == 0 {
         3

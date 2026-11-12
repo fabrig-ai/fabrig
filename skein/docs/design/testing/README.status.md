@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-09. Where skein's code lags or departs from [README.md](README.md).
+2026-11-12. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as are the row runner's
@@ -34,6 +34,12 @@ counted around each reused pass, never by an address.
   (`skein/crates/skein-ui/src/tests/tree.rs`). No growth falls between
   their reads, so what ran before cannot turn them red, but a table
   replaced at its size, in a freed block handed back, would pass them.
+  5: no fixture outlives its test: skein's process fixture ties nothing
+  to its owner, so a test killed outright leaves its `never`,
+  `fork-live` and `supervise-*` leaders parked and its `supervise-term`
+  and `supervise-grandchild` descendants spinning. [in flight: change 1551]
+  5: no fixture outlives its test: an unwinding test's walk can leave a
+  descendant running, unreported. [in flight: change 1552]
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

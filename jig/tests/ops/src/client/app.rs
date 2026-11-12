@@ -360,6 +360,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 attempt: *attempt,
                 final_answer: *envelope == skein_lib::RequestEnvelope::Final,
                 unconfigured_model: false,
+                closed_project: false,
                 words,
             }]
         }
@@ -394,7 +395,7 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
             revision.value,
         ),
     };
-    Sent { attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
+    Sent { application: true, attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
 }
 
 #[cfg(test)]
