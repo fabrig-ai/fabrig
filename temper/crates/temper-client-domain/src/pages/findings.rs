@@ -86,10 +86,17 @@ pub struct Store {
     projects: List<Watched>,
     pub more: bool,
     pub shown: Option<Id>,
+    // Session watches count down below the four fixed handles; page-local reads grow up.
+    next: u64,
 }
 impl Store {
     pub(super) fn new() -> Self {
-        Self { projects: List::with_capacity(PROJECTS), more: false, shown: None }
+        Self {
+            projects: List::with_capacity(PROJECTS),
+            more: false,
+            shown: None,
+            next: u64::MAX.checked_sub(4).expect("reserved findings handles"),
+        }
     }
     #[must_use]
     pub fn cards(&self) -> Box<[&Card]> {
@@ -384,7 +391,10 @@ impl needs::Session {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "the dispatcher keeps each finding act with its validation and forge request")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the dispatcher keeps each finding act with its validation and forge request"
+)]
 pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     let id = match &act {
         Act::Open { id }
@@ -552,9 +562,6 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
     }
     let mut requests = Queue::uncapped();
     let pages = &mut root.pages;
-    if let Some(inbox) = &pages.inbox {
-        pages.next = pages.next.max(inbox.next);
-    }
     let mut kept = List::with_capacity(PROJECTS);
     for held in core::mem::replace(&mut pages.needs.findings.projects, List::with_capacity(PROJECTS)).into_boxed() {
         if wanted.as_slice().contains(&held.project) {
@@ -572,8 +579,8 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
             present |= held.project == project;
         }
         if !present && let Some(subject) = forge::findings::watch(project, &env.limits.forge) {
-            let handle = Handle { asker: Owner::Pages.asker(), number: pages.next };
-            pages.next = pages.next.checked_add(1).expect("page handles fit");
+            let handle = Handle { asker: Owner::Pages.asker(), number: pages.needs.findings.next };
+            pages.needs.findings.next = pages.needs.findings.next.checked_sub(1).expect("finding handles fit");
             kept.push(Watched {
                 project,
                 handle,
@@ -600,8 +607,8 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
                 && let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest
                 && let Some(query) = super::goals::query(me, held.project)
             {
-                let handle = Handle { asker: Owner::Pages.asker(), number: pages.next };
-                pages.next = pages.next.checked_add(1).expect("page handles fit");
+                let handle = Handle { asker: Owner::Pages.asker(), number: pages.needs.findings.next };
+                pages.needs.findings.next = pages.needs.findings.next.checked_sub(1).expect("finding handles fit");
                 held.goals_handle = Some(handle);
                 requests.push(jig_client::Event::Watch {
                     handle,
@@ -615,9 +622,6 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<cr
             held.goals = None;
             requests.push(jig_client::Event::Unwatch { handle });
         }
-    }
-    if let Some(inbox) = &mut pages.inbox {
-        inbox.next = pages.next;
     }
     while let Some(event) = requests.pop() {
         crate::route::client(root, env, event, out);

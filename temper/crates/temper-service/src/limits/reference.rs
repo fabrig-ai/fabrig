@@ -53,7 +53,9 @@ pub fn engine_reference(out: &mut Writer) -> Result<(), Overflow> {
     let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
     out.put(Decimal::of(u64::from(standard.core.tasks.tree_tasks)).as_bytes())?;
     out.put(b"; small is 32 as listed below. engine.limits.profile selects the profile; engine.limits.overrides replaces named values. Check the box's configuration for its effective value; these are profile defaults.\n\nThe tree limit counts all tasks made over the requester's tree's life, including its root and ended tasks. Ending a task frees live slots, not lifetime capacity; a restart does not reset the count. A task's delegated authority may leave less room than this deployment limit.\n\nA change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).\n")?;
-    out.put(b"\ntemper sizes the engine's watch rooms itself: a stream holds 22 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.\n")?;
+    out.put(b"\ntemper sizes the engine's watch rooms itself: a stream holds ")?;
+    out.put(Decimal::of(u64::from(temper_engine_domain::WATCHES_PER_STREAM)).as_bytes())?;
+    out.put(b" watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.\n")?;
     let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let mut owner = "";
     for name in &jig_protocol_config::names::NAMES {

@@ -10,7 +10,7 @@ The tree limit counts all tasks made over the requester's tree's life, including
 
 A change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).
 
-temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
+temper sizes the engine's watch rooms itself: a stream holds 27 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
 
 ## tasks
 
