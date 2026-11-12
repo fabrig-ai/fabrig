@@ -335,6 +335,7 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
 // domain/agent/standing.md, 7: the person, tools and scripted role share the real engine.
 #[test]
 fn a_person_talks_with_a_role_accepts_its_rule_and_leaves() {
+    use jig_domain_core::reads::{Answer, PageRow, Read};
     const NOW: &str = "Discussed flaky labels; waiting on the owner's rule decision.";
     const RULE: &str = "Label flaky tests.";
     let (mut ctl, task) = start_standing_role();
@@ -361,7 +362,7 @@ fn a_person_talks_with_a_role_accepts_its_rule_and_leaves() {
     );
     assert!(!failed, "{}", String::from_utf8_lossy(&charter));
     let (_, value) = std::str::from_utf8(&charter).expect("charter UTF-8").split_once('\n').expect("value line");
-    let value = value.strip_suffix("end\n").expect("whole charter").trim();
+    let value = value.lines().next().expect("whole charter JSON");
     let value = value.replacen("\"instructions\":\"", &format!("\"instructions\":\"{RULE} "), 1);
     let input = format!(r#"{{"against":1,"reason":"The person asked during our talk to label flaky tests.","items":[{{"setting":{{"kind":"charter","number":13}},"set":{value}}}]}}"#);
     let (proposed, failed) = temper_engine_domain_world::host_tool::host_tool(
@@ -395,7 +396,6 @@ fn a_person_talks_with_a_role_accepts_its_rule_and_leaves() {
     assert_eq!(left, format!("left: task {task}\n"));
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
     assert!(!shown.contains("talking with"), "{shown}");
-    use jig_domain_core::reads::{Answer, PageRow, Read};
     let Answer::Page(page) = role_read(&mut ctl, Read::Activity { task, before: None }) else { panic!("activity") };
     assert!(page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Rules, .. }))));
     assert!(page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::TalkEnded { lapsed: false, .. }))));

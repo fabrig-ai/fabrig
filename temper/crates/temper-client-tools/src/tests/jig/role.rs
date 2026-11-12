@@ -114,7 +114,7 @@ fn role_talk_requires_words_or_leave_and_help_lists_both() {
     for argv in [TALK, &["role", "talk", "41", "--leave", "--key", "k"]] { assert_eq!(f::printed(&f::call(argv)), f::parse(argv).unwrap()); }
     let help = f::help(Some(crate::jig::rows::ROLE_TALK_AT));
     for form in [b"role talk TASK TEXT".as_slice(), b"role talk TASK --leave"] {
-        assert!(skein_lib::bytes::find(&help, form).is_some(), "{}", core::str::from_utf8(&help).unwrap());
+        assert!(skein_lib::bytes::find(&help, form).is_some(), "{help:?}");
     }
 }
 
