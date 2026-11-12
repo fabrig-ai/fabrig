@@ -5,9 +5,6 @@
 - **Not yet:**
   - 3.1, 5.2: calibrations remain `catalogue.status.md`, 5.
   - 6: the Claude Code arm: `benchmarks/src/agent/mod.rs` refuses it.
-  - 6, 6.3: the Codex collector finds the threads and their files in
-    `CODEX_HOME/state_5.sqlite`, through `rusqlite`, not by walking the
-    rollouts. [in flight: change 1856]
   - 7: no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
     is empty), and no suite runs `smith-claude-code`.
   - 9: version-3 parity remains `codex-parity.status.md`, 4.
