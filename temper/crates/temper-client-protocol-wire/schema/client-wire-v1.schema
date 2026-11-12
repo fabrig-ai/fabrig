@@ -209,7 +209,8 @@ versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64
 # A project's changes (temper/docs/design/client/forge/records.md).
 record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 }
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued }
-record ChangesLanded { task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
+record ChangesSigned { party: u64 head: fixed 32 at: u64 }
+record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
 versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 }
 # A party's project status (temper/docs/design/client/forge/records.md).
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 }

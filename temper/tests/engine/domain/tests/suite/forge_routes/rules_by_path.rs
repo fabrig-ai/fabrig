@@ -13,6 +13,10 @@ const WATCHER: Token = Token::new(990);
 const SET_NAME: &[u8] = b"vsr's protocol core";
 
 fn story() -> (World, engine::Assignment) {
+    story_way(false)
+}
+
+fn story_way(turn: bool) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -20,9 +24,11 @@ fn story() -> (World, engine::Assignment) {
         1000,
         Gate::default(),
         None,
-        StoryLimits { kinds: true, ..StoryLimits::default() },
+        StoryLimits { kinds: true, turn, ..StoryLimits::default() },
     );
-    forge_with_only_temper(&mut world);
+    if !turn {
+        forge_with_only_temper(&mut world);
+    }
     let (mut world, _, producer, _) = change_world_in(world, Change::default());
     fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
     let classes = settings::Value::Classes(Classes {
@@ -322,5 +328,87 @@ fn unread_comparisons_make_an_untouching_change_wait_for_approval() {
     assert_landed(&mut world, change);
     assert_eq!(world.merges, 1);
     assert!(approvals(&mut world).rows.is_empty());
+    world.close();
+}
+
+fn changes_document(world: &mut World) -> forge_top::ChangesView {
+    world.sign_in();
+    let sign_in = world.signed_in.expect("changes watcher session");
+    let Some(forge_top::Document::Changes(view)) = world.oracle_document(sign_in, 1, forge_top::changes_subject(1))
+    else {
+        panic!("project changes document")
+    };
+    view
+}
+
+#[test]
+fn landed_sign_offs_keep_the_counted_review_and_survive_restart() {
+    let (mut world, producer) = story();
+    let protocol = change_of(&world, &producer);
+    let head = publish(&mut world, &producer, Some(b"src/protocol.c"), false);
+    assert_wait(&mut world, protocol, head);
+    post_approval_read(&mut world, protocol, 7);
+    let review = pull_of(&mut world, protocol).reviews.into_vec().pop().expect("the person's review");
+    let expected = forge_top::SignOff {
+        person: world
+            .store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))
+                    if identity.key == forge_top::user_key(1, 7) =>
+                {
+                    Some(*number)
+                }
+                _ => None,
+            })
+            .expect("seeded collaborator"),
+        head: translate::commit(head),
+        at: skein_lib::Wall::from_nanos(review.at.as_nanos()),
+    };
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    settle(&mut world);
+    assert_landed(&mut world, protocol);
+    let docs_producer = next_change(&mut world);
+    let docs = change_of(&world, &docs_producer);
+    publish(&mut world, &docs_producer, Some(b"docs/a.md"), false);
+    assert_landed(&mut world, docs);
+    for restarted in [false, true] {
+        if restarted {
+            world.restart_same();
+            settle(&mut world);
+        }
+        let view = changes_document(&mut world);
+        for rows in [&view.landed, &view.landed_default] {
+            let signed = rows.iter().find(|row| row.task == protocol).expect("protocol landing");
+            assert_eq!(signed.signed.as_ref(), &[expected], "restart {restarted}");
+            assert!(rows.iter().find(|row| row.task == docs).expect("docs landing").signed.is_empty());
+        }
+    }
+    world.close();
+}
+
+#[test]
+fn a_turn_keeps_sign_offs_on_the_member_changes_landed_row() {
+    let (mut world, producer) = story_way(true);
+    let change = change_of(&world, &producer);
+    publish(&mut world, &producer, Some(b"src/protocol.c"), false);
+    assert_eq!(world.merges, 0, "turn waits for its member's approval");
+    post_approval_read(&mut world, change, 7);
+    let review = pull_of(&mut world, change).reviews.into_vec().pop().expect("member review");
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    for _ in 0..600 {
+        world.tick();
+        if world.merges == 1 {
+            break;
+        }
+    }
+    settle(&mut world);
+    assert_eq!(world.merges, 1, "member merged under the turn");
+    let view = changes_document(&mut world);
+    let row = view.landed.iter().find(|row| row.task == change).expect("member change, not its landing task");
+    assert_eq!(row.signed.len(), 1);
+    assert_eq!(row.signed[0].head, translate::commit(review.commit));
+    assert_eq!(row.signed[0].at.as_nanos(), review.at.as_nanos());
     world.close();
 }

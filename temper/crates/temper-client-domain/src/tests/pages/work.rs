@@ -572,6 +572,7 @@ impl Fixture {
                 landed: list(&[w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 15,

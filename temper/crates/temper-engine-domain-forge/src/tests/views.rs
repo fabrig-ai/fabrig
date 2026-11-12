@@ -278,7 +278,7 @@ fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
         commit: [commit; 32],
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
-        changes: Box::new([LoggedChange { task, pull: None, title: Box::from(TITLE) }]),
+        changes: Box::new([LoggedChange { signed: Box::new([]), task, pull: None, title: Box::from(TITLE) }]),
     }
 }
 fn log(d: &mut Domain, repository: skein_forge::api::Repository, landings: Box<[LoggedLanding]>) {
@@ -445,7 +445,7 @@ fn changes_marks_the_owners_and_base_repairs_steps() {
 fn changes_marks_each_logged_merge() {
     let mut d = changes_setup(&[(fixtures::CHANGE, 0_i32, 90)]);
     let mut out = Queue::uncapped();
-    landing_log::landed(&mut d, env().wall, fixtures::HEAD, fixtures::CHANGE, &mut out);
+    landing_log::landed(&mut d, env().wall, fixtures::HEAD, fixtures::CHANGE, Box::new([]), &mut out);
     assert!(queue_marked(&out));
 }
 #[test]
@@ -522,6 +522,7 @@ fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
         landed_default: Box::new([ChangesLanded {
+            signed: Box::new([]),
             task: THIRD,
             title: Box::from(TITLE),
             at: env().wall,
@@ -545,6 +546,7 @@ fn changes_owned_bytes_charges_every_field() {
             }]),
         }]),
         landed: Box::new([ChangesLanded {
+            signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
             task: SECOND,
@@ -606,6 +608,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed.as_ref(),
         &[
             ChangesLanded {
+                signed: Box::new([]),
                 task: 50,
                 title: TITLE.into(),
                 at: Wall::from_nanos(50),
@@ -613,6 +616,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: false
             },
             ChangesLanded {
+                signed: Box::new([]),
                 task: 40,
                 title: TITLE.into(),
                 at: Wall::from_nanos(40),
@@ -626,6 +630,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed_default.as_ref(),
         &[
             ChangesLanded {
+                signed: Box::new([]),
                 task: 25,
                 title: TITLE.into(),
                 at: Wall::from_nanos(25),
@@ -633,6 +638,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: true
             },
             ChangesLanded {
+                signed: Box::new([]),
                 task: 20,
                 title: TITLE.into(),
                 at: Wall::from_nanos(20),

@@ -1378,6 +1378,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::Signed { task, signed } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                row.signed = signed;
+                let saved = row.clone();
+                save_change(d, out, saved);
+            }
+        }
         Event::Closer { row } => crate::closer::save(d, row, out),
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
@@ -2293,7 +2300,11 @@ fn outcome_facts(
         }
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
             let task = crate::landing::merged_owner(d, task, entry);
-            crate::landing_log::landed(d, env.wall, commit, task, out);
+            let signed = match d.changes.get(&task) {
+                Some(row) => row.signed.clone(),
+                None => Box::new([]),
+            };
+            crate::landing_log::landed(d, env.wall, commit, task, signed, out);
             if !d.releases.contains_key(&task) {
                 crate::verification::landed(d, commit, task, out);
                 if let Some(row) = d.changes.get_mut(&task)
@@ -4848,7 +4859,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 if landed_commit(&prior.state).is_none()
                     && let Some(commit) = landed_commit(&row.change.state)
                 {
-                    crate::landing_log::landed(d, env.wall, commit, row.task, out);
+                    crate::landing_log::landed(d, env.wall, commit, row.task, Box::new([]), out);
                 }
                 if !prior.owns_turn && in_queue(&prior.state) && !in_queue(&row.change.state) {
                     wake_queue(d, &row);

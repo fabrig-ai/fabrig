@@ -212,6 +212,7 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
@@ -307,6 +308,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let branch = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            signed: List::with_capacity(8),
             task: 21,
             title: b"Goal-branch implementation".as_slice().into(),
             at: RECENT,
@@ -318,6 +320,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let landing = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            signed: List::with_capacity(8),
             task: 22,
             title: b"Landing fallback".as_slice().into(),
             at: RECENT + 1,
@@ -398,6 +401,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        signed: List::with_capacity(8),
                         task,
                         title: title.as_bytes().into(),
                         at: RECENT,

@@ -402,6 +402,7 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    signed: skein_lib::List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: *task,

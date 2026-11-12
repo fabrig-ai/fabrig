@@ -17,14 +17,25 @@ impl Domain {
 }
 
 /// Log `task`'s landing at `commit`, in the decision that saw it.
-pub(crate) fn landed(d: &mut Domain, now: Wall, commit: Commit, task: u64, out: &mut Queue<Request>) {
+pub(crate) fn landed(
+    d: &mut Domain,
+    now: Wall,
+    commit: Commit,
+    task: u64,
+    signed: Box<[crate::SignOff]>,
+    out: &mut Queue<Request>,
+) {
     let Some(change) = d.changes.get(&task) else { return };
     let repository = change.repository;
     if !d.repositories.contains_key(&repository) {
         return;
     }
-    let logged =
-        LoggedChange { task, pull: change.pull, title: crate::text::fit(&change.title, LOGGED_TITLE_BYTES, b"...") };
+    let logged = LoggedChange {
+        task,
+        pull: change.pull,
+        title: crate::text::fit(&change.title, LOGGED_TITLE_BYTES, b"..."),
+        signed,
+    };
     let branch = change.base.clone();
     let limits = &d.landing.limits;
     let mut row = match d.landing_logs.remove(&repository) {
@@ -94,6 +105,10 @@ pub(crate) fn row_bytes(row: &LandingLog) -> Option<u64> {
         )?;
         for change in &landing.changes {
             held = held.checked_add(skein_lib::len_u64(change.title.len()))?;
+            held = held.checked_add(
+                skein_lib::len_u64(change.signed.len())
+                    .checked_mul(u64::try_from(size_of::<crate::SignOff>()).ok()?)?,
+            )?;
         }
     }
     Some(held)

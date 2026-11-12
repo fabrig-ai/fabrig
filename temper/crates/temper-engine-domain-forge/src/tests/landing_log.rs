@@ -25,7 +25,7 @@ fn a_merge_logs_its_change_with_its_title() {
                 commit: FIRST,
                 branch: Box::from(b"main".as_slice()),
                 at: env().wall,
-                changes: Box::new([LoggedChange { task: CHANGE, pull, title }]),
+                changes: Box::new([LoggedChange { signed: Box::new([]), task: CHANGE, pull, title }]),
             }]),
         };
         assert_eq!(saved(&out).as_ref(), core::slice::from_ref(&expected));
@@ -48,6 +48,8 @@ fn the_log_outlives_the_changes_close() {
 fn a_pull_seen_merged_is_logged() {
     let mut d = configured_domain(&[]);
     add_change(&mut d, CHANGE, b"main");
+    // A prior admitted merge may have failed before someone else merged the pull.
+    signed(&mut d, CHANGE, SignOff { person: 7, head: HEAD, at: env().wall });
     let pull = skein_forge::api::Pull {
         number: PULL,
         head: Box::from(b"temper/51".as_slice()),
@@ -97,6 +99,7 @@ fn a_pull_seen_merged_is_logged() {
     let row = d.landing_log(REPO).unwrap();
     assert_eq!(row.landings[0].commit, FIRST);
     assert_eq!(row.landings[0].changes[0].pull, Some(PULL));
+    assert!(row.landings[0].changes[0].signed.is_empty());
 }
 
 #[test]
@@ -179,4 +182,34 @@ fn a_merge_during_release_is_still_logged() {
     d.releases.insert(CHANGE, release_row(CHANGE, CHANGE, ReleaseEnding::Cancelled, Some(PULL), true, false)).unwrap();
     assert_eq!(saved(&merged(&mut d, CHANGE, FIRST)).len(), 1);
     assert!(d.verifications.is_empty());
+}
+
+fn signed(d: &mut Domain, task: u64, signed: SignOff) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    step(d, &env(), Event::Signed { task, signed: Box::new([signed]) }, &mut out);
+    out
+}
+
+#[test]
+fn a_new_admission_replaces_sign_offs_and_joins_an_existing_commit() {
+    let mut d = configured_domain(&[]);
+    add_change(&mut d, CHANGE, b"main");
+    add_change(&mut d, SECOND, b"main");
+    merged(&mut d, CHANGE, FIRST);
+    let first = SignOff { person: 7, head: HEAD, at: Wall::from_nanos(10) };
+    let second = SignOff { person: 8, head: FIRST, at: Wall::from_nanos(11) };
+    signed(&mut d, SECOND, first);
+    let out = signed(&mut d, SECOND, second);
+    let mut kept = false;
+    for request in &out {
+        if let Request::Save { record: Stored::Change(row), .. } = request {
+            kept |= row.task == SECOND && row.signed.as_ref() == [second];
+        }
+    }
+    assert!(kept, "replacement saved in the admission decision");
+    let out = merged(&mut d, SECOND, FIRST);
+    let log = saved(&out);
+    assert_eq!(log.len(), 1);
+    assert_eq!(log[0].landings.len(), 1);
+    assert_eq!(log[0].landings[0].changes[1].signed.as_ref(), &[second]);
 }
