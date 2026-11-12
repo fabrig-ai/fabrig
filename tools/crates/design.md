@@ -1,10 +1,11 @@
 # The crate graph's checks and figure
 
 Provisional, 2026-11-12. This document comes from `temper/docs/design/draft/crate-graph.md`, 7.3 and 8, milestone G7 of
-`temper/docs/design/draft/crate-graph.execution.md`. It covers how the repository measures its crates. A
-check in the boundary suite bounds a library's size and a generated family's size. A figure, run
+`temper/docs/design/draft/crate-graph.execution.md`, and from its 6.3 and 7.4, milestone G8. It covers how the repository measures its crates. A
+check in the boundary suite bounds a library's size and a generated family's size, and another
+finds test code that two test binaries of one package compile, which moves to a library. A figure, run
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
-its check of the draft's section 7 (features, codec crates, shared test code) to section 3.
+its check of the draft's section 7 (features, codec crates) to section 3.
 
 ## 1. In one page
 
@@ -18,6 +19,10 @@ its check of the draft's section 7 (features, codec crates, shared test code) to
   other families at 20,000. It is in the focused suite, in `tests/boundary/`, and builds nothing.
   Today's crates over a bound are its exceptions, each with the milestone or the work that removes
   it. Exceptions only shrink (section 3.1).
+- **Shared test code is compiled once.** A source file that two test binaries of one package compile
+  is a finding of the shared-test-code check, beside the size check. Such code is a library the
+  binaries depend on: a kit under the tree's `testing/`, or a world's own library. A kit holds no
+  tests of its own, so a test build compiles it once (section 3.2).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -73,12 +78,28 @@ files, outside generated record code. So a crate's own tests count, as do its pa
 Integration tests under its `tests/`, its benches and its examples do not count. This is the draft's
 measure: `jig-protocol-store`'s 69,000 are its `src/` and `patches/`, outside its eight families.
 
+### 2.4 A package's test binaries
+
+- **A package's test binaries** are its targets whose `test` is true in `cargo metadata`, each
+  compiled as one test binary. A library's own tests are one, as are each binary's and each
+  integration test's, and a bench's or an example's that sets `test`. A target whose `test` is
+  false is no test binary, whatever its kind.
+- **A test binary's module tree** starts at its target's `src_path` and is read by section 2.1's
+  rules, `cfg(test)` modules among them, since a test binary compiles them. A file reached twice
+  within one tree is one file of that tree.
+- **A file a test binary compiles** is a file of its module tree. A `#[path]` or `include!` that
+  reaches into another package names a file of this test binary all the same.
+
 ## 3. The checks
 
 Each check is in `tests/boundary/`, in the focused suite. It reads `cargo metadata` and the sources,
 builds nothing, and runs on every change (`.config/gate/always.txt`). It carries exceptions, each
 with what removes it. An exception that matches nothing fails its check, so the change that brings a
 crate into line removes its exception, as `skein/docs/foundation/cli.md`, 9 has it.
+
+The checks share one reader of the metadata and of module trees by section 2's rules:
+`fabrig-boundary`'s library, `tests/boundary/src/lib.rs`, which each check's test binary depends
+on. It holds no tests of its own (section 3.2); the reader's tests stay in `sizes.rs`.
 
 ### 3.1 Sizes
 
@@ -113,6 +134,101 @@ The two client wires each hold a small second family, the public wire (`public_v
 their own. That makes their own family a shared crate's family. The draft read
 `jig-client-protocol-wire` as one schema (`temper/docs/design/draft/crate-graph.md`, 4.5). The check
 keeps the rule as written and excepts both wires.
+
+### 3.2 Shared test code
+
+`tests/boundary/tests/shared_test_code.rs`. A module that several test binaries of a package
+compile is compiled once per binary, and again with each change to it
+(`temper/docs/design/draft/crate-graph.md`, 6.3). Its findings:
+
+- **A file that two or more test binaries of one package compile** (section 2.4). The finding names
+  the package, the file by its path from the repository's root, and each test binary that compiles
+  it, by its target's kind and name. A file that another package's test binary reaches by `#[path]`
+  is no finding of either package: each compiles it once.
+- **A source the check can't read,** as in section 3.1.
+
+An exception names a package and a path from the repository's root, a file or a directory. It
+covers that package's findings for files at or below the path, and says what removes it. One that
+covers no finding fails the check.
+
+**Where shared code goes:** to a library that the test binaries depend on, compiled once and cached.
+
+- **A kit under the tree's `testing/`,** named for what it serves (`temper-box-kit`) or by its kind,
+  on the `harness` lint profile with a `clippy.toml` of its own (`tools/lints/design.md`, 3). Its
+  library sets `test = false` and holds no `#[test]` and no `cfg(test)` code, since a test build would
+  compile a library's own tests as the whole crate again (`temper/docs/design/draft/crate-graph.md`,
+  6.2). A test that sat in the moved code moves to one of the binaries: a `#[test]` there calls a
+  public function of the kit that holds its body. A helper that sat under `cfg(test)`, which a
+  dependency is never built with, becomes plain public code.
+- **A world's own library,** when the code drives that world alone and adds no dependency to the
+  library, as skein's layout has it for a world's binaries (`skein/docs/design/testing/README.md`,
+  6).
+- **The binaries keep their paths.** A binary that declared `mod support;` names the kit with
+  `use <kit> as support;`, so its own code reads unchanged. What the binaries reached through their
+  parent module becomes the kit's public interface.
+- **A kit's paths are its own,** from the running test, through `skein-scratch`'s `paths`. A
+  package's binary comes from `paths::binary`, read from the environment the test's runner gives
+  the running test binary: so the binary's path is passed in when the test runs, and no kit compiles
+  `env!("CARGO_BIN_EXE_...")`. Fixtures come from `paths::tree()` or `paths::workspace()`, never from
+  `paths::package()`, which is the calling test's package. An `include_bytes!` or `include_str!`
+  names its file from the kit's own place.
+- **What one binary alone compiles stays with that binary,** beside its root, even where it sat in
+  the shared directory.
+
+**Today's findings,** read on main at `c3729d66f0`, and where each goes. The check lands with an
+exception for each, and each move removes its own:
+
+| Package | What its test binaries share | Goes to |
+|---|---|---|
+| `temper-box` | `tests/support/`, about 26,300 lines, which `process`, `live`, `live_github`, `suite` and `proof_live` compile whole and `live_github_managed` in part; `tests/fake_backends/box_link.rs`, which `process` and `suite` compile | `temper/testing/temper-box-kit` |
+| `smith` | `tests/end-to-end/support/`, about 3,000 lines, which `end_to_end`, `live` and `live_configuration` compile | `smith/testing/smith-end-to-end-kit` |
+| `skein-browser-world` | `tests/support/real.rs` and `real/`, about 1,500 lines, which `browser_facts` and `browser_real` compile; `src/pages.rs`, which they and `suite` compile | `skein/testing/skein-browser-rig` |
+| `jig-test` | `tests/support/mod.rs`, `ports.rs` and `trace.rs`, about 600 lines, which `process` and `live` compile; `jig/testing/jig-protocol-accounts-kit/src/visitor.rs`, which both include by `#[path]` | `jig/testing/jig-test-kit`; the visitor from its own kit, as a dependency |
+| `temper-real-loop-world` | `tests/support/mod.rs`, 11 lines, which `live_text` and `suite` compile | the world's library |
+| `temper-client-shell-terminal` | `tests/support/world.rs`, about 300 lines, which its library's own tests and `suite` compile | an exception |
+| `temper-engine-domain-ways` | `src/tests/invariants.rs`, 35 lines, which its library's own tests and `suite` compile | an exception |
+
+The last two are shared between a library's own tests and its integration suite. A kit would
+depend on the library, and the library's own tests, a second build of it, would then meet two
+copies of its types. Each stays an exception until its area moves the library's tests that use it
+into its suite, or keeps one copy alone.
+
+**`temper-box-kit`** is `temper/testing/temper-box-kit`, the library `temper_box_kit`: what
+`temper-box`'s test binaries share, the stories' processes, forges, people and fixtures.
+
+- **What moves:** every file under `tests/support/`, its root `mod.rs` becoming the kit's
+  `src/lib.rs`, and `tests/fake_backends/box_link.rs`. Three stay with their binary, as each is
+  its alone: `listeners.rs` with `suite`, and `managed_client.rs`, `managed_sitting.rs` and
+  `relay_managed.rs` with `live_github_managed`.
+- **The GitHub fixtures,** `tests/support/github/`, are data. They go to
+  `bin/temper-box/tests/fixtures/github/`, beside the cluster's, and the kit names both from
+  `paths::tree()`, as it names the cluster's today.
+- **Its tests:** the five `#[test]`s in `forge_land.rs` and `forge_land/rung.rs` move to `suite`, so
+  they run once, where `suite` and `proof_live` each ran them. The eight in the managed files stay
+  with them. The helpers under `cfg(test)` that `suite` calls become plain.
+- **The managed binary** keeps its own `write_private`, which creates a file new with mode 0600, for
+  its own modules. The relay's `count.txt`, the one write of a moved file that reached it, is
+  created new with mode 0600 in the kit, as the relay's journal beside it is.
+- **From outside:** the tests of `temper-box-shell`, `temper-engine-shell` and `temper-worker-shell`
+  compile `configuration.rs` by `#[path]`, and follow it to its new place.
+
+**The others:**
+
+- **`smith-end-to-end-kit`,** the library `smith_end_to_end_kit`: the shipped-binary stories' person,
+  browser, peers and scratch over skein's real loop, today's `tests/end-to-end/support/`. It depends
+  on what the module uses as the binaries name it, smith's fixtures crates among them
+  (`temper/docs/design/draft/cli.md`, 3.2).
+- **`skein-browser-rig`,** the library `skein_browser_rig`: real Chromium in one service loop with a
+  `skein-http` page server, today's `tests/support/real.rs` and `real/`, and the pages the world's
+  tests serve, today's `src/pages.rs`. `skein-browser-world` takes it as a dev-dependency. It
+  depends on no package under `skein/tests/` (`skein/docs/design/testing/README.md`, 6).
+- **`jig-test-kit`,** the library `jig_test_kit`: the reference binary's stories' rig, the binary, its
+  native person and the provider on skein's real ring, today's `tests/support/mod.rs`, `ports.rs`
+  and `trace.rs`. The sign-in visitor is `jig-protocol-accounts-kit`'s `visitor` module, which the
+  kit and the binaries take as a dependency, with `Visitor::hand` and `handed` public. The other
+  files under `tests/support/` are each one binary's and stay.
+- **`temper-real-loop-world`'s rail steps,** `start_change`, go to its library's `terminal` module,
+  which they are built from.
 
 ## 4. The figure
 
@@ -243,9 +359,14 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
 
 ## 5. Open questions and Later
 
-- **Later: the draft's other checks** join section 3 with their milestones: features (G1), codec
-  crates (G2) and shared test code (G8). The last reads test targets' module trees by section 2.1's
-  rules.
+- **Later: the draft's other checks** join section 3 with their milestones: features (G1) and codec
+  crates (G2).
+- **Later: the two shared files left as exceptions** (section 3.2), in
+  `temper-client-shell-terminal` and `temper-engine-domain-ways`, each when its area next works on
+  its library's tests.
+- **Later: libraries with no tests of their own.** A world's or a kit's library that holds no test
+  is still compiled a second time, as an empty test binary, unless it sets `test = false`. Section
+  3.2's kits set it; the others aren't surveyed.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
 - **Later: the libraries over the bound that no milestone splits:** `temper-client-view`,
