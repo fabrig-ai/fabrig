@@ -24,7 +24,7 @@ pub fn run(owner: &Path, landed: &Landed, options: &Options) -> Result<Report, E
     }
     let patches = derive::patches(&tree)?;
     let landed_patches = derive::patches(&base)?;
-    let frozen = derive::frozen(&landed_patches);
+    let frozen = derive::frozen(&landed_patches, &base, &tree.wires);
     let own = derive::branch(&tree, &base)?;
     let old = own.and_then(|number| patches.get(&number));
     let number = base.patches.keys().next_back().copied().unwrap_or(0).checked_add(1).ok_or_else(|| Error::Schema {
@@ -177,7 +177,8 @@ fn families(
         report.proposed.extend(
             derive::proposals(kept, current, &confirmed, &diff)?.into_iter().map(|rename| (family.clone(), rename)),
         );
-        match derive::verdict(&diff, is_frozen) {
+        let layout_changed = tree.wires.contains(family) && derive::layout_changed(kept, current)?;
+        match derive::verdict(&diff, derive::needs(&diff, is_frozen, layout_changed)) {
             Version::Kept => {
                 if is_frozen {
                     waiting(family, &confirmed, &mut writes, &mut report);
