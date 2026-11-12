@@ -34,7 +34,7 @@ fn ask(world: &mut World, goal: u64, closer: u64, landing: u64, agent: &engine::
     let turns = live_task(world, agent.task).turn;
     park_after_turn(world, agent, None, turns);
     let up = passed_up(world, goal, closer, landing);
-    assert_eq!(closer_row(world, closer).unwrap().relay.open.as_ref().unwrap().stands, Stands::Asked { question: up, answer: None });
+    assert_eq!(closer_row(world, closer).expect("closer record").relay.open.as_ref().expect("open closer question").stands, Stands::Asked { question: up, answer: None });
     (number, up)
 }
 fn resumed(world: &mut World, agent: &engine::Assignment, number: u64) -> engine::Assignment {
@@ -52,14 +52,14 @@ fn repair_asks(restart: bool) {
     let (number, up) = ask(&mut world, goal.task, closer, landing, &repair);
     if restart {
         world.drain_cut();
-        let kept = closer_row(&world, closer).unwrap().relay.clone();
+        let kept = closer_row(&world, closer).expect("closer record").relay.clone();
         world.restart_same();
         world.until(Until::Ready);
-        assert_eq!(closer_row(&world, closer).unwrap().relay, kept);
+        assert_eq!(closer_row(&world, closer).expect("closer record").relay, kept);
     }
     world.goal_answer(&goal, 111, closer, up, ANSWER);
     let repair = resumed(&mut world, &repair, number);
-    assert!(closer_row(&world, closer).unwrap().relay.open.is_none());
+    assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"fixed", 1).expect("repair pushes");
     status(&mut world, head, raw::Check::Passed);
     finish_run(&mut world, &repair, tasks::TaskResult::Change {
@@ -109,7 +109,7 @@ fn the_status_settlements_change_has_questions_up() {
     let closer = make_closer(&mut world, &goal, 94);
     let job = close_job(&mut world);
     let tasks::Party::Task(change) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
-    assert!(closer_row(&world, closer).unwrap().close_changes.contains(&change));
+    assert!(closer_row(&world, closer).expect("closer record").close_changes.contains(&change));
     assert_eq!(row(&world, change).questions.route, change::Route::Up);
     world.close();
 }
@@ -121,10 +121,10 @@ fn an_ended_landing_drops_the_late_answer_with_one_notice() {
     world.goal_answer(&goal, 111, closer, up, ANSWER);
     let expected = format!("Change {landing} ended; your answer to question {up} goes no further: {}", String::from_utf8_lossy(QUESTION));
     for _ in 0..STEPS {
-        if closer_row(&world, closer).unwrap().relay.open.is_none() && live_task(&world, goal.task).inbox.iter().any(|word| word.words.as_ref() == expected.as_bytes()) { break; }
+        if closer_row(&world, closer).expect("closer record").relay.open.is_none() && live_task(&world, goal.task).inbox.iter().any(|word| word.words.as_ref() == expected.as_bytes()) { break; }
         world.tick();
     }
-    assert!(closer_row(&world, closer).unwrap().relay.open.is_none());
+    assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
     for _ in 0..20 { world.tick(); }
     let notices: Vec<_> = live_task(&world, goal.task).inbox.iter().filter(|word| word.from == tasks::Party::Task(closer) && word.words.as_ref() == expected.as_bytes()).collect();
     assert_eq!(notices.len(), 1);
@@ -146,8 +146,16 @@ fn the_closer_answers_other_questions_and_passes_its_changes_notices() {
     let answer = world.scripted_call(&goal, 112, engine::Tool::Cancel { target: repair.task, reason: b"stop the asker".as_slice().into() });
     assert!(matches!(answer, engine::CallAnswer::Controlled));
     wait_ended(&mut world, repair.task);
+    wait_held(&mut world, landing, goal.task);
     world.goal_answer(&goal, 113, closer, up, ANSWER);
-    let expected = format!("Change {landing}: Task {} ended; your answer to its question {number} goes no further: {}", repair.task, String::from_utf8_lossy(QUESTION));
+    let revision = live_task(&world, landing).revisions.hold;
+    let answer = world.scripted_call(&goal, 114, engine::Tool::Release { target: landing, revision, again: None });
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    let mut expected = format!("Change {landing}: Task {} ended; your answer to its question {number} goes no further: {}", repair.task, String::from_utf8_lossy(QUESTION));
+    let bound = usize::try_from(world.env.limits.tasks.message_bytes).expect("message bound");
+    assert!(expected.len() > bound, "the prefixed notice exercises cutting");
+    expected.truncate(bound - "…".len());
+    expected.push('…');
     for _ in 0..STEPS {
         if live_task(&world, goal.task).inbox.iter().any(|word| word.words.as_ref() == expected.as_bytes()) { break; }
         world.tick();

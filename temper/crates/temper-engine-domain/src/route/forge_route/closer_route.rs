@@ -4,7 +4,7 @@ use temper_engine_domain_forge_closer as c;
 mod relay;
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
-    row: forge::CloserRow,
+    relay: c::relay::Relay,
     asked: bool,
     more: bool,
 }
@@ -43,7 +43,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         making: None,
         close_changes: Box::new([]),
         landing_changes: Box::new([]),
-        relay: temper_engine_domain_forge_closer::relay::Relay::new(),
+        relay: c::relay::Relay::new(),
         done: false,
     });
     row.done = false;
@@ -171,8 +171,12 @@ fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_ho
 fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut decision: ProcedureStep) {
     let task = row.task;
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let previous = row.relay.clone();
     let (asked, more) = relay::apply(domain, env, &mut row, &mut decision);
-    domain.closer_steps.insert((task, step), Pending { row, asked, more }).expect("one pending step per closer");
+    let relay = core::mem::replace(&mut row.relay, previous);
+    // Step progress keeps its creation marker; only the relay waits for admission.
+    domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    domain.closer_steps.insert((task, step), Pending { relay, asked, more }).expect("one pending step per closer");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
@@ -701,27 +705,9 @@ fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<
 }
 
 pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
-    let Some(mut pending) = domain.closer_steps.remove(&(task, step)) else { return };
-    if pending.asked {
-        let record = domain.core.tasks.task(task).expect("admitted closer step");
-        let mut number = None;
-        for credit in &record.questions {
-            if credit.asked == tasks::Party::Task(pending.row.goal) {
-                number = Some(credit.number);
-                break;
-            }
-        }
-        c::relay::asked(&mut pending.row.relay, number.expect("admitted question has its credit"));
-    }
-    if pending.more {
-        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
-    }
-    let mut row = pending.row;
-    let Some(kind) = row.making.take() else {
-        domain.work.push(Work::Forge(forge::Event::Closer { row }));
-        return;
-    };
-    if let Some(child) = child {
+    let pending = domain.closer_steps.remove(&(task, step));
+    let Some(mut row) = domain.forge.closer(task).cloned() else { return };
+    if let Some(child) = child && let Some(kind) = row.making.take() {
         row.closer.running = Some(c::Running { step: kind, change: child });
         let prior = match kind {
             c::Step::Close => &row.close_changes,
@@ -739,8 +725,26 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
                 row.closer.landing = Some(child);
             }
         }
+        domain.work.push(Work::Forge(forge::Event::Closer { row: row.clone() }));
     }
-    domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    let Some(mut pending) = pending else { return };
+    if pending.asked {
+        let record = domain.core.tasks.task(task).expect("admitted closer step");
+        let mut number = None;
+        for credit in &record.questions {
+            if credit.asked == tasks::Party::Task(row.goal) {
+                number = Some(credit.number);
+                break;
+            }
+        }
+        c::relay::asked(&mut pending.relay, number.expect("admitted question has its credit"));
+    }
+    if pending.relay != row.relay {
+        domain.work.push(Work::Forge(forge::Event::CloserRelayed { task, relay: pending.relay }));
+    }
+    if pending.more {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+    }
 }
 
 pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domain_core::StepRefusal) -> bool {
@@ -752,6 +756,14 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domai
     match why {
         jig_domain_core::StepRefusal::Moved { .. } => false,
         jig_domain_core::StepRefusal::Denied { .. } | jig_domain_core::StepRefusal::Refused(_) => {
+            if let Some(mut row) = domain.forge.closer(task).cloned() {
+                if row.making == Some(c::Step::Close) {
+                    row.closer.closed = None;
+                }
+                row.making = None;
+                row.done = false;
+                domain.work.push(Work::Forge(forge::Event::Closer { row }));
+            }
             if let Some(record) = domain.core.tasks.task(task)
                 && !record.waiting_on.is_empty()
             {

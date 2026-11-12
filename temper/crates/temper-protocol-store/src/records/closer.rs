@@ -136,7 +136,7 @@ fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
             }).expect(FITS))
         }
     };
-    let mut replies = List::uncapped();
+    let mut replies = List::with_capacity(u32::try_from(relay.replies.len()).expect(FITS));
     for message in &relay.replies {
         let form = match message.form {
             Form::Words => w::ClosingForm::Words,
