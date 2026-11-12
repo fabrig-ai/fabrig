@@ -3,11 +3,6 @@
 2026-11-12. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
-- **Not yet:** 3: the tier's harness adds the page's internal settings to
-  every address it opens, ctl's manifest link among them, which the
-  service's `/forges/N/github/manifest` refuses with `400`; so
-  `browser_github`'s manifest story and `browser_connect_flows`' sheet
-  story fail. [in flight: change 1721]
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
