@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 65] = [
+pub static FORMS: [Form; 69] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -99,8 +99,12 @@ pub static FORMS: [Form; 65] = [
     Form { shape: Shape::PathSet, name: b"path-set", choice: Choice::Every, line: b"A named set of repository-relative path patterns, numbered distinctly from 1 to 6." },
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"What the charter does: a JSON string of 1 to 120 UTF-8 bytes, no control characters. If absent, Roles uses its instructions' first sentence. Selector: charter number, no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"Both headline and lede for the project's own way in How work runs. If absent, it uses the way's words. Selector: project, no number." },
+    Form { shape: Shape::ProjectAreas, name: b"project-areas", choice: Choice::Every, line: b"A project's areas, at most 16. Selector: project, no number." },
+    Form { shape: Shape::ProjectTriager, name: b"project-triager", choice: Choice::Every, line: b"A project's triager. Selector: project, no number." },
+    Form { shape: Shape::Area, name: b"area", choice: Choice::Every, line: b"A named scope of project work and its owner." },
+    Form { shape: Shape::AreaOwner, name: b"area-owner", choice: Choice::One { words: &[] }, line: b"One owner: task, party, role or charter." },
 ];
-pub static FIELDS: [Field; 228] = [
+pub static FIELDS: [Field; 237] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -144,6 +148,8 @@ pub static FIELDS: [Field; 228] = [
             Word { word: b"project-classes", line: b"" },
             Word { word: b"charter-words", line: b"" },
             Word { word: b"project-words", line: b"" },
+            Word { word: b"project-areas", line: b"" },
+            Word { word: b"project-triager", line: b"" },
         ]),
         list: None,
         null: false,
@@ -155,9 +161,9 @@ pub static FIELDS: [Field; 228] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.",
+        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes, project-words, project-areas and project-triager.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions, project-classes, project-words, project-areas and project-triager; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Whether the other catalogue models follow the named first choices; false when absent." },
     Field {
         shape: Shape::Charter,
@@ -1287,6 +1293,15 @@ pub static FIELDS: [Field; 228] = [
     Field { shape: Shape::PathSet, name: b"patterns", value: Value::Text(Bound::Limit(Limit::SetPatternBytes)), list: Some(Bound::Limit(Limit::SetPatterns)), null: false, line: b"At least one nonempty repository-relative pattern: * within a segment, ** as a whole segment." },
     Field { shape: Shape::ProjectWords, name: b"headline", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required: 1 to 120 UTF-8 bytes holding no control character." },
     Field { shape: Shape::ProjectWords, name: b"lede", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes holding no control character." },
+    Field { shape: Shape::ProjectAreas, name: b"areas", value: Value::Shape(Shape::Area), list: Some(Bound::Most(16)), null: false, line: b"Required; order is kept; names are unique." },
+    Field { shape: Shape::ProjectTriager, name: b"owner", value: Value::Shape(Shape::AreaOwner), list: None, null: false, line: b"Required." },
+    Field { shape: Shape::Area, name: b"name", value: Value::Text(Bound::Most(32)), list: None, null: false, line: b"Required: 1 to 32 bytes of lowercase ASCII letters, digits and -, starting with a letter." },
+    Field { shape: Shape::Area, name: b"words", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes with no control character." },
+    Field { shape: Shape::Area, name: b"owner", value: Value::Shape(Shape::AreaOwner), list: None, null: false, line: b"Required." },
+    Field { shape: Shape::AreaOwner, name: b"task", value: Value::Integer(Width::U64), list: None, null: false, line: b"A live task of the project." },
+    Field { shape: Shape::AreaOwner, name: b"party", value: Value::Integer(Width::U64), list: None, null: false, line: b"A party with a role in the project." },
+    Field { shape: Shape::AreaOwner, name: b"role", value: Value::Integer(Width::U32), list: None, null: false, line: b"Below authority.roles; 0 is the owners." },
+    Field { shape: Shape::AreaOwner, name: b"charter", value: Value::Integer(Width::U32), list: None, null: false, line: b"From 1 through tasks.charters." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"The verdict counts at the head it was given at." },

@@ -19,6 +19,8 @@ pub enum Kind {
     ProjectWords,
     /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     TemplateGoal,
+    ProjectAreas,
+    ProjectTriager,
 }
 
 impl Kind {
@@ -34,6 +36,8 @@ impl Kind {
             Self::CharterWords => 9,
             Self::ProjectWords => 10,
             Self::TemplateGoal => 11,
+            Self::ProjectAreas => 12,
+            Self::ProjectTriager => 13,
         }
     }
 
@@ -49,6 +53,8 @@ impl Kind {
             9 => Some(Self::CharterWords),
             10 => Some(Self::ProjectWords),
             11 => Some(Self::TemplateGoal),
+            12 => Some(Self::ProjectAreas),
+            13 => Some(Self::ProjectTriager),
             _ => None,
         }
     }
@@ -100,6 +106,32 @@ pub struct ProjectWords {
     pub lede: Box<[u8]>,
 }
 
+/// Project ownership (temper/docs/design/domain/areas.md, 2 and 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum AreaOwner {
+    Task(u64),
+    Party(u64),
+    Role(u32),
+    Charter(u32),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Area {
+    pub name: Box<[u8]>,
+    pub words: Box<[u8]>,
+    pub owner: AreaOwner,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectAreas {
+    pub areas: Box<[Area]>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectTriager {
+    pub owner: AreaOwner,
+}
+
 /// Words saved with a setting fit `most`: 1 to `most` bytes of UTF-8 holding no
 /// control character (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
@@ -140,6 +172,8 @@ pub enum Value {
     ProjectWords(ProjectWords),
     /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
     Goal(TemplateGoal),
+    ProjectAreas(ProjectAreas),
+    ProjectTriager(ProjectTriager),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -198,7 +232,7 @@ pub struct Asked {
     pub edit: Edit,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Judged {
     Accept { size: u32, charter: Option<u32> },
     Same,
@@ -272,7 +306,7 @@ pub struct Item {
     pub value: Option<Value>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Refusal {
     Kind,
     Scope,
@@ -287,12 +321,45 @@ pub enum Refusal {
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
     Words,
+    Owner {
+        name: Box<[u8]>,
+        owner: AreaOwner,
+    },
+    Area {
+        name: Box<[u8]>,
+        rule: &'static [u8],
+    },
 }
 
 impl Refusal {
     #[must_use]
-    pub const fn words(self) -> &'static [u8] {
-        match self {
+    pub fn words(&self) -> Box<[u8]> {
+        if let Self::Owner { name, owner } = self {
+            let (kind, number) = match owner {
+                AreaOwner::Task(n) => (b"task".as_slice(), *n),
+                AreaOwner::Party(n) => (b"party".as_slice(), *n),
+                AreaOwner::Role(n) => (b"role".as_slice(), u64::from(*n)),
+                AreaOwner::Charter(n) => (b"charter".as_slice(), u64::from(*n)),
+            };
+            let number = skein_lib::Decimal::of(number);
+            let mut words = skein_lib::List::uncapped();
+            for part in [name.as_ref(), b": owner ", kind, b" ", number.as_bytes(), b" is not of the project"] {
+                for &byte in part {
+                    words.push(byte).expect("bounded owner refusal");
+                }
+            }
+            return words.into_boxed();
+        }
+        if let Self::Area { name, rule } = self {
+            let mut words = skein_lib::List::uncapped();
+            for part in [b"area ".as_slice(), name, b": ", rule] {
+                for &byte in part {
+                    words.push(byte).expect("bounded area refusal");
+                }
+            }
+            return words.into_boxed();
+        }
+        let words: &[u8] = match self {
             Self::Kind => b"not a kind of the forge's",
             Self::Scope => b"a scope this kind does not have",
             Self::Number => b"a number this kind does not have",
@@ -304,6 +371,7 @@ impl Refusal {
             Self::Replaced => b"the replaced value is no longer kept",
             Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
+            Self::Area { .. } | Self::Owner { .. } => unreachable!("area refusal rendered above"),
             Self::Classes(refusal) => match refusal {
                 temper_protocol_reaches::Refusal::Items => b"more than 20 items in a classes table",
                 temper_protocol_reaches::Refusal::Sets => b"more than 6 path sets in a classes table",
@@ -319,7 +387,8 @@ impl Refusal {
                     b"a path set's pattern that is not well formed, empty or past 80 bytes"
                 }
             },
-        }
+        };
+        words.into()
     }
 }
 
@@ -337,7 +406,13 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords
+        Kind::ProjectRules
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager
+        | Kind::ProjectWords
             if item.scope == 0 =>
         {
             return Err(Refusal::Scope);
@@ -350,13 +425,20 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectClasses
         | Kind::CharterWords
         | Kind::ProjectWords
-        | Kind::TemplateGoal => {}
+        | Kind::TemplateGoal
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
         Kind::CharterWords => bounds.charters,
-        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords => 1,
+        Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::ProjectAreas
+        | Kind::ProjectTriager
+        | Kind::ProjectWords => 1,
         Kind::TemplateGoal => bounds.templates,
     };
     if item.number == 0 || item.number > numbers {
@@ -372,6 +454,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 | Value::Ways(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             ) => return Err(Refusal::Value),
             None => return Ok(()),
@@ -387,6 +471,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -401,6 +487,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -419,6 +507,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::Goal(_)
                     | Value::CharterWords(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -433,6 +523,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -454,6 +546,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -475,7 +569,42 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
-                    | Value::Classes(_),
+                    | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectAreas => {
+            return match &item.value {
+                Some(Value::ProjectAreas(value)) => judge_areas(value),
+                None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectTriager => {
+            return match &item.value {
+                Some(Value::ProjectTriager(_)) | None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::ProjectAreas(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -489,6 +618,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -575,4 +706,42 @@ pub fn rows(l: &Limits) -> Option<u32> {
     let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
     let values = rules.checked_add(2)?.checked_add(l.judge_projects.checked_mul(2)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
+}
+
+fn judge_areas(value: &ProjectAreas) -> Result<(), Refusal> {
+    if !within(value.areas.len(), 16) {
+        return Err(Refusal::Area {
+            name: value.areas.get(16).expect("past 16 areas").name.clone(),
+            rule: b"more than 16 areas",
+        });
+    }
+    for (at, area) in value.areas.iter().enumerate() {
+        let mut twice = false;
+        for prior in value.areas.iter().take(at) {
+            twice |= prior.name == area.name;
+        }
+        let rule: &'static [u8] = if !area_name_fits(&area.name) {
+            b"name must be 1 to 32 bytes of lowercase ASCII letters, digits and -, starting with a letter"
+        } else if !words_fit(&area.words, 480) {
+            b"words must be 1 to 480 bytes of UTF-8 with no control character"
+        } else if twice {
+            b"name occurs twice"
+        } else {
+            continue;
+        };
+        return Err(Refusal::Area { name: area.name.clone(), rule });
+    }
+    Ok(())
+}
+fn area_name_fits(name: &[u8]) -> bool {
+    let Some(first) = name.first() else { return false };
+    if !first.is_ascii_lowercase() || !within(name.len(), 32) {
+        return false;
+    }
+    for byte in name {
+        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' {
+            return false;
+        }
+    }
+    true
 }

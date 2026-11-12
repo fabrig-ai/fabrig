@@ -42,6 +42,12 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
         gates: gates.into_boxed(),
         approvals: approvals.into_boxed(),
     }));
+    let mut areas = List::with_capacity(16);
+    for _ in 0_u32..16 {
+        areas
+            .push(settings::Area { name: word(32), words: word(480), owner: settings::AreaOwner::Task(u64::MAX) })
+            .expect("bounded areas");
+    }
     Box::new([
         Kind {
             number: 1,
@@ -121,6 +127,24 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             connector,
             value_bytes: size(&settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
             per_scope: limits.templates,
+            charters: 0,
+        },
+        Kind {
+            number: 12,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::ProjectAreas(settings::ProjectAreas { areas: areas.into_boxed() })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 13,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::ProjectTriager(settings::ProjectTriager {
+                owner: settings::AreaOwner::Task(u64::MAX),
+            })),
+            per_scope: 1,
             charters: 0,
         },
     ])

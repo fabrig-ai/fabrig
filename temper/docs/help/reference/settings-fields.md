@@ -24,9 +24,9 @@ One setting, and what becomes of it: `setting`, then exactly one of `set` and `e
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
-- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.
-- `project`: integer, 0 to 4,294,967,295. Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-areas"` or `"project-triager"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes, project-words, project-areas and project-triager.
+- `project`: integer, 0 to 4,294,967,295. Required for project-ways, project-questions, project-classes, project-words, project-areas and project-triager; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -570,3 +570,32 @@ Both headline and lede for the project's own way in How work runs. If absent, it
 
 - `headline`: text, at most 120 bytes. Required: 1 to 120 UTF-8 bytes holding no control character.
 - `lede`: text, at most 480 bytes. Required: 1 to 480 UTF-8 bytes holding no control character.
+
+## project-areas
+
+A project's areas, at most 16. Selector: project, no number.
+
+- `areas`: list of at most 16, each `area`. Required; order is kept; names are unique.
+
+## project-triager
+
+A project's triager. Selector: project, no number.
+
+- `owner`: `area-owner`. Required.
+
+## area
+
+A named scope of project work and its owner.
+
+- `name`: text, at most 32 bytes. Required: 1 to 32 bytes of lowercase ASCII letters, digits and -, starting with a letter.
+- `words`: text, at most 480 bytes. Required: 1 to 480 UTF-8 bytes with no control character.
+- `owner`: `area-owner`. Required.
+
+## area-owner
+
+One owner: task, party, role or charter.
+
+- `task`: integer. A live task of the project.
+- `party`: integer. A party with a role in the project.
+- `role`: integer, 0 to 4,294,967,295. Below authority.roles; 0 is the owners.
+- `charter`: integer, 0 to 4,294,967,295. From 1 through tasks.charters.

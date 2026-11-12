@@ -32,7 +32,7 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 14] {
+fn values() -> [(u32, settings::Value); 22] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
@@ -60,6 +60,53 @@ fn values() -> [(u32, settings::Value); 14] {
             )),
         ),
         (7, settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Task(u64::MAX),
+                }]),
+            }),
+        ),
+        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Task(u64::MAX) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Party(u64::MAX),
+                }]),
+            }),
+        ),
+        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Party(u64::MAX) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Role(u32::MAX),
+                }]),
+            }),
+        ),
+        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Role(u32::MAX) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Charter(u32::MAX),
+                }]),
+            }),
+        ),
+        (
+            13,
+            settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(u32::MAX) }),
+        ),
         (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: false })),
@@ -92,6 +139,8 @@ fn each_kind_round_trips_its_value() {
             settings::Value::CharterWords(_) => 9,
             settings::Value::ProjectWords(_) => 10,
             settings::Value::Goal(_) => 11,
+            settings::Value::ProjectAreas(_) => 12,
+            settings::Value::ProjectTriager(_) => 13,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);

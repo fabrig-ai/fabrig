@@ -36,7 +36,16 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
     }
 }
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
-    if [b"project-ways".as_slice(), b"project-questions", b"project-classes", b"project-words"].contains(&kind) {
+    if [
+        b"project-ways".as_slice(),
+        b"project-questions",
+        b"project-classes",
+        b"project-words",
+        b"project-areas",
+        b"project-triager",
+    ]
+    .contains(&kind)
+    {
         if optional(fields, b"number").is_some() {
             return Err(error(b"number", b"project setting has no number"));
         }
@@ -50,6 +59,8 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
                 b"project-questions" => 6,
                 b"project-classes" => 8,
                 b"project-words" => 10,
+                b"project-areas" => 12,
+                b"project-triager" => 13,
                 _ => unreachable!("project kind selected"),
             },
             scope: project,
@@ -89,6 +100,24 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 12 {
+        let record = match areas(d, at) {
+            Ok(record) => record,
+            Err(why) => return Err(why.at(b"project-areas")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 13 {
+        let fields = d.object(at, &[b"owner"])?;
+        let owner = area_owner(d, field(&fields, b"owner")?)?;
+        let record = w::ProjectTriager::new(&d.kinds, w::ProjectTriagerParts { owner })
+            .or(Err(error(b"project-triager", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
     if kind == 8 {
         let record = match crate::classes::read(d, at) {
             Ok(record) => record,
@@ -335,9 +364,41 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatch renders each settings kind with its codec")]
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
+        12 => {
+            let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"areas");
+            out.array_start();
+            for area in value.areas() {
+                out.object_start();
+                out.key(b"name");
+                out.string(area.name());
+                out.key(b"words");
+                out.string(area.words());
+                out.key(b"owner");
+                render_owner(area.owner(), out);
+                out.object_end();
+            }
+            out.array_end();
+            out.object_end();
+        }
+        13 => {
+            let Ok(value) = w::ProjectTriager::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"owner");
+            render_owner(value.owner(), out);
+            out.object_end();
+        }
         1 | 2 => {
             let Ok(value) = w::LandingRule::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
@@ -483,5 +544,74 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    out.object_end();
+}
+
+fn areas(d: &Decoder<'_>, at: u32) -> Result<w::ProjectAreas, Error> {
+    let fields = d.object(at, &[b"areas"])?;
+    let positions = d.array(field(&fields, b"areas")?, d.kinds.project_areas_areas.min(16), b"areas")?;
+    let mut areas = List::with_capacity(positions.len());
+    for at in &positions {
+        let fields = d.object(*at, &[b"name", b"words", b"owner"])?;
+        let name = d.string(field(&fields, b"name")?)?.into();
+        let words = d.string(field(&fields, b"words")?)?.into();
+        let owner = area_owner(d, field(&fields, b"owner")?)?;
+        areas
+            .push(
+                w::Area::new(&d.kinds, w::AreaParts { name, words, owner })
+                    .or(Err(error(b"areas", b"wire area bound")))?,
+            )
+            .expect("counted areas");
+    }
+    w::ProjectAreas::new(&d.kinds, w::ProjectAreasParts { areas }).or(Err(error(b"areas", b"wire value bound")))
+}
+fn area_owner(d: &Decoder<'_>, at: u32) -> Result<w::AreaOwner, Error> {
+    let fields = d.object(at, &[b"task", b"party", b"role", b"charter"])?;
+    if fields.len() != 1 {
+        return Err(error(b"owner", b"one variant required"));
+    }
+    if let Some(at) = optional(&fields, b"task") {
+        return Ok(w::AreaOwner::Task(
+            w::AreaTask::new(&d.kinds, w::AreaTaskParts { number: d.number(at)? })
+                .or(Err(error(b"owner", b"wire value bound")))?,
+        ));
+    }
+    if let Some(at) = optional(&fields, b"party") {
+        return Ok(w::AreaOwner::Party(
+            w::AreaParty::new(&d.kinds, w::AreaPartyParts { number: d.number(at)? })
+                .or(Err(error(b"owner", b"wire value bound")))?,
+        ));
+    }
+    if let Some(at) = optional(&fields, b"role") {
+        return Ok(w::AreaOwner::Role(
+            w::AreaRole::new(
+                &d.kinds,
+                w::AreaRoleParts { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? },
+            )
+            .or(Err(error(b"owner", b"wire value bound")))?,
+        ));
+    }
+    if let Some(at) = optional(&fields, b"charter") {
+        return Ok(w::AreaOwner::Charter(
+            w::AreaCharter::new(
+                &d.kinds,
+                w::AreaCharterParts { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? },
+            )
+            .or(Err(error(b"owner", b"wire value bound")))?,
+        ));
+    }
+    unreachable!("one known owner variant")
+}
+
+fn render_owner(value: &w::AreaOwner, out: &mut Encoder) {
+    let (kind, number) = match value {
+        w::AreaOwner::Task(n) => (b"task".as_slice(), n.number()),
+        w::AreaOwner::Party(n) => (b"party".as_slice(), n.number()),
+        w::AreaOwner::Role(n) => (b"role".as_slice(), u64::from(n.number())),
+        w::AreaOwner::Charter(n) => (b"charter".as_slice(), u64::from(n.number())),
+    };
+    out.object_start();
+    out.key(kind);
+    out.unsigned(number);
     out.object_end();
 }

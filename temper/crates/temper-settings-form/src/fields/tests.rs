@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 65] = [
+const SHAPES: [Shape; 69] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -71,6 +71,10 @@ const SHAPES: [Shape; 65] = [
     Shape::PathSet,
     Shape::CharterWords,
     Shape::ProjectWords,
+    Shape::ProjectAreas,
+    Shape::ProjectTriager,
+    Shape::Area,
+    Shape::AreaOwner,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -305,6 +309,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-questions"
                         && kind != b"project-classes"
                         && kind != b"project-words"
+                        && kind != b"project-areas"
+                        && kind != b"project-triager"
                     {
                         continue;
                     }
@@ -317,6 +323,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             b"project-questions",
                             b"project-classes",
                             b"project-words",
+                            b"project-areas",
+                            b"project-triager",
                         ]
                         .contains(&kind)
                     {

@@ -34,6 +34,8 @@ fn tokens_round_trip_and_malformed_tokens_stay_unknown() {
         ("a+b@c%d", 1, "a%2Bb%40c%25d@1"),
         ("settings charter-words 4", 12, "settings+charter-words+4@12"),
         ("settings project-words", 12, "settings+project-words@12"),
+        ("settings project-areas", 12, "settings+project-areas@12"),
+        ("settings project-triager", 12, "settings+project-triager@12"),
     ] {
         assert_eq!(crate::see::token(line.as_bytes(), from).as_ref(), token.as_bytes());
         let input = format!(r#"{{"address":"more {token}"}}"#);
