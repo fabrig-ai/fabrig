@@ -79,6 +79,47 @@ fn the_source_s_environment_drops_other_logins() {
 }
 
 #[test]
+fn the_source_s_environment_drops_a_named_profile() {
+    let base = [entry(b"ANTHROPIC_PROFILE", b"work"), entry(b"HOME", b"/h")];
+    assert_eq!(
+        environment(&base, b"/programs/a").expect("bounded environment").as_ref(),
+        &[entry(b"HOME", b"/h"), entry(b"CLAUDE_CONFIG_DIR", b"/programs/a")]
+    );
+    assert!(!keeps(b"ANTHROPIC_PROFILE"));
+}
+
+#[test]
+fn the_source_s_environment_drops_federation_variables() {
+    let rule = entry(b"ANTHROPIC_FEDERATION_RULE_ID", b"rule");
+    let organization = entry(b"ANTHROPIC_ORGANIZATION_ID", b"organization");
+    for credentials in
+        [core::slice::from_ref(&rule), core::slice::from_ref(&organization), &[rule.clone(), organization.clone()]]
+    {
+        let mut base = List::with_capacity(3);
+        for credential in credentials {
+            base.push(credential.clone()).expect("base room");
+        }
+        base.push(entry(b"HOME", b"/h")).expect("base room");
+        assert_eq!(
+            environment(base.as_slice(), b"/programs/a").expect("bounded environment").as_ref(),
+            &[entry(b"HOME", b"/h"), entry(b"CLAUDE_CONFIG_DIR", b"/programs/a")]
+        );
+    }
+    assert!(!keeps(b"ANTHROPIC_FEDERATION_RULE_ID"));
+    assert!(!keeps(b"ANTHROPIC_ORGANIZATION_ID"));
+}
+
+#[test]
+fn the_source_s_environment_drops_an_endpoint() {
+    let base = [entry(b"ANTHROPIC_BASE_URL", b"https://example.com"), entry(b"HOME", b"/h")];
+    assert_eq!(
+        environment(&base, b"/programs/a").expect("bounded environment").as_ref(),
+        &[entry(b"HOME", b"/h"), entry(b"CLAUDE_CONFIG_DIR", b"/programs/a")]
+    );
+    assert!(!keeps(b"ANTHROPIC_BASE_URL"));
+}
+
+#[test]
 fn an_environment_past_its_bounds_is_refused() {
     let setting_bytes = b"CLAUDE_CONFIG_DIR=/a".len();
     let entry_bytes = 4096_usize.checked_sub(setting_bytes).expect("setting fits");
@@ -112,6 +153,16 @@ fn each_status_reads_as_programs_md_says() {
     let cases: &[(u8, &[u8], Status)] = &[
         (0, br#"{"loggedIn":true,"authMethod":"claude.ai","extra":42}"#, Status::Usable),
         (0, br#"{"loggedIn":true,"authMethod":"api_key"}"#, otherwise),
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"third_party"}"#,
+            Status::Otherwise(Method::new(b"third_party").expect("printable method")),
+        ),
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"oidc_federation"}"#,
+            Status::Otherwise(Method::new(b"oidc_federation").expect("printable method")),
+        ),
         (0, br#"{"loggedIn":false,"authMethod":"none"}"#, Status::NotSignedIn),
         (1, b"whatever", Status::NotSignedIn),
         (0, b"not JSON", Status::Unreadable),
