@@ -378,6 +378,24 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
 - **Every row the predicate admits.** `Range::contains` admits every
   forge key and no core key; a test checks the interval against it on
   generated keys of both (section 6).
+- **A row this build cannot read refuses the start, by name.** A row of
+  temper's families that does not decode with this build's codecs, or
+  whose record's key is not its row's (section 3), stops the restart
+  before the root hears of it, and serve's start is refused as a store
+  that refuses to open is: its words on serve's stderr after `temper
+  serve: `, then exit 1, with nothing more read. The words:
+
+  ```text
+  temper serve: The store in DIR holds a NAME record, family N, that this build cannot read, and the start stopped there. Start the build that wrote it again, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of DIR together, and start again: nothing is deleted, and the next start makes a new, empty store.
+  ```
+
+  DIR is the deployment's directory, as the other refusals name it,
+  NAME the family's variant in section 2 and N its number. Before the
+  first release a stored format changes in place (section 4), so this
+  is how a newer build meets an older store's rows, and how QA knows a
+  copy to make again (`../draft/landed-qa.md`, 5). It is jig's row that
+  does not decode, which stops the engine (jig's
+  `protocol/store/loads.md`, 1), said by name.
 - **Nothing else is read:** no load, get or party's read of temper's
   families follows the restart.
 - **A row of `Making` restored** comes back waiting if it was making,
