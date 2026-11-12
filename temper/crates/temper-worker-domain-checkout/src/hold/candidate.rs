@@ -1,4 +1,4 @@
-//! A one-member prepare, committed before delivery (temper/docs/design/domain/worker.md, 4.4).
+//! A one-member prepare, committed before delivery (temper/docs/design/domain/worker/jobs.md).
 use super::{Holding, Next, PrepareStep, Tips, borrowed, failure, nth, place, tips_mut};
 use crate::{
     Candidate, CandidateSpec, Start,

@@ -288,7 +288,7 @@ draws its heading and its "Task brief".
 - **The terminal's keys and opening** (`pages/chat/conversation.md`, 2; `../draft/chat-reading.md`, 5): its
   input is never raw (skein's `ui/text.md`, section 7), so PgUp and PgDn are lines
   with Enter, and with no view to measure a chat opens with what its opening reads
-  hold, as the TUI's does (`tui/pages.md`): the history's end or 2,880 bytes, a screen and a
+  hold, as the TUI's does (`tui/pages/README.md`): the history's end or 2,880 bytes, a screen and a
   half of an 80 by 24 terminal, whatever the terminal's size. Default: as it
   stands; keys of their own are a change of skein's shell, and an opening measured
   by the shell's own size a change of the domain's (*Opening history*).

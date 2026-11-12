@@ -142,14 +142,14 @@ pub enum Start {
     /// Fetch the branch and base, check out the branch and leave their merge
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
-    /// A one-member landing, combined during preparation (worker.md, 4.4).
+    /// A one-member landing, combined during preparation (temper/docs/design/domain/worker/jobs.md).
     Prepare { request: Box<CandidateSpec> },
     /// The tip of a base branch with each head merged into it in order, each
-    /// merge committed (domain/worker.md, section 5).
+    /// merge committed (domain/worker/checkouts.md).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
 }
 
-/// A one-member merge train's frozen inputs (worker.md, 4.4). Boxed only
+/// A one-member merge train's frozen inputs (temper/docs/design/domain/worker/jobs.md). Boxed only
 /// for prepares, so other checkout starts do not carry its messages.
 #[derive(PartialEq, Eq, Debug)]
 pub struct CandidateSpec {
@@ -291,7 +291,7 @@ impl Start {
     }
 }
 
-/// How temper's one-member merge train combined its member (worker.md, 4.4).
+/// How temper's one-member merge train combined its member (temper/docs/design/domain/worker/jobs.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Candidate {
     Combined { squash: bool },

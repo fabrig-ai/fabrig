@@ -1,4 +1,4 @@
-//! The job capability's boundary (temper/docs/design/domain/worker.md, 4.4;
+//! The job capability's boundary (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 2 and 3).
 
 use alloc::boxed::Box;
@@ -34,7 +34,7 @@ pub enum Event {
         deadline: Duration,
         directory: Box<[u8]>,
     },
-    /// The root completed temper's own prepare without a process (worker.md, 4.4).
+    /// The root completed temper's own prepare without a process (temper/docs/design/domain/worker/jobs.md).
     Prepared {
         owner: Token,
         result: Box<[u8]>,

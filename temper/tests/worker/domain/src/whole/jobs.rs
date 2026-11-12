@@ -1,5 +1,5 @@
 //! Whole job stories with the real root, hub, capability and checkout, and
-//! the fake disk and forge (temper/docs/design/domain/worker.md, 4.4).
+//! the fake disk and forge (temper/docs/design/domain/worker/jobs.md).
 
 use jig_domain_link::{JobBound, JobKind};
 use std::collections::VecDeque;

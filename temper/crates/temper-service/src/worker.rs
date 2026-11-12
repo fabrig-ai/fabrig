@@ -53,7 +53,7 @@ pub struct Worker {
     pub(crate) engine: Queue<root::Event>,
     /// The engine's new work that waits at the watermark, and the records
     /// behind it that may not pass it (W5), in their order
-    /// (`domain/worker.md`, 3.1; skein's `programming-model.md`, 7.1, 7.2).
+    /// (`domain/worker/README.md`, 3.1; skein's `programming-model.md`, 7.1, 7.2).
     pub(crate) held: Queue<root::Event>,
     process_events: Queue<host::ProcessEvent>,
     processes: Map<Token, host::Process>,
@@ -589,7 +589,7 @@ impl Worker {
         self.drain_root();
     }
     /// Follows its own pushes so an entrance's requests, its hand-outs answered,
-    /// are dispatched before the next entrance (W3; `domain/worker.md`, 3.1).
+    /// are dispatched before the next entrance (W3; `domain/worker/README.md`, 3.1).
     /// Within one step, hand-offs drain to their end (skein's
     /// `programming-model.md`, 2): an entry point's chain is finite, from a
     /// capability to the hub, the hub to a capability, at most once more back
@@ -1218,7 +1218,7 @@ impl crate::Service {
 mod merge_tests {
     use jig_domain_link::{JobBound, JobKind};
 
-    /// temper/docs/design/domain/worker.md, 4.4.
+    /// temper/docs/design/domain/worker/jobs.md.
     #[test]
     fn the_production_worker_declares_the_merge_kind() {
         let mut worker = crate::tests::fixtures::worker();
@@ -1235,7 +1235,7 @@ mod merge_tests {
         }));
     }
 
-    /// temper/docs/design/domain/worker.md, 4.4.
+    /// temper/docs/design/domain/worker/jobs.md.
     #[test]
     fn the_production_worker_declares_the_close_kind() {
         let mut worker = crate::tests::fixtures::worker();
@@ -1254,7 +1254,7 @@ mod merge_tests {
         assert!(kind.delivers);
     }
 
-    /// temper/docs/design/domain/worker.md, 4.4.
+    /// temper/docs/design/domain/worker/jobs.md.
     #[test]
     fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
         let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -1272,7 +1272,7 @@ mod merge_tests {
         assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
     }
 
-    /// temper/docs/design/domain/worker.md, 4.4.
+    /// temper/docs/design/domain/worker/jobs.md.
     #[test]
     fn the_engine_declares_the_merge_kind_where_its_tasks_child_holds_it() {
         let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);

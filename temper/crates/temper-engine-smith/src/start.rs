@@ -81,7 +81,7 @@ pub fn start(
     }
     let mut grants = List::with_capacity(assignment.grants.len().try_into().expect("bounded grants"));
     for grant in &assignment.grants {
-        // Application grants are the worker's own, for git (domain/worker.md, 4.1).
+        // Application grants are the worker's own, for git (domain/worker/README.md, 4.1).
         match grant.form.table() {
             GrantTable::Accounts | GrantTable::Name => grants
                 .push(smith::Grant {

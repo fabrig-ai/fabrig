@@ -1,4 +1,4 @@
-//! One-member prepare stories (temper/docs/design/domain/worker.md, 4.4).
+//! One-member prepare stories (temper/docs/design/domain/worker/jobs.md).
 use temper_worker_domain_world::whole::prepare::{Case, run};
 
 #[test]

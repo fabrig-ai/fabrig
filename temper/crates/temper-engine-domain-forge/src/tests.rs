@@ -2958,7 +2958,7 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
-/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker/jobs.md).
 #[test]
 fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
     use temper_engine_domain_forge_change as change;

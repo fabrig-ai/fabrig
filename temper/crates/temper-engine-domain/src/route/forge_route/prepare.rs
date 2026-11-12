@@ -1,4 +1,4 @@
-//! The one-member prepare spec and items (temper/docs/design/domain/worker.md, 4.4;
+//! The one-member prepare spec and items (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 4).
 use super::{ForgeWorkspace, forge, tree_branch, workspace_repository};
 use alloc::boxed::Box;

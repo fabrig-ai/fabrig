@@ -10,7 +10,7 @@ use temper_engine_domain_forge_change as change;
 /// An immutable checkout start, or a branch the worker resolves.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Start {
-    /// The frozen base of a prepare round (worker.md, 4.4).
+    /// The frozen base of a prepare round (temper/docs/design/domain/worker/jobs.md).
     Commit(api::Commit),
     /// The project's landing branch.
     Base(Box<[u8]>),
@@ -21,7 +21,7 @@ pub enum Start {
     /// Resolve this branch against the named base commit.
     Merge { branch: Box<[u8]>, base: api::Commit },
     /// The landing branch with each head merged into it in order
-    /// (temper/docs/design/domain/worker.md, 4.1).
+    /// (temper/docs/design/domain/worker/README.md, 4.1).
     Merged { branch: Box<[u8]>, heads: Box<[api::Commit]> },
 }
 /// Root-translated identities and branch names for one repository.
@@ -56,7 +56,7 @@ pub struct Item {
 type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]>>, bool);
 
 impl Domain {
-    /// One landing job's repository and new writable branch (worker.md, 4.4).
+    /// One landing job's repository and new writable branch (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub fn prepare_item(
         &self,

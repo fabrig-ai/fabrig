@@ -1,4 +1,4 @@
-//! Jobs by owner and their lifecycle (temper/docs/design/domain/worker.md, 4.4).
+//! Jobs by owner and their lifecycle (temper/docs/design/domain/worker/jobs.md).
 
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
@@ -47,7 +47,7 @@ impl Domain {
         Ok(Domain { kinds, jobs: Map::with_capacity(limits.jobs) })
     }
 
-    /// The declared verb for an assignment's kind, or closed words for an unknown kind (worker.md, 4.4).
+    /// The declared verb for an assignment's kind, or closed words for an unknown kind (domain/worker/jobs.md).
     #[must_use]
     pub fn verb(&self, number: JobKind) -> Box<[u8]> {
         for kind in &self.kinds {

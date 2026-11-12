@@ -1,4 +1,4 @@
-//! A close change's job through both roots (temper/docs/design/domain/worker.md, 4.4;
+//! A close change's job through both roots (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 4.2).
 use super::{Duration, Script, Token, World, call, engine, host, link, tasks, worker};
 use jig_domain_link::JobBound;

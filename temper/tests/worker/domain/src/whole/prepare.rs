@@ -1,4 +1,4 @@
-//! Temper's prepare in the whole worker world (temper/docs/design/domain/worker.md, 4.4).
+//! Temper's prepare in the whole worker world (temper/docs/design/domain/worker/jobs.md).
 use super::jobs::{Report, World};
 use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Token};

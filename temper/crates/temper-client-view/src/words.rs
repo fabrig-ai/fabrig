@@ -1297,7 +1297,7 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
-    /// A model writing its answer, on the shared running line (client/tui/pages.md).
+    /// A model writing its answer, on the shared running line (client/tui/pages/README.md).
     RunningWork,
     ConnectForge,
     ChatTitle,

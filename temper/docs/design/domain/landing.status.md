@@ -32,11 +32,17 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   change's panel naming its landing and way [in flight: change 834].
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 15, 16: no real-process story of a turn landing has a
-  passing result; the forge world covers a lost prepare found or made
-  again. The process trial is reserved for after landing.
-- **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`. 5.3,
-  6.1: the project's prepare and key commands, as jobs. 6.2: the baseline
+- **Not yet:** 5.2, 15, 16: the real-process story
+  `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`
+  has no supplied passing result at three threads after update recovery.
+  The forge world covers a lost prepare found or made again and landed,
+  and a late copy's drift hold; that is not the real-Forgejo restart
+  proof. The process trial is reserved for after landing.
+
+- **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`; a stack of
+  members in one repository, whose second member a later landing takes
+  (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
+  prepare and key commands, as jobs (`worker/jobs.md`). 6.2: the baseline
   at main's tip; a failed receipt rerun first when its tests match open
   flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, its
   ref fast-forwarded (kind 19), a squashed member's pull request closed

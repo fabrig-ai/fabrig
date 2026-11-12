@@ -252,7 +252,7 @@ fn a_result_file_past_its_bound_reads_as_none() {
 /// temper/docs/design/protocol/tooling.md, 4.1 and 6: a bounded result carries exactly the bytes read before EOF.
 #[test]
 fn a_result_file_shorter_than_its_bound_reads_exact_bytes() {
-    // Merge kind's small-profile result bound (temper/docs/design/domain/worker.md, 4.4).
+    // Merge kind's small-profile result bound (temper/docs/design/domain/worker/jobs.md).
     const RESULT_BOUND: u32 = 512;
     const CHUNK_BYTES: usize = br#"{"settled":"#.len();
     for bytes in [

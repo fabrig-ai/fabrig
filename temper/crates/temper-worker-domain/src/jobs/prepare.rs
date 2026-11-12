@@ -1,5 +1,5 @@
 //! Temper's own request and bounded result (temper/docs/design/protocol/tooling.md, 4;
-//! temper/docs/design/domain/worker.md, 4.4).
+//! temper/docs/design/domain/worker/jobs.md).
 use crate::{checkout, wire};
 use alloc::boxed::Box;
 use skein_json::{

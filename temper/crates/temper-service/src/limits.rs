@@ -622,7 +622,7 @@ pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
 pub(crate) const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 
-/// The prepare job's bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The prepare job's bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn prepare_bound() -> JobBound {
     JobBound {
@@ -632,7 +632,8 @@ pub fn prepare_bound() -> JobBound {
         deadline: Duration::from_secs(600),
     }
 }
-/// Declare prepare only where the tasks child holds its bounds (worker.md, 4.4).
+/// Declare prepare only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn prepare_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = prepare_bound();
@@ -643,20 +644,20 @@ pub fn prepare_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The merge job's bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const MERGE_KIND: u32 = 3;
 pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
 pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
 pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
     JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
 }
 
 /// Declare merge only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = merge_bound();
@@ -667,12 +668,12 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The close job's bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const CLOSE_SPEC_BYTES: u32 = 16_384;
 pub(crate) const CLOSE_RESULT_BYTES: u32 = 512;
 pub(crate) const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The close job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_bound() -> JobBound {
     JobBound {
@@ -684,7 +685,7 @@ pub fn close_bound() -> JobBound {
 }
 
 /// Declare close only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = close_bound();
@@ -695,7 +696,7 @@ pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The engine's declared kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The engine's declared kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let mut jobs = List::with_capacity(3);
@@ -705,7 +706,7 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     jobs.into_boxed()
 }
 
-/// The worker root's job kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The worker root's job kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[cfg(feature = "worker")]
 #[must_use]
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {

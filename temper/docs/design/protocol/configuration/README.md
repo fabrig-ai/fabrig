@@ -267,14 +267,14 @@ have one, an engine alone none. Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker.md`, section 5) |
+| `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
 | `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
 
 - **The worker's root takes the rest from jig's and smith's:** the hub's
   limits from jig's worker part; smith's host limits and the bounds its
   hello states from the agent's configuration (section 4), as jig's
   reference binary derives them, but for the agents the host holds, which
-  are its slots (`../../domain/worker.md`, section 6); its stop bound from
+  are its slots (`../../domain/worker/README.md`, section 5); its stop bound from
   jig's graces; the checkout's limits from temper's profile (`limits.md`).
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
@@ -287,7 +287,7 @@ have one, an engine alone none. Each:
 
 **The engine-away bound** is jig's worker member `graces.grace_ms`: how
 long a worker keeps hosting its runs with no engine that has admitted
-its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker.md`, section
+its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). `temper-box init` writes 60,000, so that an engine's restart (its
 store's load, its switch, its listeners again) passes within it and
 each run is adopted where it stands; a deployment whose engine takes
@@ -348,7 +348,7 @@ longer to start raises it.
   `protocol/agent.md`, section 4), bounds each reasoning item the model
   sends; past it, with smith's default `oversized_reasoning` of `fail`,
   the call fails and the run holds at once, naming the bound and its
-  value (`../../domain/worker.md`, 4.3). smith derives its largest turn
+  value (`../../domain/worker/README.md`, 4.3). smith derives its largest turn
   from it, so the allowance and the hub's bounds go together: the start
   refuses a document whose bounds do not hold that turn (`limits.md`).
   temper's documents give a plan's model an allowance its reasoning
@@ -708,20 +708,14 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
 
 ## 9. Open questions
 
-- **A landing branch with another name than `main`** (`settings.md`, 8;
-  `../../draft/stock-ways.md`, section 2): Draft first's rule 1 names
-  `main`, so over a repository whose landing branch is named otherwise
-  its rules cover no landing branch, and its path shows none of their
-  stops there. Default: later, as the draft has it.
+- A landing branch with another name than `main`: `stock.md`, section 1.
 - **The reference's project rule in stage one** (`reference.md`): its settings
   description must include the project's own rule 1 alongside the
   deployment's rules, so a goal's branches do not inherit the stock's
   CI and review. Default: apply `project.json` after making the project;
   the golden's missing obligation remains a gap in the status file.
 
-- **Ask temper's real-model walk** (`stock.md`): the small chat's walk follows
-  landing; the request bound covers
-  temper's parts, not Claude Code's own MCP-attached overhead.
+- Ask temper's real-model walk: `stock.md`, section 1.
 
 - **A cut sub-agent answer's rest** (`settings.md`, 7): smith's `domain/run.md`,
   section 13 leaves retention for a continuation undecided. Default:
@@ -738,115 +732,29 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   Default: retain the narrow authority; satisfying that instruction
   needs separate authority work, and remains a gap in the status file.
 
-- **The reference's later runs** (`reference.md`; `../../draft/per-wake.md`,
-  sections 10 and 11): compare high with medium after observing runs
-  that read their selected parts, and decide whether the cut should
-  settle entries. Documents per part, choices per wake kind, parts for
-  resumed runs and offering a message with its part remain deferred in
-  that draft. Default: four fresh-run parts, xhigh first and high later,
-  documents shared by every run, and entries outside a run's parts
-  left for the next run.
+- The reference's later runs: `reference.md`, section 1.
 
-- **Settings refusal positions** (`settings.md`, 2; jig's `domain/engine/settings.md`, 2):
-  the core's `at` counts from 0, and temper's form prints it as given,
-  while a settings file and temper's translation refusal count from 1.
-  Consistent person-facing numbering is later work. Default: keep the
-  protocol's position and the current words until both temper paths agree.
-- **The checks' deadline** (`reference.md`): `.temper/pre-pr` names each check
-  before it starts (`tools/pre-pr/design.md`, section 4), so a timeout's
-  tail shows where it stopped; with lints and focused tests it builds, and
-  the agent's 60-second `check_timeout` is the owner's to raise, separately
-  (2026-11-09). Default: 60 seconds, with smith's check path and given time
-  in the refusal.
-- **A reference call of 128 KB** (`settings.md`, 7): the 131,072-byte payload and
-  98,500-token output pass the session's rendered feedback beyond the
-  transcript's `said_text` ceiling. Raising that ceiling changes a stored
-  format and needs its owner's decision. Default: the admitted 63,740-byte
-  payload and 48,000-token output; no codec ceiling changes.
-- **Large arguments through a real program** (`settings.md`, 7): the fake-program
-  table carries 65,536 and 100,000 bytes whole, while the live story asks
-  for 65,536 and 131,072. Default: compile that story during a plan and
-  run it after landing; no real-provider result is established by the
-  fake or by startup admission.
+- Settings refusal positions: `settings.md`, section 9.
+- The checks' deadline: `reference.md`, section 1.
+- A reference call of 128 KB: `settings.md`, section 9.
+- Large arguments through a real program: `settings.md`, section 9.
 
-- **A chat checking the forge before declaring a repository absent**
-  (`stock.md`, charter 1): the stock directs `read_branch` for a repository
-  outside the checkout. Default: the instruction and its phrase assertion;
-  a real-model observation follows landing, with no new tool or authority.
+- A chat checking the forge before declaring a repository absent: `stock.md`, section 1.
 - **Four agents' resident memory** (`stock.md`): the slot, workspace and git
   operation fit checks admit four; they do not establish the memory used
   by four agent processes and their programs on a laptop. Default: four
   slots, with the after-landing measurement in `../setup/README.md`, section 9;
   a person's existing document keeps its configured concurrency.
-- **A real provider's list** (`settings.md`, 1): checking the configured patterns and
-  account grant against a real provider follows landing. Default: fake
-  lists through the worker and agent, with the account's retained names,
-  catalogue decision and unchanged accounting checked together. A fake
-  establishes no real-provider result. Later pages and changes to a known
-  model's figures remain jig's `domain/engine/README.md`, section 10's work.
-- **The real-browser check of watch sizing.** The domain story uses the
-  pages' watch sets without HTTP, a browser or a kernel (`limits.md`).
-  Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
-  clients read is a manual check after landing, as the `watch-room` request
-  assigns it. Default: that check, with no additional browser-tier story.
-- **A page refused busy.** How a page says its rows have not arrived,
-  rather than calling them absent, belongs to the client's presentation
-  (`../../client/README.md`), outside watch sizing. Default: keep the handle's
-  behind state and its retry (jig's `client/domain/client/watches.md`, 1).
-- **A party's fair share of the watch rooms.** A party's room is the
-  deployment's (`limits.md`), so one person with every stream leaves another
-  none, and the refusal they meet is the streams'. Nothing has asked for
-  less, and a smaller share would lock a person's own tabs out again.
-  Default: none.
-- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
-  `views.text_bytes` and `views.facts` are still taken and change nothing
-  the root holds (`limits.md`), where `views.watchers` and
-  `views.watchers_per_party` are refused. Nobody was misled by them on
-  record. Default: they stay until one is.
-- **A Claude-only box on the small profile.** Its largest turn's store
-  frame passes small's page ceiling (`settings.md`, 7), where `standard`'s holds any
-  turn smith admits: a page decision of jig's or skein's profile.
-  Default: such a box runs `standard`, as `temper-box init`'s document does.
-- **A message, a report or a person's spec past what a box takes**
-  (`stock.md`, `settings.md`, 7). The user's request of 2026-11-03 sizes a message at
-  128 kB and a report at 256 kB, and a box's are its agent's message,
-  10,660 bytes, since a call's payload is bounded by its model's output:
-  128 kB in one call needs an output of about 98,500 tokens, and a
-  message past one offer, 200,068 bytes at luna's window, fits no offer.
-  A spec a person writes stops at `people.words`, 8,192, people-v14's
-  ceiling, past which the format would change, below the largest seen,
-  19 kB; `tasks.spec_bytes`, 131,072, is reached only by a model whose
-  output admits that payload. Default: as they stand, `standard`
-  holding 262,144 for a deployment with larger models. The user's to
-  choose, with no answer yet: smith's messages and host answers take a
-  bound of their own, an offer's (smith's `protocol/limits.md`, 13), so
-  a box's results reach about 200 kB at luna's window while a call stays
-  within the payload; or init's models declare a larger output where the
-  provider allows it, raising every agent figure with T and the budgets'
-  C; or this default stays. Past `people.words`, people-v14's ceilings
-  change in place (jig's `protocol/configuration.md`, section 8).
-- **A brief past the host part's room** (`stock.md`). The same request sizes a
-  run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  353,072, a whole spec among it, fits the room the host part leaves
-  charter 5 at init's models, the least a stock charter keeps: 355,042
-  bytes, less 1,472 for its 64 sections' titles and framing and a
-  498-byte margin. It is past the largest fabrig's development has had,
-  200 kB.
-  1 MB needs a window of about 2.7M tokens or a larger share of
-  it for the host. Default: as it stands. The user's to choose, with no
-  answer yet: smith's room split asked again with measurements (smith's
-  `protocol/limits.md`, 13, "A window's halves"), or a larger window
-  declared for a model whose provider has one.
-- **Requirements an application fixes** (`settings.md`, 3). The landing rules'
-  two requirements are in jig's rules, which the deployment's owners may
-  change, so landing can be left unenforced by a change of rules.
-  Default: changeable, and said plainly on the review page; jig could
-  let an application mark requirements no change removes.
-- **A kept GitHub forge whose base ends in `/`.** Its record keeps
-  that place (section 6), so its remotes have two `/` after the host.
-  Default: so, until it is removed and connected again (../forge/engine.md,
-  3); a patch of the record or a trimmed base would repair it in
-  place.
+- A real provider's list: `settings.md`, section 9.
+- The real-browser check of watch sizing: `limits.md`, section 1.
+- A page refused busy: `../../client/pages/README.md`, section 3.
+- A party's fair share of the watch rooms: `limits.md`, section 1.
+- `views.`'s other names: `limits.md`, section 1.
+- A Claude-only box on the small profile: `settings.md`, section 9.
+- A message, a report or a person's spec past what a box takes: `settings.md`, section 9.
+- A brief past the host part's room: `settings.md`, section 9.
+- Requirements an application fixes: `settings.md`, section 9.
+- A kept GitHub forge whose base ends in `/`: `../forge/engine.md`, section 9.
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
@@ -854,29 +762,11 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   section 7: `moved-repository-is-a-redirect`;
   `tools/git-transcripts/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
-- **Profiles' numbers** beyond fabrig's development, which sizes
-  `standard`'s work (`stock.md`): `small`'s, and each profile's machine
-  concurrency, from the first deployments' measurements (jig's
-  `protocol/configuration.md`, section 8). Default: as written.
+- Profiles' numbers: `limits.md`, section 1.
 - **A configuration's format version** (jig's `protocol/configuration.md`,
   section 8). Default: none; unknown members refuse the start.
-- **A configuration directory moved or copied.** The agent's paths are
-  absolute (section 4), so they still name the old place: the agent's
-  configuration is read there, or the start is refused, naming the
-  member, when it is gone. Default: the person edits the two members;
-  standalone could derive them from its own binary and its
-  configuration directory, as no check can tell temper's binary from
-  another program today (section 2).
-- **The rest of an assignment's transcript and of a person's read.**
-  The turn's check (`limits.md`) holds the resume window's share of each
-  hub's `transcript_bytes`, and the turn's share of
-  `root.loads.read_bytes`. The answered calls an assignment carries
-  beside its window (`core.call_records`, each within
-  `core.call_answer_bytes`), and the owner's task record and ancestors
-  a read carries with its row, have no bound the start can name: jig
-  gives neither's worst case. Default: the hub refuses an assignment
-  past its bound at run time, and the documents leave room beside the
-  turn for the read's evidence (../setup/init.md, 1).
+- A configuration directory moved or copied: `directories.md`, section 2.
+- The rest of an assignment's transcript and of a person's read: `limits.md`, section 1.
 - **A turn past what temper's client takes.** The engine carries a
   turn of smith's largest size whole, but temper's clients take a
   document within their own bound, jig-client's `document_bytes` as
@@ -884,13 +774,4 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
   of the agent's largest size with its wrapper can pass. Default: such a
   turn, which no plan's model reaches in ordinary use, shows as too
   large to read (jig's `protocol/store/loads.md`, 3).
-- **Who writes the case's workflows** (`reference.md`). The repository a case runs
-  on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
-  to meet them. Who writes them, and the runner's budget they take, are
-  the user's, open since 2026-11-03, with no default: the walk's copy of
-  fabrig carries them, written for the box that runs the case, CI
-  running the gate's nextest profiles whole, `tier-goal.yml` the gate
-  without its slowest suites and `tier-slow.yml` the slow tiers, within
-  a runner budget the user sets; or fabrig carries them under
-  `.forgejo/workflows/` once that budget is set; or the case runs on a
-  smaller repository than fabrig, whose workflows are cheap.
+- Who writes the case's workflows: `reference.md`, section 1.

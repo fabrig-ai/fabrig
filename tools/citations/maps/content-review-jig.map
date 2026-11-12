@@ -1,0 +1,5 @@
+# Unnumbered question map, 2026-11-11. Applied by hand, not move.py input.
+# No numbered section or document moves.
+# jig/docs/design/client/domain/client/README.md 15 [A root's two modes] -> jig/docs/design/client/domain/root.md 14 (whole item; 4.4 citation rebased; source cites it)
+# jig/docs/design/domain/model.md 12 [Scaling out] -> jig/docs/design/domain/engine/README.md 10 [Scaling out] (existing question; source cites it)
+# jig/docs/design/client/domain/README.md 6 [search] -> jig/docs/design/client/domain/contract/README.md 9 [Search] (existing question; source cites it)
