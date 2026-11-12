@@ -3,7 +3,6 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod account_keys;
 mod accounts;
-mod terminal_login;
 mod drift;
 #[path = "../fixtures/mod.rs"]
 mod fixtures;
@@ -14,6 +13,7 @@ mod set_visibility;
 mod settings;
 mod settings_proposals;
 mod task_settings;
+mod terminal_login;
 mod test_client_wire;
 
 mod fuzzy {

@@ -717,7 +717,7 @@ pub(crate) fn plan(
             | c::Delivery::Run(_)
             | c::Delivery::Deployment(_)
             | c::Delivery::Terminal(_)
-        | c::Delivery::Accounts(_),
+            | c::Delivery::Accounts(_),
         )
         | None => {}
     }
@@ -777,7 +777,7 @@ impl<'a> EndedRows<'a> {
                 | c::Delivery::Run(_)
                 | c::Delivery::Deployment(_)
                 | c::Delivery::Terminal(_)
-        | c::Delivery::Accounts(_),
+                | c::Delivery::Accounts(_),
             )
             | None => {}
         }

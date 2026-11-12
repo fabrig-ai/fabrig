@@ -568,7 +568,7 @@ fn home_documents_with_status(
                 | c::Subject::Run { .. }
                 | c::Subject::Deployment
                 | c::Subject::Terminal { .. }
-        | c::Subject::Accounts => {}
+                | c::Subject::Accounts => {}
             }
         }
     }

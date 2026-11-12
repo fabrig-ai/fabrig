@@ -149,7 +149,11 @@ impl Operation {
                         c::AccountChange::Resume { .. } => b"retry",
                         c::AccountChange::MoveAccount { .. } | c::AccountChange::MoveSource { .. } => b"rank",
                         c::AccountChange::Remove { .. } | c::AccountChange::RemoveKey { .. } => b"forget",
-                        c::AccountChange::LoginProgram { .. } | c::AccountChange::CancelLogin { .. } | c::AccountChange::LoginEnded { .. } | c::AccountChange::SetUses { .. } | c::AccountChange::FinishSignIn { .. } => b"account-change",
+                        c::AccountChange::LoginProgram { .. }
+                        | c::AccountChange::CancelLogin { .. }
+                        | c::AccountChange::LoginEnded { .. }
+                        | c::AccountChange::SetUses { .. }
+                        | c::AccountChange::FinishSignIn { .. } => b"account-change",
                     },
                     None,
                 ),

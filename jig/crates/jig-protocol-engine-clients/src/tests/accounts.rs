@@ -303,6 +303,8 @@ fn accounts_documents_offer_no_terminal_yet() {
 }
 #[test]
 fn terminal_watches_are_not_served_yet() {
-    let subject = w::Subject::Terminal(w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap());
+    let subject = w::Subject::Terminal(
+        w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
+    );
     assert!(watches::watch(skein_lib::Token::new(17), 23, subject, 2).is_none());
 }

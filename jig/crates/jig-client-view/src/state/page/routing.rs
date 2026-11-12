@@ -334,8 +334,11 @@ pub(crate) fn delivery(
 ) {
     let source = Source::Watch(watch);
     match value {
-        Delivery::Me(_) | Delivery::Project(_) | Delivery::Terminal(_)
-        | Delivery::Accounts(_) | Delivery::Settings(_) => {}
+        Delivery::Me(_)
+        | Delivery::Project(_)
+        | Delivery::Terminal(_)
+        | Delivery::Accounts(_)
+        | Delivery::Settings(_) => {}
         Delivery::Run(_) | Delivery::RunState(_) => {
             crate::state::activity::routing::text(domain, env, watch, out, lent);
         }

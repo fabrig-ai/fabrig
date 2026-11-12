@@ -140,7 +140,7 @@ pub(crate) fn main(
                 | c::Delivery::Settings(_)
                 | c::Delivery::Deployment(_)
                 | c::Delivery::Terminal(_)
-        | c::Delivery::Accounts(_) => false,
+                | c::Delivery::Accounts(_) => false,
             };
             if delegates || !page.cards.is_empty() {
                 super::task::plan(

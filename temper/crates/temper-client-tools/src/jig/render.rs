@@ -80,7 +80,7 @@ impl<'a> Part<'a> {
             | Delivery::Settings(_)
             | Delivery::Deployment(_)
             | Delivery::Terminal(_)
-        | Delivery::Accounts(_) => None,
+            | Delivery::Accounts(_) => None,
         }
     }
 }

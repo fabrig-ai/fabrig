@@ -1,11 +1,11 @@
 mod accounts;
-mod terminal_login;
 mod facts;
 mod fixtures;
 mod reads;
 mod shapes;
 mod sign_in;
 mod store;
+mod terminal_login;
 mod thread;
 mod unlinked;
 mod versions;

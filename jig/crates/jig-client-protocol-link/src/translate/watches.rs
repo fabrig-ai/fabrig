@@ -39,7 +39,9 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         }
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
-        c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal::new(limits, w::SubjectTerminalParts { terminal: *terminal })?),
+        c::Subject::Terminal { terminal } => {
+            w::Subject::Terminal(w::SubjectTerminal::new(limits, w::SubjectTerminalParts { terminal: *terminal })?)
+        }
     })
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {

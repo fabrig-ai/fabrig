@@ -253,7 +253,7 @@ pub fn agent_root_with_page(
                     | c::Subject::Deployment
                     | c::Subject::Settings
                     | c::Subject::Terminal { .. }
-        | c::Subject::Accounts => None,
+                    | c::Subject::Accounts => None,
                 };
                 let Some(value) = value else { continue };
                 Some(Up::Watched { watch, event: c::WatchEvent::Delivered(value) })

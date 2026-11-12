@@ -290,7 +290,9 @@ pub(super) fn encode_refusal(value: &jig_client::contract::Refusal, out: &mut En
         }
         jig_client::contract::Refusal::Unknown => out.string(b"unknown"),
         jig_client::contract::Refusal::ProgramNameReserved => out.string(b"program_name_reserved"),
-        jig_client::contract::Refusal::NoTerminal | jig_client::contract::Refusal::LoginUnderWay | jig_client::contract::Refusal::NotLending => out.null(),
+        jig_client::contract::Refusal::NoTerminal
+        | jig_client::contract::Refusal::LoginUnderWay
+        | jig_client::contract::Refusal::NotLending => out.null(),
         jig_client::contract::Refusal::NotOffered => out.string(b"not_offered"),
         jig_client::contract::Refusal::NameTaken => out.string(b"name_taken"),
         jig_client::contract::Refusal::Provider => out.string(b"provider"),

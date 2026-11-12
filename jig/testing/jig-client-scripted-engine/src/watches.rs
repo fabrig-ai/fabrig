@@ -186,7 +186,9 @@ impl<A: crate::Application> Engine<A> {
                     None => (query.requester != Some(Requester::Person(party))).then_some(hidden),
                 };
             }
-            Subject::Terminal { .. } | Subject::Accounts | Subject::Me => return (!self.truth.frames.contains_key(&party)).then_some(hidden),
+            Subject::Terminal { .. } | Subject::Accounts | Subject::Me => {
+                return (!self.truth.frames.contains_key(&party)).then_some(hidden);
+            }
             Subject::Inbox { .. } => return None,
             Subject::Settings => return (!self.read_visible(party, &Read::Settings)).then_some(hidden),
             Subject::Deployment => return (!self.read_visible(party, &Read::Deployment)).then_some(hidden),
@@ -322,7 +324,9 @@ impl<A: crate::Application> Engine<A> {
                     call: None,
                 }))
             }
-            Subject::Terminal { .. } => Delivery::Terminal(Box::new(jig_client_domain::contract::Terminal { login: None })),
+            Subject::Terminal { .. } => {
+                Delivery::Terminal(Box::new(jig_client_domain::contract::Terminal { login: None }))
+            }
             Subject::Accounts => Delivery::Accounts(Box::new(self.truth.accounts.get(&party).cloned().unwrap_or(
                 jig_client_domain::contract::Accounts {
                     program_hosts: list(&[]),

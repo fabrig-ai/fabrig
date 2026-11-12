@@ -449,29 +449,54 @@ fn settings_proposals_and_running_choices_reach_the_core() {
 
 fn assert_login_refused(change: w::AccountChange, expected: w::Refusal) {
     let limits = fixtures::limits().wire;
-    let ask = w::Ask::AccountChange(w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change }).unwrap());
+    let ask = w::Ask::AccountChange(
+        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
+            .expect("literal login form"),
+    );
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", keyed([83; 16], &ask), Some(&bearer));
     assert!(peer.take_core().is_none(), "interim login changes never enter the core");
-    let answer = w::KeyedAnswer::decode(&limits, &mut skein_lib::Reader::new(peer.answered(socket).expect("interim refusal"))).unwrap();
+    let answer =
+        w::KeyedAnswer::decode(&limits, &mut skein_lib::Reader::new(peer.answered(socket).expect("interim refusal")))
+            .expect("literal login form");
     let w::KeyedAnswer::FinalAnswer(answer) = answer else { panic!("final answer") };
     assert_eq!(answer.owner(), &w::Owner::Jig);
     assert_eq!(answer.version(), 19);
-    assert_eq!(w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())), Ok(w::Final::Refused(w::Refused::new(&limits, w::RefusedParts { refusal: expected, at: None }).unwrap())));
+    assert_eq!(
+        w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())),
+        Ok(w::Final::Refused(
+            w::Refused::new(&limits, w::RefusedParts { refusal: expected, at: None }).expect("literal login form")
+        ))
+    );
 }
 #[test]
 fn login_program_is_refused_without_a_terminal() {
-    let change = w::AccountChange::LoginProgram(w::AccountChangeLoginProgram::new(&fixtures::limits().wire, w::AccountChangeLoginProgramParts { provider: 2, name: b"work".as_slice().into() }).unwrap());
+    let change = w::AccountChange::LoginProgram(
+        w::AccountChangeLoginProgram::new(
+            &fixtures::limits().wire,
+            w::AccountChangeLoginProgramParts { provider: 2, name: b"work".as_slice().into() },
+        )
+        .expect("literal login form"),
+    );
     assert_login_refused(change, w::Refusal::NoTerminal);
 }
 #[test]
 fn cancel_login_is_refused_when_not_lending() {
-    let change = w::AccountChange::CancelLogin(w::AccountChangeCancelLogin::new(&fixtures::limits().wire, w::AccountChangeCancelLoginParts { number: 1 }).unwrap());
+    let change = w::AccountChange::CancelLogin(
+        w::AccountChangeCancelLogin::new(&fixtures::limits().wire, w::AccountChangeCancelLoginParts { number: 1 })
+            .expect("literal login form"),
+    );
     assert_login_refused(change, w::Refusal::NotLending);
 }
 #[test]
 fn login_ended_is_refused_when_not_lending() {
-    let change = w::AccountChange::LoginEnded(w::AccountChangeLoginEnded::new(&fixtures::limits().wire, w::AccountChangeLoginEndedParts { number: 1, exit: w::LoginExit::NotStarted }).unwrap());
+    let change = w::AccountChange::LoginEnded(
+        w::AccountChangeLoginEnded::new(
+            &fixtures::limits().wire,
+            w::AccountChangeLoginEndedParts { number: 1, exit: w::LoginExit::NotStarted },
+        )
+        .expect("literal login form"),
+    );
     assert_login_refused(change, w::Refusal::NotLending);
 }

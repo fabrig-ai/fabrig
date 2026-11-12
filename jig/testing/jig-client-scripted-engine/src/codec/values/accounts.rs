@@ -4,27 +4,51 @@ use super::{
     wire_account_place, wire_account_state, wire_account_unread, wire_document_text, wire_payer_readiness,
     wire_program_host,
 };
-pub(in crate::codec) fn wire_terminal_login(value: &c::TerminalLogin, limits: &w::Limits) -> Result<w::TerminalLogin, w::Problem> {
-    w::TerminalLogin::new(limits, w::TerminalLoginParts {
-        number: value.number, provider: value.provider, name: bytes::copy_of(&value.name), cancelled: value.cancelled,
-    })
+pub(in crate::codec) fn wire_terminal_login(
+    value: &c::TerminalLogin,
+    limits: &w::Limits,
+) -> Result<w::TerminalLogin, w::Problem> {
+    w::TerminalLogin::new(
+        limits,
+        w::TerminalLoginParts {
+            number: value.number,
+            provider: value.provider,
+            name: bytes::copy_of(&value.name),
+            cancelled: value.cancelled,
+        },
+    )
 }
 pub(in crate::codec) fn wire_terminal(value: &c::Terminal, limits: &w::Limits) -> Result<w::Terminal, w::Problem> {
-    w::Terminal::new(limits, w::TerminalParts { login: value.login.as_ref().map(|item| wire_terminal_login(item, limits)).transpose()? })
+    w::Terminal::new(
+        limits,
+        w::TerminalParts { login: value.login.as_ref().map(|item| wire_terminal_login(item, limits)).transpose()? },
+    )
 }
 pub(in crate::codec) fn wire_login_exit(value: &c::LoginExit, limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
     Ok(match value {
-        c::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited::new(limits, w::LoginExitExitedParts { code: *code })?),
-        c::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled::new(limits, w::LoginExitKilledParts { signal: *signal })?),
+        c::LoginExit::Exited { code } => {
+            w::LoginExit::Exited(w::LoginExitExited::new(limits, w::LoginExitExitedParts { code: *code })?)
+        }
+        c::LoginExit::Killed { signal } => {
+            w::LoginExit::Killed(w::LoginExitKilled::new(limits, w::LoginExitKilledParts { signal: *signal })?)
+        }
         c::LoginExit::NotStarted => w::LoginExit::NotStarted,
     })
 }
 pub(in crate::codec) fn wire_login_end(value: &c::LoginEnd, limits: &w::Limits) -> Result<w::LoginEnd, w::Problem> {
     Ok(match value {
-        c::LoginEnd::SignedIn { source } => w::LoginEnd::SignedIn(w::LoginEndSignedIn::new(limits, w::LoginEndSignedInParts { source: *source })?),
-        c::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished::new(limits, w::LoginEndNotFinishedParts { exit: exit.as_ref().map(|item| wire_login_exit(item, limits)).transpose()? })?),
+        c::LoginEnd::SignedIn { source } => {
+            w::LoginEnd::SignedIn(w::LoginEndSignedIn::new(limits, w::LoginEndSignedInParts { source: *source })?)
+        }
+        c::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished::new(
+            limits,
+            w::LoginEndNotFinishedParts { exit: exit.as_ref().map(|item| wire_login_exit(item, limits)).transpose()? },
+        )?),
         c::LoginEnd::Cancelled => w::LoginEnd::Cancelled,
-        c::LoginEnd::Refused { refusal } => w::LoginEnd::Refused(w::LoginEndRefused::new(limits, w::LoginEndRefusedParts { refusal: wire_account_refusal(refusal, limits)? })?),
+        c::LoginEnd::Refused { refusal } => w::LoginEnd::Refused(w::LoginEndRefused::new(
+            limits,
+            w::LoginEndRefusedParts { refusal: wire_account_refusal(refusal, limits)? },
+        )?),
     })
 }
 pub(in crate::codec) fn wire_account_use(
@@ -91,9 +115,16 @@ pub(in crate::codec) fn wire_accounts(value: &c::Accounts, limits: &w::Limits) -
         w::AccountsParts {
             skein_bools: [value.lendable, value.usable, value.settled, value.cut, value.readiness_cut],
             lending: value.lending.as_ref().map(|item| wire_terminal_login(item, limits)).transpose()?,
-            lent_end: value.lent_end.as_ref().map(|item| {
-                w::AccountLentEnd::new(limits, w::AccountLentEndParts { number: item.number, end: wire_login_end(&item.end, limits)? })
-            }).transpose()?,
+            lent_end: value
+                .lent_end
+                .as_ref()
+                .map(|item| {
+                    w::AccountLentEnd::new(
+                        limits,
+                        w::AccountLentEndParts { number: item.number, end: wire_login_end(&item.end, limits)? },
+                    )
+                })
+                .transpose()?,
             program_hosts: pieces(
                 value.program_hosts.iter().map(|item| wire_program_host(item, limits)),
                 w::ProgramHost::measure,
