@@ -143,7 +143,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     run.tick();
     let ledger = world.ledger();
     assert_eq!(ledger.sessions.len(), 1);
-    assert_eq!(ledger.sessions[0].landing, 1);
+    assert_eq!(ledger.sessions[0].landing, Some(1));
     assert_eq!(ledger.sessions[0].effort, "cheap");
     assert_eq!(ledger.sessions[0].pages["web"], ["chat", "work"]);
     assert_eq!(ledger.sessions[0].pages["tui"], ["chat"]);
@@ -211,7 +211,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].exit, Some(Exit::Code(0)));
     assert_eq!(ledger.sessions[0].tokens, Some(1234));
     assert_eq!(ledger.sessions.len(), 2);
-    assert_eq!(ledger.sessions[1].landing, 2);
+    assert_eq!(ledger.sessions[1].landing, Some(2));
     assert!(!world.home.session_directory(1).join("tree").exists());
     let brief = fs::read_to_string(world.home.session_directory(2).join("brief")).expect("second brief");
     for words in ["Case 1: web / work; landings 1", "setup fresh", "open Work", "Drafts lists the draft"] {
