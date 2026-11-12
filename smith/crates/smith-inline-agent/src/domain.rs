@@ -346,6 +346,19 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
                 State::Settling(_) | State::Gone => {}
             }
         }
+        parent::Event::Drain { agent: handle } => {
+            let id = Id::<Slot>::from_token(handle);
+            if let Some(slot) = agent.slots.get(id) {
+                match slot.state {
+                    State::Live => {
+                        if let Some(run) = slot.run {
+                            root_step(agent, env, id, smith::Event::Drain { run }, out);
+                        }
+                    }
+                    State::Cancelling { .. } | State::Settling(_) | State::Gone => {}
+                }
+            }
+        }
         parent::Event::Stop { agent: handle } => stop::cancel(agent, env, Id::<Slot>::from_token(handle), out),
         parent::Event::Drop { agent: handle } => stop::drop_run(agent, env.now, Id::<Slot>::from_token(handle), out),
     }

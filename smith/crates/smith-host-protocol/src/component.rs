@@ -92,6 +92,7 @@ pub struct Component {
     next_call: u64,
     now: Time,
     cancelled: bool,
+    draining: bool,
     endpoints: smith_protocol_translate::Endpoints,
     charter: smith_charter::v4::Limits,
     transcript: smith_transcript::v7::Limits,
@@ -132,6 +133,7 @@ impl Component {
             next_call: 1,
             now: Time::ZERO,
             cancelled: false,
+            draining: false,
             endpoints,
             charter: limits.charter,
             transcript: limits.transcript,
@@ -296,6 +298,23 @@ impl Component {
         let record = smith_channel::Cancel::new(&self.bodies, smith_channel::CancelParts {})?;
         let frame = smith_channel::frame(smith_channel::Body::Cancel(record))?;
         self.cancelled = true;
+        self.send_frame(token, frame, to_service, below);
+        Ok(())
+    }
+
+    /// Stop the current turn whole, once and never after a cancel.
+    pub fn send_drain(
+        &mut self,
+        token: Token,
+        to_service: &mut Queue<Received>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if self.state != State::Started && self.state != State::Admitted || self.cancelled || self.draining {
+            return Err(Error::Order);
+        }
+        let record = smith_channel::Drain::new(&self.bodies, smith_channel::DrainParts {})?;
+        let frame = smith_channel::frame(smith_channel::Body::Drain(record))?;
+        self.draining = true;
         self.send_frame(token, frame, to_service, below);
         Ok(())
     }

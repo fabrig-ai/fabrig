@@ -413,6 +413,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
             }
         }
         channel::Heard::Cancel => super::admission::cancel(service),
+        channel::Heard::Drain => super::admission::drain(service),
         channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
         channel::Heard::Ended { why: _ } => match service.teardown {
             Teardown::Live { .. } => {

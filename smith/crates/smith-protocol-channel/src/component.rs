@@ -70,6 +70,8 @@ pub enum Heard {
     Grant { grant: smith_domain::Grant },
     /// The host asked to stop politely; the service resolves or awaits the admitted run name.
     Cancel,
+    /// The host asks for the current turn to finish before cancellation.
+    Drain,
     /// Independent write failure; input and terminal rights may still continue.
     WriteFailed,
     /// The channel ended before or after opening.

@@ -81,6 +81,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             run::Event::Message { finish_requested, run, name, label, text }
         }
         Event::Cancel { run } => run::Event::Cancel { run },
+        Event::Drain { run } => run::Event::Drain { run },
         Event::HostReturned { relay, reply } => run::Event::HostReturned { relay, reply },
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
         Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },

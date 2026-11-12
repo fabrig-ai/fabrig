@@ -167,6 +167,9 @@ pub enum Event {
     Grant { grant: Grant },
     /// From the host: end the run `run` as cancelled. A run that has already
     /// answered, or decided how it ends, ignores it.
+    /// From the host: stop after the current main turn, without cutting its calls.
+    Drain { run: Token },
+
     Cancel {
         /// Root-issued admitted run token, supplied in `Request::Admitted` and echoed by cancellation.
         run: Token,
