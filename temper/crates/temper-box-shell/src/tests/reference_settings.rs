@@ -740,6 +740,9 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
         segments: 8,
         segment_bytes: 64,
         templates: 4,
+        follows: 2,
+        follow_paths: 8,
+        name_bytes: 64,
     };
     for (kind, scope, expected) in [(2, 1, Ok(())), (1, 0, Err(settings::Refusal::Pattern))] {
         let item = settings::Item { kind, scope, number: 1, value: Some(decoded.value.clone()) };

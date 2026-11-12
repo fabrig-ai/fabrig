@@ -96,6 +96,7 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
         | temper_client_protocol_wire::v1::Request::SetDraft(_)
+        | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground
@@ -218,6 +219,7 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         | temper_client_protocol_wire::v1::Request::Overturn(_)
         | temper_client_protocol_wire::v1::Request::Looked(_)
         | temper_client_protocol_wire::v1::Request::SetDraft(_)
+        | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::TryAccount(_)
         | temper_client_protocol_wire::v1::Request::Dismiss(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground

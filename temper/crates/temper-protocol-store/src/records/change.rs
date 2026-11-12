@@ -36,6 +36,7 @@ fn encode_gate_kind(value: d::GateKind) -> w::GateKind {
         d::GateKind::Agent => w::GateKind::Agent,
         d::GateKind::Person => w::GateKind::Person,
         d::GateKind::Check => w::GateKind::Check,
+        d::GateKind::Follow => w::GateKind::Follow,
     }
 }
 fn decode_gate_kind(value: w::GateKind) -> d::GateKind {
@@ -43,6 +44,7 @@ fn decode_gate_kind(value: w::GateKind) -> d::GateKind {
         w::GateKind::Agent => d::GateKind::Agent,
         w::GateKind::Person => d::GateKind::Person,
         w::GateKind::Check => d::GateKind::Check,
+        w::GateKind::Follow => d::GateKind::Follow,
     }
 }
 fn encode_hold(value: d::Hold) -> w::ChangeHold {
@@ -640,6 +642,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows,
+        follow_check,
         catch_up,
         close,
         merge_result,
@@ -702,6 +706,20 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             repairs: *repairs,
+            follows: match follows {
+                Some(value) => Some(
+                    w::ChangeFollows::new(
+                        &w::CEILINGS,
+                        w::ChangeFollowsParts { follow: value.follow, commits: encode_commits(&value.commits) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
+            follow_check: match follow_check {
+                Some(check) => Some(encode_check(check)),
+                None => None,
+            },
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
@@ -757,6 +775,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows,
+        follow_check,
         catch_up,
         close,
         merge_result,
@@ -815,6 +835,17 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        follows: match follows {
+            Some(value) => {
+                let w::ChangeFollowsParts { follow, commits } = value.into_parts();
+                Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
+            }
+            None => None,
+        },
+        follow_check: match follow_check {
+            Some(check) => Some(decode_check(check)),
+            None => None,
+        },
         catch_up,
         close,
         merge_result,
@@ -1074,4 +1105,43 @@ fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
         w::ChangeEnding::Cancelled => top::Ending::Cancelled,
         w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.into_parts().line },
     })
+}
+
+fn encode_check(check: &top::FollowCheck) -> w::FollowCheckProgress {
+    w::FollowCheckProgress::new(
+        &w::CEILINGS,
+        w::FollowCheckProgressParts {
+            follow: check.follow,
+            source: check.source,
+            head: check.head,
+            definition: check.definition.clone(),
+            key: check.key,
+            flight: match &check.flight {
+                Some(flight) => Some(super::tiers::encode_flight(flight)),
+                None => None,
+            },
+            page: check.page,
+            faults: check.faults,
+            held: check.held.clone(),
+        },
+    )
+    .expect(FITS)
+}
+fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
+    let w::FollowCheckProgressParts { follow, source, head, definition, key, flight, page, faults, held } =
+        check.into_parts();
+    top::FollowCheck {
+        follow,
+        source,
+        head,
+        definition,
+        key,
+        flight: match flight {
+            Some(flight) => Some(super::tiers::decode_flight(flight)),
+            None => None,
+        },
+        page,
+        faults,
+        held,
+    }
 }

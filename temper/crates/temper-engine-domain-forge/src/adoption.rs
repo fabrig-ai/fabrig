@@ -292,6 +292,20 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         refused(d, out, reply_to, AdoptionRefusal::AnotherProject);
         return;
     }
+    let contexts = context_count(d.repository(repository), request);
+    if contexts > u64::from(env.limits.judge_projects) {
+        adopted(
+            d,
+            out,
+            reply_to,
+            Err(api::Error::TooLarge(api::Excess::exact(
+                api::Bound::Forge,
+                u64::from(env.limits.judge_projects),
+                contexts,
+            ))),
+        );
+        return;
+    }
     if request.home && request.role == Role::Context {
         adopted(d, out, reply_to, Err(api::Error::Refused));
         return;
@@ -346,6 +360,21 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         skein_forge_client::Event::Read { owner: reply_to, repository, read: api::Read::Permission { user: author } },
         out,
     );
+}
+
+fn context_count(existing: Option<&Repository>, request: &Adoption) -> u64 {
+    let mut contexts = u64::from(request.role == Role::Context);
+    if let Some(existing) = existing {
+        if existing.role == Role::Context && existing.project != request.project {
+            contexts = contexts.saturating_add(1);
+        }
+        for project in &existing.contexts {
+            if *project != request.project {
+                contexts = contexts.saturating_add(1);
+            }
+        }
+    }
+    contexts
 }
 
 fn owns_branch(d: &Domain, repository: api::Repository, branch: &[u8]) -> bool {
@@ -546,6 +575,7 @@ fn finish_adoption(
     let request = pending.request;
     let row = Repository {
         project: request.project,
+        contexts: Box::default(),
         home: request.home,
         provider: pending.repository,
         host: request.host,
@@ -563,17 +593,31 @@ fn finish_adoption(
             None => Box::default(),
         },
     };
-    // The core keeps each project's read grant. This row keeps the writer:
-    // another project's context adoption must leave its home and effects alone.
-    let writer_held = row.role == Role::Context
-        && match d.repositories.get(&row.provider) {
-            Some(existing) => existing.project != row.project && existing.role != Role::Context,
-            None => false,
-        };
-    if !writer_held {
-        d.repositories.insert(row.provider, row.clone()).expect("adoption capacity checked");
+    let mut stored = row.clone();
+    let mut contexts = List::with_capacity(env.limits.judge_projects);
+    if let Some(existing) = d.repository(row.provider) {
+        if row.role == Role::Context && existing.project != row.project {
+            stored = existing.clone();
+            if !existing.contexts.contains(&row.project) {
+                contexts.push(row.project).expect("context project admission checked");
+            }
+        } else if existing.project != row.project && existing.role == Role::Context {
+            contexts.push(existing.project).expect("context project admission checked");
+        }
+        for project in &existing.contexts {
+            if *project != stored.project {
+                contexts.push(*project).expect("context project admission checked");
+            }
+        }
+    }
+    stored.contexts = contexts.into_boxed();
+    let changed = d.repository(row.provider) != Some(&stored);
+    if changed || row.role != Role::Context {
+        d.repositories.insert(row.provider, Box::new(stored.clone())).expect("adoption capacity checked");
         d.tier_ops.dirty |= !crate::tiers::configured_all(d, row.provider).is_empty();
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(stored) });
+    }
+    if row.role != Role::Context || d.repositories.get(&row.provider).expect("adopted row").project == row.project {
         crate::workflows::read(d, env, row.provider, None, out);
     }
     // The forges row lists its adoptions (client/forge/deployment.md).
@@ -614,11 +658,38 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {
-        if row.project == project {
+        if row.project == project && (row.role != Role::Context || row.contexts.is_empty()) {
             repositories.push(*provider).expect("bounded adopted repositories");
         }
     }
-    let changed = !repositories.is_empty();
+    let mut changed = !repositories.is_empty();
+    let mut shared = List::with_capacity(d.repositories.capacity());
+    for (provider, row) in &d.repositories {
+        if row.contexts.contains(&project)
+            || (row.project == project && row.role == Role::Context && !row.contexts.is_empty())
+        {
+            shared.push(*provider).expect("bounded adopted repositories");
+        }
+    }
+    for provider in &shared {
+        if let Some(row) = d.repositories.get_mut(provider) {
+            if row.project == project {
+                row.project = *row.contexts.first().expect("another context adopts the repository");
+            }
+            let mut contexts = List::with_capacity(u32::try_from(row.contexts.len()).expect("bounded contexts"));
+            for context in &row.contexts {
+                if *context != project && *context != row.project {
+                    contexts.push(*context).expect("fewer contexts");
+                }
+            }
+            row.contexts = contexts.into_boxed();
+            emit(
+                out,
+                Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.as_ref().clone()) },
+            );
+            changed = true;
+        }
+    }
     for provider in &repositories {
         d.repositories.remove(provider);
         emit(out, Request::Erase { key: Key::Repository(*provider) });
@@ -651,6 +722,7 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
     }
     crate::removal::unnamed(d, out);
     d.erase_project_settings(project, out);
+    crate::follows::erase_project(d, project, out);
     crate::dismissed::erase_project(d, project, out);
     crate::status::erase_project(d, project, out);
     crate::away::erase_project(d, project, out);

@@ -1556,6 +1556,7 @@ pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<
         | Outcome::Tried
         | Outcome::Drafted(_)
         | Outcome::DraftRefused(_)
+        | Outcome::Follow(_)
         | Outcome::NotTheirs => b"The forge did not answer the request.",
     })
 }

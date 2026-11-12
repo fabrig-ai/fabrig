@@ -336,7 +336,7 @@ fn project_rules_add_to_the_deployments() {
     repository.provider.repository = 3;
     repository.name = Box::from(b"another".as_slice());
     second.repository = repository.provider;
-    d.repositories.insert(repository.provider, repository.clone()).expect("second repository");
+    d.repositories.insert(repository.provider, Box::new(repository.clone())).expect("second repository");
     let mut other_rule = rule();
     other_rule.pattern.segments[3] = repository.name;
     other_rule.ci = true;
@@ -597,7 +597,7 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
         }
         d.repositories.remove(&REPO);
         assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "only adopted repositories");
-        d.repositories.insert(REPO, adopted()).expect("repository room");
+        d.repositories.insert(REPO, Box::new(adopted())).expect("repository room");
         required.enforce = false;
         keep(&mut d, 0, 1, required);
         assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "advice holds no approval");

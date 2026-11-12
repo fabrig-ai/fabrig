@@ -645,6 +645,7 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)
         | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Reachable(_)
+        | temper_client_protocol_wire::v1::Request::FollowAct(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Replace(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)

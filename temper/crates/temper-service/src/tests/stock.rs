@@ -1612,6 +1612,32 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 9,
                 charters: 0
             },
+            Kind {
+                number: 12,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                // Repositories, branch length prefixes, paths, owner/start/options, producer and check.
+                value_bytes: 6
+                    + 4
+                    + 9
+                    + 4
+                    + limits.forge.follow_paths * (4 + 256)
+                    + 6
+                    + 4
+                    + 9
+                    + 9
+                    + 1
+                    + 1
+                    + 4
+                    + 8192
+                    + 4
+                    + 256
+                    + 4
+                    + 256
+                    + 1,
+                per_scope: limits.forge.follows,
+                charters: 1
+            },
         ]
     );
     limits.authority.segment_bytes = 6;

@@ -418,6 +418,7 @@ impl GoalCase {
                             )
                         }
                         w::Watch::Change(_)
+                        | w::Watch::Follows(_)
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
                         | w::Watch::Changes(_)

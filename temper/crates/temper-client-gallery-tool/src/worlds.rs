@@ -973,6 +973,7 @@ fn world_in_layout(
                         w::Watch::Away
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Follows(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Drafts(_)

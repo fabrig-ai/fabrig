@@ -246,6 +246,15 @@ const FORGE: forge::Limits = forge::Limits {
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -294,6 +303,8 @@ const FORGE: forge::Limits = forge::Limits {
 };
 // A project of fabrig's scale (temper/docs/design/protocol/configuration/stock.md).
 const STANDARD_FORGE: forge::Limits = forge::Limits {
+    follows: 8,
+    follow_queue: 64,
     // One gathered section shares the root task section's read bound.
     brief_bytes: STANDARD_BRIEF.budgets.task,
     // Tasks following live changes in a project, 18 changes seen.
