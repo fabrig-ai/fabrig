@@ -128,6 +128,7 @@ fn settings(seed: u64) -> Settings {
             ..Settings::calm(seed)
         }
     };
-    settings.checkout.preparations = u32::try_from(Rng::new(seed).between(1, u64::from(settings.checkout.workspaces))).expect("small");
+    settings.checkout.preparations =
+        u32::try_from(Rng::new(seed).between(1, u64::from(settings.checkout.workspaces))).expect("small");
     settings
 }

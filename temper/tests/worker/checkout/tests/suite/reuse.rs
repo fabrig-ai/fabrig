@@ -355,7 +355,10 @@ fn what_an_earlier_worker_left_is_made_again() {
 fn a_restart_keeps_the_paths() {
     for reuse in [true, false] {
         for order in [[0, 1], [1, 0]] {
-            let mut world = World::new(Settings { checkout: Limits { workspaces: 2, preparations: 2, ..LIMITS }, ..settings(reuse, 1) });
+            let mut world = World::new(Settings {
+                checkout: Limits { workspaces: 2, preparations: 2, ..LIMITS },
+                ..settings(reuse, 1)
+            });
             let first = world.submit(Time::ZERO, plan(order[0]));
             let second = world.submit(at(100), plan(order[1]));
             world.run(ITERATIONS);
@@ -396,8 +399,10 @@ fn a_noisy_run_across_restarts_holds_the_referees() {
 #[test]
 fn a_restart_keeps_the_count_of_facts_dropped_before_it() {
     for reuse in [true, false] {
-        let mut world =
-            World::new(Settings { checkout: Limits { workspaces: 2, preparations: 2, facts: 2, ..LIMITS }, ..settings(reuse, 1) });
+        let mut world = World::new(Settings {
+            checkout: Limits { workspaces: 2, preparations: 2, facts: 2, ..LIMITS },
+            ..settings(reuse, 1)
+        });
         world.submit(Time::ZERO, plan(0));
         world.submit(Time::ZERO, plan(1));
         world.run(ITERATIONS);

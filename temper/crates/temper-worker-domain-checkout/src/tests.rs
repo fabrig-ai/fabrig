@@ -2455,10 +2455,7 @@ fn queued_prepare_starts_when_ready_with_a_fresh_deadline_and_its_own_facts() {
         let spec = if fresh_store { other_store(b"b") } else { one(b"b") };
         let second = waiting(&mut h, 2, spec);
         let client = Token::new(2);
-        assert_eq!(h.facts().as_slice(), &[
-            Fact::Held { client, cached: Cached::New },
-            Fact::Queued { client },
-        ]);
+        assert_eq!(h.facts().as_slice(), &[Fact::Held { client, cached: Cached::New }, Fact::Queued { client },]);
         h.env.now = NOW.saturating_add(Duration::from_secs(300));
         assert_eq!(h.next(first, Done::Succeeded).kind(), Kind::Make);
         let workspace = checkout_one(&mut h, first);
@@ -2467,16 +2464,26 @@ fn queued_prepare_starts_when_ready_with_a_fresh_deadline_and_its_own_facts() {
         let timeout = if fresh_store { h.env.limits.remote_timeout } else { h.env.limits.local_timeout };
         let kind = if fresh_store { Kind::Store } else { Kind::Make };
         assert_eq!(requests.len(), 2, "the returned permit is used in this step");
-        assert_eq!(requests.get(0), Some(&Request::Prepared {
-            client: Token::new(1), prepared: Prepared::Ready { workspace, conflicts: Box::new([]) },
-        }));
+        assert_eq!(
+            requests.get(0),
+            Some(&Request::Prepared {
+                client: Token::new(1),
+                prepared: Prepared::Ready { workspace, conflicts: Box::new([]) },
+            })
+        );
         let Some(Request::Io { owner, op, deadline }) = requests.get(1) else { panic!("the queued prepare starts") };
         assert_eq!((*owner, op.kind(), *deadline), (second, kind, h.env.now.saturating_add(timeout)));
-        assert_eq!(h.facts().as_slice(), &[
-            Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
-            Fact::Prepared { client: Token::new(1), prepared: crate::Preparation::Ready { workspace, conflicts: 0 } },
-            Fact::Started { client, op: kind },
-        ]);
+        assert_eq!(
+            h.facts().as_slice(),
+            &[
+                Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
+                Fact::Prepared {
+                    client: Token::new(1),
+                    prepared: crate::Preparation::Ready { workspace, conflicts: 0 }
+                },
+                Fact::Started { client, op: kind },
+            ]
+        );
     }
 }
 
@@ -2490,8 +2497,9 @@ fn queued_prepares_follow_arrival_order_when_permits_return() {
     for next in [second, third, fourth] {
         let mut requests = h.step(Event::Done { owner: active, done: failed(Fault::Broken) });
         assert_eq!(requests.len(), 2, "one prepare ends and one starts");
-        let Request::Prepared { prepared: Prepared::Failed { .. }, .. } = requests.swap_remove(0).expect("ends")
-        else { panic!("the active prepare failed") };
+        let Request::Prepared { prepared: Prepared::Failed { .. }, .. } = requests.swap_remove(0).expect("ends") else {
+            panic!("the active prepare failed")
+        };
         assert_eq!(io(requests.swap_remove(0).expect("admitted"), next).kind(), Kind::Store);
         active = next;
     }
@@ -2509,7 +2517,9 @@ fn queued_abort_and_release_remove_the_hold_without_io_or_cancel() {
         let requests = h.step(event);
         let mut expected = List::uncapped();
         expected.push(Request::Prepared { client: Token::new(3), prepared: Prepared::Aborted }).expect("room");
-        if release { expected.push(Request::Released { client: Token::new(3) }).expect("room"); }
+        if release {
+            expected.push(Request::Released { client: Token::new(3) }).expect("room");
+        }
         assert_eq!(requests, expected, "a queued hold has nothing to cancel");
         let mut active = first;
         for next in [second, fourth] {
@@ -2548,8 +2558,9 @@ fn a_store_waiter_keeps_its_permit_until_it_ends() {
     let requests = h.step(Event::Abort { hold: second });
     assert_eq!(requests.len(), 2);
     assert_eq!(requests.get(0), Some(&Request::Prepared { client: Token::new(2), prepared: Prepared::Aborted }));
-    let Some(Request::Io { owner, op: Op::Store { remote: source, .. }, .. }) = requests.get(1)
-    else { panic!("ending a store wait returns its permit") };
+    let Some(Request::Io { owner, op: Op::Store { remote: source, .. }, .. }) = requests.get(1) else {
+        panic!("ending a store wait returns its permit")
+    };
     assert_eq!((*owner, source.as_ref()), (third, remote(b"b").as_ref()));
     assert_eq!(h.one(Event::Abort { hold: first }), Request::Cancel { owner: first });
 }
@@ -2578,8 +2589,11 @@ fn ready_pushes_and_saves_do_not_wait_for_preparation_permits() {
         let queued = waiting(&mut h, 3, one(b"c"));
         assert_eq!(refused(h.one(Event::Push { hold: queued, message: message() })), Refusal::Busy);
         assert_eq!(refused(h.one(Event::Save { hold: queued, message: message() })), Refusal::Busy);
-        let event = if save { Event::Save { hold: ready, message: message() } }
-            else { Event::Push { hold: ready, message: message() } };
+        let event = if save {
+            Event::Save { hold: ready, message: message() }
+        } else {
+            Event::Push { hold: ready, message: message() }
+        };
         assert_eq!(io(h.one(event), ready).kind(), Kind::Commit);
     }
 }

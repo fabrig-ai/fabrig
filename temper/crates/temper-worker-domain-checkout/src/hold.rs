@@ -437,8 +437,12 @@ fn admissions(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         let id = domain.queued.pop().expect("the queued prepares to admit");
         let cached = match domain.holds.get(id).expect("a queued hold lives").state {
             State::Queued { cached } => cached,
-            State::Preparing { .. } | State::Waiting { .. } | State::Ready
-            | State::Unprepared | State::Pushing { .. } | State::Closed => {
+            State::Preparing { .. }
+            | State::Waiting { .. }
+            | State::Ready
+            | State::Unprepared
+            | State::Pushing { .. }
+            | State::Closed => {
                 unreachable!("only queued holds wait for permits")
             }
         };
@@ -472,7 +476,11 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Ready => begin(&hold.holding, id, to, message, env, out),
-        busy @ (State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Pushing { .. } | State::Unprepared) => {
+        busy @ (State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Pushing { .. }
+        | State::Unprepared) => {
             answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out);
             busy
         }
@@ -597,7 +605,12 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 let from = if store_succeeded { after(repository) } else { repository };
                 stores_step(&hold.holding, &mut domain.cache, waiter, from, look, env, out)
             }
-            State::Queued { .. } | State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => {
+            State::Queued { .. }
+            | State::Preparing { .. }
+            | State::Ready
+            | State::Unprepared
+            | State::Pushing { .. }
+            | State::Closed => {
                 unreachable!("only waiting holds are queued");
             }
         };
@@ -612,9 +625,12 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
 fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
     let id = Id::from_token(hold);
     match &holds.get(id)?.state {
-        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {
-            Some(id)
-        }
+        State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Unprepared
+        | State::Pushing { .. } => Some(id),
         State::Closed => None,
     }
 }
@@ -762,7 +778,12 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
             cache.release(hold.holding.workspace);
             holds.retire(id);
         }
-        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {}
+        State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Unprepared
+        | State::Pushing { .. } => {}
     }
 }
 

@@ -26,7 +26,10 @@ fn profiles_prepare_one_workspace_at_a_time() {
 
 #[test]
 fn preparation_overrides_refuse_zero_naming_the_value_and_minimum() {
-    use crate::startup::{configured_limits, problems::{SharedProblems, render_problem}};
+    use crate::startup::{
+        configured_limits,
+        problems::{SharedProblems, render_problem},
+    };
     use jig_protocol_config::{self as config, Path};
     use skein_lib::Writer;
     for (input, value) in [
