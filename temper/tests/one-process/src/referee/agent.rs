@@ -5,13 +5,13 @@ use skein_lib::Reader;
 use std::collections::BTreeMap;
 
 pub(crate) enum Record {
-    Start { task: u64, attempt: u64, workspace: Option<smith_channel::Workspace> },
+    Start { task: u64, attempt: u64, workspace: Option<smith_channel::Workspace>, input: Option<Box<smith_channel::Start>> },
     Answer { task: u64, attempt: u64, result: smith_channel::RunResult },
 }
 impl std::fmt::Debug for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Start { task, attempt, workspace } => f
+            Self::Start { task, attempt, workspace, .. } => f
                 .debug_struct("Start")
                 .field("task", task)
                 .field("attempt", attempt)
@@ -29,6 +29,7 @@ pub(crate) struct Wire {
     limits: smith_channel::Limits,
     store: std::rc::Rc<std::cell::RefCell<super::Store>>,
     runs: BTreeMap<i32, (u64, u64)>,
+    keep_starts: bool,
     pub events: Vec<Observed>,
 }
 impl Wire {
@@ -38,9 +39,11 @@ impl Wire {
             limits: crate::fixtures::agent_limits().channel.bodies,
             store,
             runs: BTreeMap::new(),
+            keep_starts: false,
             events: Vec::new(),
         }
     }
+    pub(crate) fn keep_starts(&mut self) { self.keep_starts = true; }
     pub fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == b"/opt/temper/bin/temper" => {
@@ -135,6 +138,7 @@ impl Wire {
                 task,
                 attempt: start.activation(),
                 workspace: start.workspace().clone(),
+                input: self.keep_starts.then(|| Box::new(start)),
             });
         } else if !down && kind == 0x0109 {
             let (task, attempt) = *self.runs.get(&identity_fd).expect("turn after agent Start");

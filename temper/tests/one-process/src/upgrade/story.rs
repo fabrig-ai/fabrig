@@ -39,6 +39,7 @@ struct State {
     starts: u32,
     issue: bool,
     armed: bool,
+    faulted: bool,
     write_at: Option<u32>,
     old_wires: u64,
     disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
@@ -46,13 +47,16 @@ struct State {
     attempt: u64,
     tokens: Vec<(skein_lib::Secret, u64)>,
     users: Vec<(u64, Box<[u8]>)>,
+    kept_answer: Vec<u8>,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 struct Observer { inner: ServiceObserver }
 impl Observe for Observer {
     fn started(root: Fd, inherited: &skein_world::Inherited) -> Self {
         STATE.with(|s| s.borrow_mut().starts += 1);
-        Self { inner: ServiceObserver::started(root, inherited) }
+        let mut inner = ServiceObserver::started(root, inherited);
+        inner.wire.keep_starts();
+        Self { inner }
     }
     fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
         self.inner.complete(complete, service)
@@ -112,8 +116,11 @@ fn history(before: &Maps, after: &Maps) {
             }
             _ => {
                 let own = jig_protocol_store::keys::decode_own(key);
-                if matches!(own, Some(jig_protocol_store::keys::Own::Format | jig_protocol_store::keys::Own::Layouts | jig_protocol_store::keys::Own::Wires)) {
-                    allowed.push("component levels, layouts and wires");
+                if matches!(own, Some(jig_protocol_store::keys::Own::Format)) {
+                    let mut expected = before.format();
+                    expected.levels.application = expected.levels.application.map(|level| level + 1);
+                    assert_eq!(after.format(),expected,"only the fixture owner level changes");
+                    allowed.push("fixture owner level");
                 } else {
                     panic!("unlisted history difference key {key:02x?}: {named:?}, {own:?}\nold {old:02x?}\nnew {new:02x?}");
                 }
@@ -137,6 +144,12 @@ fn provider() -> skein_fake_peers::llm::Peer {
     coding["turns"][0]["lines"][0] = serde_json::json!({"call":"read_task", "arguments":{"task":5,"field":"specification"}});
     coding["turns"][0]["lines"].as_array_mut().expect("lines").insert(0, serde_json::json!({"text":"upgrade-tail-marker"}));
     coding["turns"].as_array_mut().expect("coding turns").insert(1, serde_json::json!({"lines":[{"call":"effect_forge", "arguments":{"repository":{"forge":1,"repository":1},"resource":{"kind":"repository"},"write":{"kind":"create_issue","key":"upgrade-write","title":"Upgrade once","body":"kept across starts"}}}],"finish":"tool_calls","tokens":7}));
+    if STATE.with(|s| s.borrow().upgrade) {
+        coding["turns"] = serde_json::json!([{"lines":[{"call":"finish","arguments":{"form":"report","text":"Fresh after upgrade","fields":{}}}],"finish":"tool_calls","tokens":1}]);
+    }
+    if STATE.with(|s| s.borrow().upgrade) {
+        scripts["asked"][0]["turns"] = serde_json::json!([{"lines":[{"text":"Paused chat resumed"},{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":2}]);
+    }
     let document = temper_fake::llm::Document::decode(&serde_json::to_vec(&scripts).expect("scripts")).expect("LLM scripts");
     temper_fake::llm::peer(temper_fake::llm::configuration(&document, temper_playground::documents::KEY, temper_playground::documents::seeds(fixtures::SEED).llm)).expect("peer")
 }
@@ -189,12 +202,6 @@ impl skein_world::Referee<Proc> for Judge {
                     let task = golden::in_flight(&store).expect("mid-run task");
                     s.task = task.number;
                     s.attempt = task.attempt;
-                    let mut forge = self.transport.forge.borrow_mut();
-                    forge.config.landing = 1000;
-                    forge.config.land_min = skein_lib::Duration::from_millis(50);
-                    forge.config.land_max = forge.config.land_min;
-                    forge.config.latency_min = skein_lib::Duration::from_secs(1);
-                    forge.config.latency_max = forge.config.latency_min;
                     for proc in others.iter_mut() {
                         if let Proc::Other(HarnessProcess::Calls(caller)) = proc { caller.commands.push_back(ctl::Command::new(&[b"task",b"message",s.task.to_string().as_bytes(),b"remember tail",b"--key",b"remember-tail",b"--json"])); }
                     }
@@ -202,10 +209,17 @@ impl skein_world::Referee<Proc> for Judge {
                 }
             });
         }
+        if !self.upgrade && STATE.with(|s| s.borrow().armed && !s.borrow().faulted) && self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Entry {entry,..} if entry.attempt.is_some() && STATE.with(|s| entry.task == s.borrow().task)))) {
+            self.transport.forge.borrow_mut().config.timeouts = 1000;
+            STATE.with(|s| s.borrow_mut().faulted = true);
+        }
         let checked = STATE.with(|s| s.borrow().checked);
         if self.upgrade && checked && !self.client_started {
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
+                    let task = STATE.with(|s| s.borrow().task.to_string());
+                    caller.commands.push_back(ctl::Command::new(&[b"task",b"message",task.as_bytes(),b"remember tail",b"--key",b"remember-tail",b"--json"]));
+                    caller.commands.push_back(ctl::Command::new(&[b"task",b"message",b"1",b"Resume paused chat",b"--key",b"resume-paused",b"--json"]));
                     caller.commands.push_back(ctl::Command::new(&[b"chat", b"start", b"After upgrade", b"--project", b"1", b"--key", b"after-upgrade", b"--json"]));
                     caller.closed = true;
                 }
@@ -214,9 +228,20 @@ impl skein_world::Referee<Proc> for Judge {
         }
         let complete = if self.upgrade {
             checked && self.store.borrow().agent_records.iter().any(|r| matches!(r, referee::AgentRecord::Start {task, attempt, ..} if STATE.with(|s| *task == s.borrow().task && *attempt > s.borrow().attempt)))
-                && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 1))
+                && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 3))
+                && self.store.borrow().rows.values().any(|r| matches!(r, temper_engine_domain::Record::Core(Record::Core(CoreRecord::Turn(turn))) if turn.task == 1 && skein_lib::bytes::find(&turn.transcript,b"Paused chat resumed").is_some()))
+                && !self.store.borrow().rows.values().any(|r| matches!(r, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task))))
         } else { STATE.with(|s| s.borrow().issue) && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 1)) };
         if complete && !self.stopped {
+            for proc in others.iter() {
+                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
+                    for answer in &caller.answers { assert_eq!(answer.exit,skein_io::kernel::Exit::Code(0),"ctl: {}",String::from_utf8_lossy(&answer.error)); }
+                    if self.upgrade { STATE.with(|s| assert_eq!(caller.answers[0].output,s.borrow().kept_answer,"replayed key is answered from its record")); }
+                    else { STATE.with(|s| s.borrow_mut().kept_answer = caller.answers[0].output.clone()); }
+                }
+            }
+            if self.upgrade { continued(&self.store.borrow()); }
+
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc { person.finish(); }
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc { caller.closed = true; }
@@ -239,7 +264,7 @@ impl skein_world::Referee<Proc> for Judge {
                     s.issue = true;
                     let Proc::Service(service) = &procs[0] else { panic!("service") };
                     s.write_at = Some(service.observer.inner.submitted);
-                    self.transport.forge.borrow_mut().config.landing = 0;
+                    self.transport.forge.borrow_mut().config.timeouts = 0;
                 }
             });
         }
@@ -338,4 +363,29 @@ fn forge_peer(transport: &temper_fake_git_hosted::Typed) -> skein_fake_peers::fo
     let token = temper_fake::credential::credential(seed, temper_fake::credential::ADMIN_TOKEN);
     temper_fake::forge::setup(peer.setup_mut(), &token);
     peer
+}
+
+fn continued(store: &referee::Store) {
+    let (task, old_attempt) = STATE.with(|s| (s.borrow().task,s.borrow().attempt));
+    let start = store.agent_records.iter().find_map(|row| match row {
+        referee::AgentRecord::Start {task:t,attempt,input:Some(input),..} if *t == task && *attempt > old_attempt => Some(input),
+        _ => None,
+    }).expect("mid-run task gets a new attempt");
+    assert!(start.transcript().is_empty(),"fresh attempt, not the closed conversation");
+    let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS,&mut skein_lib::Reader::new(start.charter())).expect("charter");
+    assert!(charter.brief().as_slice().iter().any(|section| skein_lib::bytes::find(section.body(), b"upgrade-tail-marker").is_some()),"fresh brief carries the closed window's tail");
+    assert!(!store.rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task:t,..} if *t == task))),"crossed claim's forge write settled");
+    let new = store.rows.values().find_map(|row| match row {
+        temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task))) if task.spec.words.as_ref() == b"After upgrade" => Some(task.number),
+        _ => None,
+    }).expect("new chat allocated");
+    STATE.with(|s| {
+        let s = s.borrow();
+        let maps = s.before.as_ref().expect("before");
+        let key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
+        let encoded = jig_protocol_store::keys::encode(&key,64).expect("header key");
+        let Record::Core(CoreRecord::Deployment(header)) = jig_protocol_store::codec::decode(&key,maps.store.get(encoded.as_ref()).expect("header"),&stories::playground::codec(),fixtures::store_names()).expect("header decodes") else {panic!("header")};
+        assert!(new > header.tasks,"new task above every kept task");
+        assert!(start.activation() > header.runs,"new attempt above every kept attempt");
+    });
 }
