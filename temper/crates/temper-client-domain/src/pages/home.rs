@@ -413,6 +413,7 @@ impl Facts {
     pub fn parts_facts(&self) -> super::parts::HomeFacts {
         super::parts::HomeFacts {
             across: false,
+            follows: 0,
             projects: 0,
             brief: self.brief().is_some(),
             open: match self.needs {
