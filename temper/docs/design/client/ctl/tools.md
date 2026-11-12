@@ -214,7 +214,7 @@ agent must name.
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
 | `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the owners of its items, the deployment's and each project's it names; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
-| `settings apply FILE --against REVISION [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
+| `settings apply FILE... --against REVISION [--running stays\|moves]` | changes the settings in one decision: each FILE (or `-`, once) holds items, the files' overlays of one charter joined and every other setting named once (`overlays.md`, 3); REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
 | `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../../protocol/configuration/settings.md`, 2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine/settings.md`, 10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
@@ -240,8 +240,10 @@ agent must name.
 
 - **Settings FILE is JSON:** `{"items": [ITEM, ...]}`, at most one item per
   setting, each `{"setting": SETTING, "set": VALUE}`,
-  `{"setting": SETTING, "edit": "removed"}` or
-  `{"setting": SETTING, "edit": "reset"}`. SETTING is
+  `{"setting": SETTING, "edit": "removed"}`,
+  `{"setting": SETTING, "edit": "reset"}` or, for a charter, `{"setting":
+  SETTING, "overlay": OVERLAY}`, an overlay over its default, its text
+  given literally or by directories of charter files (`overlays.md`). SETTING is
   `{"kind": "charter"|"template"|"policy", "number": N}`,
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`

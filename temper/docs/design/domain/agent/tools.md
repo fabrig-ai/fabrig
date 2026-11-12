@@ -198,9 +198,16 @@
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
   `propose_settings`), temper sums each charter's offered tools, its
-  instructions and the fixed parts, and refuses one that leaves its
+  instructions with every one of its parts joined to them, the most any
+  of its runs can select, and the fixed parts, and refuses one that leaves its
   brief less than 2,048 bytes, naming the charter and both figures
-  (`../../protocol/configuration/limits.md`). A stored proposal's
+  (`../../protocol/configuration/limits.md`). An item setting an
+  overlay is judged on the charter it makes over the charter's current
+  default (jig's `domain/engine/overlays.md`, 1), and the start's check,
+  over the defaults and again once the stored settings are restored,
+  judges each overlaid charter as its runs read it, so that a release
+  whose new default leaves an overlaid charter too little room stops
+  the start, naming the charter. A stored proposal's
   acceptance, a restore and a reset carry values that passed an
   entrance or the start, and the bound does not move while the engine
   runs. The sum is a table of each host family's declaration bytes and
