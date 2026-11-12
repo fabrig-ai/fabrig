@@ -205,6 +205,15 @@ impl StockWays {
     pub fn rules(&self) -> Option<&w::PathRules> {
         Some(self.panel()?.rules())
     }
+    /// The running path (client/pages/settings.md, 2, *What follows a landing*).
+    #[must_use]
+    pub fn current_path(&self) -> Option<&w::BranchPath> {
+        let panel = self.panel()?;
+        match panel.current() {
+            Some(index) => Some(panel.ways().get(*index)?.path()),
+            None => Some(panel.own()),
+        }
+    }
     fn panel(&self) -> Option<&w::WaysPanel> {
         match &self.state {
             State::Shown(panel) => Some(panel),

@@ -302,6 +302,153 @@ fn question_row(seed: u64, parts: bool) {
     world.close();
 }
 
+fn waiting(world: &World) -> Option<&[u8]> {
+    world.assigned.as_ref().expect("assignment").brief.iter().find_map(|section| match section {
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Waiting, text } => Some(text.as_ref()),
+        _ => None,
+    })
+}
+
+fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
+    let mut world = story::world(seed, true);
+    world.grant_account(2);
+    let caller = fixtures::run(&world);
+    let mut member = fixtures::member(&world, tasks::Executor::Agent { charter: 2 }, b"answer questions");
+    member.authority.budget.spend = 60;
+    member.wake = Some(tasks::WakePolicy { questions: wakes, ..tasks::WakePolicy::DEFAULT });
+    let task = fixtures::delegate(&mut world, caller, 1, member);
+    let first = (task, live_row(&world, task).attempt);
+    assert_eq!(waiting(&world), None);
+    let question = story::question(&mut world, first);
+    story::turn(&mut world, first, None);
+    story::park(&mut world, first, None);
+    if !wakes {
+        fixtures::ask(
+            &mut world,
+            84,
+            people::Ask::Say { project: 1, task, words: b"read the question".as_slice().into() },
+        );
+    }
+    let next = world.assigned.as_ref().expect("question run");
+    let run = (next.task, next.attempt);
+    assert!(next.messages.contains(&question));
+    let read = next.messages.last().expect("question or words").number;
+    assert_eq!(waiting(&world), None, "a start message is not repeated");
+    story::turn(&mut world, run, Some(read));
+    story::park(&mut world, run, Some(read));
+    assert!(live_row(&world, run.0).inbox.is_empty());
+    fixtures::ask(
+        &mut world,
+        85,
+        people::Ask::Say { project: 1, task: run.0, words: b"person's words".as_slice().into() },
+    );
+    (world, run, question)
+}
+
+#[test]
+fn an_open_question_survives_its_read_in_the_next_brief() {
+    let (mut world, run, question) = read_question(866, true);
+    let tasks::Party::Task(asker) = question.from else { panic!("delegate asks") };
+    let expected = format!(
+        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {0}); answer with message target={asker}, form=answer, question={0}:\nWhich next?\n",
+        question.number
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
+    assert!(world.assigned.as_ref().expect("fresh run").attempt > run.1);
+    world.close();
+}
+
+#[test]
+fn an_open_question_selects_its_part_when_person_words_wake_the_run() {
+    for wakes in [true, false] {
+        let (mut world, run, _) = read_question(867, wakes);
+        assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::WORDS.union(tasks::Reasons::QUESTION));
+        assert_eq!(world.assigned.as_ref().expect("words run").run.policy.instructions.as_ref(), b"S\n\nQ");
+        assert!(live_row(&world, run.0).offered.contains(tasks::Reasons::QUESTION));
+        world.close();
+    }
+}
+
+fn question_action(
+    world: &mut World,
+    run: (u64, u64),
+    completion: u32,
+    target: u64,
+    kind: tasks::MessageKind,
+    words: &[u8],
+) {
+    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::NamedAction {
+        to: skein_lib::ReplyTo::new(skein_lib::Token::new(9300 + u64::from(completion))),
+        key: jig_domain_core::CallKey { task: run.0, attempt: run.1, completion, position: 0 },
+        action: jig_domain_core::NamedAction::Message { target, kind, words: words.into() },
+    }));
+}
+
+fn next_brief_after_read(world: &mut World, run: (u64, u64), key: u8) -> (u64, u64) {
+    let read = live_row(world, run.0).inbox.last().map(|word| word.number);
+    story::turn(world, run, read);
+    story::park(world, run, read);
+    fixtures::ask(world, key, people::Ask::Say { project: 1, task: run.0, words: b"consider again".as_slice().into() });
+    let next = world.assigned.as_ref().expect("fresh brief");
+    assert_eq!(next.task, run.0);
+    assert!(next.attempt > run.1);
+    (next.task, next.attempt)
+}
+
+#[test]
+fn waiting_keeps_whole_questions_oldest_first_and_drops_answers_and_ended_questions() {
+    let mut setup = story::setup(868, false);
+    // Two whole questions, their answer forms and the required task/tail fit together.
+    setup.limits.core.brief.read_bytes = 512;
+    setup.limits.core.brief.brief_bytes = 1024;
+    let mut world = World::new(setup);
+    world.grant_account(2);
+    let task = story::delegate(&mut world, false);
+    let run = (task, live_row(&world, task).attempt);
+    let first = story::question(&mut world, run);
+    let asker = world.assigned.as_ref().expect("asking child");
+    let child = (asker.task, asker.attempt);
+    let whole = b"Which form?\nTwo lines, kept whole.";
+    question_action(&mut world, child, 2, run.0, tasks::MessageKind::Question, whole);
+    let second = live_row(&world, run.0).inbox.last().expect("second question").number;
+    let run = next_brief_after_read(&mut world, run, 87);
+    let expected = format!(
+        "Questions asked of you, still open, oldest first:\nTask {} asks (question {}); answer with message target={}, form=answer, question={}:\nWhich next?\nTask {} asks (question {second}); answer with message target={}, form=answer, question={second}:\n{}\n",
+        child.0,
+        first.number,
+        child.0,
+        first.number,
+        child.0,
+        child.0,
+        core::str::from_utf8(whole).expect("question UTF-8")
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
+    question_action(
+        &mut world,
+        run,
+        1,
+        child.0,
+        tasks::MessageKind::Answer { question: first.number },
+        b"the first form",
+    );
+    let run = next_brief_after_read(&mut world, run, 88);
+    let expected = format!(
+        "Questions asked of you, still open, oldest first:\nTask {} asks (question {second}); answer with message target={}, form=answer, question={second}:\n{}\n",
+        child.0,
+        child.0,
+        core::str::from_utf8(whole).expect("question UTF-8")
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
+    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Tasks(tasks::Event::CancelQuestion {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9400)),
+        task: child.0,
+        question: second,
+    })));
+    next_brief_after_read(&mut world, run, 89);
+    assert_eq!(waiting(&world), None);
+    world.close();
+}
+
 fn first_run() {
     let (mut world, _) = first(861, true, true);
     world.close();

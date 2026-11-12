@@ -442,6 +442,9 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             w::Outcome::Unknown
             | w::Outcome::Away
             | w::Outcome::Tried
+            | w::Outcome::Drafted(_)
+            | w::Outcome::DraftRefused(_)
+            | w::Outcome::Follow(_)
             | w::Outcome::NotTheirs
             | w::Outcome::Overturned
             | w::Outcome::OverturnRefused(_)

@@ -257,13 +257,18 @@ members = [
     "temper/crates/temper-docs",
     "temper/crates/temper-fake",
     "temper/crates/temper-playground",
+    "temper/crates/temper-playground-serve-tool",
+    "temper/bin/temper-playground-serve",
     "temper/crates/temper-protocol-reaches",
     "temper/crates/temper-protocol-records",
     "temper/tests/real-loop",
     "temper/crates/temper-box-machine",
-    "temper/tools/gallery",
-    "temper/tools/journeys",
-    "temper/tools/stage-one",
+    "temper/crates/temper-client-gallery-tool",
+    "temper/bin/temper-client-gallery",
+    "temper/crates/temper-client-journeys-tool",
+    "temper/bin/temper-client-journeys",
+    "temper/crates/temper-stage-one-tool",
+    "temper/bin/temper-stage-one",
     "temper/tests/one-process",
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
@@ -303,8 +308,12 @@ members = [
     "temper/crates/temper-service-shell",
     "temper/crates/temper-worker-protocol-git",
     "temper/crates/temper-client-protocol-wire",
-    "temper/tools/git-transcripts",
-    "temper/tools/twin",
+    "temper/bin/temper-git-transcripts",
+    "temper/crates/temper-git-transcripts-tool",
+    "temper/crates/temper-twin-tool",
+    "temper/bin/temper-twin",
+    "temper/crates/temper-qa-tool",
+    "temper/bin/temper-qa",
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
@@ -573,6 +582,7 @@ temper-test-env = { path = "temper/testing/temper-test-env" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
+temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
@@ -595,11 +605,17 @@ temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
+temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
+temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
+temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
+temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
+temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
+temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }
@@ -732,6 +748,9 @@ priority = -1
 
 [profile.dev]
 overflow-checks = true
+# Line tables alone for the workspace's own crates: panics and backtraces keep file and line, and each
+# test executable, linked anew in every target directory, sheds most of its size.
+debug = "line-tables-only"
 
 [profile.dev.package]
 

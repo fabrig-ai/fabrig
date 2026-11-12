@@ -2,6 +2,12 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 2: the follow procedure, its task making follow changes
+  (`follows.md`) [in flight: change 110].
+
+- **Not yet:** 5.1: follows reading the landings on a branch
+  [in flight: change 105].
+
 - **Not yet:** 5.3: goal overlap reads a pull request's files with both sides, for their paths alone (`temper-engine-domain-forge/src/topics.rs`) [in flight: change 436].
 
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap

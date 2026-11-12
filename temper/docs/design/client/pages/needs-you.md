@@ -173,7 +173,7 @@
     report keeps the ordinary person-task card.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (`../forge/records.md`), its kind "an approval", its question, context,
-    review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
+    size, review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
     "Review on GitHub ↗" or "Review on Forgejo ↗" first and primary, one tap
     to the forge's review page (`../../draft/forge-identity.md`, section 8), and
     in the terminal's inbox "Later" too, its key

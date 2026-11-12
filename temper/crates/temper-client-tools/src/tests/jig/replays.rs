@@ -239,11 +239,17 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 // Verbs without a retiring subject still send the same key and request, and
 // print its first refusal in both formats. This also guards future table rows.
 const DIRECT_CALLS: &[&[&str]] = &[
+    f::FOLLOW_START,
+    f::FOLLOW_HOLD,
+    f::FOLLOW_SKIP,
+    f::FOLLOW_MERGE,
     &["project", "make", "Second", "--key", "second-project"],
     super::goal_template::START,
     super::role::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
+    &["draft", "ready", "--project", "1", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "1", "draft.md", "--key", "draft-not-ready"],
     &["repository", "make", "--project", "1", "team/widget", "--key", "make-widget"],
     &["repository", "copy", "--project", "1", "source.invalid/team/widget", "--key", "copy-widget"],
     &["account", "connect", "9", "--key", "connect"],

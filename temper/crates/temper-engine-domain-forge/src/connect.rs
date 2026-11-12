@@ -66,6 +66,7 @@ pub(crate) fn start(
         | Ask::Replace { .. }
         | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -106,6 +107,7 @@ pub(crate) fn start(
         | Ask::Reachable { .. }
         | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }
@@ -194,6 +196,7 @@ fn resolve(
         | Ask::EndPlayground
         | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -345,6 +348,7 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::Reachable { .. }
         | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
+        | Ask::SetDraft(_)
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }

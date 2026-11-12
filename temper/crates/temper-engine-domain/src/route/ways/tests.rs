@@ -89,6 +89,7 @@ fn goal_template() -> core::Template {
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
+        contexts: Box::new([]),
         workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,

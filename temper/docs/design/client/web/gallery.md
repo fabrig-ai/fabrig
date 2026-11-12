@@ -1,7 +1,7 @@
 # The gallery
 
-`temper-client-gallery` (`tools/gallery`), a program of temper's
-workspace, prints the browser's pages in named states into a
+`temper-client-gallery` (`bin/temper-client-gallery`, calling
+`crates/temper-client-gallery-tool`), a program of temper's workspace, prints the browser's pages in named states into a
 directory, as static documents, for screenshots beside the mockups
 and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (`testing.md`), and the gallery draws what the
@@ -98,14 +98,14 @@ from the engine's own answers, is where the look is tuned.
 | `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`../pages/README.md`, *Away*, *On All projects*) |
 | `all-home-away-on` | `all-home-away` after a press, each answer Away: the switch "Away until 08:00", pressed, and the toast "Away turned on for 2 projects: agents decide within their limits." |
 | `night-all-home` | `all-home` by night |
-| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../../draft/surfaces.md`, 12, Pair) |
+| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗", its size "+142 -18 in 4 files" under its question as `pair/home.html` draws it, and a question (`../../draft/surfaces.md`, 12, Pair) |
 | `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
 | `home-step-stock` | a project's Home with a brief and Decided for you, no need (12, Stock) |
 | `home-step-scale` | a project's Home with a question and a funds card (12, At scale) |
 | `needs-list` | Needs you across two projects, three open: the first open, the others closed rows; Decided for you under them; the whole story's `needs.html`, and `phone-need.html` at a phone's width |
 | `needs-list-second` | `needs-list` with its second row opened |
 | `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
-| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first |
+| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first, its size under its context as `pair/needs.html`'s second card draws it, "+142 -18 in 4 files" |
 | `night-needs` | `needs-list` by night |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
@@ -202,6 +202,8 @@ from the engine's own answers, is where the look is tuned.
 | `how-rules-card` | `how-rules` with the sign-off's stop pressed: its card, "Only for" the set's patterns, "Role" "owner", "Asks" "1 of them" and "Counts" |
 | `how-team` | hand-made deliveries as the whole story's `team/how.html` draws shop's, three owners, the reader one of them: "Yours" shown, its path with "review" and "one of you"; Rules by path with "Review", a row "payments/", "an agent", "two of you", "once two have signed this head", then "everything else", "an agent", "one of you", "once signed", and the note |
 | `night-how-team` | `how-team` with the night switch pressed: the table's chips by night |
+| `how-follows` | `how-draft` with a hand-made `follows` document, project document and standing roles: What follows a landing's box "cowsql/vsr-rs follows cowsql/vsr", "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat.", "Each waits for Pat's word.", its check's workflow, "2 behind · check passes at" its source commit's twelve digits, its chips "code hears the landing", "an agent ports" and "code checks"; the box "Tiers on main" from the path's tier, "code runs" and "an agent repairs"; Budgets' head "a week · renews Tuesday", a standing role's row, its title, "a standing role · 28 left" and "40", then "Goals", "80" (`../pages/settings.md`, 2) |
+| `night-how-follows` | `how-follows` with the night switch pressed: the chips' marks, code's square among them, by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |
@@ -288,9 +290,9 @@ from the engine's own answers, is where the look is tuned.
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
 | `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
 | `rail-across` | *Needs you* across projects, a need in each of two projects: the switcher names "All projects"; the rail's "Needs you 2", current, counting both, its Home to `AllHome`, and the phone's Home and "Needs 2" the same; its Work and How work runs the project last open (`../view.md`, 3, *All projects*) |
-| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
+| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts, as `work.html`'s, a design session's being written and the witness catch-up, landed and ready, with "Start a goal: WAY", WAY its project's way as `../pages/work.md`, 1, *Ways*, names it, and "Another way"; four changes landed this week |
 | `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
-| `work-drafts` | `work` under Drafts: the drafts' cards alone |
+| `work-drafts` | `work` under Drafts: the drafts' cards alone, the landed draft's among them |
 | `work-goals` | `work` under Goals: Work's head and filters, the goals' list under them, its heading at level 2 |
 | `work-changes` | `work` under Changes: Work's head and filters, the queue and what landed under them |
 | `work-empty` | hand-made deliveries with nothing listed: "Nothing in flight yet.", All alone among the filters |
@@ -487,11 +489,11 @@ from the engine's own answers, is where the look is tuned.
 
 ## 3. Its tests
 
-In `tools/gallery`'s own tests, in the view's world: each state's tree
+In `crates/temper-client-gallery-tool`'s own tests, in the view's world: each state's tree
 read by skein's fake person (`../../testing/fakes.md`, 4), as the
 gallery builds it.
 
-- **The names:** the states' names, in order, are `tools/gallery/names.txt`,
+- **The names:** the states' names, in order, are `crates/temper-client-gallery-tool/names.txt`,
   kept by hand, so a name gone, changed or added fails until the file
   says so.
 - **Each state holds what its name says:** a table of rows, each a
