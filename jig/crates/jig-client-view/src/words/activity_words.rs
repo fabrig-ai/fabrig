@@ -122,6 +122,7 @@ pub enum ActivityPhrase {
     Resource,
     ResultFailed,
     ResultCancelled,
+    ResultJob,
     QuestionEnded,
     KeptQuestion,
     QuestionAnswered,
@@ -129,7 +130,7 @@ pub enum ActivityPhrase {
     NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 118] = [
+pub const ALL: [ActivityPhrase; 119] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -243,6 +244,7 @@ pub const ALL: [ActivityPhrase; 118] = [
     ActivityPhrase::Resource,
     ActivityPhrase::ResultFailed,
     ActivityPhrase::ResultCancelled,
+    ActivityPhrase::ResultJob,
     ActivityPhrase::QuestionEnded,
     ActivityPhrase::KeptQuestion,
     ActivityPhrase::QuestionAnswered,
@@ -370,6 +372,7 @@ impl ActivityPhrase {
             Self::Resource => 7301,
             Self::ResultFailed => 7302,
             Self::ResultCancelled => 7303,
+            Self::ResultJob => 7319,
             Self::QuestionEnded => 7308,
             Self::KeptQuestion => 7309,
             Self::QuestionAnswered => 7310,
@@ -463,6 +466,7 @@ impl ActivityPhrase {
             | Self::Change
             | Self::ResultFailed
             | Self::ResultCancelled
+            | Self::ResultJob
             | Self::QuestionOwed
             | Self::NothingAwaited => None,
             Self::Task
@@ -620,6 +624,7 @@ impl ActivityPhrase {
             Self::Resource => b"Resource: ",
             Self::ResultFailed => b"Result: failed",
             Self::ResultCancelled => b"Result: cancelled",
+            Self::ResultJob => b"Result: job",
             Self::QuestionEnded => b"Question ended unanswered: ",
             Self::KeptQuestion => b"Kept by question: ",
             Self::QuestionAnswered => b"Person answered question in inbox: ",

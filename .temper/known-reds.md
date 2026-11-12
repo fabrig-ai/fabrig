@@ -23,3 +23,4 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
+- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
