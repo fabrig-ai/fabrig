@@ -19,7 +19,7 @@ fn an_executable_fake_is_found_beside_smith() {
 #[should_panic(expected = "cargo build -p smith-fake-claude --bin fake-claude")]
 fn a_missing_fake_names_its_build_command() {
     let scratch = Scratch::new("smith-fake-missing");
-    fake_claude_beside(&scratch.path().join("smith"));
+    drop(fake_claude_beside(&scratch.path().join("smith")));
 }
 
 #[test]
@@ -29,5 +29,5 @@ fn a_nonexecutable_fake_names_its_build_command() {
     let fake = scratch.path().join("fake-claude");
     fs::write(&fake, b"").expect("fake file");
     fs::set_permissions(&fake, fs::Permissions::from_mode(0o600)).expect("nonexecutable fake");
-    fake_claude_beside(&scratch.path().join("smith"));
+    drop(fake_claude_beside(&scratch.path().join("smith")));
 }

@@ -27,15 +27,17 @@ use std::{
 };
 
 /// The fake program built beside this package's shipped binary.
+#[must_use]
 pub fn fake_claude() -> PathBuf {
     fake_claude_beside(&skein_scratch::paths::binary("smith"))
 }
 
 /// Find the executable sibling, naming the build command when it is absent.
+#[must_use]
 pub fn fake_claude_beside(smith: &Path) -> PathBuf {
     let path = smith.parent().expect("smith binary has a parent directory").join("fake-claude");
-    let executable = std::fs::metadata(&path)
-        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
+    let executable =
+        std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
     assert!(
         executable,
         "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
@@ -73,7 +75,7 @@ struct Judge {
     shutdown: Option<Exit>,
     deadline: Time,
     saved: bool,
-    tokens: std::path::PathBuf,
+    tokens: PathBuf,
     checkout: smith_real_world::Checkout,
     ending: referee::Ending,
     seed: u64,
@@ -455,9 +457,9 @@ pub(crate) struct Settling {
     stderr_sign_in: referee::SignIn,
     visiting: bool,
     shutdown: bool,
-    foreign: Option<std::path::PathBuf>,
+    foreign: Option<PathBuf>,
     deadline: Time,
-    trace: Option<(std::path::PathBuf, bool)>,
+    trace: Option<(PathBuf, bool)>,
 }
 impl Settling {
     pub(crate) fn new(now: Time, deadline: Time) -> Self {
@@ -639,7 +641,7 @@ pub mod program_contract;
 
 /// The agent's expected destination from the story's selected placement.
 #[must_use]
-pub fn trace_path(directory: &Path) -> std::path::PathBuf {
+pub fn trace_path(directory: &Path) -> PathBuf {
     directory.join("agent-trace.jsonl")
 }
 
@@ -652,7 +654,7 @@ pub struct Ran {
 
 /// A user layer confined to this story's scratch configuration directory.
 #[must_use]
-pub fn user_layer(scratch: &Scratch, bytes: &[u8]) -> std::path::PathBuf {
+pub fn user_layer(scratch: &Scratch, bytes: &[u8]) -> PathBuf {
     let path = scratch.path().join("config/smith/config.toml");
     std::fs::create_dir_all(path.parent().expect("user layer parent")).expect("scratch user directory");
     std::fs::write(&path, bytes).expect("scratch user layer");
