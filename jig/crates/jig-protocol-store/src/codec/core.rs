@@ -15,15 +15,15 @@ use super::View;
 
 pub(super) fn limits(
     domain: &domain::Limits,
-    tasks: &crate::tasks_v9::Limits,
+    tasks: &crate::tasks_v10::Limits,
     notes: &crate::notes_v1::Limits,
 ) -> Option<wire::Limits> {
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v14::Refusal::encoded_bound(&crate::people_v14::CEILINGS)?)
+        settings_refusal_value: u32::try_from(crate::people_v15::Refusal::encoded_bound(&crate::people_v15::CEILINGS)?)
             .ok()?,
-        phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(tasks)?).ok()?,
-        change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(tasks)?).ok()?,
-        end_bytes_value: u32::try_from(crate::tasks_v9::EndRecord::encoded_bound(tasks)?).ok()?,
+        phase_bytes_value: u32::try_from(crate::tasks_v10::PhaseRecord::encoded_bound(tasks)?).ok()?,
+        change_bytes_value: u32::try_from(crate::tasks_v10::ChangeRecord::encoded_bound(tasks)?).ok()?,
+        end_bytes_value: u32::try_from(crate::tasks_v10::EndRecord::encoded_bound(tasks)?).ok()?,
         projection_goal_words: domain.tasks.spec_bytes,
         projection_task_words: domain.tasks.spec_bytes,
         projection_milestone_words: domain.tasks.message_bytes.max(domain.tasks.result_bytes),
@@ -42,7 +42,7 @@ pub(super) fn limits(
         call_part_delegated_value: domain.tasks.batch,
         call_part_delegation_denied_findings: jig_domain_authority::stored_finding_limit(&domain.authority)?,
         call_part_note_recalled_entries: domain.notes.recalled,
-        task_bytes_value: u32::try_from(crate::tasks_v9::TaskProblem::encoded_bound(tasks)?).ok()?,
+        task_bytes_value: u32::try_from(crate::tasks_v10::TaskProblem::encoded_bound(tasks)?).ok()?,
         note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(notes)?).ok()?,
     };
     wire::check_limits(&core).ok()?;
@@ -96,7 +96,7 @@ pub fn decode(bytes: &[u8], limits: &View) -> Result<domain::CoreRecord, wire::P
 fn problem(reason: skein_codec::Reason) -> wire::Problem {
     wire::Problem { path: wire::Path::RowValue, reason }
 }
-fn task_problem(value: crate::tasks_v9::Problem) -> wire::Problem {
+fn task_problem(value: crate::tasks_v10::Problem) -> wire::Problem {
     wire::Problem { path: wire::Path::TaskBytesValue, reason: value.reason }
 }
 fn note_problem(value: crate::notes_v1::Problem) -> wire::Problem {

@@ -783,7 +783,7 @@ fn identity_plans_propagate_held_stops_through_nested_record_declarations() {
 }
 
 #[test]
-fn pieces_require_their_items_conversion_to_copy() {
+fn pieces_allow_items_that_convert_without_stopping() {
     let rows = [
         (
             "versioned",
@@ -797,11 +797,27 @@ fn pieces_require_their_items_conversion_to_copy() {
             "record R { a: u16 } record D { p: bytes 32 pieces R }",
             "widen R.a u8 u16\n",
         ),
+    ];
+    for (name, old, new, lines) in rows {
+        let plan = planned(old, new, lines);
+        assert_eq!(flags(&plan), [(false, false), (false, false)], "{name}");
+    }
+}
+
+#[test]
+fn pieces_refuse_items_that_stop() {
+    let rows = [
         (
             "held",
             "record R { a: bytes 8 holds other X } record D { p: bytes 32 pieces R }",
             "record R { a: bytes 8 holds other X } record D { p: bytes 32 pieces R }",
             "",
+        ),
+        (
+            "written",
+            "record R { a: u8 } record D { p: bytes 32 pieces R }",
+            "record R { a: bool } record D { p: bytes 32 pieces R }",
+            "retype R.a u8 bool\nwritten R.a\n",
         ),
     ];
     for (name, old, new, lines) in rows {
@@ -914,6 +930,14 @@ fn invalid_utf8_values_name_the_quoted_token() {
         kept("record D {}", "record D { f: text 1 }").plan(text),
         Err(super::super::error(4, Span { start: 49, end: 52 }, PatchWrong::Value))
     );
+}
+
+#[test]
+fn copies_reports_the_walks_declaration_conversion() {
+    let mut patcher = kept("record A { f: u8 } record B { f: u8 }", "record A { f: u8 } record B { f: u8 added: u8 }");
+    let plan = patcher.plan(format!("{HEADER}add B.added u8 7\n").as_bytes()).unwrap().unwrap();
+    assert!(patcher.copies(plan, DeclIx::new(0)));
+    assert!(!patcher.copies(plan, DeclIx::new(1)));
 }
 
 #[test]

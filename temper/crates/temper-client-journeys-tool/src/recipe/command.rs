@@ -36,7 +36,7 @@ impl Arguments {
                     }
                     from = Some(text(value(&mut args, "--from ANCESTOR")?)?);
                 }
-                b"--bin" | b"--bundle" | b"--scratch" if mode == Mode::Walk => {
+                b"--bin" | b"--bundle" | b"--scratch" | b"--ports" if mode == Mode::Walk => {
                     session.push(argument.clone());
                     session.push(value(&mut args, &String::from_utf8_lossy(argument))?.into());
                 }

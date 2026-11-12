@@ -11,6 +11,7 @@ ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} env TEMPER_INTERNAL_BUNDLE=none N
   --data "$1" \
   --base temper/tests/real-loop/tests/fixtures/b1/llm-base.json \
   --out temper/tests/real-loop/tests/fixtures/b1/llm.json \
+  --takes temper/tests/real-loop/tests/fixtures/b1/takes.json \
   --cue '1=## Replying' \
   --cue '2=You are a goal: the work your person asked for' \
   --cue '4=Implement CSV export in src/main.rs after requester approved.' \

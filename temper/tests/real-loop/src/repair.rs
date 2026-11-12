@@ -365,7 +365,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     ] {
         assert!(diff.contains(words), "H2 review includes {words}: {review}");
     }
-    let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
+    let scripts = recorded_scripts();
     check_result(ran, repaired, merge, &scripts);
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
@@ -383,6 +383,27 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     }
     assert!(document(ran, REVIEWED).to_string().contains("Approve."));
     assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+}
+
+/// The oracle reads the walk's recorded values, not the replay's templates.
+/// Takes and their lines are generation metadata (testing/fakes.md, 1).
+fn recorded_scripts() -> Value {
+    let takes: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/takes.json")).expect("walk takes");
+    let mut bytes = include_str!("../tests/fixtures/b1/llm.json").to_owned();
+    for take in takes.as_array().expect("takes list") {
+        let name = take["name"].as_str().expect("take name");
+        let value = take["value"].as_str().expect("recorded value");
+        let quoted = serde_json::to_string(value).expect("quoted value");
+        let escaped = quoted.strip_prefix('"').and_then(|s| s.strip_suffix('"')).expect("string content");
+        bytes = bytes.replace(&format!("\"{{{{#{name}}}}}\""), value).replace(&format!("{{{{{name}}}}}"), escaped);
+    }
+    let mut scripts: Value = serde_json::from_str(&bytes).expect("recorded scripts");
+    for script in scripts["cued"].as_array_mut().expect("cued scripts") {
+        for turn in script["turns"].as_array_mut().expect("turns") {
+            turn["lines"].as_array_mut().expect("lines").retain(|line| line.get("take").is_none());
+        }
+    }
+    scripts
 }
 
 fn check_result(ran: &Ran, repaired: u64, merge: u64, scripts: &Value) {

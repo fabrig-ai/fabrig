@@ -67,6 +67,24 @@ Refused, changing nothing, when the configuration directory already holds temper
 - Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
 - **Notes:** Reads no configuration and no store.
 
+### `temper-box upgrade --check`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES] DIRECTORY`
+- Rehearses an upgrade over a copy; switches nothing.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.
+
+### `temper-box upgrade --back`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`
+- Makes the previous generation active again, before the patched one's first commit.
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
 ### `--config CONFIG`
 
 - **Set:** public
@@ -207,10 +225,10 @@ Refused, changing nothing, when the configuration directory already holds temper
 ### `temper-box fake forge`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+- **Forms:** `[DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 - Serve a fake forge: forge FORGE of the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--state STATE`
 
 ### `temper-box fake forge check`
 
@@ -318,3 +336,9 @@ Refused, changing nothing, when the configuration directory already holds temper
 
 - **Set:** internal
 - Create the LLM's JSON lines query stream.
+
+### `--state STATE`
+
+- **Set:** internal
+- Keep the forge's state across orderly stops.
+- **Notes:** A present file must be this user's private single-link regular file. A refused image leaves it unchanged.

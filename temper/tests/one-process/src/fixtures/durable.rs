@@ -39,6 +39,13 @@ pub(crate) struct Bytes {
     pub(crate) snapshot: Vec<u8>,
 }
 pub(crate) fn bytes(snapshot: bool) -> Bytes {
+    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.store;
+    let temper_engine_domain::Record::Core(row) = row() else { unreachable!() };
+    let key = keys::encode(&row.key(), limits.key).expect("fixture key");
+    let value = codec::encode(&row, &super::codec(), super::store_names()).expect("fixture row");
+    bytes_with_ops(snapshot, Box::new([skein_kv::Op::Put { key, value }]))
+}
+pub(crate) fn bytes_with_ops(snapshot: bool, ops: Box<[skein_kv::Op]>) -> Bytes {
     let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.store;
     limits.snapshot_after = if snapshot { 1 } else { u64::MAX };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -49,10 +56,6 @@ pub(crate) fn bytes(snapshot: bool) -> Bytes {
     let mut names = BTreeMap::new();
     let mut bytes = Bytes { frames: Vec::new(), snapshot: Vec::new() };
     let root = files.root().fd;
-    let temper_engine_domain::Record::Core(row) = row() else { unreachable!() };
-    let key = keys::encode(&row.key(), limits.key).expect("fixture key");
-    let value = codec::encode(&row, &super::codec(), super::store_names()).expect("fixture row");
-    let ops = Box::new([skein_kv::Op::Put { key, value }]);
     let mut requests = vec![
         skein_kv::Request::Open { owner: OPEN, root },
         skein_kv::Request::Commit { owner: COMMIT, ops: ops.clone() },

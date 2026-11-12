@@ -65,6 +65,7 @@ mod route;
 mod setup;
 mod start_refusal;
 mod stop;
+pub mod upgrade;
 pub use start_refusal::{refused_row_start, refused_start};
 pub use store::UnreadableRow;
 mod tools;
