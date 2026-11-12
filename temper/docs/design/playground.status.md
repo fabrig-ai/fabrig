@@ -2,7 +2,7 @@
 
 2026-11-09. Where temper's code lags or departs from [playground.md](playground.md).
 
-- **Not yet:** 3 and 6: there is no `temper-playground-page`: the page is `temper-client-shell-web` built with its feature `playground`, which chooses the module's entry.
+- **Not yet:** 3 and 6: there is no `temper-playground-page`: the page is `temper-client-shell-web` built with its feature `playground`, which chooses the module's entry. [in flight: change 1139]
 
 Section 9's walk of story A in the one-process world, by the terminal
 client, from the welcome to the CSV change landed and the three replies
