@@ -540,7 +540,25 @@ pub(crate) fn turn(
     });
     let run_id = conversation.run.token();
     if run.draining {
-        cancel(domain, run_id, out);
+        match run.charter.mode {
+            Mode::Finite => cancel(domain, run_id, out),
+            // Open main may park at its ensuing yield; an unsent completion
+            // instead reaches close_drained at this same turn boundary.
+            Mode::Open => {}
+        }
+    }
+}
+
+/// Close main's unsent next completion after its drained turn was told.
+/// A child or a run that did not drain retains its own closing path.
+pub fn close_drained(domain: &mut Domain, conversation: Token, now: Time, out: &mut Queue<Request>) {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return };
+    if conversation.asker.is_some() { return; }
+    let id = conversation.run;
+    let run = domain.runs.get(id).expect("conversation retains its run");
+    if run.draining && !run.main_turn_pending {
+        domain.facts.begin(now);
+        cancel(domain, id.token(), out);
     }
 }
 

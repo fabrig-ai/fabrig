@@ -856,6 +856,8 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
             return session_step(domain, env, session::Event::BudgetDenied { owner, reason });
         }
         run::CompletionPermit::Closing => {
+            run::close_drained(&mut domain.run, conversation, env.now, &mut domain.run_out);
+            crate::domain::child_facts_gathered_before_handoff(domain);
             return session_step(domain, env, session::Event::UnsentClosed { owner });
         }
     }

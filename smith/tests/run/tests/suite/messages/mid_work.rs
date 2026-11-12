@@ -310,11 +310,20 @@ fn drain_while_awaiting_waiting_or_listening_starts_no_completion() {
 
 #[test]
 fn drain_preserves_a_turn_that_parks_without_waiting() {
-    let mut settings = settings();
-    settings.waiting = Duration::ZERO;
-    let mut world = scripted(&settings, Box::new([call(b"wait", b"{}")]), Vec::new());
-    world.drain_at(Time::from_nanos(50_000_000));
-    world.run(10_000);
-    assert_eq!(world.prompts().len(), 1);
-    assert!(matches!(world.answer(), run::Answer::Parked { turns: 1, .. }));
+    for open in [false, true] {
+        let mut settings = settings();
+        settings.waiting = Duration::ZERO;
+        let mut charter = scripted_charter(&settings);
+        let cue = charter.brief.sections[0].text.clone();
+        let turn = if open {
+            charter.mode = run::Mode::Open;
+            smith_agent_world::fixture::says(Box::new([Line::Text { text: b"reply".as_slice().into() }]), 1)
+        } else { call(b"wait", b"{}") };
+        let mut world = World::with_workspace_scripts_charter(settings, None, None,
+            skein_fake_checkout::Checkout::new(), Box::new([Script { cue, turns: Box::new([turn]) }]), charter);
+        world.drain_at(Time::from_nanos(50_000_000));
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), 1);
+        assert!(matches!(world.answer(), run::Answer::Parked { turns: 1, .. }));
+    }
 }
