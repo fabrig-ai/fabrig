@@ -581,6 +581,7 @@ fn object_reads_cache_whole_objects_and_the_ancestry_graph() {
     }
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_out_of_order_replay_names_the_requested_and_logged_calls() {
     let mut route = Route::new(limits());
     route.receive(branch(), Ok(RemoteAnswer::Commit(BASE)), true);

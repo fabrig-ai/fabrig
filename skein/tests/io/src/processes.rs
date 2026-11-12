@@ -349,12 +349,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn the_referee_rejects_a_child_terminal_without_the_pipes_eof() {
         let result = std::panic::catch_unwind(|| Judge::default().observe(Time::ZERO, &[terminal(0, 1)]));
         assert!(result.is_err());
     }
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn the_referee_rejects_a_child_terminal_before_its_pipe_closed() {
         let result = std::panic::catch_unwind(|| Judge::default().observe(Time::ZERO, &[terminal(1, 0)]));
         assert!(result.is_err());

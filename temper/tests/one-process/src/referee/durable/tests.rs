@@ -32,6 +32,7 @@ fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
     fn start() -> Store {
         let mut store = Store::new();

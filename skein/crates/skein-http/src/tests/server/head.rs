@@ -435,6 +435,7 @@ fn a_head_after_a_kept_connection_is_read_within_a_budget_of_its_own() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn invalid_server_limits_fail_validation_and_constructor_admission() {
     skein_rows::check(
         [

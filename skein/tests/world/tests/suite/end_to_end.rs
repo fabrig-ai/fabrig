@@ -226,6 +226,7 @@ fn abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn unwinding_abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
     let Some((binary, path)) = tree_with_a_blocked_member() else { return };
     let failure = std::panic::catch_unwind(move || {
@@ -1007,6 +1008,7 @@ fn supervised_run_with_grace(
 // The walk's retained pidfds and adoption are Linux's (examples.md, 6).
 #[cfg(target_os = "linux")]
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_unwinding_supervised_run_ends_every_known_descendant() {
     use std::cell::Cell;
 
@@ -1320,6 +1322,7 @@ fn supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_who
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn repeated_stderr_overflow_unwinds_without_aborting() {
     // A second unwind shows what the first left behind; a third shows it does not build up.
     const UNWINDS: usize = 3;

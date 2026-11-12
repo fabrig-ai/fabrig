@@ -385,6 +385,7 @@ fn people_project_and_live_task_open_in_the_core_phase_order() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn cold_start_discards_the_unreleased_wires_continuation() {
     let mut first = Host::new(Vec::new());
     first.cut_wires = true;

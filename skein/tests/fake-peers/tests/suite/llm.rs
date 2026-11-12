@@ -691,6 +691,7 @@ fn the_public_route_takes_its_scope_from_the_cache_key_alone() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
     for recording in [true, false] {
         let endpoint = Endpoint::openai();

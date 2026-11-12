@@ -325,6 +325,7 @@ fn owner_proposal_all_funders_independent_optional_amounts_and_holder_variants_p
     }
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_one_under_refusals() {
     let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_exact");
     let w = words(true);

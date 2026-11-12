@@ -326,6 +326,7 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn missing_forge_links_panic_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
     use temper_engine_domain_forge::{Key, MissingLink, Name, Need, RecordKind, Stored, What};

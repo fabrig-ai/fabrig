@@ -602,6 +602,7 @@ fn startup_keeps_fitting_rows_without_record_membership_order_or_cursor_agreemen
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn startup_continuations_assert_unusable_or_nonprogressing_walk_positions() {
     for (range, after, next) in [
         (census_range(), result_key(8, 2), result_key(8, 2)),
