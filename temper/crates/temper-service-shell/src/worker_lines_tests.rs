@@ -1,5 +1,5 @@
 use super::{ending_with_binary, note_line, worker_ending_words, worker_note_words};
-use temper_service::{End, Note, Stop, WorkerJobEnding, WorkerLoss, Refusal, worker_alone as worker};
+use temper_service::{End, Note, Refusal, Stop, WorkerJobEnding, WorkerLoss, worker_alone as worker};
 
 const BINARY: &str = "temper-worker";
 fn directories() -> temper_shell::directories::Directories {
@@ -8,9 +8,26 @@ fn directories() -> temper_shell::directories::Directories {
 }
 #[test]
 fn worker_job_words_equal_the_joined_words() {
-    let ending = WorkerJobEnding::Failed { failure: jig_domain_host::JobFailure::Deadline, detail: b"details\n".as_slice().into() };
-    let worker = worker::Note::WorkerJob { run: 7, attempt: 2, kind: 3, verb: b"merge".as_slice().into(), ending: ending.clone(), why: b"deadline".as_slice().into() };
-    let joined = Note::WorkerJob { run: 7, attempt: 2, kind: 3, verb: b"merge".as_slice().into(), ending, why: b"deadline".as_slice().into() };
+    let ending = WorkerJobEnding::Failed {
+        failure: jig_domain_host::JobFailure::Deadline,
+        detail: b"details\n".as_slice().into(),
+    };
+    let worker = worker::Note::WorkerJob {
+        run: 7,
+        attempt: 2,
+        kind: 3,
+        verb: b"merge".as_slice().into(),
+        ending: ending.clone(),
+        why: b"deadline".as_slice().into(),
+    };
+    let joined = Note::WorkerJob {
+        run: 7,
+        attempt: 2,
+        kind: 3,
+        verb: b"merge".as_slice().into(),
+        ending,
+        why: b"deadline".as_slice().into(),
+    };
     assert_eq!(worker_note_words(BINARY, worker), note_line(BINARY, joined));
 }
 #[test]
@@ -46,7 +63,10 @@ fn worker_start_problem_words_and_exit_equal_the_joined_ending() {
     let directories = directories();
     let actual = worker_ending_words(BINARY, Some(&worker), false, &directories, b"");
     assert_eq!(actual, ending_with_binary(BINARY, Some(&joined), false, &directories, b"", &[]));
-    assert_eq!(actual, ("temper-worker serve: git: invalid form\ntemper-worker serve: limits: past its bound\n".into(), 1));
+    assert_eq!(
+        actual,
+        ("temper-worker serve: git: invalid form\ntemper-worker serve: limits: past its bound\n".into(), 1)
+    );
 }
 #[test]
 fn worker_drained_words_and_exit_equal_the_joined_ending() {

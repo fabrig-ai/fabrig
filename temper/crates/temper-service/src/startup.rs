@@ -484,12 +484,13 @@ fn load_document(
         }
         #[cfg(feature = "worker")]
         if let Some(at) = application_at
-            && let Err(found) = worker::application(document, at, directories) {
-                let found = problems::from_worker(found);
-                for found in found.problems.into_boxed() {
-                    problems.push_file(found.path, found.what, found.file);
-                }
-                problems.past = problems.past.saturating_add(found.past);
+            && let Err(found) = worker::application(document, at, directories)
+        {
+            let found = problems::from_worker(found);
+            for found in found.problems.into_boxed() {
+                problems.push_file(found.path, found.what, found.file);
+            }
+            problems.past = problems.past.saturating_add(found.past);
         }
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }

@@ -633,7 +633,14 @@ impl Worker {
             && let Some(ending) = ending
         {
             let why = why.expect("a failed or refused job keeps its operator evidence until taken");
-            self.notes.push(crate::worker_alone::Note::WorkerJob { run: run.raw(), attempt: attempt.raw(), kind, verb, ending, why });
+            self.notes.push(crate::worker_alone::Note::WorkerJob {
+                run: run.raw(),
+                attempt: attempt.raw(),
+                kind,
+                verb,
+                ending,
+                why,
+            });
         }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
@@ -719,8 +726,10 @@ impl Worker {
                     remote.last_refusal = None;
                     remote.linked = true;
                     remote.loss_pending = false;
-                    self.notes
-                        .push(crate::worker_alone::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
+                    self.notes.push(crate::worker_alone::Note::Linked {
+                        worker: remote.worker.clone(),
+                        address: Box::new(remote.address),
+                    });
                 }
             }
             root::Request::Link(up) => self.link_down(self.env.now, link::Event::Up { up, parts: Box::default() }),

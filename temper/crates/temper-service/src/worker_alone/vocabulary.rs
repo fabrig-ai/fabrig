@@ -14,34 +14,17 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
-    WorkerJob {
-        run: u64,
-        attempt: u64,
-        kind: u32,
-        verb: Box<[u8]>,
-        ending: crate::WorkerJobEnding,
-        why: Box<[u8]>,
-    },
-    Linked {
-        worker: Box<[u8]>,
-        address: Box<core::net::SocketAddr>,
-    },
-    Lost {
-        worker: Box<[u8]>,
-        address: Box<core::net::SocketAddr>,
-        why: crate::WorkerLoss,
-    },
-    Refused {
-        worker: Box<[u8]>,
-        address: Box<core::net::SocketAddr>,
-        reason: crate::Refusal,
-    },
+    WorkerJob { run: u64, attempt: u64, kind: u32, verb: Box<[u8]>, ending: crate::WorkerJobEnding, why: Box<[u8]> },
+    Linked { worker: Box<[u8]>, address: Box<core::net::SocketAddr> },
+    Lost { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, why: crate::WorkerLoss },
+    Refused { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, reason: crate::Refusal },
 }
 impl From<Note> for crate::Note {
     fn from(note: Note) -> Self {
         match note {
-            Note::WorkerJob { run, attempt, kind, verb, ending, why } =>
-                Self::WorkerJob { run, attempt, kind, verb, ending, why },
+            Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
+                Self::WorkerJob { run, attempt, kind, verb, ending, why }
+            }
             Note::Linked { worker, address } => Self::Linked { worker, address },
             Note::Lost { worker, address, why } => Self::Lost { worker, address, why },
             Note::Refused { worker, address, reason } => Self::Refused { worker, address, reason },
@@ -50,7 +33,9 @@ impl From<Note> for crate::Note {
 }
 impl From<Stop> for crate::Stop {
     fn from(stop: Stop) -> Self {
-        match stop { Stop::Start(problems) => Self::Start(problems) }
+        match stop {
+            Stop::Start(problems) => Self::Start(problems),
+        }
     }
 }
 impl From<End> for crate::End {
@@ -62,4 +47,3 @@ impl From<End> for crate::End {
         }
     }
 }
-

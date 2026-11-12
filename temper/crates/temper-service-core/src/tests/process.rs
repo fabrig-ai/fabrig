@@ -1,5 +1,8 @@
 use crate::process::Process;
-use skein_io::{self as io, kernel::{Complete, Done, Fd, Op, Submit}};
+use skein_io::{
+    self as io,
+    kernel::{Complete, Done, Fd, Op, Submit},
+};
 use skein_lib::Token;
 
 #[test]
@@ -17,7 +20,9 @@ fn the_signal_source_waits_for_credit_then_closes_once_and_reclaims() {
     process.adopt_signals(fd).unwrap();
     assert_eq!(process.adopt_signals(Fd::new(51)), Err(Fd::new(51)));
     for index in 0..process.operations() {
-        process.raw_submissions().push(Submit { op: Token::new(u64::from(index)), kind: Op::Close { fd: Fd::new(90) } });
+        process
+            .raw_submissions()
+            .push(Submit { op: Token::new(u64::from(index)), kind: Op::Close { fd: Fd::new(90) } });
     }
     process.close_signals();
     assert!(!process.signals_closing(), "no close credit yet");

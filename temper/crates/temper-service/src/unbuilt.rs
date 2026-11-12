@@ -111,8 +111,12 @@ pub mod worker_alone {
     #[derive(Debug)]
     pub enum Service {}
     impl Service {
-        pub fn notes(&mut self) -> &mut skein_lib::Queue<Note> { match *self {} }
+        pub fn notes(&mut self) -> &mut skein_lib::Queue<Note> {
+            match *self {}
+        }
         #[must_use]
-        pub fn end(&self) -> Option<&End> { match *self {} }
+        pub fn end(&self) -> Option<&End> {
+            match *self {}
+        }
     }
 }

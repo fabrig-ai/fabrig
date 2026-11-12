@@ -1854,4 +1854,3 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
 pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
     let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
 }
-

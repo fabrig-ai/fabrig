@@ -68,7 +68,9 @@ impl Driven {
             Service::Worker(_) => None,
         }
     }
-    pub(super) fn operations(&self) -> u32 { self.service.operations() }
+    pub(super) fn operations(&self) -> u32 {
+        self.service.operations()
+    }
     pub(crate) fn pending(&self, now: Time) -> temper_service::diagnostics::Pending {
         match &self.service {
             Service::Joined(service) => service.pending(now),

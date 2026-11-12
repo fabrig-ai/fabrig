@@ -899,8 +899,10 @@ fn linked_is_emitted_after_ready_at_each_opening() {
     let mut stand = socket_stand();
     assert!(stand.worker.notes().is_empty(), "never before Ready");
     LinkPeer::new().open(&mut stand.worker);
-    let expected =
-        crate::worker_alone::Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()) };
+    let expected = crate::worker_alone::Note::Linked {
+        worker: b"worker-a".as_slice().into(),
+        address: Box::new(([127, 0, 0, 1], 7100).into()),
+    };
     assert_eq!(stand.worker.notes().pop(), Some(expected));
     assert!(stand.worker.notes().is_empty());
     let owner = Token::new(
@@ -1122,7 +1124,11 @@ fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
 }
 
 fn lost_note(why: link::Loss) -> crate::worker_alone::Note {
-    crate::worker_alone::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
+    crate::worker_alone::Note::Lost {
+        worker: b"worker-a".as_slice().into(),
+        address: Box::new(([127, 0, 0, 1], 7100).into()),
+        why,
+    }
 }
 
 #[test]

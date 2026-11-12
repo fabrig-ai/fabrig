@@ -197,8 +197,10 @@ pub fn service_ending(
 }
 
 /// A worker alone has no listening diagnostic; its first drain carries its worker notes.
-pub fn worker_listening_line(service: &mut temper_service::worker_alone::Service, binary: &str)
-    -> Option<(String, bool)> {
+pub fn worker_listening_line(
+    service: &mut temper_service::worker_alone::Service,
+    binary: &str,
+) -> Option<(String, bool)> {
     worker_note_line(service, binary).map(|line| (line, false))
 }
 pub fn worker_note_line(service: &mut temper_service::worker_alone::Service, binary: &str) -> Option<String> {

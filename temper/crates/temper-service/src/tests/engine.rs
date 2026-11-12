@@ -305,7 +305,10 @@ fn kernel_operations_are_routed_back_to_their_owner() {
 #[test]
 fn an_io_listener_failure_stops_the_engine() {
     let mut service = fixtures::started();
-    service.process.told().push(skein_io::Event::Closed { owner: skein_lib::Token::new(crate::tokens::WORKER_LISTENERS) });
+    service
+        .process
+        .told()
+        .push(skein_io::Event::Closed { owner: skein_lib::Token::new(crate::tokens::WORKER_LISTENERS) });
     fixtures::turn(&mut service);
     assert_eq!(
         service.end(),

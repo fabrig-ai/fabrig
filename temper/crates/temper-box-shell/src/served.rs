@@ -17,8 +17,12 @@ impl Service {
         }
     }
     /// A worker has no box pipe; refusal retains both descriptors with the caller.
-    pub fn adopt_box(&mut self, requests: skein_io::kernel::Fd, answers: skein_io::kernel::Fd, line_bytes: u32)
-        -> Result<(), service::system::BoxRefusal> {
+    pub fn adopt_box(
+        &mut self,
+        requests: skein_io::kernel::Fd,
+        answers: skein_io::kernel::Fd,
+        line_bytes: u32,
+    ) -> Result<(), service::system::BoxRefusal> {
         match self {
             Self::Joined(service) => service.adopt_box(requests, answers, line_bytes),
             Self::Worker(_) => Err(service::system::BoxRefusal::NoEngine),

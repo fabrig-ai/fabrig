@@ -471,10 +471,7 @@ impl ServiceHost {
     }
 }
 
-fn record_tries(
-    tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
-    service: &Driven,
-) {
+fn record_tries(tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>, service: &Driven) {
     if let Some(engine) = service.engine_domain() {
         for row in &engine.tasks().view_tasks() {
             let task = engine.tasks().task(row.number).expect("view task");

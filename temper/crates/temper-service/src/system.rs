@@ -160,10 +160,7 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
     }
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "startup keeps the checked settings and runtime facts together"
-    )]
+    #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -730,13 +727,14 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                     worker.iterate(now, wall);
                 }
                 if let Some(engine) = &mut service.engine
-                    && let Some(problems) = worker.refused() {
-                        if engine.drain.is_none() && engine.end.is_none() {
-                            stop::shutdown(engine);
-                        }
-                        if let Some(End::Drained) = engine.end {
-                            engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
-                        }
+                    && let Some(problems) = worker.refused()
+                {
+                    if engine.drain.is_none() && engine.end.is_none() {
+                        stop::shutdown(engine);
+                    }
+                    if let Some(End::Drained) = engine.end {
+                        engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
+                    }
                 }
             }
         }
@@ -986,9 +984,9 @@ fn box_io(service: &mut Service) {
     }
     if !pipe.reading && service.process.room() >= io::MAX_OUT_DOWN.submissions && service.process.io().takes() {
         service.process.down(io::Request::Stream {
-                stream: pipe.answers,
-                down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: pipe.read_bytes }, room: 0 },
-            });
+            stream: pipe.answers,
+            down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: pipe.read_bytes }, room: 0 },
+        });
         pipe.reading = true;
     }
     let engine = service.engine.as_mut().expect("box engine");
@@ -1003,9 +1001,9 @@ fn box_io(service: &mut Service) {
         } else if pipe.output == BoxOutput::Idle {
             // Full output credit waits for the preceding line to leave io.
             service.process.down(io::Request::Stream {
-                    stream: pipe.requests,
-                    down: Down::Demand { read: Read::Nothing, room: service.process.env().limits.output },
-                });
+                stream: pipe.requests,
+                down: Down::Demand { read: Read::Nothing, room: service.process.env().limits.output },
+            });
             pipe.output = BoxOutput::Waiting;
         }
     }

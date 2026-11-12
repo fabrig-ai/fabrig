@@ -131,10 +131,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
         let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected, expected));
-        assert_eq!(
-            service.worker.env.limits,
-            crate::worker_settings::root_limits(&part.worker, &agent, &part.limits)
-        );
+        assert_eq!(service.worker.env.limits, crate::worker_settings::root_limits(&part.worker, &agent, &part.limits));
     }
 }
 
