@@ -336,7 +336,7 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
     }
     match request {
         Request::Rehearse { owner, directory, scratch, installation } => {
-            rehearsal::begin(store, owner, directory, scratch, installation, above, below)
+            rehearsal::begin(store, owner, directory, scratch, installation, above, below);
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),

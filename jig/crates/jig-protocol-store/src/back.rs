@@ -65,6 +65,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     }
     file_up(store, env, arrived, above, below);
 }
+#[expect(clippy::too_many_lines, reason = "one terminal per phase of opening.md 5's back operation")]
 fn file_up(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     let transition = core::mem::replace(&mut state(store).stage, Stage::Finished);
     match transition {
