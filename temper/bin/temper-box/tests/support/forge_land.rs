@@ -958,8 +958,8 @@ pub fn anthropic_key(value: Option<std::ffi::OsString>) -> Result<Option<PathBuf
     Ok(Some(path))
 }
 
-/// A live command as notices and failures print it: an imported record's path
-/// stays out of them, and ctl's own words are all that is said of it.
+/// A live command as notices and failures print it: an imported record or added
+/// key's path stays out of them, and ctl's own words are all that is said of it.
 #[must_use]
 pub fn printed_command(args: &[String]) -> Vec<String> {
     match args {
@@ -1284,7 +1284,7 @@ pub fn require_closed_roots(read: &serde_json::Value, before: &std::collections:
     )
 }
 
-/// The held source selects the same story's model, without copying a login.
+/// The source selects the story's model, without copying a login or key.
 #[derive(Clone, Copy)]
 pub enum LiveModel<'a> {
     ChatGpt { account: Option<&'a std::path::Path> },

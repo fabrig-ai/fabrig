@@ -83,3 +83,13 @@ fn rewrite_requires_exactly_one() {
         assert_eq!(rewrite_in(&pairs), expected, "{bytes:?}");
     }
 }
+
+#[test]
+fn the_anthropic_key_is_a_test_file_whose_absence_skips() {
+    assert!(TESTS.variables.iter().any(|variable| variable.name == LIVE_ANTHROPIC_KEY.name));
+    assert_eq!(LIVE_ANTHROPIC_KEY.form, "FILE");
+    assert_eq!(LIVE_ANTHROPIC_KEY.set, Set::Test);
+    assert_eq!(LIVE_ANTHROPIC_KEY.way, Way::Reads);
+    assert!(LIVE_ANTHROPIC_KEY.line.contains("forge-land-claude-key"));
+    assert!(LIVE_ANTHROPIC_KEY.absent.contains("skips"));
+}

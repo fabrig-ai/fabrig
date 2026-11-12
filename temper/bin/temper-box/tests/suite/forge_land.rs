@@ -515,6 +515,8 @@ fn live_model_world(configure: fn(&[std::path::PathBuf; 3])) -> (
     limits.accounts.holder_accounts = 3;
     limits.authority.accounts = 3;
     limits.fleet.grants = 4;
+    // Init's OpenAI provider can read a list for the world's fixture accounts.
+    limits.fleet.reads = limits.accounts.accounts;
     limits.tasks.charters = 2;
     limits.templates = 3;
     limits.documents.text_bytes = 8192;
@@ -601,10 +603,11 @@ fn assert_live_settings(model: support::forge_land::LiveModel<'_>, configure: fn
     ];
     let row = read(&mut world, &[b"settings", b"show", b"model", b"3", b"--json"]);
     let changes = live_settings(model, &inventory, [&charters[0], &charters[1]], &row).expect("live settings");
-    assert_eq!(changes, live_settings(
+    let claude = live_settings(
         LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
         &inventory, [&charters[0], &charters[1]], &row,
-    ).expect("Claude Code settings"));
+    ).expect("Claude Code settings");
+    assert!(changes == claude, "the key applies exactly Claude Code's model and charter changes");
     let newest = inventory["newest"].as_u64().expect("newest");
     for (at, change) in changes.iter().enumerate() {
         let file = format!("{}.json", change.key);
@@ -1977,5 +1980,31 @@ fn the_key_launcher_refuses_invalid_files_and_other_held_inputs() {
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(String::from_utf8_lossy(&output.stderr).trim(), message);
     }
+    scratch.remove();
+}
+
+#[test]
+fn a_key_store_is_kept_without_a_held_record() {
+    use std::{fs, path::Path};
+    use support::forge_land::{LiveModel, story_store};
+    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
+    let scratch = support::Scratch::new("live-kept-key-store");
+    let stores = scratch.path().join("stores");
+    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
+    let (store, kept) = story_store(&stores, model).expect("fresh key store");
+    assert!(!kept);
+    for directory in ["data/deployment", "data/forge-1/forgejo", "config", "data/box/started"] {
+        fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
+    }
+    for file in [
+        "config/temper.json".to_owned(), "config/agent.json".to_owned(), "data/box/started/1".to_owned(),
+        "data/forge-1/forgejo/app.ini".to_owned(), "data/forge-1/forgejo/forgejo.db".to_owned(),
+        format!("cache/forgejo/{VERSION}/forgejo"), format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
+    ] {
+        let file = store.join(file);
+        fs::create_dir_all(file.parent().expect("fixture parent")).expect("fixture directories");
+        support::write_private(&file, b"synthetic deployment fixture");
+    }
+    assert_eq!(story_store(&stores, model), Ok((store, true)), "a key has no held record to import again");
     scratch.remove();
 }
