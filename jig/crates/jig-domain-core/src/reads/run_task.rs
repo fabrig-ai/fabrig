@@ -13,6 +13,8 @@ pub(crate) struct Read {
     pub field: TaskTextField,
     pub from: u64,
     pub room: u32,
+    /// The specification's one retry has requested requester-chain evidence.
+    pub joined: bool,
 }
 
 /// A task's lifecycle without result payloads or live-run secrets.
@@ -78,6 +80,13 @@ fn related(core: &Core, caller: u64, row: &tasks::TaskRecord) -> bool {
         }
 }
 
+fn dependency(core: &Core, caller: u64, row: &tasks::TaskRecord) -> bool {
+    let Some(owner) = core.tasks.task(caller) else { return false };
+    let tasks::Party::Task(requester) = owner.requester else { return false };
+    let Some(requester) = core.tasks.task(requester) else { return false };
+    owner.project == row.project && requester.project == row.project && requester.dependencies.contains(&row.number)
+}
+
 fn descendant(
     core: &Core,
     caller: u64,
@@ -126,7 +135,8 @@ fn value(
 ) -> Result<TaskRead, tasks::Refusal> {
     let Read { field, from, room, .. } = read;
     if !(related(core, caller, row)
-        || field == TaskTextField::Result && descendant(core, caller, row, linked, limits.tasks.depth))
+        || dependency(core, caller, row)
+        || descendant(core, caller, row, linked, limits.tasks.depth))
     {
         return Err(tasks::Refusal::Reference);
     }
@@ -223,9 +233,10 @@ fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Rea
     let range = Range {
         party: 0,
         backwards: false,
-        scope: match field {
-            TaskTextField::Result => Scope::Task { task },
-            TaskTextField::Specification | TaskTextField::Instructions => Scope::TaskText { task, field, from },
+        scope: if read.joined || field == TaskTextField::Result {
+            Scope::Task { task }
+        } else {
+            Scope::TaskText { task, field, from }
         },
         after: None,
         rows: 1,
@@ -264,7 +275,14 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
                 if let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value
                     && owner.number == read.task
                 {
-                    return answer(to, key, value(core, &env.limits, key.task, owner, read, &row.linked));
+                    let value = value(core, &env.limits, key.task, owner, read, &row.linked);
+                    if value == Err(tasks::Refusal::Reference)
+                        && read.field == TaskTextField::Specification
+                        && !read.joined
+                    {
+                        return load(core, env, to, key, Read { joined: true, ..read });
+                    }
+                    return answer(to, key, value);
                 }
             }
             answer(to, key, Err(tasks::Refusal::Reference))
@@ -323,7 +341,7 @@ mod tests {
             limits,
             caller,
             row,
-            Read { task: row.number, field, from, room: limits.documents.text_bytes },
+            Read { joined: false, task: row.number, field, from, room: limits.documents.text_bytes },
             linked,
         )
     }
@@ -339,7 +357,7 @@ mod tests {
             &limits,
             1,
             &row,
-            Read { task: row.number, field: TaskTextField::Specification, from: 0, room: 64 },
+            Read { joined: false, task: row.number, field: TaskTextField::Specification, from: 0, room: 64 },
             &[],
         )
         .expect("related task");
@@ -360,7 +378,7 @@ mod tests {
                 &limits,
                 1,
                 &row,
-                Read { task: row.number, field: TaskTextField::Specification, from: 0, room },
+                Read { task: row.number, field: TaskTextField::Specification, from: 0, room, joined: false },
                 &[],
             )
             .expect("related task");
@@ -396,7 +414,7 @@ mod tests {
             &limits,
             1,
             &row,
-            Read { task: row.number, field: TaskTextField::Specification, from: 0, room: u32::MAX },
+            Read { joined: false, task: row.number, field: TaskTextField::Specification, from: 0, room: u32::MAX },
             &[],
         )
         .expect("largest task read");
@@ -422,7 +440,13 @@ mod tests {
                 &limits,
                 1,
                 &row,
-                Read { task: row.number, field: TaskTextField::Result, from, room: limits.documents.text_bytes },
+                Read {
+                    joined: false,
+                    task: row.number,
+                    field: TaskTextField::Result,
+                    from,
+                    room: limits.documents.text_bytes,
+                },
                 &[],
             )
             .expect("requester result");
@@ -594,7 +618,7 @@ mod tests {
             env,
             ReplyTo::new(skein_lib::Token::new(90)),
             key,
-            Read { task, field: TaskTextField::Result, from, room: env.limits.documents.text_bytes },
+            Read { joined: false, task, field: TaskTextField::Result, from, room: env.limits.documents.text_bytes },
         );
         let Some(Request::Held(held)) = out.pop() else { panic!("retained load") };
         let Held::ReadLoad { load, range } = *held else { panic!("store read") };
@@ -618,6 +642,186 @@ mod tests {
         assert!(out.pop().is_none(), "read changes no durable state");
         core.reclaim();
         *answer
+    }
+
+    fn specification_load(core: &mut Core, env: &Env<Limits>, task: u64) -> Id<Pending> {
+        let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
+        let mut out = run(
+            core,
+            env,
+            ReplyTo::new(skein_lib::Token::new(90)),
+            key,
+            Read {
+                joined: false,
+                task,
+                field: TaskTextField::Specification,
+                from: 0,
+                room: env.limits.documents.text_bytes,
+            },
+        );
+        let Some(Request::Held(held)) = out.pop() else { panic!("text load") };
+        let Held::ReadLoad { load, range } = *held else { panic!("store read") };
+        assert_eq!(range.scope, Scope::TaskText { task, field: TaskTextField::Specification, from: 0 });
+        assert!(out.pop().is_none());
+        Id::from_token(load)
+    }
+
+    fn joined_specification_load(core: &mut Core, env: &Env<Limits>, row: &super::super::Row) -> Id<Pending> {
+        let load = specification_load(core, env, PRODUCER);
+        let text = crate::tests::stored_row(row.value.clone(), None);
+        let mut out = loaded(core, env, load, Loaded::Page { rows: Box::new([text]), next: None });
+        let Some(Request::Held(held)) = out.pop() else { panic!("unproved text needs a joined load") };
+        let Held::ReadLoad { load, range } = *held else { panic!("joined read") };
+        assert_eq!(range.scope, Scope::Task { task: PRODUCER });
+        assert!(out.pop().is_none());
+        Id::from_token(load)
+    }
+
+    fn read_answer(mut out: Queue<Request>) -> Result<TaskRead, tasks::Refusal> {
+        let Some(Request::Now(now)) = out.pop() else { panic!("task answer, not another load") };
+        let Now::TaskRead { answer, .. } = *now else { panic!("task read") };
+        assert!(out.pop().is_none());
+        *answer
+    }
+
+    #[test]
+    fn a_goal_reads_a_live_grandchilds_specification() {
+        let (mut core, limits, _) = retained_fixture();
+        report_delegate(&mut core, &limits, CHANGE, GOAL, change_contract(&limits));
+        report_delegate(&mut core, &limits, PRODUCER, CHANGE, change_contract(&limits));
+        let row = core.tasks.task(PRODUCER).expect("live producer");
+        let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+        let expected = (row.spec.words.clone(), task_state(row));
+        let out = run(
+            &mut core,
+            &env,
+            ReplyTo::new(skein_lib::Token::new(90)),
+            CallKey { task: GOAL, attempt: 9, completion: 1, position: 0 },
+            Read {
+                joined: false,
+                task: PRODUCER,
+                field: TaskTextField::Specification,
+                from: 0,
+                room: limits.call_answer_bytes,
+            },
+        );
+        let read = read_answer(out).expect("live grandchild specification");
+        assert_eq!((read.words.bytes, read.state), expected);
+    }
+
+    #[test]
+    fn retained_specifications_load_requester_proof_only_when_needed() {
+        for direct in [false, true] {
+            let (mut core, limits, mut row) = retained_fixture();
+            if direct {
+                let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &mut row.value else { panic!("owner") };
+                owner.requester = tasks::Party::Task(GOAL);
+                owner.depth = 1;
+                row.linked = Box::new([]);
+            }
+            let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+            let load = if direct {
+                specification_load(&mut core, &env, PRODUCER)
+            } else {
+                joined_specification_load(&mut core, &env, &row)
+            };
+            let read = read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None }))
+                .expect("proven retained specification");
+            assert_eq!(read.words.bytes.as_ref(), b"produce a patch");
+            assert_eq!(read.words.field, TaskTextField::Specification);
+            assert_eq!(read.state, TaskState::Ended(tasks::Status::Done));
+        }
+    }
+
+    #[test]
+    fn retained_specification_proof_keeps_load_bounds() {
+        for result in [Loaded::Busy, Loaded::TooLinked { joins: 1 }] {
+            let (mut core, limits, mut row) = retained_fixture();
+            let mut env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+            let load = joined_specification_load(&mut core, &env, &row);
+            assert_eq!(read_answer(loaded(&mut core, &env, load, result)), Err(tasks::Refusal::Busy));
+            core.reclaim();
+            let load = specification_load(&mut core, &env, PRODUCER);
+            row.linked = Box::new([]);
+            env.limits.load_slots = 0;
+            assert_eq!(
+                read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None })),
+                Err(tasks::Refusal::Busy),
+                "the second load must acquire a slot"
+            );
+        }
+    }
+
+    #[test]
+    fn task_reads_admit_only_the_immediate_requesters_dependencies() {
+        for fault in 0_u8..8 {
+            let (mut core, limits, _) = retained_fixture();
+            report_delegate(&mut core, &limits, CHANGE, GOAL, change_contract(&limits));
+            report_delegate(&mut core, &limits, PRODUCER, CHANGE, change_contract(&limits));
+            let mut rows = [GOAL, 2, 3, 4, CHANGE, PRODUCER, PRODUCER]
+                .map(|number| core.tasks.task(number).expect("fixture task").clone());
+            rows.get_mut(6).expect("sibling").number = 22;
+            let requester = rows.get_mut(4).expect("immediate requester");
+            requester.dependencies = Box::new([4]);
+            match fault {
+                0 => {}
+                1 => requester.dependencies = Box::new([3]), // Own dependency alone grants no read.
+                2 => requester.dependencies = Box::new([]),  // Grandparent's dependency alone grants no read.
+                3 => requester.project = 2,
+                4 => rows.get_mut(5).expect("caller").project = 2,
+                5 => rows.get_mut(3).expect("target").project = 2,
+                6 => rows.get_mut(5).expect("caller").requester = tasks::Party::Person(1),
+                7 => rows.get_mut(5).expect("caller").requester = tasks::Party::Task(99),
+                _ => panic!("fixture fault in 0..8"),
+            }
+            rows.get_mut(0).expect("grandparent").dependencies = if fault == 2 { Box::new([4]) } else { Box::new([]) };
+            rows.get_mut(5).expect("caller").dependencies = if fault == 1 { Box::new([4]) } else { Box::new([]) };
+            core.tasks = tasks::Domain::new(
+                &limits.tasks,
+                tasks::Kept { revisions: limits.settings.revisions, versions: limits.settings.versions },
+                17,
+                core.current.newest(),
+                crate::charters::models(&core.current, &core.settings, &limits),
+                crate::charters::efforts(&core.settings),
+            );
+            for row in rows {
+                task_event(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) });
+            }
+            let row = core.tasks.task(4).expect("live dependency");
+            let read = in_document_room(&core, &limits, PRODUCER, row, TaskTextField::Specification, 0, &[]);
+            if fault == 0 {
+                assert_eq!(read.expect("requester's dependency").words.bytes, row.spec.words);
+                assert_eq!(
+                    in_document_room(&core, &limits, PRODUCER, row, TaskTextField::Result, 0, &[]),
+                    Err(tasks::Refusal::Unknown),
+                    "a live result is authorized but has no kept report yet"
+                );
+                let sibling = core.tasks.task(22).expect("sibling without dependency");
+                assert_eq!(
+                    in_document_room(&core, &limits, PRODUCER, sibling, TaskTextField::Specification, 0, &[]),
+                    Err(tasks::Refusal::Reference)
+                );
+            } else {
+                assert_eq!(read, Err(tasks::Refusal::Reference), "fault {fault}");
+            }
+            let mut retained = row.clone();
+            retained.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report {
+                words: b"dependency report".as_slice().into(),
+            }));
+            for field in [TaskTextField::Specification, TaskTextField::Result] {
+                let read = in_document_room(&core, &limits, PRODUCER, &retained, field, 0, &[]);
+                if fault == 0 {
+                    let expected = if field == TaskTextField::Specification {
+                        retained.spec.words.as_ref()
+                    } else {
+                        b"dependency report"
+                    };
+                    assert_eq!(read.expect("retained requester's dependency").words.bytes.as_ref(), expected);
+                } else {
+                    assert_eq!(read, Err(tasks::Refusal::Reference), "retained fault {fault}, {field:?}");
+                }
+            }
+        }
     }
 
     #[test]
@@ -843,26 +1047,35 @@ mod tests {
 
     #[test]
     fn retained_reports_require_proven_requesters_in_the_callers_project() {
-        for fault in 0_u8..6 {
-            let (_, limits) = crate::tests::make_tree();
-            let (mut core, limits, _, mut row) =
-                retained_contract_reports(verdict_contract(&limits), review_result(), CHANGE);
-            let crate::Record::Tasks(tasks::Stored::Ended(producer)) = &mut row.value else { panic!("producer") };
-            assert_eq!(
-                in_document_room(&core, &limits, 3, producer, TaskTextField::Result, 0, &row.linked),
-                Err(tasks::Refusal::Reference),
-                "a sibling shares the root but has no requester chain"
-            );
-            match fault {
-                0 => row.linked = Box::new([]),
-                1 => producer.requester = tasks::Party::Person(1), // A root number alone proves no ancestry.
-                2 => producer.project = 2,
-                3 => row.linked.first_mut().expect("change").project = 2,
-                4 => row.linked.first_mut().expect("change").requester = tasks::Party::Task(21),
-                5 => producer.depth = 3,
-                _ => panic!("fixture fault is in 0..6"),
+        for field in [TaskTextField::Result, TaskTextField::Specification] {
+            for fault in 0_u8..6 {
+                let (_, limits) = crate::tests::make_tree();
+                let (mut core, limits, _, mut row) =
+                    retained_contract_reports(verdict_contract(&limits), review_result(), CHANGE);
+                let crate::Record::Tasks(tasks::Stored::Ended(producer)) = &mut row.value else { panic!("producer") };
+                assert_eq!(
+                    in_document_room(&core, &limits, 3, producer, field, 0, &row.linked),
+                    Err(tasks::Refusal::Reference),
+                    "a sibling shares the root but has no requester chain"
+                );
+                match fault {
+                    0 => row.linked = Box::new([]),
+                    1 => producer.requester = tasks::Party::Person(1), // A root number alone proves no ancestry.
+                    2 => producer.project = 2,
+                    3 => row.linked.first_mut().expect("change").project = 2,
+                    4 => row.linked.first_mut().expect("change").requester = tasks::Party::Task(21),
+                    5 => producer.depth = 3,
+                    _ => panic!("fixture fault is in 0..6"),
+                }
+                let answer = if field == TaskTextField::Result {
+                    retained_reply(&mut core, &limits, row, 0)
+                } else {
+                    let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+                    let load = joined_specification_load(&mut core, &env, &row);
+                    read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None }))
+                };
+                assert_eq!(answer, Err(tasks::Refusal::Reference), "fault {fault}, field {field:?}");
             }
-            assert_eq!(retained_reply(&mut core, &limits, row, 0), Err(tasks::Refusal::Reference), "fault {fault}");
         }
     }
 
