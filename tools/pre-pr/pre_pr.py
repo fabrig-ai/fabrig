@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -539,6 +540,7 @@ def summary(base_id, lints, tests, errors, reason, starved=None):
 def main():
     root = Path.cwd()
     env = os.environ.copy()
+    prefix = env.pop('TIERS_HOLD', '').split()
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
     base_id, why = base(root, env)
@@ -552,91 +554,93 @@ def main():
         if cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"})', flush=True)
             return 0
-        entries, found = known_reds(tree_id, root, env)
-        errors += found
-        data = None
-        paths, selected = [], []
-        docs = False
-        if not base_id:
-            print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
-            code_checks = True
-        else:
-            diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
-            if diff.returncode:
-                errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
-            else:
-                paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
-            docs = any(documentation(path) for path in paths)
-            try:
-                # Plain documentation needs neither Cargo nor package selection.
-                empty = {'packages': [], 'workspace_members': []}
-                selected = code_inputs(paths, empty, root)
-                if selected or any(not documentation(path) for path in paths):
-                    data = metadata(root, private)
-                    selected = code_inputs(paths, data, root)
-            except (OSError, ValueError, RuntimeError) as error:
-                errors.append(failure('check selection', str(error)))
-            code_checks = bool(selected)
-            kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
-            if code_checks:
-                print(f'pre-pr: {kind}: format, counted baselines, clippy, focused tests '
-                      f'(code input {selected[0]!r})', flush=True)
-            if docs:
-                path = next(path for path in paths if documentation(path))
-                print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
-            if not code_checks and not docs:
-                print('pre-pr: no code or docs inputs changed', flush=True)
-
-        def format_check():
-            nonlocal data
-            try:
-                if data is None:
-                    data = metadata(root, private)
-                return formatting(data, root, private)
-            except (OSError, ValueError, RuntimeError) as error:
-                return [failure('format', str(error))]
-
-        pending = {}
-        if code_checks:
-            errors += timed('format', format_check)
-            for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
-                _, found = timed('old-forms ' + name, lambda: baselines(name, root, private), pending)
-                errors += found
-            if base_id and data is not None:
-                always = root / '.config/gate/always.txt'
-                lints, tests = select(data, {root / p: p for p in selected},
-                                      always.read_text() if always.exists() else '')
-                if not lints and not tests:
-                    print('pre-pr: no package changed', flush=True)
-                if lints:
-                    _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
-                    errors += found
-                if tests:
-                    _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
-                    errors += found
-        if docs:
-            _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+        runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
+        with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
+            entries, found = known_reds(tree_id, root, env)
             errors += found
-        inherited(entries, errors)
-        count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
-        if base_id and count_errors:
-            why = judge_base(base_id, git_dir, count_errors, root, env)
-        for name, seconds in pending.items():
-            if name == 'clippy':
-                prefixes = ('clippy ', 'check clippy')
-            elif name == 'tests':
-                prefixes = ('test ', 'build', 'check one-process')
+            data = None
+            paths, selected = [], []
+            docs = False
+            if not base_id:
+                print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
+                code_checks = True
             else:
-                prefixes = (name,)
-            found = [e for e in errors if e['name'].startswith(prefixes)]
-            status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
-            print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
-        verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
-        if not verdict:
-            temporary = git_dir / 'pre-pr-passed.tmp'
-            temporary.write_text(record + '\n')
-            temporary.replace(cache)
-        return verdict
+                diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
+                if diff.returncode:
+                    errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
+                else:
+                    paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+                docs = any(documentation(path) for path in paths)
+                try:
+                    # Plain documentation needs neither Cargo nor package selection.
+                    empty = {'packages': [], 'workspace_members': []}
+                    selected = code_inputs(paths, empty, root)
+                    if selected or any(not documentation(path) for path in paths):
+                        data = metadata(root, private)
+                        selected = code_inputs(paths, data, root)
+                except (OSError, ValueError, RuntimeError) as error:
+                    errors.append(failure('check selection', str(error)))
+                code_checks = bool(selected)
+                kind = 'code and docs' if code_checks and docs else 'code only' if code_checks else 'docs only'
+                if code_checks:
+                    print(f'pre-pr: {kind}: format, counted baselines, clippy, focused tests '
+                          f'(code input {selected[0]!r})', flush=True)
+                if docs:
+                    path = next(path for path in paths if documentation(path))
+                    print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
+                if not code_checks and not docs:
+                    print('pre-pr: no code or docs inputs changed', flush=True)
+
+            def format_check():
+                nonlocal data
+                try:
+                    if data is None:
+                        data = metadata(root, private)
+                    return formatting(data, root, private)
+                except (OSError, ValueError, RuntimeError) as error:
+                    return [failure('format', str(error))]
+
+            pending = {}
+            if code_checks:
+                errors += timed('format', format_check)
+                for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
+                    _, found = timed('old-forms ' + name, lambda: baselines(name, root, private), pending)
+                    errors += found
+                if base_id and data is not None:
+                    always = root / '.config/gate/always.txt'
+                    lints, tests = select(data, {root / p: p for p in selected},
+                                          always.read_text() if always.exists() else '')
+                    if not lints and not tests:
+                        print('pre-pr: no package changed', flush=True)
+                    if lints:
+                        _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
+                        errors += found
+                    if tests:
+                        _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
+                        errors += found
+            if docs:
+                _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+                errors += found
+            inherited(entries, errors)
+            count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
+            if base_id and count_errors:
+                why = judge_base(base_id, git_dir, count_errors, root, env)
+            for name, seconds in pending.items():
+                if name == 'clippy':
+                    prefixes = ('clippy ', 'check clippy')
+                elif name == 'tests':
+                    prefixes = ('test ', 'build', 'check one-process')
+                else:
+                    prefixes = (name,)
+                found = [e for e in errors if e['name'].startswith(prefixes)]
+                status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
+                print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
+            verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
+            if not verdict:
+                temporary = git_dir / 'pre-pr-passed.tmp'
+                temporary.write_text(record + '\n')
+                temporary.replace(cache)
+            return verdict
 
 
 if __name__ == '__main__':
