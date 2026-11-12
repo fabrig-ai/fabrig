@@ -2291,6 +2291,9 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
                     counted: row.counted,
                     sets,
                     whole: row.whole,
+                    signed: approval_people(row.signed, limits)?,
+                    can_sign: approval_people(row.can_sign, limits)?,
+                    can_sign_more: row.can_sign_more,
                     yours: match row.yours {
                         root::YourReview::Counts => w::ApprovalYours::Counts,
                         root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
@@ -2320,4 +2323,17 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
     }
     let document = w::Approvals::new(limits, w::ApprovalsParts { rows, more: document.more }).ok()?;
     Some(wire::approvals(&document))
+}
+
+fn approval_people(people: Box<[root::ApprovalPerson]>, limits: &w::Limits) -> Option<List<w::ApprovalPerson>> {
+    let mut values = List::with_capacity(8);
+    for person in people {
+        values
+            .push(
+                w::ApprovalPerson::new(limits, w::ApprovalPersonParts { person: person.person, name: person.name })
+                    .ok()?,
+            )
+            .ok()?;
+    }
+    Some(values)
 }

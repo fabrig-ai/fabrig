@@ -38,6 +38,17 @@ pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow 
             .unwrap()])),
             whole: true,
             yours: w::ApprovalYours::Counts,
+            signed: List::from_boxed(Box::new([w::ApprovalPerson::new(
+                &w::CEILINGS,
+                w::ApprovalPersonParts { person: 2, name: b"Sam".as_slice().into() },
+            )
+            .unwrap()])),
+            can_sign: List::from_boxed(Box::new([w::ApprovalPerson::new(
+                &w::CEILINGS,
+                w::ApprovalPersonParts { person: f::PARTY, name: b"Ann".as_slice().into() },
+            )
+            .unwrap()])),
+            can_sign_more: 3,
             size: None,
         },
     )
@@ -168,6 +179,9 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
                 sets: Box::new([approvals::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
                 whole: true,
                 yours: approvals::Yours::Counts,
+                signed: Box::new([approvals::ApprovalPerson { person: 2, name: b"Sam".as_slice().into() }]),
+                can_sign: Box::new([approvals::ApprovalPerson { person: f::PARTY, name: b"Ann".as_slice().into() }]),
+                can_sign_more: 3,
                 size: None,
             }]
         );

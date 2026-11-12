@@ -59,7 +59,9 @@ pub(crate) fn main(
                                 question |= card.question_words().is_some();
                                 band(b, root, task, card, words, bindings, first);
                             }
-                            needs::Need::Approval(row) => super::approval::band(b, row, words, bindings, sign_in),
+                            needs::Need::Approval(row) => {
+                                super::approval::band(b, row, super::approval::viewer(root), words, bindings, sign_in);
+                            }
                         }
                     }
                     b.open(Role::Slot);
