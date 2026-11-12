@@ -271,7 +271,7 @@ impl FakeForge {
                             call: pending.root_call,
                             cost: 1,
                             result: match result {
-                                Ok(answer) => Ok(translate::answer(&pending.op, answer, &self.client_limits)),
+                                Ok(answer) => translate::answer(&pending.op, answer, &self.client_limits),
                                 Err(error) => Err(translate::error(error, fake::time(&self.config, env.now))),
                             },
                         },

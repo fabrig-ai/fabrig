@@ -1,11 +1,11 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:37409 ─╮
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:34283 ─╮
+│ Nothing needs you.                                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
  Start
    /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
-
-
 
 
 

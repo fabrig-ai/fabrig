@@ -7,7 +7,7 @@ the `merge` command any project may name for the merge job
 (`../domain/forge/change/repairs.md`), and the `close` command any project may name
 for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
-(`../domain/worker.md`, 4.4). What is open is `tooling.md`, section 7.
+(`../domain/worker/jobs.md`). What is open is `tooling.md`, section 7.
 
 ## 1. In one page
 
@@ -45,8 +45,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
-- **Its network** is the worker's containment's (`../domain/worker.md`,
-  section 9): a command that fetches what the directory lacks does so
+- **Its network** is the worker's containment's (`../domain/worker/README.md`,
+  section 8): a command that fetches what the directory lacks does so
   without temper's credentials.
 
 ## 3. The directory
@@ -89,8 +89,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 
 ### 4.1 `merge`
 
-The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker.md`,
-4.4): it settles the conflicts the project's rules know (a counted
+The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker/jobs.md`
+): it settles the conflicts the project's rules know (a counted
 baseline recounted, a generated file made again), with no model.
 
 - **Named by the project's `merge_job`** (`configuration/engine.md`
@@ -117,8 +117,8 @@ baseline recounted, a generated file made again), with no model.
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, no file left
-  unmerged: temper commits and delivers the merge (`../domain/worker.md`,
-  4.4). A file left unmerged or still marked fails the delivery, and
+  unmerged: temper commits and delivers the merge (`../domain/worker/jobs.md`
+  ). A file left unmerged or still marked fails the delivery, and
   the job with it.
 - **`result.json`, exit 3:** `{"settled": [PATH], "left": [PATH]}`:
   nothing is committed or pushed, and the change makes a resolution in
@@ -126,8 +126,8 @@ baseline recounted, a generated file made again), with no model.
   (`../domain/forge/change/repairs.md`); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, as `prepare`'s. The bound is the merge kind's
-  result bound, 512 bytes in the small profile (`../domain/worker.md`,
-  4.4): a command lists the paths that fit, in index order, and adds
+  result bound, 512 bytes in the small profile (`../domain/worker/jobs.md`
+  ): a command lists the paths that fit, in index order, and adds
   `"more": N`, the count of those it left out.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree.
@@ -140,8 +140,8 @@ text form; another form refuses the change's start (2026-11-04).
 
 ### 4.2 `close`
 
-The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker.md`,
-4.4): it settles, with no model, what a goal leaves in its branch once
+The close job's command (`../domain/forge/branches.md`, 2; `../domain/worker/jobs.md`
+): it settles, with no model, what a goal leaves in its branch once
 every change of it has ended, before the goal's landing takes the branch
 into its base. fabrig's settles the goal's in-flight status entries
 (fabrig's `DESIGN.md`, section 2); another project's may settle what it
@@ -154,7 +154,11 @@ keeps of a goal's work in its own files.
   failure.
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
-  the close change's own branch made there, clean, nothing staged.
+  the close change's own branch made there, clean, nothing staged. That
+  repository is writable on every attempt, a released job's too
+  (`../domain/forge/change/repairs.md`); a checkout with none or several
+  writable fails the job, naming each repository it saw and whether it
+  could write it (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "goal": G, "changes": [{"task": N,
   "landed": BOOL}]}`: the goal's task number, and each change of the
   goal's tree whose landing branch is the goal's branch, by task number,
@@ -168,6 +172,14 @@ keeps of a goal's work in its own files.
   reaches a forge. temper commits the tree as it left it, with one parent, the
   tip, its message `Settle goal G's status`, and pushes it as the close
   change's head; an unchanged tree is no commit.
+- **fabrig's, on a tag:** a tag naming no change of the request,
+  another goal's or one of another form, is kept: its entry stays as it
+  is, the command succeeds, and its result lists the tag as kept, within
+  the bound and counted past it (fabrig's `tools/close/README.md`). A tag
+  followed by sentence punctuation (`[in flight: change 161].`) is a tag
+  all the same: its entry is deleted when its change landed, and
+  otherwise the tag alone goes, with the space before it, the
+  punctuation staying.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
@@ -175,8 +187,7 @@ keeps of a goal's work in its own files.
 - **Any other exit,** or a result missing or past its bound: the
   command's failure, its stderr's last `tooling_log_bytes` kept; the
   close change's producer fails and holds it (`../domain/forge/change/repairs.md`),
-  which escalates to the goal (11.2 there). A tag naming no change of the
-  request is a failure of fabrig's.
+  which escalates to the goal (11.2 there).
 - **Deterministic by contract,** as `merge`: the same tree and request
   give the same staged tree, and a second run over its own commit stages
   nothing.
@@ -185,7 +196,7 @@ keeps of a goal's work in its own files.
 
 - **Run** inside a prepare job, after `prepare`, when the project names
   both and `prepare` gave no key for a gate; or alone, as a key job, at
-  a candidate the forge's rebase made (`../domain/worker.md`, 4.4).
+  a candidate the forge's rebase made (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "repository": NAME, "gate": NAME,
   "commit": COMMIT}`, with `repos/<name>/` checked out at the commit.
 - **`result.json`, exit 0:** `{"key": HEX64}`: 32 bytes the command
@@ -197,10 +208,10 @@ keeps of a goal's work in its own files.
 
 `request.json` and `result.json` at most `tooling_file_bytes` each, a
 merge job's and a close job's within their kinds' bounds
-(`../domain/worker.md`, 4.4);
+(`../domain/worker/jobs.md`);
 `files`, `settled` and `left` at most `conflict_files`, each a path
 within a branch name's bounds; members and upstreams within the landing's limits. Each is a
-limit of the worker's jobs (`../domain/worker.md`, 4.4).
+limit of the worker's jobs (`../domain/worker/jobs.md`).
 
 ## 7. Open questions
 

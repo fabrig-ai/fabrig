@@ -16,6 +16,16 @@ fn a_resolution_pins_the_push_head_before_merging() {
 }
 
 #[test]
+fn a_resolution_with_a_head_keeps_its_conflict_until_delivery() {
+    merges::resolution_conflict(true);
+}
+
+#[test]
+fn a_resolution_without_a_head_keeps_its_conflict_and_creates_its_branch() {
+    merges::resolution_conflict(false);
+}
+
+#[test]
 fn a_missing_push_branch_pins_the_start_commit() {
     merges::replaced_pin(PinCase::NewBranch);
 }

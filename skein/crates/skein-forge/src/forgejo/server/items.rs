@@ -298,6 +298,16 @@ pub(super) fn pull(json: &mut Encoder, value: &crate::forgejo::document::PullReq
     }
     json.key(b"mergeable");
     json.boolean(value.mergeable);
+    for (key, count) in [
+        (b"changed_files".as_slice(), value.changed_files),
+        (b"additions", value.additions),
+        (b"deletions", value.deletions),
+    ] {
+        if let Some(count) = count {
+            json.key(key);
+            json.unsigned(count);
+        }
+    }
     json.key(b"requested_reviewers");
     json.array_start();
     for user in &value.requested_reviewers {

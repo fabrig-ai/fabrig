@@ -102,7 +102,7 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     d.change_due.remove(&task);
     d.goal_files.remove(&task);
     d.review_facts.remove(&task);
-    d.review_since.remove(&task);
+    d.review_heads.remove(&task);
     d.review_requests.remove(&task);
     connection_wait::take(d, task);
     let mut steps = List::with_capacity(d.steps.len());

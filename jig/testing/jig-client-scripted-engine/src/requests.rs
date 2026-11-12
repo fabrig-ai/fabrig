@@ -336,6 +336,8 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Withdraw { .. }
             | Ask::Create { .. }
             | Ask::Compound { .. }
+            | Ask::Talk { .. }
+            | Ask::Leave { .. }
             | Ask::Message { .. }
             | Ask::Answer { .. }
             | Ask::Take { .. }
@@ -397,6 +399,8 @@ impl<A: crate::Application> Engine<A> {
                     self.amendment_admission(offer, *task, change)
                 }
                 Ask::Propose { action: jig_client_domain::contract::ProposeAction::Settings(_), .. }
+                | Ask::Talk { .. }
+                | Ask::Leave { .. }
                 | Ask::Message { .. }
                 | Ask::Answer { .. }
                 | Ask::Take { .. }
@@ -494,6 +498,8 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Withdraw { .. }
             | Ask::Create { .. }
             | Ask::Compound { .. }
+            | Ask::Talk { .. }
+            | Ask::Leave { .. }
             | Ask::Message { .. }
             | Ask::Answer { .. }
             | Ask::Take { .. }
@@ -670,6 +676,8 @@ fn target(ask: &Ask) -> Option<Target> {
             compound_target(*project, operations).unwrap_or((Some(*project), None, ActKind::Message, None))
         }
         Ask::Create { project, .. } => (Some(*project), None, ActKind::Message, None),
+        Ask::Talk { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Talk, None),
+        Ask::Leave { project, task } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Leave, None),
         Ask::Message { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Message, None),
         Ask::Answer { project, on: AnswerOn::Question { task, message, .. }, .. } => {
             (Some(*project), Some(ObjectKey::Question { task: *task, message: *message }), ActKind::Answer, None)

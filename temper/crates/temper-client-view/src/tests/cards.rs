@@ -76,6 +76,33 @@ fn dependency_refusals_use_jigs_words() {
     }
 }
 
+#[test]
+fn live_project_refusals_name_tasks_in_cards_and_send_feedback() {
+    for (more, expected) in [
+        (0, b"This project has live tasks; end them first: T12, T15".as_slice()),
+        (2, b"This project has live tasks; end them first: T12, T15, and 2 more".as_slice()),
+    ] {
+        let mut tasks = List::with_capacity(2);
+        tasks.push(12).unwrap();
+        tasks.push(15).unwrap();
+        let refusal = c::Refusal::LiveTasks { tasks, more };
+        let words = fixtures::words();
+        assert_eq!(
+            words.say_word(Word::refusal(&refusal), &[]).as_ref(),
+            b"This project has live tasks; end them first:"
+        );
+        let mut builder = Builder::new(&fixtures::tree_limits());
+        crate::cards::refusal(&mut builder, &words, &refusal);
+        assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected);
+        let outcome =
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, at: None }));
+        let feedback = crate::shared::outcome_feedback(&outcome, &words, false).unwrap();
+        assert_eq!(feedback.head.as_ref(), expected);
+        assert!(feedback.refused);
+        assert!(feedback.after.is_none());
+    }
+}
+
 pub(super) fn batch_proposal() -> c::ReadValue {
     let mut task = fixtures::task::document();
     task.authority.authority.spend = 6;
@@ -391,7 +418,7 @@ use temper_client_domain::{self as d, Action, Event, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const SETTINGS_KEY: c::ProposalKey = fixtures::chat::PROPOSAL;
 const SETTINGS_REASON: &[u8] = b"I work alone\nKeep drafts beside the code";
-const SETTINGS_KINDS: [(c::Setting, &[u8]); 15] = [
+const SETTINGS_KINDS: [(c::Setting, &[u8]); 16] = [
     (c::Setting::Charter(c::SettingNumber { number: 2 }), b"charter 2"),
     (c::Setting::Template(c::SettingNumber { number: 40 }), b"template 40"),
     (c::Setting::Policy(c::SettingNumber { number: 1 }), b"policy 1"),
@@ -400,6 +427,7 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 15] = [
     (c::Setting::Application { kind: 2, scope: fixtures::PROJECT, number: 1 }, b"landing rule 1"),
     (c::Setting::Application { kind: 3, scope: 0, number: 1 }, b"forge charter 1"),
     (c::Setting::Application { kind: 11, scope: 0, number: 4 }, b"template-goal 4"),
+    (c::Setting::Application { kind: 12, scope: 2, number: 1 }, b"follow 1"),
     (c::Setting::ProjectPolicy { project: 2 }, b"project policy 2"),
     (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, b"project-questions 1"),
     (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, b"project-ways 1"),
@@ -725,7 +753,7 @@ fn kinds_six_seven_and_eight_are_named_until_their_values_are_read() {
         (c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
     ];
     for (on, route, expected) in [
-        (true, w::QuestionsRoute::Foreman, b"Questions: answered by the goal".as_slice()),
+        (true, w::QuestionsRoute::Up, b"Questions: asked of me too".as_slice()),
         (false, w::QuestionsRoute::Up, b"Questions: asked of me too"),
         (false, w::QuestionsRoute::None, b"Questions: not asked"),
     ] {

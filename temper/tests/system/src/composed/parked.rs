@@ -1,5 +1,5 @@
 //! A parked producer's delivered and saved edits across a moved landing
-//! branch (temper/docs/design/domain/worker.md, section 5, **Saved work**).
+//! branch (temper/docs/design/domain/worker/checkouts.md, **Saved work**).
 use super::{Script, VecDeque, World, call, engine, questioning_config, run, tasks};
 
 // The goal creates the waiting change and its producer before the independent change runs.
@@ -29,7 +29,7 @@ impl World {
         }))
         .expect("fixture write");
         let moving = Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", &write),
                 call(b"finish", br#"{"title":"Advance the goal","body":"Give the waiting producer new context."}"#),

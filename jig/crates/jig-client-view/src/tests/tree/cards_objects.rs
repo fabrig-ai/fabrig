@@ -196,6 +196,8 @@ fn dialog(d: &Fixture, words: &crate::words::Words, bindings: &mut JigBindings) 
 }
 pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
     Task {
+        talk: None,
+        session: None,
         dependency_facts: List::with_capacity(0),
         kept_account: None,
         run_wait: None,

@@ -469,12 +469,14 @@ fn fixture_root(
             model.endpoint = 2;
             config.core.settings.endpoints = Box::new([
                 jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: model.dialect,
                     program: None,
                 },
                 jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 2,
                     dialect: model.dialect,

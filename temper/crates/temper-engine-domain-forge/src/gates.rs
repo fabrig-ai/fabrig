@@ -28,7 +28,7 @@ pub struct Requires {
     pub ci: bool,
     pub up_to_date: bool,
 }
-pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
+pub(crate) fn covers_name(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
     let name = match pattern.segments.first() {
         Some(first) if first.as_ref() == b"branch" => match name.get(4..) {
             Some(tail) => tail,
@@ -55,9 +55,61 @@ pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
 #[must_use]
 pub fn covers_branch(pattern: &GatePattern, repository: &Repository, branch: &[u8]) -> bool {
     match crate::domain::branch_resource_name(repository, branch) {
-        Some(name) => covers(pattern, &name),
+        Some(name) => covers_name(pattern, &name),
         None => false,
     }
+}
+
+/// Paths touched at one judged head (temper/docs/design/domain/forge/change/gates.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Touched {
+    pub sets: u8,
+    pub whole: bool,
+}
+impl Touched {
+    pub const UNKNOWN: Self = Self { sets: 0b11_1111, whole: false };
+}
+
+#[must_use]
+pub fn touched(classes: &temper_protocol_reaches::Classes, paths: &[Box<[u8]>], whole: bool) -> Touched {
+    if !whole {
+        return Touched::UNKNOWN;
+    }
+    let mut sets = 0;
+    for number in 1_u8..=6 {
+        let matched = match classes.set(number) {
+            Some(set) => set.matched(paths) != 0,
+            None => true,
+        };
+        if matched {
+            sets |= set_bit(number);
+        }
+    }
+    Touched { sets, whole }
+}
+
+pub(crate) fn set_bit(number: u8) -> u8 {
+    match number.checked_sub(1) {
+        Some(shift) => 1_u8.checked_shl(u32::from(shift)).unwrap_or(0),
+        None => 0,
+    }
+}
+
+/// One coverage predicate for every reader of landing rules.
+#[must_use]
+pub fn covers(rule: &crate::settings::LandingRule, repository: &Repository, branch: &[u8], touched: Touched) -> bool {
+    if !covers_branch(&rule.pattern, repository, branch) {
+        return false;
+    }
+    if rule.sets.is_empty() {
+        return true;
+    }
+    for number in &rule.sets {
+        if touched.sets & set_bit(*number) != 0 {
+            return true;
+        }
+    }
+    false
 }
 
 pub(crate) fn selected(

@@ -452,6 +452,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+            | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -485,6 +486,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
@@ -592,6 +594,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+            | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -628,6 +631,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
@@ -683,18 +687,7 @@ impl Task {
                 };
                 c::Ask::Message { project: task.project, task: self.number, words }
             }
-            Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
-                c::Ask::Stop { project: task.project, task: self.number }
-            }
-            Sending::Resume if paused && super::chat::allowed(task, c::ActKind::Release) => {
-                let value = chip_hold(&task.chip)?;
-                c::Ask::Release {
-                    project: task.project,
-                    task: self.number,
-                    revision: c::Revision { value },
-                    again: None,
-                }
-            }
+            Sending::Stop | Sending::Resume => control(task, kind, paused)?,
             Sending::Cancel if super::chat::allowed(task, c::ActKind::Cancel) => c::Ask::Cancel {
                 project: task.project,
                 task: self.number,
@@ -726,7 +719,7 @@ impl Task {
                     reason: c::Text::new(Box::from(*b"Amended from its page"), u32::MAX).expect("page reason fits"),
                 }
             }
-            Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => return None,
+            Sending::Message | Sending::Cancel | Sending::Amend => return None,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -1222,4 +1215,20 @@ fn hold_revision(page: Option<&c::ReadValue>) -> Option<u64> {
 }
 fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
     client.document(handle)?.latest
+}
+
+/// Pause and Resume use the same offered acts and hold revision on task pages and Team.
+pub(super) fn control(task: &c::Task, kind: Sending, paused: bool) -> Option<c::Ask> {
+    match kind {
+        Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
+            Some(c::Ask::Stop { project: task.project, task: task.chip.task })
+        }
+        Sending::Resume if paused && super::chat::allowed(task, c::ActKind::Release) => Some(c::Ask::Release {
+            project: task.project,
+            task: task.chip.task,
+            revision: c::Revision { value: chip_hold(&task.chip)? },
+            again: None,
+        }),
+        Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => None,
+    }
 }

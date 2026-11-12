@@ -99,6 +99,33 @@ wakes; exhausting the run tries ends the task failed. A task ended by its reques
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
 
+**A question left open wakes it again.** After the ordinary
+unread-message wake rules, an agent task whose run parks idle while a
+question asked of it is still open (`messages.md`, 2) is due again at
+once, `question` among its reasons (`messages.md`, 6), when all of
+these hold:
+
+- its wake policy lets a question wake it (`messages.md`, 3);
+- its runs start from a brief, never resuming (../engine/executors.md,
+  2), since a resumed run's window already holds the question and a wake
+  would bring it nothing new;
+- it is no conversation, does not stand (`standing.md`), and is not
+  ended by its requester (9): each waits on its person or its session;
+- it awaits nothing that would bring the answer: it is not kept (8), and
+  has no pending proposal, no live person delegate, and no
+  executor-taken timer or task watch naming a live task.
+
+Its next run's brief shows each open question (../engine/briefs.md,
+1.2). No notice is numbered: the open question is the reason. Each such
+park consumes a run try, retained across these wakes as Nothing left to
+await's are. Past its run tries the task is held, as a task past its
+tries is (6), for `Failures` of the run's class, its hold's words
+`Task A's question N is still open: LINE`, A, N and LINE the oldest open
+question's asker, number and first line, cut at a character's edge to
+the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that whoever
+the hold reaches sees what waits. A task held so is not failed: its
+delegates go on, and a release counts its tries again from it.
+
 ## 3. Procedure tasks
 
 An active procedure task is stepped by the part of the engine that owns
@@ -589,6 +616,18 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   no run between: a last result under `last_or_failure` (`messages.md`, 3) does not
   wake it, where a failure still does, and the result stays in its
   inbox, offered to its next run if one comes.
+- **Its funds follow its task's runs.** The closer's budget grows by
+  what its task has left whenever the task is idle or waiting and the
+  closer is not closing: after a delegate the task funds ends, after a
+  run of the task answers, and after an amendment of the task. A run of
+  the task, as it is claimed, takes back what the closer holds
+  unreserved, the closer's budget becoming what it and its ended
+  delegates spent and what it holds reserved, so that the task's
+  judgement is never starved by its closer. Each of those growths makes
+  the closer due (`Changed`, as a procedure's changed inputs do) where
+  it is idle, whether it gave anything or not, so that a step the
+  closer could not fund while a run held its funds is decided again
+  once that run has answered (temper's `domain/forge/branches.md`, 2).
 - **Its success ends the task:** the closer ending done, its result is
   the task's: checked against the task's contract as a run's finish is
   (7), and the task closes with it (1), no run claiming it. A

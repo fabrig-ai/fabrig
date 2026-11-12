@@ -154,7 +154,7 @@
 - **Every node a person acts on has a role and a name,** since skein's
   fake person finds nodes only by them; nothing a person must know is
   said by style alone (skein's `ui/README.md`, section 8).
-- **The look:** the mockups' (`mockups/style.css`),
+- **The look:** the mockups' (`web/mockups/style.css`),
   as style tokens each shell interprets or ignores; the terminal prints
   none, and the browser's stylesheet draws them (`web/look.md`).
   The composers are text areas that submit on Enter (skein-ui's
@@ -329,7 +329,7 @@ and what is current is the view's. Its rules:
 |---|---|---|
 | "All projects", the switcher's first row | the person is in two projects or more | `me`'s projects |
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above; on a page across projects, the count across them (`pages/needs-you.md`, 1, *What the client keeps*) |
-| "Team" | the project has a second member or a standing role | the project's people, from its document (`pages/team.md`, 1), and standing roles, none gathered |
+| "Team" | the project has a second member or a standing role | the project's people, from its document, and its live standing roles, from the roles' watch (`pages/team.md`, 1, *Its reads*) |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
 | the Away switch and chip | `pages/README.md`, 2's *Away* shows it; on All projects, it shows for any of the person's projects (`pages/README.md`, 2, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
@@ -674,7 +674,8 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   time of the shell's iteration (`line.md`, 2; `web/README.md`, 2.1) and says each
   time the domain's documents carry against it, both nanoseconds since
   the epoch. The same documents at the same time give the same words.
-- **Four forms, the mockups' own** (`mockups/pages.js`). For a time T,
+- **Five forms, the mockups' own** (`web/mockups/pages.js`, and the TUI's,
+  `tui/whole-story/`). For a time T,
   E is the whole minutes from T to now, and 0 when T is ahead of now,
   as a machine's clock behind the engine's makes it:
   - *ago,* when something last happened: "just now" while E is 0;
@@ -690,6 +691,9 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
     day, the weekday and "HH:MM" ("Tue 07:20") within the six days
     before it, and earlier its date and "HH:MM" ("20 October 07:20"),
     with its year when not now's;
+  - *dated,* when a conversation was last active, said with its day:
+    "today HH:MM" on now's day, else as *clock* ("Fri 18:40", "20
+    October 07:20"), `TimeForm::Dated`;
   - *the day's rule,* a line before the first turn of each day a
     conversation's window holds, whose turns then say "HH:MM" alone:
     "Today · Thursday 22 October", "Yesterday · Wednesday 21 October",
@@ -705,7 +709,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   word it drew next changes: the next whole minute of an ago under 12
   hours or of a span under a day, a longer span's next whole day, and
   the next midnight while it drew a word of the calendar's (a later
-  ago, a clock, a day's rule). The shell wakes at that instant, and the
+  ago, a clock, a dated, a day's rule). The shell wakes at that instant, and the
   view builds again although the domain's shown count has not moved
   (`line.md`, 2; `web/README.md`, 2.1). A page that draws no time asks for no wake.
 - **Where they are said:** a chats line's last activity or end, an ago
@@ -713,7 +717,9 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   (`pages/README.md`); a card's wait, a span, in the inbox and on a chat's page; an
   update's arrival in the inbox, an ago (`pages/README.md`); the approval page's ask,
   an ago (`pages/README.md`, 2, *The approval page*); a remembered line's change, the
-  day's rule's words (`pages/remembered.md`). The task pages and the
+  day's rule's words (`pages/remembered.md`); on the TUI's launchpad a
+  left-off row's last activity, dated, and a need's wait, an ago
+  (`tui/pages/launchpad.md`, 4 and 5). The task pages and the
   accounts page say their moments as their sections do (`pages/accounts.md`, 2, `pages/goal.md`, 2, `pages/task.md`, 2
   ), in universal time, and so does a full deployment's earliest end
   (1, the pages not about the work).

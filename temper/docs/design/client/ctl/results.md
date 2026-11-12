@@ -85,7 +85,7 @@ digest: task 7c1e09a2b44f0d13
   prints `out of tries: run failures`, and `way out:` starts `the engine's log
   names each failure (temper help hold), then`. `temper help hold` says where
   that log is, under `temper box` and under `temper-box serve`
-  (`../../domain/worker.md`, 12, on keeping the text with the hold).
+  (`../../domain/worker/README.md`, 10, on keeping the text with the hold).
 - **`next run:`** prints what a run that can't start waits for, then the
   lines that say why and what to run (`tools.md`, 2). When no account serves the
   work, an account wait with neither an account nor a source and the why
@@ -248,10 +248,10 @@ digest: task 7c1e09a2b44f0d13
   on from.
 - **An act's outcome** prints what was made or decided and its numbers:
   `done: task 41, chat`; `proposed: p3/17, to maintainers`; `decided
-  first: by ada, accepted, 14:02`; `removed: project 3, fabrig`; for
-  `repository adopt`, `../forge/family.md`, 6's words. A removal kept
+  first: by ada, accepted, 14:02`; `deleted: project 3, fabrig`; for
+  `repository adopt`, `../forge/family.md`, 6's words. A deletion kept
   from an earlier call, which knows no name, prints `kept: remove-project,
-  removed: project 3`, its number from the answer.
+  deleted: project 3`, its number from the answer, the operation jig's.
 - **What a call sends first** (`README.md`, 6.2, step 4) prints on stderr, a line
   each: `kept: `, the request's operation, jig's or the forge's (`stop`,
   `adopt`), then its outcome as an act's prints, which names what it

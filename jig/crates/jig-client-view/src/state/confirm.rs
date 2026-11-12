@@ -418,6 +418,8 @@ fn draft_admission(domain: &Ui, object: &Object, open: &Confirmation) -> Admissi
             jig_client::contract::admission::amendment(&offer, change, before)
         }
         ActKind::Withdraw
+        | ActKind::Talk
+        | ActKind::Leave
         | ActKind::Message
         | ActKind::Answer
         | ActKind::Take
@@ -502,7 +504,7 @@ fn missing(domain: &Ui, open: &Confirmation, object: &Object) -> Option<Missing>
             Ok(field) => field,
             Err(missing) => return Some(missing),
         },
-        ActKind::Message => {
+        ActKind::Talk | ActKind::Message => {
             let task = match object.key {
                 ObjectKey::Task(task) => task,
                 ObjectKey::Proposal(_)
@@ -527,7 +529,8 @@ fn missing(domain: &Ui, open: &Confirmation, object: &Object) -> Option<Missing>
             }
             None
         }
-        ActKind::Take
+        ActKind::Leave
+        | ActKind::Take
         | ActKind::HandBack
         | ActKind::Accept
         | ActKind::PassUp

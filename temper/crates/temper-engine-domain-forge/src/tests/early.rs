@@ -29,6 +29,7 @@ fn producing() -> Domain {
 
 fn seed(saved: bool) -> items::Seed {
     items::Seed {
+        project: 5,
         modify: false,
         task: CHILD,
         parent: Some(fixtures::CHANGE),
@@ -68,6 +69,7 @@ fn producing_under_rule(base: &[u8], last: GateLast, up_to_date: bool) -> Domain
         value: settings::SizedValue {
             size: 0,
             value: settings::Value::Rule(settings::LandingRule {
+                sets: Box::new([]),
                 pattern: GatePattern {
                     segments: Box::new([
                         b"forge".as_slice().into(),

@@ -27,7 +27,10 @@
   forge's work at that scale: `forge.tasks`, `forge.holds` and
   `forge.changes` 128, the forge client's `resources` 128 (at least the
   holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
-  `repairs`, `resolutions` and `updates` 80, an issue's `plan_items`
+  `repairs`, `resolutions` and `updates` 80 (its `reruns`, the times a
+  job the runner failed is run again at one head, is 1 in both,
+  `forge.change_policy.reruns`: `../../domain/forge/change/README.md`, 2,
+  step 3), an issue's `plan_items`
   384, and the brief's task section a whole spec of jig's `standard`
   (131,072 bytes) with its contract's and requester's lines; what the
   start's checks tie to these moves with them, the least that passes.
@@ -57,6 +60,16 @@
   keeps 7 days (`../../domain/forge/attention.md`, 5): 1,024 in both profiles, so a
   busy night's every task fits beside the day before. The forge's family
   holds it times `forge.judge_projects`.
+- **A project's follows:** `forge.follows` per project, 2 in `small` and
+  8 in `standard`; `forge.follow_queue`, 16 and 64; and, in both,
+  `forge.follow_paths` 8, `forge.follow_merge` 8, `forge.follow_commits`
+  8, `forge.follow_files` 32, `forge.follow_message_bytes` 512,
+  `forge.follow_skips` 8 and `forge.follow_reason_bytes` 256, as
+  `../../domain/forge/follows.md`, section 10 bounds them.
+- **A project's dependencies:** `forge.dependencies` per project, 4 in
+  `small` and 16 in `standard`, kind 13's numbers and the most the
+  `follows` document carries (`../../domain/forge/dependencies.md`,
+  section 2).
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -391,10 +404,14 @@
   `client/domain/contract/README.md`, 5.2; jig's `protocol/client/README.md`, section
   10). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 22 (`../../domain/root.md`, section 9). So:
-  - *a stream's room* is 22, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 176 at
-    `temper-box init`'s 8 streams (`stock.md`), 44 at the small profile's 2;
+  clients hold at most 26 (`../../domain/root.md`, section 9): the web's
+  and the terminal's `watches`, 26, and `handles`, 28, so that Home on
+  All projects holds four projects' statuses, `decided` and `follows`
+  documents with the session's own watches, 25 at most
+  (`../../client/pages/home.md`, 1, *Home on All projects*). So:
+  - *a stream's room* is 26, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 208 at
+    `temper-box init`'s 8 streams (`stock.md`), 52 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:
@@ -406,7 +423,7 @@
   stream's room to temper's client's watches, and a test of the limits
   holds the other two to `clients.streams`.
 - **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 22 is the shipped clients' bound. An
+  `clients.streams`, and the 26 is the shipped clients' bound. An
   `engine.limits.overrides` naming `views.watchers` or
   `views.watchers_per_party` is refused at the start, naming
   `clients.streams`, and `temper help limits-engine` lists neither: the
@@ -432,7 +449,7 @@
     of 17 and 136 watches held another 14,112–15,256 and 114,720–126,336 bytes after
     delivery, respectively, and one marking commit peaked at 116,816 and
     452,176 bytes in the engine world including its driver and fake store.
-  - *The journal's door:* a full room puts at most 176 deliveries behind
+  - *The journal's door:* a full room puts at most 208 deliveries behind
     one commit, within `root.journal.deliveries`' 512. The watermark
     paces new work as the door fills, and nothing fails.
   - *The store:* its bounds don't follow the rooms. A watch holds no row,
@@ -496,3 +513,39 @@ minimum. Task batch refusals preserve the codec field and ceiling. When
 a task record drives the map value past the fixed profile ceiling, the
 refusal names `TaskRecord`, its batch capacity and both sizes, and says to
 reduce task record capacities; that ceiling has no scalar override.
+
+## 1. Open questions
+
+- **The real-browser check of watch sizing.** The domain story uses the
+  pages' watch sets without HTTP, a browser or a kernel (`limits.md`).
+  Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
+  clients read is a manual check after landing, as the `watch-room` request
+  assigns it. Default: that check, with no additional browser-tier story.
+
+- **A party's fair share of the watch rooms.** A party's room is the
+  deployment's (`limits.md`), so one person with every stream leaves another
+  none, and the refusal they meet is the streams'. Nothing has asked for
+  less, and a smaller share would lock a person's own tabs out again.
+  Default: none.
+
+- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
+  `views.text_bytes` and `views.facts` are still taken and change nothing
+  the root holds (`limits.md`), where `views.watchers` and
+  `views.watchers_per_party` are refused. Nobody was misled by them on
+  record. Default: they stay until one is.
+
+- **Profiles' numbers** beyond fabrig's development, which sizes
+  `standard`'s work (`stock.md`): `small`'s, and each profile's machine
+  concurrency, from the first deployments' measurements (jig's
+  `protocol/configuration.md`, section 8). Default: as written.
+
+- **The rest of an assignment's transcript and of a person's read.**
+  The turn's check (`limits.md`) holds the resume window's share of each
+  hub's `transcript_bytes`, and the turn's share of
+  `root.loads.read_bytes`. The answered calls an assignment carries
+  beside its window (`core.call_records`, each within
+  `core.call_answer_bytes`), and the owner's task record and ancestors
+  a read carries with its row, have no bound the start can name: jig
+  gives neither's worst case. Default: the hub refuses an assignment
+  past its bound at run time, and the documents leave room beside the
+  turn for the read's evidence (../setup/init.md, 1).

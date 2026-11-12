@@ -216,6 +216,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
 
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
+        signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 1, repository: 1 },
         branch: Box::from(b"temper/7".as_slice()),
@@ -225,6 +226,7 @@ fn repair() -> forge::ChangeRow {
         priority: 0,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: change::Way::Queue,
             landing: None,
@@ -262,15 +264,17 @@ fn repair() -> forge::ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 

@@ -55,7 +55,8 @@ pub use route::{
 };
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{
-    AfterLandingCheck, Config, GateCheck, LandingRules, ProjectLanding, RepositoryChecks, TierCheck, Way, landing_stock,
+    AfterLandingCheck, Config, GateCheck, LANDING_ATTEMPTS, LandingRules, ProjectLanding, RepositoryChecks, TierCheck,
+    Way, landing_stock,
 };
 
 /// Startup's secret-free decision (protocol/credentials.md, 2.2).
@@ -67,3 +68,12 @@ pub fn carried_at_start(number: u64) -> Request {
 }
 
 pub use temper_engine_domain_ways as ways;
+
+/// The standing follow procedure and its owner-word refusals.
+pub use route::forge_route::FOLLOW_CODE;
+pub use temper_engine_domain_forge::FollowRefusal;
+
+#[cfg(test)]
+mod fuzzy {
+    mod approval_people;
+}

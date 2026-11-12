@@ -117,7 +117,7 @@ impl Ran {
     }
     #[must_use]
     pub fn served(&self) -> Option<&End> {
-        self.service().service.as_ref().and_then(temper_service::Service::end)
+        self.service().service.as_ref().and_then(service::Driven::end)
     }
     #[must_use]
     pub fn link(&self) -> &[u8] {

@@ -1,0 +1,24 @@
+❯ Plan a farewell line for hello.       │ farewell-line.md
+                                        │
+  Write this up as a draft beside us.   │ #### Open questions  new
+                                        │ Put the farewell line at the end of
+✦ I wrote the farewell draft beside us. │ README.md.
+  Where should the farewell line go?    │ No open questions block the work.
+  1. At the end of README.md — it closes│
+    the page                            │
+  2. In its own file — the greeting     │
+    stays alone                         │
+  3. Tell me something else             │
+                                        │
+❯ At the end of README.md               │
+                                        │
+✦ I settled the location at the end of  │
+  README.md. The draft is ready; nothing│
+  blocks the work.                      │
+────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:35957 ──
+❯
+────────────────────────────────────────────────────────────────────────────────
+Start a goal from farewell-line.md. How should it run?
+❯ 1. Task by task              The same plan; each task lands on its own once ch
+  2. Plan, tasks, land whole   A plan from the draft, its tasks on a goal branch
+  Cancel

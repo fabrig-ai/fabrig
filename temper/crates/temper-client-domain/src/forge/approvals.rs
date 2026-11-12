@@ -14,6 +14,15 @@ pub enum Yours {
     OtherRole,
 }
 
+/// The pull request's size at the reviewed head (temper/docs/design/client/forge/records.md, approvals).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Size {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
+}
+
 /// A change waiting on a person's review on its forge
 /// (temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -36,10 +45,28 @@ pub struct Row {
     pub role: u32,
     pub required: u32,
     pub counted: u32,
-    pub behind: u32,
+    pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: Yours,
+    pub signed: Box<[ApprovalPerson]>,
+    pub can_sign: Box<[ApprovalPerson]>,
+    pub can_sign_more: u32,
+    pub size: Option<Size>,
 }
+/// A path set touched by this approval's change (temper/docs/design/client/forge/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ApprovalSet {
+    pub number: u8,
+    pub name: Box<[u8]>,
+}
+
+/// A counted signer or someone who can still sign (temper/docs/design/client/forge/records.md).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ApprovalPerson {
+    pub person: u64,
+    pub name: Box<[u8]>,
+}
+
 #[derive(Debug)]
 enum State {
     Unknown,
@@ -178,6 +205,11 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
     let mut rows = List::with_capacity(document.rows.len());
     for value in document.rows.into_boxed() {
         let value = value.into_parts();
+        let mut sets = List::with_capacity(value.sets.len());
+        for set in value.sets.into_boxed() {
+            let set = set.into_parts();
+            sets.push(ApprovalSet { number: set.number, name: set.name }).expect("wire bounds approval sets");
+        }
         rows.push(Row {
             task: value.task,
             project: value.project,
@@ -198,8 +230,23 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
             role: value.role,
             required: value.required,
             counted: value.counted,
-            behind: value.behind,
+            sets: sets.into_boxed(),
             whole: value.whole,
+            signed: people(value.signed),
+            can_sign: people(value.can_sign),
+            can_sign_more: value.can_sign_more,
+            size: match value.size {
+                Some(size) => {
+                    let size = size.into_parts();
+                    Some(Size {
+                        files: size.files,
+                        additions: size.additions,
+                        deletions: size.deletions,
+                        cut: size.cut,
+                    })
+                }
+                None => None,
+            },
             yours: match value.yours {
                 w::ApprovalYours::Counts => Yours::Counts,
                 w::ApprovalYours::NoAccount => Yours::NoAccount,
@@ -210,4 +257,13 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
         .expect("wire bounds approval rows");
     }
     Some(Event::Rows { rows: rows.into_boxed(), more: document.more })
+}
+
+fn people(values: List<w::ApprovalPerson>) -> Box<[ApprovalPerson]> {
+    let mut people = List::with_capacity(values.len());
+    for value in values.into_boxed() {
+        let value = value.into_parts();
+        people.push(ApprovalPerson { person: value.person, name: value.name }).expect("wire bounds approval people");
+    }
+    people.into_boxed()
 }

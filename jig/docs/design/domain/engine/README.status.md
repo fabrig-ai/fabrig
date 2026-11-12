@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-10. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
 link and terminal proof into the task's notice and exhausted hold. The
@@ -241,41 +241,12 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
-- **Not yet:** `executors.md`, 3, *A run's read as its person*: a task query of the
-  project that names a person requester reads its ended part from the
-  person's index, which spans projects (`reads/ended.rs`,
-  `ended_part`), and a page that loads another project's row answers
-  unknown whole (`reads/rows.rs`, `person_from_store`), where a party's
-  read drops that row. temper's addresses name no requester; no test
-  reads such a query.
-- **Not yet:** `executors.md`, 3, *Of its project alone*: an inbox page filtered by the
-  run's project takes its `next` cursor from the last entry of the
-  person's whole inbox, before the filter (`reads/rows.rs`, the live
-  page's `last`), so whether there is a next page, and the cursor the
-  root holds, can come from another project's entry; temper says only
-  whether more wait. No test pages a filtered inbox.
+- **Not yet:** `executors.md`, 3, *A run's read as its person*: the gap remains `executors.status.md`, 3, *A run's read as its person*.
+- **Not yet:** `executors.md`, 3, *Of its project alone*: the gap remains `executors.status.md`, 3, *Of its project alone*.
 
-- **Not yet:** `briefs.md`, 2.1, *Its runs' parts are its party's*: a brief's
-  transcript tail renders a private tool's calls whole, `call TOOL:` and
-  its input and then its result's summary
-  (`jig-protocol-transcript`'s `brief.rs`, which takes no private names),
-  and the tail is a text of the fresh start's turn outside the private
-  section, so the turn's projection keeps it and every other party reads
-  it (temper's `temper/docs/design/domain/agent/ask-temper.status.md`, 4).
-- **Not yet:** `briefs.md`, 2.1, *Read and kept by its party alone*: a party naming
-  their own scope and another party's entry by its name is refused as
-  moved, with that entry's revision, not as unknown: the core admits the
-  scope as the party's own (`routing/effect/note.rs`,
-  `edit_note_request`), and the notes child answers an entry of another
-  scope `Moved` (`jig-domain-notes`'s `domain.rs`, `Action::Edit`); a
-  run's `NoteDelete` or revision of an entry another scope holds is
-  answered the same way.
-- **Not yet:** `briefs.md`, 2.1, *Read by those runs*: no check holds
-  `core.brief_core_budgets.preferences` above `notes.party_entries` lines of
-  `notes.party_bytes` numbered, so a deployment whose overrides pass it
-  fails every asking brief of a full scope as not fitting its budget, and
-  one that lowers either bound under kept lines fails them too. No test
-  reads a preferences gather that fails, for room, refusal or fit.
+- **Not yet:** `briefs.md`, 2.1, *Its runs' parts are its party's*: the gap remains `briefs.status.md`, 2.1, *Its runs' parts are its party's*.
+- **Not yet:** `briefs.md`, 2.1, *Read and kept by its party alone*: the gap remains `briefs.status.md`, 2.1, *Read and kept by its party alone*.
+- **Not yet:** `briefs.md`, 2.1, *Read by those runs*: the gap remains `briefs.status.md`, 2.1, *Read by those runs*.
 
 - **Design departs:** 10, from the request `note-parts` of 2026-11-05, decided
   by its plan's cut: a range names the revision it read in `recalled`, the tool's
@@ -286,62 +257,23 @@ try. A window's later pages keep its first page's slot there
   (`jig-domain-core/src/vocabulary.rs`), where the request gives it `lines`, `added`,
   `removed` and `first` too, because nothing makes it: a write's answer goes by the
   call's own part, which has them.
-- **Design departs:** `settings.md`, 6, from the request `ui-walk-large` of 2026-11-06, decided by
-  its plan's cut: that request has a proposal of settings' project set when it is
-  made, and the core works its `projects` out at each read, because its items never
-  change once it is made, so the value is the same and no stored format moves. That
-  request has it show in each project it touches and in every project whose owner can
-  decide it; a row names the lowest 32, the bound of that list on the client's wire.
+- **Design departs:** `settings.md`, 6, from the request `ui-walk-large`: the proposal-projects departure remains `settings.status.md`, 6.
 
-- **Not yet:** 2: runs on the engine's own slots under
-  `smith-inline-agent`; the engine hub's hello before placement; the
-  two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
-   the brief's lineage, calls and waiting sections.  what a
-  turn's calls made, written beside the turn.  the tools `move`, `succeed`,
-  `hold` and `lift`.
-  9: core-world stories that opt out of the restart
-  oracle with a named finding (`broken()` in `jig/tests/core`), most for
-  a claim the start settles (6, step 3) changing a task's `chip`, `acts`
-  or run `settings`, which the projection keeps durable, others for a
-  frame's `needs` with a person proposal left pending and
-  `Deployment.messages` advancing on a retried deadline; the core
-  world's `world` and `direct` drivers run no oracle.
-   pending reasons admitted past `people.words` are cut at that bound
-  in the review, with loss stated; no continuation is served.
-   a
-  proposal of settings waits for the deployment's owners whatever it
-  names, its holder always the deployment's policy
-  (`jig-domain-core/src/admission/proposals.rs`, `holder`): one naming
-  an application's items of a project's scope is accepted by any of the
-  deployment's owners, not by that project's; one naming a project's
-  policy is admitted only where one party owns both the deployment and
-  the project, and accepted only by such a party, even with no item of
-  the deployment's beside it, where `settings.md`, 6 has that project's owners
-  decide it (`routing/settings/dispatch/project_policy.rs`, `owns`). Its
-  row goes to the deployment's owners alone
-  (`documents/inbox_deployment.rs`), so a project's owner who doesn't own
-  the deployment reads none in that project.
-   the core world's eleven restore stories
-  (`jig/tests/core/tests/suite/settings_restore.rs`) are all ignored,
-  each naming `restore-request`'s `Restore` admission or its
-  `ForgetReplaced`, both on main since (`routing/party/people.rs`,
-  `settings/restart.rs`, `forget_replaced`), and the story of a deleted
-  project's items also naming a project-scoped default that survives
-  the project's deletion (`../connectors.md`, 17); whether they pass
-  unignored is unknown. The core's own tests of a restore run
-  (`jig-domain-core/src/tests/settings/restore.rs`).
+- **Not yet:** 2: engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document). 4.2, 5.3: the remaining point-load fences.
+   the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
+  9: the restart-oracle gaps remain `../testing.status.md`, 9.
+   the pending-reasons continuation gap remains `settings.status.md`, 6.
+   the settings-holder gap remains `settings.status.md`, 6.
+   the ignored restore stories remain `settings.status.md`, 10.
+
 - **Not yet:** 5.1: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the
   established allowance covers settings-proposal withdrawals alone,
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
-- **Departs:**  `Core::new` without a start is ready, because the
-  core's unit fixtures need no start; every root starts it.
-  4.2: the core's answers to parties cross the engine's client translation
-  with optional refusal and ending facts always empty; the fields and
-  the choice to fill them or drop them in a client wire version are in
-  `jig/docs/design/client/domain/contract/README.status.md`; no reason is recorded.
+- **Departs:**  the unstarted-core departure remains `restart.status.md` (Departs, the whole document).
+  4.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/README.status.md`, 3.
   4: the root interface has no text for public `Core::effect_owner` and
   `application_part_request`
   (`jig-domain-core/src/routing/flight.rs`), `call_room`
@@ -355,12 +287,6 @@ try. A window's later pages keep its first page's slot there
   `temper-engine-domain/src/domain.rs`, `fire_routed`, fires it once per
   pass, and `jig-test-service/src/engine.rs`, `fire`, also fires one;
   no reason is recorded.
-   accepting proposed settings rechecks the change and
-  refuses it as full, leaving it pending, if held revisions or charter
-  versions would pass their limits. With one charter slot, the acceptance
-  path (`jig-domain-core/src/routing/settings/dispatch.rs`, `accept` and
-  `decide`) answers `ProposalDecided { Accepted }` rather than `Full`;
-  whether a capacity check is missing or the expectation is wrong, and
-  whether this departs, is the designer's decision: it is a bug if the
-  design requires `Full` in this case; no reason is recorded.
-- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2) [in flight: change 232].
+   the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
+
+- **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).

@@ -37,6 +37,10 @@ fn red_checks() -> Box<[Status]> {
 }
 
 fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
+    gather_run(checks, log, budget, None)
+}
+
+fn gather_run(checks: Box<[Status]>, log: &[u8], budget: u32, run: Option<skein_forge::api::Run>) -> Domain {
     let job_bound = (budget / 5)
         .min(
             budget
@@ -84,7 +88,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     let owner = *owner;
     let mut out = Queue::uncapped();
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), LIMITS.client.rows, &mut out));
-    for _ in 0..LIMITS.client.rows.saturating_add(1) {
+    for _ in 0..LIMITS.client.rows.saturating_mul(2).saturating_add(1) {
         let Some(request) = out.pop() else { break };
         if let Request::BriefClient {
             event: skein_forge_client::Event::Read { read: Read::Job { attempt, max_bytes, .. }, .. },
@@ -97,13 +101,24 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
                 owner,
                 Ok(Answer::Job {
                     attempt,
-                    step: Some(Step { number: 2, name: STEP.into() }),
+                    step: match &run {
+                        Some(run) => run.jobs.first().expect("job").step.clone(),
+                        None => Some(Step { number: 2, name: STEP.into() }),
+                    },
                     log: log[tail..].into(),
                     truncated: tail > 0,
                 }),
                 LIMITS.client.rows,
                 &mut out
             ));
+        } else if let Request::BriefClient { event: skein_forge_client::Event::Read { read: Read::Run { .. }, .. } } =
+            request
+        {
+            let answer = match &run {
+                Some(run) => Ok(Answer::Run(run.clone())),
+                None => Err(skein_forge::api::Error::Missing),
+            };
+            assert!(brief::brief_answer(&mut d, owner, answer, LIMITS.client.rows, &mut out));
         } else if let Request::BriefSized { section: SECTION, size: Ok(size) } = request {
             assert!(size <= budget);
         } else {
@@ -118,7 +133,7 @@ fn take(d: &mut Domain) -> Box<[u8]> {
 }
 
 #[test]
-fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
+fn a_workflow_failure_reaches_the_repair_at_shipped_limits() {
     assert_eq!(RUNNER_LOG.len(), 553, "the runner's recorded bytes");
     let bytes = take(&mut gather(red_checks(), RUNNER_LOG, SHIPPED_CI));
     let words = text(&bytes);
@@ -250,7 +265,11 @@ fn text(bytes: &[u8]) -> &str {
 }
 
 fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
-    outputs(d, Event::PlanBrief { section: SECTION, source, partner: None });
+    planned_read_partner(d, source, budget, None)
+}
+
+fn planned_read_partner(d: &mut Domain, source: BriefSource, budget: u32, partner: Option<Token>) -> Token {
+    outputs(d, Event::PlanBrief { section: SECTION, source, partner });
     let mut env = env();
     env.limits.brief_bytes = 4608;
     let mut out = Queue::uncapped();
@@ -274,6 +293,15 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
 }
 
 fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Domain, Token) {
+    pending_pull_item_partner(body, state, head, None)
+}
+
+fn pending_pull_item_partner(
+    body: &[u8],
+    state: change::State,
+    head: [u8; 32],
+    partner: Option<Token>,
+) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
@@ -284,10 +312,24 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
     row.change.clean = Box::new([head]);
     row.change.state = state;
     outputs(&mut d, Event::Change { row });
-    let owner = planned_read(
+    if let Some(section) = partner {
+        outputs(
+            &mut d,
+            Event::PlanBrief {
+                section,
+                source: BriefSource::Ci {
+                    item: BriefItem { repository: REPO.repository, number: 1 },
+                    head: BriefCommit(head),
+                },
+                partner: None,
+            },
+        );
+    }
+    let owner = planned_read_partner(
         &mut d,
         BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(head) },
         4608,
+        partner,
     );
     let item = skein_forge::api::Summary {
         labels: Box::default(),
@@ -312,13 +354,90 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
 }
 
 fn pending_pull(body: &[u8], state: change::State) -> (Domain, Token) {
-    let (mut d, owner) = pending_pull_item(body, state, HEAD);
+    pending_pull_partner(body, state, None)
+}
+
+fn pending_pull_partner(body: &[u8], state: change::State, partner: Option<Token>) -> (Domain, Token) {
+    let (mut d, owner) = pending_pull_item_partner(body, state, HEAD, partner);
     let mut out = Queue::uncapped();
     let mut pull = fixtures::open_pull();
     pull.commit = HEAD;
     pull.base_commit = None;
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
     (d, owner)
+}
+
+#[test]
+fn stale_files_pause_a_pull_section_and_wake_its_change_even_with_a_partner() {
+    const PARTNER: Token = Token::new(100);
+    for (state, partner) in [
+        (change::State::Resolving { requested: true, base: fixtures::BASE }, None),
+        (change::State::Repairing { requested: true, why: change::Repair::Ci }, Some(PARTNER)),
+    ] {
+        let (mut d, owner) = pending_pull_partner(b"Whole body", state, partner);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Stale), LIMITS.client.rows, &mut out));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefReadRefused {
+                section: SECTION,
+                stage: "files",
+                reason: "the change's head moved",
+                heads: None,
+                error: Some(skein_forge::api::Error::Stale),
+            })
+        );
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Capacity,
+                    words: Box::from(b"the change's head moved".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.take_brief(SECTION).is_none(), "capacity never becomes words");
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
+    }
+}
+
+#[test]
+fn stale_at_other_pull_stages_stays_permanent() {
+    for compared in [false, true] {
+        let state = change::State::Resolving { requested: true, base: fixtures::BASE };
+        let (mut d, owner) =
+            if compared { pending_pull(b"Whole body", state) } else { pending_pull_item(b"Whole body", state, HEAD) };
+        let mut out = Queue::uncapped();
+        if compared {
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+                LIMITS.client.rows,
+                &mut out,
+            ));
+            out.clear();
+        }
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Stale), LIMITS.client.rows, &mut out));
+        assert!(out.pop().is_some());
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Permanent,
+                    words: Box::from(b"the forge refused this read".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.procedure_wakes.is_empty());
+    }
 }
 
 #[test]
@@ -940,6 +1059,12 @@ fn pending_job() -> (Domain, Token, Read) {
         panic!("one pinned job read: {out:?}")
     };
     assert!(out.is_empty());
+    let Read::Run { .. } = read else { panic!("classify the failed job's run first") };
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Missing), LIMITS.client.rows, &mut out));
+    let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
+        panic!("one pinned job read after classification: {out:?}")
+    };
+    assert!(out.is_empty());
     (d, owner, read)
 }
 
@@ -1238,4 +1363,39 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
             })
         })
     );
+}
+
+#[test]
+fn a_runners_failure_reaches_the_repair_at_shipped_limits() {
+    let first = JobAttempt { head: HEAD, run: 4, job: 6, attempt: 1 };
+    let mut failed = change_ci::Failed::new(Box::new([Status {
+        at: Time::ZERO,
+        context: b"ci/test".as_slice().into(),
+        check: Check::Failed,
+        description: Box::new([]),
+        url: Box::new([]),
+        job: Some(first),
+    }]));
+    assert_eq!(failed.next(HEAD), Some(Read::Run { run: 4 }));
+    failed.read(4, Ok(Answer::Run(fixtures::failed_run(first, Some(0)))));
+    assert_eq!(failed.fault(HEAD), change::Fault::Runner { reruns: 0 });
+    assert_eq!(LIMITS.change_policy.reruns, 1);
+    let second = JobAttempt { attempt: 2, ..first };
+    let checks = Box::new([Status {
+        at: Time::ZERO,
+        context: b"ci/test".as_slice().into(),
+        check: Check::Failed,
+        description: Box::new([]),
+        url: Box::new([]),
+        job: Some(second),
+    }]);
+    let bytes = take(&mut gather_run(
+        checks,
+        b"could not prepare job",
+        SHIPPED_CI,
+        Some(fixtures::failed_run(second, Some(0))),
+    ));
+    let words = text(&bytes);
+    assert!(words.contains("the runner's: set-up failed; run again 1 time at this head, failed again"), "{words}");
+    assert!(words.contains("could not prepare job"));
 }

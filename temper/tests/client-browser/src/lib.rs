@@ -34,12 +34,36 @@ pub const FIRST_CHAT: &[u8] = b"T1";
 /// Its address.
 pub const FIRST_CHAT_ADDRESS: &[u8] = b"/chats/1";
 
-/// The `temper` binary beside the test executable.
+const PAGE_QUERY: &[u8] = b"internal-loopback-navigation=1&internal-small-window=1";
+
+/// A fresh page load with the tier's internal settings (client/web/testing.md, 3).
+#[must_use]
+pub fn page_address(address: &[u8]) -> Box<[u8]> {
+    skein_fake_person_browser::harness::with_query(address, PAGE_QUERY)
+}
+
+/// The tier's printed and command-opened pages carry the same settings as explicit loads.
+#[must_use]
+pub fn harness(setup: Setup<'_>) -> skein_fake_person_browser::Harness {
+    skein_fake_person_browser::Harness::new(setup).page_query(PAGE_QUERY)
+}
+
+/// The `temper-box` binary beside the test executable.
 #[must_use]
 pub fn temper() -> PathBuf {
+    binary("temper-box")
+}
+
+/// The static host beside the test executable (temper/docs/design/testing/tools.md, 5).
+#[must_use]
+pub fn playground_serve() -> PathBuf {
+    binary("temper-playground-serve")
+}
+
+fn binary(name: &str) -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(Path::parent).expect("target directory").join("temper-box");
-    assert!(binary.is_file(), "build the browser server with cargo build -p temper-box: {}", binary.display());
+    let binary = exe.parent().and_then(Path::parent).expect("target directory").join(name);
+    assert!(binary.is_file(), "build the browser server with cargo build -p {name}: {}", binary.display());
     binary
 }
 #[must_use]
@@ -101,7 +125,7 @@ pub fn first_chat_steps(words: &[u8]) -> Vec<Step> {
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let mut steps = vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: crate::page_address(b"/chats".as_slice()) }),
         see(live()),
         connected(),
     ];
@@ -135,7 +159,7 @@ pub fn playground_chat(words: &[u8]) -> Vec<Step> {
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     // With no chat that started work, Work has no Chats filter.
     let mut steps = vec![
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: crate::page_address(b"/chats".as_slice()) }),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
     ];
     steps.extend(start_change(true));
@@ -513,7 +537,7 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
         let bound = &agent["endpoints"][0]["limits"];
-        assert_eq!(defaults.charters.len(), 10);
+        assert_eq!(defaults.charters.len(), 9);
         for charter in &defaults.charters {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)

@@ -82,6 +82,16 @@ pub const LIMITS: d::Limits = d::Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -97,6 +107,7 @@ pub const LIMITS: d::Limits = d::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -112,6 +123,7 @@ pub const LIMITS: d::Limits = d::Limits {
 
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {
     d::Stored::Repository(d::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -163,6 +175,7 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
     d::Stored::Change(Box::new(d::ChangeRow {
+        signed: Box::new([]),
         task,
         repository,
         branch: b"temper/change".as_slice().into(),
@@ -172,6 +185,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         priority: 0,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: change::Way::Queue,
             landing: None,
@@ -209,15 +223,17 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }))
 }
 fn landed(commit: u64) -> d::Stored {

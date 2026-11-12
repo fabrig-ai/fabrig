@@ -190,6 +190,9 @@ pub fn refused_replayed_pastes() -> Counts {
     counts
 }
 
+// The delivery story pushes, opens and merges; a change also holds its branch's re-run kind.
+const DELIVERY_KINDS: [u16; 4] = [2, 3, 4, 17];
+
 pub(crate) fn configure(value: &mut serde_json::Value) {
     if !observer::enabled() {
         return;
@@ -198,7 +201,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
             let grants = project.pointer_mut(pointer).expect("world grants");
             let prototype = grants[0].clone();
-            *grants = temper_engine_domain_forge::CHANGE_KINDS
+            *grants = DELIVERY_KINDS
                 .into_iter()
                 .map(|kind| {
                     let mut grant = prototype.clone();

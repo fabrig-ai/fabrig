@@ -132,6 +132,11 @@ impl World {
     }
 
     fn finish(&mut self, mut event: Event, mut ambiguous: bool) -> Request {
+        let merge_starts: Vec<_> = if let Event::Prepare { spec, .. } = &event {
+            spec.repositories.iter().map(|repo| matches!(repo.start, Start::Merge { .. })).collect()
+        } else {
+            Vec::new()
+        };
         for _ in 0..64 {
             let preparing = matches!(event, Event::Prepare { .. });
             step(&mut self.domain, &self.env, event, &mut self.out);
@@ -167,6 +172,16 @@ impl World {
             self.domain.reclaim();
             if let Some(terminal) = terminal {
                 assert!(pending.is_none());
+                if let Request::Prepared {
+                    prepared: Prepared::Failed { failure: Failure::Conflicted { repository, .. }, .. },
+                    ..
+                } = &terminal
+                {
+                    assert!(
+                        !merge_starts[usize::try_from(*repository).expect("bounded repository")],
+                        "a Start::Merge prepare never ends Failure::Conflicted"
+                    );
+                }
                 return terminal;
             }
             let (owner, op) = pending.expect("caller waits for one IO operation");
@@ -442,6 +457,71 @@ pub fn replaced_pin(case: PinCase) {
     }
     let hold = world.hold.take().expect("replacement held");
     world.finish(Event::Release { hold }, false);
+}
+
+/// A resolution receives the conflict whether or not its change has pushed a head.
+pub fn resolution_conflict(pushed: bool) {
+    let mut world = World::new(73, Case::Conflict, 64);
+    let (branch, push, ours, base) = if pushed {
+        (b"topic".as_slice(), b"topic".as_slice(), world.ours, world.base)
+    } else {
+        // The base branch is one side of the conflict; the incoming base is the other.
+        (b"main".as_slice(), b"resolution".as_slice(), world.base, world.ours)
+    };
+    let expected = if pushed { Some(translate::commit(ours)) } else { None };
+    assert_eq!(world.forge.branch(b"forge/temper", push), expected.map(translate::fake));
+    let spec = Spec {
+        key: b"resolution".as_slice().into(),
+        repositories: Box::new([Repository {
+            save: None,
+            git: None,
+            name: b"temper".as_slice().into(),
+            remote: b"forge/temper".as_slice().into(),
+            start: Start::Merge { branch: branch.into(), base: translate::commit(base) },
+            identity: 0,
+            account: None,
+            push: Some(push.into()),
+            expected,
+            landing: None,
+        }]),
+    };
+    world.forge.moves();
+    let ready = world.finish(Event::Prepare { client: Token::new(9), spec }, false);
+    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
+        panic!("resolution ready with conflicts: {ready:?}")
+    };
+    assert_eq!(&*conflicts, &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]) }]);
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    let pin = [at.as_slice(), b"/.git/refs/temper/landing"].concat();
+    assert_eq!(world.pins, 1, "one replaced-head pin per hold");
+    assert_eq!(world.disk.content(&pin), Some(ours.to_le_bytes().as_slice()));
+    assert_eq!(
+        world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()),
+        Some(ours.to_le_bytes().as_slice())
+    );
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()), Some(base.to_le_bytes().as_slice()));
+    assert!(world.commits.is_empty(), "prepare leaves the merge in progress");
+    assert_eq!(&*world.push(false, false), &[Landing::Conflicted { files: Box::new([b"code".as_slice().into()]) }]);
+    assert!(world.forge.moves().is_empty(), "unsettled files neither move nor create a branch");
+    world.disk.write(&[at.as_slice(), b"/code"].concat(), b"resolved\n");
+    let landings = world.push(false, false);
+    let [Landing::Landed { commit }] = landings.as_ref() else { panic!("resolved merge lands: {landings:?}") };
+    let landed = translate::fake(*commit);
+    assert_eq!(world.forge.parent(landed), Some(ours));
+    assert_eq!(world.forge.merge_parent(landed), Some(base));
+    assert_eq!(world.forge.tree(landed), world.expected);
+    assert_eq!(world.forge.branch(b"forge/temper", push), Some(landed));
+    assert_eq!(world.forge.moves().len(), 1, "one push creates or replaces the change's branch");
+    assert_eq!(world.commits.len(), 2, "the refused commit and the single settled merge commit");
+    assert_eq!(world.pins, 1, "push does not move the pin");
+    assert_eq!(world.disk.content(&pin), Some(ours.to_le_bytes().as_slice()));
+    let hold = world.hold.take().expect("resolution held");
+    assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
+    assert_eq!(world.domain.holds(), 0);
 }
 
 /// The named prefix leaves every conflicted file and the merge state on disk.
@@ -722,11 +802,19 @@ pub fn conflicting_head() {
     world.base = world.forge.advance(b"forge/temper", b"main", b"code", b"base edit\n");
     world.forge.create_branch(b"forge/temper", b"second", root).expect("second head");
     let second = world.forge.advance(b"forge/temper", b"second", b"code", b"conflicting edit\n");
+    world.forge.create_branch(b"forge/temper", b"early/base", world.base).expect("early base branch");
     world.forge.moves();
-    let failed = world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(&[world.ours, second]) }, false);
-    assert!(matches!(failed, Request::Prepared { prepared: Prepared::Failed {
-        failure: Failure::Conflicted { repository: 0, head }, ..
-    }, .. } if head == translate::commit(second)));
+    let mut spec = heads_spec(&[world.ours, second]);
+    let Start::Merged { branch, .. } = &mut spec.repositories[0].start else { panic!("merged start") };
+    *branch = b"early/base".as_slice().into();
+    let failed = world.finish(Event::Prepare { client: Token::new(9), spec }, false);
+    let Request::Prepared { prepared: Prepared::Failed { failure, detail }, .. } = failed else {
+        panic!("a conflicting merged head fails: {failed:?}")
+    };
+    assert_eq!(failure, Failure::Conflicted { repository: 0, head: translate::commit(second) });
+    let title = expected_merge_message(second);
+    let hex = title.strip_prefix("Merge ").expect("merge title prefix");
+    assert_eq!(detail.as_ref(), format!("merge: Conflicted: head {hex} does not merge into early/base").as_bytes());
     assert_eq!(world.domain.holds(), 1);
     let hold = world.hold.expect("failed hold stays");
     for event in [
@@ -766,7 +854,7 @@ fn expected_merge_message(head: u64) -> String {
 }
 
 /// A goal starts on main (g), brings its run head in, and writes only topic (r)
-/// (temper/docs/design/domain/worker.md, 5).
+/// (temper/docs/design/domain/worker/checkouts.md).
 #[expect(clippy::too_many_lines, reason = "one scenario holds the goal start, its pin and delivery together")]
 pub fn goal_later_run(case: Case) {
     let mut world = World::new(73, case, 64);

@@ -61,9 +61,9 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         let wire = crate::workers::limits(&checked.engine).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_engine, expected_engine));
         let worker = checked.worker.as_ref().unwrap();
-        let payload = crate::worker_settings::payload_limits(&checked.engine.limits).unwrap();
+        let payload = crate::worker_settings::payload_limits(&crate::limits::worker(&checked.engine.limits)).unwrap();
         let wire =
-            crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
+            crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_worker, expected_worker));
         let service = startup(
             &input,
@@ -101,7 +101,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     let directories = config::Directories::working();
     let found = store_limits(&document(None, None), &directories, None).unwrap_err();
     assert_eq!(found.problems.get(0).unwrap().path, indexed(0).member(b"agent"));
-    assert_eq!(found.problems.get(0).unwrap().what, What::Agent);
+    assert_eq!(found.problems.get(0).unwrap().what, What::Half(EngineWhat::Agent));
     let input = fixtures::engine_alone_document();
     let input = core::str::from_utf8(&input).unwrap().replace(",\"core.call_answer_bytes\":2048", "");
     let agent = fixtures::startup_agent();
@@ -124,17 +124,14 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         let service = worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
         check(&input, &directories, &fixtures::files(), &agent, &fixtures::seeds(), None, List::with_capacity(0), None)
             .unwrap();
-        assert!(service.engine.is_none());
+        fixtures::assert_worker_only(&service);
         let mut part = worker_part(&input, &directories).unwrap();
         check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
         assert_eq!(part.worker.jig.limits.core.call_answer_bytes, expected);
         let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
-        let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.forge.forges).unwrap();
+        let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected, expected));
-        assert_eq!(
-            service.worker.as_ref().unwrap().env.limits,
-            crate::worker_settings::root_limits(&part.worker, &agent, &part.limits)
-        );
+        assert_eq!(service.worker.env.limits, crate::worker_settings::root_limits(&part.worker, &agent, &part.limits));
     }
 }
 
@@ -243,7 +240,7 @@ fn a_workers_call_answer_bound_must_hold_the_documentation_answer() {
         7,
     )
     .unwrap();
-    assert!(service.engine.is_none());
+    fixtures::assert_worker_only(&service);
 }
 
 #[test]
@@ -429,7 +426,7 @@ fn per_kind_terms_reject_call_and_reply_mismatches_even_with_larger_other_frames
     let own = fixtures::worker_limits();
     let payload = crate::worker_settings::payload_limits(&own).unwrap();
     let mut link =
-        crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().forge.forges).unwrap();
+        crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
     link.sizes.call_input = 40_960;
     link.sizes.answer = 40_960;
     let larger = wire::schema(&wire::sizes::limits(&link.sizes).unwrap()).unwrap();

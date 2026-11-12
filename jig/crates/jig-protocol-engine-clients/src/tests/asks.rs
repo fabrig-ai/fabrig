@@ -386,3 +386,23 @@ fn a_deletion_naming_tasks_is_refused() {
     );
     assert_eq!(ask(value, &f::models(), &limits), Err(Untranslatable { path: w::Path::DeleteNoteScope }));
 }
+
+#[test]
+fn talk_and_leave_from_the_link_decode_to_the_people_acts() {
+    use jig_client_domain::contract as c;
+    use skein_lib::{Reader, Writer};
+    let limits = f::wire();
+    for (source, expected) in [
+        (
+            c::Ask::Talk { project: 3, task: 8, words: c::Text::new(b"hello".as_slice().into(), 32).unwrap() },
+            p::Ask::Talk { project: 3, task: 8, words: b"hello".as_slice().into() },
+        ),
+        (c::Ask::Leave { project: 3, task: 8 }, p::Ask::Leave { project: 3, task: 8 }),
+    ] {
+        let record = jig_client_protocol_link::translate::asks::ask(&source, &limits).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let record = w::Ask::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(ask(record.clone(), &f::models(), &limits), Ok(expected));
+    }
+}

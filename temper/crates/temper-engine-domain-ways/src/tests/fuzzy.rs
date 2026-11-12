@@ -1,22 +1,34 @@
 //! Random paths keep the derivation's invariants (temper/docs/design/domain/forge/change/branch-path.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary random tests build and inspect bounded fixture paths")]
-use crate::invariants::bounds;
+use crate::invariants::{bounds, rules_bounds};
 use skein_lib::Rng;
 use temper_engine_domain_forge::{
     Follows, GateLast, GatePattern, JudgeFreshness,
     settings::{Held, LandingRule, RuleApproval, RuleGate},
 };
 use temper_engine_domain_forge_change::Way;
-use temper_engine_domain_ways::{Actor, Inputs, Repository, Role, Start, Step, Tier, derive};
+use temper_engine_domain_ways::{Actor, Inputs, Repository, Role, Start, Step, Tier, derive, rules_by_path};
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one seeded sweep builds inputs and checks their path invariants")]
 fn paths_end_at_a_bar_and_only_code_lands() {
     let mut conflicts = 0_u32;
     for seed in 0..64 {
         let mut rng = Rng::new(seed);
         let by = if rng.chance(500) { Way::Queue } else { Way::Turn };
         let mut input = Inputs {
+            sets: (1..=rng.below(7))
+                .map(|number| temper_protocol_reaches::PathSet {
+                    number: u8::try_from(number).unwrap(),
+                    name: if rng.chance(500) {
+                        b"core".as_slice().into()
+                    } else {
+                        "a long protocol name 🦀".as_bytes().into()
+                    },
+                    patterns: (0..rng.below(5).saturating_add(1))
+                        .map(|_| if rng.chance(500) { b"src/**".as_slice().into() } else { b"a".repeat(80).into() })
+                        .collect(),
+                })
+                .collect(),
             branch: b"main".as_slice().into(),
             repository: Some(Repository {
                 host: b"forge".as_slice().into(),
@@ -35,7 +47,12 @@ fn paths_end_at_a_bar_and_only_code_lands() {
             reviewer: 2,
             by,
             merge_job: rng.chance(500),
-            roles: Box::new([Role { number: 0, name: b"owner".as_slice().into(), yours: rng.chance(500) }]),
+            roles: Box::new([Role {
+                number: 0,
+                name: b"owner".as_slice().into(),
+                yours: rng.chance(500),
+                holders: u32::try_from(rng.below(15)).unwrap(),
+            }]),
             agents: Box::default(),
         };
         input.start = if rng.chance(500) {
@@ -93,6 +110,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                     scope: if rng.chance(500) { 0 } else { 9 },
                     number: u32::try_from(number).unwrap(),
                     rule: LandingRule {
+                        sets: (1..=rng.below(7)).map(|n| u8::try_from(n).unwrap()).collect(),
                         pattern: GatePattern { segments, last },
                         enforce: rng.chance(500),
                         ci: rng.chance(500),
@@ -108,7 +126,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                             .map(|_| RuleApproval {
                                 role: u32::try_from(rng.below(3)).unwrap(),
                                 people: u32::try_from(rng.below(4)).unwrap(),
-                                freshness: JudgeFreshness::Clean,
+                                freshness: if rng.chance(500) { JudgeFreshness::Clean } else { JudgeFreshness::Exact },
                             })
                             .collect(),
                     },
@@ -118,6 +136,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
         let path = derive(&input);
         assert_eq!(path, derive(&input), "seed {seed}: replay");
         bounds(&path);
+        rules_bounds(&rules_by_path(&input));
         assert!(path.stops.iter().filter(|stop| stop.step == Step::Repair).count() <= 1, "seed {seed}: one repair");
         assert_eq!(path.stops.last().unwrap().step, Step::Branch, "seed {seed}: landing bar");
         let (goal, design, close_out) = match input.start {
@@ -160,8 +179,10 @@ fn paths_end_at_a_bar_and_only_code_lands() {
             );
             assert!(stop.over.len() <= temper_engine_domain_ways::OVER, "seed {seed}: over bound");
             assert!(
-                stop.over.is_empty() || (stop.step == Step::Repair || (stop.step == Step::Merge && goal_segment)),
-                "seed {seed}: over only on repair or goal merge"
+                stop.over.is_empty()
+                    || [Step::Check, Step::Review, Step::Approve, Step::Repair].contains(&stop.step)
+                    || (stop.step == Step::Merge && goal_segment),
+                "seed {seed}: over only on conditional stops, repair or goal merge"
             );
             if stop.step == Step::Merge && !stop.over.is_empty() {
                 assert_eq!(stop.over.as_ref(), b"into goal", "seed {seed}: goal merge");

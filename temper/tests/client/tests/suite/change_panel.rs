@@ -293,7 +293,16 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     *world.front() = Joint::with_change_approval(fixtures::SEED, &fixtures::domain_limits());
     world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
     fixtures::adopt_change_repository(world.front());
-    world.front().engine.forge.as_mut().expect("story's forge").push_branch(REPOSITORY.repository, BRANCH);
+    let content = "A change ready for review.\nIts checks pass.\nIts owner approves.\n";
+    world.front().engine.forge.as_mut().expect("story's forge").push_branch_with_file(
+        REPOSITORY.repository,
+        BRANCH,
+        b"change.txt",
+        content.as_bytes(),
+    );
+    // The base tree is empty: the new file adds every line and deletes none
+    // (skein/docs/design/testing/fakes/forge.md, 2.2).
+    let size_words = format!("+{} -0 in 1 file", content.lines().count());
     let api::Answer::Commit(head) = read(world.front(), api::Read::Branch { branch: BRANCH.into() }) else {
         panic!("pushed branch head")
     };
@@ -395,6 +404,7 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    approval_size(&world, person, &approval, size_words.as_bytes());
     assert_eq!(
         drawn(&world, person, &review).external.as_deref(),
         Some(format!("http://forge.example/acme/shop/pulls/{}/files", opened.pull.number).as_bytes())
@@ -444,6 +454,29 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     finished(document, goal, landed.pull.number);
     panels_landed(&panels, goal, head, &opened, &checked, merge);
     quiet(&mut world, person, goal, panels.last().expect("landed panel"), callbacks);
+}
+
+// client/forge/README.md, 4.1: one plain size chip on the approval card under Needs you.
+fn approval_size(world: &World<Temper, Joint>, person: ClientId, approval: &Find, expected: &[u8]) {
+    use temper_client_view::look;
+    let nodes = world.tree(person).nodes();
+    let question = drawn(world, person, approval);
+    let cards: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.styles.as_slice().contains(&look::ASK))
+        .map(|(start, node)| &nodes[start..start + usize::try_from(node.size).expect("card span")])
+        .filter(|card| card.iter().any(|node| node.id == question.id))
+        .collect();
+    let [card] = cards.as_slice() else { panic!("one approval card: {cards:?}") };
+    let rows: Vec<_> =
+        card.iter().enumerate().filter(|(_, node)| node.styles.as_slice().contains(&look::CHIPS)).collect();
+    let [(start, row)] = rows.as_slice() else { panic!("one size chips row: {rows:?}") };
+    let row = &card[*start..*start + usize::try_from(row.size).expect("chips span")];
+    let chips: Vec<_> = row.iter().filter(|node| node.styles.as_slice().contains(&look::CHIP)).collect();
+    assert_eq!(chips.len(), 1, "one size chip on the approval card");
+    let words: Vec<_> = row.iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+    assert_eq!(words, expected, "approval size from the change's file at the reviewed head");
 }
 
 fn approval_client(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {
