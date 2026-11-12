@@ -60,7 +60,7 @@ pub fn current(application: u32, deployment: [u8; 16]) -> component::Format {
         people: 16,
         notes: 1,
         accounts: 2,
-        settings: 2,
+        settings: 3,
         application,
         deployment,
         levels: NONE,

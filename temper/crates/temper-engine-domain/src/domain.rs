@@ -679,15 +679,24 @@ impl Domain {
         }
     }
 
-    /// Check the effective settings after `LoadCore` has restored their changes
+    /// Check the settings after `LoadCore` restores their changes, before jig
+    /// switches to stored defaults for the held-version plan. An overlay is judged
+    /// over the supplied default its runs will read after the release links
     /// (temper/docs/design/domain/agent/tools.md).
     pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
+        use jig_domain_core::settings::{Setting, Value, overlaid};
         let Some(host) = self.host_part else { return Ok(()) };
         for setting in self.core.current.offered().into_boxed() {
-            if let jig_domain_core::settings::Setting::Charter(number) = setting
-                && let Some(charter) = self.core.current.charter(number)
-            {
-                host.check(number, &charter.policy)?;
+            if let Setting::Charter(number) = setting {
+                if let Some(overlay) = self.core.current.overlay(setting) {
+                    let Some(Value::Charter(default)) = self.core.current.default_value(setting) else {
+                        // Jig refuses a stored overlay whose supplied default is absent.
+                        continue;
+                    };
+                    host.check(&overlaid(default, overlay))?;
+                } else if let Some(charter) = self.core.current.charter(number) {
+                    host.check(charter)?;
+                }
             }
         }
         Ok(())
@@ -1266,6 +1275,9 @@ fn released_into(
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
         Delivery::MoveStanding { project, owner } => crate::route::standing::move_roles(domain, project, owner),
+        Delivery::FindingsOwned { project, task, words } => {
+            crate::route::findings::tell_owner(domain, env, decision, project, task, words);
+        }
         Delivery::ProjectMade { project } => {
             if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period

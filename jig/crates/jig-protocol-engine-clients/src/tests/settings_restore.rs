@@ -2,7 +2,7 @@
 use super::fixtures as f;
 use crate::translate::{self, settings};
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_core::{documents as d, reads, settings as s};
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, Writer};

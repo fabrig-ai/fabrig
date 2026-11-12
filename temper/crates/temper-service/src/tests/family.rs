@@ -369,7 +369,7 @@ fn an_outcome_past_its_retention_is_encoded_unknown() {
 }
 #[test]
 fn a_core_refusal_uses_jigs_refusal_record() {
-    use jig_client_protocol_wire::v19 as j;
+    use jig_client_protocol_wire::v20 as j;
     let limits = fixtures::engine().jig.limits.clients.wire;
     for (row, input, expected) in [
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
@@ -1260,7 +1260,7 @@ fn expected_forge_row(
 
 #[test]
 fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
-    use jig_client_protocol_wire::v19 as j;
+    use jig_client_protocol_wire::v20 as j;
     for (bound, expected) in [
         (people::Bound::Reasoning, j::Bound::Reasoning),
         (people::Bound::Metadata, j::Bound::Metadata),
@@ -1531,7 +1531,10 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         | root::Application::SetAway { .. }
                         | root::Application::AddDevice(_)
                         | root::Application::RemoveDevice { .. }
-                        | root::Application::Overturn { .. } => {
+                        | root::Application::Overturn { .. }
+                        | root::Application::FileFinding(_)
+                        | root::Application::HandFinding(_)
+                        | root::Application::TriageFinding(_) => {
                             panic!("manifest or install")
                         }
                         root::Application::Forge(ask) => {
@@ -1656,7 +1659,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 fn embedded_client_refusals_keep_their_bytes_at_client_sixteen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::v20::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
     assert_eq!(wire::CLIENT_VERSION, 16);
 }
@@ -3157,6 +3160,10 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
+                roles: Box::new([ways::WayRoleEntry {
+                    role: ways::WayRole { charter: 14, words: b"Route findings".as_slice().into(), budget: 25_000 },
+                    running: delegation,
+                }]),
                 items: Box::new([
                     ways::Item {
                         kind: 3,
@@ -3212,6 +3219,12 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         assert_eq!(
             (got.name(), got.headline(), got.line(), got.delegation()),
             (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
+        );
+        assert_eq!(got.roles().len(), 1);
+        let role = got.roles().get(0).unwrap();
+        assert_eq!(
+            (role.charter(), role.words(), role.budget(), role.running()),
+            (14, b"Route findings".as_slice(), 25_000, entry.delegation)
         );
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 3);
@@ -3697,6 +3710,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
     let mut entries = List::uncapped();
     for way in crate::stock::ways() {
         let items = ways::items(&way, project, Some(&kind7));
+        let mut roles = List::uncapped();
+        for role in way.roles {
+            roles.push(ways::WayRoleEntry { role, running: false }).unwrap();
+        }
         entries
             .push(ways::WayEntry {
                 name: way.name,
@@ -3705,6 +3722,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
                 path: path.clone(),
                 items,
                 delegation: way.delegation,
+                roles: roles.into_boxed(),
             })
             .unwrap();
     }
@@ -4370,6 +4388,400 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
     }
+}
+
+#[test]
+fn findings_requests_keep_their_fields_and_admission_envelopes() {
+    let limits = &w::CEILINGS;
+    for (kind, expected_kind) in [
+        (w::FindingKind::Qa, forge::FindingKind::Qa),
+        (w::FindingKind::Flake, forge::FindingKind::Flake),
+        (w::FindingKind::Red, forge::FindingKind::Red),
+        (w::FindingKind::Review, forge::FindingKind::Review),
+        (w::FindingKind::Feedback, forge::FindingKind::Feedback),
+    ] {
+        for (severity, expected_severity) in [
+            (w::Severity::Low, forge::Severity::Low),
+            (w::Severity::Medium, forge::Severity::Medium),
+            (w::Severity::High, forge::Severity::High),
+        ] {
+            for area in [None, Some(b"tests".as_slice().into())] {
+                assert_eq!(
+                    away_request(w::Request::FileFinding(
+                        w::FileFinding::new(
+                            limits,
+                            w::FileFindingParts {
+                                project: 3,
+                                kind: kind.clone(),
+                                severity: severity.clone(),
+                                area: area.clone(),
+                                title: b"Flaky boot".as_slice().into(),
+                                body: b"boot timed out".as_slice().into()
+                            }
+                        )
+                        .unwrap()
+                    )),
+                    root::Application::FileFinding(forge::FileFinding {
+                        project: 3,
+                        kind: expected_kind,
+                        severity: expected_severity,
+                        area,
+                        title: b"Flaky boot".as_slice().into(),
+                        body: b"boot timed out".as_slice().into()
+                    })
+                );
+            }
+        }
+    }
+    assert_eq!(
+        away_request(w::Request::HandFinding(
+            w::HandFinding::new(
+                limits,
+                w::HandFindingParts {
+                    project: 3,
+                    number: 27,
+                    area: b"tests".as_slice().into(),
+                    why: b"owns the boot".as_slice().into()
+                }
+            )
+            .unwrap()
+        )),
+        root::Application::HandFinding(forge::HandFinding {
+            project: 3,
+            number: 27,
+            area: b"tests".as_slice().into(),
+            why: b"owns the boot".as_slice().into()
+        })
+    );
+    for (act, expected) in [
+        (
+            w::Triage::Route(w::FindingRoute::new(limits, w::FindingRouteParts { task: u64::MAX }).unwrap()),
+            forge::Triage::Route(u64::MAX),
+        ),
+        (w::Triage::Backlog, forge::Triage::Backlog),
+        (
+            w::Triage::Drop(
+                w::FindingDrop::new(limits, w::FindingDropParts { reason: b"not reproducible".as_slice().into() })
+                    .unwrap(),
+            ),
+            forge::Triage::Drop(b"not reproducible".as_slice().into()),
+        ),
+    ] {
+        assert_eq!(
+            away_request(w::Request::TriageFinding(
+                w::TriageFinding::new(limits, w::TriageFindingParts { project: 3, number: 27, act }).unwrap()
+            )),
+            root::Application::TriageFinding(forge::TriageFinding { project: 3, number: 27, act: expected })
+        );
+    }
+}
+
+fn finding_holders() -> [(forge::Holder, w::Holder); 3] {
+    [
+        (
+            forge::Holder::Task(u64::MAX),
+            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: u64::MAX }).unwrap()),
+        ),
+        (
+            forge::Holder::Party(19),
+            w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap()),
+        ),
+        (
+            forge::Holder::Role(5),
+            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 5 }).unwrap()),
+        ),
+    ]
+}
+#[test]
+fn findings_answers_preserve_each_refusal_and_its_owner() {
+    let limits = &w::CEILINGS;
+    for (answer, expected) in [
+        (
+            root::ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 27 }),
+            w::Outcome::Filed(w::Filed::new(limits, w::FiledParts { number: 27 }).unwrap()),
+        ),
+        (root::ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Handed), w::Outcome::Handed),
+        (root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged), w::Outcome::Triaged),
+    ] {
+        assert_eq!(away_answer(Some(answer)), expected);
+    }
+    let mut names = List::with_capacity(16);
+    for _ in 0_u32..16 {
+        names.push(repeated(b'a', 32)).unwrap();
+    }
+    let mut refusals = List::uncapped();
+    for (reason, expected) in [
+        (
+            forge::FindingRefusal::NoArea(names.clone().into_boxed()),
+            w::FindingRefusal::NoArea(w::FindingAreas::new(limits, w::FindingAreasParts { areas: names }).unwrap()),
+        ),
+        (
+            forge::FindingRefusal::Full(128),
+            w::FindingRefusal::Full(w::FindingsFull::new(limits, w::FindingsFullParts { count: 128 }).unwrap()),
+        ),
+        (forge::FindingRefusal::NoFinding, w::FindingRefusal::NoFinding),
+        (forge::FindingRefusal::NoGoal, w::FindingRefusal::NoGoal),
+        (forge::FindingRefusal::Ended, w::FindingRefusal::Ended),
+        (
+            forge::FindingRefusal::Words(b"title".as_slice().into()),
+            w::FindingRefusal::Words(
+                w::FindingWords::new(limits, w::FindingWordsParts { field: b"title".as_slice().into() }).unwrap(),
+            ),
+        ),
+    ] {
+        refusals.push((reason, expected)).unwrap();
+    }
+    for (holder, expected) in finding_holders() {
+        refusals
+            .push((
+                forge::FindingRefusal::NotYours(holder),
+                w::FindingRefusal::NotYours(
+                    w::FindingNotYours::new(limits, w::FindingNotYoursParts { holder: expected }).unwrap(),
+                ),
+            ))
+            .unwrap();
+    }
+    for (reason, expected) in refusals.into_boxed() {
+        for answer in [
+            root::ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Refused(reason.clone())),
+            root::ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Refused(reason.clone())),
+            root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Refused(reason)),
+        ] {
+            assert_eq!(
+                away_answer(Some(answer)),
+                w::Outcome::FindingRefused(
+                    w::FindingRefused::new(limits, w::FindingRefusedParts { reason: expected.clone() }).unwrap()
+                )
+            );
+        }
+    }
+    assert_eq!(away_answer(None), w::Outcome::Unknown);
+}
+
+fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
+    let (holder, wire_holder) = finding_holders().into_iter().next().unwrap();
+    (
+        forge::FindingRow {
+            number: 27,
+            kind: forge::FindingKind::Red,
+            severity: forge::Severity::Medium,
+            area: Some(b"tests".as_slice().into()),
+            state: forge::FindingState::New,
+            title: b"Flaky boot".as_slice().into(),
+            holder,
+            at: skein_lib::Wall::from_nanos(91),
+            why: Some(b"owns boot".as_slice().into()),
+            hander: Some(forge::Filer::Task(42)),
+        },
+        w::FindingRow::new(
+            &w::CEILINGS,
+            w::FindingRowParts {
+                number: 27,
+                kind: w::FindingKind::Red,
+                severity: w::Severity::Medium,
+                area: Some(b"tests".as_slice().into()),
+                state: w::FindingState::New,
+                title: b"Flaky boot".as_slice().into(),
+                holder: wire_holder,
+                at: 91,
+                why: Some(b"owns boot".as_slice().into()),
+                hander: Some(w::Filer::Task(
+                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 42 }).unwrap(),
+                )),
+            },
+        )
+        .unwrap(),
+    )
+}
+#[test]
+fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
+    for (state, expected_state) in [
+        (None, None),
+        (Some(w::FindingState::New), Some(forge::FindingState::New)),
+        (Some(w::FindingState::Routed), Some(forge::FindingState::Routed)),
+        (Some(w::FindingState::Backlog), Some(forge::FindingState::Backlog)),
+        (Some(w::FindingState::Dropped), Some(forge::FindingState::Dropped)),
+    ] {
+        for mine in [false, true] {
+            let watching = w::Watching::new(
+                &w::CEILINGS,
+                w::WatchingParts {
+                    watch: w::Watch::Findings(
+                        w::FindingsSubject::new(
+                            &w::CEILINGS,
+                            w::FindingsSubjectParts { project: 3, state: state.clone(), mine },
+                        )
+                        .unwrap(),
+                    ),
+                },
+            )
+            .unwrap();
+            let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject, window }) =
+                away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
+            else {
+                panic!("findings watch")
+            };
+            assert_eq!(
+                (watcher, sign_in, window),
+                (WATCHER, 3, jig_domain_core::documents::Window { rows: 2, after: None })
+            );
+            assert_eq!(
+                subject,
+                jig_domain_core::documents::Watched::Application {
+                    scope: people::ApplicationScope::Project(3),
+                    connector: wire::FORGE,
+                    subject: Token::new(forge::findings_subject(3, expected_state, mine))
+                }
+            );
+        }
+    }
+    let (row, expected_row) = finding_row_pair();
+    let document = forge::Findings {
+        project: 3,
+        rows: Box::new([row]),
+        areas: Box::new([forge::AreaRow {
+            name: repeated(b'a', 32),
+            words: repeated(b'w', 480),
+            owner: forge::settings::AreaOwner::Charter(6),
+            holder: None,
+        }]),
+        triager: Some(forge::settings::AreaOwner::Party(19)),
+        holder: forge::Holder::Party(19),
+        cut: true,
+    };
+    let bytes =
+        family::document(forge::Document::Findings(document.clone()), &fixtures::forge_table(&[]), &w::CEILINGS)
+            .unwrap();
+    let got = wire::decode_findings(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(got.project(), 3);
+    assert_eq!(got.rows().as_slice(), &[expected_row]);
+    assert!(got.cut());
+    assert_eq!(
+        got.holder(),
+        &w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap())
+    );
+    assert_eq!(
+        got.triager(),
+        &Some(w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 19 }).unwrap()))
+    );
+    let area = got.areas().iter().next().unwrap();
+    assert_eq!(area.name(), repeated(b'a', 32).as_ref());
+    assert_eq!(area.words(), repeated(b'w', 480).as_ref());
+    assert_eq!(
+        area.owner(),
+        &w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 6 }).unwrap())
+    );
+    assert_eq!(area.holder(), &None);
+    assert!(
+        family::document(
+            forge::Document::Findings(document),
+            &fixtures::forge_table(&[]),
+            &w::Limits { findings_rows: 0, ..w::CEILINGS }
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn finding_reads_keep_their_scope_detail_and_absence() {
+    let reading = w::Reading::new(
+        &w::CEILINGS,
+        w::ReadingParts {
+            read: w::Read::Finding(
+                w::FindingRead::new(&w::CEILINGS, w::FindingReadParts { project: 7, number: 27 }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
+        away_family(kit::ToApplication::Read {
+            reply: REPLY,
+            sign_in: 3,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            record: wire::reading(&reading),
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+            scope: people::ApplicationScope::Project(7),
+        })
+    else {
+        panic!("finding read")
+    };
+    assert_eq!(
+        (reply, sign_in, scope, query),
+        (REPLY, 3, people::ApplicationScope::Project(7), root::ForgeRead::Finding { project: 7, number: 27 })
+    );
+    for (filer, expected) in [
+        (
+            forge::Filer::Task(51),
+            w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 51 }).unwrap()),
+        ),
+        (
+            forge::Filer::Party(19),
+            w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap()),
+        ),
+    ] {
+        for (goal, reason) in [(None, None), (Some(51), Some(repeated(b'r', 400)))] {
+            let (row, expected_row) = finding_row_pair();
+            let bytes = family::forge_read(
+                root::ForgeReadAnswer::Finding(Some(forge::FindingAnswer {
+                    row,
+                    body: repeated(b'b', 4096),
+                    filer,
+                    goal,
+                    reason: reason.clone(),
+                })),
+                b"",
+                &w::CEILINGS,
+            )
+            .unwrap();
+            let answer = wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap();
+            let w::FindingResult::Finding(detail) = answer.result() else { panic!("finding detail") };
+            assert_eq!(detail.goal(), &goal);
+            assert_eq!(
+                answer.into_parts().result,
+                w::FindingResult::Finding(
+                    w::FindingDetail::new(
+                        &w::CEILINGS,
+                        w::FindingDetailParts {
+                            row: expected_row,
+                            body: repeated(b'b', 4096),
+                            filer: expected.clone(),
+                            goal,
+                            reason
+                        }
+                    )
+                    .unwrap()
+                )
+            );
+        }
+    }
+    let bytes = family::forge_read(root::ForgeReadAnswer::Finding(None), b"", &w::CEILINGS).unwrap();
+    assert_eq!(
+        wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result,
+        w::FindingResult::NoFinding
+    );
+    let result = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        kit::ToApplication::Read {
+            reply: REPLY,
+            sign_in: 3,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            record: wire::reading(&reading),
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+            scope: people::ApplicationScope::Project(8),
+        },
+        &fixtures::forge_table(&[]),
+        None,
+        &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
+        None,
+        &w::CEILINGS,
+    );
+    let Err(reply) = result else { panic!("mismatched scope refused") };
+    let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *reply else {
+        panic!("empty read answer")
+    };
+    assert_eq!((reply, family, record), (REPLY, wire::FORGE, None));
 }
 
 #[test]

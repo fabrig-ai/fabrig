@@ -93,6 +93,7 @@ jig-protocol-worker-link = { workspace = true, optional = true }
 jig-protocol-worker-agents = { workspace = true, optional = true }
 
 [dev-dependencies]
+jig-client-protocol-link.workspace = true
 temper-test-env.workspace = true
 smith-protocol-llm.workspace = true
 serde_json.workspace = true

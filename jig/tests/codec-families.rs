@@ -27,8 +27,8 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "client",
         root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v19.schema", "schema/client-v19-part1.schema"],
-        generated: &["src/generated/v19.rs"],
+        schemas: &["schema/client-v20.schema", "schema/client-v20-part1.schema"],
+        generated: &["src/generated/v20.rs"],
         golden: "golden",
         fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },
@@ -107,8 +107,8 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "settings",
         root: "crates/jig-protocol-store",
-        schemas: &["schema/settings-v2.schema"],
-        generated: &["src/generated/settings_v2.rs"],
+        schemas: &["schema/settings-v3.schema"],
+        generated: &["src/generated/settings_v3.rs"],
         golden: "golden/settings",
         fixtures: &[],
     },

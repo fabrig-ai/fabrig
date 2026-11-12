@@ -452,7 +452,7 @@ pub(crate) fn maximally_escaped_json_text(size: u32) -> Box<[u8]> {
 /// Four nine-segment paths can fill DOCUMENT while each segment stays at TEXT.
 const DOCUMENT_RESOURCES: u32 = 4;
 pub(crate) fn document_at_byte_bound() -> c::Task {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let client = crate::limits::client().client;
     let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("shipped link limits");
     let mut parts = jig_client_test_records::task_record().into_parts();
@@ -476,7 +476,7 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
 fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let mut rows = List::with_capacity(DOCUMENT_RESOURCES);
     let mut left = payload;
     let mut size = 0_u32;

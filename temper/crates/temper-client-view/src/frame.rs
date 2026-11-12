@@ -94,6 +94,15 @@ impl Bindings {
                 }
                 let meaning = match (meaning, act) {
                     (
+                        PageAct::Finding(temper_client_domain::pages::findings::Act::Why { id, .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Finding(temper_client_domain::pages::findings::Act::Why { id: *id, words: value }),
+                    (
+                        PageAct::Finding(temper_client_domain::pages::findings::Act::Reason { id, .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Finding(temper_client_domain::pages::findings::Act::Reason { id: *id, words: value }),
+
+                    (
                         PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { .. }),
                         skein_ui::Act::Input { value },
                     ) => PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { words: value }),

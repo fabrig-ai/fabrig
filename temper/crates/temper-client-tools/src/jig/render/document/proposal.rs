@@ -1,4 +1,4 @@
-//! Proposal reads and the settings review supplied by wire 19 (client/ctl/tools.md, 2).
+//! Proposal reads and the settings review supplied by wire 20 (client/ctl/tools.md, 2).
 use super::{Cut, Limits, Text, settings};
 use crate::jig::runner::{
     proposal::{INVENTORY, slot},
@@ -446,6 +446,7 @@ fn encode_value_result(
             out.key(b"value");
             out.object_start();
             out.key(match value {
+                c::SettingValue::Overlay(_) => b"overlay",
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Model(_) => b"model",
                 c::SettingValue::Template(_) => b"template",

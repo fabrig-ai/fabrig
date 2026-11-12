@@ -1,5 +1,5 @@
 //! Explicit present-at-smallest placement goldens, alongside generated optional records.
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{Reader, Writer};
 use std::fs;
 

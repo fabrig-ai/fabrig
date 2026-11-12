@@ -267,7 +267,7 @@ fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
         (layouts.people, current.people, include_bytes!("../../schema/people-v16.schema").as_slice()),
         (layouts.notes, current.notes, include_bytes!("../../schema/notes-v1.schema").as_slice()),
         (layouts.accounts, current.accounts, include_bytes!("../../schema/accounts-v2.schema").as_slice()),
-        (layouts.settings, current.settings, include_bytes!("../../schema/settings-v2.schema").as_slice()),
+        (layouts.settings, current.settings, include_bytes!("../../schema/settings-v3.schema").as_slice()),
         (layouts.secrets, 1, include_bytes!("../../schema/secrets-v1.schema").as_slice()),
     ];
     let mut digests = skein_lib::Set::with_capacity(u32::try_from(families.len()).expect("eight families"));

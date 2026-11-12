@@ -1,7 +1,7 @@
 //! Root-configured admission and edge limits (domain/tasks/README.md, section 5).
 use crate::{Class, Retries};
 
-/// Maximum fields in one verdict, equal to the settings-v2 schema's `list 512` ceiling
+/// Maximum fields in one verdict, equal to the settings-v3 schema's `list 512` ceiling
 /// (domain/tasks/README.md, section 6).
 pub const VERDICT_FIELDS: u32 = 512;
 

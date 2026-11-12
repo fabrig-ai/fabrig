@@ -45,7 +45,15 @@ add Refusal.talk_open
 add Refusal.no_talk
 ",
     r"patch 1
-owner jig 2
+owner jig 2 after smith 0 skein 0
+
+family jig-store-settings 2 to 3
+add Overlay
+add Value.overlay
+add OverlaidCharterVersion
+",
+    r"patch 1
+owner jig 3
 
 family jig-store-people 15 to 16
 add FailureClass.infrastructure
@@ -8534,7 +8542,7 @@ versioned record Row { value: Value }
             pub use super::v14 as old;
             pub use super::v15 as new;
         }
-        pub mod p0002 {
+        pub mod p0003 {
             pub use super::v15 as old;
             pub use super::v16 as new;
         }
@@ -8826,6 +8834,118 @@ versioned record Revision { models: list 64 ModelName head: Head items: bytes 32
 versioned record Extent { oldest: u32 keys: u64 }
 versioned record CharterVersion { charter: option Charter }
 versioned record Proposal { key: option u64 models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }
+",
+            r"family jig-store-settings 3
+
+# Settings hold each value whole; instructions are their text bytes, never a path.
+record Text { bytes: bytes 32 }
+record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
+record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 cache_life_ms: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
+record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 }
+enum Kinds { workers, engine, both }
+record WakeBatch { count: u32 age: duration }
+record WakePace { span: duration }
+enum WakeRule { never, immediate, batch: WakeBatch, paced: WakePace }
+enum ResultsWake { never, each, last_or_failure }
+record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
+record Segment { bytes: bytes 4096 }
+record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
+record CharterPart { on: u32 instructions: bytes 65536 }
+record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document parts: list 8 CharterPart }
+record Overlay { rest: option bool model: option Model alternatives: option list 64 Model inspect: option bool modify: option bool shell: option bool agents: option bool tools: option u64 hosts: option Kinds waiting: option duration resume: option bool turns: option u32 time: option duration reserve_turns: option u32 reserve_time: option duration call_timeout: option duration spend: option u64 documents: option list 2 Document instructions: bytes 65536 parts: list 8 CharterPart }
+enum ModelSource { stock, list, person }
+record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool first_read: option u64 }
+record ModelNumber { number: u32 }
+record CharterNumber { number: u32 }
+record TemplateNumber { number: u32 }
+record PolicyNumber { number: u32 }
+record ApplicationSetting { kind: u32 scope: u32 number: u32 }
+record ProjectPolicySetting { project: u32 }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber }
+record LastExact { bytes: bytes 4096 }
+record LastOpen { bytes: bytes 4096 }
+enum Last { exact: LastExact, open: LastOpen }
+record Pattern { segments: list 8 Segment last: Last }
+record Grant { connector: u16 kind: u16 pattern: Pattern }
+record ResourceScope { connector: u16 pattern: Pattern }
+record ExecutorCharter { number: u32 }
+record ExecutorProcedure { number: u32 }
+record ExecutorRole { number: u32 }
+record ExecutorJob { kind: u32 }
+enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole, job: ExecutorJob }
+record Delegation { kinds: list 32 Executor tasks: u32 depth: u32 }
+record Models { bits: u64 all: bool }
+record Budget { spend: u64 deadline: option u64 }
+record Authority { tools: u64 models: Models grants: list 32 Grant delegation: Delegation budget: Budget notes: u8 note_resources: list 32 ResourceScope }
+record Judge { connector: u16 requirement: u16 parameters: u32 }
+record Observed { freshness: duration }
+enum Guard { guarded, observed: Observed }
+record Requirement { connector: u16 kind: u16 pattern: Pattern judge: Judge guard: Guard must_be_guarded: bool }
+record Implication { connector: u16 kind: u16 implies: u16 }
+record Rules { ceiling: Authority period_spend: u64 minimum_run_spend: u64 maximum_run_spend: u64 implies: list 32 Implication requirements: list 32 Requirement }
+record Role { number: u32 authority: Authority period_spend: u64 requests: u16 decides: u8 }
+record Policy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 8 Role requirements: list 32 Requirement }
+record PermissionRole { connector: u16 permission: u16 role: u32 }
+record TemplateCharter { number: u32 }
+enum TemplateExecutor { charter: TemplateCharter, chosen }
+record Amount { amount: u64 }
+record AsAllowed { cap: option u64 }
+enum TemplateBudget { amount: Amount, as_allowed: AsAllowed, given }
+record Span { span: duration }
+enum TemplateDeadline { none, span: Span, given }
+record TemplateOverride { template: u32 executor: option TemplateExecutor budget: option TemplateBudget deadline: option TemplateDeadline priority: option u32 }
+record ConfiguredPolicy { policy: Policy permissions: list 65536 PermissionRole templates: list 32 TemplateOverride }
+record FieldRule { name: bytes 524288 max: u32 }
+record Verdict { code: u32 words: u32 followups: u32 fields: bytes 1048576 pieces FieldRule }
+enum PartKind { resource, pool, result, procedure, effect, outbox, hold }
+record PartPath { segments: list 8 Segment }
+record PartNumber { number: u64 }
+enum PartKey { path: PartPath, number: PartNumber }
+record Part { connector: u16 kind: PartKind key: PartKey }
+record Approval { state: bytes 524288 part: Part }
+record Report { words: u32 }
+record VerdictChoices { choices: list 8 Verdict }
+record Change { connector: u16 kind: u16 words: u32 }
+enum Contract { approval: Approval, report: Report, verdict: VerdictChoices, change: Change }
+enum Retention { kept, forgotten_once_read }
+record Closer { connector: u16 code: u32 }
+enum EndedBy { result, requester, closer: Closer, standing }
+record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
+record ModelEffort { model: u8 effort: option u8 }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
+record Symbol { connector: u16 symbol: u16 }
+record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
+enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay }
+record Party { number: u64 }
+record ListDecider { provider: u32 }
+enum Decider { first_start, release, party: Party, list: ListDecider }
+enum Proposer { task: Party, party: Party }
+record ProposalId { proposer: Proposer number: u32 }
+record Head { number: u32 against: u32 at: u64 by: Decider proposal: option ProposalId moved: bool }
+record Set { value: Value }
+enum Edit { set: Set, removed, reset }
+record Item { setting: Setting edit: Edit }
+enum Replaced { value: Set, default, removed, not_offered }
+record RevisionItem { setting: Setting edit: Edit replaced: Replaced }
+
+record FollowsRevision { revision: u32 }
+enum Follows { default, changed: FollowsRevision, removed: FollowsRevision }
+record SizedSet { size: u32 }
+enum SizedEdit { set: SizedSet, remove, reset }
+record Recorded { kind: u32 scope: u32 number: u32 edit: SizedEdit }
+enum SizedReplaced { changed: SizedSet, default, removed, not_offered }
+record RevisionRecorded { kind: u32 scope: u32 number: u32 edit: SizedEdit replaced: SizedReplaced }
+versioned record ApplicationState { follows: Follows size: u32 charters: list 255 u32 }
+
+versioned record Default { models: list 64 ModelName value: Value revision: u32 }
+versioned record Changed { models: list 64 ModelName value: option Value revision: u32 }
+versioned record Revision { models: list 64 ModelName head: Head items: bytes 3221225472 pieces RevisionItem applications: list 128 RevisionRecorded }
+versioned record Extent { oldest: u32 keys: u64 }
+versioned record CharterVersion { charter: option Charter }
+versioned record Proposal { key: option u64 models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }
+
+versioned record OverlaidCharterVersion { charter: option Charter overlay: Overlay }
 ",
         ];
         pub mod v1 {
@@ -10098,9 +10218,678 @@ versioned record Proposal { key: option u64 models: list 64 ModelName against: u
                 pub const APPLICATIONS: FieldIx = FieldIx::new(241);
             }
         }
+        pub mod v3 {
+            pub mod text {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(0);
+            }
+            pub mod model_name {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(1);
+                pub const EFFORTS: FieldIx = FieldIx::new(2);
+            }
+            pub mod model {
+                use skein_codec::schema::FieldIx;
+                pub const PROVIDER: FieldIx = FieldIx::new(3);
+                pub const DIALECT: FieldIx = FieldIx::new(4);
+                pub const ENDPOINT: FieldIx = FieldIx::new(5);
+                pub const PROGRAM: FieldIx = FieldIx::new(6);
+                pub const NAME: FieldIx = FieldIx::new(7);
+                pub const WINDOW: FieldIx = FieldIx::new(8);
+                pub const CACHE_LIFE_MS: FieldIx = FieldIx::new(9);
+                pub const OUTPUT: FieldIx = FieldIx::new(10);
+                pub const INPUT_PRICE: FieldIx = FieldIx::new(11);
+                pub const CACHED_PRICE: FieldIx = FieldIx::new(12);
+                pub const CACHE_WRITE_PRICE: FieldIx = FieldIx::new(13);
+                pub const OUTPUT_PRICE: FieldIx = FieldIx::new(14);
+                pub const PRICE_UNIT: FieldIx = FieldIx::new(15);
+                pub const EFFORTS: FieldIx = FieldIx::new(16);
+                pub const EFFORT: FieldIx = FieldIx::new(17);
+            }
+            pub mod run_policy {
+                use skein_codec::schema::FieldIx;
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(18);
+                pub const WAITING: FieldIx = FieldIx::new(19);
+                pub const RESUME: FieldIx = FieldIx::new(20);
+                pub const TURNS: FieldIx = FieldIx::new(21);
+                pub const TIME: FieldIx = FieldIx::new(22);
+                pub const RESERVE_TURNS: FieldIx = FieldIx::new(23);
+                pub const RESERVE_TIME: FieldIx = FieldIx::new(24);
+                pub const MODEL: FieldIx = FieldIx::new(25);
+                pub const ALTERNATIVES: FieldIx = FieldIx::new(26);
+                pub const INSPECT: FieldIx = FieldIx::new(27);
+                pub const MODIFY: FieldIx = FieldIx::new(28);
+                pub const SHELL: FieldIx = FieldIx::new(29);
+                pub const AGENTS: FieldIx = FieldIx::new(30);
+                pub const CALL_TIMEOUT: FieldIx = FieldIx::new(31);
+                pub const TOOLS: FieldIx = FieldIx::new(32);
+            }
+            pub mod kinds {
+                use skein_codec::schema::VariantIx;
+                pub const WORKERS: VariantIx = VariantIx::new(0);
+                pub const ENGINE: VariantIx = VariantIx::new(1);
+                pub const BOTH: VariantIx = VariantIx::new(2);
+            }
+            pub mod wake_batch {
+                use skein_codec::schema::FieldIx;
+                pub const COUNT: FieldIx = FieldIx::new(33);
+                pub const AGE: FieldIx = FieldIx::new(34);
+            }
+            pub mod wake_pace {
+                use skein_codec::schema::FieldIx;
+                pub const SPAN: FieldIx = FieldIx::new(35);
+            }
+            pub mod wake_rule {
+                use skein_codec::schema::VariantIx;
+                pub const NEVER: VariantIx = VariantIx::new(3);
+                pub const IMMEDIATE: VariantIx = VariantIx::new(4);
+                pub const BATCH: VariantIx = VariantIx::new(5);
+                pub const PACED: VariantIx = VariantIx::new(6);
+            }
+            pub mod results_wake {
+                use skein_codec::schema::VariantIx;
+                pub const NEVER: VariantIx = VariantIx::new(7);
+                pub const EACH: VariantIx = VariantIx::new(8);
+                pub const LAST_OR_FAILURE: VariantIx = VariantIx::new(9);
+            }
+            pub mod wake_policy {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(36);
+                pub const NOTICES: FieldIx = FieldIx::new(37);
+                pub const NEWS: FieldIx = FieldIx::new(38);
+                pub const RESULTS: FieldIx = FieldIx::new(39);
+                pub const QUESTIONS: FieldIx = FieldIx::new(40);
+                pub const ANSWERS: FieldIx = FieldIx::new(41);
+                pub const TIMERS: FieldIx = FieldIx::new(42);
+            }
+            pub mod segment {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(43);
+            }
+            pub mod document {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(44);
+                pub const NAME: FieldIx = FieldIx::new(45);
+                pub const PATH: FieldIx = FieldIx::new(46);
+                pub const HEADING: FieldIx = FieldIx::new(47);
+            }
+            pub mod charter_part {
+                use skein_codec::schema::FieldIx;
+                pub const ON: FieldIx = FieldIx::new(48);
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(49);
+            }
+            pub mod charter {
+                use skein_codec::schema::FieldIx;
+                pub const REST: FieldIx = FieldIx::new(50);
+                pub const NUMBER: FieldIx = FieldIx::new(51);
+                pub const POLICY: FieldIx = FieldIx::new(52);
+                pub const HOSTS: FieldIx = FieldIx::new(53);
+                pub const SPEND: FieldIx = FieldIx::new(54);
+                pub const WAKE: FieldIx = FieldIx::new(55);
+                pub const DOCUMENTS: FieldIx = FieldIx::new(56);
+                pub const PARTS: FieldIx = FieldIx::new(57);
+            }
+            pub mod overlay {
+                use skein_codec::schema::FieldIx;
+                pub const REST: FieldIx = FieldIx::new(58);
+                pub const MODEL: FieldIx = FieldIx::new(59);
+                pub const ALTERNATIVES: FieldIx = FieldIx::new(60);
+                pub const INSPECT: FieldIx = FieldIx::new(61);
+                pub const MODIFY: FieldIx = FieldIx::new(62);
+                pub const SHELL: FieldIx = FieldIx::new(63);
+                pub const AGENTS: FieldIx = FieldIx::new(64);
+                pub const TOOLS: FieldIx = FieldIx::new(65);
+                pub const HOSTS: FieldIx = FieldIx::new(66);
+                pub const WAITING: FieldIx = FieldIx::new(67);
+                pub const RESUME: FieldIx = FieldIx::new(68);
+                pub const TURNS: FieldIx = FieldIx::new(69);
+                pub const TIME: FieldIx = FieldIx::new(70);
+                pub const RESERVE_TURNS: FieldIx = FieldIx::new(71);
+                pub const RESERVE_TIME: FieldIx = FieldIx::new(72);
+                pub const CALL_TIMEOUT: FieldIx = FieldIx::new(73);
+                pub const SPEND: FieldIx = FieldIx::new(74);
+                pub const DOCUMENTS: FieldIx = FieldIx::new(75);
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(76);
+                pub const PARTS: FieldIx = FieldIx::new(77);
+            }
+            pub mod model_source {
+                use skein_codec::schema::VariantIx;
+                pub const STOCK: VariantIx = VariantIx::new(10);
+                pub const LIST: VariantIx = VariantIx::new(11);
+                pub const PERSON: VariantIx = VariantIx::new(12);
+            }
+            pub mod catalogue_model {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(78);
+                pub const MODEL: FieldIx = FieldIx::new(79);
+                pub const SHOWN: FieldIx = FieldIx::new(80);
+                pub const DESCRIPTION: FieldIx = FieldIx::new(81);
+                pub const PICKER: FieldIx = FieldIx::new(82);
+                pub const WITHDRAWN: FieldIx = FieldIx::new(83);
+                pub const SOURCE: FieldIx = FieldIx::new(84);
+                pub const ESTIMATED: FieldIx = FieldIx::new(85);
+                pub const FIRST_READ: FieldIx = FieldIx::new(86);
+            }
+            pub mod model_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(87);
+            }
+            pub mod charter_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(88);
+            }
+            pub mod template_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(89);
+            }
+            pub mod policy_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(90);
+            }
+            pub mod application_setting {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(91);
+                pub const SCOPE: FieldIx = FieldIx::new(92);
+                pub const NUMBER: FieldIx = FieldIx::new(93);
+            }
+            pub mod project_policy_setting {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(94);
+            }
+            pub mod setting {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(13);
+                pub const TEMPLATE: VariantIx = VariantIx::new(14);
+                pub const POLICY: VariantIx = VariantIx::new(15);
+                pub const RULES: VariantIx = VariantIx::new(16);
+                pub const APPLICATION: VariantIx = VariantIx::new(17);
+                pub const PROJECT_POLICY: VariantIx = VariantIx::new(18);
+                pub const MODEL: VariantIx = VariantIx::new(19);
+            }
+            pub mod last_exact {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(95);
+            }
+            pub mod last_open {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(96);
+            }
+            pub mod last {
+                use skein_codec::schema::VariantIx;
+                pub const EXACT: VariantIx = VariantIx::new(20);
+                pub const OPEN: VariantIx = VariantIx::new(21);
+            }
+            pub mod pattern {
+                use skein_codec::schema::FieldIx;
+                pub const SEGMENTS: FieldIx = FieldIx::new(97);
+                pub const LAST: FieldIx = FieldIx::new(98);
+            }
+            pub mod grant {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(99);
+                pub const KIND: FieldIx = FieldIx::new(100);
+                pub const PATTERN: FieldIx = FieldIx::new(101);
+            }
+            pub mod resource_scope {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(102);
+                pub const PATTERN: FieldIx = FieldIx::new(103);
+            }
+            pub mod executor_charter {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(104);
+            }
+            pub mod executor_procedure {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(105);
+            }
+            pub mod executor_role {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(106);
+            }
+            pub mod executor_job {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(107);
+            }
+            pub mod executor {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(22);
+                pub const PROCEDURE: VariantIx = VariantIx::new(23);
+                pub const ROLE: VariantIx = VariantIx::new(24);
+                pub const JOB: VariantIx = VariantIx::new(25);
+            }
+            pub mod delegation {
+                use skein_codec::schema::FieldIx;
+                pub const KINDS: FieldIx = FieldIx::new(108);
+                pub const TASKS: FieldIx = FieldIx::new(109);
+                pub const DEPTH: FieldIx = FieldIx::new(110);
+            }
+            pub mod models {
+                use skein_codec::schema::FieldIx;
+                pub const BITS: FieldIx = FieldIx::new(111);
+                pub const ALL: FieldIx = FieldIx::new(112);
+            }
+            pub mod budget {
+                use skein_codec::schema::FieldIx;
+                pub const SPEND: FieldIx = FieldIx::new(113);
+                pub const DEADLINE: FieldIx = FieldIx::new(114);
+            }
+            pub mod authority {
+                use skein_codec::schema::FieldIx;
+                pub const TOOLS: FieldIx = FieldIx::new(115);
+                pub const MODELS: FieldIx = FieldIx::new(116);
+                pub const GRANTS: FieldIx = FieldIx::new(117);
+                pub const DELEGATION: FieldIx = FieldIx::new(118);
+                pub const BUDGET: FieldIx = FieldIx::new(119);
+                pub const NOTES: FieldIx = FieldIx::new(120);
+                pub const NOTE_RESOURCES: FieldIx = FieldIx::new(121);
+            }
+            pub mod judge {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(122);
+                pub const REQUIREMENT: FieldIx = FieldIx::new(123);
+                pub const PARAMETERS: FieldIx = FieldIx::new(124);
+            }
+            pub mod observed {
+                use skein_codec::schema::FieldIx;
+                pub const FRESHNESS: FieldIx = FieldIx::new(125);
+            }
+            pub mod guard {
+                use skein_codec::schema::VariantIx;
+                pub const GUARDED: VariantIx = VariantIx::new(26);
+                pub const OBSERVED: VariantIx = VariantIx::new(27);
+            }
+            pub mod requirement {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(126);
+                pub const KIND: FieldIx = FieldIx::new(127);
+                pub const PATTERN: FieldIx = FieldIx::new(128);
+                pub const JUDGE: FieldIx = FieldIx::new(129);
+                pub const GUARD: FieldIx = FieldIx::new(130);
+                pub const MUST_BE_GUARDED: FieldIx = FieldIx::new(131);
+            }
+            pub mod implication {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(132);
+                pub const KIND: FieldIx = FieldIx::new(133);
+                pub const IMPLIES: FieldIx = FieldIx::new(134);
+            }
+            pub mod rules {
+                use skein_codec::schema::FieldIx;
+                pub const CEILING: FieldIx = FieldIx::new(135);
+                pub const PERIOD_SPEND: FieldIx = FieldIx::new(136);
+                pub const MINIMUM_RUN_SPEND: FieldIx = FieldIx::new(137);
+                pub const MAXIMUM_RUN_SPEND: FieldIx = FieldIx::new(138);
+                pub const IMPLIES: FieldIx = FieldIx::new(139);
+                pub const REQUIREMENTS: FieldIx = FieldIx::new(140);
+            }
+            pub mod role {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(141);
+                pub const AUTHORITY: FieldIx = FieldIx::new(142);
+                pub const PERIOD_SPEND: FieldIx = FieldIx::new(143);
+                pub const REQUESTS: FieldIx = FieldIx::new(144);
+                pub const DECIDES: FieldIx = FieldIx::new(145);
+            }
+            pub mod policy {
+                use skein_codec::schema::FieldIx;
+                pub const ESCALATION_ROLE: FieldIx = FieldIx::new(146);
+                pub const CEILING: FieldIx = FieldIx::new(147);
+                pub const PROJECTIONS: FieldIx = FieldIx::new(148);
+                pub const PERIOD_SPEND: FieldIx = FieldIx::new(149);
+                pub const ROLES: FieldIx = FieldIx::new(150);
+                pub const REQUIREMENTS: FieldIx = FieldIx::new(151);
+            }
+            pub mod permission_role {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(152);
+                pub const PERMISSION: FieldIx = FieldIx::new(153);
+                pub const ROLE: FieldIx = FieldIx::new(154);
+            }
+            pub mod template_charter {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(155);
+            }
+            pub mod template_executor {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(28);
+                pub const CHOSEN: VariantIx = VariantIx::new(29);
+            }
+            pub mod amount {
+                use skein_codec::schema::FieldIx;
+                pub const AMOUNT: FieldIx = FieldIx::new(156);
+            }
+            pub mod as_allowed {
+                use skein_codec::schema::FieldIx;
+                pub const CAP: FieldIx = FieldIx::new(157);
+            }
+            pub mod template_budget {
+                use skein_codec::schema::VariantIx;
+                pub const AMOUNT: VariantIx = VariantIx::new(30);
+                pub const AS_ALLOWED: VariantIx = VariantIx::new(31);
+                pub const GIVEN: VariantIx = VariantIx::new(32);
+            }
+            pub mod span {
+                use skein_codec::schema::FieldIx;
+                pub const SPAN: FieldIx = FieldIx::new(158);
+            }
+            pub mod template_deadline {
+                use skein_codec::schema::VariantIx;
+                pub const NONE: VariantIx = VariantIx::new(33);
+                pub const SPAN: VariantIx = VariantIx::new(34);
+                pub const GIVEN: VariantIx = VariantIx::new(35);
+            }
+            pub mod template_override {
+                use skein_codec::schema::FieldIx;
+                pub const TEMPLATE: FieldIx = FieldIx::new(159);
+                pub const EXECUTOR: FieldIx = FieldIx::new(160);
+                pub const BUDGET: FieldIx = FieldIx::new(161);
+                pub const DEADLINE: FieldIx = FieldIx::new(162);
+                pub const PRIORITY: FieldIx = FieldIx::new(163);
+            }
+            pub mod configured_policy {
+                use skein_codec::schema::FieldIx;
+                pub const POLICY: FieldIx = FieldIx::new(164);
+                pub const PERMISSIONS: FieldIx = FieldIx::new(165);
+                pub const TEMPLATES: FieldIx = FieldIx::new(166);
+            }
+            pub mod field_rule {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(167);
+                pub const MAX: FieldIx = FieldIx::new(168);
+            }
+            pub mod verdict {
+                use skein_codec::schema::FieldIx;
+                pub const CODE: FieldIx = FieldIx::new(169);
+                pub const WORDS: FieldIx = FieldIx::new(170);
+                pub const FOLLOWUPS: FieldIx = FieldIx::new(171);
+                pub const FIELDS: FieldIx = FieldIx::new(172);
+            }
+            pub mod part_kind {
+                use skein_codec::schema::VariantIx;
+                pub const RESOURCE: VariantIx = VariantIx::new(36);
+                pub const POOL: VariantIx = VariantIx::new(37);
+                pub const RESULT: VariantIx = VariantIx::new(38);
+                pub const PROCEDURE: VariantIx = VariantIx::new(39);
+                pub const EFFECT: VariantIx = VariantIx::new(40);
+                pub const OUTBOX: VariantIx = VariantIx::new(41);
+                pub const HOLD: VariantIx = VariantIx::new(42);
+            }
+            pub mod part_path {
+                use skein_codec::schema::FieldIx;
+                pub const SEGMENTS: FieldIx = FieldIx::new(173);
+            }
+            pub mod part_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(174);
+            }
+            pub mod part_key {
+                use skein_codec::schema::VariantIx;
+                pub const PATH: VariantIx = VariantIx::new(43);
+                pub const NUMBER: VariantIx = VariantIx::new(44);
+            }
+            pub mod part {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(175);
+                pub const KIND: FieldIx = FieldIx::new(176);
+                pub const KEY: FieldIx = FieldIx::new(177);
+            }
+            pub mod approval {
+                use skein_codec::schema::FieldIx;
+                pub const STATE: FieldIx = FieldIx::new(178);
+                pub const PART: FieldIx = FieldIx::new(179);
+            }
+            pub mod report {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(180);
+            }
+            pub mod verdict_choices {
+                use skein_codec::schema::FieldIx;
+                pub const CHOICES: FieldIx = FieldIx::new(181);
+            }
+            pub mod change {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(182);
+                pub const KIND: FieldIx = FieldIx::new(183);
+                pub const WORDS: FieldIx = FieldIx::new(184);
+            }
+            pub mod contract {
+                use skein_codec::schema::VariantIx;
+                pub const APPROVAL: VariantIx = VariantIx::new(45);
+                pub const REPORT: VariantIx = VariantIx::new(46);
+                pub const VERDICT: VariantIx = VariantIx::new(47);
+                pub const CHANGE: VariantIx = VariantIx::new(48);
+            }
+            pub mod retention {
+                use skein_codec::schema::VariantIx;
+                pub const KEPT: VariantIx = VariantIx::new(49);
+                pub const FORGOTTEN_ONCE_READ: VariantIx = VariantIx::new(50);
+            }
+            pub mod closer {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(185);
+                pub const CODE: FieldIx = FieldIx::new(186);
+            }
+            pub mod ended_by {
+                use skein_codec::schema::VariantIx;
+                pub const RESULT: VariantIx = VariantIx::new(51);
+                pub const REQUESTER: VariantIx = VariantIx::new(52);
+                pub const CLOSER: VariantIx = VariantIx::new(53);
+                pub const STANDING: VariantIx = VariantIx::new(54);
+            }
+            pub mod flags {
+                use skein_codec::schema::FieldIx;
+                pub const CONVERSATION: FieldIx = FieldIx::new(187);
+                pub const LISTED: FieldIx = FieldIx::new(188);
+                pub const RETENTION: FieldIx = FieldIx::new(189);
+                pub const ENDED_BY: FieldIx = FieldIx::new(190);
+            }
+            pub mod model_effort {
+                use skein_codec::schema::FieldIx;
+                pub const MODEL: FieldIx = FieldIx::new(191);
+                pub const EFFORT: FieldIx = FieldIx::new(192);
+            }
+            pub mod llm_later {
+                use skein_codec::schema::FieldIx;
+                pub const MAIN: FieldIx = FieldIx::new(193);
+                pub const SUBAGENTS: FieldIx = FieldIx::new(194);
+            }
+            pub mod llm_choice {
+                use skein_codec::schema::FieldIx;
+                pub const ACCOUNT: FieldIx = FieldIx::new(195);
+                pub const MAIN: FieldIx = FieldIx::new(196);
+                pub const SUBAGENTS: FieldIx = FieldIx::new(197);
+                pub const LATER: FieldIx = FieldIx::new(198);
+            }
+            pub mod symbol {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(199);
+                pub const SYMBOL: FieldIx = FieldIx::new(200);
+            }
+            pub mod template {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(201);
+                pub const NAME: FieldIx = FieldIx::new(202);
+                pub const EXECUTOR: FieldIx = FieldIx::new(203);
+                pub const CONTRACT: FieldIx = FieldIx::new(204);
+                pub const SHALLOWER: FieldIx = FieldIx::new(205);
+                pub const BUDGET: FieldIx = FieldIx::new(206);
+                pub const DEADLINE: FieldIx = FieldIx::new(207);
+                pub const TRACKED: FieldIx = FieldIx::new(208);
+                pub const FLAGS: FieldIx = FieldIx::new(209);
+                pub const LABEL: FieldIx = FieldIx::new(210);
+                pub const GRACE: FieldIx = FieldIx::new(211);
+                pub const LLM: FieldIx = FieldIx::new(212);
+                pub const RESOURCES: FieldIx = FieldIx::new(213);
+            }
+            pub mod value {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(55);
+                pub const TEMPLATE: VariantIx = VariantIx::new(56);
+                pub const POLICY: VariantIx = VariantIx::new(57);
+                pub const RULES: VariantIx = VariantIx::new(58);
+                pub const MODEL: VariantIx = VariantIx::new(59);
+                pub const OVERLAY: VariantIx = VariantIx::new(60);
+            }
+            pub mod party {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(214);
+            }
+            pub mod list_decider {
+                use skein_codec::schema::FieldIx;
+                pub const PROVIDER: FieldIx = FieldIx::new(215);
+            }
+            pub mod decider {
+                use skein_codec::schema::VariantIx;
+                pub const FIRST_START: VariantIx = VariantIx::new(61);
+                pub const RELEASE: VariantIx = VariantIx::new(62);
+                pub const PARTY: VariantIx = VariantIx::new(63);
+                pub const LIST: VariantIx = VariantIx::new(64);
+            }
+            pub mod proposer {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(65);
+                pub const PARTY: VariantIx = VariantIx::new(66);
+            }
+            pub mod proposal_id {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSER: FieldIx = FieldIx::new(216);
+                pub const NUMBER: FieldIx = FieldIx::new(217);
+            }
+            pub mod head {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(218);
+                pub const AGAINST: FieldIx = FieldIx::new(219);
+                pub const AT: FieldIx = FieldIx::new(220);
+                pub const BY: FieldIx = FieldIx::new(221);
+                pub const PROPOSAL: FieldIx = FieldIx::new(222);
+                pub const MOVED: FieldIx = FieldIx::new(223);
+            }
+            pub mod set {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(224);
+            }
+            pub mod edit {
+                use skein_codec::schema::VariantIx;
+                pub const SET: VariantIx = VariantIx::new(67);
+                pub const REMOVED: VariantIx = VariantIx::new(68);
+                pub const RESET: VariantIx = VariantIx::new(69);
+            }
+            pub mod item {
+                use skein_codec::schema::FieldIx;
+                pub const SETTING: FieldIx = FieldIx::new(225);
+                pub const EDIT: FieldIx = FieldIx::new(226);
+            }
+            pub mod replaced {
+                use skein_codec::schema::VariantIx;
+                pub const VALUE: VariantIx = VariantIx::new(70);
+                pub const DEFAULT: VariantIx = VariantIx::new(71);
+                pub const REMOVED: VariantIx = VariantIx::new(72);
+                pub const NOT_OFFERED: VariantIx = VariantIx::new(73);
+            }
+            pub mod revision_item {
+                use skein_codec::schema::FieldIx;
+                pub const SETTING: FieldIx = FieldIx::new(227);
+                pub const EDIT: FieldIx = FieldIx::new(228);
+                pub const REPLACED: FieldIx = FieldIx::new(229);
+            }
+            pub mod follows_revision {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(230);
+            }
+            pub mod follows {
+                use skein_codec::schema::VariantIx;
+                pub const DEFAULT: VariantIx = VariantIx::new(74);
+                pub const CHANGED: VariantIx = VariantIx::new(75);
+                pub const REMOVED: VariantIx = VariantIx::new(76);
+            }
+            pub mod sized_set {
+                use skein_codec::schema::FieldIx;
+                pub const SIZE: FieldIx = FieldIx::new(231);
+            }
+            pub mod sized_edit {
+                use skein_codec::schema::VariantIx;
+                pub const SET: VariantIx = VariantIx::new(77);
+                pub const REMOVE: VariantIx = VariantIx::new(78);
+                pub const RESET: VariantIx = VariantIx::new(79);
+            }
+            pub mod recorded {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(232);
+                pub const SCOPE: FieldIx = FieldIx::new(233);
+                pub const NUMBER: FieldIx = FieldIx::new(234);
+                pub const EDIT: FieldIx = FieldIx::new(235);
+            }
+            pub mod sized_replaced {
+                use skein_codec::schema::VariantIx;
+                pub const CHANGED: VariantIx = VariantIx::new(80);
+                pub const DEFAULT: VariantIx = VariantIx::new(81);
+                pub const REMOVED: VariantIx = VariantIx::new(82);
+                pub const NOT_OFFERED: VariantIx = VariantIx::new(83);
+            }
+            pub mod revision_recorded {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(236);
+                pub const SCOPE: FieldIx = FieldIx::new(237);
+                pub const NUMBER: FieldIx = FieldIx::new(238);
+                pub const EDIT: FieldIx = FieldIx::new(239);
+                pub const REPLACED: FieldIx = FieldIx::new(240);
+            }
+            pub mod application_state {
+                use skein_codec::schema::FieldIx;
+                pub const FOLLOWS: FieldIx = FieldIx::new(241);
+                pub const SIZE: FieldIx = FieldIx::new(242);
+                pub const CHARTERS: FieldIx = FieldIx::new(243);
+            }
+            pub mod default {
+                use skein_codec::schema::FieldIx;
+                pub const MODELS: FieldIx = FieldIx::new(244);
+                pub const VALUE: FieldIx = FieldIx::new(245);
+                pub const REVISION: FieldIx = FieldIx::new(246);
+            }
+            pub mod changed {
+                use skein_codec::schema::FieldIx;
+                pub const MODELS: FieldIx = FieldIx::new(247);
+                pub const VALUE: FieldIx = FieldIx::new(248);
+                pub const REVISION: FieldIx = FieldIx::new(249);
+            }
+            pub mod revision {
+                use skein_codec::schema::FieldIx;
+                pub const MODELS: FieldIx = FieldIx::new(250);
+                pub const HEAD: FieldIx = FieldIx::new(251);
+                pub const ITEMS: FieldIx = FieldIx::new(252);
+                pub const APPLICATIONS: FieldIx = FieldIx::new(253);
+            }
+            pub mod extent {
+                use skein_codec::schema::FieldIx;
+                pub const OLDEST: FieldIx = FieldIx::new(254);
+                pub const KEYS: FieldIx = FieldIx::new(255);
+            }
+            pub mod charter_version {
+                use skein_codec::schema::FieldIx;
+                pub const CHARTER: FieldIx = FieldIx::new(256);
+            }
+            pub mod proposal {
+                use skein_codec::schema::FieldIx;
+                pub const KEY: FieldIx = FieldIx::new(257);
+                pub const MODELS: FieldIx = FieldIx::new(258);
+                pub const AGAINST: FieldIx = FieldIx::new(259);
+                pub const ITEMS: FieldIx = FieldIx::new(260);
+                pub const APPLICATIONS: FieldIx = FieldIx::new(261);
+            }
+            pub mod overlaid_charter_version {
+                use skein_codec::schema::FieldIx;
+                pub const CHARTER: FieldIx = FieldIx::new(262);
+                pub const OVERLAY: FieldIx = FieldIx::new(263);
+            }
+        }
         pub mod p0001 {
             pub use super::v1 as old;
             pub use super::v2 as new;
+        }
+        pub mod p0002 {
+            pub use super::v2 as old;
+            pub use super::v3 as new;
         }
     }
     pub mod jig_store_tasks {
@@ -17242,7 +18031,7 @@ versioned record ChangeRecord { value: Change }
             pub use super::v9 as old;
             pub use super::v10 as new;
         }
-        pub mod p0002 {
+        pub mod p0003 {
             pub use super::v10 as old;
             pub use super::v11 as new;
         }
@@ -17282,5 +18071,10 @@ mod tests {
     #[test]
     fn p0002_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
+    }
+
+    #[test]
+    fn p0003_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 3, super::written), Ok(()), "patch 0003 goldens");
     }
 }

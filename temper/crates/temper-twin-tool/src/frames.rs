@@ -10,7 +10,7 @@ use std::{
 
 fn limits() -> codec::View {
     codec::View {
-        settings: store::settings_v2::CEILINGS,
+        settings: store::settings_v3::CEILINGS,
         core: store::core_v6::CEILINGS,
         tasks: store::tasks_v11::CEILINGS,
         people: store::people_v16::CEILINGS,

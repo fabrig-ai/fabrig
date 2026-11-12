@@ -1875,7 +1875,7 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
         for (family, decoded) in [
             (
                 "settings",
-                match crate::settings_v2::LlmLater::decode(&settings, &mut Reader::new(&bytes)) {
+                match crate::settings_v3::LlmLater::decode(&settings, &mut Reader::new(&bytes)) {
                     Ok(_) => Ok(()),
                     Err(problem) => Err(problem.reason),
                 },

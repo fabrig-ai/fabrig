@@ -1,6 +1,6 @@
 //! Settings keep byte-summed verdict rules at the deployment's scale (protocol/store/records.md, 1).
 use super::fixtures;
-use crate::{codec::settings, settings_v2};
+use crate::{codec::settings, settings_v3};
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, settings as domain};
 use jig_domain_people as people;
@@ -117,7 +117,7 @@ fn scale_core() -> core::Limits {
     };
     core
 }
-fn limits() -> settings_v2::Limits {
+fn limits() -> settings_v3::Limits {
     settings::limits(&scale_core()).expect("K2 settings fit the schema")
 }
 fn row(fields: Box<[tasks::FieldRule]>) -> domain::Record {
@@ -181,12 +181,12 @@ fn settings_refuse_a_result_past_their_ceiling() {
 }
 
 // Generated types price each piece; the typed codec also checks the domain's count and sum.
-fn wire_row(fields: &[tasks::FieldRule], limits: &settings_v2::Limits) -> Box<[u8]> {
+fn wire_row(fields: &[tasks::FieldRule], limits: &settings_v3::Limits) -> Box<[u8]> {
     use skein_lib::{List, Reader, Writer};
     let empty = row(Box::new([]));
     let bytes = settings::encode(&empty, limits, &[]).unwrap();
-    let mut default = settings_v2::Default::decode(limits, &mut Reader::new(&bytes)).unwrap().into_parts();
-    let settings_v2::Value::Template(template) = default.value else { unreachable!("template fixture") };
+    let mut default = settings_v3::Default::decode(limits, &mut Reader::new(&bytes)).unwrap().into_parts();
+    let settings_v3::Value::Template(template) = default.value else { unreachable!("template fixture") };
     let mut template = template.into_parts();
     let mut length = 0_usize;
     for field in fields {
@@ -194,27 +194,27 @@ fn wire_row(fields: &[tasks::FieldRule], limits: &settings_v2::Limits) -> Box<[u
     }
     let mut pieces = Writer::new(length);
     for field in fields {
-        let field = settings_v2::FieldRule::new(
+        let field = settings_v3::FieldRule::new(
             limits,
-            settings_v2::FieldRuleParts { name: field.name.clone(), max: field.max },
+            settings_v3::FieldRuleParts { name: field.name.clone(), max: field.max },
         )
         .unwrap();
         let mut item = Writer::new(usize::try_from(field.measure()).unwrap());
         field.encode(&mut item).unwrap();
         skein_codec::piece::write(&mut pieces, &item.finish()).unwrap();
     }
-    let verdict = settings_v2::Verdict::new(
+    let verdict = settings_v3::Verdict::new(
         limits,
-        settings_v2::VerdictParts { code: 1, words: 0, followups: 0, fields: pieces.finish() },
+        settings_v3::VerdictParts { code: 1, words: 0, followups: 0, fields: pieces.finish() },
     )
     .unwrap();
     let mut choices = List::with_capacity(1);
     choices.push(verdict).unwrap();
-    template.contract = settings_v2::Contract::Verdict(
-        settings_v2::VerdictChoices::new(limits, settings_v2::VerdictChoicesParts { choices }).unwrap(),
+    template.contract = settings_v3::Contract::Verdict(
+        settings_v3::VerdictChoices::new(limits, settings_v3::VerdictChoicesParts { choices }).unwrap(),
     );
-    default.value = settings_v2::Value::Template(Box::new(settings_v2::Template::new(limits, template).unwrap()));
-    let default = settings_v2::Default::new(limits, default).unwrap();
+    default.value = settings_v3::Value::Template(Box::new(settings_v3::Template::new(limits, template).unwrap()));
+    let default = settings_v3::Default::new(limits, default).unwrap();
     let mut bytes = Writer::new(usize::try_from(default.measure()).unwrap());
     default.encode(&mut bytes).unwrap();
     bytes.finish()

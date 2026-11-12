@@ -305,6 +305,16 @@ fn every_ctl_group_page_is_what_the_table_renders() {
         .iter()
         .map(|group| format!("ctl-{}", core::str::from_utf8(group.name).expect("group name")))
         .collect::<Vec<_>>();
+    if temper_test_env::rewrite() {
+        for (group, name) in GROUPS.iter().zip(&expected) {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("measured reference");
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+    }
     let mut files = std::fs::read_dir(&directory)
         .expect("reference directory")
         .map(|entry| entry.expect("reference file").path())
@@ -335,9 +345,7 @@ fn every_ctl_group_page_is_what_the_table_renders() {
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
         let path = directory.join(name).with_extension("md");
-        if temper_test_env::rewrite() {
-            std::fs::write(path, &rendered).expect("write group reference");
-        } else {
+        if !temper_test_env::rewrite() {
             assert_eq!(
                 std::fs::read_to_string(path).expect("group page"),
                 rendered,

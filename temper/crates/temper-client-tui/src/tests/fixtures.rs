@@ -24,9 +24,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page, session, launchpad and standing-role handles and watches.
-                handles: 19,
-                watches: 19,
+                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
+                handles: 24, // Four findings subjects and one live-goals menu.
+                watches: 24, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -429,7 +429,8 @@ impl GoalCase {
                         | w::Watch::Approvals
                         | w::Watch::Ways(_)
                         | w::Watch::Devices
-                        | w::Watch::Drafts(_) => continue,
+                        | w::Watch::Drafts(_)
+                        | w::Watch::Findings(_) => continue,
                     };
                     Up::FamilyDelivered {
                         watch,

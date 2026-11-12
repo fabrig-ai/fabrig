@@ -226,7 +226,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people/acts.md`, 2) has its settings
   erased by the connector owning each kind: the forge erases its kinds
-  2, 4, 5, 6, 7, 8 and 10 of that project's scope, their current changes and the
+  2, 4, 5, 6, 7, 8, 10, 12 and 13 of that project's scope, their current changes and the
   items of pending proposals among them, in the deletion's steps, and
   the deployment's kinds 1, 3 and 9 stay. A project made later, its number
   never the deleted one's, starts from the stock defaults.
@@ -238,7 +238,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   and sizes alone. A read asks in a scope: the deployment's, by a party
   with a role in the deployment, for any kind; or a project's, by a party
   with a role in that project, for a kind of each project's scope (2, 6,
-  7, 8 and 10) in that scope alone. How work runs reads a project's words in
+  7, 8, 10, 12 and 13) in that scope alone. How work runs reads a project's words in
   its `ways` read (8), which any party of the project reads.
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
@@ -356,6 +356,42 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     its value `{"project": Q}`; read by a party with a role in the
     project, as kinds 6 to 8 and 12 are;
   - *the stock's:* none.
+- **A project's areas, kind 14, and its triager, kind 15**
+  (`../../domain/areas.md`; `../../draft/standing-roles.md`, section 4):
+  kinds of temper's beside the table's, owned by the forge's connector
+  and kept, erased with their project, read and never pinned as kinds 7
+  and 10 are; two kinds, so that a way sets the triager and leaves the
+  areas as they are (8):
+  - *their scope and numbers:* each project's, number 1; decided by that
+    project's owners;
+  - *an owner,* `AreaOwner` in temper's codec, `task` (u64), `party` (u64),
+    `role` (u32) or `charter` (u32) (`../../domain/areas.md`, section 3);
+  - *kind 14's value,* a `ProjectAreas` record: `areas`, at most 16, each
+    `Area { name, words, owner }`, its owner an `AreaOwner`, its name 1 to 32 bytes of lowercase
+    ASCII letters, digits and `-`, starting with a letter, unique in the
+    record, its words 1 to 480 bytes of UTF-8 holding no control
+    character; *kind 15's,* a `ProjectTriager` record, `owner`, an
+    `AreaOwner`. Each kind's bound is its record's encoding at them;
+  - *with none,* no areas, and the project's owners triage
+    (`../../domain/areas.md`, section 4);
+  - *judged by the forge,* as the table's kinds are: a value that does
+    not decode, a name or words outside their bounds, a name twice; and
+    by the root, from the core, as kind 7's way is, an owner that is not
+    of the project: a `task` not a live task of it, a `party` with no
+    role in it, a `role` past jig's `authority.roles`, a `charter` 0 or
+    past jig's `tasks.charters`; the refusal names the area and the
+    owner. A removal or a reset is always good;
+  - *named* `project-areas` and `project-triager`, with the `project`,
+    in a settings file and a run's `settings`, `see` and
+    `propose_settings`; kind 14's value `{"areas": [{"name": NAME,
+    "words": TEXT, "owner": OWNER}, ...]}`, kind 15's `{"owner":
+    OWNER}`, OWNER one of `{"task": N}`, `{"party": N}`, `{"role": N}`
+    and `{"charter": N}`; read by any party with a role in the project,
+    as kinds 2, 6, 7, 8 and 10 are;
+  - *read by* the root's owner rule (`../../domain/areas.md`, section 4)
+    and the forge's `findings` subject (`../../client/forge/records.md`);
+    a save of either moves the findings it concerns, and tells their new
+    owners (`../../domain/areas.md`, section 5).
 
 ## 3. How the landing rules are enforced
 
@@ -722,7 +758,7 @@ defaults (`stock.md`), so that a test world gives its own or none.
 |---|---|---|---|
 | You approve | "You approve every change" | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (`branch`, open: 2), enforced, CI, up to date, no gate, one approval by role 0, `clean`; rules 2 to 4 removed; kind 8: You approve's table (`../../domain/forge/attention.md`, 6) |
 | Agents review | "Agents review every change, and code lands it" | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (`stock.md`); rules 2 to 4 removed; kind 8: Agents review's table |
-| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; kind 8: Draft first's table; the project's policy, where its delegation lacks charter 5, the goal's closer (procedure 6), role 0, the merge job (job 3) or the close job (job 4), with them added to its ceiling's and role 0's delegation |
+| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; kind 8: Draft first's table; the project's policy, where its delegation lacks charter 5, the goal's closer (procedure 6), role 0, the merge job (job 3) or the close job (job 4), with them added to its ceiling's and role 0's delegation; kind 15: `charter 14`, the stock's triager (`../../domain/areas.md`, section 6). It brings one standing role, the triager (below) |
 
 - **In this order,** from more of the person to more of their agents, as
   the page's tabs are. Each way's name, headline and line are its words,
@@ -743,18 +779,34 @@ defaults (`stock.md`), so that a test world gives its own or none.
   own and a release's new stock leaves them.
 - **Nothing else:** charters, models, questions (kind 6), kind 7's
   `changes`, a charter's or the project's words (kinds 9 and
-  10), a repository's gates and tiers, and the project's
+  10), a project's areas (kind 14), a repository's gates and tiers, and the project's
   landing stay as they are, so that a person's choices of models survive
   a change of way. You approve and Agents review set no kind 7: a project
   that ran Draft first keeps its goals' way, and their paths over it
-  start with a goal.
+  start with a goal. You approve and Agents review set no kind 15
+  either: a project's triager stays as it is.
+- **The standing roles a way brings** (`../../draft/standing-roles.md`,
+  section 10; `../../draft/stock-ways.md`, section 2): each way lists
+  them, each a `WayRole { charter, words, budget }`: the charter it runs
+  by, the words its spec takes, what it covers and how, and its budget
+  a week, in the deployment's unit. Draft first brings the triager:
+  charter 14, its words the stock's (`stock.md`), its budget the
+  stock's triager budget; the other ways bring none. A way's act starts
+  each of its roles the project lacks, a live task labelled 3 run by
+  that charter, as `role start` does (`../../domain/agent/standing.md`,
+  section 6), after its items, the person who chose the way its person;
+  a role the project already runs is left as it is. The items alone, as
+  a proposal or a settings file sends them, start no role: until one
+  runs, kind 15's `charter 14` does not stand, and the project's owners
+  triage (`../../domain/areas.md`, section 4).
 - **Each way's path** over the project is `../../domain/forge/change/branch-path.md`'s
   derivation over the project's settings with the way's items laid over
   them. The way the project runs is the first whose path equals the
   project's own, stop for stop; none, where none does.
 - **The forge's `ways` read** (`../../client/forge/records.md`;
   `../../client/forge/served.md`) gives each way
-  with its words, its path and its items, the way the project runs or
+  with its words, its path, its items and the standing roles it brings,
+  each with whether the project runs one, the way the project runs or
   none, the project's own path, the project's words (kind 10) or none,
   its rules by path (`../../domain/forge/change/branch-path.md`, *Rules
   by path*), and whether the reader may change the

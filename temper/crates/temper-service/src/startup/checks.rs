@@ -22,7 +22,7 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
 /// (temper/docs/design/domain/agent/tools.md).
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
-        if let Err(short) = host.check(charter.number, &charter.policy) {
+        if let Err(short) = host.check(charter) {
             problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(short)));
         }
     }

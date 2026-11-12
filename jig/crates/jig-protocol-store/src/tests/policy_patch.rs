@@ -33,7 +33,7 @@ fn narrowed(executors: &[Executor]) -> jig_domain_people::PolicyValue {
         patcher.keep(text.as_bytes()).expect("kept schema");
     }
     let mut context = patches::Context { executors: executors.into() };
-    for (version, patch) in [(14, 0), (15, 1)] {
+    for (version, patch) in [(14, 0), (15, 2)] {
         let root = patcher.schema(version).unwrap().find(b"Row").unwrap();
         let plan = patcher.plan(patches::PATCHES[patch].as_bytes()).unwrap().unwrap();
         patcher.start(plan, root, bytes).expect("retained row");

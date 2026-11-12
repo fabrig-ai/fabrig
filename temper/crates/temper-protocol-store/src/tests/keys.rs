@@ -433,3 +433,31 @@ fn away_and_decided_keys_refuse_truncation_widths_and_trailing_bytes() {
         assert_eq!(keys::decode(&trailing.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
+
+#[test]
+fn findings_keys_and_topic_use_the_reserved_bytes_and_order() {
+    for (project, number) in [(0, 0), (1, u32::MAX), (u32::MAX, u32::MAX)] {
+        let key = Key::Finding { project, number };
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(31).u64(u64::from(project)).u64(u64::from(number));
+        let bytes = keys::encode(&key, u32::MAX).unwrap();
+        assert_eq!(bytes, writer.finish().unwrap());
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+        let topic =
+            Key::Subscription { task: u64::MAX, topic: temper_engine_domain_forge::Topic::Findings { project } };
+        let encoded = keys::encode(&topic, u32::MAX).unwrap();
+        assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(topic));
+        for len in 0..bytes.len() {
+            assert_eq!(keys::decode(&bytes[..len], &fixtures::LIMITS), None);
+        }
+        let mut trailing = skein_kv::KeyWriter::new(u32::MAX);
+        trailing.tag(31).u64(u64::from(project)).u64(u64::from(number)).tag(0);
+        assert_eq!(keys::decode(&trailing.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+    assert!(Key::Finding { project: 1, number: u32::MAX } < Key::Finding { project: 2, number: 0 });
+    for (project, number) in [(u64::from(u32::MAX) + 1, 0), (0, u64::from(u32::MAX) + 1)] {
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(31).u64(project).u64(number);
+        assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+}

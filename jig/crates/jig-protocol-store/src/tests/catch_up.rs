@@ -56,7 +56,7 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     // Version, same live tag, activation false, session none; no model names.
     let expected = bytes::concat(&[&[0, 10, *tag, 0, 0], fields, &[0, 0, 0, 0]]);
     assert_eq!(bytes.as_ref(), expected.as_ref());
-    let bytes = patched(10, 1, b"Row", bytes);
+    let bytes = patched(10, 2, b"Row", bytes);
     let row = crate::tasks_v11::Row::decode(&crate::tasks_v11::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
     let crate::tasks_v11::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
@@ -71,7 +71,7 @@ fn a_stored_counter_before_infrastructure_decodes_with_zero_tries() {
     for count in [1_u32, 2, 3, 4, 5, 6] {
         old.put(&count.to_be_bytes()).unwrap();
     }
-    let bytes = patched(10, 1, b"Tries", old.finish());
+    let bytes = patched(10, 2, b"Tries", old.finish());
     let wire = crate::tasks_v11::Tries::decode(&crate::tasks_v11::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("patched tries");
     assert_eq!(

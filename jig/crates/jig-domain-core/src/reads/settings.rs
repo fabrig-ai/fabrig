@@ -293,6 +293,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
             }
             return match core.current.applications.get(&setting) {
                 Some(state) => Answer::Setting(Box::new(SettingDocument {
+                    overlay: None,
                     setting,
                     revision,
                     value: None,
@@ -311,6 +312,10 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {
             Some(charter) => Answer::Setting(Box::new(SettingDocument {
+                overlay: match core.overlay_at(number, revision) {
+                    Some(overlay) => Some(Box::new(overlay.clone())),
+                    None => None,
+                },
                 setting,
                 revision,
                 value: Some(settings::Value::Charter(Box::new(charter.clone()))),
@@ -325,6 +330,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     }
     match core.current.value(setting) {
         Some(value) => Answer::Setting(Box::new(SettingDocument {
+            overlay: None,
             setting,
             revision,
             value: Some(value.clone()),
@@ -342,6 +348,7 @@ fn project_policy(core: &Core, project: u32, revision: u32) -> Answer {
     }
     match core.configured_policy(project) {
         Some(value) => Answer::Setting(Box::new(SettingDocument {
+            overlay: None,
             setting: settings::Setting::ProjectPolicy { project },
             revision,
             value: Some(settings::Value::Policy(Box::new(value))),
@@ -388,6 +395,7 @@ pub(super) fn proposed_setting(
                 reply,
                 match value {
                     Some(value) => Answer::Setting(Box::new(SettingDocument {
+                        overlay: None,
                         setting,
                         revision: core.current.newest(),
                         value: Some(value.clone()),
@@ -446,6 +454,7 @@ fn pending_settings_review(core: &Core, party: u64, proposer: people::Proposer, 
 
 fn application_proposal(core: &Core, setting: settings::Setting, edit: &settings::application::SizedEdit) -> Answer {
     Answer::Setting(Box::new(SettingDocument {
+        overlay: None,
         setting,
         revision: core.current.newest(),
         value: None,
@@ -798,6 +807,12 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                             || value.policy.alternatives.len()
                                 > skein_lib::length::usize_of(limits.settings.alternatives)
                         {
+                            return false;
+                        }
+                    }
+                    settings::Value::Overlay(_) => {
+                        charters = charters.saturating_add(1);
+                        if charters > limits.tasks.charters {
                             return false;
                         }
                     }

@@ -6,7 +6,7 @@
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
 use super::{fixtures, stock};
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;

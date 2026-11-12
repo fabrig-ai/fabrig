@@ -63,6 +63,8 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
             match field {
                 b"streams" => limits.clients.streams = count,
                 b"exchanges" => limits.clients.exchanges = count,
+                b"queued_bytes" => limits.clients.queued_bytes = count,
+                b"exchanges_per_client" => limits.clients.exchanges_per_client = count,
                 b"provider_codes" => limits.clients.provider_codes = count,
                 b"provider_tokens" => limits.clients.provider_tokens = count,
                 _ => return Err(What::Override),

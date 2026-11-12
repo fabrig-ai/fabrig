@@ -51,13 +51,20 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                 let rest: Vec<_> = rest.iter().map(|word| OsStr::from_bytes(word).to_os_string()).collect();
                 add_arguments(&rest)
             } else if *command == AGAIN {
-                let [name] = rest else {
-                    usage(&AGAIN, if rest.is_empty() { "NAME is not given" } else { "expected NAME alone" });
+                let (prepared, name) = match rest {
+                    [name] => (None, name),
+                    [flag, directory, name] if flag.as_ref() == b"--prepared" => {
+                        (Some(Path::new(OsStr::from_bytes(directory))), name)
+                    }
+                    _ => usage(
+                        &AGAIN,
+                        if rest.is_empty() { "NAME is not given" } else { "expected [--prepared DIR] NAME" },
+                    ),
                 };
                 let Ok(name) = std::str::from_utf8(name) else {
                     fail(&format!("invalid journey name {}", OsStr::from_bytes(name).display()));
                 };
-                record_again(name, &environment).map(|()| false)
+                record_again(name, prepared, &environment).map(|()| false)
             } else {
                 if !rest.is_empty() {
                     usage(&REPRINT, "unexpected arguments");
@@ -149,7 +156,7 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
     Ok(false)
 }
 
-fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), String> {
+fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentEntry]) -> Result<(), String> {
     if !named(name) {
         return Err(refusal(Refusal::Name(name.to_owned())));
     }
@@ -169,8 +176,13 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
     let chromium = fs::canonicalize(chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
-    let result = build(&root, &scratch, chromium, is_tui, environment).and_then(|paths| {
+    let base = prepared.unwrap_or_else(|| Path::new("/tmp"));
+    let scratch = scratch(base).map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
+    let paths = match prepared {
+        Some(directory) => prepared_paths(directory, &scratch, chromium, is_tui),
+        None => build(&root, &scratch, chromium, is_tui, environment),
+    };
+    let result = paths.and_then(|paths| {
         if let Some(steps) = tui_steps {
             tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths, environment)
                 .map_err(refusal)
@@ -185,8 +197,7 @@ fn record_again(name: &str, environment: &[EnvironmentEntry]) -> Result<(), Stri
     }
 }
 
-fn scratch() -> io::Result<PathBuf> {
-    let base = Path::new("/tmp");
+fn scratch(base: &Path) -> io::Result<PathBuf> {
     for attempt in 0..1000 {
         let path = base.join(format!("temper-journey-{}-{attempt}", std::process::id()));
         match fs::DirBuilder::new().mode(0o700).create(&path) {
@@ -196,6 +207,21 @@ fn scratch() -> io::Result<PathBuf> {
         }
     }
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
+}
+
+fn prepared_paths(directory: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
+    let directory = fs::canonicalize(directory).map_err(|error| format!("cannot open prepared directory: {error}"))?;
+    for name in ["temper-box", "fake-claude"].into_iter().chain(is_tui.then_some("temper")) {
+        fs::copy(directory.join(name), scratch.join(name))
+            .map_err(|error| format!("cannot copy prepared {name}: {error}"))?;
+    }
+    let bundle = directory.join("bundle");
+    if !bundle.join("index.html").is_file() {
+        return Err("prepared bundle has no index.html".into());
+    }
+    let cache = directory.join("cache");
+    let cache = cache.is_dir().then_some(cache);
+    Ok(Paths { temper: scratch.join("temper-box"), bundle, cache, chromium, scratch: scratch.to_owned() })
 }
 
 fn build(
@@ -243,7 +269,7 @@ fn build(
         fs::copy(target.join("debug/temper"), scratch.join("temper"))
             .map_err(|error| format!("cannot copy temper into {}: {error}", scratch.display()))?;
     }
-    Ok(Paths { temper: scratch.join("temper-box"), bundle, chromium, scratch: scratch.to_owned() })
+    Ok(Paths { temper: scratch.join("temper-box"), bundle, cache: None, chromium, scratch: scratch.to_owned() })
 }
 
 fn reprint_all() -> Result<bool, String> {

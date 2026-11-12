@@ -204,6 +204,8 @@ pub(super) const LIMITS: Limits = Limits {
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
     public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 8,
+    // A full web page holds this many watches (protocol/limits.md).
+    watches_per_stream: 31,
     exchanges: 32,
     mints: 16,
     provider_codes: 256,
@@ -243,3 +245,22 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     reads: 48,
     ..small::STORE
 };
+
+/// Size stream edges from the wire, without reserving their byte ceilings.
+pub(super) fn limits() -> Limits {
+    let mut limits = LIMITS;
+    limits.clients.queued_bytes = jig_protocol_engine_clients::limits::stream_queue_bytes(
+        limits.clients.watches_per_stream,
+        &limits.clients.wire,
+    )
+    .expect("standard's first deliveries fit a u32 byte bound");
+    let record = jig_client_protocol_wire::v20::StreamEvent::encoded_bound(&limits.clients.wire)
+        .expect("standard stream record");
+    let record = u32::try_from(record).expect("standard stream record fits u32");
+    // Base64 data has one `data: ` prefix and two line feeds.
+    limits.clients_http.event = skein_lib::base64::encoded_len(skein_lib::base64::Alphabet::Standard, record)
+        .expect("standard base64 record")
+        .checked_add(8)
+        .expect("standard SSE frame");
+    limits
+}
