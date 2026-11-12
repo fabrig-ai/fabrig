@@ -751,7 +751,7 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
     } }, &mut out);
     let mut turn = false;
     let mut answered = false;
-    for _ in 0..8 {
+    for _ in 0_u32..8 {
         while let Some(output) = out.pop() {
             match output {
                 Output::Parent(parent::Request::Turn { turn: record, .. }) => {
@@ -765,7 +765,7 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
                     answered = true;
                 }
                 Output::Lower { request: Lower::Complete { .. } | Lower::Cancel { .. }, .. } => panic!("no next provider or cut"),
-                _ => {}
+                Output::Parent(_) | Output::Lower { .. } => {}
             }
         }
         agent.reclaim();
