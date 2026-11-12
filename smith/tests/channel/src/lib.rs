@@ -94,6 +94,8 @@ pub enum Observation {
     HostRefused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// The agent received the host's one polite cancellation.
     AgentCancel,
+    /// Host asked for the current turn to finish whole.
+    AgentDrain,
     /// The agent's write stream failed while its read side may continue.
     AgentWriteFailed,
     /// The host's write stream failed while its read side may continue.
@@ -478,6 +480,7 @@ impl Peer {
                     valid: grant.valid,
                 }),
                 agent::Heard::Cancel => output.push(Observation::AgentCancel),
+                agent::Heard::Drain => output.push(Observation::AgentDrain),
                 agent::Heard::WriteFailed => output.push(Observation::AgentWriteFailed),
             }
         }
@@ -496,7 +499,7 @@ pub fn test_endpoints() -> smith_protocol_translate::Endpoints {
 
 fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
     let schema = smith_channel::schema(&bodies).expect("bounded bodies");
-    let version = schema.version(smith_channel::kind::VERSION).expect("v6");
+    let version = schema.version(smith_channel::kind::VERSION).expect("v7");
     let largest = version.kinds.iter().map(|kind| kind.largest).max().expect("kinds");
     skein_channel::Limits {
         chunk: 4096,
@@ -504,7 +507,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: 20,
+        kinds: 21,
     }
 }
 

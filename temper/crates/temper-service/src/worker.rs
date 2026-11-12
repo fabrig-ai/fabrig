@@ -840,6 +840,19 @@ impl Worker {
             smith::Down::Start { start, window } => {
                 process.send_start(start, window, values, token, &mut self.process_events, &mut self.io)
             }
+            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+        };
+        let Some(values) = values else {
+            self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
+            return;
+        };
+        let message = sending(message, &values, &self.agent);
+        let process = self.processes.get_mut(&owner).expect("root owns process");
+        let token = owner;
+        let sent = match message {
+            smith::Down::Start { start, window } => {
+                process.send_start(start, window, values, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Grant { grant } => process.send_grant(
                 grant,
                 values.credentials.into_iter().next().expect("one value"),

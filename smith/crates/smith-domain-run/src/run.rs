@@ -291,6 +291,7 @@ fn refuse_start(reply_to: ReplyTo, refusal: Refusal, out: &mut Queue<Request>) {
     out.push(Request::Answer { to: reply_to, answer: Answer::Refused(refusal), read: None, detail: Box::default() });
 }
 
+#[expect(clippy::too_many_lines, reason = "admission binds the run and its main before publishing either")]
 pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, start: Start, out: &mut Queue<Request>) {
     let Start { reply_to, host_run, activation, identity, window, messages, charter, workspace, transcript, resumed } =
         start;

@@ -99,7 +99,7 @@ fn count_answers(world: &World, wanted: Token) -> usize {
             | Down::Message { .. }
             | Down::Acknowledge { .. }
             | Down::Grant { .. }
-            | Down::Cancel => false,
+            | Down::Cancel | Down::Drain => false,
         })
         .count()
 }
@@ -135,7 +135,7 @@ fn process_started_precedes_agent_admitted_and_start_is_first() {
             assert_eq!(seen.answered, start().answered);
             assert_eq!(seen.workspace, None);
         }
-        Down::Message { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel => {
+        Down::Message { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel | Down::Drain => {
             panic!("Start must be first")
         }
     }
@@ -478,7 +478,7 @@ fn inbound_messages_are_ordered_bounded_and_named_opaquely() {
         .iter()
         .filter_map(|word| match word {
             Down::Message { name, .. } => Some(*name),
-            Down::Start { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel => {
+            Down::Start { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel | Down::Drain => {
                 None
             }
         })
@@ -698,7 +698,7 @@ fn an_oversized_generic_answer_is_too_large_but_delivery_always_fits() {
         | Down::Message { .. }
         | Down::Acknowledge { .. }
         | Down::Grant { .. }
-        | Down::Cancel => panic!("too large reply"),
+        | Down::Cancel | Down::Drain => panic!("too large reply"),
     }
     world.sent();
     finish(&mut world);
@@ -1054,7 +1054,7 @@ fn every_delivery_terminal_survives_withdrawal_and_expired_deadline() {
             | Down::Message { .. }
             | Down::Acknowledge { .. }
             | Down::Grant { .. }
-            | Down::Cancel => panic!("full terminal required"),
+            | Down::Cancel | Down::Drain => panic!("full terminal required"),
         }
         world.sent();
         finish(&mut world);
@@ -1074,7 +1074,7 @@ fn grant_generation_races_are_fenced_by_emission_not_queued_refresh() {
     world.sent();
     match world.seen.down.last().expect("coalesced refresh") {
         Down::Grant { grant } => assert_eq!(grant.generation, 3),
-        Down::Start { .. } | Down::Message { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Cancel => {
+        Down::Start { .. } | Down::Message { .. } | Down::Answer { .. } | Down::Acknowledge { .. } | Down::Cancel | Down::Drain => {
             panic!("latest refresh")
         }
     }

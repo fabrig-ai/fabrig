@@ -4,20 +4,23 @@ use crate::support::goldens::assert_measured;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V6, schema};
+use smith_channel::{Answer, CEILINGS, Start, V7, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", 6, "list_ask", |bytes| {
+    assert_measured("channel", 7, "list_ask", |bytes| {
         smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list ask decodes").measure()
     });
-    assert_measured("channel", 6, "list_row", |bytes| {
+    assert_measured("channel", 7, "list_row", |bytes| {
         smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list row decodes").measure()
     });
-    assert_measured("channel", 6, "start", |bytes| {
+    assert_measured("channel", 7, "start", |bytes| {
         Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
     });
-    assert_measured("channel", 6, "answer", |bytes| {
+    assert_measured("channel", 7, "drain", |bytes| {
+        smith_channel::Drain::decode(&CEILINGS, &mut Reader::new(bytes)).expect("drain decodes").measure()
+    });
+    assert_measured("channel", 7, "answer", |bytes| {
         Answer::decode(&CEILINGS, &mut Reader::new(bytes)).expect("answer decodes").measure()
     });
 }
@@ -27,19 +30,19 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
     assert_eq!(table.versions.len(), 1);
-    let version = table.version(6).expect("version six");
-    assert_eq!(version.kinds.len(), 20);
-    for (index, rule) in V6.iter().enumerate() {
+    let version = table.version(7).expect("version seven");
+    assert_eq!(version.kinds.len(), 21);
+    for (index, rule) in V7.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
-        if [0x0105, 0x0106, 0x010c].contains(&rule.kind) {
+        if [0x0105, 0x0106, 0x010c, 0x0114].contains(&rule.kind) {
             assert_eq!(kind.largest, 0);
         } else {
             assert!(kind.largest > 0);
         }
         assert_eq!(usize::from(rule.kind), 0x0100 + index);
-        if index < 6 {
+        if index < 6 || rule.kind == smith_channel::kind::DRAIN {
             assert_eq!(rule.direction, Direction::FromInitiator);
         } else {
             assert_eq!(rule.direction, Direction::FromResponder);
@@ -49,7 +52,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    assert_measured("channel", 6, "message_refused", |bytes| {
+    assert_measured("channel", 7, "message_refused", |bytes| {
         smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes)).expect("refusal decodes").measure()
     });
 }
@@ -58,13 +61,13 @@ fn message_refusal_goldens_keep_each_typed_reason() {
 fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
     let absent = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_start_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v7/record_start_smallest.bin")),
     )
     .expect("absent identity golden");
     assert_eq!(absent.identity(), &None);
     let present = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_start_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v7/record_start_full.bin")),
     )
     .expect("present identity golden");
     assert_eq!(present.identity(), &Some([165; 16]));
@@ -74,13 +77,13 @@ fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
 fn channel_turn_goldens_keep_the_declared_window_flag() {
     let first = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_turn_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v7/record_turn_full.bin")),
     )
     .expect("window flag golden");
     assert!(first.opens_window());
     let ordinary = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_turn_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v7/record_turn_smallest.bin")),
     )
     .expect("ordinary flag golden");
     assert!(!ordinary.opens_window());
@@ -88,7 +91,7 @@ fn channel_turn_goldens_keep_the_declared_window_flag() {
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", 6, "live", |bytes| {
+    assert_measured("channel", 7, "live", |bytes| {
         smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes)).expect("live decodes").measure()
     });
 }
@@ -124,7 +127,7 @@ fn credential_value(scheme: smith_channel::Scheme) -> smith_channel::GrantValue 
     )
 }
 
-fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v6::Problem> {
+fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v7::Problem> {
     smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
         .map(smith_channel::GrantValue::Program)
 }

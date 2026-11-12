@@ -472,6 +472,7 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Acknowledge { .. }
         | domain::Event::Grant { .. }
         | domain::Event::Cancel { .. }
+        | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(
             smith_domain::Below::Completed { .. }
