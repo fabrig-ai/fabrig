@@ -170,8 +170,28 @@ pub enum Word {
     FiledNotice,
     TellLost,
     TellLong,
+    TalkCommand,
+    TalkStart,
+    TalkHead,
+    TalkingWith,
+    RoleNumber,
+    StandingRole,
+    Owns,
+    TriagerOf,
+    ThisWeek,
+    ThisPeriod,
+    ItsNow,
+    ItsNowAt,
+    TalkReply,
+    TalkTo,
+    AcceptIt,
+    NotNow,
+    SessionMinutes,
+    LeftAfter,
+    LeftNow,
+    NoRole,
 }
-pub(crate) const ALL: [Word; 160] = [
+pub(crate) const ALL: [Word; 180] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -332,6 +352,26 @@ pub(crate) const ALL: [Word; 160] = [
     Word::FiledNotice,
     Word::TellLost,
     Word::TellLong,
+    Word::TalkCommand,
+    Word::TalkStart,
+    Word::TalkHead,
+    Word::TalkingWith,
+    Word::RoleNumber,
+    Word::StandingRole,
+    Word::Owns,
+    Word::TriagerOf,
+    Word::ThisWeek,
+    Word::ThisPeriod,
+    Word::ItsNow,
+    Word::ItsNowAt,
+    Word::TalkReply,
+    Word::TalkTo,
+    Word::AcceptIt,
+    Word::NotNow,
+    Word::SessionMinutes,
+    Word::LeftAfter,
+    Word::LeftNow,
+    Word::NoRole,
 ];
 
 #[derive(Clone, Copy)]
@@ -548,6 +588,26 @@ impl Word {
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
             Self::Asked => 155,
+            Self::TalkCommand => (&[b"A role, about its area"], &[]),
+            Self::TalkStart => (&[b"a role, about its area"], &[]),
+            Self::TalkHead => (&[b"Talk with a role on ", b""], &[Slot::Title]),
+            Self::TalkingWith => (&[b"talking with "], &[]),
+            Self::RoleNumber => (&[b"role T", b""], &[Slot::Number]),
+            Self::StandingRole => (&[b" \xc2\xb7 a standing role"], &[]),
+            Self::Owns => (&[b" \xc2\xb7 owns "], &[]),
+            Self::TriagerOf => (&[b" \xc2\xb7 ", b"'s triager"], &[Slot::Title]),
+            Self::ThisWeek => (&[b" \xc2\xb7 this week ", b" of ", b""], &[Slot::Number, Slot::Number]),
+            Self::ThisPeriod => (&[b" \xc2\xb7 this period ", b" of ", b""], &[Slot::Number, Slot::Number]),
+            Self::ItsNow => (&[b"Its Now: "], &[]),
+            Self::ItsNowAt => (&[b"Its Now, ", b": "], &[Slot::Clock]),
+            Self::TalkReply => (&[b"Reply, or Esc to leave. ", b" writes its Now when you go."], &[Slot::Title]),
+            Self::TalkTo => (&[b"Talk to ", b", or Esc to go back."], &[Slot::Title]),
+            Self::AcceptIt => (&[b"Accept it"], &[]),
+            Self::NotNow => (&[b"Not now"], &[]),
+            Self::SessionMinutes => (&[b"this session ", b" min"], &[Slot::Number]),
+            Self::LeftAfter => (&[b"Left ", b" after ", b" min"], &[Slot::Title, Slot::Number]),
+            Self::LeftNow => (&[b". It writes its Now."], &[]),
+            Self::NoRole => (&[b"No role on ", b" is named ", b" \xc2\xb7 /talk lists them"], &[Slot::Title, Slot::Title]),
             Self::TeamHead => 156,
             Self::You => 157,
             Self::Triage => 158,
@@ -555,6 +615,27 @@ impl Word {
             Self::FiledNotice => 160,
             Self::TellLost => 161,
             Self::TellLong => 162,
+            Self::TalkCommand => 163,
+            Self::TalkStart => 164,
+            Self::TalkHead => 165,
+            Self::TalkingWith => 166,
+            Self::RoleNumber => 167,
+            Self::StandingRole => 168,
+            Self::Owns => 169,
+            Self::TriagerOf => 170,
+            Self::ThisWeek => 171,
+            Self::ThisPeriod => 172,
+            Self::ItsNow => 173,
+            Self::ItsNowAt => 174,
+            Self::TalkReply => 175,
+            Self::TalkTo => 176,
+            Self::AcceptIt => 177,
+            Self::NotNow => 178,
+            Self::SessionMinutes => 179,
+            Self::LeftAfter => 180,
+            Self::LeftNow => 181,
+            Self::NoRole => 182,
+
         }
     }
     const fn id(self) -> PhraseId {
@@ -846,6 +927,14 @@ impl Words {
                 );
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
+            crate::Notice::Left { name, minutes, cost } => {
+                let mut line = self.say(Word::LeftAfter, &[Hole::Name(name.clone()), Hole::Number(*minutes)]);
+                if let Some(cost) = cost {
+                    line = skein_lib::bytes::concat(&[&line, &self.say(Word::Separator, &[]), &self.view.say(temper_client_view::words::Word::TeamCount, &[Hole::Number(*cost)])]);
+                }
+                skein_lib::bytes::concat(&[&line, &self.say(Word::LeftNow, &[])])
+            }
+            crate::Notice::NoRole { project, words } => self.say(Word::NoRole, &[Hole::Name(project.clone()), Hole::Name(words.clone())]),
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
             crate::Notice::Filed { number, project } => {
                 self.say(Word::FiledNotice, &[Hole::Number(u64::from(*number)), Hole::Name(copy_of(project))])

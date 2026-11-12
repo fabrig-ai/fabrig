@@ -237,6 +237,30 @@ fn owner(root: &Domain, chat: &Chat, line: &c::Activity, words: &Words) -> Optio
         c::Activity::RunBegan { .. } | c::Activity::RunEnded { .. } | c::Activity::Milestone { .. } => None,
     }
 }
+/// A talk begins at its newest opening; pending words survive an unread task.
+fn talk_lines(chat: &Chat) -> List<Line<'_>> {
+    let lines = chat.thread.lines();
+    let Some(talk) = chat.talk() else { return lines };
+    let mut after = talk.open().is_some() && talk.from().is_none();
+    let mut kept = List::with_capacity(lines.len());
+    for line in lines.into_boxed() {
+        match &line {
+            Line::Activity { line } => {
+                if Some(line.source.position) == talk.from() {
+                    after = true;
+                    continue;
+                }
+            }
+            Line::Words { .. } => {
+                kept.push(line).expect("pending words fit");
+                continue;
+            }
+            Line::Turn { .. } | Line::Undecoded { .. } | Line::Provisional { .. } => {}
+        }
+        if after { kept.push(line).expect("talk lines are a subset"); }
+    }
+    kept
+}
 /// The newest committed turn's last assistant text, fenced by later words or live text.
 pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
     let chat = root.pages().chat()?;
@@ -244,7 +268,7 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
         return None;
     }
     let mut reply = None;
-    for line in chat.thread.lines().into_boxed() {
+    for line in talk_lines(chat).into_boxed() {
         match line {
             Line::Turn { name, turn, .. } => {
                 reply = None;
@@ -297,7 +321,7 @@ pub(super) fn entries(root: &Domain, words: &Words) -> Box<[Entry]> {
     }
     let rows = root.client().domain_limits().rows;
     let mut run = shared::Run::with_capacity(rows.saturating_mul(rows).saturating_mul(chat.thread.limits.lines));
-    let lines = chat.thread.lines();
+    let lines = talk_lines(chat);
     let mut before = None;
     for line in lines.into_boxed() {
         let since = before;

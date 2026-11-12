@@ -49,6 +49,8 @@ pub struct Tui {
     theme_choice: ThemeChoice,
     terminal_scheme: Option<Scheme>,
     theme_list: bool,
+    talk_list: bool,
+    proposals_aside: List<ObjectKey>,
 }
 /// The box's state, given up winning (temper/docs/design/client/tui/box.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -90,7 +92,8 @@ pub enum Notice {
     Unknown { words: Box<[u8]> },
     SigningIn,
     Proposed,
-    Filed { number: u32, project: Box<[u8]> },
+    Left { name: Box<[u8]>, minutes: u64, cost: Option<u64> },
+    NoRole { project: Box<[u8]>, words: Box<[u8]> },    Filed { number: u32, project: Box<[u8]> },
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -177,6 +180,8 @@ pub enum Told {
         choice: ThemeChoice,
         terminal: Option<Scheme>,
     },
+    TalkList { open: bool },
+    ProposalAside { object: ObjectKey },
     ThemeList {
         open: bool,
     },
@@ -224,6 +229,8 @@ impl Tui {
             theme_choice: ThemeChoice::Auto,
             terminal_scheme: None,
             theme_list: false,
+            talk_list: false,
+            proposals_aside: List::uncapped(),
         }
     }
     #[must_use]
@@ -412,10 +419,15 @@ impl Tui {
     pub const fn theme_list(&self) -> bool {
         self.theme_list
     }
+    #[must_use]
+    pub const fn talk_list(&self) -> bool { self.talk_list }
+    #[must_use]
+    pub fn proposal_aside(&self, object: &ObjectKey) -> bool { self.proposals_aside.as_slice().contains(object) }
     fn clear_launchpad(&mut self) -> bool {
-        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list;
+        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list || self.talk_list;
         self.walk = None;
         self.theme_list = false;
+        self.talk_list = false;
         self.brief_shown = false;
         self.not_opened = None;
         changed
@@ -530,6 +542,17 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::TalkList { open } => {
+                let changed = self.talk_list != open;
+                self.talk_list = open;
+                changed
+            }
+            Told::ProposalAside { object } => {
+                if self.proposal_aside(&object) { false } else {
+                    self.proposals_aside.push(object).expect("set aside cards fit memory");
+                    true
+                }
+            }
             Told::Send => self.tell_refusal.take().is_some(),
             Told::Tell { serial, refusal } => {
                 if serial <= self.tell_serial {

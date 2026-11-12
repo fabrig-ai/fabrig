@@ -572,6 +572,7 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
 }
 fn data(entries: Box<[Entry]>) -> Chat {
     Chat {
+        head: None,
         to_end: 1,
         entries,
         pane: None,
