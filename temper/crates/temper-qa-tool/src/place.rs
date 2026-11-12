@@ -1,4 +1,5 @@
 //! Setups restored and recipes proven by the place's own build (qa/places.md, 2, 4, 6–8).
+mod files;
 use crate::faces::{ArchiveFace, DriveFace, RecipeWalk, WalkOutput};
 use crate::{Home, Ledger, Pass, Refusal, document as d, refused};
 use serde_json::Value;
@@ -441,6 +442,8 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             let bytes = serde_json::to_vec_pretty(scripts).map_err(|why| refused(format!("recipe {name}: {why}")))?;
             io(&directory, fs::write(directory.join("scripts.json"), bytes))?;
         }
+        let source = self.setups.parent().expect("pass setups directory").join("files");
+        files::copy(&input.lines, &source, &directory.join("files"))?;
         let hash = self.drive.hash(&self.paths, &self.setups, name)?;
         let from = if input.after == "fresh" {
             remove(&self.paths.setup)?;
