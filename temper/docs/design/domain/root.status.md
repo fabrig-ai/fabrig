@@ -2,6 +2,8 @@
 
 2026-11-12. Where temper's code lags or departs from [root.md](root.md).
 
+- **Not yet:** 6.2: a required forge section late at the gather's deadline counts as transient, not as an infrastructure failure (jig's `domain/engine/briefs.md`, 1.1) [in flight: change 1717].
+
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
 the store's write edge and an exhausted commit counter.
