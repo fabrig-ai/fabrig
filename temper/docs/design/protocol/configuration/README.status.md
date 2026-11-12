@@ -270,7 +270,7 @@ or in the terminal refusal naming the item and rejected way.
 
 - **Not yet:** `limits.md`'s `forge.client.fallback_ms`, by plan
   `forge-polls-quiet`: temper's profiles hold no `fallback`, so the name
-  is refused [in flight: change 49].
+  is refused.
 - **Not yet:** 7, the turn's check, and `settings.md`, 7: a worker whose turn's frame
   passes its `io.output` is refused `workers[0].limits: past its bound`,
   as its link's limits are not valid (`temper-service/src/worker_settings.rs`,
