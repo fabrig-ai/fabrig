@@ -23,6 +23,7 @@ mod open;
 mod pages;
 mod patching;
 pub use patching::Counts;
+pub use patching::baseline::{JIG_PATCH_SET, SKEIN_PATCH_SET, SMITH_PATCH_SET};
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
 mod reads;
 pub mod restore;

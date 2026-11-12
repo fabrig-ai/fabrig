@@ -6,6 +6,8 @@ extern crate alloc;
 
 #[path = "../patches/mod.rs"]
 pub mod patches;
+mod patch_set;
+pub use patch_set::PATCH_SET;
 
 use alloc::boxed::Box;
 pub mod keys;

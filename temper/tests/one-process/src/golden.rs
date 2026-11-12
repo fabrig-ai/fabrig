@@ -1,5 +1,5 @@
 //! The once-made baseline deployment (temper/docs/design/protocol/baseline.md, 6).
-mod files;
+pub(crate) mod files;
 use crate::{
     fixtures,
     referee::{self, Store},
