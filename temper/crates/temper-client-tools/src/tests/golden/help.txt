@@ -1,4 +1,4 @@
-sign-in  Sign in with the link the deployment printed
+sign-in  Sign in with a printed link or a service file
 sign-out  End the sign-in and leave the token empty
 pending  List the requests DIR keeps, without reaching the engine
 help  Read the page ctl and the groups, a group's tools, or one tool's record
@@ -18,5 +18,6 @@ account  LLM accounts: read them, connect one, manage its keys and sources, move
 model  Models: read those your party may use
 settings  The settings: read them, change them, or propose a change to their owners
 revision  Settings revisions: read one or the history, move running work to the newest
+party  Parties: make a service with a project's role
 project  Projects: make or remove one, read periods and pools, set spend and visibility
 playground  The playground: start it, or end it and set up temper
