@@ -2,8 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5, *A check's build directory is held for the whole check*: fabrig's check takes no hold (`tools/pre-pr/design.status.md`), so a deployment's cargo that lends a build directory per command can reclaim one-process's built executables before they run, as a deployment's check saw on 2026-11-12 [in flight: change 1023].
-- **Not yet:** 5, *What a test writes reaches the checkout*: nine tests that re-record a fixture or golden under a rewrite switch form its path from the compile-time `env!("CARGO_MANIFEST_DIR")` (story A's kept log in `temper/tests/playground/tests/suite/walk.rs`, `kept_log`, among them), so a test executable built from another checkout writes there, as a deployment's re-recorded kept log did on 2026-11-12, and no guard keeps a new one out [in flight: change 1026].
 
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages [in flight: change 68].
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline [in flight: change 36].
