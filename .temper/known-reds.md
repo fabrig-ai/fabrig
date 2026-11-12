@@ -37,7 +37,6 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
-- test temper-client-journeys-tool tests::the_overlay_is_empty
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
