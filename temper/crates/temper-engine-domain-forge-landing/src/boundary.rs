@@ -145,11 +145,12 @@ pub struct Round {
     pub recorded: bool,
     pub told: bool,
     pub ending: Option<RoundEnd>,
+    pub failure: Box<[u8]>,
 }
 impl Round {
     #[must_use]
     pub fn new(branch: Box<[u8]>) -> Self {
-        Self { branch, pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None }
+        Self { branch, pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: Box::new([]) }
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -210,6 +211,7 @@ pub struct Facts {
     pub turn_free: bool,
     pub released: bool,
     pub opened: Option<u64>,
+    pub opening: Status,
     pub closed: Status,
     pub deleted: Status,
 }

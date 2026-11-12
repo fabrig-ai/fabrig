@@ -42,6 +42,7 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
                     .expect(FITS),
             ),
         ),
+        d::Phase::Held { was, why: d::Hold::Prepare | d::Hold::Record { .. } } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
         | d::Phase::Proving
@@ -165,6 +166,10 @@ fn encode_operation(op: top::Operation) -> w::LandingOperation {
         top::Operation::Rerun => w::LandingOperation::Rerun,
         top::Operation::Pending => w::LandingOperation::Pending,
         top::Operation::Verdict => w::LandingOperation::Verdict,
+        top::Operation::Open => w::LandingOperation::Open,
+        top::Operation::Close => w::LandingOperation::Close,
+        top::Operation::Delete => w::LandingOperation::Delete,
+        top::Operation::Record => w::LandingOperation::Record,
         top::Operation::Merge => w::LandingOperation::Merge,
     }
 }
@@ -174,11 +179,17 @@ fn decode_operation(op: w::LandingOperation) -> top::Operation {
         w::LandingOperation::Rerun => top::Operation::Rerun,
         w::LandingOperation::Pending => top::Operation::Pending,
         w::LandingOperation::Verdict => top::Operation::Verdict,
+        w::LandingOperation::Open => top::Operation::Open,
+        w::LandingOperation::Close => top::Operation::Close,
+        w::LandingOperation::Delete => top::Operation::Delete,
+        w::LandingOperation::Record => top::Operation::Record,
         w::LandingOperation::Merge => top::Operation::Merge,
     }
 }
 fn encode_ask(ask: change::Ask) -> w::LandingAsk {
     match ask {
+        change::Ask::Landed { prefix } => w::LandingAsk::Landed(w::LandingPrefix::new(&w::CEILINGS, w::LandingPrefixParts { prefix }).expect(FITS)),
+        change::Ask::Resolve { base } => w::LandingAsk::Resolve(w::LandingResolve::new(&w::CEILINGS, w::LandingResolveParts { base }).expect(FITS)),
         change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(
             w::LandingPrepare::new(&w::CEILINGS, w::LandingPrepareParts { head, main }).expect(FITS),
         ),
@@ -189,6 +200,8 @@ fn encode_ask(ask: change::Ask) -> w::LandingAsk {
 }
 fn decode_ask(ask: w::LandingAsk) -> change::Ask {
     match ask {
+        w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: *value.prefix() },
+        w::LandingAsk::Resolve(value) => change::Ask::Resolve { base: *value.base() },
         w::LandingAsk::Prepare(value) => {
             let w::LandingPrepareParts { head, main } = value.into_parts();
             change::Ask::Prepare { head, main }
@@ -197,6 +210,22 @@ fn decode_ask(ask: w::LandingAsk) -> change::Ask {
             let w::LandingRepairAskParts { gate, candidate } = value.into_parts();
             change::Ask::Repair { gate, candidate }
         }
+    }
+}
+fn encode_round(round: &d::Round) -> w::LandingRound {
+    w::LandingRound::new(&w::CEILINGS, w::LandingRoundParts {
+        branch: round.branch.clone(), pull: round.pull, upstream: round.upstream,
+        combined: match round.combined { Some(d::Combine::Merge) => Some(w::LandingCombine::Merge), Some(d::Combine::Squash) => Some(w::LandingCombine::Squash), None => None },
+        recorded: round.recorded, told: round.told, failure: round.failure.clone(),
+        ending: match round.ending { Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale), Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave), Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict), None => None },
+    }).expect(FITS)
+}
+fn decode_round(round: w::LandingRound) -> d::Round {
+    let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure } = round.into_parts();
+    d::Round { branch, pull, upstream,
+        combined: match combined { Some(w::LandingCombine::Merge) => Some(d::Combine::Merge), Some(w::LandingCombine::Squash) => Some(d::Combine::Squash), None => None },
+        recorded, told, failure,
+        ending: match ending { Some(w::LandingRoundEnd::Stale) => Some(d::RoundEnd::Stale), Some(w::LandingRoundEnd::Leave) => Some(d::RoundEnd::Leave), Some(w::LandingRoundEnd::Conflict) => Some(d::RoundEnd::Conflict), None => None },
     }
 }
 pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
@@ -214,6 +243,12 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             preparation: row.landing.preparation,
             stale_proofs: row.landing.stale_proofs,
             branch: row.landing.branch.clone(),
+            round: encode_round(&row.landing.round),
+            own_hold: match row.landing.phase {
+                d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
+                d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(w::LandingRecordHold::new(&w::CEILINGS, w::LandingRecordHoldParts { member }).expect(FITS))),
+                d::Phase::Held { why: d::Hold::Faults { .. }, .. } | d::Phase::Waiting | d::Phase::Preparing | d::Phase::Proving | d::Phase::Proved { .. } | d::Phase::Turn { .. } | d::Phase::Landed | d::Phase::Cancelled => None,
+            },
         },
     )
     .expect(FITS);
@@ -254,7 +289,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     let w::LandingRowParts { landing, asks, entries } = row.into_parts();
-    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch } =
+    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch, round, own_hold } =
         landing.into_parts();
     let mut decoded_members = List::with_capacity(members.len());
     for member in members.into_boxed() {
@@ -280,11 +315,16 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
         landing: d::Landing {
             task,
             project,
-            phase: decode_phase(phase),
+            phase: match own_hold {
+                Some(w::LandingOwnHold::Prepare) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare },
+                Some(w::LandingOwnHold::Record(value)) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Record { member: value.member() } },
+                None => decode_phase(phase),
+            },
             members: decoded_members.into_boxed(),
             preparation,
             stale_proofs,
             branch,
+            round: decode_round(round),
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),

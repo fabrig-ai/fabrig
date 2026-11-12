@@ -74,6 +74,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         return released_step(next, why, facts, standing);
     }
     if facts.contains_head == Status::Passed
+        && (change.way == Way::Queue || change.landing.is_none())
         && !standing.delegate_live
         && !facts.writer_taken
         && facts.drift.is_none()
@@ -1555,7 +1556,6 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the landing's resolution uses the change's standing delegate")]
 fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);

@@ -2332,6 +2332,8 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
                 5,
                 crate::translate::ProjectLanding {
                     gate_retries: 2,
+                    combine_main: crate::Combine::Merge,
+                    combine_other: crate::Combine::Squash,
                     gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     check_timeout: None,
                     close_job: None,

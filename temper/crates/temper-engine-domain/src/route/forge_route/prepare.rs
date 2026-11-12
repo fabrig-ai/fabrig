@@ -7,12 +7,7 @@ use skein_json::writer::{Encoder, Limits};
 use skein_lib::Writer;
 use temper_protocol_worker_wire::v1;
 
-#[derive(Clone, Copy, Debug)]
-#[expect(dead_code, reason = "the landing delegates prepare in its own change")]
-pub(crate) enum Combine {
-    Merge,
-    Squash,
-}
+pub(crate) use temper_engine_domain_forge_landing::Combine;
 
 #[derive(Debug)]
 pub(crate) struct PrepareMember {
@@ -31,7 +26,6 @@ pub(crate) struct PrepareRequest {
     pub(crate) member: PrepareMember,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "the landing delegates prepare in its own change"))]
 pub(crate) fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
     let limits = Limits { depth: 4, length: bound };
     let mut measure = Encoder::measure(&limits);
@@ -90,7 +84,6 @@ fn encode(json: &mut Encoder, request: &PrepareRequest) {
 }
 
 /// The base is an immutable commit start; the request supplies fetched head/upstream commits.
-#[expect(dead_code, reason = "the landing delegates prepare in its own change")]
 pub(crate) fn items(
     domain: &forge::Domain,
     provider: api::Repository,

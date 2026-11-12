@@ -16,13 +16,13 @@ fn at(seconds: u64) -> Wall {
 }
 fn landing_of_one() -> Landing {
     Landing {
+round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
         task: 7,
         project: 9,
         phase: Phase::Waiting,
         preparation: 0,
         stale_proofs: 0,
-
-        round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
             change: 8,

@@ -1240,6 +1240,8 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
                     landing: l::Landing {
+round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                         task: 61,
                         project: 5,
                         phase: phase.clone(),
@@ -1256,8 +1258,6 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         }]),
                         preparation: 1,
                         stale_proofs: 3,
-
-                        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                         branch: Box::from(b"temper/g1".as_slice()),
                     },
                     asks: Box::new([ask]),

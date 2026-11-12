@@ -260,12 +260,19 @@ enum GateProofState { unkeyed, keyed: GateKey, dispatched: DispatchedKey, passed
 enum GatePosted { nothing, pending, verdict }
 record GateProof { proof: GateProofState posted: GatePosted faults: u32 }
 record LandingMember { change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 }
-record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 }
+enum LandingCombine { merge, squash }
+enum LandingRoundEnd { stale, leave, conflict }
+record LandingRecordHold { member: u16 }
+enum LandingOwnHold { prepare, record: LandingRecordHold }
+record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 }
+record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 }
-enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk }
+record LandingPrefix { prefix: fixed 32 }
+record LandingResolve { base: fixed 32 }
+enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve }
 record LandingAskSlot { ask: option LandingAsk }
-enum LandingOperation { dispatch, rerun, pending, verdict, merge }
+enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation }
 record LandingRow { landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }

@@ -2232,7 +2232,9 @@ fn outcome_facts(
             }
         }
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
+            let turn = d.landing.rows.contains_key(&task);
             let task = crate::landing::merged_owner(d, task, entry);
+            if !turn {
             crate::landing_log::landed(d, env.wall, commit, task, out);
             if !d.releases.contains_key(&task) {
                 crate::verification::landed(d, commit, task, out);
@@ -2248,6 +2250,7 @@ fn outcome_facts(
                 }
             }
             landed::landed_room(d, env, commit, task, out);
+            }
             if let Some(change) = d.changes.get(&task) {
                 let repository = change.repository;
                 let branch = change.base.clone();
@@ -3669,6 +3672,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
     }
+    if row.change.way == change::Way::Turn && let Some(change::Ask::Landed { prefix }) = crate::landing::ask_for(d, row) {
+        step_verified(d, env, task, prefix, heard, out);
+        return;
+    }
     if let Some(merge) = landed_commit(&row.change.state) {
         step_verified(d, env, task, merge, heard, out);
         return;
@@ -4710,7 +4717,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
-                crate::landing::change_advanced(d, &row, &prior, decision, out);
+                crate::landing::change_advanced(d, &mut row, &prior, decision, out);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
                 if landed_commit(&prior.state).is_none()
                     && let Some(commit) = landed_commit(&row.change.state)
@@ -5295,7 +5302,7 @@ fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
 }
 
 /// A write's answer confirms the head before any later procedure read judges drift.
-fn record_written_head(
+pub(crate) fn record_written_head(
     d: &mut Domain,
     env: &Env<Limits>,
     resource: skein_forge_client::Resource,
@@ -6776,7 +6783,7 @@ fn changed(
     }
 }
 
-fn from_client(resource: &skein_forge_client::Resource, l: &Limits) -> Option<Name> {
+pub(crate) fn from_client(resource: &skein_forge_client::Resource, l: &Limits) -> Option<Name> {
     let what = match &resource.what {
         skein_forge_client::What::Repository => What::Repository,
         skein_forge_client::What::Pull(number) => What::Pull(*number),

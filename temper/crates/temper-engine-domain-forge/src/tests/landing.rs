@@ -287,14 +287,14 @@ fn landing_fixture() -> Domain {
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
+round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
             task,
             project: 5,
             phase,
             members: Box::new([]),
             preparation: 0,
             stale_proofs: 0,
-
-            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             branch: Box::from(b"main".as_slice()),
         },
         asks: Box::new([]),
@@ -340,7 +340,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
             },
         );
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
@@ -434,7 +434,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
         },
     );
     let mut branches = 0_u32;
@@ -519,7 +519,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
         },
     );
     let (branch_call, op) = fixtures::next_call(&mut d);
@@ -636,7 +636,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
         },
         &mut out,
     );
@@ -827,7 +827,7 @@ fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_br
         Event::StepLanding {
             task: 61,
             entry: 92,
-            heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
         },
     );
     assert!(requests.contains(&Request::LandingDecision {
@@ -1078,7 +1078,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
             },
             &mut out,
         );
@@ -1288,7 +1288,7 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard { failure: Box::new([]), preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
             },
         );
         let mut decision = None;
