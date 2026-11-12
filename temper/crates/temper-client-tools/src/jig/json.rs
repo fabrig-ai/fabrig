@@ -220,7 +220,7 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
     }
     let bytes = text(doc, at)?;
     // Amendment FILE arguments carry their loaded words in a JSON call.
-    if spec.kind == Kind::File && (spec.name == b"instructions" || spec.name == b"spec" || spec.name == b"items") {
+    if spec.kind == Kind::File && (spec.name == b"instructions" || spec.name == b"spec" || spec.name == b"items" || spec.name == b"body") {
         return Ok(Value::Text(Box::from(bytes)));
     }
     // JSON durations are integer seconds, never argv's suffixed words.

@@ -164,7 +164,7 @@ impl OneShot {
                 for (index, (spec, slot)) in specs.iter().zip(call.values.iter_mut()).enumerate() {
                     if file == Some(index) || (file.is_none() && *slot == Some(Values::One(Value::Stdin))) {
                         let text =
-                            if spec.kind == Kind::File { bytes.strip_suffix(b"\n").unwrap_or(&bytes) } else { &bytes };
+                            if spec.kind == Kind::File && spec.name != b"body" { bytes.strip_suffix(b"\n").unwrap_or(&bytes) } else { &bytes };
                         *slot = Some(Values::One(Value::Text(text.into())));
                     }
                 }
@@ -251,7 +251,7 @@ fn text_file_index(call: &jig::call::Call) -> Option<usize> {
 }
 fn text_file(call: &jig::call::Call) -> Option<(u8, &[u8])> {
     let name = TOOLS[usize::from(call.tool)].name;
-    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" {
+    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" && name != b"finding file" {
         return None;
     }
     for (index, slot) in call.values.iter().enumerate() {
@@ -279,6 +279,20 @@ mod tests {
         let Some(Parsed::Call { call, .. }) = &frame.host.call else { panic!("prepared call") };
         let Some(Some(Values::One(Value::Text(bytes)))) = call.values.get(index) else { panic!("loaded text") };
         bytes
+    }
+    #[test]
+    fn finding_body_keeps_its_bytes_from_a_file_stdin_or_json() {
+        for source in ["-", "/body/link-file"] {
+            let mut frame = amendment(&["finding", "file", "--project", "shop", "--kind", "red", "Flaky boot", source, "--key", "file"]);
+            frame.input = WORDS;
+            frame.link = WORDS;
+            frame.drain();
+            assert_eq!(text(&frame, 5), WORDS);
+        }
+        let mut frame = amendment(&["--call", "call.json"]);
+        frame.link = br#"{"tool":"finding file","arguments":{"key":"file","project":"shop","kind":"red","title":"Flaky boot","body":"Boot twice\n"}}"#;
+        frame.drain();
+        assert_eq!(text(&frame, 5), b"Boot twice\n");
     }
     #[test]
     fn amend_reads_instructions_from_a_file() {

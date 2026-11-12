@@ -116,6 +116,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         Kind::File if argument.name == b"items" || argument.name == b"instructions" || argument.name == b"spec" => {
             Bound::Bytes { most: limits.ask_bytes }
         }
+        Kind::File if argument.name == b"body" => Bound::Bytes { most: 4096 },
         Kind::Duration if argument.name == b"timeout" => {
             Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
         }

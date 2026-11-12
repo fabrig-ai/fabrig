@@ -2,6 +2,14 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::FINDING_LIST_AT), "help_finding_list"),
+    (Some(jig::rows::FINDING_SHOW_AT), "help_finding_show"),
+    (Some(jig::rows::FINDING_FILE_AT), "help_finding_file"),
+    (Some(jig::rows::FINDING_HAND_AT), "help_finding_hand"),
+    (Some(jig::rows::FINDING_ROUTE_AT), "help_finding_route"),
+    (Some(jig::rows::FINDING_BACKLOG_AT), "help_finding_backlog"),
+    (Some(jig::rows::FINDING_DROP_AT), "help_finding_drop"),
+    (Some(jig::rows::NEED_ASK_AT), "help_need_ask"),
     (Some(jig::rows::PARTY_MAKE_AT), "help_party_make"),
     (Some(jig::rows::SIGN_IN_AT), "help_sign_in"),
     (Some(65), "help_repository_make"),
