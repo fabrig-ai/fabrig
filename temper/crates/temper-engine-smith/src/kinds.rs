@@ -322,10 +322,18 @@ fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
 
 fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
     match value {
-        settings::AreaOwner::Task(number) => v1::AreaOwner::Task(v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number")),
-        settings::AreaOwner::Party(number) => v1::AreaOwner::Party(v1::AreaParty::new(&v1::CEILINGS, v1::AreaPartyParts { number }).expect("fixed owner number")),
-        settings::AreaOwner::Role(number) => v1::AreaOwner::Role(v1::AreaRole::new(&v1::CEILINGS, v1::AreaRoleParts { number }).expect("fixed owner number")),
-        settings::AreaOwner::Charter(number) => v1::AreaOwner::Charter(v1::AreaCharter::new(&v1::CEILINGS, v1::AreaCharterParts { number }).expect("fixed owner number")),
+        settings::AreaOwner::Task(number) => v1::AreaOwner::Task(
+            v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Party(number) => v1::AreaOwner::Party(
+            v1::AreaParty::new(&v1::CEILINGS, v1::AreaPartyParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Role(number) => v1::AreaOwner::Role(
+            v1::AreaRole::new(&v1::CEILINGS, v1::AreaRoleParts { number }).expect("fixed owner number"),
+        ),
+        settings::AreaOwner::Charter(number) => v1::AreaOwner::Charter(
+            v1::AreaCharter::new(&v1::CEILINGS, v1::AreaCharterParts { number }).expect("fixed owner number"),
+        ),
     }
 }
 fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
@@ -339,12 +347,25 @@ fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
 fn wire_areas(value: &settings::ProjectAreas) -> v1::ProjectAreas {
     let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
     for area in &value.areas {
-        areas.push(v1::Area::new(&v1::CEILINGS, v1::AreaParts { name: area.name.clone(), words: area.words.clone(), owner: owner_record(area.owner) }).expect("admitted area fits")).expect("counted areas");
+        areas
+            .push(
+                v1::Area::new(
+                    &v1::CEILINGS,
+                    v1::AreaParts {
+                        name: area.name.clone(),
+                        words: area.words.clone(),
+                        owner: owner_record(area.owner),
+                    },
+                )
+                .expect("admitted area fits"),
+            )
+            .expect("counted areas");
     }
     v1::ProjectAreas::new(&v1::CEILINGS, v1::ProjectAreasParts { areas }).expect("admitted areas fit")
 }
 fn wire_triager(value: &settings::ProjectTriager) -> v1::ProjectTriager {
-    v1::ProjectTriager::new(&v1::CEILINGS, v1::ProjectTriagerParts { owner: owner_record(value.owner) }).expect("fixed triager fields")
+    v1::ProjectTriager::new(&v1::CEILINGS, v1::ProjectTriagerParts { owner: owner_record(value.owner) })
+        .expect("fixed triager fields")
 }
 fn areas_from(value: v1::ProjectAreas) -> settings::ProjectAreas {
     let mut areas = List::uncapped();

@@ -776,8 +776,14 @@ fn settings_proposals_carry_typed_project_questions() {
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-classes", 8), ("project-words", 10), ("project-areas", 12), ("project-triager", 13)]
-    {
+    for (kind, number) in [
+        ("project-ways", 7),
+        ("project-questions", 6),
+        ("project-classes", 8),
+        ("project-words", 10),
+        ("project-areas", 12),
+        ("project-triager", 13),
+    ] {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(

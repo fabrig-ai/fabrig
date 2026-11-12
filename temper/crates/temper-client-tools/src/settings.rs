@@ -340,7 +340,11 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         13 => b"project-triager ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 {
+        scope
+    } else {
+        number
+    }));
     if kind == 2 {
         out.put(b" --project ");
         out.number(u64::from(scope));

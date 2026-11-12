@@ -463,8 +463,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectAreas(value), .. }) => {
-                let mut held = skein_lib::len_u64(value.areas.len()).checked_mul(u64::try_from(size_of::<settings::Area>()).ok()?)?;
-                for area in &value.areas { held = held.checked_add(bytes(&area.name))?.checked_add(bytes(&area.words))?; }
+                let mut held = skein_lib::len_u64(value.areas.len())
+                    .checked_mul(u64::try_from(size_of::<settings::Area>()).ok()?)?;
+                for area in &value.areas {
+                    held = held.checked_add(bytes(&area.name))?.checked_add(bytes(&area.words))?;
+                }
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
@@ -478,7 +481,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     settings::Value::Charter(_)
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
-                    | settings::Value::ProjectTriager(_) | settings::Value::Goal(_),
+                    | settings::Value::ProjectTriager(_)
+                    | settings::Value::Goal(_),
                 ..
             })
             | settings::Edit::Remove

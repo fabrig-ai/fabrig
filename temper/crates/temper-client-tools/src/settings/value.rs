@@ -7,18 +7,34 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     match kind {
         12 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
-            if !reader.is_empty() { return false; }
-            out.object_start(); out.key(b"areas"); out.array_start();
-            for area in value.areas() {
-                out.object_start(); out.key(b"name"); out.string(area.name());
-                out.key(b"words"); out.string(area.words()); out.key(b"owner"); render_owner(area.owner(), out); out.object_end();
+            if !reader.is_empty() {
+                return false;
             }
-            out.array_end(); out.object_end();
+            out.object_start();
+            out.key(b"areas");
+            out.array_start();
+            for area in value.areas() {
+                out.object_start();
+                out.key(b"name");
+                out.string(area.name());
+                out.key(b"words");
+                out.string(area.words());
+                out.key(b"owner");
+                render_owner(area.owner(), out);
+                out.object_end();
+            }
+            out.array_end();
+            out.object_end();
         }
         13 => {
             let Ok(value) = w::ProjectTriager::decode(&w::CEILINGS, &mut reader) else { return false };
-            if !reader.is_empty() { return false; }
-            out.object_start(); out.key(b"owner"); render_owner(value.owner(), out); out.object_end();
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"owner");
+            render_owner(value.owner(), out);
+            out.object_end();
         }
         1 | 2 => {
             let Ok(value) = w::LandingRule::decode(&w::CEILINGS, &mut reader) else { return false };
@@ -152,5 +168,8 @@ fn render_owner(value: &w::AreaOwner, out: &mut Encoder) {
         w::AreaOwner::Role(n) => (b"role".as_slice(), u64::from(n.number())),
         w::AreaOwner::Charter(n) => (b"charter".as_slice(), u64::from(n.number())),
     };
-    out.object_start(); out.key(kind); out.unsigned(number); out.object_end();
+    out.object_start();
+    out.key(kind);
+    out.unsigned(number);
+    out.object_end();
 }

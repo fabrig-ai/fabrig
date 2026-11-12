@@ -515,14 +515,17 @@ fn a_projects_kinds_are_judged() {
 
 #[test]
 fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
-    use crate::settings::{Area, AreaOwner, ProjectAreas, ProjectTriager, Asked, Edit, SizedValue, Judged};
+    use crate::settings::{Area, AreaOwner, Asked, Edit, Judged, ProjectAreas, ProjectTriager, SizedValue};
     use skein_lib::Queue;
-    let good = Area { name: b"tests".as_slice().into(), words: b"vsr's C tests".as_slice().into(), owner: AreaOwner::Role(0) };
+    let good =
+        Area { name: b"tests".as_slice().into(), words: b"vsr's C tests".as_slice().into(), owner: AreaOwner::Role(0) };
     let mut largest = List::with_capacity(16);
     for n in 0_u8..16 {
         let mut name = vec![b'a'; 32];
         name[31] = b'a' + n;
-        largest.push(Area { name: name.into_boxed_slice(), words: vec![b'w'; 480].into_boxed_slice(), ..good.clone() }).expect("16 areas");
+        largest
+            .push(Area { name: name.into_boxed_slice(), words: vec![b'w'; 480].into_boxed_slice(), ..good.clone() })
+            .expect("16 areas");
     }
     let mut twice = vec![good.clone(); 2];
     twice[1].words = b"other words".as_slice().into();
@@ -539,20 +542,30 @@ fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
     ];
     for areas in bad {
         let named = areas[0].name.clone();
-        let item = Item { kind: 12, scope: PROJECT, number: 1, value: Some(Value::ProjectAreas(ProjectAreas { areas: areas.into_boxed_slice() })) };
+        let item = Item {
+            kind: 12,
+            scope: PROJECT,
+            number: 1,
+            value: Some(Value::ProjectAreas(ProjectAreas { areas: areas.into_boxed_slice() })),
+        };
         let refusal = judge(&item, &BOUNDS).expect_err("bad area");
         let words = refusal.words();
         assert!(words.starts_with(b"area "), "{words:?}");
         if !named.is_empty() {
             let mut found = false;
-            for window in words.windows(named.len()) { found |= window == named.as_ref(); }
+            for window in words.windows(named.len()) {
+                found |= window == named.as_ref();
+            }
             assert!(found);
         }
     }
     let env = super::env();
     let mut domain = super::domain();
     let mut out = Queue::uncapped();
-    for (kind, value) in [(12, Value::ProjectAreas(ProjectAreas { areas: largest.into_boxed() })), (13, Value::ProjectTriager(ProjectTriager { owner: AreaOwner::Charter(14) }))] {
+    for (kind, value) in [
+        (12, Value::ProjectAreas(ProjectAreas { areas: largest.into_boxed() })),
+        (13, Value::ProjectTriager(ProjectTriager { owner: AreaOwner::Charter(14) })),
+    ] {
         let value = SizedValue { value, size: 8468 };
         let asked = Asked { kind, scope: PROJECT, number: 1, edit: Edit::Set(value.clone()) };
         assert!(matches!(domain.judge_settings(&BOUNDS, core::slice::from_ref(&asked))[0], Judged::Accept { .. }));

@@ -2460,7 +2460,17 @@ fn project_area_owners_are_judged_from_the_core() {
         };
         let mut key = 20_u8;
         for (kind, value, subject) in [
-            (12, Value::ProjectAreas(ProjectAreas { areas: Box::new([Area { name: b"tests".as_slice().into(), words: b"vsr's C tests".as_slice().into(), owner }]) }), "area tests"),
+            (
+                12,
+                Value::ProjectAreas(ProjectAreas {
+                    areas: Box::new([Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"vsr's C tests".as_slice().into(),
+                        owner,
+                    }]),
+                }),
+                "area tests",
+            ),
             (13, Value::ProjectTriager(ProjectTriager { owner }), "triager"),
         ] {
             let before = world.head().number;
@@ -2469,9 +2479,14 @@ fn project_area_owners_are_judged_from_the_core() {
             key += 1;
             world.driver.send(kinds::change(world.owner, before, key, Box::new([item])));
             world.driver.settle();
-            if accepted { assert_eq!(world.head().number, before + 1, "{subject}: {label}"); }
-            else {
-                let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else { panic!("owner refused: {:?}", world.reply(key)) };
+            if accepted {
+                assert_eq!(world.head().number, before + 1, "{subject}: {label}");
+            } else {
+                let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) =
+                    world.reply(key)
+                else {
+                    panic!("owner refused: {:?}", world.reply(key))
+                };
                 let why = String::from_utf8_lossy(why);
                 assert!(why.contains(subject) && why.contains(&label), "{why}");
                 assert_eq!(world.settings_rows(), rows, "refusal writes nothing");
@@ -2483,17 +2498,31 @@ fn project_area_owners_are_judged_from_the_core() {
         let mut key = 30_u8;
         let before = world.head().number;
         key += 1;
-        let items = Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit: s::Edit::Set(s::Value::Application(Box::new([255]))) }]);
+        let items = Box::new([s::Item {
+            setting: s::Setting::Application { kind, scope: PROJECT, number: 1 },
+            edit: s::Edit::Set(s::Value::Application(Box::new([255]))),
+        }]);
         world.driver.send(Event::Party(PartyInput::ChangeSettings {
-            reply_to: ReplyTo::new(Token::new(u64::from(key))), sign_in: world.owner, key: [key; 16], digest: [key; 32],
-            kinds: Box::new([]), change: Box::new(s::Change { against: before, items, running: s::Running::Stays }),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.owner,
+            key: [key; 16],
+            digest: [key; 32],
+            kinds: Box::new([]),
+            change: Box::new(s::Change { against: before, items, running: s::Running::Stays }),
         }));
         world.driver.settle();
-        let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else { panic!("malformed value refused: {:?}", world.reply(key)) };
+        let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key)
+        else {
+            panic!("malformed value refused: {:?}", world.reply(key))
+        };
         assert!(String::from_utf8_lossy(why).contains(subject));
         for edit in [s::Edit::Removed, s::Edit::Reset] {
             key += 1;
-            world.change(world.head().number, key, Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit }]));
+            world.change(
+                world.head().number,
+                key,
+                Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit }]),
+            );
         }
     }
 }

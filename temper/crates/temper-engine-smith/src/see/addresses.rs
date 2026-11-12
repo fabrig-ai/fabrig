@@ -193,8 +193,16 @@ pub(crate) const GROUPS: &[Group] = &[
                 line: "A charter's words; stock where none is stored, marked so, or that it has none.",
                 next: "settings · revisions · help settings-fields",
             },
-            Address { form: "settings project-areas", line: "This project's areas, or that it has none.", next: "settings · revisions · help settings-fields" },
-            Address { form: "settings project-triager", line: "This project's triager, or that it has none.", next: "settings · revisions · help settings-fields" },
+            Address {
+                form: "settings project-areas",
+                line: "This project's areas, or that it has none.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings project-triager",
+                line: "This project's triager, or that it has none.",
+                next: "settings · revisions · help settings-fields",
+            },
             Address {
                 form: "settings project-words",
                 line: "This project's words, or that it has none.",

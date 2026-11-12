@@ -63,13 +63,49 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
             }),
         ),
         (8, d::Value::Classes(classes.clone())),
-        (12, d::Value::ProjectAreas(d::ProjectAreas { areas: Box::new([d::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: d::AreaOwner::Task(u64::MAX) }]) })),
+        (
+            12,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Task(u64::MAX),
+                }]),
+            }),
+        ),
         (13, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Task(u64::MAX) })),
-        (12, d::Value::ProjectAreas(d::ProjectAreas { areas: Box::new([d::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: d::AreaOwner::Party(u64::MAX) }]) })),
+        (
+            12,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Party(u64::MAX),
+                }]),
+            }),
+        ),
         (13, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Party(u64::MAX) })),
-        (12, d::Value::ProjectAreas(d::ProjectAreas { areas: Box::new([d::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: d::AreaOwner::Role(u32::MAX) }]) })),
+        (
+            12,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Role(u32::MAX),
+                }]),
+            }),
+        ),
         (13, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Role(u32::MAX) })),
-        (12, d::Value::ProjectAreas(d::ProjectAreas { areas: Box::new([d::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: d::AreaOwner::Charter(u32::MAX) }]) })),
+        (
+            12,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Charter(u32::MAX),
+                }]),
+            }),
+        ),
         (13, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Charter(u32::MAX) })),
         (11, d::Value::Goal(d::TemplateGoal { design: false, close_out: false })),
         (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: true })),

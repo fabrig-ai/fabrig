@@ -105,13 +105,34 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         });
         row_and_key(&writer, &mut rng, &bounds);
     }
-    for owner in [forge::settings::AreaOwner::Task(u64::MAX), forge::settings::AreaOwner::Party(u64::MAX), forge::settings::AreaOwner::Role(u32::MAX), forge::settings::AreaOwner::Charter(u32::MAX)] {
+    for owner in [
+        forge::settings::AreaOwner::Task(u64::MAX),
+        forge::settings::AreaOwner::Party(u64::MAX),
+        forge::settings::AreaOwner::Role(u32::MAX),
+        forge::settings::AreaOwner::Charter(u32::MAX),
+    ] {
         use forge::settings as s;
         for (kind, value) in [
-            (12, s::Value::ProjectAreas(s::ProjectAreas { areas: Box::new([s::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner }]) })),
+            (
+                12,
+                s::Value::ProjectAreas(s::ProjectAreas {
+                    areas: Box::new([s::Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"C tests".as_slice().into(),
+                        owner,
+                    }]),
+                }),
+            ),
             (13, s::Value::ProjectTriager(s::ProjectTriager { owner })),
         ] {
-            row_and_key(&forge::Stored::Setting(s::SettingRow { key: s::SettingKey { kind, scope: 1, number: 1, slot: s::SettingSlot::Change }, edit: s::Edit::Set(s::SizedValue { value, size: 1 }) }), &mut rng, &bounds);
+            row_and_key(
+                &forge::Stored::Setting(s::SettingRow {
+                    key: s::SettingKey { kind, scope: 1, number: 1, slot: s::SettingSlot::Change },
+                    edit: s::Edit::Set(s::SizedValue { value, size: 1 }),
+                }),
+                &mut rng,
+                &bounds,
+            );
         }
     }
     for _ in 0..128 {

@@ -60,14 +60,53 @@ fn values() -> [(u32, settings::Value); 22] {
             )),
         ),
         (7, settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
-        (12, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Task(u64::MAX) }]) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Task(u64::MAX),
+                }]),
+            }),
+        ),
         (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Task(u64::MAX) })),
-        (12, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Party(u64::MAX) }]) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Party(u64::MAX),
+                }]),
+            }),
+        ),
         (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Party(u64::MAX) })),
-        (12, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Role(u32::MAX) }]) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Role(u32::MAX),
+                }]),
+            }),
+        ),
         (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Role(u32::MAX) })),
-        (12, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Charter(u32::MAX) }]) })),
-        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(u32::MAX) })),
+        (
+            12,
+            settings::Value::ProjectAreas(settings::ProjectAreas {
+                areas: Box::new([settings::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: settings::AreaOwner::Charter(u32::MAX),
+                }]),
+            }),
+        ),
+        (
+            13,
+            settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(u32::MAX) }),
+        ),
         (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: false })),
