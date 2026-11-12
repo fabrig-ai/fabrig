@@ -3,6 +3,7 @@ mod configuration;
 mod fuzzy;
 mod home;
 mod ledger;
+mod passes;
 mod reference;
 mod run;
 mod world;

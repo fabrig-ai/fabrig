@@ -21,6 +21,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["triage", "case", "--help"],
         vec!["show", "--help"],
         vec!["lines", "--help"],
+        vec!["report", "--help"],
         vec!["nope"],
     ] {
         let output = Command::new(skein_scratch::paths::binary("temper-qa"))
@@ -46,6 +47,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "triage case",
                     "show",
                     "lines",
+                    "report",
                     "TEMPER_INTERNAL_QA_HOME",
                     "TEMPER_INTERNAL_QA_SESSION",
                 ] {

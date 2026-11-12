@@ -18,8 +18,8 @@ pub const SESSION: Variable = Variable {
     name: "TEMPER_INTERNAL_QA_SESSION",
     set: Set::Internal,
     form: "N",
-    line: "The running triage session the agent's commands record for.",
-    absent: "Triage commands are refused.",
+    line: "The running triage or pass session the agent's commands record for.",
+    absent: "Triage and pass commands are refused.",
     notes: "Set by the loop for the agent it starts.",
     way: Way::Reads,
 };
@@ -74,7 +74,7 @@ const SHOW: Command = Command {
     reach: Reach::Words(&["show"]),
     set: Set::Internal,
     forms: &[""],
-    line: "Print the ledger's landings, cases, builds and sessions, oldest first.",
+    line: "Print the ledger's landings, cases, builds, sessions, passes, findings and notes, oldest first.",
     arguments: &[],
     settings: &[],
     switches: &[],
@@ -92,12 +92,23 @@ const LINES: Command = Command {
     variables: &[&HOME],
     notes: "",
 };
+const REPORT: Command = Command {
+    reach: Reach::Words(&["report"]),
+    set: Set::Internal,
+    forms: &["PASS"],
+    line: "Print a pass's JSON report from the ledger.",
+    arguments: &[Argument { shown: "PASS", line: "The pass number." }],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "",
+};
 pub const TABLE: Table = Table {
     binary: "temper-qa",
     line: "QA after landing: main's landings triaged into cases, and builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES],
+    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES, REPORT],
     settings: &[],
     variables: &[&HOME, &SESSION],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -150,6 +161,20 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected COMMIT and DIR".into()),
         };
     }
+    if command == &REPORT {
+        return match rest {
+            [value]
+                if std::str::from_utf8(value)
+                    .ok()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .is_some_and(|number| number > 0) =>
+            {
+                Ok(rest)
+            }
+            [] => Err("PASS is not given".into()),
+            _ => Err("expected a pass number".into()),
+        };
+    }
     if command == &NONE || command == &CASE {
         match rest {
             [value] if !value.starts_with(b"--") => Ok(rest),
@@ -195,6 +220,17 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
         let processes = crate::faces::RealProcesses::new(environment.clone());
         crate::runner::Run::start(home, git, processes, crate::faces::RealClock::default(), environment)?.serve()?;
         return Ok(String::new());
+    }
+    if command == &REPORT {
+        let number = std::str::from_utf8(arguments.first().expect("report argument"))
+            .expect("checked UTF-8")
+            .parse()
+            .expect("checked pass number");
+        return home.read(|ledger| {
+            serde_json::to_string_pretty(&ledger.report(number)?)
+                .map(|text| format!("{text}\n"))
+                .map_err(|why| refused(format!("report: {why}")))
+        });
     }
     if command == &SHOW {
         return home.read(|ledger| Ok(ledger.show()));

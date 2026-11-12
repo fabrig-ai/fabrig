@@ -13,7 +13,7 @@ const SHORT: &str = "0123456789ab";
 
 fn home() -> (Scratch, Home) {
     let scratch = Scratch::new("qa-builds");
-    fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low"},"builds":"published"}"#).expect("config");
+    fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["file"]},"builds":"published"}"#).expect("config");
     let home = Home::open(scratch.path()).expect("home");
     (scratch, home)
 }
