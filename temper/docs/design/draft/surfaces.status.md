@@ -32,9 +32,9 @@
     under the areas, where `../client/pages/team.md`, 1 has a line at
     People's foot, "Findings with no area go to NAME.", which nothing
     draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
-    gives a person's line what they can still sign, signed and asked for,
-    which waits for sign-offs by path and kept sign-offs
-    (`whole-story.execution.md`, N2, N5 and N6).
+    gives a person's line what they can still sign and asked for, which
+    waits for who can still sign (`whole-story.execution.md`, N5); what
+    they signed is `../client/pages/team.md`, 1, *What each signed*.
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's

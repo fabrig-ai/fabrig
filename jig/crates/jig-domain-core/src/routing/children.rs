@@ -494,14 +494,19 @@ pub(crate) fn tag_account(
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
             accounts::Request::ReadList { read, provider, grant, .. } => {
-                let mut endpoint = None;
-                for facts in &core.settings.endpoints {
-                    if facts.providers.contains(&provider) {
-                        endpoint = Some(facts.number);
-                        break;
+                let endpoint = match core.settings.direct_endpoint(provider) {
+                    Some(facts) => facts.number,
+                    None => {
+                        let mut endpoint = None;
+                        for facts in &core.settings.endpoints {
+                            if facts.providers.contains(&provider) {
+                                endpoint = Some(facts.number);
+                                break;
+                            }
+                        }
+                        endpoint.expect("a listed provider has an endpoint")
                     }
-                }
-                let endpoint = endpoint.expect("a listed provider has an endpoint");
+                };
                 append_fleet(
                     core,
                     env,

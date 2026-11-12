@@ -216,6 +216,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
 
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
+        signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 1, repository: 1 },
         branch: Box::from(b"temper/7".as_slice()),
