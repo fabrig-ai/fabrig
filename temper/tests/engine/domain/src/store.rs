@@ -499,6 +499,9 @@ impl Store {
                 self.applied = last;
                 self.pending_generation = pending;
             }
+            Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } => {
+                unreachable!("an engine store never rehearses or goes back")
+            }
             Event::Patched { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");

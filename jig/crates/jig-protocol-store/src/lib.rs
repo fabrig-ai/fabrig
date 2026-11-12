@@ -8,6 +8,7 @@ mod baseline;
 #[path = "../patches/mod.rs"]
 pub mod patches;
 
+mod back;
 pub mod boundary;
 pub mod codec;
 mod commits;
@@ -22,6 +23,7 @@ mod loads;
 mod open;
 mod pages;
 mod patching;
+mod rehearsal;
 pub use patching::Counts;
 pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
@@ -103,6 +105,8 @@ pub struct Store {
     /// This start's first Wires commit, and its durability (protocol/store/records.md 3).
     mark: Mark,
     start_open_failure: Option<restore::OpenFailure>,
+    rehearsal: Option<rehearsal::State>,
+    back: Option<back::State>,
 }
 
 #[derive(Debug)]
@@ -181,6 +185,8 @@ impl Store {
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,
+            rehearsal: None,
+            back: None,
         }
     }
 
@@ -311,10 +317,30 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    let lengths = rehearsal::lengths(below);
+    down_inner(store, env, request, above, below);
+    accounted(store, lengths, above, below);
+}
+fn accounted(store: &mut Store, lengths: [u32; 3], above: &mut Queue<Event>, below: &mut Below) {
+    rehearsal::issued(store, below, lengths);
+    let lengths = rehearsal::lengths(below);
+    rehearsal::advance_close(store, above, below);
+    rehearsal::issued(store, below, lengths);
+}
+fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    if let Request::Close { owner } = request {
+        rehearsal::close(store, owner, above);
+        return;
+    }
     if store.phase == Phase::Stopped {
         return;
     }
     match request {
+        Request::Rehearse { owner, directory, scratch, installation } => {
+            rehearsal::begin(store, owner, directory, scratch, installation, above, below);
+        }
+        Request::Back { owner, root } => back::begin(store, owner, root, above, below),
+        Request::Close { .. } => unreachable!("close routed before stopped guard"),
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation } => {
             directory::open(store, owner, root, installation, above, below);
@@ -341,6 +367,23 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
 
 /// File terminals routed through their independent drivers.
 pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    let lengths = rehearsal::lengths(below);
+    rehearsal::arriving(store, &io);
+    if rehearsal::closing(store) {
+        rehearsal::closing_up(store, io, above, below);
+    } else if rehearsal::preparing(store) {
+        let arrived = match io {
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        };
+        rehearsal::up(store, arrived, above, below);
+    } else if store.back.is_some() {
+        back::up(store, env, io, above, below);
+    } else {
+        up_inner(store, env, io, above, below);
+    }
+    accounted(store, lengths, above, below);
+}
+fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     directory::up(store, env, io, above, below);
     if store.phase != Phase::Stopped {
         transcripts::read::fire(store, above, below);
@@ -351,7 +394,12 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
 
 /// Bounded background store work and the orphan sweep.
 pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
-    if store.phase != Phase::Stopped {
+    let lengths = rehearsal::lengths(below);
+    fire_inner(store, env, above, below);
+    accounted(store, lengths, above, below);
+}
+fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
         directory::fire(store, env, above, below);
         secrets::sweep(store, env, above, below);
         transcripts::read::fire(store, above, below);
@@ -383,8 +431,9 @@ pub mod tasks_v9;
 pub mod core_v6;
 pub mod keys;
 pub use boundary::{
-    Arrived, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io, Load, Older,
-    OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
+    KeptWire, Load, Older, OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets,
+    TranscriptRead, Write,
 };
 
 #[cfg(test)]

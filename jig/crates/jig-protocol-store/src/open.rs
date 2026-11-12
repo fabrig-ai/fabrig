@@ -10,6 +10,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     }
+    crate::rehearsal::announce(store, above);
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {
@@ -262,6 +263,7 @@ fn ready(
 }
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
+    crate::rehearsal::announce(store, above);
     store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });
