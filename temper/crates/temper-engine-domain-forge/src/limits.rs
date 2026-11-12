@@ -65,6 +65,8 @@ pub struct Limits {
     pub landing_rules: u32,
     /// A project's follows and their bounded work (temper/docs/design/domain/forge/follows.md, 10).
     pub follows: u32,
+    /// A project dependency (temper/docs/design/domain/forge/dependencies.md, 2).
+    pub dependencies: u32,
     pub follow_paths: u32,
     pub follow_queue: u32,
     pub follow_merge: u32,
@@ -155,6 +157,9 @@ pub fn valid(l: &Limits) -> bool {
         || l.landing_rules == 0
         || crate::follows::capacity(l).is_none()
         || l.follows == 0
+        // The follows document carries at most 256 dependencies.
+        || l.dependencies == 0
+        || l.dependencies > 256
         || l.follow_paths == 0
         || l.follow_paths > 256
         || l.follow_queue == 0

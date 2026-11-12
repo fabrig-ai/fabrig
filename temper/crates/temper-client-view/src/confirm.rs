@@ -192,13 +192,19 @@ fn sheet_open(b: &mut Builder, _words: &Words, title: &[u8]) {
     b.close();
 }
 fn sheet_why(b: &mut Builder, root: &Domain, words: &Words) {
-    let Some(open) = root.pages().confirmation() else { return };
-    if let Some(key) = open.sent
+    let (sent, failed) = if let Some(open) = root.pages().deleting_project() {
+        (open.sent, open.failed.as_ref())
+    } else if let Some(open) = root.pages().confirmation() {
+        (open.sent, open.failed.as_ref())
+    } else {
+        return;
+    };
+    if let Some(key) = sent
         && let Some(pending) = root.client().pending(key)
     {
         progress_text(b, words, pending.progress);
     }
-    if let Some(outcome) = &open.failed {
+    if let Some(outcome) = failed {
         outcome_words(b, words, outcome);
     }
 }
@@ -221,6 +227,18 @@ fn sheet_acts(b: &mut Builder, bindings: &mut Bindings, words: &Words, sheet: &S
 fn lead(b: &mut Builder, words: &Words, word: Word) {
     b.open(Role::Paragraph);
     words.text(b, word, &[]);
+    b.close();
+}
+pub(crate) fn delete_project(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
+    let Some(open) = root.pages().deleting_project() else { return };
+    let sheet = Sheet { title: Word::DeleteProjectTitle, keep: Word::KeepIt, does: Word::DeleteProject };
+    let name = skein_ui::phrases::Hole::Name(open.name.clone());
+    sheet_open(b, words, &words.say(sheet.title, core::slice::from_ref(&name)));
+    b.open(Role::Paragraph);
+    words.text(b, Word::DeleteProjectSays, &[name]);
+    b.close();
+    sheet_why(b, root, words);
+    sheet_acts(b, bindings, words, &sheet);
     b.close();
 }
 pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {

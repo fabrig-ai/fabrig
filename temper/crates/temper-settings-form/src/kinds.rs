@@ -8,6 +8,12 @@ use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 mod follow;
 
+fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
+    let fields = d.object(at, &[b"project"])?;
+    w::Dependency::new(&d.kinds, w::DependencyParts { project: number(d, &fields, b"project")? })
+        .or(Err(error(b"", b"wire value bound")))
+}
+
 fn hex(d: &Decoder<'_>, at: u32, most: u32, name: &[u8]) -> Result<Box<[u8]>, Error> {
     match d.hex(at, most, name) {
         Ok(value) => Ok(value),
@@ -57,7 +63,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
             number: 1,
         });
     }
-    if kind == b"follow" {
+    if kind == b"follow" || kind == b"dependency" {
         let project = number(d, fields, b"project")?;
         let number = number(d, fields, b"number")?;
         if project == 0 {
@@ -66,7 +72,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         if number == 0 {
             return Err(error(b"number", b"from 1"));
         }
-        return Ok(c::Setting::Application { kind: 12, scope: project, number });
+        return Ok(c::Setting::Application { kind: if kind == b"follow" { 12 } else { 13 }, scope: project, number });
     }
     let number = number(d, fields, b"number")?;
     if number == 0 {
@@ -101,6 +107,15 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 13 {
+        let record = match dependency(d, at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"dependency")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
     if kind == 12 {
         let record = match follow::read(d, at) {
             Ok(value) => value,
@@ -371,6 +386,7 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive renderer keeps each setting kind and its JSON form together")]
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
@@ -439,6 +455,16 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.string(value.headline());
             out.key(b"lede");
             out.string(value.lede());
+            out.object_end();
+        }
+        13 => {
+            let Ok(value) = w::Dependency::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"project");
+            out.unsigned(u64::from(value.project()));
             out.object_end();
         }
         12 => {

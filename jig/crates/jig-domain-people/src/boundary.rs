@@ -1009,6 +1009,8 @@ pub enum Key {
     Deletion(u32),
     /// Present while the project is public (jig/docs/design/domain/people/public-reading.md, 2).
     Public(u32),
+    /// Number-only deletion mark, restored at start (domain/people/acts.md, 2).
+    Deleted(u32),
 }
 
 impl Key {
@@ -1026,7 +1028,8 @@ impl Key {
             | Self::Answer(_)
             | Self::Acted(_)
             | Self::Deletion(_)
-            | Self::Public(_) => true,
+            | Self::Public(_)
+            | Self::Deleted(_) => true,
         }
     }
 }
@@ -1086,6 +1089,8 @@ pub enum Stored {
     },
     /// Present while the project is public (jig/docs/design/domain/people/public-reading.md, 2).
     Public { project: u32 },
+    /// Number-only deletion mark (domain/people/acts.md, 2).
+    Deleted { project: u32 },
 }
 
 impl Stored {
@@ -1096,6 +1101,7 @@ impl Stored {
         match self {
             Stored::Deletion { project, .. } => Key::Deletion(*project),
             Stored::Public { project } => Key::Public(*project),
+            Stored::Deleted { project } => Key::Deleted(*project),
             Stored::Person { number, .. } => Key::Person(*number),
             Stored::ReadResults { party, .. } => Key::ReadResults { party: *party },
             Stored::ReadConversation { party, task, .. } => Key::ReadConversation { party: *party, task: *task },

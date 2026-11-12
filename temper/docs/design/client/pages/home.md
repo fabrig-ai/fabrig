@@ -20,7 +20,16 @@
   welcome's Ready and "+ New project" (`../view.md`, 3) open, and the brand's link.
   Going to it opens that project as a project's button does (`../view.md`, 3); with
   no such project in `me`, it says "Project N is not one of yours.", N
-  the address's number, and the chats' link. One column of prose, in
+  the address's number, and the chats' link. *A deleted project:* with
+  no such project in `me`, the page reads the project, jig's
+  `Read::Project { project }`, once for its address, and draws its
+  heading alone until the read answers; answered gone, a project
+  deleted (jig's `client/domain/contract/README.md`, section 4), it says
+  "Project N was deleted." in that sentence's place, with the same
+  link; any other answer, the sentence above. How work runs says the
+  same where it says a project is not one of yours (`settings.md`, 1).
+  With no project left, the column "No project yet" draws instead, as
+  on every address (`welcome.md`, 1). One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
     (the user, 2026-11-04), the level-1 heading and

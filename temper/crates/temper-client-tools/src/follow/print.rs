@@ -97,7 +97,12 @@ fn show(row: &w::FollowView, out: &mut Text) {
     }
     out.put(b"\n");
 }
-fn text(panel: &w::FollowsPanel, row: Option<&w::FollowView>, out: &mut Text) {
+fn text(
+    panel: &w::FollowsPanel,
+    row: Option<&w::FollowView>,
+    projects: &[jig_client::contract::MeProject],
+    out: &mut Text,
+) {
     if let Some(row) = row {
         show(row, out);
         return;
@@ -107,6 +112,19 @@ fn text(panel: &w::FollowsPanel, row: Option<&w::FollowView>, out: &mut Text) {
     }
     for row in panel.follows() {
         out.put(&follows::line(row));
+        out.put(b"\n");
+    }
+    let mut name = None;
+    for project in projects {
+        if project.project == panel.project() {
+            name = Some(project.name.bytes());
+            break;
+        }
+    }
+    let fallback =
+        skein_lib::bytes::concat(&[b"project ", skein_lib::Decimal::of(u64::from(panel.project())).as_bytes()]);
+    for row in panel.dependencies() {
+        out.put(&follows::dependency_line(row, name.unwrap_or(&fallback), projects));
         out.put(b"\n");
     }
 }
@@ -271,11 +289,23 @@ fn json(panel: &w::FollowsPanel, row: Option<&w::FollowView>, out: &mut Encoder)
         row_json(row, out);
     }
     out.array_end();
+    out.key(b"dependencies");
+    out.array_start();
+    for row in panel.dependencies() {
+        out.object_start();
+        out.key(b"number");
+        out.unsigned(u64::from(row.number()));
+        out.key(b"project");
+        out.unsigned(u64::from(row.project()));
+        out.object_end();
+    }
+    out.array_end();
     out.object_end();
 }
 pub(super) fn print(
     panel: &w::FollowsPanel,
     row: Option<&w::FollowView>,
+    projects: &[jig_client::contract::MeProject],
     is_json: bool,
     limits: &Limits,
 ) -> jig::Printed {
@@ -289,12 +319,12 @@ pub(super) fn print(
         out.finish()
     } else {
         let mut measure = Text::measure();
-        text(panel, row, &mut measure);
+        text(panel, row, projects, &mut measure);
         if measure.written() > usize::try_from(limits.tools.text).expect("text fits") {
             return render::failure(b"result limit", is_json, 1);
         }
         let mut out = Text::writing_exact(measure);
-        text(panel, row, &mut out);
+        text(panel, row, projects, &mut out);
         out.finish()
     };
     jig::Printed { file: jig::FileEnd::Keep, status: 0, stdout: bytes, stderr: Box::default() }

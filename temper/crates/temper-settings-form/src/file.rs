@@ -265,6 +265,7 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"forge-charter",
         b"template-goal",
         b"follow",
+        b"dependency",
         b"project-ways",
         b"project-questions",
         b"project-classes",

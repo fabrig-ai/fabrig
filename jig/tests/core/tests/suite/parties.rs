@@ -459,7 +459,17 @@ fn deleting_a_project_cleans_accepted_party_batches_and_amendments() {
             propose(&mut world, member, PROPOSE_REQUEST, Box::new([people_member(b"beyond role", 150)]))
         };
         decide(&mut world, owner, DECIDE_REQUEST, proposal, people::ProposalDecision::Accept);
-        ask_as(&mut world, owner, 71, people::Ask::RemoveProject { project: PROJECT, grace: None });
+        let mut configuration = jig_core_world::stories::offers::member_configuration(330);
+        configuration.core.grants =
+            Box::new([people::ActGrant { connector: CONNECTOR, may: Box::new([people::ActKind::RemoveProject]) }]);
+        world.restart_with(configuration);
+        world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Act {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(71)),
+            connector: CONNECTOR,
+            key: [71; 16],
+            act: Box::new(people::Act::RemoveProject { project: PROJECT, grace: None }),
+            carried: None,
+        }));
         super::deletion::finish(&mut world);
         assert!(!world.store.rows.values().any(|row| matches!(row,
             jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row)))
