@@ -498,7 +498,7 @@ enum NewsClass { wakes, kept, dropped }
 record WordResultApproved { state: text 65536 words_present: bool }
 record WordResultVerdict { code: u32 fields: list 32 ResultField }
 record WordResultChange { connector: u16 kind: u16 resource: u64 }
-enum WordResult { approved: WordResultApproved, report, verdict: WordResultVerdict, change: WordResultChange, failed, cancelled }
+enum WordResult { approved: WordResultApproved, report, verdict: WordResultVerdict, change: WordResultChange, failed, cancelled, job }
 record MessageKindEscalation { task: u64 revision: u64 }
 record MessageKindProposal { proposer: u64 proposal: u64 kind: MessageProposalKind }
 record MessageKindPersonStalled { task: u64 }

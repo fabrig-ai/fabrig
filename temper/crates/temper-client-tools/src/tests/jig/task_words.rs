@@ -1174,6 +1174,26 @@ fn report_chunks(
 }
 
 #[test]
+fn activity_job_results_print_the_job_kind_and_empty_words_in_json() {
+    let word = c::Word {
+        number: 1, from: c::Requester::Task(DELEGATE), kind: c::MessageKind::Result(c::WordResult::Job),
+        words: f::document_text(b"").bytes, at: Wall::EPOCH, hits: 1, eligible: true,
+    };
+    let mut rows = List::with_capacity(1);
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine { task: DELEGATE, position: 1, at: Wall::EPOCH, line: c::Activity::Heard(word) }),
+        decoded: None,
+    }).unwrap();
+    let result = c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+        rows, cut: false, before: None, after: None,
+    })));
+    let printed = f::read_answer(&["task", "activity", "2", "--json"], result);
+    assert_eq!(printed.status, 0, "{printed:?}");
+    assert!(f::has(&printed, b"\"kind\":{\"result\":\"job\"}"), "{printed:?}");
+    assert!(f::has(&printed, b"\"words\":\"\""), "{printed:?}");
+}
+
+#[test]
 fn activity_verdicts_name_the_code_with_the_reason() {
     let word = c::Word {
         number: 1,

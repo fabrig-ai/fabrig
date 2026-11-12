@@ -308,6 +308,20 @@ fn assert_time_presentation() {
     }
 }
 #[test]
+fn a_heard_job_result_has_a_job_caption_and_no_words() {
+    let word = Word { words: text(b""), ..fixture(MessageKind::Result(WordResult::Job)) };
+    let tree = build(&activity(Activity::Heard(word)), normal_words());
+    assert!(crate::tests::kit::contains(&tree, b"Result: job"));
+    for node in tree.nodes() {
+        for run in &node.text {
+            if run.run == skein_ui::Run::Code {
+                assert!(run.text.is_empty(), "job result has no words");
+            }
+        }
+    }
+}
+
+#[test]
 fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_and_change_identity() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_all_six");
     let variants: Box<[WordResult]> = Box::new([

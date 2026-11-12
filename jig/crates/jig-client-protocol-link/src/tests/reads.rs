@@ -1,6 +1,45 @@
 use super::*;
 use skein_lib::length::len_u64;
 #[test]
+fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
+    let limits = fixtures::limits();
+    let wire = limits.wire();
+    let word = w::Word::new(wire, w::WordParts {
+        number: 19,
+        from: w::Requester::Task(w::RequesterTask::new(wire, w::RequesterTaskParts { task: 11 }).unwrap()),
+        kind: w::MessageKind::Result(w::MessageKindResult::new(wire, w::MessageKindResultParts { value: w::WordResult::Job }).unwrap()),
+        words: Box::new([]), at: 23, hits: 2, eligible: true,
+    }).unwrap();
+    let source = w::ActivityLine::new(wire, w::ActivityLineParts {
+        task: 7, position: 2, at: 29,
+        line: w::Activity::Heard(w::ActivityHeard::new(wire, w::ActivityHeardParts { value: word }).unwrap()),
+    }).unwrap();
+    let row = w::DecodedActivityLine::new(wire, w::DecodedActivityLineParts { source, decoded: None }).unwrap();
+    let mut encoded = Writer::new(usize::try_from(row.measure()).unwrap());
+    row.encode(&mut encoded).unwrap();
+    let mut pieces = Writer::new(usize::try_from(row.measure()).unwrap().checked_add(4).unwrap());
+    skein_codec::piece::write(&mut pieces, &encoded.finish()).unwrap();
+    let page = w::ActivityPage::new(wire, w::ActivityPageParts { rows: pieces.finish(), cut: false, before: None, after: None }).unwrap();
+    let mut h = fixtures::Harness::new(&limits);
+    let exchange = h.read(Readable::Jig(c::Read::Activity { task: 7, before: None }));
+    h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Activity(page)));
+    let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page)))) = h.read_answered() else { panic!("activity page, not malformed") };
+    assert_eq!(page.rows.len(), 1);
+    assert!(!page.cut);
+    assert!(page.before.is_none() && page.after.is_none());
+    let row = page.rows.get(0).unwrap();
+    assert!(row.decoded.is_none());
+    assert_eq!(*row.source, c::ActivityLine {
+        task: 7, position: 2, at: Wall::from_nanos(29),
+        line: c::Activity::Heard(c::Word {
+            number: 19, from: c::Requester::Task(11), kind: c::MessageKind::Result(c::WordResult::Job),
+            words: c::Text::new(Box::new([]), 0).unwrap(), at: Wall::from_nanos(23), hits: 2, eligible: true,
+        }),
+    });
+    assert_eq!(h.read_terminals(), 1);
+}
+
+#[test]
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
     let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
     let w::Read::History(record) = actual else { panic!("history record") };
