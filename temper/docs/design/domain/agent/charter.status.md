@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [charter.md](charter.md).
 
-- **Not yet:** 1, *A set of charter files*: no `temper-charter-set` exists, and the stock's charters 5 and 2 come from `temper-service`'s `stock/coordinator.md` and `stock/coding.txt` [in flight: change 1154].
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`)

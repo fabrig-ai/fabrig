@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1: parameter 14's value 1, the retired foreman's, starts a change that takes foremen, and a batch's task room holds a question allowance for them [in flight: change 1157].
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
