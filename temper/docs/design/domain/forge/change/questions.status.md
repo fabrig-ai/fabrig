@@ -1,6 +1,13 @@
 # questions: status
 
-2026-11-11. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-12. Where the tree's code lags or departs from [questions.md](questions.md).
+
+
+- **Not yet:** 1, *Passed up*: a requester's run that reads the change's
+  question and ends without answering leaves later runs no sight of it,
+  and the requester idle with it [in flight: change 838].
+- **Not yet:** 1, *Passed up*: the question's label names no answer form
+  [in flight: change 839].
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
@@ -46,24 +53,17 @@
     g's ancestry is unobserved in stories, the fake forge squashing
     merges (skein's `testing/fakes/forge.md`, 2.2).
   - 1: what a step short of message room leaves for the next. A
-    question's `Stands` is taken, foreman, asked or held
-    (`temper-engine-domain-forge-change/src/boundary.rs`, and the store's
-    `Stands`), so nothing holds reasons awaiting passing up, whose stored
-    ceiling is not in the schema, or a foreman's words awaiting passing
-    down. With no room `relay`
-    (`temper-engine-domain-forge-change/src/relay.rs`) leaves the question
-    as it stood and wakes the change, while the step's commit takes the
-    foreman's verdict from the inbox (jig's `domain/tasks/messages.md`, 2), so the
-    question waits on an ended foreman. A question released past the bound
-    at such a step meets the spent allowance again at the next: the release
-    is that step's alone, and `next_act` holds the change.
+    question released past the bound at such a step meets the spent
+    allowance again at the next: the release is that step's alone, and
+    `next_act` (`temper-engine-domain-forge-change/src/relay.rs`) holds the
+    change.
   - 1: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
     `asking_delegate`), and its words, refused as a producer's are, are
     unobserved in stories: every relay story runs the change's producing
     task only
-    (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
-    `foremen.rs` and `goal_questions.rs`).
+    (`tests/engine/domain/tests/suite/forge_routes/questions.rs` and
+    `goal_questions.rs`).
   -  the tier-branch CI gap remains `../queues.status.md` (Not yet, the whole document).
   -  the issue milestones remain `../issues.status.md` (Not yet, the whole document).
   -  the forge questions remain `../issues.status.md`, 1.
@@ -89,13 +89,6 @@
     store change. So a requester that never answers hears nothing of it.
   -  the producer-failure story-tier departure remains `repairs.status.md` (Design departs, the whole document).
 
-- **Departs:** 1: a change taking `foreman` gives its producing, each
-  repair and each resolution half the spend the change may give it,
-  keeping the rest for the foremen of that agent's questions, since a
-  foreman runs while the agent that asked waits
-  (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate`);
-  `repairs.md` and `questions.md`, 1 make a change's delegates under its own authority and
-  name no such split.
 - **Departs:** 1: every answer relayed down is cut from its end to
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
@@ -107,3 +100,5 @@
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
   (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+
+- **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].

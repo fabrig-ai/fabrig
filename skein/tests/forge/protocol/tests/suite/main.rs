@@ -6,4 +6,5 @@ mod protocol;
 mod fuzzy {
     mod github;
     mod protocol;
+    mod size;
 }

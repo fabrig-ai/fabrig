@@ -80,6 +80,17 @@ temper-box
   at, is named on its stderr, and its group stays dormant; of two
   started groups of one kind, the one of the higher number runs, and the
   other is named and stays dormant.
+- **A newer build at a later start.** A stopped box's directories start
+  with another build installed at the same paths, the files of
+  `temper-box`, `fake-claude` beside it and the bundle's directory
+  replaced while it was stopped. Every program the box runs is its own
+  executable, run again for its steps and its agents' host, or a path
+  its configuration names, never a copy in its data, so the engine, its
+  agents, its adapters and the served bundle all run the new build, and
+  nothing the old. Its owned Forgejo, repositories and tasks come back
+  as they were; a store the build cannot read refuses serve's start by
+  name (`../store.md`, 5), a step's failure as 2 has it. The process
+  tier proves it (`../../testing/process-tier.md`).
 - **A forge's group, removed.** At a forge's removal
   (`../../domain/forge/adoption.md`, 1) serve asks `remove N`, and again at each of
   its starts until it is answered `removed N`. The box stops the group's
@@ -621,9 +632,9 @@ temper.json and agent.json through their effective directory flags; peer
 commands read absolute effective document paths. Changing only the parent's
 parsed bytes is insufficient.
 
-Build the loopback bundle once, then start even with empty configuration:
+Build the bundle once, then start even with empty configuration:
 
-    scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle DIR
+    scripts/bundle.sh DIR && temper-box --fake-backends --bundle DIR
 
 The flag overrides an init-shaped source's application.clients.bundle;
 without it, that configured bundle is used. Missing both refuses with the
@@ -699,6 +710,26 @@ model's first added key. A supervised issuer is `fake issuer`, using
 `fake oauth --document C'/oauth.json --seed 7`; it requires the primitive's
 inherited-listener support. It never substitutes a self-bound startup race
 for that contract.
+
+**Scripts given.** `--scripts FILE`, repeatable, gives the fake model
+scripts in place of those the box generates, and `--strict` its strict
+switch (skein's `testing/fakes/llm.md`, 2.5), at every start, of a new
+sandbox or a retained one: QA's (`../../draft/landed-qa.md`, 6) and the
+process tier's. Each FILE is a JSON object of the document form's script
+members, `cued`, `asked` and `otherwise`, each optional (`playground.md`,
+the document form). Before any step starts the box reads them in the
+order given and joins them: `cued` and `asked` each in that order, the
+first file's first, and `otherwise` the last file's that holds one. A
+file that does not read, a member it does not know, a cue repeating one
+before it in its group, or a join past the document form's bounds
+refuses the start, naming the file. The join is written to
+`C'/llm-scripts.json`, 0o600, replacing the last start's, and the `fake
+model` step's arguments add `--scripts C'/llm-scripts.json`, and
+`--strict` with `--strict`; a start without `--scripts` removes the
+file, and `llm.json`'s generated scripts answer again. The retained
+`llm.json` never changes: its listener, keys, TLS, models and outputs
+stay. So scripts are the start's, the same at every place, and never
+change while the box runs.
 
 The box owns the peers' held listeners before spawning them. First
 preparation transfers its reservations exactly once; on reuse the ordinary

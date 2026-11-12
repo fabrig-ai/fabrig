@@ -139,6 +139,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::TakePerson { task, .. }
         | Ask::HandBackPerson { task, .. }
         | Ask::Stop { task, .. }
+        | Ask::Leave { task, .. }
         | Ask::Release { task, .. } => *task != 0,
         Ask::AnswerPerson { task, result, .. } => *task != 0 && valid_person_result(limits, result),
         Ask::Adopt { adoption, .. } => valid_adoption(limits, adoption),
@@ -162,7 +163,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             *project == crate::DEPLOYMENT && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::Withdraw { proposal, .. } => *proposal != 0,
-        Ask::Say { task, words, .. } => {
+        Ask::Talk { task, words, .. } | Ask::Say { task, words, .. } => {
             *task != 0 && !words.is_empty() && words.len() <= skein_lib::length::usize_of(limits.words)
         }
         Ask::AnswerQuestion { task, question, words, .. } => {
@@ -227,6 +228,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::HandBackPerson { .. }
         | Ask::Stop { .. }
         | Ask::Lift { .. }
+        | Ask::Leave { .. }
         | Ask::Release { .. }
         | Ask::SetPool { .. }
         | Ask::Withdraw { .. }
@@ -247,7 +249,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::MoveToNewest { .. }
         | Ask::AccountChange { .. }
         | Ask::Propose { action: crate::Action::Amend { .. } | crate::Action::Settings { .. }, .. } => LimitKind::Words,
-        Ask::Say { task, words, .. } => {
+        Ask::Talk { task, words, .. } | Ask::Say { task, words, .. } => {
             if *task == 0 {
                 return Refusal::Unknown;
             }

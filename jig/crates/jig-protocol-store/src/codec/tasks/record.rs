@@ -277,14 +277,15 @@ fn read_saved(
 }
 
 /// Translate every retained task field.
-pub fn task_record(
+// The live and ended tags without a talk keep this payload.
+fn before_talk(
     source: &domain::TaskRecord,
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
-) -> Result<wire::TaskRecord, wire::Problem> {
-    wire::TaskRecord::new(
+) -> Result<wire::BeforeTalk, wire::Problem> {
+    wire::BeforeTalk::new(
         limits,
-        wire::TaskRecordParts {
+        wire::BeforeTalkParts {
             activation_open: source.activation_open,
             session: match source.session {
                 Some(session) => Some(wire::Session::new(
@@ -304,8 +305,8 @@ pub fn task_record(
             definition: task_definition(source, limits, moved)?,
             started_from: phase::references(
                 &source.started_from,
-                limits.task_record_started_from,
-                wire::Path::TaskRecordStartedFrom,
+                limits.before_talk_started_from,
+                wire::Path::BeforeTalkStartedFrom,
                 limits,
             )?,
             interests: task_interests(source, limits)?,
@@ -448,8 +449,8 @@ fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
 }
 /// Read every retained task field.
 #[expect(clippy::too_many_lines, reason = "one translation carries every retained task field")]
-pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let wire::TaskRecordParts {
+pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
+    let wire::BeforeTalkParts {
         activation_open,
         session,
         closer,
@@ -476,6 +477,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        talk: None,
         activation_open,
         session: match session {
             Some(session) => {
@@ -642,4 +644,33 @@ fn read_room_wait(source: Option<wire::RoomWait>) -> Option<domain::RoomWait> {
         wire::LiveRoom::Project(project) => domain::LiveRoom::Project(project.into_parts().project),
     };
     Some(domain::RoomWait { room, order: source.order })
+}
+
+pub fn task_record(
+    source: &domain::TaskRecord,
+    limits: &wire::Limits,
+    moved: Option<&[u64; 64]>,
+) -> Result<wire::TaskRecord, wire::Problem> {
+    let talk = match source.talk {
+        Some(talk) => Some(wire::Talk::new(
+            limits,
+            wire::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
+        )?),
+        None => None,
+    };
+    wire::TaskRecord::new(limits, wire::TaskRecordParts { record: before_talk(source, limits, moved)?, talk })
+}
+
+pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
+    let source = source.into_parts();
+    let mut record = read_before_talk(source.record, limits)?;
+    record.talk = match source.talk {
+        Some(talk) => Some(domain::Talk {
+            party: talk.party(),
+            opened: Wall::from_nanos(talk.opened()),
+            last: Wall::from_nanos(talk.last()),
+        }),
+        None => None,
+    };
+    Ok(record)
 }

@@ -67,6 +67,12 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
 - **A box in the pass's scratch directory,** started as the walk `box`
   says (`temper help box`), with the flags of its rung, and stopped by
   the pass before it ends. Each rung's stories are `acceptance.md`.
+- **Landed QA's passes start elsewhere:** on the fakes' rung, at every
+  landing, from a setup's copy restored at a place, or made again from
+  its recipe, with the pass's build installed in the place's `bin/`
+  (`../design/testing/qa/places.md`); their hands are this document's,
+  with the pages and the TUI driven a line at a time
+  (`../design/client/drive.md`).
 - **The rungs:**
 
   | Rung | Forges | Model | What it needs |
@@ -287,5 +293,8 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   with skein-forge's Forgejo requests, as the help's ctl lines are held
   to ctl's parser (`../design/protocol/documentation.md`, section 1). Default:
   none, until a pass meets a read the fake refuses.
-- **The browser:** a pass drives ctl; driving temper's pages waits for
-  a design of its own.
+- **The browser on a real rung:** a pass here drives ctl; landed QA
+  drives the pages and the TUI on the fakes' rung through the drive
+  session (`../design/client/drive.md`; `../design/testing/qa/places.md`,
+  5). Default: a real rung's pass takes the same session once a case
+  needs a real backend (`../design/draft/landed-qa.md`, 12).

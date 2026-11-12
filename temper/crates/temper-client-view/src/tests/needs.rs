@@ -43,7 +43,7 @@ fn fixture_title(
     deliver_asked(&mut root, decided, None);
     root
 }
-fn fixture_watched(
+pub(super) fn fixture_watched(
     words: &str,
     cut: bool,
     count: u32,
@@ -232,7 +232,11 @@ fn fixture_classes_role(
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
     (root, watch, decided.unwrap())
 }
-fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<temper_protocol_reaches::Reach>) {
+pub(super) fn deliver_asked(
+    root: &mut d::Domain,
+    watch: skein_lib::Token,
+    reach: Option<temper_protocol_reaches::Reach>,
+) {
     deliver_asked_for(root, watch, f::PROJECT, reach);
 }
 fn deliver_asked_for(
@@ -1973,6 +1977,7 @@ pub(super) fn approval_row() -> d::forge::approvals::Row {
         sets: Box::new([]),
         whole: true,
         yours: d::forge::approvals::Yours::Counts,
+        size: None,
     }
 }
 pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row], more: u32) {
@@ -1983,6 +1988,80 @@ pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row],
         }),
     );
 }
+pub(super) fn size_cases() -> [(Option<d::forge::approvals::Size>, &'static str, &'static str); 6] {
+    use d::forge::approvals::Size;
+    [
+        (Some(Size { files: 4, additions: 142, deletions: 18, cut: false }), "+142 -18 in 4 files", " in 4 files"),
+        (Some(Size { files: 1, additions: 3, deletions: 0, cut: false }), "+3 -0 in 1 file", " in 1 file"),
+        (
+            Some(Size { files: u32::MAX, additions: 10, deletions: 2, cut: true }),
+            "+10 -2 in 4294967295+ files",
+            " in 4294967295+ files",
+        ),
+        (
+            Some(Size { files: 0, additions: u32::MAX, deletions: u32::MAX, cut: true }),
+            "+4294967295+ -4294967295+ in 0 files",
+            " in 0 files",
+        ),
+        (
+            Some(Size { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: false }),
+            "+4294967295 -4294967295 in 4294967295 files",
+            " in 4294967295 files",
+        ),
+        (None, "", ""),
+    ]
+}
+pub(super) fn check_size(tree: &skein_ui::Tree, words: &str, files: &str) {
+    let nodes = tree.nodes();
+    let rows: Vec<_> = nodes.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::CHIPS)).collect();
+    assert_eq!(rows.len(), usize::from(!words.is_empty()));
+    assert_eq!(look::NAMES.style(look::CHIPS), Some(b"temper-chips".as_slice()));
+    assert_eq!(look::NAMES.style(look::SIZE_FILES), Some(b"temper-size-files".as_slice()));
+    if let Some((start, row)) = rows.first() {
+        let row = &nodes[*start..start.checked_add(usize::try_from(row.size).unwrap()).unwrap()];
+        let chip = &row[1];
+        assert_eq!(row.len(), usize::try_from(chip.size).unwrap().checked_add(1).unwrap(), "one chip only");
+        assert_eq!(chip.styles.as_slice(), [look::CHIP]);
+        assert!(row.iter().all(|n| n.binding.is_none() && n.link.is_none() && n.external.is_none()));
+        let actual: Vec<_> = row.iter().flat_map(|n| n.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+        assert_eq!(actual, words.as_bytes());
+        let files_node =
+            row.iter().find(|n| n.styles.as_slice().contains(&look::SIZE_FILES)).expect("files' own element");
+        assert_eq!(files_node.name.as_deref(), Some(files.as_bytes()));
+    } else {
+        assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&look::SIZE_FILES)));
+    }
+}
+#[test]
+fn approval_size_is_one_plain_chip_after_context_before_acts_or_nothing() {
+    for (size, words, files) in size_cases() {
+        let row = d::forge::approvals::Row { size, ..approval_row() };
+        let mut root = kinds(&[]);
+        approvals(&mut root, core::slice::from_ref(&row), 0);
+        let mut view = f::browser_page_view(&root);
+        check_size(view.tree(), words, files);
+        let nodes = view.tree().nodes();
+        let context = nodes.iter().rposition(|n| n.styles.as_slice().contains(&look::ASK_CONTEXT)).unwrap();
+        let after = context + usize::try_from(nodes[context].size).unwrap();
+        let choices = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)).unwrap();
+        if size.is_some() {
+            assert!(nodes[after].styles.as_slice().contains(&look::CHIPS));
+            assert_eq!(after + usize::try_from(nodes[after].size).unwrap(), choices);
+        } else {
+            assert_eq!(after, choices, "no placeholder without a size");
+        }
+        assert_eq!(
+            nodes[context].name.as_deref(),
+            Some(b"This project's landing rule 1 asks for one approval by a maintainer.".as_slice())
+        );
+        assert!(f::find(view.tree(), Role::Link, "Review on Forgejo ↗".as_bytes()).is_some());
+        assert_eq!(
+            press(&mut view, b"Open"),
+            d::Action::Pages(pages::Act::Go { address: Address::Task { task: row.task } })
+        );
+    }
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,

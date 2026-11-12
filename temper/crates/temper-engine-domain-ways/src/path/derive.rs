@@ -1,8 +1,10 @@
 //! The segments in order (temper/docs/design/domain/forge/change/branch-path.md).
 use super::{Actor, Inputs, Opens, STOPS, Start, Step, Stop};
 use super::{
+    approvals,
     cards::{agent_card, append, card, coordinator_card, fact, number, stop, text},
     rules,
+    scopes::Coverage,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -62,7 +64,7 @@ impl Drawing {
         true
     }
 
-    fn ci(&mut self, inputs: &Inputs, held: &Held) {
+    fn ci(&mut self, inputs: &Inputs, held: &Held, coverage: &Coverage) {
         let mut workflows = List::uncapped();
         let mut contexts = List::uncapped();
         if let Some(repository) = &inputs.repository {
@@ -87,7 +89,9 @@ impl Drawing {
         }
         facts.push(fact(b"Checks", &checks)).expect("two CI facts at most");
         let card = card("code · holds a change until CI passes".as_bytes(), b"CI", facts.into_boxed());
-        self.push(stop(Actor::Code, Step::Check, b"check", opens_rule(held), card));
+        let mut drawn = stop(Actor::Code, Step::Check, b"check", opens_rule(held), card);
+        drawn.over = coverage.over(inputs);
+        self.push(drawn);
     }
 
     fn code(&mut self, step: Step, words: &[u8], opens: Opens, who: &[u8], name: &[u8], does: &[u8]) {
@@ -108,11 +112,15 @@ impl Drawing {
     fn segment(&mut self, inputs: &Inputs, branch: &[u8], by: Way, goal: bool) {
         let held = rules::covering(inputs, branch);
         let mut ci = None;
+        let mut ci_coverage = Coverage::new();
         let mut update = false;
         for held in held.as_slice() {
             if held.rule.enforce {
-                if held.rule.ci && ci.is_none() {
-                    ci = Some(held);
+                if held.rule.ci {
+                    ci_coverage.add(inputs, &held.rule);
+                    if ci.is_none() {
+                        ci = Some(held);
+                    }
                 }
                 update |= held.rule.up_to_date;
             }
@@ -128,7 +136,7 @@ impl Drawing {
             ci = None;
         }
         if let Some(held) = ci {
-            self.ci(inputs, held);
+            self.ci(inputs, held, &ci_coverage);
         }
         let gates = rules::gates(inputs, held.as_slice());
         let mut tests = ci.is_some();
@@ -148,19 +156,17 @@ impl Drawing {
                 (inputs.reviewer, Step::Review, b"review".as_slice(), who.as_bytes().into(), b"the reviewer".as_slice())
             };
             let card = agent_card(inputs, charter, &who, name);
-            self.push(stop(Actor::Agent, step, words, Opens::Gate { number: gate.number, charter }, card));
+            let mut drawn = stop(Actor::Agent, step, words, Opens::Gate { number: gate.number, charter }, card);
+            drawn.over = gate.coverage.over(inputs);
+            self.push(drawn);
         }
         if (ci.is_some() || !gates.is_empty())
             && self.repair(inputs, tests, review)
             && let Some(held) = ci
         {
-            self.ci(inputs, held);
+            self.ci(inputs, held, &ci_coverage);
         }
-        for held in held.as_slice() {
-            if held.rule.enforce {
-                self.approvals(inputs, held);
-            }
-        }
+        self.approvals(inputs, held.as_slice());
         let mut checked = tests;
         if goal && let Some(repository) = &inputs.repository {
             for tier in &repository.tiers {
@@ -322,36 +328,13 @@ impl Drawing {
         self.push(drawn);
     }
 
-    fn approvals(&mut self, inputs: &Inputs, held: &Held) {
-        for approval in &held.rule.approvals {
-            let mut name = bytes::concat(&[b"role ", &number(approval.role)]);
-            let mut yours = false;
-            for role in &inputs.roles {
-                if role.number == approval.role {
-                    name.clone_from(&role.name);
-                    yours = role.yours;
-                    break;
-                }
-            }
-            let mut words = if yours {
-                Box::from(b"you approve".as_slice())
-            } else {
-                let article = match name.first() {
-                    Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => b"an ".as_slice(),
-                    Some(_) | None => b"a ".as_slice(),
-                };
-                bytes::concat(&[article, &text(&name, super::WORDS), b" approves"])
-            };
-            if approval.people > 1 {
-                words = bytes::concat(&[&words, " ×".as_bytes(), &number(approval.people)]);
-            }
-            let asks = bytes::concat(&[&number(approval.people), b" of them"]);
-            let card = card(
-                "a person · decides whether it lands".as_bytes(),
-                &name,
-                Box::new([fact(b"Role", &name), fact(b"Asks", &asks)]),
-            );
-            self.push(stop(Actor::Person, Step::Approve, &words, opens_rule(held), card));
+    fn approvals(&mut self, inputs: &Inputs, held: &[Held]) {
+        for approval in &approvals::collect(inputs, held, false) {
+            let words = approvals::approval_words(&approval.role, approval.count, !approval.coverage.all);
+            let card = approvals::approval_card(inputs, held, approval);
+            let mut drawn = stop(Actor::Person, Step::Approve, &words, opens_rule(&approval.first), card);
+            drawn.over = approval.coverage.over(inputs);
+            self.push(drawn);
         }
     }
 

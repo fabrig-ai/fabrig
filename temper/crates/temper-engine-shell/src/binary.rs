@@ -1,7 +1,7 @@
 //! The engine's capture and dispatch (temper/docs/design/cli/README.md, 3 and 4).
 use crate::{ENGINE, forge, serve};
 use skein_io::kernel::Exit;
-use skein_shell::{Command, Reach, Reached};
+use skein_shell::{Command, Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_service::startup::{Shape, nearest};
 use temper_shell::{
@@ -31,9 +31,9 @@ fn capture() -> Capture {
 }
 
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
-    match run(&captured) {
+    match run(&captured, version, commit) {
         Ok(code) => ExitCode::from(code),
         Err((code, why)) => {
             eprint!("{why}");
@@ -42,14 +42,14 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn run(captured: &Capture) -> Result<u8, (u8, String)> {
+fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<u8, (u8, String)> {
     match ENGINE.reach(&captured.run_as, &captured.arguments) {
         Reached::Help => {
             print!("{}", ENGINE.help());
             Ok(0)
         }
         Reached::Version => {
-            print!("{}", ENGINE.version_line());
+            print!("{}", Table { version, commit, ..ENGINE }.version_line());
             Ok(0)
         }
         Reached::CommandHelp(command) => {
@@ -97,15 +97,8 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             }
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
-                match serve::run(
-                    ENGINE.binary,
-                    &captured.environment,
-                    working.as_os_str().as_bytes(),
-                    &directories,
-                    false,
-                    None,
-                )
-                .map_err(|why| (1, why))?
+                match serve::run(ENGINE.binary, &captured.environment, working.as_os_str().as_bytes(), &directories)
+                    .map_err(|why| (1, why))?
                 {
                     Exit::Code(code) => code,
                     Exit::Signal(_) => 1,

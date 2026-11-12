@@ -22,11 +22,13 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"task", line: b"Tasks: read one and its parts, and act on it" },
     Group { name: b"chat", line: b"Chats: start one, read its conversation, close it" },
     Group { name: b"goal", line: b"Goals: start one from a project template" },
-    Group { name: b"role", line: b"Standing roles: start one, list them, read one and its Now" },
+    Group { name: b"role", line: b"Standing roles: start, list, read their Now or report, and talk" },
     Group { name: b"proposal", line: b"Proposals: read one, decide it" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
     Group { name: b"change", line: b"Changes: read a change's way to landing" },
+    Group { name: b"follow", line: b"Follows: read a project's follows and their lag and parity" },
     Group { name: b"landing", line: b"Landings: read one or a project's landings" },
+    Group { name: b"draft", line: b"Landed drafts: say ready or not ready, list them" },
     Group { name: b"repository", line: b"Repositories: make, copy or adopt one into a project" },
     Group {
         name: b"forge",
@@ -39,7 +41,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"model", line: b"Models: read those your party may use" },
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
-    Group { name: b"project", line: b"Projects: make or remove one, read periods and pools, set spend and visibility" },
+    Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
 ];
 pub const TOOLS: &[&Tool] = &[
@@ -114,10 +116,20 @@ pub const TOOLS: &[&Tool] = &[
     &rows::HAND_BACK,
     &rows::TASK_NOTES,
     &rows::PROJECT_MAKE,
-    &rows::PROJECT_REMOVE,
+    &rows::PROJECT_DELETE,
     &rows::ROLE_START,
     &rows::ROLE_LIST,
     &rows::ROLE_SHOW,
+    &rows::ROLE_TALK,
+    &crate::drafts::READY,
+    &crate::drafts::NOT_READY,
+    &crate::drafts::LIST,
+    &crate::follow::LIST,
+    &crate::follow::SHOW,
+    &crate::follow::START,
+    &crate::follow::HOLD,
+    &crate::follow::SKIP,
+    &crate::follow::MERGE,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

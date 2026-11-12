@@ -276,7 +276,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   view (`temper_client_tui::arrow`, with `Arrow::Up` or `Arrow::Down`):
   while it draws the launchpad's left-off chats with the box empty and
   no list under it, they make its `LeftOff` event and skein's key reader
-  is not asked (`pages/launchpad.md`, 1, *Where you left off*); otherwise they go to the
+  is not asked (`pages/launchpad.md`, 4); otherwise they go to the
   key reader as any key. `Host::event_of` gives the event a key
   would make, without giving it.
 - **The frame:** `Host::frame` lays the view's tree with skein's
@@ -292,7 +292,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
     projects in `me`'s order, after the report in which the link is live
     with `me` read and naming a project while the root is still at its
     start's address; until then, and while `me` names none, the root
-    stays there and the TUI draws the launchpad with no project (`pages/README.md`),
+    stays there and the TUI draws the launchpad with no project (`pages/launchpad.md`, 7),
     or in front of a box the welcome (`box.md`);
   - *where the root asks:* a `Request::Show` or a replacing one, a chat
     started, a chat chosen from `/chats`, is followed at once as `Went`
@@ -317,7 +317,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   a chat's question read while it waits on the person. After each
   report, a theme of the root's look other than the one drawn is the
   theme drawn from then on (`theme.md`).
-- **The TUI's events** and what the host does with each, by screen (`pages/README.md`):
+- **The launchpad's reads:** right after that first `LookKept` the host
+  gives the root `Event::Launchpad`, once, so that the root's Home
+  reads across the person's projects (`pages/launchpad.md`, 2). No other shell
+  gives it.
+- **The TUI's events** and what the host does with each, by screen (`pages/README.md`; `pages/launchpad.md`):
 
   | Event | Does |
   |---|---|
@@ -325,14 +329,14 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | `SignIn` | signing in's Enter, as before |
   | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
-  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/README.md`) |
+  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
   | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
-  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 1, *Where you left off*) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, 2, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (`pages/README.md`, 2, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
   | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
-  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/README.md`) |
-  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 1, *Walking what needs you*): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
+  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
+  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
   `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS` and
@@ -361,7 +365,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   and the notice's time are
   the host's own steps on the root and the TUI's state, and closing is
   the duty `close` it has; the `theme` record crosses to the run as a
-  `Save` among `asked` (`theme.md`, *The theme chosen*), and nothing else new
+  `Save` among `asked` (`theme.md`, *The theme chosen*), the root is given
+  `Event::Launchpad` once (*The launchpad's reads*), and nothing else new
   crosses.
 - **Shaped for the recording now:** a recording is the start's facts,
   then turn by turn the clocks, each report with its duties, each key
@@ -452,11 +457,8 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   a page's terminal command to copy; and choosing a project from a
   checkout (`../../draft/tui.md`, sections 2 and 3). Default: refine each
   on the recorded frames before designing it.
-- **The launchpad's and a chat's later parts** (`pages/README.md`): the brief, *Where
-  you left off* and Needs you across the person's projects, once the
-  root reads Home across them (`../../draft/surfaces.md`, 3); a newest goal
-  of the person's that Home's goals read, by priority, does not hold,
-  which needs a read of the person's goals by activity; a run opened to its
+- **The launchpad's and a chat's later parts** (`pages/README.md`; `pages/launchpad.md`, 8,
+  holds the launchpad's own): a run opened to its
   rows; earlier pages read as the conversation's head nears, and "Latest
   ↓", once skein's screen reports a log's edge (skein's `ui/screen.md`,
   section 10); a card at the call that made it, and its acts, Accept

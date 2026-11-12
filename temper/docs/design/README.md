@@ -177,6 +177,10 @@ forge, temper adds:
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/qa/README.md`: QA after landing, beside the deployment: its
+    tool, home and loop; its ledger (`testing/qa/ledger.md`), the
+    watcher on main (`testing/qa/landings.md`), kept builds
+    (`testing/qa/builds.md`) and triage (`testing/qa/triage.md`).
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
   the binary, the configuration, the credentials, temper's parts on the
   workers' channel, its families in the store, the host tools and LLM
@@ -189,6 +193,9 @@ forge, temper adds:
   forge's part of the client, `client/web/README.md` the browser shell,
   `client/web/journeys.md` its pages recorded and printed,
   `client/web/look-requests.md` the look requests' round trip,
+  `client/drive.md` QA's session driving the browser, the TUI and ctl a
+  line at a time from a given build, `client/recipe.md` the recipes it
+  walks to the states QA's cases start from,
   `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `client/web/mockups/` the pages' design: their look,
@@ -285,10 +292,12 @@ temper's side before the layer:
   `temper-box init`'s files, `temper-init`; the fakes the binary ships,
   `temper-fake` and `temper-fake-git` (`testing/fakes.md`, 3);
 - the playground's, of no side: its composition, `temper-playground`,
-  and the fake git program it hosts, `temper-fake-git-hosted`
-  (`playground.md`, 3);
+  its page, `temper-playground-page`, and the fake git program it hosts,
+  `temper-fake-git-hosted` (`playground.md`, 3);
 - the client's, under `temper-client` (`client/README.md`, section 2);
-- the services, `temper-service`; the box's binary, `temper-box`, and
+- the services, `temper-service-core`, `temper-engine-service`,
+  `temper-worker-service` and their one process, `temper-service`
+  (`protocol/services.md`); the box's binary, `temper-box`, and
   the engine's, `temper-engine`, packages under `bin/` whose crates are
   `temper-box-shell` and `temper-engine-shell`, with the shell they
   share, `temper-shell`, and `temper-version` (`cli/README.md`, 2); the

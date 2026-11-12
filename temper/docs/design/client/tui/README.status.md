@@ -110,3 +110,5 @@ host's rows, the goldens of the launchpad, the walk and printed views at
 of each screen in a real terminal against its mockup follows landing
 (`../README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../../draft/surfaces.status.md`.
+
+- **Not yet:** 3: the host gives the root no `Event::Launchpad` after `Start` (*The launchpad's reads*) [in flight: change 785].

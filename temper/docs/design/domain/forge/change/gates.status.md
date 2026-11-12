@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [gates.md](gates.md).
 
+- **Not yet:** 1: a follow's check, dispatched by its change with the
+  followed source commit [in flight: change 111].
+
 - **Not yet:**
   - 2, *The panel's approval evidence* and *Enforced, and waited for*:
     a step of a ready change hands the root no reviews
@@ -70,3 +73,5 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+
+- **Not yet:** 2: the pull request's size kept with the approval evidence at its head [in flight: change 534].

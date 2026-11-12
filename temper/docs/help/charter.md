@@ -14,7 +14,7 @@ whose `on` meets why it runs. A charter holds:
 - its instructions, which the run's agent reads before its task's brief;
 - its `parts`: instructions for some reasons a run runs, each with its
   `on`: `first`, the task's first activation, or the kinds of message
-  that woke it; a charter whose runs resume takes no parts;
+  that woke it;
 - its `documents`: files from an adopted repository, read as brief sections
   of their own;
 - its models: `model`, the default, then `alternatives`, in order;
@@ -34,8 +34,8 @@ whose `on` meets why it runs. A charter holds:
   tools.
 
 The stock holds eight charters: 1 for chats, 2 for coding, 4 for reviews,
-5 for coordinators, 6 for foremen, 9 for the status agent, 10 for a model's
-trial and 11 for Ask temper. Ask temper explains temper and turns how a person describes
+5 for the goal's agent, 9 for the status agent, 10 for a model's trial,
+11 for Ask temper and 12 for design sessions. Ask temper explains temper and turns how a person describes
 their work into a proposal of settings (`temper help chat`).
 The status agent writes the few lines at the top
 of a project's Home from the facts in its task, with no tools.
@@ -44,14 +44,19 @@ with no tools, paid by the person. It is never offered as an executor;
 the stock's rules offer seven charter executors, procedures 2, 3 and 4,
 merge job 3 and roles 0, 1 and 2.
 
-The forge's procedures run a change's agent work under three charters,
+Charters 5 and 2 are built from the stock's set of charter files in
+`temper/docs/charters/stock/`: `common`, `goal`, `designer`, `coordinator`
+and `implementer`. Charter 5 joins `common` and `goal`, with `designer`
+and `coordinator`'s sections as parts; charter 2 joins `common` and `implementer`,
+with no parts. The goal's agent designs a goal's draft, cuts it into
+changes, and answers what they ask.
+
+The forge's procedures run a change's agent work under two charters,
 which the change keeps from its making to its end: its producing and
 repairs under the forge's change charter, kind 3 number 1, whose stock
 value is charter 2; its reviews under kind 3 number 2, whose stock value
 is charter 4, which reads the
-change and gives its verdict, and edits, pushes and runs nothing;
-its foremen run under `charter 6`, reading the change and design to settle
-its producer's question, and edit, push and run nothing.
+change and gives its verdict, and edits, pushes and runs nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.

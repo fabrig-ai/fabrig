@@ -116,6 +116,8 @@ fn owner_escalation_decisions_name_supplied_hold_and_outer_offers_without_guessi
                 },
             },
             ActKind::Withdraw
+            | ActKind::Talk
+            | ActKind::Leave
             | ActKind::Message
             | ActKind::Answer
             | ActKind::Take

@@ -23,8 +23,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             crate::Line::Words { words, kind, .. } => bytes(words.len())?.checked_add(kind_bytes(kind)?),
             crate::Line::Heard(word) | crate::Line::Notified { word, .. } => word_bytes(word),
             crate::Line::Stood { words, .. } => bytes(words.len()),
+            crate::Line::NowWritten { line, .. } => bytes(line.len()),
             crate::Line::Kept { pending, .. } => bytes(size_of_val(&**pending)),
-            crate::Line::SessionEnded { .. }
+            crate::Line::TalkOpened { .. }
+            | crate::Line::TalkEnded { .. }
+            | crate::Line::SessionEnded { .. }
             | crate::Line::Decided { .. }
             | crate::Line::Milestone { .. }
             | crate::Line::RunBegan { .. }

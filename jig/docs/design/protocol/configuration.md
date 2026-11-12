@@ -132,9 +132,9 @@ once; `instructions` a file it names, read as the charter's own instructions
 are, whose text a run its reasons meet reads after the charter's. The start
 is refused at the path of what fails: a name that is no kind, an
 always-offered kind or a name given twice (`charters[i].parts[j].on[k]`); an
-empty `on` (`charters[i].parts[j].on`); a part past `tasks.charter_parts`
-(`charters[i].parts[j]`); and parts on a charter whose runs resume
-(`charters[i].parts`). The charter's stored policy, its parts with it, stays
+empty `on` (`charters[i].parts[j].on`); and a part past `tasks.charter_parts`
+(`charters[i].parts[j]`). A charter whose runs resume may hold parts
+(`../domain/tasks/standing.md`, 5.4). The charter's stored policy, its parts with it, stays
 within `core.run_bytes` (`limits.md`), as its instructions do alone.
 
 A provider's `keep` and `drop` say which names of its list are models for this

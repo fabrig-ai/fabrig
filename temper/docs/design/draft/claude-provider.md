@@ -14,9 +14,9 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
 ## 1. In one page
 
 - **Both, always:** init writes an Anthropic provider beside OpenAI and
-  demo, its one source Claude Code's program, in `temper.json`, and its
-  program's endpoint and model in `agent.json`, on every machine
-  (section 2). The Model step offers ChatGPT and Claude, always.
+  demo, its sources Claude Code's program and, by `claude-api.md`, API
+  keys, in `temper.json`, and its program's endpoint and model in
+  `agent.json`, on every machine (section 2). The Model step offers ChatGPT and Claude, always.
 - **Claude Code found, or fetched:** the `claude` on `PATH` when init
   finds one; otherwise temper's pinned build, fetched into the cache
   the first time it is needed, as Forgejo's binaries are (section 3).
@@ -37,7 +37,8 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
   writes it (`../protocol/configuration/directories.md`, 1): `anthropic`, the
   number init leaves free for it between OpenAI's and demo's,
   `signed_in_plan` false, `manage_usage` at Claude's usage settings,
-  its models, and Claude Code's program as its one source.
+  its models, and Claude Code's program as its source, beside the API
+  keys and the direct endpoint `claude-api.md` adds (its section 3).
 - **The program,** in `agent.json`: its path, the `claude` init found
   on `PATH`, or `"fetched"` for temper's pinned build in the cache,
   as an owned Forgejo's binaries are named (`../protocol/setup/owned.md`,

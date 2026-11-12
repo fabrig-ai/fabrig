@@ -210,3 +210,23 @@ fn a_turns_bare_clock_stays_fixed_across_midnight_without_its_own_wake() {
         assert_eq!(times.next, None);
     }
 }
+
+#[test]
+fn dated_names_today_then_the_week_or_date_and_ticks_at_midnight() {
+    use crate::words::TimeForm::Dated;
+    let w = fixtures::words();
+    // Monday, four days after the fixed Thursday: Friday is three days before it.
+    let today = MIDNIGHT + 4 * DAY;
+    let morning = today + 8 * HOUR + 12 * MINUTE;
+    for (at, now, expected, tick) in [
+        (morning, today + 12 * HOUR, "today 08:12", today + DAY),
+        (today - 3 * DAY + 18 * HOUR + 40 * MINUTE, today + 12 * HOUR, "Fri 18:40", today + DAY),
+        (MIDNIGHT - 14 * DAY + 7 * HOUR + 20 * MINUTE, NOON, "8 October 07:20", MIDNIGHT + DAY),
+        (morning, today + DAY - 1, "today 08:12", today + DAY),
+        (morning, today + DAY, "Mon 08:12", today + 2 * DAY),
+    ] {
+        let (said, next) = w.time(Dated, wall(at), wall(now));
+        assert_eq!(said.as_ref(), expected.as_bytes());
+        assert_eq!(next, Some(wall(tick)));
+    }
+}

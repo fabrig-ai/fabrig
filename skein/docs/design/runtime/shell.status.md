@@ -27,8 +27,9 @@ and version line (`table/help.rs`) and its reference documents
 tables, and `tests/boundary/tests/cli_names.rs`'s
 `rendered_documents_read_back` reads the environment documents as check 5
 does. temper's `temper-box` and `temper-engine` are the first binaries on
-a table (`temper/docs/design/cli/README.md`); temper's others are the
-milestones C3 to C8 of `temper/docs/design/draft/cli.execution.md`.
+a table (`temper/docs/design/cli/README.md`), alongside the six tools and
+fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
+are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown` [in flight: change 86].
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).

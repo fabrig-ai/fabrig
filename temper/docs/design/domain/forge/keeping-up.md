@@ -75,6 +75,10 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   and the union's resource and repository bounds before retaining the
   subscription. Restart reconstruction, task-name changes and forge removal
   use the same union, excluding ended forges.
+- **Follows own watches too:** each follow contributes its source
+  repository and branch (`follows.md`, section 3) to the same union, for
+  as long as its setting lives; accepting or removing a follow rebuilds
+  it, and admission checks the union's bounds before the follow is kept.
 
 ## 2. Keeping up
 

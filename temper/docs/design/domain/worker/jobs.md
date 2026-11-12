@@ -145,3 +145,23 @@ too (2026-11-09):
   and, past its allowance, the hold (jig's `domain/tasks/lifecycle.md`, 6).
   The change's held merge delegate therefore says why it failed, alongside
   its failure class and the way out.
+
+A delivering job's writable repository is the one its items name with a
+branch to push, and the engine names one only for a job its change names
+as its delegate: that change's repository and own branch, on every
+attempt, a released job's too (`../forge/change/repairs.md`, its close job
+held for its failures). Nothing else makes one writable, neither the
+job's authority nor the goal's branch, which a close job starts from and
+never pushes. Every other repository of its checkout is read-only, a
+context repository or one whose adopted push the forge has refused
+(jig's `domain/connectors.md`, section 12) among them. When the command
+ends with a delivery due, the worker counts the writable repositories of
+the job's prepared checkout: with one, it delivers there; with none or
+several, it delivers nothing and fails the job, its detail
+`no unique writable repository: saw ` then each repository of the
+checkout in the items' order, its name, a space and `writable` or
+`read-only`, joined by `, `, as many as fit the host's `detail_bytes`
+whole, then `, and N more` for the rest
+(`no unique writable repository: saw home read-only`); with no
+checkout left to count, `no unique writable repository: no checkout`
+(2026-11-12).

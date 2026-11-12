@@ -55,6 +55,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         // A restore leaves out at most a proposal's application items and one project's policy
         // (domain/engine/settings.md, 10, Bounded).
         outcome_restored_left_out: jig_domain_tasks::SETTINGS_ITEMS.checked_add(1)?,
+        refusal_live_tasks_tasks: domain::NAMED_TASKS,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,
@@ -166,6 +167,9 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Deleted { project } => {
+            wire::Value::Deleted(wire::StoredDeleted::new(limits, wire::StoredDeletedParts { project: *project })?)
+        }
         domain::Stored::Public { project } => {
             wire::Value::Public(wire::StoredPublic::new(limits, wire::StoredPublicParts { project: *project })?)
         }
@@ -247,6 +251,7 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
+        wire::Value::Deleted(value) => domain::Stored::Deleted { project: value.project() },
         wire::Value::Public(value) => domain::Stored::Public { project: value.project() },
         wire::Value::Deletion(value) => {
             let wire::StoredDeletionParts { project, step, grace } = value.into_parts();

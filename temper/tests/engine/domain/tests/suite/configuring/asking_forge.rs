@@ -11,6 +11,7 @@ fn an_asking_chat_reads_the_forge() {
         .insert(
             PROJECT,
             engine::ProjectLanding {
+                landing_attempts: engine::LANDING_ATTEMPTS,
                 check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,

@@ -20,7 +20,16 @@
   welcome's Ready and "+ New project" (`../view.md`, 3) open, and the brand's link.
   Going to it opens that project as a project's button does (`../view.md`, 3); with
   no such project in `me`, it says "Project N is not one of yours.", N
-  the address's number, and the chats' link. One column of prose, in
+  the address's number, and the chats' link. *A deleted project:* with
+  no such project in `me`, the page reads the project, jig's
+  `Read::Project { project }`, once for its address, and draws its
+  heading alone until the read answers; answered gone, a project
+  deleted (jig's `client/domain/contract/README.md`, section 4), it says
+  "Project N was deleted." in that sentence's place, with the same
+  link; any other answer, the sentence above. How work runs says the
+  same where it says a project is not one of yours (`settings.md`, 1).
+  With no project left, the column "No project yet" draws instead, as
+  on every address (`welcome.md`, 1). One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
     (the user, 2026-11-04), the level-1 heading and
@@ -240,6 +249,9 @@
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
         an approval's question as on *Needs you*;
+      - *an approval's size,* under its question, its row of chips as on
+        *Needs you* (`../forge/README.md`, 4.1, *Its size*), as
+        `pair/home.html` draws it; none without one;
       - *its reason line,* under the question, as *Needs you*'s on the
         signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
         *Why it reached you* and *Stop asking*);
@@ -261,7 +273,11 @@
       its from line and its question; its recommended act is a
       full-width button, at least 44 pixels tall, then "More", quiet,
       which opens *Needs you* at that card; an approval's recommended act
-      is its "Review on FORGE ↗". The browser's alone.
+      is its "Review on FORGE ↗". An approval's size reads as
+      `pair/phone-home.html` has it, "+A -D" alone, small and muted, with
+      no chip's border or ground, its files' words, " in N files", in an
+      element of their own that the phone's width hides. The browser's
+      alone.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -303,7 +319,7 @@
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
 
-  **In the TUI** (`../tui/pages/launchpad.md`, 1), Home is the root's page under
+  **In the TUI** (`../tui/pages/launchpad.md`), Home is the root's page under
   the launchpad, its look the terminal's (`../tui/README.md`, 3, *The look*), and its
   composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
   does (`ask-temper.md`, 1, *Ask temper's page*): `Act::ChatWords` writes Home's
@@ -315,7 +331,11 @@
   no white space are the terminal's (`chat/terminal.md`, 1, *Commands*)
   where the look is the terminal's, as on the pages it draws. The
   browser's Home sends neither `ChatWords` nor `StartChat` and draws no
-  picker, so it is unmoved.
+  picker, so it is unmoved. Given `boundary::Event::Launchpad`, which
+  the TUI's host alone gives, Home also holds the launchpad's reads
+  across the person's projects: Home on All projects' statuses, the
+  inbox unfiltered, the decided documents of the needs' projects and
+  the person's chats and goals across projects (`../tui/pages/launchpad.md`, 2).
 - **Home on All projects** (`../../draft/surfaces.md`, section 3; the whole
   story's `home.html` and `phone-home.html`, `web/whole-story/`):
   `AllHome`, at `/home`, Home for every project the person is in, as
@@ -336,6 +356,19 @@
     Leaving unwatches them all. A project's status counts once its look is
     answered and its document delivered, as on its Home; a watch refused or
     ended leaves that project's status unknown, and the rest stand.
+    While Home on All projects is the open page, and not for the
+    launchpad's reads (`boundary::Event::Launchpad`) or Needs you's, it
+    also watches the forge's `follows` document
+    (`../../domain/forge/follows.md`, section 7; `forge::follows::watch`)
+    of each of the first four projects read, in `me`'s order
+    (`all_home::FOLLOWED`, 4), each watch counted in the client's
+    `watches`: a project's watch is held while the project is among those
+    four, and dropped when it leaves them and on leaving the page. Four
+    projects' statuses, decided and `follows` documents with the session's
+    own watches hold 23, and 25 at most, of a shipped client's 26
+    (`../../protocol/configuration/limits.md`, *The engine's watch rooms
+    follow what it admits*). A document refused or ended draws none of its
+    project's boxes, and the rest stand.
   - *The intro,* one function's composition, `all_home::intro`, so that a
     later part joins there:
     - *the kicker:* the day and time, as Home's; then, with the newest
@@ -397,6 +430,46 @@
     BRANCH is its status's `branch`, "landing" where it is empty, as Home's
     foot says it. A project's Now, its tiers, a follow's parity and
     "owned" are not designed here (1, *A page's parts*).
+  - *What follows what* (`../../draft/surfaces.md`, section 3;
+    `../../domain/forge/follows.md`, section 7;
+    `../../domain/forge/dependencies.md`, section 4), a region named "What
+    follows what", while a box is drawn (1, *A page's parts*): its head
+    the level-2 heading "What follows what", at its right, small and
+    muted, "across projects"; then its boxes side by side, wrapping, as
+    How work runs draws What follows a landing's (`settings.md`, 2): for
+    each project whose `follows` document has answered, in `me`'s order,
+    a box each of its follows, in the document's order, then a box each
+    of its dependencies, in the document's order, which is their numbers'.
+    Each box holds a chip, as How work runs' chips are, its title, in
+    weight, and a small muted line:
+    - *A follow:* the chip "follows SOURCE", code's mark (the path's,
+      `chat/conversation.md`, 3), SOURCE its source repository as the
+      document names it, `OWNER/NAME`; the title PROJECT, the document's
+      project's name as `me` names it; the line "LAG · PARITY" in `temper
+      ctl follow list`'s words (`../../domain/forge/follows.md`, section 7;
+      `forge::follows::lag` and `forge::follows::parity`), "2 behind ·
+      check passes at 9c04d7e1a2b3" or "caught up · no check yet"; and
+      where the follow is stopped, a second line, "Stopped: WORDS.", as
+      How work runs has it.
+    - *A dependency:* the chip "depends on DEPENDENCY", with no mark,
+      since nothing acts on it (`../../domain/forge/dependencies.md`, 3),
+      DEPENDENCY the named project's name where `me` lists that project,
+      else "project Q", as `forge::follows::dependency_line` names it
+      (`../../domain/forge/dependencies.md`, 4); the title PROJECT; the
+      line "Nothing follows its landings."
+
+    So the pilot draws a box "follows acme/vsr", **vsr-rs**, "2 behind ·
+    check passes at 9c04d7e1a2b3", then "depends on vsr-rs", **fabrig**,
+    "Nothing follows its landings.". Each box is a group named by its
+    title and chip, "vsr-rs follows acme/vsr", "fabrig depends on
+    vsr-rs". Every follow and dependency a project read holds is drawn,
+    whichever project its other end is: a follow's source is a
+    repository, which the document doesn't tie to a project. Nothing in
+    the region is a control: a follow and a dependency change by
+    proposal, kinds 12 and 13, and a follow by its owner's acts in
+    `temper ctl` (`../../domain/forge/follows.md`, section 5). A
+    project's Home draws none: its follows are How work runs'
+    (`settings.md`, 2).
   - *The Ask temper line,* `temper-ask-line` (the mockups' `.ask`), the
     page's last part: a field named "Ask temper", its placeholder "Ask
     temper about your projects", and the button "Ask". Enter or "Ask"
@@ -412,8 +485,8 @@
     kicker's two forms are; the lede as above; the byline "The status
     agent, 07:52"; the cards in their phone
     form; then, while a row shows, one line "Decided for you · N ›", a
-    link to *Needs you* unfiltered, which lists them. No Projects and no
-    Ask line: the phone asks from its Ask tab (`../../draft/surfaces.md`,
+    link to *Needs you* unfiltered, which lists them. No Projects, no
+    What follows what and no Ask line: the phone asks from its Ask tab (`../../draft/surfaces.md`,
     10). The browser's alone.
 
   In the terminal the page reads as Home's does there: its parts keep
@@ -435,6 +508,7 @@
   | Home's Needs you | an open card waits |
   | Decided for you, on Home and on Needs you | a row shows, within its day |
   | Home's Projects | on All projects, the person is in two projects or more |
+  | Home's What follows what | on All projects, a box: a `follows` document read holds a follow or a dependency |
   | The Ask temper line | always, on a wide page, To begin gone |
   | Needs you's list | an open card waits; else its Done |
   | Needs you's Only you | the inbox has answered, and an item shows (`needs-you.md`, 1, **Only you**) |
@@ -444,9 +518,8 @@
   among its three cards or counted in its "N more". A card's showing
   follows its own facts, never the project's settings: an approval asked
   while the project's way had the person review stays open until it is
-  done, whatever the way becomes. Home's owners' lines and What follows
-  what join this table with the reads that give them
-  (`../../draft/standing-roles.md`; `../../draft/follows.md`), as does Tell
+  done, whatever the way becomes. Home's owners' lines join this table
+  with the reads that give them (`../../draft/standing-roles.md`), as does Tell
   temper (`../../draft/surfaces.md`, section 9). An Only you item is no
   card: it is counted nowhere a card is. A need's why is its card's own
   line (`needs-you.md`, 1, *Why it reached you*), no part of the page's.
@@ -570,3 +643,10 @@
   others' rows on each project's own pages, the count marked "+". A subject
   of the party's rows across the deployment would lift the bound; default:
   four.
+- **What follows what across many projects** (1, *Home on All
+  projects*): Home on All projects watches at most four projects'
+  `follows` documents, the first four read, within the client's watches;
+  a person in more sees the others' follows on each project's How work
+  runs (`settings.md`, 2), and the region says nothing of them. A forge
+  document of the person's follows and dependencies across the
+  deployment would lift the bound; default: four.

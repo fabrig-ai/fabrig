@@ -79,3 +79,12 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell.md`, 14.3): 
 - **Absent:** Reserve available ports.
 - Choose the fake box's nine listener and peer ports.
 - **Notes:** Nine comma-separated nonzero ports; used only for a new sandbox.
+
+### `TEMPER_INTERNAL_RECORD`
+
+- **Set:** internal
+- **Reads**
+- **Form:** VALUE
+- **Absent:** Record nothing.
+- Record the TUI into its directory.
+- **Notes:** Any nonempty value enables recording; an empty value is unset.

@@ -19,20 +19,16 @@ fn response(world: &mut World, make: impl FnOnce(ReplyTo) -> Event) -> Reply {
 }
 
 fn message(world: &mut World, source: Party, target: u64, number: u64, kind: MessageKind) -> Reply {
+    message_words(world, source, target, number, kind, b"proceed?")
+}
+
+fn message_words(world: &mut World, source: Party, target: u64, number: u64, kind: MessageKind, words: &[u8]) -> Reply {
     response(world, |reply_to| Event::Message {
         reply_to,
         project: 1,
         operation: tasks::Message {
             task: target,
-            word: Word {
-                number,
-                from: source,
-                kind,
-                words: b"proceed?".as_slice().into(),
-                at: Wall::EPOCH,
-                hits: 1,
-                eligible: false,
-            },
+            word: Word { number, from: source, kind, words: words.into(), at: Wall::EPOCH, hits: 1, eligible: false },
         },
     })
 }
@@ -696,6 +692,218 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         assert_eq!(matches!(reply, Reply::Made(_)), accepted);
         assert_eq!(world.records.contains_key(&Key::Live(REQUESTER)), accepted);
         world.restart();
+    }
+}
+
+fn read_and_park_requester(world: &mut World, attempt: u64) {
+    world.claim(REQUESTER, attempt);
+    read_inbox(world, REQUESTER, attempt);
+    world.terminal(REQUESTER, End::Parked);
+}
+
+#[test]
+fn a_read_question_left_open_wakes_the_requester_without_a_notice() {
+    let mut world = asked();
+    let last = world.record(REQUESTER).last_message;
+    read_and_park_requester(&mut world, ATTEMPT);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(REQUESTER).last_message, last);
+    assert!(world.record(REQUESTER).inbox.is_empty());
+    assert_eq!(world.record(REQUESTER).tries.run, 1);
+    assert!(world.contexts[&REQUESTER].reasons.contains(Reasons::QUESTION));
+}
+
+#[test]
+fn repeated_parks_with_an_open_question_hold_and_release_counts_again() {
+    let mut world = asked();
+    let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
+    for attempt in 1..=attempts {
+        read_and_park_requester(&mut world, attempt);
+        assert_eq!(u64::from(world.record(REQUESTER).tries.run), attempt);
+        if attempt < attempts {
+            assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+            world.restart();
+        }
+    }
+    let row = world.record(REQUESTER);
+    let Phase::Held { why: Hold::Failures(Class::Run), source: Some(source), .. } = &row.phase else {
+        panic!("question exhaustion holds, never fails: {:?}", row.phase)
+    };
+    assert_eq!(
+        source.as_ref(),
+        &HoldSource::Preparation { words: b"Task 2's question 1 is still open: proceed?".as_slice().into() }
+    );
+    assert!(matches!(world.record(ASKER).phase, Phase::Active(_)));
+    assert_eq!(
+        response(&mut world, |reply_to| Event::Release {
+            reply_to,
+            by: PERSON_PARTY,
+            operation: Release { task: REQUESTER, again: None, message: None },
+        }),
+        Reply::Done
+    );
+    read_and_park_requester(&mut world, attempts + 1);
+    assert_eq!(world.record(REQUESTER).tries.run, 1);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+}
+
+#[test]
+fn a_question_hold_keeps_only_the_first_line_at_a_utf8_edge() {
+    let prefix = "Task 2's question 1 is still open: ";
+    let long = format!("{}\nnot the first line", "é".repeat(100));
+    let expected = format!("{prefix}{}", "é".repeat((128 - prefix.len()) / "é".len()));
+    for (words, expected) in
+        [(long.as_str(), expected.as_str()), ("short\nlater", "Task 2's question 1 is still open: short")]
+    {
+        let limits = Limits {
+            message_bytes: 256,
+            inbox_bytes: 1024,
+            retries: Retries { run: Retry { retries: 0, ..LIMITS.retries.run }, ..LIMITS.retries },
+            ..LIMITS
+        };
+        let mut world = pair_with_limits(false, &limits);
+        assert_eq!(
+            message_words(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question, words.as_bytes()),
+            Reply::Done
+        );
+        read_and_park_requester(&mut world, ATTEMPT);
+        let Phase::Held { source: Some(source), .. } = &world.record(REQUESTER).phase else {
+            panic!("held with question words")
+        };
+        assert_eq!(source.as_ref(), &HoldSource::Preparation { words: expected.as_bytes().into() });
+        assert!(expected.len() <= 128);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AwaitingAnswer {
+    Kept,
+    Proposal,
+    Person,
+    Timer,
+    Watch,
+    Quiet,
+    Conversation,
+    RequesterEnded,
+    Resuming,
+    Standing,
+}
+
+fn keep_requester(world: &mut World) {
+    const DEPENDENCY: u64 = 4;
+    assert_eq!(world.make(PERSON_PARTY, vec![task(DEPENDENCY, &[])]), Reply::Made(vec![DEPENDENCY]));
+    let amendment = Amendment {
+        tracked: None,
+        addressed: None,
+        instructions: None,
+        release: None,
+        spec: None,
+        wake: None,
+        dependencies: Some(Box::new([DEPENDENCY])),
+        authority: None,
+        llm: None,
+        reason: Box::new([]),
+    };
+    assert_eq!(
+        response(world, |reply_to| Event::Amend {
+            reply_to,
+            by: PERSON_PARTY,
+            operation: tasks::Amend {
+                task: REQUESTER,
+                stop_run: false,
+                amendment: Box::new(amendment),
+                message: ANSWER,
+            },
+            places: Box::new([]),
+            funder: None,
+        }),
+        Reply::Done
+    );
+}
+
+#[test]
+fn an_open_question_does_not_poll_while_something_can_bring_the_answer() {
+    for exemption in [
+        AwaitingAnswer::Kept,
+        AwaitingAnswer::Proposal,
+        AwaitingAnswer::Person,
+        AwaitingAnswer::Timer,
+        AwaitingAnswer::Watch,
+        AwaitingAnswer::Quiet,
+        AwaitingAnswer::Conversation,
+        AwaitingAnswer::RequesterEnded,
+        AwaitingAnswer::Resuming,
+        AwaitingAnswer::Standing,
+    ] {
+        let mut world = World::new(883, LIMITS);
+        let mut parent = task(REQUESTER, &[]);
+        parent.numbers.budget = 1_000;
+        parent.authority.budget.spend = 1_000;
+        match exemption {
+            AwaitingAnswer::Quiet => parent.wake.questions = false,
+            AwaitingAnswer::Conversation => parent.flags.conversation = true,
+            AwaitingAnswer::RequesterEnded => {
+                parent.flags.conversation = true;
+                parent.flags.ended_by = EndedBy::Requester;
+            }
+            AwaitingAnswer::Standing => parent.flags.ended_by = EndedBy::Standing,
+            _ => {}
+        }
+        if matches!(exemption, AwaitingAnswer::Resuming) {
+            let mut charters = jig_tasks_world::charters();
+            charters[0].resumes = true;
+            world.send(Event::Charters { newest: 1, charters, efforts: Box::new(jig_tasks_world::EFFORTS) });
+        }
+        assert_eq!(world.make(PERSON_PARTY, vec![parent]), Reply::Made(vec![REQUESTER]));
+        let mut child = task(ASKER, &[]);
+        child.funder = Funder::Task(REQUESTER);
+        assert_eq!(world.make(Party::Task(REQUESTER), vec![child]), Reply::Made(vec![ASKER]));
+        world.claim(ASKER, ATTEMPT);
+        message(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question);
+        world.claim_budget(REQUESTER, ATTEMPT, 1);
+        read_inbox(&mut world, REQUESTER, ATTEMPT);
+        match exemption {
+            AwaitingAnswer::Kept => keep_requester(&mut world),
+            AwaitingAnswer::Proposal => {
+                let proposal = Proposal {
+                    number: 100,
+                    proposer: REQUESTER,
+                    project: 1,
+                    action: ProposalAction::Batch(Box::new([])),
+                    reason: Box::new([1]),
+                    as_holder: false,
+                    state: ProposalState::Pending { holder: ProposalHolder::Person(PERSON), since: world.env.wall },
+                };
+                assert_eq!(response(&mut world, |reply_to| Event::Propose { reply_to, proposal }), Reply::Done);
+            }
+            AwaitingAnswer::Person => {
+                let mut person = task(PERSON_TASK, &[]);
+                person.executor = Executor::Person(PersonAddress::Person(PERSON));
+                person.numbers.budget = 20;
+                person.authority.budget.spend = 20;
+                person.funder = Funder::Task(REQUESTER);
+                assert_eq!(world.make(Party::Task(REQUESTER), vec![person]), Reply::Made(vec![PERSON_TASK]));
+            }
+            AwaitingAnswer::Timer | AwaitingAnswer::Watch => {
+                let kind = if matches!(exemption, AwaitingAnswer::Timer) {
+                    SubscriptionKind::Timer { at: Wall::from_nanos(1_000_000), period: None }
+                } else {
+                    SubscriptionKind::Task { target: ASKER, held: true, result: true }
+                };
+                assert_eq!(
+                    response(&mut world, |reply_to| Event::Subscribe {
+                        reply_to,
+                        task: REQUESTER,
+                        subscription: Subscription { number: 1, kind },
+                    }),
+                    Reply::Done
+                );
+            }
+            _ => {}
+        }
+        world.terminal(REQUESTER, End::Parked);
+        assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle), "{exemption:?}");
+        assert_eq!(world.record(REQUESTER).tries, Tries::NONE, "{exemption:?}");
     }
 }
 

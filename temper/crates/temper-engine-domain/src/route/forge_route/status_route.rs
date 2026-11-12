@@ -1,13 +1,21 @@
 //! Home's status procedure and its agent (temper/docs/design/domain/forge/attention.md, 3).
 use super::{Box, Domain, Env, Limits, ProcedureStep, RunWorkspace, STATUS_CODE, StepEnd, Work, forge, tasks};
 
+mod roles;
+pub(crate) use roles::{Reading, indexed as notes_indexed, recalled as notes_recalled, refused as notes_refused};
+
 pub(super) fn start_status_run(domain: &mut Domain, env: &Env<Limits>, project: u32, words: Box<[u8]>) {
+    let words = goal_words(domain, env, project, &words);
+    roles::start(domain, env, project, words);
+}
+
+fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]) {
     let Some(seed) = domain.core.repair_seed(project) else {
         domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
         return;
     };
     let task = seed.number();
-    let words = goal_words(domain, env, project, &words);
+    let words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.spec_bytes), b"...");
     domain.work.push(Work::Core(jig_domain_core::Event::ConnectorRepair {
         seed: Box::new(seed),
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: STATUS_CODE },
@@ -18,7 +26,7 @@ pub(super) fn start_status_run(domain: &mut Domain, env: &Env<Limits>, project: 
     domain.work.push(Work::Forge(forge::Event::StatusTask { project, task }));
 }
 
-fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8]) -> Box<[u8]> {
+fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8]) -> super::List<u8> {
     let mut words = super::List::uncapped();
     super::append(&mut words, facts);
     super::append(&mut words, b"Live goals:\n");
@@ -42,7 +50,7 @@ fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8]) ->
         super::append(&mut words, skein_lib::Decimal::of(u64::from(total)).as_bytes());
         super::append(&mut words, b" delegates done\n");
     }
-    forge::text::fit(words.as_slice(), skein_lib::usize_of(env.limits.tasks.spec_bytes), b"...")
+    words
 }
 
 pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {

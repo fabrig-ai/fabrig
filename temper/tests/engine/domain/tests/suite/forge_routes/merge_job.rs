@@ -282,6 +282,43 @@ fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
     world.close();
 }
 
+#[test]
+fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
+    const REASON: &[u8] = b"resolution failed: the conflicting requirements cannot both hold";
+    let (mut world, task, _, _) = pushed_change_in(world(false, true, true), true, GOAL);
+    let resolution = next_resolution(&mut world, task);
+    let tasks::Party::Task(requester) = live_task(&world, task).requester else { panic!("change requester") };
+    let requester = world.assigned.iter().find(|run| run.task == requester).expect("requester assignment").clone();
+    let event =
+        world.protocol.answer(CHANNEL, requester.task, requester.attempt, 1, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    super::reviews::finish_review(&mut world, &resolution, tasks::TaskResult::Failure { reason: REASON.into() });
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, task).phase, tasks::Phase::Held { source: Some(_), .. })
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(matches!(&change_row(&world, task).change.state, change::State::Held { was, why: change::Hold::Failed }
+        if matches!(was.as_ref(), change::State::Resolving { .. })));
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, task).phase
+    else {
+        panic!("failed resolution holds its change task: {:?}", live_task(&world, task).phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("resolution failure account") };
+    assert_eq!(words.as_ref(), REASON);
+    assert_eq!(live_task(&world, task).revisions.hold, 1, "the unfenced copy opens no second hold");
+    assert!(live_task(&world, requester.task).inbox.iter().any(|word| word.from == tasks::Party::Task(task)
+        && word.kind == tasks::MessageKind::Words
+        && word.words.as_ref() == REASON));
+    assert!(matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }));
+    let resumed = super::reviews::next_assignment(&mut world, 3);
+    assert_eq!(resumed.task, requester.task, "the failure wakes its requester");
+    world.close();
+}
+
 fn next_resolution(world: &mut World, task: u64) -> engine::Assignment {
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));

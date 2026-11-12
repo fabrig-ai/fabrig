@@ -279,8 +279,8 @@ pub(crate) struct Workspace {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Root {
-    name: Box<[u8]>,
-    writable: bool,
+    pub(crate) name: Box<[u8]>,
+    pub(crate) writable: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -739,6 +739,11 @@ pub(crate) fn job_directory(domain: &Domain, workspace: Token) -> (Token, Option
         }
     }
     (directory, writable)
+}
+
+/// The prepared checkout's repositories, in the assignment's order.
+pub(crate) fn job_roots(domain: &Domain, workspace: Token) -> &[Root] {
+    &domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace").roots
 }
 
 /// The engine identity of the job whose workspace is being delivered.

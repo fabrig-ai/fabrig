@@ -104,6 +104,8 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         | Ask::Create { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Say { .. }
         | Ask::AnswerQuestion { .. }
         | Ask::Amend { .. }
