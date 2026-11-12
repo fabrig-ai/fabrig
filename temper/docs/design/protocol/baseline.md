@@ -90,7 +90,9 @@ constant built from its crate's generated module, naming no other owner:
 // jig builds their sets from their crates' constants
 pub const SKEIN_PATCH_SET: PatchSet; // skein-oauth's `SavedToken`, map Secrets, no keys: held in jig's `Source`
 pub const SMITH_PATCH_SET: PatchSet; // smith-transcript's `Turn`, frames "Turn", no keys, fresh FRESH_WINDOWS
-pub const JIG_PATCH_SET: PatchSet;   // jig's eight store families and jig-accounts
+// jig_protocol_accounts: the lowest jig crate that sees every jig family,
+// since jig-protocol-accounts depends on jig-protocol-store
+pub const JIG_PATCH_SET: PatchSet;   // jig's eight store families and jig-accounts; patches from jig_protocol_store::patches
 // temper_protocol_store
 pub const PATCH_SET: PatchSet;       // temper-store and temper-secrets
 // temper_service::store
