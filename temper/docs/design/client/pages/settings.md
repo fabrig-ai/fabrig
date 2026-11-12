@@ -229,14 +229,26 @@
   can't be read now, and the address. It has no act: a role's or a
   rule's change is a proposal, Ask temper's. The terminal prints its
   heading, `who` and facts, as any page.
-- **Deleting a project** (jig's `domain/people/acts.md`, 2): a project's
-  settings offer its owners "Delete", confirmed by the project's name
-  (`../README.md`, 3.6), which sends jig's `RemoveProject` by
-  `shapes::remove_project`, with the chat template's grace (jig's
-  `client/domain/client/helpers.md`; `jig/docs/design/client/domain/contract/requests.md`,
-  2). Once it is answered, the project
-  leaves `me`, and with it the navigation and every list (`../view.md`, 3); its
-  work is jig's to end and erase. The settings' other parts are
+- **Deleting a project** (jig's `domain/people/acts.md`, 2): How work
+  runs (`Settings { project }`) ends, after its other parts, with
+  "Delete project", a plain button, drawn while `me`'s role on the
+  project is owner, the role Rename reads (`../view.md`, 3), and for no
+  one else. Pressed, it opens the sheet that names the project
+  (`../README.md`, 3.6, *The sheet*), and sends nothing; the sheet's
+  "Delete project" sends jig's `RemoveProject` by
+  `shapes::remove_project` (jig's `client/domain/client/helpers.md`;
+  `jig/docs/design/client/domain/contract/requests.md`, 2), one keyed request. Answered
+  removed, the sheet goes, the project leaves `me`, and with it the
+  navigation and every list (`../view.md`, 3), and the client goes to
+  `AllHome`, All projects (`home.md`, 1), where, with no project left,
+  the column "No project yet" draws (`welcome.md`, 1). Refused, the sheet
+  stays, saying why above its acts in jig's words: a project with live
+  tasks, "This project has live tasks; end them first: T12, T15", each
+  number the task's, and ", and 2 more" past jig's 32; a refusal of the
+  role, which a person who was owner when the page drew can meet. Its
+  work is jig's to erase; its repositories stay on their forges, released.
+  The line terminal draws the same button and sheet, as it draws this
+  page; the TUI offers no Delete. The settings' other parts are
   `../README.md`, section 5's.
 
 ## 2. How work runs, and a proposal of settings

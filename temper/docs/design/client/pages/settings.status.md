@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
+
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
@@ -179,9 +181,7 @@ of refusals under both names.
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
    the plan's first-use card remains `accounts.status.md`, 2.
-  Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no such act in `temper-client-domain`. `README.md`, The welcome:
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.
