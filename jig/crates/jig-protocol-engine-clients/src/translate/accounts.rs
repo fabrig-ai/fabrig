@@ -266,7 +266,9 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     w::Accounts::new(
         limits,
         w::AccountsParts {
-            skein_bools: [value.usable, value.settled, value.cut, value.readiness_cut],
+            skein_bools: [false, value.usable, value.settled, value.cut, value.readiness_cut],
+            lending: None,
+            lent_end: None,
             readiness: super::catalogue::readiness(&value.readiness, limits.accounts_readiness, limits)?,
             program_hosts: super::programs::hosts(&value.program_hosts, limits)?,
             accounts,
