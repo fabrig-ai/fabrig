@@ -5140,6 +5140,10 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
         gates: pending.gates.clone(),
         reviews: pending.reviews.clone(),
         reviews_complete: pending.reviews_complete,
+        size: match &pending.pull {
+            Some(pull) if Some(pull.commit) == pending.branch => pull.size,
+            Some(_) | None => None,
+        },
     }
 }
 

@@ -48,6 +48,9 @@ pub(super) fn document(row: a::Pull) -> Option<d::Pull> {
         head_commit: commit(row.commit),
         base_commit: commit(row.base_commit?),
         reviewers: row.reviewers,
+        changed_files: Some(row.size.files),
+        additions: Some(row.size.additions),
+        deletions: Some(row.size.deletions),
     })
 }
 pub(super) fn pull(answer: a::Answer, limits: &Limits) -> Response {

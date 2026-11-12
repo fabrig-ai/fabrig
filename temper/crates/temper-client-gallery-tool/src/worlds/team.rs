@@ -239,6 +239,7 @@ fn approvals(alone: bool) -> w::Approvals {
                     sets: List::with_capacity(0),
                     whole: true,
                     yours: w::ApprovalYours::Counts,
+                    size: None,
                 },
             )
             .expect("review"),

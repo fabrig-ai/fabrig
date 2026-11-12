@@ -24,6 +24,7 @@ fn pull() -> api::Pull {
     api::Pull {
         queued: None,
         dequeued: None,
+        size: None,
         number: 1,
         state: api::State::Open,
         head: Box::from(&b"work"[..]),
@@ -946,4 +947,70 @@ fn mismatched_pull_ids_are_rejected_before_keeping_reviewers() {
 }
 fn write_hear(plan: &mut writes::Plan, tables: &mut Tables, heard: Heard) -> Result<Option<Step>, Error> {
     plan.heard(heard, BOUNDS, fixtures::WORD, tables)
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "step tests edit recorded JSON as text"
+)]
+fn forgejo_pull_sizes_are_optional_lenient_and_follow_pull_for() {
+    let json = core::str::from_utf8(PULL).unwrap();
+    let baseline = pull();
+    for field in ["changed_files", "additions", "deletions"] {
+        for bad in [
+            None,
+            Some("null"),
+            Some("-1"),
+            Some("1.5"),
+            Some("18446744073709551616"),
+            Some("true"),
+            Some("{}"),
+            Some("\"bad\""),
+        ] {
+            let mut counts = String::new();
+            for key in ["changed_files", "additions", "deletions"] {
+                let value = if key == field { bad } else { Some("3") };
+                if let Some(value) = value {
+                    counts.push('"');
+                    counts.push_str(key);
+                    counts.push_str("\":");
+                    counts.push_str(value);
+                    counts.push(',');
+                }
+            }
+            let body = format!("{{{counts}{}", json.strip_prefix('{').unwrap());
+            let mut run =
+                Run::with_limits(fixtures::profile_limits(), BOUNDS, Op::Read(Read::Pull { number: 1, ci: false }));
+            run.begin();
+            assert_eq!(
+                run.answer(200, body.as_bytes()),
+                Step::Done(Ok(Answer::Pull(baseline.clone()))),
+                "{field}: {bad:?}"
+            );
+        }
+    }
+    let body = format!(
+        "{{\"changed_files\":18446744073709551615,\"additions\":3,\"deletions\":0,{}",
+        json.strip_prefix('{').unwrap()
+    );
+    let mut run = Run::with_limits(
+        fixtures::profile_limits(),
+        BOUNDS,
+        Op::Read(Read::PullFor { head: Box::from(*b"work"), base: Box::from(*b"main") }),
+    );
+    run.begin();
+    let mut expected = baseline;
+    expected.size = Some(api::Size { files: u64::MAX, additions: 3, deletions: 0 });
+    assert_eq!(run.answer(200, body.as_bytes()), Step::Done(Ok(Answer::Pull(expected))));
+    let recorded = include_str!("../../../../../../tests/http/transcripts/forgejo-pull-request.http");
+    let body = &recorded[recorded.find('{').unwrap()..];
+    let mut limits = fixtures::profile_limits();
+    limits.json.length = u32::try_from(body.len()).unwrap();
+    let mut run = Run::with_limits(limits, BOUNDS, Op::Read(Read::Pull { number: 58, ci: false }));
+    run.begin();
+    let Step::Done(Ok(Answer::Pull(pull))) = run.answer(200, body.as_bytes()) else { panic!("recorded pull") };
+    assert_eq!(pull.size, Some(api::Size { files: 19, additions: 2841, deletions: 12 }));
 }

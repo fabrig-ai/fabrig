@@ -17,7 +17,11 @@
     **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
-    8).
+    8). An approval's chips hold its size alone
+    (`../client/forge/README.md`, 4.1, *Its size*): no design holds
+    `pair/needs.html`'s table of its files with their counts, an open
+    question there (section 8), or its chips for CI at the head and its
+    repairs, "CI green at 9c04d7e" and "repaired once".
   - 6: `../client/pages/team.md`, 1 holds a project's people and
     what waits on each, the project's triager once a setting names
     one, its standing roles in a section of their own, each reached from
@@ -75,7 +79,10 @@
     11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
     `tui-design-session.status.md` records. No design holds 11.3's
-    talking with a role.
+    talking with a role, or the launchpad's "checked · +142 -18 in 4
+    files" on an approval's row, as `pair/launchpad.html` draws it, which
+    temper/tui's design would draw from the row's size
+    (`../client/forge/records.md`, the subject `approvals`).
   - 12: `../client/pages/README.md`, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as

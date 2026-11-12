@@ -193,6 +193,7 @@ fn github_pull_reads_three_requests() {
             ci: api::Ci::Passed,
             queued: None,
             dequeued: None,
+            size: None,
         }
     );
 }
@@ -755,4 +756,68 @@ fn github_pull_without_ci_reads_no_status_or_check_runs() {
         let mut call = graphql_started(read, true, false, bounds(), true);
         assert_eq!(pull_answer(call.graphql(&graphql_row())).ci, api::Ci::None);
     });
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "step tests edit recorded JSON as text"
+)]
+fn github_pull_sizes_are_optional_lenient_and_follow_pull_for() {
+    let row = fixtures::pull(5);
+    let mut out = Writer::new(4096);
+    server::pull(&row, &mut out).unwrap();
+    let raw = bytes(out);
+    let json = core::str::from_utf8(&raw).unwrap();
+    let baseline = pull_answer(started(api::Read::Pull { number: 5, ci: false }).pull(&row));
+    assert_eq!(baseline.size, None);
+    for field in ["changed_files", "additions", "deletions"] {
+        for bad in [
+            None,
+            Some("null"),
+            Some("-1"),
+            Some("1.5"),
+            Some("18446744073709551616"),
+            Some("true"),
+            Some("{}"),
+            Some("\"bad\""),
+        ] {
+            let mut counts = String::new();
+            for key in ["changed_files", "additions", "deletions"] {
+                let value = if key == field { bad } else { Some("3") };
+                if let Some(value) = value {
+                    counts.push('"');
+                    counts.push_str(key);
+                    counts.push_str("\":");
+                    counts.push_str(value);
+                    counts.push(',');
+                }
+            }
+            let body = format!("{{{counts}{}", json.strip_prefix('{').unwrap());
+            let mut call = started(api::Read::Pull { number: 5, ci: false });
+            let mut out = Writer::new(4096);
+            out.put(body.as_bytes()).unwrap();
+            assert_eq!(pull_answer(call.json(Kind::Pull, out, false)), baseline, "{field}: {bad:?}");
+        }
+    }
+    let mut row = row;
+    row.changed_files = Some(u64::MAX);
+    row.additions = Some(3);
+    row.deletions = Some(0);
+    let mut call = started(pull_for());
+    call.listing(&[fixtures::pull(5)]);
+    assert_eq!(pull_answer(call.pull(&row)).size, Some(api::Size { files: u64::MAX, additions: 3, deletions: 0 }));
+    let recorded = include_str!("../../../../../tests/forge/conformance/transcripts/pull/response");
+    let body = &recorded[recorded.find('{').unwrap()..];
+    let mut call = started(api::Read::Pull { number: 1, ci: false });
+    let mut limits = limits();
+    limits.json.length = u32::try_from(body.len()).unwrap();
+    let (_, document) = decode(Kind::Pull, body.as_bytes(), 7, &limits);
+    call.head(false);
+    assert_eq!(
+        pull_answer(call.heard(Heard::Done(Body::Document(document.unwrap())))).size,
+        Some(api::Size { files: 3, additions: 3, deletions: 0 })
+    );
 }

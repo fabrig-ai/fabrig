@@ -1119,6 +1119,7 @@ pub struct ChangeEvidence {
     pub gates: Box<[change::GateReport]>,
     pub reviews: Box<[skein_forge::api::Review]>,
     pub reviews_complete: bool,
+    pub size: Option<skein_forge::api::Size>,
 }
 /// Coherent merge facts for a landing member, read in the landing's step.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
