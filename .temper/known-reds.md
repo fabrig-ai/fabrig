@@ -1,2 +1,3 @@
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - test temper-client-journeys-tool tests::the_overlay_is_empty
+- lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
