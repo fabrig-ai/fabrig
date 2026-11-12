@@ -58,6 +58,19 @@
       hold, isn't counted: no read gives another party's inbox (jig's
       `domain/people/README.md`, section 5). At most eight others are read, the
       first in People's order; a box past them has no line.
+  - *What each signed* (`../../domain/forge/change/gates.md`, 2,
+    *Sign-offs kept at landing*), as `web/whole-story/team/team.html`
+    draws it: after a person's line, or alone where they have none,
+    "Signed four last week.", the changes landed in the seven days
+    before now, now included, whose sign-offs name the person, each
+    change once: the subject `changes`' `landed_default` rows
+    (`../forge/records.md`, *A project's changes*) whose `at` is in that
+    window and whose `signed` holds the person's party. The count is a
+    word from one to nine, then digits, "Signed 12 last week."; where
+    `landed_default_more` is above zero and the oldest row listed is in
+    the window, rows the document cut may hold more, so the count is a
+    floor, in digits, "Signed 4+ last week.". At zero, nothing is said.
+    Every person listed has it, those past the eight others read too.
   - *The project's triager* (`../../domain/findings.md`, section 6), the
     owner of findings with no area, is a line at People's foot,
     "Findings with no area go to NAME.", once the project's settings
@@ -69,14 +82,16 @@
     People while a person is listed; People's head's shared role while
     *People's head* says, as `Parts::shared`, an `Option<HeldRole>` that
     is never `Policy`; a person's line while what waits on
-    them is read; the triager's line while a triager is read. No part is
-    drawn empty, and each person is drawn once.
+    them is read; what a person signed while the changes' watch has
+    answered and their count is above zero; the triager's line while a
+    triager is read. No part is drawn empty, and each person is drawn once.
   - *Its reads:* `me`, for the party and the project's name; jig's
     `Read::Project { project }` on opening, and again on each `me`
     delivery while none is pending, since a change of members moves `me`
     (jig's `client/domain/contract/README.md`, 5.1); the standing inbox watch
     and the person's approvals, as Needs you's; one `tasks{query}` watch
-    for each other person read, while the page is open. Before the
+    for each other person read, and the subject `changes`, as Work
+    watches it (`work.md`, 1, *Its reads*), while the page is open. Before the
     document answers, the intro, and "People" with no line under it; a
     refused or failed read says, under "People", "This project's people
     can't be read now."
@@ -106,12 +121,20 @@
   the draft's Who routes, a chip under the areas that reads what comes in
   against their words, changed by proposal, in place of *Team*'s line at
   People's foot, once the areas are drawn (R2); what a person can still
-  sign, signed and asked for, on their line, as
-  `web/whole-story/team/team.html` draws it, once kept sign-offs (N6) and
-  a read of what another person can still sign give it, the `approvals`
-  rows naming who can still sign only the changes their watcher sees
+  sign and asked for, on their line, as
+  `web/whole-story/team/team.html` draws it, once a read of what another
+  person can still sign gives it (N5), the `approvals` rows naming who
+  can still sign only the changes their watcher sees
   (`../../domain/forge/change/questions.md`, 2, *Who can still sign*); and what waits
   on another person on another's task or on a role they hold, once a read
   gives another party's inbox. Each joins *Its parts* with the read that
   gives it. Default: none is drawn until it is built, and a person's line
   is what *Team* counts.
+- **A week's sign-offs past the rows** (1, *What each signed*): the
+  count reads the changes' `landed_default` rows, at most
+  `forge.changes_landed` (8 in `small`) across the project's
+  repositories, from landing logs of `landings_kept` landings each
+  (`../../domain/after-landing.md`, section 10), so a busy week's count
+  is a floor, as Work's Landed this week is (`work.md`, 2). Default: so,
+  nothing stored added; or the changes' document counts each person's
+  sign-offs over every landing its logs keep, a wire field.

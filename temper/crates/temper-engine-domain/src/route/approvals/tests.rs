@@ -54,7 +54,13 @@ pub(crate) fn approval(role: u32, required: u32, counted: bool) -> forge::ShortA
         required,
         sets: 0,
         counted: if counted {
-            Box::new([forge::Reviewer { person: 1, role, head: [1; 32], verdict: skein_forge::api::Verdict::Approve }])
+            Box::new([forge::Reviewer {
+                at: Wall::from_nanos(0),
+                person: 1,
+                role,
+                head: [1; 32],
+                verdict: skein_forge::api::Verdict::Approve,
+            }])
         } else {
             Box::new([])
         },
@@ -259,7 +265,13 @@ pub(crate) fn members_fixture(members: &[(u64, Role, bool, &str, &str)]) -> (Dom
 pub(crate) fn counted(people: &[u64], role: u32) -> Box<[forge::Reviewer]> {
     people
         .iter()
-        .map(|&person| forge::Reviewer { person, role, head: [1; 32], verdict: skein_forge::api::Verdict::Approve })
+        .map(|&person| forge::Reviewer {
+            person,
+            role,
+            head: [1; 32],
+            verdict: skein_forge::api::Verdict::Approve,
+            at: Wall::from_nanos(0),
+        })
         .collect()
 }
 
