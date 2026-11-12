@@ -202,7 +202,7 @@ pub fn domain() -> (domain::Domain, domain::Config) {
         )
         .expect("bounded fixture")
         .expect("bounded fixture");
-        let mut env = Env { now: Time::ZERO, wall: NOW, limits: config };
+        let mut env = Env { now: Time::ZERO, wall: NOW, limits: config.clone() };
         let mut out = Queue::uncapped();
         for op in [
             a::Op::Git(a::Git::Push { branch: Box::from(b"feature".as_slice()), commit: head, expected: None }),

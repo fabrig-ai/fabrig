@@ -3,7 +3,7 @@
 //! is pending at once, then passes or fails after a drawn latency, or never
 //! reports, by the repository's chances; or, where a cue is configured, as the
 //! commit's file content or message says (skein/docs/design/testing/fakes/forge.md,
-//! 2.3). Pull-file cues start a new run when a push head becomes a pull
+//! 2.3). Pull-file and declared cues start a new run when a push head becomes a pull
 //! head, binding its number; other CI runs once per commit and repository. A
 //! context that reported may be run again once, by the repository's chance:
 //! pending again at once, then a verdict drawn again, so a head's CI can
@@ -16,7 +16,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::{copy_of, find};
-use skein_lib::{Env, Id, List, Map};
+use skein_lib::{Env, Id, List, Map, usize_of};
 
 use crate::api::{Answer, Check, Checks, Cue, Ended, Error, Permission, What};
 use crate::domain::{self, Alarm, Config, Domain};
@@ -387,9 +387,14 @@ pub(crate) fn template(bytes: &[u8], pull: Option<u64>) -> Box<[u8]> {
     out.into_boxed()
 }
 
-/// Resolves a declaration to the ordinary pull-file failure metadata for Actions.
+/// Resolves a head's declaration to its Actions failure cue.
 pub(crate) fn effective(
-    domain: &Domain, commit: u64, context: &[u8], cue: Option<&Cue>, pull: Option<u64>, limits: &crate::Limits,
+    domain: &Domain,
+    commit: u64,
+    context: &[u8],
+    cue: Option<&Cue>,
+    pull: Option<u64>,
+    limits: &crate::Limits,
 ) -> Option<Cue> {
     match cue {
         Some(Cue::Declared { path }) => declared(domain, commit, context, path, pull, limits).1,
@@ -399,24 +404,41 @@ pub(crate) fn effective(
 }
 
 pub(crate) fn declared(
-    domain: &Domain, commit: u64, context: &[u8], path: &[u8], pull: Option<u64>, limits: &crate::Limits,
+    domain: &Domain,
+    commit: u64,
+    context: &[u8],
+    path: &[u8],
+    pull: Option<u64>,
+    limits: &crate::Limits,
 ) -> (Check, Option<Cue>) {
     let tree = &domain.object(commit).expect("CI commit").tree;
     let Some(file) = tree.get(path) else { return (Check::Passed, None) };
-    if file.len() <= usize::try_from(limits.content_bytes).expect("content limit") {
-        let end = match find(file, b"\n") { Some(end) => end, None => file.len() };
+    if file.len() <= usize_of(limits.content_bytes) {
+        let end = match find(file, b"\n") {
+            Some(end) => end,
+            None => file.len(),
+        };
         let line = file.get(..end).expect("first line");
-        if line == b"pass" { return (Check::Passed, None); }
-        if line == b"fail" { return (Check::Failed, None); }
+        if line == b"pass" {
+            return (Check::Passed, None);
+        }
+        if line == b"fail" {
+            return (Check::Failed, None);
+        }
         if let Some(template) = line.strip_prefix(b"pull-file ")
             && !template.is_empty()
             && template_bound(template) <= limits.name_bytes
         {
             let state = pull_file(domain, commit, template, pull, Check::Skipped);
-            return (state, Some(Cue::PullFile {
-                path: copy_of(template), no_pull: Check::Skipped, step: copy_of(context),
-                log: skein_lib::bytes::concat(&[b"Missing ", template]),
-            }));
+            return (
+                state,
+                Some(Cue::PullFile {
+                    path: copy_of(template),
+                    no_pull: Check::Skipped,
+                    step: copy_of(context),
+                    log: skein_lib::bytes::concat(&[b"Missing ", template]),
+                }),
+            );
         }
     }
     (Check::Failed, Some(Cue::Declared { path: copy_of(path) }))

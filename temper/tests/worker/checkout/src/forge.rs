@@ -61,35 +61,37 @@ pub const LIMITS: Limits = Limits {
 
 /// A forge that answers at once and fails only as a world scripts it.
 #[must_use]
-pub fn config() -> Config { Config {
-    setup_faults: 0,
-    lost: 0,
-    made_checks: Config::test().made_checks,
-    limits: LIMITS,
-    latency_min: Duration::ZERO,
-    latency_max: Duration::ZERO,
-    settle_min: Duration::from_secs(2),
-    settle_max: Duration::from_secs(2),
-    late: 0,
-    late_min: Duration::ZERO,
-    late_max: Duration::ZERO,
-    unavailable: 0,
-    timeouts: 0,
-    landing: 0,
-    land_min: Duration::ZERO,
-    land_max: Duration::ZERO,
-    rate_limit: 0,
-    rate_window: Duration::ZERO,
-    ci: CI,
-    hook_min: Duration::ZERO,
-    hook_max: Duration::ZERO,
-    hooks_late: 0,
-    hooks_lost: 0,
-    resolution: Duration::ZERO,
-    skew: Skew::None,
-    status_updates: false,
-    edit_updates: false,
-} }
+pub fn config() -> Config {
+    Config {
+        setup_faults: 0,
+        lost: 0,
+        made_checks: Config::test().made_checks,
+        limits: LIMITS,
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        settle_min: Duration::from_secs(2),
+        settle_max: Duration::from_secs(2),
+        late: 0,
+        late_min: Duration::ZERO,
+        late_max: Duration::ZERO,
+        unavailable: 0,
+        timeouts: 0,
+        landing: 0,
+        land_min: Duration::ZERO,
+        land_max: Duration::ZERO,
+        rate_limit: 0,
+        rate_window: Duration::ZERO,
+        ci: CI,
+        hook_min: Duration::ZERO,
+        hook_max: Duration::ZERO,
+        hooks_late: 0,
+        hooks_lost: 0,
+        resolution: Duration::ZERO,
+        skew: Skew::None,
+        status_updates: false,
+        edit_updates: false,
+    }
+}
 
 /// A branch moved on the forge: created if it was nowhere.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -395,14 +397,28 @@ impl Remote for Forge {
     fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
         if always {
             return Some(
-                skein_fake_forge_domain::commit_tree(&mut self.domain, &config(), parent, merging, files(tree), message)
-                    .expect("the forge has room"),
+                skein_fake_forge_domain::commit_tree(
+                    &mut self.domain,
+                    &config(),
+                    parent,
+                    merging,
+                    files(tree),
+                    message,
+                )
+                .expect("the forge has room"),
             );
         }
         match merging {
             Some(second) => Some(
-                skein_fake_forge_domain::merge_commit(&mut self.domain, &config(), parent, second, files(tree), message)
-                    .expect("the forge's store has room for every merge"),
+                skein_fake_forge_domain::merge_commit(
+                    &mut self.domain,
+                    &config(),
+                    parent,
+                    second,
+                    files(tree),
+                    message,
+                )
+                .expect("the forge's store has room for every merge"),
             ),
             None => skein_fake_forge_domain::commit(&mut self.domain, &config(), parent, files(tree), message)
                 .expect("the forge's store has room for every commit"),

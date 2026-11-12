@@ -63,6 +63,8 @@ pub fn spawn_of(command: &Command) -> Spawn {
     }
 }
 
+/// The protocol world's synchronous forge configuration, shared by the worlds.
+pub use crate::forge::config;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_peers::forge::Forge;
 use skein_lib::{Duration, List};
@@ -72,8 +74,6 @@ use temper_fake_checkout::{
     git::{self as local, Remote, Tree},
 };
 use temper_fake_git::{Answer, Typed, answer, check, id::id};
-/// The protocol world's synchronous forge configuration, shared by the worlds.
-pub use crate::forge::config;
 /// Each protocol or refusal case has its own equivalent checkout fixture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {

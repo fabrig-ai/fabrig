@@ -220,8 +220,14 @@ fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) 
             Some(crate::api::Conclusion::Failure) => Check::Failed,
             None => unreachable!("a completed CI job has a conclusion"),
         };
-        let cue = crate::ci::effective(domain, run.run.commit, &job.name,
-            crate::ci::cue(&repository.checks, &job.name), run.pull, limits);
+        let cue = crate::ci::effective(
+            domain,
+            run.run.commit,
+            &job.name,
+            crate::ci::cue(&repository.checks, &job.name),
+            run.pull,
+            limits,
+        );
         job.steps = crate::actions::outcome_steps(
             &job.name,
             state,
@@ -234,7 +240,14 @@ fn job_view(domain: &Domain, limits: &Limits, repository: &Repository, id: u64) 
     Ok(job)
 }
 
-pub(crate) fn log(domain: &Domain, limits: &Limits, repository: &Repository, id: u64, attempt: u32, step: Option<u32>) -> Result<Answer, Error> {
+pub(crate) fn log(
+    domain: &Domain,
+    limits: &Limits,
+    repository: &Repository,
+    id: u64,
+    attempt: u32,
+    step: Option<u32>,
+) -> Result<Answer, Error> {
     let job = job_view(domain, limits, repository, id)?;
     let steps = &job.steps;
     if job.attempt != attempt || steps.is_empty() {

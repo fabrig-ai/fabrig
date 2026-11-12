@@ -320,7 +320,7 @@ impl World {
     pub fn git_push(&mut self) -> (u64, usize, Time) {
         let (token, commit) = {
             let mut forge = self.forge.borrow_mut();
-            let config = forge.config;
+            let config = forge.config.clone();
             let commit = domain::commit(
                 &mut forge.domain,
                 &config,
@@ -622,7 +622,7 @@ impl World {
     pub fn mutate_owner(&mut self) {
         self.forge.borrow_mut().hooks = Some(endpoint(b"127.0.0.1:1", b"changed-secret"));
         let mut forge = self.forge.borrow_mut();
-        let config = forge.config;
+        let config = forge.config.clone();
         domain::commit(
             &mut forge.domain,
             &config,

@@ -121,9 +121,10 @@ fn comparisons_ignore_paging_and_refuse_incomplete_data_explicitly() {
     assert_eq!(merge_base, Some(FIRST));
     assert_eq!(&*commits, &[one, two]);
     assert_eq!(changed.len(), 2);
-    let excessive = crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"a", b"a"), (b"b", b"b"), (b"c", b"c")]), b"")
-        .unwrap()
-        .unwrap();
+    let excessive =
+        crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"a", b"a"), (b"b", b"b"), (b"c", b"c")]), b"")
+            .unwrap()
+            .unwrap();
     h.push(ENGINE, b"other", excessive).unwrap();
     assert_eq!(
         h.call(PERSON, read(Read::Compare { base: FIRST, head: excessive, page: 1, limit: 1 })),

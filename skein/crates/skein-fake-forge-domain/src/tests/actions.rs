@@ -559,8 +559,9 @@ fn a_cued_message_fails_the_workflow_step() {
     let mut h = dispatch_harness(calm(), &[b"ci"]);
     let id = h.domain.id(REPOSITORY);
     h.domain.repositories.get_mut(id).unwrap().workflows[0].cue = Some(Cue::Message { fail: copy_of(b"FAIL") });
-    let head =
-        crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"src", b"change")]), b"FAIL this test").unwrap().unwrap();
+    let head = crate::commit(&mut h.domain, &calm(), FIRST, files(&[(b"src", b"change")]), b"FAIL this test")
+        .unwrap()
+        .unwrap();
     h.push(ENGINE, MAIN, head).unwrap();
     h.ok(ENGINE, dispatch());
     h.settle();

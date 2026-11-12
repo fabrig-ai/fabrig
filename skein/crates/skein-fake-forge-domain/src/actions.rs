@@ -207,8 +207,14 @@ pub(crate) fn jobs(domain: &Domain, limits: &crate::Limits, repository: &Reposit
                 None => unreachable!("a completed CI job has a conclusion"),
             };
             let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");
-            let cue = crate::ci::effective(domain, kept.run.commit, &job.name,
-                crate::ci::cue(&repository.checks, &job.name), kept.pull, limits);
+            let cue = crate::ci::effective(
+                domain,
+                kept.run.commit,
+                &job.name,
+                crate::ci::cue(&repository.checks, &job.name),
+                kept.pull,
+                limits,
+            );
             view.steps = outcome_steps(
                 &job.name,
                 state,

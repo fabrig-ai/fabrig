@@ -1,6 +1,8 @@
 use super::*;
 // Admission makes the queue's group branch, whose name needs the longer bound.
-fn queueing() -> Config { Config { limits: Limits { branches: 10, name_bytes: 128, ..LIMITS }, ..calm() } }
+fn queueing() -> Config {
+    Config { limits: Limits { branches: 10, name_bytes: 128, ..LIMITS }, ..calm() }
+}
 fn protected(queue: bool) -> Setup {
     let mut setup = setup();
     setup.protection = Some(Protection {

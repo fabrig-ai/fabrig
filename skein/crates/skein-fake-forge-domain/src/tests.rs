@@ -53,20 +53,22 @@ const LIMITS: Limits = Limits {
 
 /// Calls answered in a second, webhooks in two, and no faults unless a test
 /// asks for them.
-fn calm() -> Config { Config {
-    limits: LIMITS,
-    latency_min: Duration::from_secs(1),
-    latency_max: Duration::from_secs(1),
-    late_min: Duration::from_secs(30),
-    late_max: Duration::from_secs(30),
-    land_min: Duration::from_secs(3),
-    rate_window: Duration::from_secs(60),
-    ci: CI,
-    hook_min: Duration::from_secs(2),
-    hook_max: Duration::from_secs(2),
-    skew: Skew::None,
-    ..Config::test()
-} }
+fn calm() -> Config {
+    Config {
+        limits: LIMITS,
+        latency_min: Duration::from_secs(1),
+        latency_max: Duration::from_secs(1),
+        late_min: Duration::from_secs(30),
+        late_max: Duration::from_secs(30),
+        land_min: Duration::from_secs(3),
+        rate_window: Duration::from_secs(60),
+        ci: CI,
+        hook_min: Duration::from_secs(2),
+        hook_max: Duration::from_secs(2),
+        skew: Skew::None,
+        ..Config::test()
+    }
+}
 
 /// The users: the engine and CI write, a person reads, a maintainer writes,
 /// an admin administers, and a stranger has no permission.

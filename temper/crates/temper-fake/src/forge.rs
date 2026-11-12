@@ -1,4 +1,5 @@
-//! The QA forge's document, fixed seed and setup acts (protocol/setup/playground.md).
+//! The QA forge's document, fixed seed and setup acts (testing/fakes.md, 2;
+//! protocol/setup/playground.md).
 pub mod github;
 pub mod observations;
 use crate::{Refusal, read};
@@ -185,7 +186,16 @@ impl Document {
             github.check(repositories.as_slice())?;
         }
         check_sources(&sources, repositories.as_slice())?;
-        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), sources, github, ci_ms, made_checks })
+        Ok(Self {
+            listen,
+            admin_token,
+            owner,
+            repositories: repositories.into_boxed(),
+            sources,
+            github,
+            ci_ms,
+            made_checks,
+        })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -272,19 +282,28 @@ impl Document {
     }
 }
 fn ci(d: &skein_json::Document, at: u32, p: &Path, seed_tree: bool) -> Result<Option<Ci>, Refusal> {
-    if read::is_null(d, at) { return Ok(None); }
+    if read::is_null(d, at) {
+        return Ok(None);
+    }
     let mut o = read::object(d, at, p)?;
     if let Some(at) = o.member(d, b"declared") {
         let path = read::text(d, at, limits().limits.name_bytes, &p.member(b"declared"))?;
         read::finish(o, d, p)?;
         if path.is_empty() || !relative(&path) {
-            return Err(read::why(&p.member(b"declared"), b"expected a relative file path with no empty, . or .. component"));
+            return Err(read::why(
+                &p.member(b"declared"),
+                b"expected a relative file path with no empty, . or .. component",
+            ));
         }
         return Ok(Some(Ci::Declared { path }));
     }
-    let path = read::field(&mut o, d, b"path", limits().limits.name_bytes, p)?;
-    let green = read::field(&mut o, d, b"green", limits().limits.content_bytes, p)?;
+    let path_at = o.member(d, b"path");
+    let green_at = o.member(d, b"green");
     read::finish(o, d, p)?;
+    let path_at = path_at.ok_or(read::why(&p.member(b"path"), b"missing"))?;
+    let green_at = green_at.ok_or(read::why(&p.member(b"green"), b"missing"))?;
+    let path = read::text(d, path_at, limits().limits.name_bytes, &p.member(b"path"))?;
+    let green = read::text(d, green_at, limits().limits.content_bytes, &p.member(b"green"))?;
     if !relative(&path) {
         return Err(read::why(&p.member(b"path"), b"expected a relative file path with no . or .. component"));
     }
@@ -554,60 +573,62 @@ pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
 }
 /// Bounded store for sixteen repositories, with small mutable QA histories.
 #[must_use]
-pub fn limits() -> domain::Config { domain::Config {
-    setup_faults: 0,
-    lost: 0,
-    limits: domain::Limits {
-        workflows: 0,
-        workflow_runs: 0,
-        repositories: crate::ENTRIES,
-        users: 32,
-        bypassing_users: 8,
-        labels: 8,
-        items: 32,
-        comments: 8,
-        dependencies: 8,
-        reviews: 8,
-        branches: 32,
-        commits: 128,
-        files: 16,
-        statuses: 32,
-        contexts: 8,
-        pages: 8,
-        name_bytes: 256,
-        title_bytes: 256,
-        body_bytes: 4096,
-        content_bytes: 8192,
-        page_size: 32,
-        calls: 8,
-        hooks: 32,
-        observations: 128,
-    },
-    latency_min: Duration::ZERO,
-    latency_max: Duration::ZERO,
-    settle_min: Duration::ZERO,
-    settle_max: Duration::ZERO,
-    late: 0,
-    late_min: Duration::ZERO,
-    late_max: Duration::ZERO,
-    unavailable: 0,
-    timeouts: 0,
-    landing: 0,
-    land_min: Duration::ZERO,
-    land_max: Duration::ZERO,
-    rate_limit: 0,
-    rate_window: Duration::ZERO,
-    ci: 0,
-    made_checks: domain::Config::test().made_checks,
-    hook_min: Duration::ZERO,
-    hook_max: Duration::ZERO,
-    hooks_late: 0,
-    hooks_lost: 0,
-    resolution: Duration::from_secs(1),
-    skew: domain::Skew::None,
-    status_updates: false,
-    edit_updates: false,
-} }
+pub fn limits() -> domain::Config {
+    domain::Config {
+        setup_faults: 0,
+        lost: 0,
+        limits: domain::Limits {
+            workflows: 0,
+            workflow_runs: 0,
+            repositories: crate::ENTRIES,
+            users: 32,
+            bypassing_users: 8,
+            labels: 8,
+            items: 32,
+            comments: 8,
+            dependencies: 8,
+            reviews: 8,
+            branches: 32,
+            commits: 128,
+            files: 16,
+            statuses: 32,
+            contexts: 8,
+            pages: 8,
+            name_bytes: 256,
+            title_bytes: 256,
+            body_bytes: 4096,
+            content_bytes: 8192,
+            page_size: 32,
+            calls: 8,
+            hooks: 32,
+            observations: 128,
+        },
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        settle_min: Duration::ZERO,
+        settle_max: Duration::ZERO,
+        late: 0,
+        late_min: Duration::ZERO,
+        late_max: Duration::ZERO,
+        unavailable: 0,
+        timeouts: 0,
+        landing: 0,
+        land_min: Duration::ZERO,
+        land_max: Duration::ZERO,
+        rate_limit: 0,
+        rate_window: Duration::ZERO,
+        ci: 0,
+        made_checks: domain::Config::test().made_checks,
+        hook_min: Duration::ZERO,
+        hook_max: Duration::ZERO,
+        hooks_late: 0,
+        hooks_lost: 0,
+        resolution: Duration::from_secs(1),
+        skew: domain::Skew::None,
+        status_updates: false,
+        edit_updates: false,
+    }
+}
 
 /// The git route's wire bounds, shared by the peer and its process client.
 #[must_use]

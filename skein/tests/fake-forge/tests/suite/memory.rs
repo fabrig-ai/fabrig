@@ -42,22 +42,24 @@ const LIMITS: Limits = Limits {
 };
 
 /// Calls answered at once; CI and webhooks so slow that they pile up.
-fn config() -> Config { Config {
-    limits: LIMITS,
-    latency_min: Duration::from_millis(1),
-    latency_max: Duration::from_millis(1),
-    late_min: Duration::from_millis(1),
-    late_max: Duration::from_millis(1),
-    land_min: Duration::from_millis(1),
-    land_max: Duration::from_millis(1),
-    rate_limit: 1000,
-    rate_window: Duration::from_secs(3600),
-    ci: 9,
-    hook_min: Duration::from_secs(3600),
-    hook_max: Duration::from_secs(3600),
-    skew: Skew::None,
-    ..Config::test()
-} }
+fn config() -> Config {
+    Config {
+        limits: LIMITS,
+        latency_min: Duration::from_millis(1),
+        latency_max: Duration::from_millis(1),
+        late_min: Duration::from_millis(1),
+        late_max: Duration::from_millis(1),
+        land_min: Duration::from_millis(1),
+        land_max: Duration::from_millis(1),
+        rate_limit: 1000,
+        rate_window: Duration::from_secs(3600),
+        ci: 9,
+        hook_min: Duration::from_secs(3600),
+        hook_max: Duration::from_secs(3600),
+        skew: Skew::None,
+        ..Config::test()
+    }
+}
 
 /// The users of every repository: an admin, then writers. The second opens
 /// everything; the others comment and review.
@@ -238,7 +240,7 @@ const CHECK_CONTEXTS_PEAK_CEILING: u64 = 130_000;
 fn many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded() {
     let limits = Limits { repositories: 1, files: 1, contexts: 64, statuses: 1, commits: 2, ..LIMITS };
     let config = Config { limits, ..config() };
-    let mut forge = Measured::with(config, CHECK_CONTEXTS_PEAK_CEILING);
+    let mut forge = Measured::with(config.clone(), CHECK_CONTEXTS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.tree = Box::new([File { path: name(b'p', 0), content: text(limits.content_bytes, b'g') }]);
@@ -372,7 +374,7 @@ fn outcome(result: Result<Answer, Error>) -> Result<Option<u64>, Error> {
 /// Fills the repository `index` with all it may hold.
 fn fill(forge: &mut Measured, index: u64, first: u64) {
     let repository = name(b'r', index);
-    let config = forge.env.limits;
+    let config = forge.env.limits.clone();
     // Three branches, each a commit of a full tree ahead of the default.
     for branch in 0..3_u64 {
         let content = b'a'
@@ -472,7 +474,7 @@ const FILLED_FORGE_PEAK_CEILING: u64 = 87_000;
 )]
 fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
     let config = Config { limits: Limits { workflows: 1, workflow_runs: 2, ..LIMITS }, ..config() };
-    let mut forge = Measured::with(config, FILLED_FORGE_PEAK_CEILING);
+    let mut forge = Measured::with(config.clone(), FILLED_FORGE_PEAK_CEILING);
     let mut firsts = List::with_capacity(LIMITS.repositories);
     for index in 0..u64::from(LIMITS.repositories) {
         let mut configured = setup(index);
@@ -642,7 +644,7 @@ fn counted_group_branches_and_queue_landings_stay_within_memory_bound() {
     // one repository and three branches hold main, the pull head and its group.
     let limits = Limits { repositories: 1, name_bytes: 96, branches: 3, ..LIMITS };
     let config = Config { limits, ..config() };
-    let mut forge = Measured::with(config, QUEUE_LANDINGS_PEAK_CEILING);
+    let mut forge = Measured::with(config.clone(), QUEUE_LANDINGS_PEAK_CEILING);
     let repository = name(b'r', 0);
     let mut configured = setup(0);
     configured.default = Box::from(*b"main");

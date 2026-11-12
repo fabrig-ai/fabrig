@@ -1,4 +1,4 @@
-use super::{calm, ENGINE, FIRST, MAIN, STRANGER};
+use super::{ENGINE, FIRST, MAIN, STRANGER, calm};
 use crate::{self as domain, Config, Domain, Signature, api::Error};
 use skein_lib::{Env, Time, Wall};
 const NAME: &[u8] = b"org/first";

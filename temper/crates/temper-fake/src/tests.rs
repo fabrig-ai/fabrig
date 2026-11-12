@@ -1181,24 +1181,39 @@ fn sixteen_script_turns_decode_and_run_and_a_seventeenth_is_refused() {
 #[test]
 fn declared_ci_and_made_ci_judge_their_heads() {
     use skein_fake_forge_domain::{self as domain, api as a};
-    for made in [None, Some(Value::Null), Some(json!({"declared":".fake-forge/ci"})), Some(json!({"path":".fake-forge/ci","green":"pass"}))] {
+    for made in [
+        None,
+        Some(Value::Null),
+        Some(json!({"declared":".fake-forge/ci"})),
+        Some(json!({"path":".fake-forge/ci","green":"pass"})),
+    ] {
         let mut value = forge_document();
         value["repositories"][0]["ci"] = json!({"declared":".fake-forge/ci"});
-        if let Some(ci) = &made { value["made_ci"] = ci.clone(); }
+        if let Some(ci) = &made {
+            value["made_ci"] = ci.clone();
+        }
         let document = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
         let (mut forge, _) = document.seed(23);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge.config.clone() };
         domain::create_repository(&mut forge.domain, &env.limits, 2, b"fake/made", b"made", forge::OWNER).unwrap();
         for name in [b"fake/widget".as_slice(), b"fake/made"] {
-            let head = domain::advance(&mut forge.domain, &env, name, b"main", b".fake-forge/ci", b"fail\n", forge::OWNER).unwrap();
+            let head =
+                domain::advance(&mut forge.domain, &env, name, b"main", b".fake-forge/ci", b"fail\n", forge::OWNER)
+                    .unwrap();
             let mut out = Queue::uncapped();
             domain::fire(&mut forge.domain, &env, &mut out);
-            let a::Answer::Statuses(statuses) = forge.domain.inspect(&env.limits, name, &a::Read::Statuses { commit: head }).unwrap() else { panic!("statuses") };
-            if name == b"fake/made" && made.is_none() { assert!(statuses.is_empty()); }
+            let a::Answer::Statuses(statuses) =
+                forge.domain.inspect(&env.limits, name, &a::Read::Statuses { commit: head }).unwrap()
             else {
+                panic!("statuses")
+            };
+            if name == b"fake/made" && made.is_none() {
+                assert!(statuses.is_empty());
+            } else {
                 assert_eq!(statuses.len(), 1);
                 assert_eq!(statuses[0].context.as_ref(), b"check");
-                let expected = if name == b"fake/made" && made == Some(Value::Null) { a::Check::Passed } else { a::Check::Failed };
+                let expected =
+                    if name == b"fake/made" && made == Some(Value::Null) { a::Check::Passed } else { a::Check::Failed };
                 assert_eq!(statuses[0].state, expected, "{name:?} {made:?}");
             }
         }
@@ -1211,19 +1226,43 @@ fn declared_ci_paths_and_members_are_checked() {
         for path in ["", ".", "..", "a//b", "a/./b", "a/../b", "/a", "a/"] {
             let mut value = forge_document();
             let ci = json!({"declared":path});
-            if member == "ci" { value["repositories"][0][member] = ci; }
-            else { value[member] = ci; }
+            if member == "ci" {
+                value["repositories"][0][member] = ci;
+            } else {
+                value[member] = ci;
+            }
             let prefix = if member == "ci" { "repositories[0].ci" } else { "made_ci" };
-            let expected = alloc::format!("{prefix}.declared: expected a relative file path with no empty, . or .. component\n");
+            let expected =
+                alloc::format!("{prefix}.declared: expected a relative file path with no empty, . or .. component\n");
             let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
             assert_eq!(why.line().as_ref(), expected.as_bytes());
         }
         let mut value = forge_document();
         let ci = json!({"declared":".fake-forge/ci", "unknown":true});
-        if member == "ci" { value["repositories"][0][member] = ci; }
-        else { value[member] = ci; }
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
         let prefix = if member == "ci" { "repositories[0].ci" } else { "made_ci" };
         let expected = alloc::format!("{prefix}.unknown: unknown member\n");
+        let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert_eq!(why.line().as_ref(), expected.as_bytes());
+        let ci = json!({"unknown":true});
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
+        let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert_eq!(why.line().as_ref(), expected.as_bytes());
+        let ci = json!({"declared":"x".repeat(257)});
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
+        let expected = alloc::format!("{prefix}.declared: past its bound\n");
         let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
         assert_eq!(why.line().as_ref(), expected.as_bytes());
     }

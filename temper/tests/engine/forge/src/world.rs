@@ -1028,7 +1028,7 @@ impl World {
         self.push_as(branch, path, content, 1);
     }
     pub fn push_as(&mut self, branch: &[u8], path: &[u8], content: &[u8], actor: u64) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
     }
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
@@ -1125,7 +1125,7 @@ impl World {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
-        let mut config = self.forge_env.limits;
+        let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
