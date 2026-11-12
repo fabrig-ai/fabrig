@@ -33,9 +33,9 @@ fn every_settled_check_exit_preserves_its_kind_and_only_zero_passes() {
     }
 }
 
-pub(crate) use crate::fixture::declarations;
+pub(crate) use smith_agent_profile_fixtures::declarations;
 
-pub(crate) use smith_protocol_events::fixture::priced_charter;
+pub(crate) use smith_protocol_events_fixtures::priced_charter;
 
 #[test]
 fn standard_profile_admits_the_priced_shell_run_defaults() {
@@ -155,7 +155,7 @@ fn seen_reserve_refusals_keep_their_part_through_every_capture() {
             assert_eq!(failure.which.as_deref(), Some(which), "preserve the reserve part");
             assert_eq!(failure.reason, None, "content-free classification, not provider prose");
             let record = smith_events::Record { t_ms: 0, event: smith_events::Event::RunCompleted(projected) };
-            let receiving = smith_events::Limits { content: 128, ..smith_events::fixture::SMALL };
+            let receiving = smith_events::Limits { content: 128, ..smith_events_fixtures::SMALL };
             let wire = smith_events::write_with_ceiling(&record, &wire_capture, &receiving, 4096)
                 .expect("bounded wire")
                 .expect("authoritative refusal");
@@ -270,7 +270,7 @@ fn seen_root_budget_facts_encode_without_content_under_every_capture() {
     let mut world = smith_agent_world::World::new(smith_agent_world::Settings::calm(34));
     world.run(1_000_000);
     let mut budget_count = 0_u32;
-    let limits = smith_events::Limits { items: 8, ..smith_events::fixture::SMALL };
+    let limits = smith_events::Limits { items: 8, ..smith_events_fixtures::SMALL };
     for fact in world.facts() {
         let Fact::Run { fact, opening: _ } = fact else { continue };
         let Some(record) = smith_protocol_events::budget_record(fact, skein_lib::Time::ZERO, 1, None) else { continue };
@@ -320,7 +320,7 @@ fn a_budget_record_names_the_provider_id_of_its_call() {
     let Event::Budget(value) = &record.event else { panic!("budget projection") };
     assert_eq!(value.call.as_deref(), Some(b"provider-child-7".as_slice()));
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
-        let limits = smith_events::Limits { items: 8, ..smith_events::fixture::SMALL };
+        let limits = smith_events::Limits { items: 8, ..smith_events_fixtures::SMALL };
         let line =
             smith_events::write(&record, &capture, &limits).expect("bounded budget record").expect("budget event");
         assert_eq!(smith_events::read(&line, &limits).expect("bounded budget record"), Some(record.clone()));
@@ -662,7 +662,7 @@ fn standard_profile_accepts_provider_events_that_echo_tool_schemas() {
 
 fn stream_limits() -> smith_events::Limits {
     // Reuse the sink fixture's record bounds; codecs need no IO destinations.
-    smith_protocol_events::sinks::fixture::limits(0).records
+    smith_protocol_events_fixtures::sinks::limits(0).records
 }
 
 fn assert_stream_record(seen: &smith_events::Record, literal: &[u8]) {

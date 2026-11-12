@@ -31,7 +31,7 @@ pub(super) struct Room {
 
 impl Room {
     pub fn new(takes: bool) -> Self {
-        let mut limits = crate::fixture::small().channel;
+        let mut limits = smith_agent_profile_fixtures::small().channel;
         limits.channel.output_frames = CHANNEL_FRAMES;
         limits.channel.output_bytes = u32::MAX;
         let mut endpoints = List::with_capacity(1);

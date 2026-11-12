@@ -112,6 +112,11 @@ members = [
     "skein/tests/world",
     "smith",
     "smith/benchmarks",
+    "smith/testing/smith-events-fixtures",
+    "smith/testing/smith-protocol-events-fixtures",
+    "smith/testing/smith-agent-profile-fixtures",
+    "smith/testing/smith-agent-document-fixtures",
+    "smith/testing/smith-bench-fixtures",
     "smith/crates/smith-agent-profile",
     "smith/crates/smith-agent-service",
     "smith/crates/smith-protocol-events",
@@ -491,6 +496,11 @@ smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
 smith-protocol-machine = { path = "smith/crates/smith-protocol-machine" }
 smith-protocol-program = { path = "smith/crates/smith-protocol-program" }
 smith-events = { path = "smith/crates/smith-events" }
+smith-events-fixtures = { path = "smith/testing/smith-events-fixtures" }
+smith-protocol-events-fixtures = { path = "smith/testing/smith-protocol-events-fixtures" }
+smith-agent-profile-fixtures = { path = "smith/testing/smith-agent-profile-fixtures" }
+smith-agent-document-fixtures = { path = "smith/testing/smith-agent-document-fixtures" }
+smith-bench-fixtures = { path = "smith/testing/smith-bench-fixtures" }
 smith-charter = { path = "smith/crates/smith-charter" }
 smith-transcript = { path = "smith/crates/smith-transcript" }
 smith-channel = { path = "smith/crates/smith-channel" }

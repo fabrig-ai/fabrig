@@ -101,7 +101,7 @@ fn a_new_retry_starts_again_at_offset_zero() {
 }
 #[test]
 fn only_the_main_ordinary_completion_is_wanted() {
-    let mut prompt = smith_protocol_events::fixture::prompt(0);
+    let mut prompt = smith_protocol_events_fixtures::prompt(0);
     for (text, reasoning, input, main_ordinary) in [
         (false, false, false, false),
         (true, false, false, true),

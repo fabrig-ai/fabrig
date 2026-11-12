@@ -6,9 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-fixture = ["smith-events/fixture"]
-
 [dependencies]
 skein-lib.workspace = true
 skein-io.workspace = true
@@ -18,7 +15,7 @@ smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
 
 [dev-dependencies]
-smith-events = { workspace = true, features = ["fixture"] }
+smith-events-fixtures.workspace = true
 
 skein-heap.workspace = true
 smith-agent-world.workspace = true

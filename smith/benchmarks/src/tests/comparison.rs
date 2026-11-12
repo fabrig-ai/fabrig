@@ -230,7 +230,7 @@ fn a_child_on_another_model_is_priced_at_its_own() {
 fn unsent_result(retried: bool) -> crate::AttemptResult {
     let mut result = pricing_result();
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 524_288;
         fixture_limits.content = 4096;
         fixture_limits.items = 512;

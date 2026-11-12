@@ -178,7 +178,7 @@ fn agent(trace: &std::path::Path) -> Vec<Record> {
 fn read(bytes: &[u8]) -> Vec<Record> {
     const STREAM_BYTES: u32 = 1_048_576;
     let limits = {
-        let mut limits = smith_events::fixture::SMALL;
+        let mut limits = smith_events_fixtures::SMALL;
         limits.string = STREAM_BYTES;
         limits.content = STREAM_BYTES;
         limits.items = STREAM_BYTES;

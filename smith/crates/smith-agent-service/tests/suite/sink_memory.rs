@@ -164,7 +164,7 @@ mod tests {
             destinations: 2,
             output: 8 * 1024 * 1024,
             records: {
-                let mut fixture_limits = smith_events::fixture::SMALL;
+                let mut fixture_limits = smith_events_fixtures::SMALL;
                 fixture_limits.string = 65536;
                 fixture_limits.content = 16384;
                 fixture_limits.items = 32;
@@ -175,7 +175,7 @@ mod tests {
             metadata_items: 32,
             scalar_content: 16384,
             conversations: 6,
-            ..smith_protocol_events::sinks::fixture::small()
+            ..smith_protocol_events_fixtures::sinks::small()
         };
         let record = Record {
             t_ms: 1,
