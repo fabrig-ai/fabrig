@@ -476,6 +476,17 @@ pub fn read(directory: &Path) {
         .pointer_mut("/engine/limits/overrides/brief.sections")
         .expect("kept brief section override");
     *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
+    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
+        panic!("golden world defaults")
+    };
+    for (name, count) in [
+        ("tasks.charters", jig.charters.len()),
+        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
+    ] {
+        let count = u64::try_from(count).expect("configured default count");
+        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
+        *bound = bound.as_u64().expect("count override").max(count).into();
+    }
     let configuration = serde_json::to_vec(&document).expect("startup configuration");
     let mut disk = files::load(directory);
     // The terminal keeps its token; ctl additionally reads the engine's address.
