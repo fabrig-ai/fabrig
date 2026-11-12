@@ -168,6 +168,7 @@ pub enum Subject {
     Accounts {
         party: u64,
     },
+    Terminal { party: u64, terminal: u64 },
     /// Filtered live tasks in one project, newest change first.
     /// A fixed task query, independent of any application shape.
     Query {
@@ -247,6 +248,7 @@ impl Subject {
             Self::Chips { .. } => SubjectShape::Chips,
             Self::Frame { .. }
             | Self::Inbox { .. }
+            | Self::Terminal { .. }
             | Self::Accounts { .. }
             | Self::Query { .. }
             | Self::Settings
@@ -276,6 +278,10 @@ impl Subject {
             Self::Deployment => match touch {
                 Touch::Deployment | Touch::AccountLines(_) => true,
                 Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Accounts(_) => false,
+            },
+            Self::Terminal { party: owner, .. } => match touch {
+                Touch::Accounts(party) => party.is_none() || party == Some(*owner),
+                Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Deployment | Touch::AccountLines(_) => false,
             },
             Self::Accounts { party: owner } => match touch {
                 Touch::Accounts(party) | Touch::AccountLines(party) => party.is_none() || party == Some(*owner),
@@ -308,6 +314,7 @@ impl Subject {
             | Self::Run { .. }
             | Self::Frame { .. }
             | Self::Inbox { .. }
+            | Self::Terminal { .. }
             | Self::Accounts { .. }
             | Self::Query { .. }
             | Self::Settings
@@ -334,6 +341,7 @@ pub enum Watched {
     Chips { tasks: List<u64> },
     Inbox,
     Accounts,
+    Terminal { terminal: u64 },
     Query { query: TaskQuery },
     Run { task: u64 },
     Deployment,
@@ -502,6 +510,7 @@ pub enum Document {
     Inbox(Inbox),
     /// The party's own accounts and sign-ins.
     Accounts(Box<Accounts>),
+    Terminal { login: Option<jig_domain_accounts::TerminalLogin> },
     /// Fleet placement, accounts and finite capacities.
     Deployment(Box<Deployment>),
     Settings(Box<Settings>),
@@ -559,6 +568,10 @@ pub fn make(
                 return Err(Missing::NotAllowed);
             }
             Ok(Document::Inbox(inbox_deployment::inbox(core, limits, party, window)?))
+        }
+        Subject::Terminal { party: owner, terminal } => {
+            if *owner != party { return Err(Missing::NotAllowed); }
+            Ok(Document::Terminal { login: core.accounts.terminal_login(party, *terminal).cloned() })
         }
         Subject::Accounts { party: owner } => {
             Ok(Document::Accounts(Box::new(accounts::make(core, limits, party, *owner, window)?)))

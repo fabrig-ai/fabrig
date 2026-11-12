@@ -607,6 +607,9 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
             limits,
             wire::RefusalAccountMoveParts { why: encode_account_move_why(*why) },
         )?),
+        domain::Refusal::NoTerminal => wire::Refusal::NoTerminal,
+        domain::Refusal::LoginUnderWay => wire::Refusal::LoginUnderWay,
+        domain::Refusal::NotLending => wire::Refusal::NotLending,
         domain::Refusal::NameTaken => wire::Refusal::NameTaken,
         domain::Refusal::Unknown => wire::Refusal::Unknown,
         domain::Refusal::Provider => wire::Refusal::Provider,
@@ -722,6 +725,9 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::AccountMove(value) => {
             domain::Refusal::AccountMove { why: decode_account_move_why(value.into_parts().why) }
         }
+        wire::Refusal::NoTerminal => domain::Refusal::NoTerminal,
+        wire::Refusal::LoginUnderWay => domain::Refusal::LoginUnderWay,
+        wire::Refusal::NotLending => domain::Refusal::NotLending,
         wire::Refusal::NameTaken => domain::Refusal::NameTaken,
         wire::Refusal::Unknown => domain::Refusal::Unknown,
         wire::Refusal::Provider => domain::Refusal::Provider,

@@ -205,7 +205,7 @@ pub(crate) fn request(
         | documents::Subject::Tree { .. }
         | documents::Subject::Chips { .. }
         | documents::Subject::Inbox { .. }
-        | documents::Subject::Accounts { .. }
+        | documents::Subject::Terminal { .. } | documents::Subject::Accounts { .. }
         | documents::Subject::Query { .. }
         | documents::Subject::Run { .. }
         | documents::Subject::Settings

@@ -294,6 +294,7 @@ pub enum Signing {
 /// The child's answer to a holder's sign-in, sign-out or account change.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    LoginAsked { number: u32 },
     /// The sign-in took the address; its end is an accounts-watch fact.
     Finishing {
         source: u32,
@@ -466,6 +467,9 @@ pub struct Fact {
 /// A holder's account change; an LLM key is named only by its carried number.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
+    LoginProgram { provider: u32, name: Box<[u8]> },
+    CancelLogin { number: u32 },
+    LoginEnded { number: u32, exit: crate::LoginExit },
     ReadLists {
         provider: u32,
     },

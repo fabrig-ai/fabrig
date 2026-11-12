@@ -25,6 +25,7 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
         }
         accounts::Answer::Finishing { source } => return people::Outcome::AccountFinishing { source },
         accounts::Answer::Reading { count } => return people::Outcome::AccountReading { count },
+        accounts::Answer::LoginAsked { number } => return people::Outcome::AccountLoginAsked { number },
         accounts::Answer::Done => return people::Outcome::AccountChanged,
         accounts::Answer::Started { source, address } => {
             return people::Outcome::AccountSignInStarted { source, address };
@@ -50,6 +51,9 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
         }
         accounts::Refusal::ProgramNameReserved => people::Refusal::ProgramNameReserved,
         accounts::Refusal::Limit { bound } => people::Refusal::Limit { which: limit(bound) },
+        accounts::Refusal::NoTerminal => people::Refusal::NoTerminal,
+        accounts::Refusal::LoginUnderWay => people::Refusal::LoginUnderWay,
+        accounts::Refusal::NotLending => people::Refusal::NotLending,
         accounts::Refusal::NameTaken => people::Refusal::NameTaken,
         accounts::Refusal::Numbers => people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         accounts::Refusal::SignInRedirect { why } => people::Refusal::SignInRedirect {
@@ -94,6 +98,9 @@ pub(crate) fn change(
     change: people::AccountChange,
 ) -> Result<accounts::Change, people::Refusal> {
     Ok(match change {
+        people::AccountChange::LoginProgram { provider, name } => accounts::Change::LoginProgram { provider, name },
+        people::AccountChange::CancelLogin { number } => accounts::Change::CancelLogin { number },
+        people::AccountChange::LoginEnded { number, exit } => accounts::Change::LoginEnded { number, exit: login_exit(exit) },
         people::AccountChange::ReadLists { provider } => accounts::Change::ReadLists { provider },
         people::AccountChange::DeclareProgram { provider, join, name } => {
             if let Some(number) = join {
@@ -188,6 +195,15 @@ fn hosts(core: &crate::Core, hosts: Box<[accounts::ProgramHost]>) -> Box<[people
             .expect("one output per admitted host failure");
     }
     rows.into_boxed()
+}
+
+
+fn login_exit(exit: people::LoginExit) -> accounts::LoginExit {
+    match exit {
+        people::LoginExit::Exited { code } => accounts::LoginExit::Exited { code },
+        people::LoginExit::Killed { signal } => accounts::LoginExit::Killed { signal },
+        people::LoginExit::NotStarted => accounts::LoginExit::NotStarted,
+    }
 }
 
 #[cfg(test)]

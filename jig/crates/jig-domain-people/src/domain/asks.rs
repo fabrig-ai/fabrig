@@ -105,7 +105,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             Seen::Results { .. } => true,
             Seen::Conversation { task, .. } => *task != 0,
         },
-        Ask::AccountChange { change: crate::AccountChange::DeclareProgram { name, .. }, .. } => {
+        Ask::AccountChange { change: crate::AccountChange::DeclareProgram { name, .. } | crate::AccountChange::LoginProgram { name, .. }, .. } => {
             jig_domain_link::SourceName::new(name).is_some()
         }
         Ask::AccountChange { change: crate::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {

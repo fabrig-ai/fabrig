@@ -844,6 +844,7 @@ pub enum Outcome {
         source: u32,
     },
     /// The holder declared this program source under its durable name.
+    AccountLoginAsked { number: u32 },
     AccountProgramDeclared {
         source: u32,
         name: Box<[u8]>,
@@ -1349,6 +1350,9 @@ pub enum Use {
 /// Holder changes to LLM accounts (domain/accounts.md, section 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AccountChange {
+    LoginProgram { provider: u32, name: Box<[u8]> },
+    CancelLogin { number: u32 },
+    LoginEnded { number: u32, exit: LoginExit },
     ReadLists {
         provider: u32,
     },
@@ -1483,6 +1487,7 @@ impl Outcome {
             | Self::AccountSignInStarted { .. }
             | Self::AccountSignedOut { .. }
             | Self::AccountKeyKept { .. }
+            | Self::AccountLoginAsked { .. }
             | Self::AccountProgramDeclared { .. }
             | Self::AccountReading { .. }
             | Self::AccountChanged
@@ -1536,6 +1541,7 @@ impl Outcome {
             | Self::AccountSignInStarted { .. }
             | Self::AccountSignedOut { .. }
             | Self::AccountKeyKept { .. }
+            | Self::AccountLoginAsked { .. }
             | Self::AccountProgramDeclared { .. }
             | Self::AccountReading { .. }
             | Self::AccountChanged
@@ -1567,3 +1573,7 @@ impl Outcome {
         }
     }
 }
+
+/// A program's terminal status (domain/terminal-login.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LoginExit { Exited { code: u8 }, Killed { signal: u8 }, NotStarted }

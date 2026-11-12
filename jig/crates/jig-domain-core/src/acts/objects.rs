@@ -78,7 +78,7 @@ pub(super) fn admit(
                 Admission::Refused(people::Refusal::NotOffered)
             }
         }
-        documents::Subject::Accounts { .. }
+        documents::Subject::Terminal { .. } | documents::Subject::Accounts { .. }
         | documents::Subject::Query { .. }
         | documents::Subject::Note { .. }
         | documents::Subject::Application { .. }

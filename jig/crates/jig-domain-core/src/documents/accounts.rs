@@ -54,7 +54,7 @@ pub struct LastEnd {
 /// Secret-free facts of the party's accounts, including configured provider terms.
 /// Per-host program facts are joined from the current fleet inventory. Uses name explicit payers,
 /// or leave the default; `usable` follows those uses for this party;
-/// `settled` currently counts only sign-ins the party asked for.
+/// `settled` counts the party's sign-ins and terminal login under way.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Accounts {
@@ -62,6 +62,9 @@ pub struct Accounts {
     pub accounts: List<AccountLine>,
     pub signing: List<SignInLine>,
     pub last_end: Option<LastEnd>,
+    pub lendable: bool,
+    pub lending: Option<accounts::TerminalLogin>,
+    pub lent_end: Option<accounts::LentEnd>,
     pub usable: bool,
     pub settled: bool,
     pub cut: bool,
@@ -158,7 +161,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
             .expect("bounded account lines");
     }
     let mut signing = List::with_capacity(limits.documents.lines);
-    let mut settled = true;
+    let mut settled = core.accounts.lending(party).is_none();
     for pending in &core.accounts.pending() {
         if pending.by != party {
             continue;
@@ -183,6 +186,9 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
         accounts,
         signing,
         last_end,
+        lendable: core.accounts.terminal_count(party) != 0,
+        lending: core.accounts.lending(party).cloned(),
+        lent_end: core.accounts.lent_end(party),
         usable: serves_work(core, party),
         settled,
         cut: cut || hosts_cut,
@@ -257,6 +263,7 @@ pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
         .checked_add(facts_bound()?)?;
     u64::try_from(size_of::<Accounts>())
         .ok()?
+        .checked_add(32)?
         .checked_add(super::programs::hosts_bound(limits)?)?
         .checked_add(List::<AccountLine>::price(limits.lines)?)?
         .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?

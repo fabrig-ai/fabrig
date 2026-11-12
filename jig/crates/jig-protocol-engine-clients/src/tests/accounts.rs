@@ -34,6 +34,7 @@ fn source_lines() -> List<d::SourceLine> {
 }
 fn document(end: Option<a::End>) -> d::Accounts {
     d::Accounts {
+        lendable: false, lending: None, lent_end: None,
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
@@ -295,16 +296,29 @@ pub(super) fn fact_rows() -> List<a::AccountFact> {
 }
 
 #[test]
-fn accounts_documents_offer_no_terminal_yet() {
-    let wire = accounts::document(&document(None), &fixtures::wire()).unwrap();
-    assert!(!wire.lendable());
-    assert_eq!(wire.lending(), &None);
-    assert_eq!(wire.lent_end(), &None);
+fn accounts_documents_preserve_lending_facts() {
+    let mut doc = document(None);
+    doc.lendable = true;
+    doc.lending = Some(a::TerminalLogin { number: 1, provider: 2, name: b"work".as_slice().into(), cancelled: true });
+    doc.lent_end = Some(a::LentEnd { number: 9, end: a::LoginEnd::Refused { refusal: a::Refusal::ProgramNameReserved } });
+    let wire = accounts::document(&doc, &fixtures::wire()).expect("lending document");
+    assert!(wire.lendable());
+    let login = wire.lending().as_ref().expect("lending login");
+    assert_eq!(login.number(), 1);
+    assert_eq!(login.provider(), 2);
+    assert_eq!(login.name(), b"work");
+    assert!(login.cancelled());
+    let ended = wire.lent_end().as_ref().expect("last end");
+    assert_eq!(ended.number(), 9);
+    let w::LoginEnd::Refused(why) = ended.end() else { unreachable!("refused end") };
+    assert_eq!(why.refusal(), &w::AccountRefusal::ProgramNameReserved);
+    let terminal = accounts::terminal(doc.lending.as_ref(), &fixtures::wire()).expect("terminal document");
+    assert_eq!(terminal.login(), wire.lending());
 }
 #[test]
-fn terminal_watches_are_not_served_yet() {
+fn terminal_watches_are_served() {
     let subject = w::Subject::Terminal(
         w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
     );
-    assert!(watches::watch(skein_lib::Token::new(17), 23, subject, 2).is_none());
+    let Some(jig_domain_core::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) = watches::watch(skein_lib::Token::new(17), 23, subject, 2) else { unreachable!("terminal watch translated") };
 }

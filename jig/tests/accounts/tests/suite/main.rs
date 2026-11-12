@@ -6,6 +6,7 @@ mod ends;
 mod finish;
 mod forget_project;
 mod lists;
+mod lending;
 mod memory;
 mod model;
 mod moves;

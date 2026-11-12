@@ -71,6 +71,7 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
             limits,
             wire::OutcomeAccountKeyKeptParts { source: *source },
         )?),
+        domain::Outcome::AccountLoginAsked { number } => wire::Outcome::AccountLoginAsked(wire::OutcomeAccountLoginAsked::new(limits, wire::OutcomeAccountLoginAskedParts { number: *number })?),
         domain::Outcome::AccountProgramDeclared { source, name } => {
             wire::Outcome::AccountProgramDeclared(wire::OutcomeAccountProgramDeclared::new(
                 limits,
@@ -237,6 +238,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             domain::Outcome::Again(decode_again(value))
         }
         wire::Outcome::AccountKeyKept(value) => domain::Outcome::AccountKeyKept { source: value.into_parts().source },
+        wire::Outcome::AccountLoginAsked(value) => domain::Outcome::AccountLoginAsked { number: value.number() },
         wire::Outcome::AccountProgramDeclared(value) => domain::Outcome::AccountProgramDeclared {
             source: value.source(),
             name: skein_lib::bytes::copy_of(value.name()),

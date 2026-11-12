@@ -639,6 +639,9 @@ pub(crate) fn route_account(
     work: &mut Queue<Work>,
     event: accounts::Event,
 ) -> Queue<Request> {
+    if let accounts::Event::Change { holder: accounts::Holder::Party(party), change: accounts::Change::LoginProgram { .. } | accounts::Change::CancelLogin { .. } | accounts::Change::LoginEnded { .. }, .. } = &event {
+        core.touch_accounts(Some(*party));
+    }
     let party = account_party(core, &event);
     let refresh = match &event {
         accounts::Event::ProgramSaid { .. } => true,

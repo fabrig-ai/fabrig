@@ -296,7 +296,8 @@ fn rebuilt(key: &[u8]) -> Option<&'static str> {
 fn durable(mut document: Document) -> Document {
     match &mut document {
         // Engine 6 step 1 restores the accounts, not the last sign-in's runtime end.
-        Document::Accounts(row) => row.last_end = None,
+        Document::Accounts(row) => { row.last_end = None; row.lendable = false; row.lending = None; row.lent_end = None; },
+        Document::Terminal { login } => *login = None,
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
         Document::Task(row) => {
             row.chip.details.observation = None;
