@@ -97,7 +97,7 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 | Exception | Lines | Until |
 |---|---|---|
 | `temper-client-view` | about 110,000 | its split, not yet planned (`temper/docs/design/draft/crate-graph.md`, 5.1) |
-| `jig-domain-core` | about 100,000 | G6 |
+| `jig-domain-core` | about 100,000, and about 88,000 after G6 | `Core`'s state grouped into owned parts (`jig/docs/development/debt/D003-core-one-object.md`), then a split along them: G6 moves its vocabulary out, but `Core` can't be cut (`jig/docs/design/domain/engine/README.md`, 3) |
 | `temper-service` | about 84,000 | G4, or sooner if the worker's crates of `temper/docs/design/draft/cli.md`, 6 take it under |
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
 | `temper-engine-domain-forge` | about 74,000 | G5 |

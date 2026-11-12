@@ -88,6 +88,7 @@ application root        the journal, routing, translation; faces the protocol la
 
 ```
 jig-domain-core             the core: routing among its children, runs, calls, the restart script, numbers
+├── jig-domain-core-vocabulary  what crosses the core's edge: its events, requests, records, keys, documents, reads, settings, limits
 ├── jig-domain-tasks        the center of the core: tasks, batches, lifecycle, holds, inboxes, wakes, proposals
 ├── jig-domain-authority    authority's order and checks; the rules and the projects' policies
 ├── jig-domain-people       parties: identities, sign-ins, roles, requests, inboxes
@@ -123,6 +124,39 @@ jig-domain-core/src/
 ```
 
 Each directory is one concept of this document; a route lives under the kind of route it is, whatever child it steps.
+
+`jig-domain-core-vocabulary/src/` has the same tree, holding each module's vocabulary: `vocabulary.rs`,
+`numbers.rs`, `limits.rs` and `translate.rs` whole, most of `stored.rs`, `settings/` and `public/`,
+and the parts of the other modules that cross the core's edge.
+
+The core's vocabulary is a crate of its own, below the core
+(`temper/docs/design/draft/crate-graph.md`, 5):
+
+- **It holds what crosses the core's edge:** every item a crate other than the core names (the
+  events, requests, writes and limits of section 4; the records, keys and run proofs; the
+  documents, reads and settings; the numbers), with every item that their definitions, their
+  inherent methods and their trait impls reach. None of it names `Core`. A file goes whole where
+  the rest of it names no `Core` and reaches nothing that does. Otherwise its vocabulary goes and
+  the rest stays.
+- **`jig-domain-core` keeps `Core`:** its state, its construction, its step, every method and
+  function that reads or changes it, the helpers only they use, and the step tests that drive it.
+  `Core` isn't cut, since every module adds methods to it
+  (`temper/docs/design/draft/crate-graph.md`, 5.2). So the core stays over the size bound
+  (`tools/crates/design.md`, 3.1) until its state is grouped into owned parts
+  (`jig/docs/development/debt/D003-core-one-object.md`).
+- **The two share one module tree:** an item keeps its module path, so
+  `jig_domain_core_vocabulary::documents::TaskQuery` is `jig_domain_core::documents::TaskQuery`.
+  Each of the core's modules re-exports its namesake in the vocabulary whole, and the core's root
+  re-exports the vocabulary's root. The vocabulary's root re-exports what the core's root re-exports
+  of its items. So a caller builds through the same paths in either crate.
+- **Each crate names the one it needs:** a library whose own code needs only the vocabulary, and
+  none of whose other dependencies reach the core, depends on `jig-domain-core-vocabulary`. The
+  store's, the engine clients', the configuration's and the protocol's other crates are among them.
+  Its tests may still use the core. Every other crate names `jig-domain-core`. So a change to how
+  the core decides recompiles the core and what names it, not the protocol. A build from scratch
+  compiles the core beside the store's crate, not before it.
+- **Its tests** are the step tests of its items that build without `Core`. Those that drive `Core`
+  stay in the core and reach the items through its re-exports.
 
 The tree follows skein/docs/foundation/programming-model.md, 4.5: each child domain has its
 own vocabulary, limits and world; a parent owns its children's state and
