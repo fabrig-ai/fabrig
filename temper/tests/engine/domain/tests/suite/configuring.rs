@@ -2432,3 +2432,68 @@ fn assert_review_settings(world: &mut World, run: &engine::Assignment, proposal:
     };
     assert_eq!(items.iter().map(|item| item.setting).collect::<Vec<_>>(), expected);
 }
+
+#[test]
+fn project_area_owners_are_judged_from_the_core() {
+    use temper_engine_domain_forge::settings::{Area, AreaOwner, ProjectAreas, ProjectTriager, Value};
+    use temper_engine_domain_world::kinds;
+    for case in 0_u8..9 {
+        let mut owner_limits = limits();
+        owner_limits.tasks.charters = 14; // The owner is valid at this bound without a charter value.
+        let mut world = World::with_limits(member_config(), &owner_limits);
+        world.member();
+        let people::Reply::SignedIn { person: member, .. } = *world.reply(11) else { panic!("signed in") };
+        let run = world.chat(ASK_TEMPLATE, world.owner, 2);
+        let roles = owner_limits.authority.roles;
+        let charters = owner_limits.tasks.charters;
+        let (owner, accepted, label) = match case {
+            0 => (AreaOwner::Task(u64::MAX), false, format!("task {}", u64::MAX)),
+            1 => (AreaOwner::Party(u64::MAX), false, format!("party {}", u64::MAX)),
+            2 => (AreaOwner::Role(roles), false, format!("role {roles}")),
+            3 => (AreaOwner::Charter(0), false, "charter 0".into()),
+            4 => (AreaOwner::Charter(charters + 1), false, format!("charter {}", charters + 1)),
+            5 => (AreaOwner::Task(run.task), true, format!("task {}", run.task)),
+            6 => (AreaOwner::Party(member), true, format!("party {member}")),
+            7 => (AreaOwner::Role(0), true, "role 0".into()),
+            8 => (AreaOwner::Charter(14), true, "charter 14".into()),
+            _ => unreachable!("nine owner cases"),
+        };
+        let mut key = 20_u8;
+        for (kind, value, subject) in [
+            (12, Value::ProjectAreas(ProjectAreas { areas: Box::new([Area { name: b"tests".as_slice().into(), words: b"vsr's C tests".as_slice().into(), owner }]) }), "area tests"),
+            (13, Value::ProjectTriager(ProjectTriager { owner }), "triager"),
+        ] {
+            let before = world.head().number;
+            let rows = world.settings_rows();
+            let item = kinds::item(kind, PROJECT, 1, &value);
+            key += 1;
+            world.driver.send(kinds::change(world.owner, before, key, Box::new([item])));
+            world.driver.settle();
+            if accepted { assert_eq!(world.head().number, before + 1, "{subject}: {label}"); }
+            else {
+                let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else { panic!("owner refused: {:?}", world.reply(key)) };
+                let why = String::from_utf8_lossy(why);
+                assert!(why.contains(subject) && why.contains(&label), "{why}");
+                assert_eq!(world.settings_rows(), rows, "refusal writes nothing");
+            }
+        }
+    }
+    for (kind, subject) in [(12, "areas"), (13, "triager")] {
+        let mut world = World::stock();
+        let mut key = 30_u8;
+        let before = world.head().number;
+        key += 1;
+        let items = Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit: s::Edit::Set(s::Value::Application(Box::new([255]))) }]);
+        world.driver.send(Event::Party(PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(u64::from(key))), sign_in: world.owner, key: [key; 16], digest: [key; 32],
+            kinds: Box::new([]), change: Box::new(s::Change { against: before, items, running: s::Running::Stays }),
+        }));
+        world.driver.settle();
+        let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else { panic!("malformed value refused: {:?}", world.reply(key)) };
+        assert!(String::from_utf8_lossy(why).contains(subject));
+        for edit in [s::Edit::Removed, s::Edit::Reset] {
+            key += 1;
+            world.change(world.head().number, key, Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit }]));
+        }
+    }
+}
