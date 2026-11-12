@@ -8,6 +8,8 @@
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 
+- **Not yet:** 4: the generated record code in `temper-protocol-store-codec`: `temper-protocol-store` holds `v15`'s itself, and `v12`'s, `v13`'s and `v14`'s beside it [in flight: change 2041].
+
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only
 for provider 0 and rejects other lengths. Its table holds the exact bytes,
