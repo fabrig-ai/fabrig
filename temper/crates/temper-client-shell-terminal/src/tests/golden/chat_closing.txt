@@ -21,11 +21,10 @@ demo:
   * Pat
 Where:
   [15] Chats
-  [16] demo
-  [17] Chats
-[18] + Draft
+  [16] Chats
+[17] + Draft
 * waiting on 1 delegate
-[19] Close
+[18] Close
 0 spent · of 1
 Conversation:
   Today · Thursday 1 January
@@ -44,7 +43,7 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [20] Task 2 ↗
+    [19] Task 2 ↗
   wait:
     `wait`
   the default model
@@ -54,8 +53,8 @@ Close this chat?
   What closing does:
     - The run under way stops now.
     - T2 Export widget's table as CSV is cancelled.
-      [21] Take it instead
+      [20] Take it instead
     - 2 proposals are withdrawn.
     - Changes not yet begun are withdrawn. Those under way settle.
-  [22] Keep it
-  [23] Close chat
+  [21] Keep it
+  [22] Close chat

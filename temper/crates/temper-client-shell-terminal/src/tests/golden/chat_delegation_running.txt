@@ -21,9 +21,8 @@ demo:
   * Pat
 Where:
   [15] Chats
-  [16] demo
-  [17] Chats
-[18] + Draft
+  [16] Chats
+[17] + Draft
 * waiting on 1 delegate
 0 spent · of 1
 Conversation:
@@ -43,11 +42,11 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [19] Task 2 ↗
+    [18] Task 2 ↗
   wait:
     `wait`
   Message:
-    [20] Message: (empty) (enter sends)
+    [19] Message: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line
     the default model

@@ -3232,12 +3232,14 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 let path = if asking { b"Ask temper".as_slice() } else { b"Chats" };
                 let trail = subtree(tree, styled(tree, look::TRAIL));
                 assert_eq!(trail.len(), 2, "a chat's trail is one link, naming no project");
-                assert_eq!(trail[1].role, Role::Link);
-                assert_eq!(trail[1].name.as_deref(), Some(path));
+                assert_eq!(trail[0].role, Role::Link);
+                assert_eq!(trail[0].name.as_deref(), Some(path));
                 let crumbs = subtree(tree, styled(tree, look::CRUMBS));
-                assert_eq!(crumbs[1].styles.as_slice(), [look::BACK]);
-                assert_eq!(crumbs[2].styles.as_slice(), [look::TRAIL]);
-                assert_eq!(crumbs.last().unwrap().role, Role::Heading { level: 1 });
+                assert_eq!(crumbs[0].styles.as_slice(), [look::BACK]);
+                let trail_at = usize::try_from(crumbs[0].size).unwrap();
+                assert_eq!(crumbs[trail_at].styles.as_slice(), [look::TRAIL]);
+                let heading_at = trail_at.checked_add(usize::try_from(crumbs[trail_at].size).unwrap()).unwrap();
+                assert_eq!(crumbs[heading_at].role, Role::Heading { level: 1 });
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {

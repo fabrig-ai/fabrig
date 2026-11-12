@@ -54,6 +54,7 @@ with the New draft or change menu below and Deployment at its foot.
 On a phone, Chats and the goal page have Home, Needs you, Work and Ask
 in the tab bar; the chat layout hides the rail and tab bar.
 
+The chat's path is "Chats /", naming no project.
 The chat's bar offers Chat, Split, Draft and ">_" ("Terminal, full screen"),
 with "Start goal…" once the draft has a section (`../../../pages/README.md`,
 *A chat's terminal*).
