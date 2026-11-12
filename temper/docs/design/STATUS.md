@@ -46,6 +46,14 @@ change's words carry no diff, and a person's follow's holds reach the
 project's escalation role, each asked of the user
 (`domain/forge/follows.status.md`; `draft/follows.status.md`).
 
+T1's repair, goal 761, reads the launchpad's brief, Where you left off
+and Needs you across the person's projects, says why a walked need
+reached the person and when each need asked, dates a left-off row and
+draws the blank row under the header (`client/tui/pages/launchpad.md`).
+Its walk follows landing; team lines, `/talk` and `/tell` remain T3's,
+and Stop asking in the terminal remains the web's
+(`draft/surfaces.status.md`, 11).
+
 How work runs' What follows a landing and a role's budget are the whole
 story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box
 a follow of the project's, from the forge's `follows` document, its words

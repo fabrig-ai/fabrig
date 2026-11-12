@@ -1,3 +1,5 @@
+mod launchpad;
+
 use crate::pages::{
     all_home::{self, Brief, BriefLine, Facts, Intro, Landed, Project, Spell},
     home::{Needs, Status},
@@ -277,6 +279,9 @@ impl Across {
             row.name = c::DocumentText::complete(c::Text::new(name(project), 64).unwrap());
             me.projects.push(row).unwrap();
         }
+        self.frame_me(me)
+    }
+    fn frame_me(&mut self, me: c::Me) -> Queue<Request> {
         self.up(Up::Watched { watch: self.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) })
     }
     pub(super) fn watch(&self, subject: Watchable) -> Token {

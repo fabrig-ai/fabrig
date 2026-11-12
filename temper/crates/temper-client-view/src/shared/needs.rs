@@ -1,13 +1,13 @@
-//! Need marks and prompts (temper/docs/design/client/tui/pages/launchpad.md, 1, Needs you, Walking what needs you).
+//! Need marks and prompts (temper/docs/design/client/tui/pages/launchpad.md, 2, 5 and 6).
 use super::{NeedLine, Question, need_line, question::for_card};
 use crate::{
     forge_sign_in::Forges,
-    pages::{approval, ask},
+    pages::{approval, ask, inbox},
     words::Words,
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
-use skein_lib::List;
+use skein_lib::{List, Wall};
 use temper_client_domain::{Domain, forge::approvals::Yours, pages::needs::Need};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -27,6 +27,8 @@ pub struct NeedPrompt {
     /// As `need_line` says it.
     pub line: NeedLine,
     pub act: NeedAct,
+    pub since: Option<Wall>,
+    pub why: Option<Box<[u8]>>,
 }
 
 #[derive(Debug)]
@@ -71,7 +73,17 @@ pub fn need_prompts(root: &Domain, w: &Words) -> Box<[NeedPrompt]> {
                 (c::ObjectKey::Task(row.task), Some(row.project), NeedMark::SignOff, act)
             }
         };
-        prompts.push(NeedPrompt { object, project, mark, line: need_line(need, w), act }).expect("needs fit");
+        let since = match need {
+            Need::Card(card) => match &card.page {
+                Some(page) => inbox::waiting_since(page),
+                None => None,
+            },
+            Need::Approval(row) => Some(row.since),
+        };
+        let why = super::why(root, w, *need);
+        prompts
+            .push(NeedPrompt { object, project, mark, line: need_line(need, w), act, since, why })
+            .expect("needs fit");
     }
     prompts.into_boxed()
 }
