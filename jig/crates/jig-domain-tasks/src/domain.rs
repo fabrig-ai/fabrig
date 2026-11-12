@@ -814,6 +814,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
+        Event::NowWritten { task, attempt, line } => {
+            crate::activity::now_written(domain, env, task, attempt, &line, out);
+        }
         Event::Started { task, attempt } => crate::run::started(domain, env, task, attempt, out),
         Event::Refusals { task, attempt, refused, offered } => {
             crate::admission::answer_refusals(domain, env, task, attempt, &refused, offered, out);

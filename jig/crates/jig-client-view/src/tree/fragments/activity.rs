@@ -285,6 +285,11 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             caption(b, words, P::Decided);
             number(b, words, P::Revision, *revision);
         }
+        Activity::NowWritten { attempt, line } => {
+            number(b, words, P::Attempt, *attempt);
+            caption(b, words, P::NowWritten);
+            crate::words::literal_segment::render(b, line.bytes());
+        }
         Activity::Stood { attempt, words: text } => {
             caption(b, words, P::Parked);
             number(b, words, P::Attempt, *attempt);

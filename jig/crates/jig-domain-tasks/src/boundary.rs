@@ -1963,6 +1963,13 @@ pub enum Event {
         /// from this attempt's reserved run allowance.
         cumulative: u64,
     },
+    /// A run's successful write of its own Now, in the note's saving decision
+    /// (jig/docs/design/domain/tasks/standing.md, 6). Stale/nonstanding attempts are ignored.
+    NowWritten {
+        task: u64,
+        attempt: u64,
+        line: Box<[u8]>,
+    },
     /// Root-validated answer refusals, kept before its activation in the same decision.
     /// Stale attempts or names outside the offered inbox are ignored.
     Refusals {

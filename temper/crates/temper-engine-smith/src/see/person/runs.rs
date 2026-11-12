@@ -95,6 +95,7 @@ pub(super) fn activity(task: u64, answer: &Answer, names: &SeeNames, lines: &mut
             t::Line::SessionEnded { end: t::SessionEnd::Left, .. } => {
                 (b"its run".as_slice().into(), b"session ended as its person left".as_slice().into())
             }
+            t::Line::NowWritten { line, .. } => (b"its run".as_slice().into(), join(&[b"Wrote its Now: ", line])),
             t::Line::Stood { .. }
             | t::Line::SessionEnded {
                 end:

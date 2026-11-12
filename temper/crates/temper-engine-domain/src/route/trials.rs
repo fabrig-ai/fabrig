@@ -126,6 +126,7 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Recor
         | tasks::Line::RunBegan { .. }
         | tasks::Line::Decided { .. }
         | tasks::Line::Milestone { .. }
+        | tasks::Line::NowWritten { .. }
         | tasks::Line::Stood { .. }
         | tasks::Line::TalkOpened { .. }
         | tasks::Line::TalkEnded { .. }

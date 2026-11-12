@@ -44,6 +44,7 @@ pub enum ActivityPhrase {
     AgentTries,
     LostTries,
     InvalidTries,
+    NowWritten,
     TalkOpened,
     TalkEnded,
     TalkLapsed,
@@ -128,7 +129,7 @@ pub enum ActivityPhrase {
     NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 117] = [
+pub const ALL: [ActivityPhrase; 118] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -164,6 +165,7 @@ pub const ALL: [ActivityPhrase; 117] = [
     ActivityPhrase::AgentTries,
     ActivityPhrase::LostTries,
     ActivityPhrase::InvalidTries,
+    ActivityPhrase::NowWritten,
     ActivityPhrase::TalkOpened,
     ActivityPhrase::TalkEnded,
     ActivityPhrase::TalkLapsed,
@@ -290,6 +292,7 @@ impl ActivityPhrase {
             Self::AgentTries => 7232,
             Self::LostTries => 7233,
             Self::InvalidTries => 7234,
+            Self::NowWritten => 7318,
             Self::TalkOpened => 7313,
             Self::TalkEnded => 7314,
             Self::TalkLapsed => 7315,
@@ -398,6 +401,7 @@ impl ActivityPhrase {
             | Self::Retry
             | Self::Narrowed
             | Self::Changed
+            | Self::NowWritten
             | Self::TalkOpened
             | Self::TalkEnded
             | Self::TalkLapsed
@@ -538,6 +542,7 @@ impl ActivityPhrase {
             Self::AgentTries => b"Agent failures: ",
             Self::LostTries => b"Lost failures: ",
             Self::InvalidTries => b"Invalid failures: ",
+            Self::NowWritten => b"Wrote its Now:",
             Self::TalkOpened => b"Talk opened by",
             Self::TalkEnded => b"Talk ended",
             Self::TalkLapsed => b"Talk lapsed",

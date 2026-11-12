@@ -884,6 +884,7 @@ fn object(
                 | tasks::Line::RunEnded { .. }
                 | tasks::Line::Turn { .. }
                 | tasks::Line::Decided { .. }
+                | tasks::Line::NowWritten { .. }
                 | tasks::Line::Stood { .. }
                 | tasks::Line::TalkOpened { .. }
                 | tasks::Line::TalkEnded { .. }
@@ -910,6 +911,7 @@ fn object(
                         | tasks::Line::RunEnded { .. }
                         | tasks::Line::Turn { .. }
                         | tasks::Line::Decided { .. }
+                        | tasks::Line::NowWritten { .. }
                         | tasks::Line::Stood { .. }
                         | tasks::Line::TalkOpened { .. }
                         | tasks::Line::TalkEnded { .. }
@@ -980,6 +982,7 @@ fn object(
                 | tasks::Line::RunBegan { .. }
                 | tasks::Line::RunEnded { .. }
                 | tasks::Line::Decided { .. }
+                | tasks::Line::NowWritten { .. }
                 | tasks::Line::Stood { .. }
                 | tasks::Line::TalkOpened { .. }
                 | tasks::Line::TalkEnded { .. }
@@ -1455,6 +1458,7 @@ fn reply_update(
         | tasks::Line::RunBegan { .. }
         | tasks::Line::RunEnded { .. }
         | tasks::Line::Decided { .. }
+        | tasks::Line::NowWritten { .. }
         | tasks::Line::Stood { .. }
         | tasks::Line::TalkOpened { .. }
         | tasks::Line::TalkEnded { .. }

@@ -532,12 +532,13 @@ record ActivityDecidedProposal { number: u64 made: bool }
 record ActivityDecided { revision: u64 proposal: option ActivityDecidedProposal }
 record ActivityMilestone { position: u64 }
 record ActivityKept { attempt: u64 pending: list 32 u64 question: option u64 }
+record ActivityNowWritten { attempt: u64 line: text 512 }
 record ActivityStood { attempt: u64 words: text 512 }
 enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules, talk, left }
 record TalkOpened { party: u64 }
 record TalkEnded { party: u64 lapsed: bool }
 record ActivitySessionEnded { attempt: u64 end: SessionEnd }
-enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept, stood: ActivityStood, session_ended: ActivitySessionEnded, talk_opened: TalkOpened, talk_ended: TalkEnded }
+enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept, stood: ActivityStood, session_ended: ActivitySessionEnded, talk_opened: TalkOpened, talk_ended: TalkEnded, now_written: ActivityNowWritten }
 record ActivityLine { task: u64 position: u64 at: u64 line: Activity }
 record TurnName { attempt: u64 number: u32 }
 record TurnCarried { bytes: bytes 8388608 }

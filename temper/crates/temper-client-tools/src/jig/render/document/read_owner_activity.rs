@@ -94,6 +94,17 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Activity::NowWritten { attempt, line } => {
+            out.object_start();
+            out.key(b"now_written");
+            out.object_start();
+            out.key(b"attempt");
+            out.unsigned(*attempt);
+            out.key(b"line");
+            out.string(line.bytes());
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Activity::Stood { attempt, words } => {
             out.object_start();
             out.key(b"stood");
