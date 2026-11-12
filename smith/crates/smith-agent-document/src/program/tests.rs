@@ -140,6 +140,61 @@ fn the_sign_in_runs_auth_login_in_the_source_s_environment() {
 }
 
 #[test]
+fn the_sign_in_s_environment_drops_a_named_profile() {
+    let base = [("ANTHROPIC_PROFILE", "work"), ("HOME", "/h")];
+    let command = sign_in(
+        Path::new("/usr/bin/claude"),
+        Path::new("/programs/a"),
+        base.map(|(name, value)| (name.into(), value.into())),
+    );
+    assert_eq!(
+        command.get_envs().collect::<Vec<_>>(),
+        [
+            (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
+            (OsStr::new("HOME"), Some(OsStr::new("/h"))),
+        ]
+    );
+}
+
+#[test]
+fn the_sign_in_s_environment_drops_federation_variables() {
+    let rule = ("ANTHROPIC_FEDERATION_RULE_ID", "rule");
+    let organization = ("ANTHROPIC_ORGANIZATION_ID", "organization");
+    for credentials in [std::slice::from_ref(&rule), std::slice::from_ref(&organization), &[rule, organization]] {
+        let base = credentials.iter().copied().chain([("HOME", "/h")]);
+        let command = sign_in(
+            Path::new("/usr/bin/claude"),
+            Path::new("/programs/a"),
+            base.map(|(name, value)| (name.into(), value.into())),
+        );
+        assert_eq!(
+            command.get_envs().collect::<Vec<_>>(),
+            [
+                (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
+                (OsStr::new("HOME"), Some(OsStr::new("/h"))),
+            ]
+        );
+    }
+}
+
+#[test]
+fn the_sign_in_s_environment_drops_an_endpoint() {
+    let base = [("ANTHROPIC_BASE_URL", "https://example.com"), ("HOME", "/h")];
+    let command = sign_in(
+        Path::new("/usr/bin/claude"),
+        Path::new("/programs/a"),
+        base.map(|(name, value)| (name.into(), value.into())),
+    );
+    assert_eq!(
+        command.get_envs().collect::<Vec<_>>(),
+        [
+            (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
+            (OsStr::new("HOME"), Some(OsStr::new("/h"))),
+        ]
+    );
+}
+
+#[test]
 fn the_terminal_environment_has_no_hosted_spawn_bound() {
     let mut base: Vec<_> = (0..100).map(|index| (format!("VARIABLE_{index}").into(), "x".repeat(100).into())).collect();
     base.push((OsString::from_vec(vec![b'N', 0xff]), OsString::from_vec(vec![0xfe])));
