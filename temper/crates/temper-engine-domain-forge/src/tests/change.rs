@@ -10,10 +10,16 @@ fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
         row.change.ended_held = prior;
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-        outputs(&mut d, Event::Release {
-            task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled,
-            reason: None, entry: fixtures::OPEN,
-        });
+        outputs(
+            &mut d,
+            Event::Release {
+                task: fixtures::CHANGE,
+                root: fixtures::CHANGE,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: fixtures::OPEN,
+            },
+        );
         let saved = d.change(fixtures::CHANGE).expect("ended row kept");
         assert_eq!(saved.change.state, State::Ended);
         assert_eq!(saved.change.ended_held, prior.or(Some(why)));
@@ -24,19 +30,31 @@ fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
 fn ending_landed_or_no_change_keeps_no_ending_hold() {
     use temper_engine_domain_forge_change::State;
     for (state, ended) in [
-        (State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(1) }, State::Uncleared { merge: fixtures::HEAD }),
+        (
+            State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(1) },
+            State::Uncleared { merge: fixtures::HEAD },
+        ),
         (State::Uncleared { merge: fixtures::HEAD }, State::Uncleared { merge: fixtures::HEAD }),
-        (State::NoChange { words: b"nothing applies".as_slice().into() }, State::NoChange { words: b"nothing applies".as_slice().into() }),
+        (
+            State::NoChange { words: b"nothing applies".as_slice().into() },
+            State::NoChange { words: b"nothing applies".as_slice().into() },
+        ),
     ] {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.change.state = state;
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-        outputs(&mut d, Event::Release {
-            task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled,
-            reason: None, entry: fixtures::OPEN,
-        });
+        outputs(
+            &mut d,
+            Event::Release {
+                task: fixtures::CHANGE,
+                root: fixtures::CHANGE,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: fixtures::OPEN,
+            },
+        );
         let saved = d.change(fixtures::CHANGE).expect("ended row kept");
         assert_eq!(saved.change.state, ended);
         assert_eq!(saved.change.ended_held, None);
@@ -52,9 +70,14 @@ fn a_relay_cannot_hold_an_ended_change() {
         row.change.ended_held = ended_held;
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-        outputs(&mut d, Event::RelayRefused {
-            task: fixtures::CHANGE, questions: Questions::default(), words: b"relay failed".as_slice().into(),
-        });
+        outputs(
+            &mut d,
+            Event::RelayRefused {
+                task: fixtures::CHANGE,
+                questions: Questions::default(),
+                words: b"relay failed".as_slice().into(),
+            },
+        );
         let saved = d.change(fixtures::CHANGE).expect("ended row kept");
         assert_eq!(saved.change.state, State::Ended);
         assert_eq!(saved.change.ended_held, ended_held);

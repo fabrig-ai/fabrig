@@ -393,7 +393,9 @@ fn old_ended_rows_decode_with_or_without_a_hold() {
             holds.push(v11::ChangeHold::Repairs).expect("one hold");
         }
         // The unchanged schema's representation, independent of the domain encoder.
-        change.state = v11::ChangeState::new(&v11::CEILINGS, v11::ChangeStateParts { live: v11::ChangeLive::Ended, holds }).expect("old state");
+        change.state =
+            v11::ChangeState::new(&v11::CEILINGS, v11::ChangeStateParts { live: v11::ChangeLive::Ended, holds })
+                .expect("old state");
         wire.change = v11::Change::new(&v11::CEILINGS, change).expect("old change");
         let value = v11::Value::Change(Box::new(v11::ChangeRow::new(&v11::CEILINGS, wire).expect("old row")));
         let wire = v11::Row::new(&v11::CEILINGS, v11::RowParts { value }).expect("old row");
