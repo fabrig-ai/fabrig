@@ -3,6 +3,7 @@ mod builds;
 mod configuration;
 mod fuzzy;
 mod home;
+mod hold;
 mod ledger;
 mod passes;
 mod reference;

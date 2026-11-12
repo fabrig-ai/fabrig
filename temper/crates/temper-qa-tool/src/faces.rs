@@ -300,7 +300,7 @@ impl ClockFace for RealClock {
     }
 }
 
-fn captured(command: &mut Command, environment: &Environment) {
+pub(crate) fn captured(command: &mut Command, environment: &Environment) {
     command.env_clear().envs(environment.iter().map(|(key, value)| (OsStr::from_bytes(key), OsStr::from_bytes(value))));
 }
 fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {

@@ -103,12 +103,19 @@ const REPORT: Command = Command {
     variables: &[&HOME],
     notes: "",
 };
+const OPEN: Command = drive_command(&["pass", "open"], &[""], "Start a holder for the restored setup and print the drive session's start.", &[]);
+const LINE: Command = drive_command(&["pass", "line"], &["LINE"], "Give the open drive session one line and print its answer.", &[Argument { shown: "LINE", line: "One drive line, as one argument." }]);
+const CLOSE: Command = drive_command(&["pass", "close"], &[""], "End the drive session and print its kept lines.", &[]);
+const HOLD: Command = drive_command(&["pass", "hold"], &[""], "Hold the drive session on the place's socket until closed or the pass session ends.", &[]);
+const fn drive_command(words: &'static [&'static str], forms: &'static [&'static str], line: &'static str, arguments: &'static [Argument]) -> Command {
+    Command { reach: Reach::Words(words), set: Set::Internal, forms, line, arguments, settings: &[], switches: &[], variables: &[&HOME, &SESSION], notes: "" }
+}
 pub const TABLE: Table = Table {
     binary: "temper-qa",
     line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES, REPORT],
+    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES, REPORT, OPEN, LINE, CLOSE, HOLD],
     settings: &[],
     variables: &[&HOME, &SESSION],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -140,9 +147,9 @@ pub fn main() -> ExitCode {
                 }
             };
             match run(command, argument, &environment) {
-                Ok(text) => {
-                    print!("{text}");
-                    ExitCode::SUCCESS
+                Ok(reply) => {
+                    print!("{}", reply.text);
+                    ExitCode::from(reply.status)
                 }
                 Err(why) => {
                     eprintln!("temper-qa: {why}");
@@ -175,10 +182,10 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected a pass number".into()),
         };
     }
-    if command == &NONE || command == &CASE {
+    if command == &NONE || command == &CASE || command == &LINE {
         match rest {
             [value] if !value.starts_with(b"--") => Ok(rest),
-            [] => Err(format!("{} is not given", if command == &NONE { "WHY" } else { "FILE" })),
+            [] => Err(format!("{} is not given", if command == &NONE { "WHY" } else if command == &LINE { "LINE" } else { "FILE" })),
             _ => Err("expected one argument".into()),
         }
     } else if rest.is_empty() {
@@ -187,7 +194,26 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
         Err("no arguments are taken".into())
     }
 }
-fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
+fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<crate::hold::Reply, Refusal> {
+    if [&OPEN, &LINE, &CLOSE, &HOLD].contains(&command) {
+        let value = SESSION.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session"))?;
+        let session = std::str::from_utf8(value).ok().and_then(|value| value.parse::<u64>().ok())
+            .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
+        let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
+        let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
+        let drive = crate::hold::Drive::for_session(&home, session)?;
+        if command == &OPEN { return drive.open(&environment.to_vec()); }
+        if command == &CLOSE { return drive.close(); }
+        if command == &LINE {
+            let line = std::str::from_utf8(arguments.first().expect("line argument")).map_err(|_| refused("a drive line must be UTF-8"))?;
+            return drive.line(line);
+        }
+        crate::hold::Holder::start(drive, environment.to_vec(), crate::hold::WATCH)?.serve()?;
+        return Ok(crate::hold::Reply { status: 0, text: String::new() });
+    }
+    run_records(command, arguments, environment).map(|text| crate::hold::Reply { status: 0, text })
+}
+fn run_records(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
     let session = if command == &NONE || command == &CASE {
         let value = SESSION
             .value(environment)

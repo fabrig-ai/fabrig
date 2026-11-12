@@ -8,6 +8,7 @@ mod document;
 pub mod faces;
 mod findings;
 mod home;
+pub mod hold;
 mod ledger;
 mod pass_document;
 mod pass_end;
