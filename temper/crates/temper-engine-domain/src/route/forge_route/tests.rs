@@ -4191,6 +4191,125 @@ fn idle_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u64
     (domain, env, task)
 }
 
+const FAILED_CHANGE_WORDS: &[u8] = b"producer ran out of turns";
+
+fn failed_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u64) {
+    use super::{forge, forge_change, tasks};
+    let (mut domain, env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    let mut row = change_row(None);
+    row.task = task;
+    row.change.task = task;
+    row.change.state = forge_change::State::Held {
+        was: Box::new(forge_change::State::Producing { requested: true }),
+        why: forge_change::Hold::Failed,
+    };
+    row.delegate_status = forge_change::Status::Failed;
+    row.producer_failure = Some(FAILED_CHANGE_WORDS.into());
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    (domain, env, task)
+}
+
+fn apply_change_task_work(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    use super::Work;
+    while let Some(work) = domain.work.pop() {
+        let event = if let Work::Core(event) = work {
+            event
+        } else {
+            let Work::Tasks(event) = work else { panic!("only the change's task decision is queued") };
+            jig_domain_core::Event::Tasks(event)
+        };
+        drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(env), event));
+    }
+}
+
+fn assert_failed_change_task(domain: &super::Domain, task: u64) {
+    use super::tasks;
+    let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } =
+        &domain.core.tasks.task(task).expect("live change task").phase
+    else {
+        panic!("the held row must hold its task: {:?}", domain.core.tasks.task(task).unwrap().phase)
+    };
+    assert_eq!(
+        source.as_ref(),
+        &tasks::HoldSource::Account { connector: 0, entry: None, words: FAILED_CHANGE_WORDS.into() }
+    );
+}
+
+#[test]
+fn a_refused_change_step_still_holds_its_task_with_the_failure_words() {
+    use super::{Work, forge_change, tasks};
+    let (mut domain, env, task) = failed_change_procedure();
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Failed));
+    let Some(Work::Core(jig_domain_core::Event::ProcedureStep { step, connector, .. })) = domain.work.pop() else {
+        panic!("a fenced change step precedes its unfenced hold")
+    };
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_core::Ask::StepRefused {
+            task,
+            step,
+            why: jig_domain_core::StepRefusal::Refused(tasks::Problem::new(Some(task), tasks::Refusal::Busy)),
+        },
+    );
+    apply_change_task_work(&mut domain, &env);
+    assert_failed_change_task(&domain, task);
+}
+
+#[test]
+fn a_stale_change_step_still_holds_its_task_with_the_failure_words() {
+    use super::forge_change;
+    let (mut domain, env, task) = failed_change_procedure();
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Wait { until: None });
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Failed));
+    apply_change_task_work(&mut domain, &env);
+    assert_failed_change_task(&domain, task);
+}
+
+#[test]
+fn a_held_change_deciding_nothing_holds_its_live_task_again() {
+    let (mut domain, env, task) = failed_change_procedure();
+    super::change_decision(&mut domain, &env, task, super::forge_change::Decision::None);
+    apply_change_task_work(&mut domain, &env);
+    assert_failed_change_task(&domain, task);
+}
+
+#[test]
+fn a_persons_release_reaches_the_row_without_holding_its_task_again() {
+    use super::{forge_change, tasks};
+    let (mut domain, env, task) = failed_change_procedure();
+    let task_env = env.with(env.limits.tasks);
+    let mut out = skein_lib::Queue::uncapped();
+    for event in [
+        tasks::Event::Hold { task, why: tasks::Hold::EffectFailed },
+        tasks::Event::Release {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(10)),
+            by: tasks::Party::Deployment { project: 1 },
+            operation: tasks::Release { task, again: None, message: None },
+        },
+    ] {
+        tasks::step(&mut domain.core.tasks, &task_env, event, &mut out);
+    }
+    assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released);
+    let row = domain.forge.change(task).unwrap();
+    let event = super::change_step(&domain, &env, task, 1, row.repository, &row.base, false);
+    let super::forge::Event::StepChange { heard, .. } = event else { panic!("change step") };
+    assert!(heard.released);
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::None);
+    apply_change_task_work(&mut domain, &env);
+    assert_eq!(domain.core.tasks.task(task).unwrap().phase, tasks::Phase::Active(tasks::Active::Idle));
+}
+
 #[test]
 fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     use super::{Work, forge_change, tasks};

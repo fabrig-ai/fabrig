@@ -3591,7 +3591,7 @@ fn delegate_result(
             words,
             env.limits.client.answer_bytes,
         ),
-        change::Delegate::Resolve { .. } => {}
+        change::Delegate::Resolve { .. } => producer_result(row, false, failed, words),
     }
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
