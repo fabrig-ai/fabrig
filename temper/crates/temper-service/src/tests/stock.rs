@@ -850,11 +850,20 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     }
 }
 
+fn chat_and_goal_use_asking() {
+    let words = include_str!("../stock/chat.txt");
+    for prefix in ["If your brief says you are a goal", "If neither line"] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("role paragraph");
+        assert!(paragraph.contains("Use Reports and Asking."));
+    }
+}
+
 // temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
+    chat_and_goal_use_asking();
     for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..]),
         (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
     ] {
         for prefix in prefixes {
@@ -885,8 +894,9 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
 
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
+    chat_and_goal_use_asking();
     for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..]),
         (
             include_str!("../stock/coordinator.md"),
             &["Where the draft leaves a choice:", "On a question a change relays"][..],
@@ -1010,7 +1020,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     }
     for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
-        assert!(paragraph.contains("Use Reports."), "{role} must retain reporting rules");
+        assert!(paragraph.contains("Use Reports and Asking."), "{role} must retain reporting rules");
     }
 }
 

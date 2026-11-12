@@ -116,6 +116,48 @@ pub enum TriageFindingAnswer {
     Triaged,
     Refused(FindingRefusal),
 }
+/// The deciding snapshot kept for an agent's named finding write (domain/agent/tools.md).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingReply {
+    pub project: u32,
+    pub number: u32,
+    pub area: Option<Box<[u8]>>,
+    pub result: Result<FindingDone, FindingRefusal>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FindingDone {
+    Filed(Holder),
+    Handed(Holder),
+    Routed(u64),
+    Backlog,
+    Dropped,
+}
+#[must_use]
+pub fn reply_bytes(reply: &FindingReply) -> Option<u64> {
+    let area = match &reply.area {
+        Some(area) => skein_lib::len_u64(area.len()),
+        None => 0,
+    };
+    let mut bytes = 0_u64;
+    if let Err(why) = &reply.result {
+        match why {
+            FindingRefusal::NoArea(names) => {
+                bytes = skein_lib::len_u64(names.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                for name in names {
+                    bytes = bytes.checked_add(skein_lib::len_u64(name.len()))?;
+                }
+            }
+            FindingRefusal::Words(words) => bytes = skein_lib::len_u64(words.len()),
+            FindingRefusal::Full(_)
+            | FindingRefusal::NotYours(_)
+            | FindingRefusal::NoFinding
+            | FindingRefusal::NoGoal
+            | FindingRefusal::Ended => {}
+        }
+    }
+    area.checked_add(bytes)
+}
+
 /// The three-step rule; standing comes from the root's snapshot of the core.
 #[must_use]
 pub fn owner(

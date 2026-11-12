@@ -29,7 +29,7 @@ pub(crate) struct Text {
 }
 
 impl Text {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         // Every retained fragment has at least one byte; the host byte bound
         // bounds their count too (domain/agent/tools.md).
         Self {
@@ -103,7 +103,7 @@ impl Text {
         self.add(&temper_engine_domain::commit_text(commit))
     }
 
-    fn finish(self, error: bool) -> Result<HostAnswer, Problem> {
+    pub(crate) fn finish(self, error: bool) -> Result<HostAnswer, Problem> {
         let mut writer = Writer::new(self.len);
         for part in &self.parts {
             if writer.put(part).is_err() {
@@ -269,6 +269,9 @@ fn bounded(
     let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
+    }
+    if let CallAnswer::Finding(answer) = answer {
+        return crate::finding::render(answer, cap);
     }
     if let CallAnswer::ForgeRead(read) = answer {
         if let Some(job) = job
@@ -688,6 +691,7 @@ fn rendered(
 ) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::Finding(answer) => return Ok(crate::finding::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Decided { took: choice, reach } => {
             match choice {
                 Some(words) => {

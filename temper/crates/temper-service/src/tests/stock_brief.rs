@@ -106,6 +106,28 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
+fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
+    let limits = configured().service.limits.domain.run;
+    let mut declarations = skein_lib::List::uncapped();
+    for number in engine(&generated()).charters.iter().map(|charter| charter.number) {
+        let charter = temper_engine_smith::charter(&assignment(number, false, 0));
+        let room = run::brief_room(&charter, None, &limits).expect("stock host part fits");
+        eprintln!(
+            "finding host part: charter {number}: non-brief={}, room={room}, bound={}",
+            limits.host_part - u64::from(room),
+            limits.host_part
+        );
+        assert!(room >= 2_048, "charter {number}");
+        declarations
+            .push((number, charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding")))
+            .expect("stock declarations");
+    }
+    for (number, offered) in declarations.into_boxed() {
+        assert_eq!(offered, [1, 5, 13, 14, 15, 16].contains(&number), "charter {number}");
+    }
+}
+
+#[test]
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -228,6 +250,11 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         let rendered = run::brief_bytes(&charter.brief).unwrap();
+        eprintln!(
+            "whole brief charter {number} open={open}: host bound={} non-brief={} room={remaining} rendered={rendered}",
+            limits.host_part,
+            limits.host_part - u64::from(remaining)
+        );
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));
