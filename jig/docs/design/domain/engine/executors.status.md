@@ -1,9 +1,11 @@
 # executors: status
 
-2026-11-11. Where the tree's code lags or departs from [executors.md](executors.md).
+2026-11-12. Where the tree's code lags or departs from [executors.md](executors.md).
 
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2) [in flight: change 103].
 - **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5) [in flight: change 106].
+- **Not yet:** 3, *Below it* and *Its requester's dependencies*: a task below the caller past its direct delegates is read for its result alone, a stored specification read never loads joined, and the immediate requester's dependencies are refused for no reference (`jig-domain-core`'s `reads/run_task.rs`, `value`, `loaded`) [in flight: change 1493].
+- **Not yet:** 3: a live task's result read is answered unknown, not with its specification (`reads/run_task.rs`, `value`) [in flight: change 1496].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
   1: the brief's missing sections remain `briefs.status.md`, 1. 2: what a
