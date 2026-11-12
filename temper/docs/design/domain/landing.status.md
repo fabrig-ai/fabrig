@@ -14,12 +14,6 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 5.2, 15, 16: the real-process story
-  `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`
-  has no supplied passing result at three threads after update recovery.
-  The forge world covers a lost prepare found or made again and landed,
-  and a late copy's drift hold; that is not the real-Forgejo restart
-  proof. The process trial is reserved for after landing.
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`; a stack of
   members in one repository, whose second member a later landing takes
