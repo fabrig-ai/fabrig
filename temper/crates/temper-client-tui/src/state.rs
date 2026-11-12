@@ -28,6 +28,8 @@ pub struct Tui {
     reply_aside: Option<TurnName>,
     start_chat: Option<u64>,
     notice: Option<Notice>,
+    tell_serial: u64,
+    tell_refusal: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -88,10 +90,16 @@ pub enum Notice {
     Unknown { words: Box<[u8]> },
     SigningIn,
     Proposed,
+    Filed { number: u32, project: Box<[u8]> },
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Send,
+    Tell {
+        serial: u64,
+        refusal: Option<Box<[u8]>>,
+    },
     Walk {
         by_key: bool,
     },
@@ -195,6 +203,8 @@ impl Tui {
             reply_aside: None,
             start_chat: None,
             notice: None,
+            tell_serial: 0,
+            tell_refusal: None,
             focus: 1,
             box_written: 0,
             front: false,
@@ -284,6 +294,14 @@ impl Tui {
     #[must_use]
     pub fn notice(&self) -> Option<&Notice> {
         self.notice.as_ref()
+    }
+    #[must_use]
+    pub const fn tell_serial(&self) -> u64 {
+        self.tell_serial
+    }
+    #[must_use]
+    pub fn tell_refusal(&self) -> Option<&[u8]> {
+        self.tell_refusal.as_deref()
     }
     #[must_use]
     pub const fn focus(&self) -> u64 {
@@ -512,6 +530,19 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Send => self.tell_refusal.take().is_some(),
+            Told::Tell { serial, refusal } => {
+                if serial <= self.tell_serial {
+                    false
+                } else {
+                    self.tell_serial = serial;
+                    if refusal.is_some() {
+                        self.box_written = self.box_written.saturating_add(1);
+                    }
+                    self.tell_refusal = refusal;
+                    true
+                }
+            }
             Told::Walk { by_key } => {
                 let changed = match &self.walk {
                     Some(walk) => walk.by_key != by_key || walk.taken,
@@ -581,6 +612,7 @@ impl Tui {
                 changed
             }
             Told::Went => {
+                self.tell_refusal = None;
                 self.start_chat = None;
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);

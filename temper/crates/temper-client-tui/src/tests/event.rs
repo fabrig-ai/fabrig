@@ -88,6 +88,7 @@ fn the_own_commands_have_their_names() {
         b"/brief",
         b"/needs",
         b"/open",
+        b"/tell",
         b"/theme",
     ]) {
         if command.name() != name {

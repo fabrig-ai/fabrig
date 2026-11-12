@@ -1,3 +1,6 @@
+#[path = "tests/tell.rs"]
+mod tell;
+
 #[path = "tests/goal.rs"]
 mod goal;
 
@@ -2307,6 +2310,7 @@ fn the_launchpad_takes_its_own_words() {
         (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
         (b"/", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
+        (b"/tell", LaunchAt::Home, LaunchWant::Words(b"/tell ")),
         (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/n", LaunchAt::Need, LaunchWant::New),
         (b"/needs", LaunchAt::Need, LaunchWant::Walk),

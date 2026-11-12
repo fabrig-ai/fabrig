@@ -1,0 +1,57 @@
+╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
+│ The last change landed 2 hours ago. Two things need you.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ Needs you
+   ? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago
+   ? Hello   csv-export: comma or semicolon? · asked 9 h 42 min…   n walks them
+
+ Team on Hello
+   Prover    tests    NOW LINE
+   Triager   triage   NOW LINE
+   You       core     Two questions wait on you.
+
+ Start
+   /draft    a design session that ends in a draft and a goal
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask for a change, or ask temper.  / for commands
+────────────────────────────────────────────────────────────────────────────────
+ Hello · Claude Opus 5.5 · high · ● Live                 2 need you · n to walk
+--
+aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
+a..............................................................................a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+................................................................................
+.ccccccccc......................................................................
+...e.cccccccc...............................ddddddddddddddddddddddd.............
+...e.cccccccc...............................dddddddddddddddddddd...dddddddddddd.
+................................................................................
+.ccccccccccccc..................................................................
+...ccccccccccddddddddddddddddd..................................................
+...ccccccccccddddddddddddddddd..................................................
+...ccccccccccddddddddddddddddddddddddddddddddddd................................
+................................................................................
+.ccccc..........................................................................
+...ccccccccccdddddddddddddddddddddddddddddddddddddddddddddddd...................
+...ccccccccccddddddddddddddddddddddddddddddddddd................................
+...ccccccccccdddddddddd.........................................................
+................................................................................
+................................................................................
+................................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..............................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.dddddaaaddddddddddddddddddddddaaaffffff.................eeeeeeeeeeaaaddddddddd.
+--
+a: fore #B5AEA3
+b: fore #B8664E bold
+c: bold
+d: fore #7A736A
+e: fore #B8664E
+f: fore #3F7D4E
+cursor 21 2
