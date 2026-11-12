@@ -1,6 +1,7 @@
 //! Capture the provider's content without the credential or HTTP headers.
 use std::{fs, path::Path};
 
+#[must_use]
 pub fn settings(directory: &Path) -> serde_json::Value {
     serde_json::json!({
         "path":directory.join("agent-trace.jsonl"), "capture":"everything", "delivery":"complete"

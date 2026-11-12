@@ -1,0 +1,52 @@
+[package]
+name = "jig-test-kit"
+description = "Shared rig for the reference binary's stories"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+jig-channel-kit.workspace = true
+jig-client.workspace = true
+jig-client-protocol-kit.workspace = true
+jig-client-shell-native.workspace = true
+jig-protocol-accounts-kit.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
+skein-fake-oauth.workspace = true
+skein-fake-peers.workspace = true
+skein-http.workspace = true
+skein-io.workspace = true
+skein-lib.workspace = true
+skein-llm.workspace = true
+skein-scratch.workspace = true
+skein-shell.workspace = true
+skein-tls-kit.workspace = true
+skein-world.workspace = true
+serde_json = "1.0"
+tempfile = "3"
+
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

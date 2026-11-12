@@ -7,14 +7,17 @@ use std::{
     path::Path,
 };
 
+#[must_use]
 pub fn listener() -> TcpListener {
     TcpListener::bind("127.0.0.1:0").expect("private fake listener")
 }
 
+#[must_use]
 pub fn descriptor(listener: TcpListener) -> Fd {
     Fd::new(listener.into_raw_fd())
 }
 
+#[must_use]
 pub fn provider(
     scripts: Box<[skein_fake_llm_domain::api::Script]>,
     credential: skein_llm::Credential,
