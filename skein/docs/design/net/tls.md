@@ -379,10 +379,14 @@ independence.
   `std`, whose clock that target lacks, is native only, and a peer's
   TLS server with it (../testing/fakes/forge.md, 5). The root names
   rustls twice, `rustls` without `std` for that target and `rustls-std`
-  with it for the native ones, and skein-tls names each in its
-  platform's table alone (`skein/docs/foundation/cli.md`, 3): built
-  natively, it compiles rustls with `std`, as every native build does,
-  and its code uses nothing of it.
+  with it for the native ones (`skein/docs/foundation/cli.md`, 3).
+  skein-tls names `rustls` in its table for that target alone and, in
+  its native table, `skein-rustls-std`: a crate of no code of its own
+  that names `rustls-std` on native targets and re-exports it, since
+  Cargo refuses one package under two names in one crate. skein-tls's
+  code names rustls as `rustls` on both. Built natively, it compiles
+  rustls with `std`, as every native build does, and its code uses
+  nothing of it.
 - **No clock:** rustls asks a time provider for the time it checks
   certificates against. Each connection's configuration carries one that
   answers the `env.wall` of the step that started its handshake, read
