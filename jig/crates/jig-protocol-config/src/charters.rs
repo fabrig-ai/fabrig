@@ -1,7 +1,7 @@
 //! Offered run policies and their reserve admission (protocol/configuration.md, 3 and protocol/limits.md).
 use crate::{Directories, Directory, Limits, Llm, Path, Problems, Segment, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::{Charter, CharterPart, Model, RunPolicy};
+use jig_domain_core_vocabulary::{Charter, CharterPart, Model, RunPolicy};
 use jig_domain_fleet::Kinds;
 use jig_domain_tasks::{Reasons, ResultsWake, WakePolicy, WakeRule};
 use skein_json::Document;
@@ -62,8 +62,8 @@ pub(crate) fn files(engine: &crate::Engine, files: &mut List<crate::File>) {
 }
 
 fn owned_bytes(charter: &Charter) -> Option<u64> {
-    jig_domain_core::policy_owned_bytes(&charter.policy)?
-        .checked_add(jig_domain_core::parts_owned_bytes(&charter.parts)?)
+    jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy)?
+        .checked_add(jig_domain_core_vocabulary::parts_owned_bytes(&charter.parts)?)
 }
 
 fn instruction_file(files: &mut List<crate::File>, at: Path, path: &[u8], room: u64) {
@@ -110,7 +110,7 @@ fn charter(
         }
         None => {
             let model = match object.member(document, b"model") {
-                Some(at) => match read::text(document, at, jig_domain_core::MODEL_NAME_BYTES) {
+                Some(at) => match read::text(document, at, jig_domain_core_vocabulary::MODEL_NAME_BYTES) {
                     Ok(name) => model(&name, llm, &path.member(b"model"), problems),
                     Err(what) => {
                         problems.push(path.member(b"model"), what);
@@ -231,7 +231,7 @@ fn documents(
     document: &Document,
     path: &Path,
     problems: &mut Problems,
-) -> Option<Box<[jig_domain_core::Document]>> {
+) -> Option<Box<[jig_domain_core_vocabulary::Document]>> {
     let Some(at) = object.member(document, b"documents") else { return Some(Box::new([])) };
     let path = path.member(b"documents");
     let items = crate::domain::items(document, at, document.len(), &path, problems)?;
@@ -255,7 +255,7 @@ fn documents(
             && let Some(path) = file
         {
             documents
-                .push(jig_domain_core::Document { connector, name, path, heading })
+                .push(jig_domain_core_vocabulary::Document { connector, name, path, heading })
                 .expect("bounded document count");
         }
     }
@@ -342,7 +342,7 @@ fn validate(charter: &Charter, path: &Path, problems: &mut Problems) {
     if policy.turns <= policy.reserve_turns || policy.time <= policy.reserve_time {
         problems.push(path.clone(), What::Reserve { charter: charter.number });
     }
-    let enough = match jig_domain_core::reserve_floor(policy) {
+    let enough = match jig_domain_core_vocabulary::reserve_floor(policy) {
         Some(floor) => charter.spend >= floor,
         None => false,
     };
@@ -457,7 +457,7 @@ fn named_models(
     let mut alternatives = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"models"), index);
-        let name = match read::text(document, *at, jig_domain_core::MODEL_NAME_BYTES) {
+        let name = match read::text(document, *at, jig_domain_core_vocabulary::MODEL_NAME_BYTES) {
             Ok(name) => name,
             Err(what) => {
                 problems.push(path, what);

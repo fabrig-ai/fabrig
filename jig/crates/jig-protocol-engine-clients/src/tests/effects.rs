@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::translate;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::{acts, documents::PhaseCounts};
+use jig_domain_core_vocabulary::{acts, documents::PhaseCounts};
 const RELEASES: [(acts::ReleaseEffect, w::ReleaseEffect); 3] = [
     (acts::ReleaseEffect::Judged, w::ReleaseEffect::Judged),
     (acts::ReleaseEffect::RunAgain, w::ReleaseEffect::RunAgain),

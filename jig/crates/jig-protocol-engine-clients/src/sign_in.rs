@@ -43,7 +43,7 @@ pub(crate) enum Waiting {
     Get { owner: crate::component::services::GetOwner, digest: Secret, body: Box<[u8]>, route: Route },
     Made { sign_in: u64, party: u64 },
     Moving { sign_in: u64, account: u32, number: u32 },
-    Read { sign_in: u64, what: Box<jig_domain_core::reads::Read> },
+    Read { sign_in: u64, what: Box<jig_domain_core_vocabulary::reads::Read> },
     ApplicationRead { sign_in: u64, family: u16, version: u32 },
     Ask { sign_in: u64, family: Option<u16>, version: u32 },
     // A request whose carried value the store is keeping: the core sees

@@ -12,7 +12,7 @@ fn supplied_profiles_have_valid_domain_limits() {
         assert!(limits.driver.server.head >= listener_head, "{selected:?} head holds a browser's request");
         assert_eq!(limits.core.tasks.charter_documents, 2);
         assert_eq!(limits.core.brief.sections, 10);
-        assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");
+        assert!(jig_domain_core_vocabulary::valid(&limits.core), "{selected:?} core");
         assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
         assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
         assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
@@ -25,7 +25,7 @@ fn supplied_profiles_have_valid_domain_limits() {
             limits.store.orphan_erases,
         )
         .expect("profile store bounds");
-        let writes = jig_domain_core::settings::writes_bound(&limits.core).expect("profile settings writes");
+        let writes = jig_domain_core_vocabulary::settings::writes_bound(&limits.core).expect("profile settings writes");
         assert!(writes <= limits.journal.writes, "{selected:?} journal");
         let mut problems = crate::Problems::empty();
         crate::clients::check_settings(&limits, &mut problems);

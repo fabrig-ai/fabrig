@@ -1236,7 +1236,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
@@ -1436,7 +1436,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-authority",
  "jig-domain-brief",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-link",
@@ -1740,7 +1740,7 @@ version = "0.0.0"
 name = "jig-ops-protocol-observability"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-ops-domain-observability",
  "jig-protocol-tools",
  "skein-lib",
@@ -1849,7 +1849,7 @@ name = "jig-protocol-accounts-kit"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-protocol-accounts",
  "jig-protocol-config",
  "jig-protocol-store",
@@ -1895,7 +1895,7 @@ name = "jig-protocol-charter"
 version = "0.0.0"
 dependencies = [
  "jig-domain-brief",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-link",
@@ -1916,6 +1916,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-notes",
@@ -1949,7 +1950,7 @@ dependencies = [
  "jig-client-view",
  "jig-domain-accounts",
  "jig-domain-authority",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-link",
  "jig-domain-notes",
@@ -1996,7 +1997,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-link",
  "jig-domain-notes",
@@ -2023,7 +2024,7 @@ name = "jig-protocol-tools"
 version = "0.0.0"
 dependencies = [
  "jig-domain-authority",
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5620,7 +5621,7 @@ dependencies = [
 name = "temper-engine-domain-forge"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
  "skein-forge",
@@ -6331,7 +6332,7 @@ dependencies = [
 name = "temper-protocol-store"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",

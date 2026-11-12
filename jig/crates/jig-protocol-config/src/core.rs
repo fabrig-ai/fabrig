@@ -2,7 +2,7 @@
 use crate::{Address, Engine, ProviderKind};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use jig_domain_core as domain;
+use jig_domain_core_vocabulary as domain;
 use skein_io::Addr;
 use skein_lib::{List, Map};
 

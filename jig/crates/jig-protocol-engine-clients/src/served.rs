@@ -2,7 +2,7 @@
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::documents;
+use jig_domain_core_vocabulary::documents;
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 pub(crate) fn not_served(settings: &Settings, owner: w::Owner, limits: &w::Limits) -> w::NotServed {
@@ -53,7 +53,7 @@ pub(crate) fn watch(
             let event = translate::watches::watch(watcher, sign_in, value, rows)?;
             let project = 0;
             let mut rows = rows;
-            if let jig_domain_core::Event::Watch { window, .. } = &event {
+            if let jig_domain_core_vocabulary::Event::Watch { window, .. } = &event {
                 rows = window.rows;
             }
             Some(Opening { request: crate::Request::Core(Box::new(event)), project, rows })
