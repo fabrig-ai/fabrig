@@ -2,6 +2,9 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+
+- **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
+
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
 
 - **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on

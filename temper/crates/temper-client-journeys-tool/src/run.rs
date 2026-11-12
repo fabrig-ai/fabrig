@@ -215,7 +215,7 @@ fn build(
         "smith-fake-claude",
     ]);
     if is_tui {
-        cargo.args(["-p", "temper-client", "--features", "temper-client-shell-tui/record"]);
+        cargo.args(["-p", "temper-client"]);
     }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
@@ -226,10 +226,7 @@ fn build(
     bundler
         .env_clear()
         .envs(environment.iter().map(|(name, value)| (OsStr::from_bytes(name), OsStr::from_bytes(value))));
-    bundler.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none").arg("--loopback");
-    if !is_tui {
-        bundler.arg("--record");
-    }
+    bundler.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none");
     let status = bundler.arg(&bundle).status().map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));

@@ -75,10 +75,6 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
 }
 /// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 3).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
-pub fn preflight(named: &service::Named) -> Result<Agent, String> {
-    let worker = named.worker.as_ref().ok_or("workers: standalone takes one worker")?;
-    preflight_worker(worker)
-}
 pub fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
     let agent = read(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))?;
     for program in &agent.programs {

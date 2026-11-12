@@ -38,6 +38,12 @@ const BUNDLE: Variable = Variable {
     way: Way::Sets,
 };
 
+const RECORD: Variable = Variable {
+    way: Way::Sets,
+    absent: "The tool always sets 1 for the TUI and its box when recording again.",
+    ..temper_shell::environment::INTERNAL_RECORD
+};
+
 pub(crate) const CAUTION: &str = "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.";
 const ADD_NOTES: &str = concat!(
     "add takes out the link secret, stored credentials, typed secrets and each --redact TEXT, replacing their bytes with x's. ",
@@ -91,7 +97,7 @@ pub(crate) const AGAIN: Command = Command {
     forms: &["NAME"],
     line: "Record journey NAME again while its acts hold, then add it.",
     arguments: &[Argument { shown: "NAME", line: "The journey to record again." }],
-    variables: &[&CHROMIUM, &BUNDLE, &PATH, &TARGET],
+    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],
     notes: "Unwalkable journeys and invalid setups are refused before any build or child starts.",
     ..REPRINT
 };
@@ -222,6 +228,6 @@ pub const TABLE: Table = Table {
     commit: "",
     commands: &[REPRINT, ADD, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
-    variables: &[&CHROMIUM, &BUNDLE, &PATH, &TARGET],
+    variables: &[&CHROMIUM, &BUNDLE, &RECORD, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",
 };

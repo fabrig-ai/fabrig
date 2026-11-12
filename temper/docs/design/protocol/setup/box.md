@@ -632,9 +632,9 @@ temper.json and agent.json through their effective directory flags; peer
 commands read absolute effective document paths. Changing only the parent's
 parsed bytes is insufficient.
 
-Build the loopback bundle once, then start even with empty configuration:
+Build the bundle once, then start even with empty configuration:
 
-    scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle DIR
+    scripts/bundle.sh DIR && temper-box --fake-backends --bundle DIR
 
 The flag overrides an init-shaped source's application.clients.bundle;
 without it, that configured bundle is used. Missing both refuses with the

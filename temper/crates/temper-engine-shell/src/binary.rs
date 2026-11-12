@@ -85,15 +85,8 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             }
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
-                match serve::run(
-                    ENGINE.binary,
-                    &captured.environment,
-                    working.as_os_str().as_bytes(),
-                    &directories,
-                    false,
-                    None,
-                )
-                .map_err(|why| (1, why))?
+                match serve::run(ENGINE.binary, &captured.environment, working.as_os_str().as_bytes(), &directories)
+                    .map_err(|why| (1, why))?
                 {
                     Exit::Code(code) => code,
                     Exit::Signal(_) => 1,

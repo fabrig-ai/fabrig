@@ -523,7 +523,9 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
             }
         }
     }
-    let agent = temper_worker_shell::agent::preflight(named)?;
+    let agent = temper_worker_shell::agent::preflight_worker(
+        named.worker.as_ref().ok_or("workers: standalone takes one worker")?,
+    )?;
     for program in agent.programs {
         if !contained(&dirs.data, &program.directory) {
             return Err("agent.programs.directory: must stay under effective data".into());
@@ -533,15 +535,14 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         Some(bundle) => {
             let _checked = provisioned_bundle(Some(crate::path(bundle)), named.bundle_limits)?;
         }
-        None => return Err("application.clients.bundle: effective document must name its loopback bundle".into()),
+        None => return Err("application.clients.bundle: effective document must name its bundle".into()),
     }
     Ok(())
 }
 fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clients) -> Result<PathBuf, String> {
     let instructions =
-        "run scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
-    let path =
-        path.ok_or_else(|| format!("application.clients.bundle: no provisioned loopback bundle; {instructions}"))?;
+        "run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
+    let path = path.ok_or_else(|| format!("application.clients.bundle: no provisioned bundle; {instructions}"))?;
     let page = path.join("index.html");
     public_path(&page)
         .map_err(|why| format!("application.clients.bundle: {}: {why}; {instructions}", page.display()))?;

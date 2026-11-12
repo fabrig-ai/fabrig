@@ -152,14 +152,17 @@ temper-client-shell-terminal    the terminal: temper's host, its settings and li
 temper-client-tui               the TUI: its state, its events, its pages as skein-ui's tree, its words, its look's names and its theme (6.11 to 6.16)
 └── skein-ui-screen             skein's full-screen shell's renderer: the theme, the frame, the focus (skein's ui-screen.md)
 temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
-└── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+├── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+└── temper-client-redaction     the journeys' shared originals, redaction and scan, which the TUI's and the browser's recorders share (tui/journeys.md, 2)
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
 temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
 temper-client                   the deployment's client's binary, bin/temper-client: its `main` hands temper-version's line to its crate (../cli/README.md, 2)
 temper-client-shell             the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
-temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
+temper-client-shell-web         the browser: temper's shell, a library for wasm32 and on every target, its host ordinary Rust (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
-└── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+├── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+└── temper-client-redaction     the journeys' shared originals, redaction and scan (web/journeys.md, 2)
+temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/README.md, 2.1)
 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4)

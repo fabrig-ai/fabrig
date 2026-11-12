@@ -98,7 +98,7 @@ fn a_tui_setup_is_read_whole_before_any_build_or_child() {
     assert!(matches!(walker.phase, Phase::Load));
     assert_eq!(
         walker.progress(&mut face, Time::ZERO).expect("reload after setup"),
-        Next::Do(Doing::Go { address: b"/child".as_slice().into() })
+        Next::Do(Doing::Go { address: b"/child?internal-loopback-navigation=1".as_slice().into() })
     );
     assert!(matches!(walker.phase, Phase::Opening));
     assert!(walker.terminal.is_none(), "reload precedes the TUI");
@@ -184,6 +184,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("XDG_RUNTIME_DIR", "/tmp/journey-environment/runtime"),
             ("COLORFGBG", "0;15"),
             ("TERM", "dumb"),
+            ("TEMPER_INTERNAL_RECORD", ""),
             ("SSH_CONNECTION", "remote"),
             ("SSH_TTY", "tty"),
             ("SSH_AUTH_SOCK", "agent"),
@@ -203,6 +204,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("XDG_STATE_HOME", "/tmp/journey-environment/state"),
             ("XDG_RUNTIME_DIR", "/tmp/journey-environment/tui-runtime"),
             ("TERM", "xterm-256color"),
+            ("TEMPER_INTERNAL_RECORD", "1"),
             ("DISPLAY", display.unwrap_or(":0")),
             ("LANG", "C.UTF-8"),
         ] {

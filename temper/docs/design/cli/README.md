@@ -438,6 +438,14 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
   5), switches included: `TEMPER_INTERNAL_WORKSPACE_REUSE` set to any
   nonempty value turns reuse on, and an empty one leaves it off, as
   `Variable::value` reads it.
+- **`TEMPER_INTERNAL_RECORD`** (`../draft/cli.md`, 4.6 and section 6):
+  internal, a switch read where the TUI starts, from the binary's
+  captured environment, by the box's front and by the client's start;
+  any nonempty value records the TUI (`../client/tui/journeys.md`, 2),
+  and the journeys tool sets it. One constant,
+  `temper_shell::environment::INTERNAL_RECORD`, which each table that
+  runs the TUI holds: the box's, on `internal tui` until C3, and the
+  client's once C3 gives it a table.
 - **Twins dropped:** `TEMPER_ECHO`, `TEMPER_SEED`, `TEMPER_READY`,
   `TEMPER_OBSERVATIONS` and `TEMPER_DOCUMENT`. A test that set one
   passes the flag; a flag's precedence over its twin is skein's to test

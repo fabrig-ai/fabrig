@@ -8,7 +8,7 @@ publish.workspace = true
 
 [dependencies]
 skein-shell.workspace = true
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 serde_json.workspace = true
 settings-form.workspace = true
 

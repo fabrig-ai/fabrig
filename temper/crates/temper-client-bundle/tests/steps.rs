@@ -100,60 +100,65 @@ fn commands_keep_jobserver_and_remove_outer_flags() {
         Path::new("/out"),
         ("web", "web"),
     );
-    let expected = [
-        (
-            "/tool/cargo",
-            vec![
-                "build",
-                "--locked",
-                "--target",
-                "wasm32-unknown-unknown",
-                "--profile",
-                "web",
-                "-p",
-                "temper-client-shell-web",
-            ],
-        ),
-        ("/tool/cargo", vec!["build", "--locked", "--release", "-p", "skein-ui-bundle"]),
-        (
-            "/target/bundle/release/skein-ui-bundle",
-            vec![
-                "--module",
-                "/target/bundle/wasm32-unknown-unknown/web/temper_client_shell_web.wasm",
-                "--name",
-                "temper_client_shell_web",
-                "--prefix",
-                "/bundle/",
-                "--title",
-                "temper",
-                "--placeholder",
-                "/work/crates/temper-client-shell-web/loading.html",
-                "--placeholder-stylesheet",
-                "/work/crates/temper-client-shell-web/loading.css",
-                "--stylesheet",
-                "/work/crates/temper-client-shell-web/temper.css",
-                "--stylesheet",
-                "/work/crates/temper-client-shell-web/task-pages.css",
-                "--files",
-                "/work/crates/temper-client-shell-web/files",
-                "--noscript",
-                "temper needs WebAssembly and scripts.",
-                "--out",
-                "/out/bundle",
-            ],
-        ),
-    ];
-    for (command, (program, args)) in commands.iter().zip(expected) {
-        assert_eq!(command.program, program);
-        assert_eq!(command.args, args);
+    for command in &commands[..2] {
+        assert_eq!(command.program, "/tool/cargo");
         assert_eq!(command.directory, Path::new("/work"));
     }
+    assert_eq!(commands[2].program, "/target/bundle/release/skein-ui-bundle");
+    assert_eq!(commands[2].directory, Path::new("/work"));
     for command in &commands[..2] {
         assert_eq!(command.remove, ["CARGO_ENCODED_RUSTFLAGS", "RUSTFLAGS", "RUSTC_WORKSPACE_WRAPPER", "CLIPPY_ARGS"]);
         assert_eq!(command.set, [("CARGO_TARGET_DIR", "/target/bundle".into())]);
     }
     assert!(commands[2].remove.is_empty());
     assert!(commands[2].set.is_empty());
+}
+
+#[test]
+fn nested_build_uses_the_shipped_page_and_keeps_the_shell_assets() {
+    for (profile, output) in [("dev", "debug"), ("web", "web")] {
+        let commands = steps::commands(
+            OsStr::new("cargo"),
+            Path::new("/work"),
+            Path::new("/target"),
+            Path::new("/out"),
+            (profile, output),
+        );
+        assert_eq!(
+            commands[0].args,
+            [
+                "build",
+                "--locked",
+                "--target",
+                "wasm32-unknown-unknown",
+                "-p",
+                "temper-client-web-page",
+                "--profile",
+                profile,
+            ]
+        );
+        assert_eq!(commands[1].args, ["build", "--locked", "--release", "-p", "skein-ui-bundle"]);
+        let bundle = &commands[2].args;
+        assert!(bundle.windows(2).any(|pair| pair
+            == ["--module", &format!("/target/bundle/wasm32-unknown-unknown/{output}/temper_client_web_page.wasm")]));
+        assert!(bundle.windows(2).any(|pair| pair == ["--name", "temper_client_web_page"]));
+        for (option, file) in [
+            ("--placeholder", "loading.html"),
+            ("--placeholder-stylesheet", "loading.css"),
+            ("--stylesheet", "temper.css"),
+            ("--stylesheet", "task-pages.css"),
+            ("--files", "files"),
+        ] {
+            assert!(
+                bundle.windows(2).any(|pair| pair == [option, &format!("/work/crates/temper-client-shell-web/{file}")]),
+                "{option} {file}"
+            );
+        }
+        assert_eq!(
+            steps::module_dep_info(Path::new("/target"), output),
+            PathBuf::from(format!("/target/bundle/wasm32-unknown-unknown/{output}/temper_client_web_page.d"))
+        );
+    }
 }
 
 #[test]

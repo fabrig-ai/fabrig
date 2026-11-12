@@ -1464,6 +1464,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-paths",
         b"temper-how-rules-note",
         b"temper-how-empty",
+        b"temper-how-who-none",
     ],
     regions: &[b"temper-link"],
 };
@@ -1954,6 +1955,8 @@ pub const HOW_FOLLOWS: Style = Style { owner: owner(), token: 732 };
 pub const HOW_FOLLOW: Style = Style { owner: owner(), token: 733 };
 pub const HOW_CHIPS: Style = Style { owner: owner(), token: 734 };
 pub const HOW_WHO_CODE: Style = Style { owner: owner(), token: 735 };
+/// A relation chip with no actor mark (client/pages/home.md, 1).
+pub const HOW_WHO_NONE: Style = Style { owner: owner(), token: 742 };
 
 #[cfg(test)]
 mod tests {

@@ -32,6 +32,7 @@ const DIRECTORIES: Argument =
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
 const TUI_VARIABLES: &[&Variable] = &[
+    &environment::INTERNAL_RECORD,
     &environment::PATH,
     &environment::TERM,
     &environment::COLORTERM,

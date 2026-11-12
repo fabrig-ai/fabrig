@@ -22,6 +22,16 @@ pub const INTERNAL_DUMP_LLM: Variable = Variable {
     notes: "The box's worker reads it and sets it for its agents. An empty value disables dumping; a relative path is taken from the working directory.",
 };
 
+pub const INTERNAL_RECORD: Variable = Variable {
+    name: "TEMPER_INTERNAL_RECORD",
+    set: Set::Internal,
+    form: "VALUE",
+    way: Way::Reads,
+    line: "Record the TUI into its directory.",
+    absent: "Record nothing.",
+    notes: "Any nonempty value enables recording; an empty value is unset.",
+};
+
 pub const PATH: Variable = Variable {
     name: "PATH",
     set: Set::Public,

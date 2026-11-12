@@ -775,7 +775,12 @@ fn rules_follow_the_shown_rows_and_ask_offering() {
 }
 
 #[expect(clippy::disallowed_methods, reason = "ordinary fixture maps owned wire fields")]
-fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<w::FollowVerdict>) -> w::FollowView {
+pub(super) fn follow_row(
+    paths: &[&[u8]],
+    start: w::FollowStart,
+    lag: u32,
+    verdict: Option<w::FollowVerdict>,
+) -> w::FollowView {
     let repo = w::FollowRepository::new(&w::CEILINGS, w::FollowRepositoryParts { forge: 1, repository: 7 }).unwrap();
     let setting = w::Follow::new(
         &w::CEILINGS,

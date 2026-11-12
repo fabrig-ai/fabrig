@@ -1,6 +1,8 @@
 use skein_forge_connection::settings::Kind;
 use skein_lib::{Rng, Secret};
-use temper_protocol_records::{self as records, Origin, Rows};
+use temper_protocol_records as records;
+use temper_protocol_records_forge as forge_records;
+use temper_protocol_records_forge::{Origin, Rows};
 #[test]
 fn arbitrary_record_values_never_panic_and_origins_round_trip() {
     let mut rng = Rng::new(0x01_2026);
@@ -20,7 +22,7 @@ fn arbitrary_record_values_never_panic_and_origins_round_trip() {
         rows.push((1 << 48) | (1 << 16) | rng.between(0, 12), Secret::new(bytes.into_boxed_slice()), 4096);
         if let Some(rows) = rows.forge(1) {
             let origin = Origin { kind: Kind::GitHub, api: Box::from("fake.test:443") };
-            let _access = records::access(Kind::GitHub, &origin, rows, &bounds, false);
+            let _access = forge_records::access(Kind::GitHub, &origin, rows, &bounds, false);
         }
     }
 }
